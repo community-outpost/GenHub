@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Workspace;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -127,9 +128,9 @@ public class ExecutablePermissionIsolationTests : IDisposable
     }
 
     /// <summary>
-    /// The destination must never be observable as missing or non-executable. Verification
-    /// never mutates, so a workspace left with a non-executable entry point stays broken
-    /// for every later launch — the failure this sequence exists to prevent.
+    /// The destination must never be observable as missing or non-executable. Validation
+    /// can restore a lost execute bit on the entry point, but on no other executable the
+    /// manifest names, so materialisation must not expose either state in the first place.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
@@ -155,6 +156,44 @@ public class ExecutablePermissionIsolationTests : IDisposable
             "The replacement was already executable before it became the destination.");
         Assert.False(File.Exists(temporaryPath));
         Assert.Equal("engine binary", await File.ReadAllTextAsync(workspaceFile));
+    }
+
+    /// <summary>
+    /// Workspaces bricked before materialisation became atomic can hold an entry point
+    /// that is still hard-linked into the content store with its execute bit lost. The
+    /// validator's repair must restore the bit the same way materialisation grants it:
+    /// on a private copy, so the stored blob keeps the mode it was ingested with.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task RepairingABrickedEntryPoint_LeavesTheStoredBlobUntouched()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var casBlob = Path.Combine(_tempDir, "cas-blob");
+        var entryPoint = Path.Combine(_tempDir, "entry-point");
+        await File.WriteAllTextAsync(casBlob, "engine binary");
+        File.SetUnixFileMode(casBlob, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        await _service.CreateHardLinkAsync(entryPoint, casBlob);
+
+        var validator = new WorkspaceValidator(NullLogger<WorkspaceValidator>.Instance);
+        var result = await validator.EnsureEntryPointExecutableAsync(new WorkspaceInfo
+        {
+            Id = "bricked-workspace",
+            WorkspacePath = _tempDir,
+            ExecutablePath = entryPoint,
+        });
+
+        Assert.True(result.Success);
+        Assert.True(result.Data);
+        Assert.True(File.GetUnixFileMode(entryPoint).HasFlag(UnixFileMode.UserExecute));
+        Assert.False(
+            File.GetUnixFileMode(casBlob).HasFlag(UnixFileMode.UserExecute),
+            "The stored blob was modified, so every other profile using this hash is affected.");
+        Assert.Equal("engine binary", await File.ReadAllTextAsync(entryPoint));
     }
 
     /// <summary>

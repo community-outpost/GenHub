@@ -219,9 +219,7 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
             // Validate executable exists if specified
             if (!string.IsNullOrEmpty(workspaceInfo.ExecutablePath))
             {
-                var executablePath = Path.IsPathRooted(workspaceInfo.ExecutablePath)
-                    ? workspaceInfo.ExecutablePath
-                    : Path.Combine(workspaceInfo.WorkspacePath, workspaceInfo.ExecutablePath);
+                var executablePath = ResolveEntryPointPath(workspaceInfo);
 
                 if (!File.Exists(executablePath))
                 {
@@ -233,44 +231,21 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
                         Path = executablePath,
                     });
                 }
-                else
+                else if (!OperatingSystem.IsWindows())
                 {
-                    // Check if executable has execute permissions (on Unix systems)
-                    if (!OperatingSystem.IsWindows())
+                    // A lost execute bit is repaired rather than merely reported: the
+                    // entry point is a workspace-owned copy, so restoring its mode cannot
+                    // reach a shared content-store blob.
+                    var repairResult = await EnsureEntryPointExecutableAsync(workspaceInfo, cancellationToken);
+                    if (!repairResult.Success)
                     {
-                        try
+                        issues.Add(new ValidationIssue
                         {
-                            var fileInfo = new FileInfo(executablePath);
-
-                            // Check if file exists and has execute permission for the current user
-                            if (!fileInfo.Exists)
-                            {
-                                issues.Add(new ValidationIssue
-                                {
-                                    IssueType = ValidationIssueType.AccessDenied,
-                                    Severity = ValidationSeverity.Warning,
-                                    Message = $"Cannot verify execute permissions for: {executablePath}",
-                                    Path = executablePath,
-                                });
-                            }
-                            else
-                            {
-                                if (!HasUnixExecutePermission(executablePath))
-                                {
-                                    issues.Add(new ValidationIssue
-                                    {
-                                        IssueType = ValidationIssueType.AccessDenied,
-                                        Severity = ValidationSeverity.Warning,
-                                        Message = $"File is not executable by the current process: {executablePath}",
-                                        Path = executablePath,
-                                    });
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            logger.LogWarning(ex, "Could not check execute permissions for {ExecutablePath}", executablePath);
-                        }
+                            IssueType = ValidationIssueType.AccessDenied,
+                            Severity = ValidationSeverity.Warning,
+                            Message = $"File is not executable by the current process: {executablePath}",
+                            Path = executablePath,
+                        });
                     }
                 }
             }
@@ -321,6 +296,72 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
             logger.LogError(ex, "Failed to validate workspace {WorkspaceId}", workspaceInfo.Id);
             return OperationResult<ValidationResult>.CreateFailure($"Workspace validation failed: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Ensures the workspace entry point is executable by the current process, restoring
+    /// the Unix execute mode on a workspace-owned copy when the file exists without it.
+    /// <para>
+    /// This exists for workspaces materialised before executable modes were applied
+    /// atomically: their entry point can be present with the execute bit lost, and no
+    /// later materialisation ever runs to restore it. The repair swaps the file for a
+    /// private executable copy, so even an entry point that is still hard-linked into
+    /// the content store never has its shared blob touched.
+    /// </para>
+    /// <para>
+    /// A missing entry point is reported as a failure, never created — materialisation
+    /// owns producing the file; this method only restores its mode.
+    /// </para>
+    /// </summary>
+    /// <param name="workspaceInfo">The workspace whose entry point is checked.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>
+    /// A successful result whose data indicates whether a repair was performed, or a
+    /// failed result when the entry point is missing or could not be made executable.
+    /// </returns>
+    public async Task<OperationResult<bool>> EnsureEntryPointExecutableAsync(WorkspaceInfo workspaceInfo, CancellationToken cancellationToken = default)
+    {
+        if (OperatingSystem.IsWindows() || string.IsNullOrEmpty(workspaceInfo.ExecutablePath))
+        {
+            return OperationResult<bool>.CreateSuccess(false);
+        }
+
+        var executablePath = ResolveEntryPointPath(workspaceInfo);
+
+        if (!File.Exists(executablePath))
+        {
+            return OperationResult<bool>.CreateFailure($"Workspace entry point not found: {executablePath}");
+        }
+
+        if (HasUnixExecutePermission(executablePath))
+        {
+            return OperationResult<bool>.CreateSuccess(false);
+        }
+
+        try
+        {
+            await Task.Run(() => ExecutableFileSwap.MakeExecutable(executablePath), cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not restore the execute mode on workspace entry point {ExecutablePath}", executablePath);
+            return OperationResult<bool>.CreateFailure($"Could not restore the execute mode on {executablePath}: {ex.Message}");
+        }
+
+        if (!HasUnixExecutePermission(executablePath))
+        {
+            return OperationResult<bool>.CreateFailure($"Workspace entry point is still not executable after repair: {executablePath}");
+        }
+
+        logger.LogInformation("Restored the execute mode on workspace entry point {ExecutablePath}", executablePath);
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static string ResolveEntryPointPath(WorkspaceInfo workspaceInfo)
+    {
+        return Path.IsPathRooted(workspaceInfo.ExecutablePath)
+            ? workspaceInfo.ExecutablePath
+            : Path.Combine(workspaceInfo.WorkspacePath, workspaceInfo.ExecutablePath);
     }
 
     private static bool IsRunningAsAdministrator()

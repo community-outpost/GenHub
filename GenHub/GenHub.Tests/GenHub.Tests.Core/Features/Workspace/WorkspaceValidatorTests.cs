@@ -254,11 +254,12 @@ public partial class WorkspaceValidatorTests : IDisposable
 
     /// <summary>
     /// An execute bit for an identity other than the effective process identity must not
-    /// make a workspace entry point appear executable.
+    /// make a workspace entry point appear executable — validation repairs the entry
+    /// point on a workspace-owned copy instead of reporting a warning.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ValidateWorkspaceAsync_OtherOnlyExecuteBit_ReturnsAccessWarning()
+    public async Task ValidateWorkspaceAsync_OtherOnlyExecuteBit_RepairsEntryPoint()
     {
         // Root bypasses the permission bits entirely: faccessat reports execute access for
         // an other-only bit, so the behaviour under test does not exist for uid 0. Checked
@@ -286,10 +287,159 @@ public partial class WorkspaceValidatorTests : IDisposable
 
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
+        Assert.DoesNotContain(
+            result.Data.Issues,
+            issue => issue.IssueType == ValidationIssueType.AccessDenied);
+        Assert.True(File.GetUnixFileMode(executablePath).HasFlag(UnixFileMode.UserExecute));
+        Assert.Equal("engine binary", await File.ReadAllTextAsync(executablePath));
+    }
+
+    /// <summary>
+    /// A workspace bricked before executable modes were applied atomically — entry point
+    /// present, execute bit lost — is repaired so launch preparation can proceed.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureEntryPointExecutableAsync_BrickedEntryPoint_RestoresExecuteMode()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var executablePath = Path.Combine(_workspaceDir, "client");
+        await File.WriteAllTextAsync(executablePath, "engine binary");
+        File.SetUnixFileMode(executablePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = "client",
+        };
+
+        var result = await _validator.EnsureEntryPointExecutableAsync(workspaceInfo);
+
+        Assert.True(result.Success);
+        Assert.True(result.Data);
+        Assert.True(File.GetUnixFileMode(executablePath).HasFlag(UnixFileMode.UserExecute));
+        Assert.Equal("engine binary", await File.ReadAllTextAsync(executablePath));
+        Assert.False(File.Exists(executablePath + ".genhub-exec-tmp"));
+    }
+
+    /// <summary>
+    /// An entry point that is already executable is left alone.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureEntryPointExecutableAsync_AlreadyExecutable_ReportsNoRepair()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var executablePath = Path.Combine(_workspaceDir, "client");
+        await File.WriteAllTextAsync(executablePath, "engine binary");
+        var originalMode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
+        File.SetUnixFileMode(executablePath, originalMode);
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = executablePath,
+        };
+
+        var result = await _validator.EnsureEntryPointExecutableAsync(workspaceInfo);
+
+        Assert.True(result.Success);
+        Assert.False(result.Data);
+        Assert.Equal(originalMode, File.GetUnixFileMode(executablePath));
+    }
+
+    /// <summary>
+    /// A missing entry point is an error, not something repair may create.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureEntryPointExecutableAsync_MissingEntryPoint_FailsWithoutCreatingFile()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var executablePath = Path.Combine(_workspaceDir, "missing-client");
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = executablePath,
+        };
+
+        var result = await _validator.EnsureEntryPointExecutableAsync(workspaceInfo);
+
+        Assert.False(result.Success);
+        Assert.False(File.Exists(executablePath));
+    }
+
+    /// <summary>
+    /// Validation keeps reporting a missing entry point as an error rather than creating one.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateWorkspaceAsync_MissingEntryPoint_ReportsErrorWithoutCreatingFile()
+    {
+        var executablePath = Path.Combine(_workspaceDir, "missing-client");
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = executablePath,
+        };
+
+        var result = await _validator.ValidateWorkspaceAsync(workspaceInfo);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
         Assert.Contains(
             result.Data.Issues,
-            issue => issue.IssueType == ValidationIssueType.AccessDenied
-                && issue.Severity == ValidationSeverity.Warning);
+            issue => issue.IssueType == ValidationIssueType.MissingFile
+                && issue.Severity == ValidationSeverity.Error);
+        Assert.False(File.Exists(executablePath));
+    }
+
+    /// <summary>
+    /// Windows has no execute bit, so the repair is a no-op that leaves the file untouched.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureEntryPointExecutableAsync_OnWindows_IsANoOp()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var executablePath = Path.Combine(_workspaceDir, "client.exe");
+        await File.WriteAllTextAsync(executablePath, "engine binary");
+        var lastWrite = File.GetLastWriteTimeUtc(executablePath);
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = executablePath,
+        };
+
+        var result = await _validator.EnsureEntryPointExecutableAsync(workspaceInfo);
+
+        Assert.True(result.Success);
+        Assert.False(result.Data);
+        Assert.Equal(lastWrite, File.GetLastWriteTimeUtc(executablePath));
     }
 
     /// <summary>
