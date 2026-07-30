@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Launching;
 using GenHub.Features.GameProfiles.Infrastructure;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -92,12 +93,25 @@ public class EngineLaunchSmokeTests : IDisposable
         var exited = new TaskCompletionSource<int?>(TaskCreationOptions.RunContinuationsAsynchronously);
         _processManager.ProcessExited += (_, e) => exited.TrySetResult(e.ExitCode);
 
+        // The install-path variables are pinned to the empty workspace so a developer who
+        // has them exported cannot feed this "no data" launch their real retail content
+        // through the inherited environment. GameProcessManager assigns these into
+        // ProcessStartInfo.EnvironmentVariables by indexer, which the framework
+        // pre-populates from the parent environment — so an inherited value is replaced,
+        // not merely joined. The trailing separator matches how GameLauncher sets these
+        // for real launches: the engine requires it on the value.
+        var pinnedInstallPath = workspace + Path.DirectorySeparatorChar;
         var configuration = new GameLaunchConfiguration
         {
             ExecutablePath = Path.Combine(workspace, NativeClientFixture.BinaryName),
             WorkingDirectory = workspace,
             Arguments = new() { ["-headless"] = string.Empty },
-            EnvironmentVariables = new() { ["HOME"] = sandboxHome },
+            EnvironmentVariables = new()
+            {
+                ["HOME"] = sandboxHome,
+                [RetailArchiveConstants.ZeroHourInstallPathVariable] = pinnedInstallPath,
+                [RetailArchiveConstants.GeneralsInstallPathVariable] = pinnedInstallPath,
+            },
         };
 
         var result = await _processManager.StartProcessAsync(configuration);
@@ -156,8 +170,9 @@ public class EngineLaunchSmokeTests : IDisposable
     /// what the engine leaves behind is a crash report named <c>ReleaseCrashInfo.txt</c>
     /// under HOME (on macOS beneath <c>Library/Application Support</c>). Searched
     /// recursively so the intermediate segments — engine behaviour, and platform
-    /// dependent — are not hardcoded. Finding it in the sandbox also proves the HOME
-    /// redirection worked: the report landed here, not in the user's real profile.
+    /// dependent — are not hardcoded. The sandbox HOME is created empty by this test, so
+    /// any report found here was newly written by this launch; finding it in the sandbox
+    /// also proves the HOME redirection worked, keeping the user's real profile untouched.
     /// </summary>
     /// <param name="sandboxHome">The redirected HOME directory.</param>
     private static void AssertCrashReportWasWritten(string sandboxHome)
@@ -172,6 +187,19 @@ public class EngineLaunchSmokeTests : IDisposable
             + "exiting, so its absence means this was a different failure than the "
             + "no-game-data INI abort this test pins down.";
         Assert.True(reports.Count > 0, missingReportMessage);
+
+        var reportContents = File.ReadAllText(reports[0]);
+        Assert.False(
+            string.IsNullOrWhiteSpace(reportContents),
+            $"The crash report at '{reports[0]}' is empty; the known abort records its reason.");
+
+        // The stable line the abort writes is "; Reason Uncaught Exception during
+        // initialization." — asserted without the leading punctuation so a formatting
+        // change there cannot break the test, while the reason itself stays pinned.
+        Assert.Contains(
+            "Reason Uncaught Exception during initialization.",
+            reportContents,
+            StringComparison.Ordinal);
     }
 
     /// <summary>
