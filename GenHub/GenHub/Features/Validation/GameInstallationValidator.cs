@@ -228,7 +228,7 @@ public class GameInstallationValidator(
                 targetInstall.SetPaths(generalsPath: installationPath, zeroHourPath: null);
             }
 
-            manifest = await manifestProvider.GetManifestAsync(targetInstall, cancellationToken);
+            manifest = await manifestProvider.GetManifestAsync(targetInstall, gameType, cancellationToken);
         }
 
         if (manifest == null)
