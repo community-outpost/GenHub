@@ -562,9 +562,19 @@ public class GameLauncher(
 
         if (gameType == GameType.ZeroHour)
         {
-            // Checked only when declared. A Zero Hour installation that carries the base
-            // archives itself needs no separate Generals root, so an absent one is not an
-            // error — but a declared one that is broken is.
+            // Checked only when declared, because an absent Generals root is not by itself
+            // wrong: the engine mounts archives from the working directory as well, so base
+            // content may legitimately sit in the workspace instead of a retail root. That
+            // is the arrangement this whole mechanism replaces, but it remains valid.
+            //
+            // KNOWN GAP: when no Generals root is declared and the workspace does not carry
+            // base content either, Zero Hour still starts with nothing to mount and this
+            // check cannot tell. Archive filenames are arbitrary — a real install holds mod,
+            // hotkey and control-bar archives alongside the retail ones — so presence of
+            // "*.big" anywhere proves nothing about base content specifically. Detecting it
+            // needs the engine to report a failed mount; see the engine-side work tracked
+            // for GeneralsGameCode. A workspace "*.big" check was considered and rejected:
+            // a Zero Hour workspace always contains archives, so it would always pass.
             roots.Add((RetailArchiveConstants.GeneralsInstallPathVariable, installation?.GeneralsPath, false));
         }
 
