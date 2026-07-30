@@ -413,6 +413,147 @@ public partial class WorkspaceValidatorTests : IDisposable
     }
 
     /// <summary>
+    /// A rooted entry point outside the workspace root is refused without being touched,
+    /// even when the outside directory shares the root as a name prefix.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureEntryPointExecutableAsync_RootedPathOutsideWorkspace_RefusesWithoutMutation()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        // The sibling shares the workspace root as a prefix, so a containment check
+        // without the trailing separator would wrongly accept it.
+        var evilDir = _workspaceDir + "-evil";
+        Directory.CreateDirectory(evilDir);
+        var outsidePath = Path.Combine(evilDir, "client");
+        await File.WriteAllTextAsync(outsidePath, "outside binary");
+        var originalMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        File.SetUnixFileMode(outsidePath, originalMode);
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = outsidePath,
+        };
+
+        var result = await _validator.EnsureEntryPointExecutableAsync(workspaceInfo);
+
+        Assert.False(result.Success);
+        Assert.Contains("outside the workspace root", result.FirstError);
+        Assert.Equal(originalMode, File.GetUnixFileMode(outsidePath));
+        Assert.Equal("outside binary", await File.ReadAllTextAsync(outsidePath));
+    }
+
+    /// <summary>
+    /// A relative entry point that traverses out of the workspace root is refused
+    /// without being touched.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureEntryPointExecutableAsync_TraversalPath_RefusesWithoutMutation()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var outsidePath = Path.Combine(_sourceDir, "client");
+        await File.WriteAllTextAsync(outsidePath, "outside binary");
+        var originalMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        File.SetUnixFileMode(outsidePath, originalMode);
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = Path.Combine("..", "source", "client"),
+        };
+
+        var result = await _validator.EnsureEntryPointExecutableAsync(workspaceInfo);
+
+        Assert.False(result.Success);
+        Assert.Contains("outside the workspace root", result.FirstError);
+        Assert.Equal(originalMode, File.GetUnixFileMode(outsidePath));
+    }
+
+    /// <summary>
+    /// Strategies store the entry point as an absolute path inside the workspace, so a
+    /// rooted in-workspace path must still be repaired.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureEntryPointExecutableAsync_RootedPathInsideWorkspace_StillRepairs()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var executablePath = Path.Combine(_workspaceDir, "client");
+        await File.WriteAllTextAsync(executablePath, "engine binary");
+        File.SetUnixFileMode(executablePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = executablePath,
+        };
+
+        var result = await _validator.EnsureEntryPointExecutableAsync(workspaceInfo);
+
+        Assert.True(result.Success);
+        Assert.True(result.Data);
+        Assert.True(File.GetUnixFileMode(executablePath).HasFlag(UnixFileMode.UserExecute));
+        Assert.Equal("engine binary", await File.ReadAllTextAsync(executablePath));
+    }
+
+    /// <summary>
+    /// Validation reports an entry point that escapes the workspace root as an error and
+    /// leaves the outside file untouched.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateWorkspaceAsync_EntryPointOutsideWorkspace_ReportsErrorWithoutMutation()
+    {
+        var outsidePath = Path.Combine(_sourceDir, "client");
+        await File.WriteAllTextAsync(outsidePath, "outside binary");
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(outsidePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        }
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = outsidePath,
+        };
+
+        var result = await _validator.ValidateWorkspaceAsync(workspaceInfo);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Contains(
+            result.Data.Issues,
+            issue => issue.IssueType == ValidationIssueType.UnexpectedFile
+                && issue.Severity == ValidationSeverity.Error
+                && issue.Message.Contains("outside the workspace root"));
+
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.False(File.GetUnixFileMode(outsidePath).HasFlag(UnixFileMode.UserExecute));
+        }
+
+        Assert.Equal("outside binary", await File.ReadAllTextAsync(outsidePath));
+    }
+
+    /// <summary>
     /// Windows has no execute bit, so the repair is a no-op that leaves the file untouched.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>

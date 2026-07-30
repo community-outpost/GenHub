@@ -36,7 +36,8 @@ public interface IWorkspaceValidator
     /// <summary>
     /// Ensures the workspace entry point is executable by the current process, restoring
     /// the Unix execute mode on a workspace-owned copy when the file exists without it.
-    /// A missing entry point is reported as a failure, never created.
+    /// A missing entry point is reported as a failure, never created, and an entry point
+    /// resolving outside the workspace root is refused without being touched.
     /// </summary>
     /// <param name="workspaceInfo">The workspace whose entry point is checked.</param>
     /// <param name="cancellationToken">A cancellation token.</param>

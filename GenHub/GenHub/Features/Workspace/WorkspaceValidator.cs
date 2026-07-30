@@ -219,9 +219,17 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
             // Validate executable exists if specified
             if (!string.IsNullOrEmpty(workspaceInfo.ExecutablePath))
             {
-                var executablePath = ResolveEntryPointPath(workspaceInfo);
-
-                if (!File.Exists(executablePath))
+                if (!TryResolveContainedEntryPointPath(workspaceInfo, out var executablePath))
+                {
+                    issues.Add(new ValidationIssue
+                    {
+                        IssueType = ValidationIssueType.UnexpectedFile,
+                        Severity = ValidationSeverity.Error,
+                        Message = $"Executable path '{workspaceInfo.ExecutablePath}' resolves outside the workspace root '{workspaceInfo.WorkspacePath}'",
+                        Path = workspaceInfo.ExecutablePath,
+                    });
+                }
+                else if (!File.Exists(executablePath))
                 {
                     issues.Add(new ValidationIssue
                     {
@@ -310,7 +318,9 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
     /// </para>
     /// <para>
     /// A missing entry point is reported as a failure, never created — materialisation
-    /// owns producing the file; this method only restores its mode.
+    /// owns producing the file; this method only restores its mode. An entry point that
+    /// resolves outside the workspace root is likewise refused without touching it, so
+    /// stale or corrupted metadata can never redirect the repair at a foreign file.
     /// </para>
     /// </summary>
     /// <param name="workspaceInfo">The workspace whose entry point is checked.</param>
@@ -326,7 +336,11 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
             return OperationResult<bool>.CreateSuccess(false);
         }
 
-        var executablePath = ResolveEntryPointPath(workspaceInfo);
+        if (!TryResolveContainedEntryPointPath(workspaceInfo, out var executablePath))
+        {
+            return OperationResult<bool>.CreateFailure(
+                $"Workspace entry point '{workspaceInfo.ExecutablePath}' resolves outside the workspace root '{workspaceInfo.WorkspacePath}'");
+        }
 
         if (!File.Exists(executablePath))
         {
@@ -357,11 +371,54 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
         return OperationResult<bool>.CreateSuccess(true);
     }
 
-    private static string ResolveEntryPointPath(WorkspaceInfo workspaceInfo)
+    /// <summary>
+    /// Resolves the workspace entry point to a full path and requires it to be strictly
+    /// inside the workspace root.
+    /// <para>
+    /// Containment is load-bearing here because the entry point is not only read but
+    /// repaired in place: stale or corrupted workspace metadata must never cause a file
+    /// outside the workspace to be replaced. The check appends the directory separator
+    /// to the root before comparing, so a sibling such as <c>foo-evil</c> cannot pass
+    /// for a root named <c>foo</c>.
+    /// </para>
+    /// </summary>
+    /// <param name="workspaceInfo">The workspace whose entry point is resolved.</param>
+    /// <param name="executablePath">The fully resolved entry point path, when contained.</param>
+    /// <returns><c>true</c> when the entry point resolves inside the workspace root.</returns>
+    private static bool TryResolveContainedEntryPointPath(WorkspaceInfo workspaceInfo, out string executablePath)
     {
-        return Path.IsPathRooted(workspaceInfo.ExecutablePath)
-            ? workspaceInfo.ExecutablePath
-            : Path.Combine(workspaceInfo.WorkspacePath, workspaceInfo.ExecutablePath);
+        executablePath = string.Empty;
+
+        try
+        {
+            var workspaceRoot = Path.GetFullPath(workspaceInfo.WorkspacePath);
+            var candidate = Path.IsPathRooted(workspaceInfo.ExecutablePath)
+                ? workspaceInfo.ExecutablePath
+                : Path.Combine(workspaceRoot, workspaceInfo.ExecutablePath);
+            var resolved = Path.GetFullPath(candidate);
+
+            var rootWithSeparator = Path.EndsInDirectorySeparator(workspaceRoot)
+                ? workspaceRoot
+                : workspaceRoot + Path.DirectorySeparatorChar;
+
+            // Ordinal on Unix; Windows path comparisons are case-insensitive.
+            var comparison = OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+
+            if (!resolved.StartsWith(rootWithSeparator, comparison))
+            {
+                return false;
+            }
+
+            executablePath = resolved;
+            return true;
+        }
+        catch (Exception)
+        {
+            // An entry point that cannot even be resolved is treated as escaping.
+            return false;
+        }
     }
 
     private static bool IsRunningAsAdministrator()
