@@ -26,6 +26,18 @@ public class GameProcessManager(
 {
     private const int CleanupIntervalMs = ProcessConstants.ProcessCleanupIntervalMs;
     private readonly ConcurrentDictionary<int, Process> _managedProcesses = new();
+
+    /// <summary>
+    /// Stderr captures for processes this manager started itself, keyed by PID.
+    /// </summary>
+    /// <remarks>
+    /// The late-failure channel: an initialisation abort slow enough to outlive the
+    /// post-spawn detection window exits after the launch was reported as started, and
+    /// its stderr — the only explanation of the failure — would otherwise be dropped with
+    /// the start operation's locals. Kept per PID so <see cref="OnProcessExited"/> can
+    /// attach it to the exit event.
+    /// </remarks>
+    private readonly ConcurrentDictionary<int, BoundedErrorBuffer> _stderrBuffers = new();
     private readonly SemaphoreSlim _terminationSemaphore = new(1, 1);
 
     /// <summary>
@@ -108,6 +120,7 @@ public class GameProcessManager(
             }
 
             _managedProcesses[process.Id] = process;
+            _stderrBuffers[process.Id] = capturedErrors;
 
             if (configuration.WaitForExit)
             {
@@ -457,6 +470,7 @@ public class GameProcessManager(
         foreach (var processId in deadProcessIds)
         {
             _managedProcesses.TryRemove(processId, out _);
+            _stderrBuffers.TryRemove(processId, out _);
             logger.LogTrace("Cleaned up dead process {ProcessId} from managed processes", processId);
         }
 
@@ -495,6 +509,7 @@ public class GameProcessManager(
         }
 
         _managedProcesses.Clear();
+        _stderrBuffers.Clear();
         _terminationSemaphore.Dispose();
         _disposed = true;
 
@@ -1045,12 +1060,38 @@ public class GameProcessManager(
         // Remove from managed processes
         _managedProcesses.TryRemove(processId, out _);
 
+        // Attach the stderr capture, when this manager started the process itself. This
+        // is what makes an abort that outlived the detection window explicable: the exit
+        // is already after "launched", so the event is the only place the evidence fits.
+        string? stderrTail = null;
+        IReadOnlyList<string> unmountableArchives = [];
+        if (_stderrBuffers.TryRemove(processId, out var capturedErrors))
+        {
+            DrainStandardError(process, capturedErrors);
+
+            var tail = capturedErrors.ToString();
+            stderrTail = string.IsNullOrWhiteSpace(tail) ? null : tail;
+            unmountableArchives = ExtractUnmountableArchives(capturedErrors.Snapshot());
+        }
+
+        if (exitCode is int code && code != ProcessConstants.ExitCodeSuccess)
+        {
+            logger.LogWarning(
+                "Process {ProcessId} exited with non-zero code {ExitCode} after the launch was reported as started. Archives: {Archives}. Output: {Output}",
+                processId,
+                code,
+                unmountableArchives.Count > 0 ? string.Join(", ", unmountableArchives) : "none named",
+                stderrTail ?? "No output was captured.");
+        }
+
         // Raise the event
         var args = new GameProcessExitedEventArgs
         {
             ProcessId = processId,
             ExitCode = exitCode,
             ExitTime = DateTime.UtcNow,
+            StandardErrorTail = stderrTail,
+            UnmountableArchives = unmountableArchives,
         };
 
         ProcessExited?.Invoke(this, args);
