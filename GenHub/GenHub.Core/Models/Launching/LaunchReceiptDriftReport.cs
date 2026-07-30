@@ -14,6 +14,13 @@ public class LaunchReceiptDriftReport
     /// </summary>
     public bool HasReceipt { get; set; }
 
+    /// <summary>
+    /// Gets or sets the parsed receipt when one was present and readable, so the upcoming
+    /// launch's configuration can be compared against it after the workspace — and the
+    /// receipt file with it — has been rebuilt.
+    /// </summary>
+    public LaunchReceipt? Receipt { get; set; }
+
     /// <summary>Gets or sets the description of each field that drifted since the receipt was recorded.</summary>
     public List<string> DriftedFields { get; set; } = [];
 
