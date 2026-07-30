@@ -123,6 +123,8 @@ public class GameLauncherTests : IDisposable
             .ReturnsAsync(OperationResult<LaunchReceiptDriftReport>.CreateSuccess(new LaunchReceiptDriftReport()));
         _launchReceiptServiceMock.Setup(x => x.RecordLaunchAsync(It.IsAny<LaunchReceiptContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<LaunchReceipt>.CreateSuccess(new LaunchReceipt()));
+        _launchReceiptServiceMock.Setup(x => x.CompareUpcomingLaunch(It.IsAny<LaunchReceipt>(), It.IsAny<LaunchReceiptContext>()))
+            .Returns(new LaunchReceiptDriftReport { HasReceipt = true });
 
         // Setup dependency resolver mock - returns resolved manifests including dependencies
         _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
@@ -1010,6 +1012,61 @@ public class GameLauncherTests : IDisposable
 
         // Assert
         Assert.True(result.Success);
+    }
+
+    /// <summary>
+    /// Verifies a previous receipt is compared against the upcoming launch's configuration
+    /// once the launch configuration is built, without blocking the launch.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithPreviousReceipt_ComparesUpcomingConfiguration()
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        var workspacePath = Path.Combine(_retailRoot, "workspace");
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = profile.Id,
+            WorkspacePath = workspacePath,
+            ExecutablePath = Path.Combine(workspacePath, "generalszh"),
+        };
+        var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "generals.exe" };
+        var manifest = new ContentManifest { Id = "1.0.genhub.mod.test", Name = "Test Content" };
+        var previousReceipt = new LaunchReceipt { ProfileId = profile.Id, GameClientId = "old-client" };
+
+        _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
+                It.Is<IEnumerable<string>>(ids => ids.SequenceEqual(TestContentIds)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DependencyResolutionResult.CreateSuccess(TestContentIds, [manifest], []));
+        _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
+        _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
+        _launchReceiptServiceMock.Setup(x => x.RevalidateAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<LaunchReceiptDriftReport>.CreateSuccess(
+                new LaunchReceiptDriftReport { HasReceipt = true, Receipt = previousReceipt }));
+        _launchReceiptServiceMock.Setup(x => x.CompareUpcomingLaunch(previousReceipt, It.IsAny<LaunchReceiptContext>()))
+            .Returns(new LaunchReceiptDriftReport
+            {
+                HasReceipt = true,
+                DriftedFields = ["Game client changed from old-client to version-1"],
+            });
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
+
+        // Assert
+        Assert.True(result.Success);
+        _launchReceiptServiceMock.Verify(
+            x => x.CompareUpcomingLaunch(
+                previousReceipt,
+                It.Is<LaunchReceiptContext>(c =>
+                    c.GameClientId == "version-1" &&
+                    c.ExecutablePath == workspaceInfo.ExecutablePath)),
+            Times.Once);
     }
 
     /// <summary>
