@@ -43,12 +43,35 @@ public class GameProcessManagerTests
         Assert.True(result.Success, string.Join(", ", result.Errors));
         Assert.True(result.Data!.IsRunning);
 
-        var infoResult = await _processManager.GetProcessInfoAsync(result.Data.ProcessId);
-
-        Assert.True(infoResult.Success, string.Join(", ", infoResult.Errors));
-        Assert.True(infoResult.Data!.IsRunning);
-
         await _processManager.TerminateProcessAsync(result.Data.ProcessId);
+    }
+
+    /// <summary>
+    /// Launch state is re-read through <see cref="GameProcessManager.GetProcessInfoAsync"/> after
+    /// the launch returns, so that path has to report running state too — not just the one that
+    /// started the process.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetProcessInfoAsync_ForALiveProcess_ReportsItAsRunning()
+    {
+        using var harness = LauncherHarness.Create(spawnChild: false);
+
+        var config = new GameLaunchConfiguration
+        {
+            ExecutablePath = harness.LauncherPath,
+            WorkingDirectory = harness.WorkingDirectory,
+        };
+
+        var started = await _processManager.StartProcessAsync(config);
+        Assert.True(started.Success, string.Join(", ", started.Errors));
+
+        var info = await _processManager.GetProcessInfoAsync(started.Data!.ProcessId);
+
+        Assert.True(info.Success, string.Join(", ", info.Errors));
+        Assert.True(info.Data!.IsRunning);
+
+        await _processManager.TerminateProcessAsync(started.Data.ProcessId);
     }
 
     /// <summary>

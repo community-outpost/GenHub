@@ -9,8 +9,11 @@ namespace GenHub.Tests.Core.Helpers;
 /// </summary>
 public class GameProcessSelectorTests
 {
-    private const string Workspace = "/workspace/generalsonline";
     private static readonly DateTime Now = new(2026, 7, 31, 12, 0, 0, DateTimeKind.Utc);
+
+    // Native separators on both platforms: a real workspace path never mixes them, and comparing
+    // like-for-like is what the non-separator tests are meant to exercise.
+    private static readonly string Workspace = Path.Combine(Path.GetTempPath(), "genhub-workspace", "generalsonline");
 
     /// <summary>
     /// The spawned game is identified by the name the caller expects, not by the launcher's name.
@@ -115,6 +118,26 @@ public class GameProcessSelectorTests
 
         var selected = GameProcessSelector.SelectSpawnedGameProcess(
             candidates, "GeneralsOnlineZH_60", Workspace + Path.DirectorySeparatorChar, Now);
+
+        Assert.NotNull(selected);
+        Assert.Equal(1, selected.ProcessId);
+    }
+
+    /// <summary>
+    /// Separator style is a spelling difference, not a location difference. Windows accepts both
+    /// forms, so a working directory and a process image path can legitimately disagree on which
+    /// one they use and still name the same directory. Only discriminating on Windows: elsewhere
+    /// both separator constants are '/', and a backslash is a legal file name character that must
+    /// not be treated as a separator.
+    /// </summary>
+    [Fact]
+    public void SelectSpawnedGameProcess_IgnoresSeparatorStyleWhenComparingResidence()
+    {
+        var candidates = new[] { Candidate(1, "GeneralsOnlineZH_60", Now, Workspace) };
+        var alternateSpelling = Workspace.Replace(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        var selected = GameProcessSelector.SelectSpawnedGameProcess(
+            candidates, "GeneralsOnlineZH_60", alternateSpelling, Now);
 
         Assert.NotNull(selected);
         Assert.Equal(1, selected.ProcessId);
