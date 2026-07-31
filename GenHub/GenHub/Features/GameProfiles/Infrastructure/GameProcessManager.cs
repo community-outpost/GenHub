@@ -8,6 +8,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Models.Events;
@@ -209,7 +210,10 @@ public class GameProcessManager(
                             "[Process] Launcher process {ProcessId} exited with code 0 - attempting to find spawned game process",
                             process.Id);
 
-                        var executableName = Path.GetFileNameWithoutExtension(configuration.ExecutablePath);
+                        // A bootstrapper hands the session to a differently-named binary, so the
+                        // name to adopt comes from the caller — never from the path we started.
+                        var executableName = configuration.ExpectedChildProcessName
+                            ?? Path.GetFileNameWithoutExtension(configuration.ExecutablePath);
                         var spawnedProcess = FindSpawnedGameProcess(executableName, configuration.WorkingDirectory ?? Path.GetDirectoryName(configuration.ExecutablePath)!);
 
                         if (spawnedProcess != null)
@@ -733,67 +737,67 @@ public class GameProcessManager(
     /// <returns>The spawned process if found, null otherwise.</returns>
     private Process? FindSpawnedGameProcess(string executableName, string workingDirectory)
     {
+        Process[] processes;
         try
         {
-            var processes = Process.GetProcessesByName(executableName)
-                .Where(p =>
-                {
-                    try
-                    {
-                        // Verify process was started within last 10 seconds
-                        return (DateTime.Now - p.StartTime).TotalSeconds < ProcessConstants.EarlyExitThresholdSeconds;
-                    }
-                    catch
-                    {
-                        return false;
-                    }
-                })
-                .ToArray();
-            if (processes.Length == 0)
-            {
-                return null;
-            }
-
-            // If multiple processes exist, try to find one with matching working directory
-            if (processes.Length > 1 && !string.IsNullOrEmpty(workingDirectory))
-            {
-                foreach (var proc in processes)
-                {
-                    try
-                    {
-                        var procPath = proc.MainModule?.FileName;
-                        if (procPath != null && Path.GetDirectoryName(procPath)?.Equals(workingDirectory, StringComparison.OrdinalIgnoreCase) == true)
-                        {
-                            // Dispose other processes we're not using
-                            foreach (var otherProc in processes.Where(p => p.Id != proc.Id))
-                            {
-                                otherProc.Dispose();
-                            }
-
-                            return proc;
-                        }
-                    }
-                    catch
-                    {
-                        // Cannot access process info, continue
-                    }
-                }
-            }
-
-            // Return the first (or only) process found
-            var result = processes.First();
-
-            // Dispose other processes
-            foreach (var proc in processes.Skip(1))
-            {
-                proc.Dispose();
-            }
-
-            return result;
+            processes = Process.GetProcessesByName(executableName);
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to find spawned game process for {ExecutableName}", executableName);
+            return null;
+        }
+
+        try
+        {
+            var candidates = new List<GameProcessCandidate>();
+            foreach (var process in processes)
+            {
+                try
+                {
+                    var executablePath = GetProcessExecutablePath(process);
+                    candidates.Add(new GameProcessCandidate(
+                        process.Id,
+                        process.ProcessName,
+                        process.StartTime,
+                        string.IsNullOrEmpty(executablePath) ? null : executablePath));
+                }
+                catch (Exception ex)
+                {
+                    // A process that cannot be inspected cannot be shown to be ours.
+                    logger.LogDebug(ex, "Skipping uninspectable process {ProcessId}", process.Id);
+                }
+            }
+
+            var selected = GameProcessSelector.SelectSpawnedGameProcess(
+                candidates, executableName, workingDirectory, DateTime.Now);
+
+            if (selected == null)
+            {
+                foreach (var process in processes)
+                {
+                    process.Dispose();
+                }
+
+                return null;
+            }
+
+            var match = processes.First(process => process.Id == selected.ProcessId);
+            foreach (var other in processes.Where(process => process.Id != selected.ProcessId))
+            {
+                other.Dispose();
+            }
+
+            return match;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to find spawned game process for {ExecutableName}", executableName);
+            foreach (var process in processes)
+            {
+                process.Dispose();
+            }
+
             return null;
         }
     }
