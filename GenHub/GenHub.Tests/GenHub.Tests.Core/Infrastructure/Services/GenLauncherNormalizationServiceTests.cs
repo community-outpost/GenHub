@@ -257,12 +257,11 @@ public class GenLauncherNormalizationServiceTests : IDisposable
         await File.WriteAllTextAsync(gibPath, "gib-content");
 
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
-        var result = await _service.NormalizeFilesAsync(_tempDir, cts.Token);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            _service.NormalizeFilesAsync(_tempDir, cts.Token));
 
-        Assert.False(result.Success);
-        Assert.Equal("Operation was cancelled.", result.FirstError);
         Assert.True(File.Exists(gibPath));
     }
 

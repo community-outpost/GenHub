@@ -220,7 +220,7 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
         catch (OperationCanceledException)
         {
             logger.LogWarning("Normalization operation was cancelled.");
-            return OperationResult<GenLauncherNormalizationResult>.CreateFailure("Operation was cancelled.");
+            throw;
         }
         catch (Exception ex)
         {
@@ -251,84 +251,128 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
         cancellationToken.ThrowIfCancellationRequested();
 
         // Scan files in current directory only (non-recursive)
-        foreach (var file in Directory.EnumerateFiles(directoryPath, "*.*", SearchOption.TopDirectoryOnly))
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var fileInfo = new FileInfo(file);
-
-            // Check for symbolic links
-            if (fileInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+            foreach (var file in Directory.EnumerateFiles(directoryPath, "*.*", SearchOption.TopDirectoryOnly))
             {
-                result.SymbolicLinks.Add(file);
-                logger.LogDebug("Detected symbolic link: {FilePath}", file);
-                continue;
-            }
+                cancellationToken.ThrowIfCancellationRequested();
 
-            var fileName = fileInfo.Name;
-            var extension = fileInfo.Extension.ToLowerInvariant();
+                try
+                {
+                    var fileInfo = new FileInfo(file);
 
-            // Check for .gib files
-            if (GibExtensions.Contains(extension))
-            {
-                result.GibFiles.Add(file);
-                logger.LogDebug("Detected .gib file: {FilePath}", file);
-            }
+                    // Check for symbolic links
+                    if (fileInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                    {
+                        result.SymbolicLinks.Add(file);
+                        logger.LogDebug("Detected symbolic link: {FilePath}", file);
+                        continue;
+                    }
 
-            // Check for suffix files
-            if (fileName.EndsWith(GenLauncherConstants.ReplaceSuffix, StringComparison.OrdinalIgnoreCase))
-            {
-                result.GlrFiles.Add(file);
-                logger.LogDebug("Detected .GLR file: {FilePath}", file);
+                    var fileName = fileInfo.Name;
+                    var extension = fileInfo.Extension.ToLowerInvariant();
+
+                    // Check for .gib files
+                    if (GibExtensions.Contains(extension))
+                    {
+                        result.GibFiles.Add(file);
+                        logger.LogDebug("Detected .gib file: {FilePath}", file);
+                    }
+
+                    // Check for suffix files
+                    if (fileName.EndsWith(GenLauncherConstants.ReplaceSuffix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.GlrFiles.Add(file);
+                        logger.LogDebug("Detected .GLR file: {FilePath}", file);
+                    }
+                    else if (fileName.EndsWith(GenLauncherConstants.OriginalFileSuffix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.GofFiles.Add(file);
+                        logger.LogDebug("Detected .GOF file: {FilePath}", file);
+                    }
+                    else if (fileName.EndsWith(GenLauncherConstants.TempCopySuffix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.GltcFiles.Add(file);
+                        logger.LogDebug("Detected .GLTC file: {FilePath}", file);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to inspect file during detection: {FilePath}", file);
+                }
             }
-            else if (fileName.EndsWith(GenLauncherConstants.OriginalFileSuffix, StringComparison.OrdinalIgnoreCase))
-            {
-                result.GofFiles.Add(file);
-                logger.LogDebug("Detected .GOF file: {FilePath}", file);
-            }
-            else if (fileName.EndsWith(GenLauncherConstants.TempCopySuffix, StringComparison.OrdinalIgnoreCase))
-            {
-                result.GltcFiles.Add(file);
-                logger.LogDebug("Detected .GLTC file: {FilePath}", file);
-            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to enumerate files in directory: {DirectoryPath}", directoryPath);
         }
 
         // Scan subdirectories (non-recursive, manual control)
-        foreach (var directory in Directory.EnumerateDirectories(directoryPath, "*", SearchOption.TopDirectoryOnly))
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var dirInfo = new DirectoryInfo(directory);
-
-            // Check if it's a directory symlink
-            if (dirInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+            foreach (var directory in Directory.EnumerateDirectories(directoryPath, "*", SearchOption.TopDirectoryOnly))
             {
-                result.SymbolicLinks.Add(directory);
-                logger.LogDebug("Detected directory symbolic link: {DirectoryPath}", directory);
+                cancellationToken.ThrowIfCancellationRequested();
 
-                // Don't recurse into symlinked directories
-                continue;
-            }
+                try
+                {
+                    var dirInfo = new DirectoryInfo(directory);
 
-            var dirName = dirInfo.Name;
-            if (dirName.EndsWith(GenLauncherConstants.ReplaceSuffix, StringComparison.OrdinalIgnoreCase))
-            {
-                result.GlrFiles.Add(directory);
-                logger.LogDebug("Detected .GLR directory: {DirectoryPath}", directory);
-            }
-            else if (dirName.EndsWith(GenLauncherConstants.OriginalFileSuffix, StringComparison.OrdinalIgnoreCase))
-            {
-                result.GofFiles.Add(directory);
-                logger.LogDebug("Detected .GOF directory: {DirectoryPath}", directory);
-            }
-            else if (dirName.EndsWith(GenLauncherConstants.TempCopySuffix, StringComparison.OrdinalIgnoreCase))
-            {
-                result.GltcFiles.Add(directory);
-                logger.LogDebug("Detected .GLTC directory: {DirectoryPath}", directory);
-            }
+                    // Check if it's a directory symlink
+                    if (dirInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                    {
+                        result.SymbolicLinks.Add(directory);
+                        logger.LogDebug("Detected directory symbolic link: {DirectoryPath}", directory);
 
-            // Recurse into normal directories
-            ScanDirectory(directory, result, cancellationToken);
+                        // Don't recurse into symlinked directories
+                        continue;
+                    }
+
+                    var dirName = dirInfo.Name;
+                    if (dirName.EndsWith(GenLauncherConstants.ReplaceSuffix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.GlrFiles.Add(directory);
+                        logger.LogDebug("Detected .GLR directory: {DirectoryPath}", directory);
+                    }
+                    else if (dirName.EndsWith(GenLauncherConstants.OriginalFileSuffix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.GofFiles.Add(directory);
+                        logger.LogDebug("Detected .GOF directory: {DirectoryPath}", directory);
+                    }
+                    else if (dirName.EndsWith(GenLauncherConstants.TempCopySuffix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.GltcFiles.Add(directory);
+                        logger.LogDebug("Detected .GLTC directory: {DirectoryPath}", directory);
+                    }
+
+                    // Recurse into normal directories
+                    ScanDirectory(directory, result, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to process subdirectory during detection: {DirectoryPath}", directory);
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to enumerate subdirectories in directory: {DirectoryPath}", directoryPath);
         }
     }
 
