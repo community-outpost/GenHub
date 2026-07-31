@@ -410,6 +410,7 @@ public class GameProcessManager(
                     ProcessName = process.ProcessName,
                     StartTime = process.StartTime,
                     ExecutablePath = GetProcessExecutablePath(process),
+                    IsRunning = IsStillRunning(process),
                 };
 
                 return Task.FromResult(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
@@ -430,6 +431,7 @@ public class GameProcessManager(
                     ProcessName = process.ProcessName,
                     StartTime = process.StartTime,
                     ExecutablePath = GetProcessExecutablePath(process),
+                    IsRunning = IsStillRunning(process),
                 };
 
                 return Task.FromResult(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
@@ -466,6 +468,7 @@ public class GameProcessManager(
                             ProcessName = process.ProcessName,
                             StartTime = process.StartTime,
                             ExecutablePath = GetProcessExecutablePath(process),
+                            IsRunning = IsStillRunning(process),
                         };
                         activeProcesses.Add(processInfo);
                     }

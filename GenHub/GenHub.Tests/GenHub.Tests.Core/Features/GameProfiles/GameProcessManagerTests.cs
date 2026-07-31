@@ -43,6 +43,11 @@ public class GameProcessManagerTests
         Assert.True(result.Success, string.Join(", ", result.Errors));
         Assert.True(result.Data!.IsRunning);
 
+        var infoResult = await _processManager.GetProcessInfoAsync(result.Data.ProcessId);
+
+        Assert.True(infoResult.Success, string.Join(", ", infoResult.Errors));
+        Assert.True(infoResult.Data!.IsRunning);
+
         await _processManager.TerminateProcessAsync(result.Data.ProcessId);
     }
 

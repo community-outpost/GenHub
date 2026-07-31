@@ -54,5 +54,8 @@ public static class GameProcessSelector
     }
 
     private static string Normalize(string path) =>
-        path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        path
+            .Replace(Path.DirectorySeparatorChar, '/')
+            .Replace(Path.AltDirectorySeparatorChar, '/')
+            .TrimEnd('/');
 }
