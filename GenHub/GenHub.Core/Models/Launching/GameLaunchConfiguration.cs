@@ -28,4 +28,11 @@ public class GameLaunchConfiguration
     /// tracking then follows the started process as before.
     /// </summary>
     public string? ExpectedChildProcessName { get; set; }
+
+    /// <summary>
+    /// Gets or sets how long to wait for <see cref="ExpectedChildProcessName"/> to appear before
+    /// failing the launch. Defaults to
+    /// <see cref="GenHub.Core.Constants.ProcessConstants.SpawnedChildDiscoveryTimeoutMs"/>.
+    /// </summary>
+    public TimeSpan? ExpectedChildDiscoveryTimeout { get; set; }
 }

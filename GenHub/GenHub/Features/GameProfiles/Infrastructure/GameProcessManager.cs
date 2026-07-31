@@ -191,6 +191,15 @@ public class GameProcessManager(
 
             logger.LogDebug("[Process] Process {ProcessId} started successfully", process.Id);
 
+            // A launcher that hands the session to another binary is tracked through that binary.
+            // Poll for it independently of the launcher's own lifetime: the Easy Anti-Cheat
+            // bootstrapper outlives the game's startup by about a minute, so waiting for it to
+            // exit first never finds the game.
+            if (!string.IsNullOrWhiteSpace(configuration.ExpectedChildProcessName))
+            {
+                return await AdoptExpectedChildProcessAsync(process, configuration, workingDirectory, cancellationToken);
+            }
+
             // Check if process exited immediately (launcher pattern)
             // Only apply delay if we need to detect a spawned process
             if (!isBatchFile)
@@ -726,6 +735,125 @@ public class GameProcessManager(
         ProcessExited?.Invoke(this, args);
 
         logger.LogInformation("Process {ProcessId} exited with code {ExitCode}", processId, exitCode);
+    }
+
+    /// <summary>
+    /// Waits for a launcher to spawn the process named by
+    /// <see cref="GameLaunchConfiguration.ExpectedChildProcessName"/> and tracks that process
+    /// instead of the launcher. The launcher's own exit is never treated as the game exiting.
+    /// </summary>
+    /// <param name="launcher">The process that was started.</param>
+    /// <param name="configuration">The launch configuration.</param>
+    /// <param name="workingDirectory">The directory the game must run from.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The adopted child process, or a failure describing why none was adopted.</returns>
+    private async Task<OperationResult<GameProcessInfo>> AdoptExpectedChildProcessAsync(
+        Process launcher,
+        GameLaunchConfiguration configuration,
+        string workingDirectory,
+        CancellationToken cancellationToken)
+    {
+        var expectedName = configuration.ExpectedChildProcessName!;
+        var timeout = configuration.ExpectedChildDiscoveryTimeout
+            ?? TimeSpan.FromMilliseconds(ProcessConstants.SpawnedChildDiscoveryTimeoutMs);
+        var deadline = DateTime.UtcNow + timeout;
+
+        logger.LogInformation(
+            "[Process] Waiting up to {TimeoutMs}ms for launcher {LauncherId} to start {ExpectedName}",
+            (int)timeout.TotalMilliseconds,
+            launcher.Id,
+            expectedName);
+
+        try
+        {
+            while (true)
+            {
+                var child = FindSpawnedGameProcess(expectedName, workingDirectory);
+                if (child != null)
+                {
+                    _managedProcesses[child.Id] = child;
+
+                    try
+                    {
+                        child.EnableRaisingEvents = true;
+                        child.Exited += OnProcessExited;
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Failed to enable raising events for adopted process {ProcessId}", child.Id);
+                    }
+
+                    logger.LogInformation(
+                        "[Process] Adopted game process {ProcessId} ({ExpectedName}); launcher {LauncherId} is no longer tracked and its exit is ignored",
+                        child.Id,
+                        expectedName,
+                        launcher.Id);
+
+                    return OperationResult<GameProcessInfo>.CreateSuccess(BuildProcessInfo(child, configuration.ExecutablePath));
+                }
+
+                // A launcher that fails outright will never produce a child - do not wait it out.
+                if (launcher.HasExited && launcher.ExitCode != ProcessConstants.ExitCodeSuccess)
+                {
+                    logger.LogError(
+                        "[Process] Launcher {LauncherId} exited with code {ExitCode} before starting {ExpectedName}",
+                        launcher.Id,
+                        launcher.ExitCode,
+                        expectedName);
+                    return OperationResult<GameProcessInfo>.CreateFailure(
+                        $"Launcher exited with code {launcher.ExitCode} before starting {expectedName}.");
+                }
+
+                if (DateTime.UtcNow >= deadline)
+                {
+                    logger.LogError(
+                        "[Process] Launcher {LauncherId} did not start {ExpectedName} within {TimeoutMs}ms",
+                        launcher.Id,
+                        expectedName,
+                        (int)timeout.TotalMilliseconds);
+                    return OperationResult<GameProcessInfo>.CreateFailure(
+                        $"Launcher did not start {expectedName} within {timeout.TotalSeconds:0.#}s.");
+                }
+
+                await Task.Delay(ProcessConstants.SpawnedChildPollIntervalMs, cancellationToken);
+            }
+        }
+        finally
+        {
+            // Releases our handle only; the launcher keeps running and owns its own lifetime.
+            launcher.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Builds process information, falling back to minimal details when the process cannot be read.
+    /// </summary>
+    /// <param name="process">The process to describe.</param>
+    /// <param name="fallbackExecutablePath">Path to report when the process cannot be inspected.</param>
+    /// <returns>The process information.</returns>
+    private GameProcessInfo BuildProcessInfo(Process process, string fallbackExecutablePath)
+    {
+        try
+        {
+            return new GameProcessInfo
+            {
+                ProcessId = process.Id,
+                ProcessName = process.ProcessName,
+                StartTime = process.StartTime,
+                ExecutablePath = GetProcessExecutablePath(process),
+            };
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to get process information for {ProcessId}, using minimal info", process.Id);
+            return new GameProcessInfo
+            {
+                ProcessId = process.Id,
+                ProcessName = GameClientConstants.UnknownVersion,
+                StartTime = DateTime.Now,
+                ExecutablePath = fallbackExecutablePath,
+            };
+        }
     }
 
     /// <summary>
