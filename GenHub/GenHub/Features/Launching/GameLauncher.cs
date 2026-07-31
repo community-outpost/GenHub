@@ -956,6 +956,10 @@ public class GameLauncher(
                 WorkingDirectory = workspaceInfo.WorkspacePath,
                 Arguments = arguments,
                 EnvironmentVariables = profile.EnvironmentVariables,
+
+                // Null for every client that launches its own executable; set only where a
+                // bootstrapper hands the session to a differently-named binary.
+                ExpectedChildProcessName = LaunchEntryPointResolver.ResolveExpectedChildProcessName(finalExecutablePath),
             };
             logger.LogInformation("[GameLauncher] Starting game process...");
             OperationResult<GameProcessInfo> processResult;
@@ -1012,6 +1016,15 @@ public class GameLauncher(
                     // This is because Windows reports the symlink target hash as the process name
                     gameProcessName = executableFileForMonitor.Hash;
                     logger.LogInformation("[GameLauncher] Monitoring for CAS symlinked process with hash: {Hash}", gameProcessName);
+
+                    if (!string.IsNullOrEmpty(launchConfig.ExpectedChildProcessName))
+                    {
+                        // The hash names the entry point, not the binary it hands the session to,
+                        // and the child's own hash is not available here.
+                        logger.LogWarning(
+                            "[GameLauncher] Launching {Entry} through a bootstrapper under CAS symlinking; monitoring may track the wrong process",
+                            Path.GetFileName(finalExecutablePath));
+                    }
                 }
                 else
                 {
@@ -1020,6 +1033,14 @@ public class GameLauncher(
                     gameProcessName = executableFileForMonitor != null
                         ? Path.GetFileNameWithoutExtension(executableFileForMonitor.RelativePath)
                         : Path.GetFileNameWithoutExtension(finalExecutablePath);
+
+                    // The monitored name is derived from the entry point, which may be a
+                    // bootstrapper that exits ownership to another binary.
+                    if (!string.IsNullOrEmpty(launchConfig.ExpectedChildProcessName))
+                    {
+                        gameProcessName = launchConfig.ExpectedChildProcessName;
+                    }
+
                     logger.LogInformation("[GameLauncher] Monitoring for process: {ProcessName}", gameProcessName);
                 }
 
