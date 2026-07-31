@@ -247,28 +247,7 @@ public class GameProcessManager(
                                 logger.LogWarning(ex, "Failed to enable raising events for spawned process {ProcessId}", spawnedProcess.Id);
                             }
 
-                            GameProcessInfo spawnedProcessInfo;
-                            try
-                            {
-                                spawnedProcessInfo = new GameProcessInfo
-                                {
-                                    ProcessId = spawnedProcess.Id,
-                                    ProcessName = spawnedProcess.ProcessName,
-                                    StartTime = spawnedProcess.StartTime,
-                                    ExecutablePath = GetProcessExecutablePath(spawnedProcess),
-                                };
-                            }
-                            catch (Exception ex)
-                            {
-                                logger.LogWarning(ex, "Failed to get process information for {ProcessId}, using minimal info", spawnedProcess.Id);
-                                spawnedProcessInfo = new GameProcessInfo
-                                {
-                                    ProcessId = spawnedProcess.Id,
-                                    ProcessName = GameClientConstants.UnknownVersion,
-                                    StartTime = DateTime.Now,
-                                    ExecutablePath = configuration.ExecutablePath,
-                                };
-                            }
+                            var spawnedProcessInfo = BuildProcessInfo(spawnedProcess, configuration.ExecutablePath);
 
                             logger.LogInformation("Started game process {ProcessId} for executable {ExecutablePath}", spawnedProcess.Id, configuration.ExecutablePath);
                             return OperationResult<GameProcessInfo>.CreateSuccess(spawnedProcessInfo);
@@ -311,28 +290,7 @@ public class GameProcessManager(
                 logger.LogWarning(ex, "Failed to enable raising events for process {ProcessId}, process cleanup may not work properly", process.Id);
             }
 
-            GameProcessInfo processInfo;
-            try
-            {
-                processInfo = new GameProcessInfo
-                {
-                    ProcessId = process.Id,
-                    ProcessName = process.ProcessName,
-                    StartTime = process.StartTime,
-                    ExecutablePath = GetProcessExecutablePath(process),
-                };
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to get process information for {ProcessId}, using minimal info", process.Id);
-                processInfo = new GameProcessInfo
-                {
-                    ProcessId = process.Id,
-                    ProcessName = GameClientConstants.UnknownVersion,
-                    StartTime = DateTime.Now,
-                    ExecutablePath = configuration.ExecutablePath,
-                };
-            }
+            var processInfo = BuildProcessInfo(process, configuration.ExecutablePath);
 
             logger.LogInformation("Started game process {ProcessId} for executable {ExecutablePath}", process.Id, configuration.ExecutablePath);
             return OperationResult<GameProcessInfo>.CreateSuccess(processInfo);
@@ -594,13 +552,7 @@ public class GameProcessManager(
                     logger.LogWarning(ex, "Failed to enable raising events for discovered process {ProcessId}", process.Id);
                 }
 
-                return OperationResult<GameProcessInfo>.CreateSuccess(new GameProcessInfo
-                {
-                    ProcessId = process.Id,
-                    ProcessName = process.ProcessName,
-                    StartTime = process.StartTime,
-                    ExecutablePath = GetProcessExecutablePath(process),
-                });
+                return OperationResult<GameProcessInfo>.CreateSuccess(BuildProcessInfo(process, workingDirectory));
             }
 
             await Task.Delay(DelayMs, cancellationToken);
@@ -685,6 +637,23 @@ public class GameProcessManager(
         GC.SuppressFinalize(this);
 
         logger.LogInformation("GameProcessManager disposed");
+    }
+
+    /// <summary>
+    /// Reports whether a process is still running, treating an unreadable process as not running.
+    /// </summary>
+    /// <param name="process">The process to check.</param>
+    /// <returns><see langword="true"/> when the process is known to be running.</returns>
+    private static bool IsStillRunning(Process process)
+    {
+        try
+        {
+            return !process.HasExited;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static string GetProcessExecutablePath(Process process)
@@ -841,6 +810,7 @@ public class GameProcessManager(
                 ProcessName = process.ProcessName,
                 StartTime = process.StartTime,
                 ExecutablePath = GetProcessExecutablePath(process),
+                IsRunning = IsStillRunning(process),
             };
         }
         catch (Exception ex)
@@ -852,6 +822,7 @@ public class GameProcessManager(
                 ProcessName = GameClientConstants.UnknownVersion,
                 StartTime = DateTime.Now,
                 ExecutablePath = fallbackExecutablePath,
+                IsRunning = IsStillRunning(process),
             };
         }
     }

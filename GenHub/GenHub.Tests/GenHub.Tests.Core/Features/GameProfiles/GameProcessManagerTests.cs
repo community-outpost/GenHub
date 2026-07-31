@@ -23,6 +23,30 @@ public class GameProcessManagerTests
     }
 
     /// <summary>
+    /// A process that was just started successfully is running, and the returned information has
+    /// to say so — consumers read <see cref="GameProcessInfo.IsRunning"/> to decide launch state.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task StartProcessAsync_WithLiveProcess_ReportsItAsRunning()
+    {
+        using var harness = LauncherHarness.Create(spawnChild: false);
+
+        var config = new GameLaunchConfiguration
+        {
+            ExecutablePath = harness.LauncherPath,
+            WorkingDirectory = harness.WorkingDirectory,
+        };
+
+        var result = await _processManager.StartProcessAsync(config);
+
+        Assert.True(result.Success, string.Join(", ", result.Errors));
+        Assert.True(result.Data!.IsRunning);
+
+        await _processManager.TerminateProcessAsync(result.Data.ProcessId);
+    }
+
+    /// <summary>
     /// The Easy Anti-Cheat bootstrapper spawns the game and then keeps running for about a minute.
     /// Tracking must follow the spawned child and must not wait for the launcher to exit first.
     /// </summary>
