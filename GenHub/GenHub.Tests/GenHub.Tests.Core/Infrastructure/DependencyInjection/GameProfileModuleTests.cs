@@ -2,6 +2,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
@@ -39,6 +40,8 @@ public class GameProfileModuleTests
         services.AddLogging();
         services.AddSingleton<IConfigurationProviderService>(configProviderMock.Object);
         services.AddSingleton<IStorageLocationService>(new Mock<IStorageLocationService>().Object);
+        services.AddSingleton<IGamePathProvider>(new Mock<IGamePathProvider>().Object);
+        services.AddSingleton<ISymlinkCapabilityProvider>(new Mock<ISymlinkCapabilityProvider>().Object);
 
         // Mock missing dependencies
         services.AddScoped(provider => new Mock<IGameInstallationService>().Object);
@@ -75,6 +78,8 @@ public class GameProfileModuleTests
         services.AddLogging();
         services.AddSingleton<IConfigurationProviderService>(configProvider_mock.Object);
         services.AddSingleton<IStorageLocationService>(new Mock<IStorageLocationService>().Object);
+        services.AddSingleton<IGamePathProvider>(new Mock<IGamePathProvider>().Object);
+        services.AddSingleton<ISymlinkCapabilityProvider>(new Mock<ISymlinkCapabilityProvider>().Object);
 
         // Mock dependencies required for manifest services
         services.AddSingleton<IManifestIdService>(new GenHub.Core.Models.Manifest.ManifestIdService());
@@ -118,6 +123,8 @@ public class GameProfileModuleTests
         services.AddLogging();
         services.AddSingleton<IConfigurationProviderService>(configProvider_mock.Object);
         services.AddSingleton<IStorageLocationService>(new Mock<IStorageLocationService>().Object);
+        services.AddSingleton<IGamePathProvider>(new Mock<IGamePathProvider>().Object);
+        services.AddSingleton<ISymlinkCapabilityProvider>(new Mock<ISymlinkCapabilityProvider>().Object);
 
         // Mock missing dependencies
         services.AddScoped(provider => new Mock<IGameInstallationService>().Object);
@@ -151,6 +158,8 @@ public class GameProfileModuleTests
         services.AddLogging();
         services.AddSingleton<IConfigurationProviderService>(configProvider_mock.Object);
         services.AddSingleton<IStorageLocationService>(new Mock<IStorageLocationService>().Object);
+        services.AddSingleton<IGamePathProvider>(new Mock<IGamePathProvider>().Object);
+        services.AddSingleton<ISymlinkCapabilityProvider>(new Mock<ISymlinkCapabilityProvider>().Object);
 
         // Act
         services.AddLaunchingServices();
@@ -181,6 +190,8 @@ public class GameProfileModuleTests
         services.AddLogging();
         services.AddSingleton<IConfigurationProviderService>(configProvider_mock.Object);
         services.AddSingleton<IStorageLocationService>(new Mock<IStorageLocationService>().Object);
+        services.AddSingleton<IGamePathProvider>(new Mock<IGamePathProvider>().Object);
+        services.AddSingleton<ISymlinkCapabilityProvider>(new Mock<ISymlinkCapabilityProvider>().Object);
         services.AddScoped(provider => new Mock<IGameInstallationService>().Object);
         services.AddScoped(provider => new Mock<IContentManifestPool>().Object);
         services.AddScoped(provider => new Mock<IContentOrchestrator>().Object);
@@ -224,6 +235,8 @@ public class GameProfileModuleTests
         services.AddLogging();
         services.AddSingleton<IConfigurationProviderService>(configProviderMock.Object);
         services.AddSingleton<IStorageLocationService>(new Mock<IStorageLocationService>().Object);
+        services.AddSingleton<IGamePathProvider>(new Mock<IGamePathProvider>().Object);
+        services.AddSingleton<ISymlinkCapabilityProvider>(new Mock<ISymlinkCapabilityProvider>().Object);
 
         try
         {
@@ -266,6 +279,8 @@ public class GameProfileModuleTests
         services.AddLogging();
         services.AddSingleton<IConfigurationProviderService>(configProvider_mock.Object);
         services.AddSingleton<IStorageLocationService>(new Mock<IStorageLocationService>().Object);
+        services.AddSingleton<IGamePathProvider>(new Mock<IGamePathProvider>().Object);
+        services.AddSingleton<ISymlinkCapabilityProvider>(new Mock<ISymlinkCapabilityProvider>().Object);
 
         // Mock missing dependencies
         services.AddSingleton<IGameInstallationService>(new Mock<IGameInstallationService>().Object);
@@ -321,6 +336,8 @@ public class GameProfileModuleTests
         services.AddLogging();
         services.AddSingleton<IConfigurationProviderService>(configProvider_mock.Object);
         services.AddSingleton<IStorageLocationService>(new Mock<IStorageLocationService>().Object);
+        services.AddSingleton<IGamePathProvider>(new Mock<IGamePathProvider>().Object);
+        services.AddSingleton<ISymlinkCapabilityProvider>(new Mock<ISymlinkCapabilityProvider>().Object);
 
         // Mock missing dependencies
         services.AddScoped(provider => new Mock<IGameInstallationService>().Object);

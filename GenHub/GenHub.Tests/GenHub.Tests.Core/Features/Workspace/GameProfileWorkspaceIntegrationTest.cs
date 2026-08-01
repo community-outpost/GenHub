@@ -13,10 +13,12 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Storage;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Storage.Services;
+using GenHub.Features.Workspace;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Runtime.InteropServices;
 
 namespace GenHub.Tests.Core.Features.Workspace;
 
@@ -81,6 +83,19 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
         services.AddSingleton<ICasService>(mockCasService.Object);
 
         services.AddWorkspaceServices();
+
+        // AddWorkspaceServices registers the base FileOperationsService, which cannot
+        // create hard links on any platform by design — each host registers a decorator
+        // that can. Do the same here on Unix so the HardLink strategy is genuinely
+        // exercised rather than skipped.
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            services.AddScoped<IFileOperationsService>(sp => new UnixFileOperationsService(
+                sp.GetRequiredService<FileOperationsService>(),
+                sp.GetRequiredService<ICasService>(),
+                sp.GetRequiredService<ILogger<UnixFileOperationsService>>()));
+            services.AddScoped<FileOperationsService>();
+        }
 
         _serviceProvider = services.BuildServiceProvider();
         _workspaceManager = _serviceProvider.GetRequiredService<IWorkspaceManager>();
@@ -326,8 +341,9 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
             return;
         }
 
-        // Skip HardLink strategy on Windows in Core tests - the base FileOperationsService
-        // doesn't support hard links on Windows, use WindowsFileOperationsService instead
+        // Skip HardLink on Windows: the decorator that implements it there lives in
+        // GenHub.Windows and is covered by WindowsFileOperationsServiceTests. On Unix the
+        // real UnixFileOperationsService is registered above, so HardLink runs for real.
         if (strategy == WorkspaceStrategy.HardLink && isWindows)
         {
             return;

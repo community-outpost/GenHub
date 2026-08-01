@@ -9,6 +9,7 @@ using GenHub.Infrastructure.DependencyInjection;
 using GenHub.Windows.Features.GitHub.Services;
 using GenHub.Windows.GameInstallations;
 using GenHub.Windows.Infrastructure.DependencyInjection;
+using GenHub.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
@@ -20,46 +21,6 @@ namespace GenHub.Tests.Windows.Infrastructure.DependencyInjection;
 [Collection(ApplicationCompositionCollection.Name)]
 public class WindowsApplicationCompositionTests
 {
-    private sealed class TemporaryApplicationEnvironment : IDisposable
-    {
-        private readonly Dictionary<string, string?> _originalValues = [];
-
-        internal TemporaryApplicationEnvironment()
-        {
-            RootPath = Path.Combine(Path.GetTempPath(), $"GenHub.Tests.{Guid.NewGuid():N}");
-            AppDataPath = Path.Combine(RootPath, "AppData");
-            Directory.CreateDirectory(AppDataPath);
-
-            SetEnvironmentVariable("GENHUB_GenHub__AppDataPath", AppDataPath);
-            SetEnvironmentVariable("APPDATA", Path.Combine(RootPath, "RoamingAppData"));
-            SetEnvironmentVariable("LOCALAPPDATA", Path.Combine(RootPath, "LocalAppData"));
-            SetEnvironmentVariable("USERPROFILE", RootPath);
-            SetEnvironmentVariable("HOME", RootPath);
-            SetEnvironmentVariable("XDG_CONFIG_HOME", Path.Combine(RootPath, "Config"));
-            SetEnvironmentVariable("XDG_DATA_HOME", Path.Combine(RootPath, "Data"));
-        }
-
-        internal string AppDataPath { get; }
-
-        private string RootPath { get; }
-
-        void IDisposable.Dispose()
-        {
-            foreach (var pair in _originalValues)
-            {
-                Environment.SetEnvironmentVariable(pair.Key, pair.Value);
-            }
-
-            Directory.Delete(RootPath, recursive: true);
-        }
-
-        private void SetEnvironmentVariable(string name, string value)
-        {
-            _originalValues[name] = Environment.GetEnvironmentVariable(name);
-            Environment.SetEnvironmentVariable(name, value);
-        }
-    }
-
     /// <summary>
     /// Verifies that the real shared and Windows registrations resolve the startup view model graph.
     /// </summary>
@@ -90,6 +51,9 @@ public class WindowsApplicationCompositionTests
         Assert.Equal(
             testEnvironment.AppDataPath,
             serviceProvider.GetRequiredService<IConfigurationProviderService>().GetRootAppDataPath());
+        Assert.Equal(
+            testEnvironment.CasPath,
+            serviceProvider.GetRequiredService<IConfigurationProviderService>().GetCasConfiguration().CasRootPath);
         Assert.IsType<WindowsInstallationDetector>(
             serviceProvider.GetRequiredService<IGameInstallationDetector>());
         Assert.NotNull(serviceProvider.GetRequiredService<IShortcutService>());

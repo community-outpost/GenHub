@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -14,7 +15,7 @@ namespace GenHub.Tests.Core.Features.Workspace;
 /// <summary>
 /// Tests for the WorkspaceValidator class.
 /// </summary>
-public class WorkspaceValidatorTests : IDisposable
+public partial class WorkspaceValidatorTests : IDisposable
 {
     private readonly Mock<ILogger<WorkspaceValidator>> _mockLogger;
     private readonly WorkspaceValidator _validator;
@@ -252,6 +253,80 @@ public class WorkspaceValidatorTests : IDisposable
     }
 
     /// <summary>
+    /// An execute bit for an identity other than the effective process identity must not
+    /// make a workspace entry point appear executable.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateWorkspaceAsync_OtherOnlyExecuteBit_ReturnsAccessWarning()
+    {
+        // Root bypasses the permission bits entirely: faccessat reports execute access for
+        // an other-only bit, so the behaviour under test does not exist for uid 0. Checked
+        // via geteuid rather than the user name, which is wrong under `sudo -E` and for any
+        // uid-0 account named otherwise.
+        if (OperatingSystem.IsWindows() || GetEffectiveUserId() == 0)
+        {
+            return;
+        }
+
+        var executablePath = Path.Combine(_workspaceDir, "client");
+        await File.WriteAllTextAsync(executablePath, "engine binary");
+        File.SetUnixFileMode(
+            executablePath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.OtherExecute);
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = executablePath,
+        };
+
+        var result = await _validator.ValidateWorkspaceAsync(workspaceInfo);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Contains(
+            result.Data.Issues,
+            issue => issue.IssueType == ValidationIssueType.AccessDenied
+                && issue.Severity == ValidationSeverity.Warning);
+    }
+
+    /// <summary>
+    /// A workspace entry point executable by the current identity remains valid.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateWorkspaceAsync_ExecutableEntryPoint_HasNoAccessError()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var executablePath = Path.Combine(_workspaceDir, "client");
+        await File.WriteAllTextAsync(executablePath, "engine binary");
+        File.SetUnixFileMode(
+            executablePath,
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "test-workspace",
+            WorkspacePath = _workspaceDir,
+            ExecutablePath = executablePath,
+        };
+
+        var result = await _validator.ValidateWorkspaceAsync(workspaceInfo);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.DoesNotContain(
+            result.Data.Issues,
+            issue => issue.IssueType == ValidationIssueType.AccessDenied);
+    }
+
+    /// <summary>
     /// Disposes of test resources.
     /// </summary>
     public void Dispose()
@@ -290,4 +365,12 @@ public class WorkspaceValidatorTests : IDisposable
             Strategy = WorkspaceStrategy.FullCopy,
         };
     }
+
+    /// <summary>
+    /// Effective user ID, POSIX <c>geteuid(2)</c>. Declared here because the production
+    /// equivalent is internal to the GenHub assembly.
+    /// </summary>
+    /// <returns>The effective user ID; 0 is root.</returns>
+    [LibraryImport("libc", EntryPoint = "geteuid")]
+    private static partial uint GetEffectiveUserId();
 }

@@ -1,9 +1,11 @@
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Features.Manifest;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.IO;
 using System.Text.Json;
 using ContentType = GenHub.Core.Models.Enums.ContentType;
 
@@ -35,14 +37,24 @@ public class ManifestDiscoveryServiceTests : IDisposable
     private readonly string _tempDirectory;
 
     /// <summary>
+    /// Mock configuration provider supplying the application data path.
+    /// </summary>
+    private readonly Mock<IConfigurationProviderService> _configProviderMock;
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="ManifestDiscoveryServiceTests"/> class.
     /// </summary>
     public ManifestDiscoveryServiceTests()
     {
         _loggerMock = new Mock<ILogger<ManifestDiscoveryService>>();
         _cacheMock = new Mock<IManifestCache>();
-        _discoveryService = new ManifestDiscoveryService(_loggerMock.Object, _cacheMock.Object);
         _tempDirectory = Directory.CreateTempSubdirectory("GenHub.ManifestDiscoveryTests.").FullName;
+        _configProviderMock = new Mock<IConfigurationProviderService>();
+        _configProviderMock.Setup(x => x.GetApplicationDataPath()).Returns(_tempDirectory);
+        _discoveryService = new ManifestDiscoveryService(
+            _loggerMock.Object,
+            _cacheMock.Object,
+            _configProviderMock.Object);
     }
 
     /// <summary>
@@ -197,6 +209,7 @@ public class ManifestDiscoveryServiceTests : IDisposable
         var discoveryService = new ManifestDiscoveryService(
             _loggerMock.Object,
             _cacheMock.Object,
+            _configProviderMock.Object,
             EnumerateFiles,
             EnumerateDirectories);
 

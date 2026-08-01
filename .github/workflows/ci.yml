@@ -22,6 +22,7 @@ env:
   UI_PROJECT: 'GenHub/GenHub/GenHub.csproj'
   WINDOWS_PROJECT: 'GenHub/GenHub.Windows/GenHub.Windows.csproj'
   LINUX_PROJECT: 'GenHub/GenHub.Linux/GenHub.Linux.csproj'
+  MACOS_PROJECT: 'GenHub/GenHub.MacOS/GenHub.MacOS.csproj'
   TEST_PROJECTS: 'GenHub/GenHub.Tests/**/*.csproj'
 
 jobs:
@@ -34,6 +35,7 @@ jobs:
       ui: ${{ steps.filter.outputs.ui }}
       windows: ${{ steps.filter.outputs.windows }}
       linux: ${{ steps.filter.outputs.linux }}
+      macos: ${{ steps.filter.outputs.macos }}
       tests: ${{ steps.filter.outputs.tests }}
       any: ${{ steps.filter.outputs.any }}
     steps:
@@ -53,6 +55,8 @@ jobs:
               - 'GenHub/GenHub.Windows/**'
             linux:
               - 'GenHub/GenHub.Linux/**'
+            macos:
+              - 'GenHub/GenHub.MacOS/**'
             tests:
               - 'GenHub/GenHub.Tests/**'
             any:
@@ -69,6 +73,7 @@ jobs:
           echo "- UI: ${{ steps.filter.outputs.ui == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
           echo "- Windows: ${{ steps.filter.outputs.windows == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
           echo "- Linux: ${{ steps.filter.outputs.linux == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- macOS: ${{ steps.filter.outputs.macos == 'true' && '✅' || '❌' }}" >> $GITHUB_STEP_SUMMARY
 
   build-windows:
     name: Build Windows
@@ -187,7 +192,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          $testProjects = Get-ChildItem -Path "GenHub/GenHub.Tests" -Recurse -Filter *.csproj | Where-Object { $_.Name -notlike '*Linux*' }
+          $testProjects = Get-ChildItem -Path "GenHub/GenHub.Tests" -Recurse -Filter *.csproj | Where-Object { $_.Name -notlike '*Linux*' -and $_.Name -notlike '*MacOS*' }
           if ($testProjects) {
             foreach ($testProject in $testProjects) {
               Write-Host "Testing $($testProject.FullName)"
@@ -328,7 +333,7 @@ jobs:
         run: |
           shopt -s globstar nullglob
           for test_project in ${{ env.TEST_PROJECTS }}; do
-            [[ "$test_project" == *Windows* ]] && continue
+            [[ "$test_project" == *Windows* || "$test_project" == *MacOS* ]] && continue
             echo "Testing $test_project"
             dotnet test "$test_project" -c ${{ env.BUILD_CONFIGURATION }} --verbosity normal
           done
@@ -349,11 +354,175 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  build-macos:
+    name: Build macOS
+    needs: detect-changes
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.any == 'true' || needs.detect-changes.outputs.core == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.macos == 'true' }}
+    # macos-14 and newer are Apple Silicon. Pinning a version rather than using
+    # macos-latest keeps the runner architecture stable when the label moves.
+    runs-on: macos-15
+    timeout-minutes: 30
 
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache NuGet Packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Extract Build Info
+        id: buildinfo
+        run: |
+          SHORT_HASH=$(echo "${{ github.sha }}" | cut -c1-7)
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          RUN_NUMBER="${{ github.run_number }}"
+
+          if [ -n "$PR_NUMBER" ]; then
+            VERSION="0.0.${RUN_NUMBER}-pr${PR_NUMBER}"
+            CHANNEL="PR"
+          else
+            VERSION="0.0.${RUN_NUMBER}"
+            CHANNEL="CI"
+          fi
+
+          echo "SHORT_HASH=$SHORT_HASH" >> $GITHUB_OUTPUT
+          echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "CHANNEL=$CHANNEL" >> $GITHUB_OUTPUT
+
+      - name: Build Projects
+        run: |
+          BUILD_PROPS="-p:Version=${{ steps.buildinfo.outputs.VERSION }} -p:GitShortHash=${{ steps.buildinfo.outputs.SHORT_HASH }} -p:PullRequestNumber=${{ steps.buildinfo.outputs.PR_NUMBER }} -p:BuildChannel=${{ steps.buildinfo.outputs.CHANNEL }}"
+
+          dotnet build "${{ env.CORE_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} $BUILD_PROPS
+          dotnet build "${{ env.UI_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} $BUILD_PROPS
+          dotnet build "${{ env.MACOS_PROJECT }}" -c ${{ env.BUILD_CONFIGURATION }} $BUILD_PROPS
+
+      # Runs the macOS composition root before publish. "Run Tests" at the end of this job
+      # already covered this project, but it sits after Publish and Smoke Test App Launch —
+      # so an unresolvable service killed the job at the smoke test, as a status-134 crash
+      # after packaging, and the assertion that names the service never executed. Running it
+      # here fails in seconds with the service name. A missing platform registration is
+      # invisible to per-branch CI, appearing only once both halves are merged, so this is
+      # the earliest point it can surface.
+      - name: Run macOS Tests
+        run: |
+          dotnet test GenHub/GenHub.Tests/GenHub.Tests.MacOS/GenHub.Tests.MacOS.csproj \
+            -c ${{ env.BUILD_CONFIGURATION }} --verbosity normal
+
+      - name: Publish macOS App
+        run: |
+          BUILD_PROPS="-p:Version=${{ steps.buildinfo.outputs.VERSION }} -p:GitShortHash=${{ steps.buildinfo.outputs.SHORT_HASH }} -p:PullRequestNumber=${{ steps.buildinfo.outputs.PR_NUMBER }} -p:BuildChannel=${{ steps.buildinfo.outputs.CHANNEL }}"
+
+          dotnet publish "${{ env.MACOS_PROJECT }}" \
+            -c ${{ env.BUILD_CONFIGURATION }} \
+            -r osx-arm64 \
+            --self-contained true \
+            -o "macos-publish" \
+            $BUILD_PROPS
+
+      # Unsigned and unnotarized: this proves the build and startup path, it is not a
+      # distributable artifact. Signing needs a Developer ID identity, and the vendored
+      # Playwright payload under Contents/MacOS breaks `codesign --deep` besides.
+      - name: Create .app Bundle
+        run: |
+          .github/scripts/package-macos-app.sh \
+            macos-publish \
+            macos-dist \
+            "${{ steps.buildinfo.outputs.VERSION }}"
+
+      # A bundle that builds but dies on startup is worse than no bundle, because CI
+      # goes green. Launch it headless and require it to survive; that is what caught
+      # the IGitHubTokenStorage crash, which every build-only check passed straight
+      # through.
+      - name: Smoke Test App Launch
+        run: |
+          APP_BIN="macos-dist/GenHub.app/Contents/MacOS/GenHub.MacOS"
+          "$APP_BIN" > app-launch.log 2>&1 &
+          APP_PID=$!
+
+          SURVIVED=0
+          for _ in $(seq 1 "$MACOS_SMOKE_TEST_SECONDS"); do
+            sleep 1
+            if ! kill -0 "$APP_PID" 2>/dev/null; then
+              break
+            fi
+            SURVIVED=$((SURVIVED + 1))
+          done
+
+          if kill -0 "$APP_PID" 2>/dev/null; then
+            echo "App stayed up for ${SURVIVED}s"
+            if kill "$APP_PID" 2>/dev/null; then
+              wait "$APP_PID" 2>/dev/null || true
+            else
+              set +e
+              wait "$APP_PID"
+              APP_STATUS=$?
+              set -e
+              echo "::error::GenHub.app exited before CI could stop it (status $APP_STATUS). Log follows."
+              cat app-launch.log
+              exit 1
+            fi
+          else
+            set +e
+            wait "$APP_PID"
+            APP_STATUS=$?
+            set -e
+            echo "::error::GenHub.app exited during startup (status $APP_STATUS). Log follows."
+            cat app-launch.log
+            exit 1
+          fi
+        env:
+          # Avalonia needs a window server. The macOS runner provides one, so no
+          # headless backend is configured here; if that changes, set
+          # AVALONIA_SCREEN_SCALE_FACTORS or switch to a headless platform.
+          DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+          MACOS_SMOKE_TEST_SECONDS: '15'
+
+      # Platform test projects are run only on their matching hosts.
+      - name: Run Tests
+        shell: bash
+        run: |
+          while IFS= read -r test_project; do
+            # MacOS is covered by "Run macOS Tests" before publish, so it is skipped
+            # here rather than run a second time.
+            [[ "$test_project" == *Windows* || "$test_project" == *Linux* || "$test_project" == *MacOS* ]] && continue
+            echo "Testing $test_project"
+            dotnet test "$test_project" -c ${{ env.BUILD_CONFIGURATION }} --verbosity normal
+          done < <(find GenHub/GenHub.Tests -type f -name '*.csproj' | sort)
+
+      - name: Upload macOS App Bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: genhub-macos-app-${{ steps.buildinfo.outputs.VERSION }}
+          path: macos-dist/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Launch Log On Failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: genhub-macos-launch-log-${{ steps.buildinfo.outputs.VERSION }}
+          path: app-launch.log
+          if-no-files-found: ignore
+          retention-days: 7
 
   summary:
     name: Build Summary
-    needs: [build-windows, build-linux]
+    needs: [build-windows, build-linux, build-macos]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -367,3 +536,4 @@ jobs:
           echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
           echo "| Windows | ${{ needs.build-windows.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Linux | ${{ needs.build-linux.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| macOS | ${{ needs.build-macos.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY

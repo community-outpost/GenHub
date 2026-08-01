@@ -255,15 +255,13 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
                             }
                             else
                             {
-                                // Properly check execute permission using Unix stat
-                                // TODO: Make this a platform specific validation
                                 if (!HasUnixExecutePermission(executablePath))
                                 {
                                     issues.Add(new ValidationIssue
                                     {
                                         IssueType = ValidationIssueType.AccessDenied,
                                         Severity = ValidationSeverity.Warning,
-                                        Message = $"File is not marked as executable: {executablePath}",
+                                        Message = $"File is not executable by the current process: {executablePath}",
                                         Path = executablePath,
                                     });
                                 }
@@ -329,8 +327,10 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
     {
         if (!OperatingSystem.IsWindows())
         {
-            // On Unix systems, check if running as root
-            return Environment.UserName == "root";
+            // geteuid rather than comparing Environment.UserName to the literal "root",
+            // which is wrong under `sudo -E` (USER stays the invoking account) and for
+            // any uid-0 account not named root.
+            return UnixNativeMethods.GetEffectiveUserId() == 0;
         }
 
         try
@@ -345,36 +345,24 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
         }
     }
 
-    // Add this helper method to check Unix execute permission
+    /// <summary>
+    /// Determines whether the effective process identity may execute a Unix file.
+    /// <para>
+    /// Uses <c>faccessat(AT_EACCESS)</c> rather than merely checking whether any execute
+    /// bit is present. The kernel therefore evaluates ownership, group membership and
+    /// access-control rules for the identity that will actually launch the process.
+    /// </para>
+    /// </summary>
+    /// <param name="filePath">The file to inspect.</param>
+    /// <returns><c>true</c> when the file is executable by the current user.</returns>
     private static bool HasUnixExecutePermission(string filePath)
     {
-        try
+        if (OperatingSystem.IsWindows())
         {
-            if (OperatingSystem.IsWindows())
-                return true;
-
-            var psi = new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = "/bin/sh",
-                Arguments = $"-c \"[ -x '{filePath.Replace("'", "'\\''")}' ]\"",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-            using var proc = System.Diagnostics.Process.Start(psi);
-
-            if (proc == null)
-                return false;
-
-            proc.WaitForExit();
-            return proc.ExitCode == 0;
+            return true;
         }
-        catch
-        {
-            // If all checks fail, assume not executable
-            return false;
-        }
+
+        return UnixNativeMethods.CanExecute(filePath);
     }
 
     private async Task ValidateSymlinksAsync(string workspacePath, List<ValidationIssue> issues, CancellationToken cancellationToken)

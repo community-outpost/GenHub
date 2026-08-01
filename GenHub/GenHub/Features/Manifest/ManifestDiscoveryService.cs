@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -17,32 +18,26 @@ namespace GenHub.Features.Manifest;
 /// <summary>
 /// Service for discovering and indexing manifests in the GenHub file system, and for populating the manifest cache.
 /// </summary>
-public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, IManifestCache manifestCache)
+/// <remarks>
+/// The filesystem enumerators are optional constructor parameters rather than a separate
+/// test-only constructor. A second constructor chaining into this one has to hardcode the
+/// primary constructor's arity, so adding a dependency here breaks that chain without
+/// producing a merge conflict — it merges cleanly and fails to compile instead.
+/// </remarks>
+public class ManifestDiscoveryService(
+    ILogger<ManifestDiscoveryService> logger,
+    IManifestCache manifestCache,
+    IConfigurationProviderService configurationProvider,
+    Func<string, string, IEnumerable<string>>? enumerateFiles = null,
+    Func<string, IEnumerable<string>>? enumerateDirectories = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
     private readonly Func<string, string, IEnumerable<string>> _enumerateFiles =
-        (directory, pattern) => Directory.EnumerateFiles(directory, pattern, SearchOption.TopDirectoryOnly);
+        enumerateFiles ?? ((directory, pattern) =>
+            Directory.EnumerateFiles(directory, pattern, SearchOption.TopDirectoryOnly));
 
     private readonly Func<string, IEnumerable<string>> _enumerateDirectories =
-        directory => Directory.EnumerateDirectories(directory);
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ManifestDiscoveryService"/> class with filesystem test seams.
-    /// </summary>
-    /// <param name="logger">The logger.</param>
-    /// <param name="manifestCache">The manifest cache.</param>
-    /// <param name="enumerateFiles">The top-level file enumerator.</param>
-    /// <param name="enumerateDirectories">The top-level directory enumerator.</param>
-    internal ManifestDiscoveryService(
-        ILogger<ManifestDiscoveryService> logger,
-        IManifestCache manifestCache,
-        Func<string, string, IEnumerable<string>> enumerateFiles,
-        Func<string, IEnumerable<string>> enumerateDirectories)
-        : this(logger, manifestCache)
-    {
-        _enumerateFiles = enumerateFiles;
-        _enumerateDirectories = enumerateDirectories;
-    }
+        enumerateDirectories ?? Directory.EnumerateDirectories;
 
     /// <summary>
     /// Gets manifests by content type.
@@ -127,17 +122,12 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
         // First discover embedded manifests
         await DiscoverEmbeddedManifestsAsync(cancellationToken);
 
-        // Then discover from local filesystem locations
-        var localManifestDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            AppConstants.AppName,
-            FileTypes.ManifestsDirectory);
-
-        // Also check for custom manifest directories
-        var customManifestDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            AppConstants.AppName,
-            "CustomManifests");
+        // Then discover from local filesystem locations.
+        // Routed through the configuration provider so a user-relocated data directory
+        // is honoured; a raw SpecialFolder lookup would keep reading the default tree.
+        var applicationDataPath = configurationProvider.GetApplicationDataPath();
+        var localManifestDir = Path.Combine(applicationDataPath, FileTypes.ManifestsDirectory);
+        var customManifestDir = Path.Combine(applicationDataPath, "CustomManifests");
 
         await DiscoverFileSystemManifestsAsync([localManifestDir, customManifestDir], cancellationToken);
 
@@ -203,12 +193,34 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
         return true;
     }
 
-    private static async Task<ContentManifest?> LoadManifestAsync(string manifestPath, CancellationToken cancellationToken)
+    /// <summary>
+    /// Applies the variant ingestion gate, logging and rejecting when it does not pass.
+    /// </summary>
+    /// <param name="manifest">The deserialized manifest.</param>
+    /// <param name="source">Where it came from, named in the rejection log.</param>
+    /// <returns><c>true</c> when the manifest may be ingested; otherwise <c>false</c>.</returns>
+    private bool IsManifestAccepted(ContentManifest manifest, string source)
+    {
+        if (ManifestIngestionGate.TryAccept(manifest, out var rejectionReason))
+        {
+            return true;
+        }
+
+        logger.LogWarning("Skipping manifest from {Source}: {Reason}", source, rejectionReason);
+        return false;
+    }
+
+    private async Task<ContentManifest?> LoadManifestAsync(string manifestPath, CancellationToken cancellationToken)
     {
         await using var stream = File.OpenRead(manifestPath);
         var manifest = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, JsonOptions, cancellationToken);
         if (manifest != null && !string.IsNullOrEmpty(manifest.Id))
         {
+            if (!IsManifestAccepted(manifest, manifestPath))
+            {
+                return null;
+            }
+
             return manifest;
         }
 
@@ -289,6 +301,11 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
                     var manifest = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, JsonOptions, cancellationToken);
                     if (manifest != null && !string.IsNullOrEmpty(manifest.Id))
                     {
+                        if (!IsManifestAccepted(manifest, manifestFile))
+                        {
+                            continue;
+                        }
+
                         manifestCache.AddOrUpdateManifest(manifest);
                         logger.LogDebug("Discovered file system manifest: {ManifestId}", manifest.Id);
                     }
@@ -318,6 +335,11 @@ public class ManifestDiscoveryService(ILogger<ManifestDiscoveryService> logger, 
                 var manifest = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, JsonOptions, cancellationToken);
                 if (manifest != null && !string.IsNullOrEmpty(manifest.Id))
                 {
+                    if (!IsManifestAccepted(manifest, resourceName))
+                    {
+                        continue;
+                    }
+
                     manifestCache.AddOrUpdateManifest(manifest);
                     logger.LogDebug("Discovered embedded manifest: {ManifestId}", manifest.Id);
                 }

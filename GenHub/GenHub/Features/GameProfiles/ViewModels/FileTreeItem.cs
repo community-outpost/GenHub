@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
+using GenHub.Core.Utilities;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
 
@@ -33,7 +34,7 @@ public partial class FileTreeItem : ObservableObject
     /// <summary>
     /// Gets a value indicating whether this file is an executable (.exe).
     /// </summary>
-    public bool IsExecutable => IsFile && Path.GetExtension(Name).Equals(".exe", StringComparison.OrdinalIgnoreCase);
+    public bool IsExecutable => IsFile && ExecutableFileClassifier.IsLegacyLaunchCandidate(Name);
 
     /// <summary>
     /// Gets or sets a value indicating whether this item is selected as the executable.

@@ -1,10 +1,3 @@
-using System;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Text.Json;
-using System.Threading.Tasks;
 using CsvHelper;
 using CsvHelper.Configuration;
 using GenHub.Core.Constants;
@@ -13,8 +6,16 @@ using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using System;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Manifest;
 
@@ -944,8 +945,11 @@ public class ManifestGenerationService(
 
                     fullPath = ResolveSourcePathWithBackup(fullPath, finalPath);
 
-                    var isExecutable = finalPath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
-                                       finalPath.EndsWith(".dat", StringComparison.OrdinalIgnoreCase);
+                    // .dat is data, not code. It was previously marked executable because
+                    // the Steam layout launches game.dat through a proxy, which is a launch
+                    // strategy rather than a property of the file, and it forced
+                    // SteamManifestPatcher to keep flipping the flag by hand.
+                    var isExecutable = ExecutableFileClassifier.RequiresExecutePermission(finalPath);
 
                     await builder.AddGameInstallationFileAsync(finalPath, fullPath, isExecutable);
                     _fileCount++;

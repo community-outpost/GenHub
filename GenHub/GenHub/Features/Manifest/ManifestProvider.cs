@@ -74,6 +74,8 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
                     // Validate security of parsed manifest
                     ValidateManifestSecurity(manifest);
 
+                    EnsureManifestAccepted(manifest, gameClient.Id);
+
                     // Ensure manifest ID matches the requested id
                     if (!string.Equals(manifest.Id.Value, gameClient.Id, StringComparison.OrdinalIgnoreCase))
                     {
@@ -136,6 +138,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
 
             // Validate ID before adding to pool
             ManifestIdValidator.EnsureValid(generated.Id.Value);
+            EnsureManifestAccepted(generated, gameClient.Id);
 
             // Determine a sensible source directory for the generated manifest.
             // Prefer the working directory if present, otherwise fall back to the directory
@@ -205,10 +208,15 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
                 var manifest = await JsonSerializer.DeserializeAsync<ContentManifest>(stream, _jsonOptions, cancellationToken);
                 if (manifest != null)
                 {
+                    ValidateCachedManifest(manifest, deterministicId);
+
                     // For embedded installation manifests, provide the installation path as source when available.
                     var addRes = await manifestPool.AddManifestAsync(manifest, installation.InstallationPath ?? string.Empty, null, cancellationToken);
                     if (addRes?.Success != true)
+                    {
                         logger.LogWarning("Failed to add embedded installation manifest {Id} to pool: {Errors}", manifest.Id, string.Join(", ", addRes?.Errors ?? []));
+                    }
+
                     return manifest;
                 }
             }
@@ -262,6 +270,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
 
             // Validate ID before adding to pool
             ManifestIdValidator.EnsureValid(generated.Id.Value);
+            EnsureManifestAccepted(generated, deterministicId);
             var addRes2 = await manifestPool.AddManifestAsync(generated, sourcePath ?? string.Empty, null, cancellationToken);
             if (addRes2?.Success != true)
             {
@@ -294,10 +303,19 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
     {
         // Run the same security validations as for embedded manifests
         ValidateManifestSecurity(manifest);
+        EnsureManifestAccepted(manifest, expectedId);
 
         if (!string.Equals(manifest.Id.Value, expectedId, StringComparison.OrdinalIgnoreCase))
         {
             throw new ManifestValidationException(expectedId, $"Manifest ID mismatch: expected '{expectedId}' but manifest contains '{manifest.Id.Value}'");
+        }
+    }
+
+    private static void EnsureManifestAccepted(ContentManifest manifest, string requestedId)
+    {
+        if (!ManifestIngestionGate.TryAccept(manifest, out var rejectionReason))
+        {
+            throw new ManifestValidationException(requestedId, rejectionReason!);
         }
     }
 }

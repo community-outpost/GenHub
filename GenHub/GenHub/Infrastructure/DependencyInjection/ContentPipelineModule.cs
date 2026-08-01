@@ -1,5 +1,3 @@
-using System;
-using System.Net.Http;
 using GenHub.Common.Services;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
@@ -27,8 +25,12 @@ using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GitHub.Services;
 using GenHub.Features.Manifest;
 using GenHub.Features.Storage.Services;
+using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System;
+using System.IO;
+using System.Net.Http;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -99,8 +101,20 @@ public static class ContentPipelineModule
         });
         services.AddScoped<IContentManifestPool, ContentManifestPool>();
 
-        // Register provider definition loader for data-driven provider configuration
-        services.AddSingleton<IProviderDefinitionLoader, ProviderDefinitionLoader>();
+        // Register provider definition loader for data-driven provider configuration.
+        // The user-providers directory is passed in from the configuration provider so a
+        // relocated application data directory is honoured. ProviderDefinitionLoader lives
+        // in GenHub.Core and defaults to a raw SpecialFolder.ApplicationData lookup when no
+        // override is supplied, which would silently keep reading the default tree.
+        services.AddSingleton<IProviderDefinitionLoader>(sp =>
+        {
+            var configurationProvider = sp.GetRequiredService<IConfigurationProviderService>();
+            return new ProviderDefinitionLoader(
+                sp.GetRequiredService<ILogger<ProviderDefinitionLoader>>(),
+                userProvidersDirectory: Path.Combine(
+                    configurationProvider.GetApplicationDataPath(),
+                    ProviderDefinitionLoader.ProvidersDirectoryName));
+        });
 
         // Register catalog parser factory and parsers
         services.AddSingleton<ICatalogParserFactory, CatalogParserFactory>();
@@ -134,6 +148,9 @@ public static class ContentPipelineModule
 
         // Register Unified Content Reconciliation Service
         services.AddScoped<IContentReconciliationService, ContentReconciliationService>();
+
+        // Register GenLauncher normalization service
+        services.AddSingleton<IGenLauncherNormalizationService, GenLauncherNormalizationService>();
 
         // Reconciliation infrastructure
         services.AddScoped<IContentReconciliationOrchestrator, ContentReconciliationOrchestrator>();

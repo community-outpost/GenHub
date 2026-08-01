@@ -95,42 +95,34 @@ public class FileOperationsServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that CreateHardLinkAsync creates a hard link or falls back to copy on unsupported platforms.
+    /// The base service must refuse to create a hard link, because it cannot.
+    /// <para>
+    /// This replaces a test that swallowed five exception types and then asserted only
+    /// <c>File.Exists</c> and matching content — assertions a plain <c>File.Copy</c>
+    /// satisfies. The base implementation did exactly that on Unix, so the test passed
+    /// while every Linux workspace silently full-copied the game instead of linking it.
+    /// A test that cannot distinguish the bug from the fix is worse than no test.
+    /// </para>
+    /// <para>
+    /// Real link behaviour is covered per platform, where it can actually be asserted:
+    /// see <c>UnixFileOperationsServiceTests</c> and <c>WindowsFileOperationsServiceTests</c>.
+    /// </para>
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateHardLinkAsync_CreatesHardLinkOrCopies()
+    public async Task CreateHardLinkAsync_OnBaseService_RefusesInsteadOfCopying()
     {
         var src = Path.Combine(_tempDir, "source.txt");
         var link = Path.Combine(_tempDir, "hardlink.txt");
 
         await File.WriteAllTextAsync(src, "test content");
 
-        // Try to create hard link; on unsupported platforms or not implemented, skip test
-        try
-        {
-            await _service.CreateHardLinkAsync(link, src);
-        }
-        catch (NotImplementedException)
-        {
-            // Not implemented in base service, skip test
-            return;
-        }
-        catch (PlatformNotSupportedException)
-        {
-            return;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return;
-        }
-        catch (NotSupportedException)
-        {
-            return;
-        }
+        var thrown = await Record.ExceptionAsync(() => _service.CreateHardLinkAsync(link, src));
 
-        Assert.True(File.Exists(link));
-        Assert.Equal("test content", await File.ReadAllTextAsync(link));
+        Assert.IsType<NotSupportedException>(thrown);
+        Assert.False(
+            File.Exists(link),
+            "The base service produced a file, which means it silently copied rather than refusing.");
     }
 
     /// <summary>

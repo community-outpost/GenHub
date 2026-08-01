@@ -1,9 +1,11 @@
 using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Features.GameInstallations;
 using Microsoft.Extensions.Logging;
@@ -191,11 +193,19 @@ public class GameInstallationServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that GetAllInstallationsAsync returns success with empty list when detection fails but cache is initialized.
+    /// Tests that a failed detection is reported as a failure rather than as an empty
+    /// result.
     /// </summary>
+    /// <remarks>
+    /// This previously returned success with an empty list, because the cache was
+    /// populated before the failure was returned. That made a failed scan
+    /// indistinguishable from "you own no games" and, worse, left the cache initialized
+    /// and empty so a retry never rescanned. The failure is now surfaced and the cache
+    /// left unset.
+    /// </remarks>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetAllInstallationsAsync_WithDetectionFailure_ShouldReturnSuccessWithEmptyList()
+    public async Task GetAllInstallationsAsync_WithDetectionFailure_ShouldReturnFailure()
     {
         // Arrange
         _service.InvalidateCache();
@@ -206,9 +216,9 @@ public class GameInstallationServiceTests : IDisposable
         // Act
         var result = await _service.GetAllInstallationsAsync();
 
-        // Assert - Service returns success with empty list when cache is initialized, even if detection failed
-        Assert.True(result.Success);
-        Assert.Empty(result.Data!);
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Detection failed", string.Join(" ", result.Errors));
     }
 
     /// <summary>
@@ -245,5 +255,99 @@ public class GameInstallationServiceTests : IDisposable
 
         // Assert
         Assert.Null(exception);
+    }
+
+    /// <summary>
+    /// A failed scan that found nothing must not populate the cache. On macOS this is a
+    /// declined privacy prompt; caching the empty result would leave the cache
+    /// "initialized" and empty, so granting access and retrying would return nothing
+    /// without ever rescanning.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetAllInstallationsAsync_WhenDetectionFailsWithNoResults_DoesNotCacheAndRescansOnRetry()
+    {
+        var denied = DetectionResult<GameInstallation>.CreateFailure(
+            "Could not search /Users/test/Documents because macOS denied access");
+        _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(denied);
+
+        var first = await _service.GetAllInstallationsAsync();
+        Assert.False(first.Success);
+        Assert.Empty(first.Data ?? []);
+
+        // The user grants access; detection now succeeds.
+        var installation = new GameInstallation(
+            Path.GetTempPath(), GameInstallationType.Retail, new Mock<ILogger<GameInstallation>>().Object);
+        _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([installation], TimeSpan.Zero));
+
+        var second = await _service.GetAllInstallationsAsync();
+
+        Assert.Single(second.Data ?? []);
+        _orchestratorMock.Verify(
+            x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()),
+            Times.Exactly(2));
+    }
+
+    /// <summary>
+    /// Persisted manifests must not turn a failed live scan into a cached partial success.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetAllInstallationsAsync_WhenDetectionFailsWithPersistedManifest_DoesNotCache()
+    {
+        var denied = DetectionResult<GameInstallation>.CreateFailure(
+            "Could not search /Users/test/Documents because macOS denied access");
+        _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(denied);
+
+        var persistedManifest = new ContentManifest
+        {
+            Id = "1.0.retail.gameinstallation.generals",
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameInstallation,
+            Metadata = new ContentMetadata { SourcePath = Path.GetTempPath() },
+        };
+        _manifestPoolMock
+            .Setup(x => x.SearchManifestsAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([persistedManifest]));
+
+        var first = await _service.GetAllInstallationsAsync();
+        var second = await _service.GetAllInstallationsAsync();
+
+        Assert.False(first.Success);
+        Assert.False(second.Success);
+        _orchestratorMock.Verify(
+            x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()),
+            Times.Exactly(2));
+        _clientOrchestratorMock.Verify(
+            x => x.DetectGameClientsFromInstallationsAsync(
+                It.IsAny<List<GameInstallation>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+        _manifestPoolMock.Verify(
+            x => x.SearchManifestsAsync(
+                It.IsAny<ContentSearchQuery>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// A successful scan that genuinely found nothing is a real finding and must be
+    /// cached, so the absence of games is not rescanned on every call.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetAllInstallationsAsync_WhenDetectionSucceedsWithNoResults_CachesTheEmptyResult()
+    {
+        _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([], TimeSpan.Zero));
+
+        await _service.GetAllInstallationsAsync();
+        await _service.GetAllInstallationsAsync();
+
+        _orchestratorMock.Verify(
+            x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 }

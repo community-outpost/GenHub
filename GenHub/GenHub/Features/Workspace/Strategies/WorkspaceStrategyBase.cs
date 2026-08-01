@@ -258,42 +258,32 @@ public abstract class WorkspaceStrategyBase<T>(
 
         if (gameClientManifest != null)
         {
-            var executableFile = gameClientManifest.Files?
-                .FirstOrDefault(f => f.IsExecutable);
+            // Resolution order and failure behaviour live in ManifestVariantResolver.
+            // The previous inline logic took the first file marked IsExecutable, which is
+            // enumeration-order dependent as soon as more than one file qualifies — and
+            // several do, once dynamic libraries and native extensionless binaries are in
+            // the same manifest.
+            var resolution = ManifestVariantResolver.ResolveEntryPoint(gameClientManifest);
 
-            if (executableFile != null)
+            if (resolution.Success)
             {
-                // Use the full relative path from the manifest
                 workspaceInfo.ExecutablePath = Path.Combine(
                     workspaceInfo.WorkspacePath,
-                    executableFile.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+                    resolution.RelativePath!.Replace('/', Path.DirectorySeparatorChar));
 
                 logger.LogInformation(
-                    "Executable resolved from GameClient manifest: {ExecutablePath} (marked as IsExecutable)",
-                    workspaceInfo.ExecutablePath);
+                    "Executable resolved from GameClient manifest: {ExecutablePath} ({Reason})",
+                    workspaceInfo.ExecutablePath,
+                    resolution.Reason);
             }
             else
             {
-                // Fallback: Try finding any .exe file
-                executableFile = gameClientManifest.Files?
-                    .FirstOrDefault(f => f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
-
-                if (executableFile != null)
-                {
-                    workspaceInfo.ExecutablePath = Path.Combine(
-                        workspaceInfo.WorkspacePath,
-                        executableFile.RelativePath.Replace('/', Path.DirectorySeparatorChar));
-
-                    logger.LogWarning(
-                        "Executable resolved from GameClient manifest by .exe extension (IsExecutable not set): {ExecutablePath}",
-                        workspaceInfo.ExecutablePath);
-                }
-                else
-                {
-                    logger.LogWarning(
-                        "GameClient manifest '{ManifestId}' does not contain an executable file",
-                        gameClientManifest.Id);
-                }
+                // Left unset deliberately rather than guessed. Launching the wrong binary
+                // fails somewhere far less diagnosable than here.
+                logger.LogWarning(
+                    "Could not determine the executable for GameClient manifest '{ManifestId}': {Resolution}",
+                    gameClientManifest.Id,
+                    resolution);
             }
         }
         else if (!string.IsNullOrEmpty(configuration.GameClient.ExecutablePath))
@@ -510,6 +500,8 @@ public abstract class WorkspaceStrategyBase<T>(
             default:
                 throw new NotSupportedException($"Unsupported content source type: {file.SourceType}");
         }
+
+        await EnsureExecutableAsync(file, targetPath, cancellationToken);
     }
 
     /// <summary>
@@ -612,6 +604,95 @@ public abstract class WorkspaceStrategyBase<T>(
         // Copy from extracted source to target
         await FileOperations.CopyFileAsync(file.SourcePath, targetPath, cancellationToken);
         logger.LogDebug("Copied extracted file: {Source} -> {Target}", file.SourcePath, targetPath);
+    }
+
+    /// <summary>
+    /// Gives a materialised file the Unix execute bit, on a copy that the workspace owns.
+    /// <para>
+    /// The copy is the point. Under the hard-link strategy the workspace file <em>is</em>
+    /// the content-store blob — same inode, and file mode lives in the inode, not the
+    /// directory entry. Calling chmod on it would change permissions for every other
+    /// profile referencing that hash, and the content store keys purely on content hash,
+    /// so it has no way to represent two files with identical bytes and different modes.
+    /// </para>
+    /// <para>
+    /// Breaking the link costs one copy per executable. Manifests contain a handful of
+    /// those and gigabytes of data, so the deduplication that matters is untouched.
+    /// </para>
+    /// <para>
+    /// No-op on Windows, which has no execute bit, and for files that do not need one.
+    /// </para>
+    /// </summary>
+    /// <param name="file">The manifest entry that was just materialised.</param>
+    /// <param name="targetPath">Its absolute path in the workspace.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>A task representing the operation.</returns>
+    protected async Task EnsureExecutableAsync(ManifestFile file, string targetPath, CancellationToken cancellationToken)
+    {
+        if (OperatingSystem.IsWindows() || !file.IsExecutable || !File.Exists(targetPath))
+        {
+            return;
+        }
+
+        var temporaryPath = targetPath + ".genhub-exec-tmp";
+
+        try
+        {
+            // Replace the entry with a private copy so the mode change cannot reach a
+            // shared blob.
+            //
+            // The copy is made executable *before* it is moved into place, and the move
+            // replaces the destination atomically. There is therefore no observable state
+            // in which the destination is missing or present-but-not-executable: it is
+            // either the original entry or the finished private copy.
+            //
+            // A delete-then-move sequence would expose both of those states, and the
+            // second is unrecoverable — verification never mutates, so a workspace left
+            // with a non-executable entry point stays broken for every later launch.
+            await Task.Run(
+                () =>
+                {
+                    File.Copy(targetPath, temporaryPath, overwrite: true);
+
+                    if (!OperatingSystem.IsWindows())
+                    {
+                        const UnixFileMode executableMode =
+                            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                            UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
+                            UnixFileMode.OtherRead | UnixFileMode.OtherExecute;
+
+                        File.SetUnixFileMode(temporaryPath, executableMode);
+                    }
+
+                    File.Move(temporaryPath, targetPath, overwrite: true);
+                },
+                cancellationToken);
+
+            Logger.LogDebug("Marked {RelativePath} executable on a workspace-owned copy", file.RelativePath);
+        }
+        catch (Exception ex)
+        {
+            // The move is the last step, so a failure here means the temporary copy may
+            // still exist. Remove it: the original entry is untouched and correct, and a
+            // stray .genhub-exec-tmp would otherwise be reported by workspace validation.
+            try
+            {
+                File.Delete(temporaryPath);
+            }
+            catch (Exception cleanupEx)
+            {
+                Logger.LogDebug(
+                    cleanupEx,
+                    "Could not remove the temporary executable copy at {TemporaryPath}",
+                    temporaryPath);
+            }
+
+            Logger.LogError(
+                ex,
+                "Could not mark {RelativePath} executable",
+                file.RelativePath);
+            throw;
+        }
     }
 
     /// <summary>

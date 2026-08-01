@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
@@ -10,7 +5,13 @@ using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Manifest;
 
@@ -733,8 +734,10 @@ public partial class ContentManifestBuilder(
 
     private static bool IsExecutableFile(string filePath)
     {
-        var extension = Path.GetExtension(filePath).ToLowerInvariant();
-        return (extension == ".exe" || extension == ".dll" || extension == ".so" || extension == string.Empty) && File.Exists(filePath);
+        // Delegates to the shared classifier. The previous implementation also required
+        // File.Exists, which made classification depend on disk state at build time:
+        // the same manifest could classify differently depending on when it was built.
+        return ExecutableFileClassifier.RequiresExecutePermission(filePath);
     }
 
     /// <returns>The normalized version string.</returns>

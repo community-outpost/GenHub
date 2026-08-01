@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Steam;
 using GenHub.Core.Models.Manifest;
 using Microsoft.Extensions.Logging;
@@ -13,7 +14,9 @@ namespace GenHub.Features.Manifest;
 /// <summary>
 /// Implementation of <see cref="ISteamManifestPatcher"/>.
 /// </summary>
-public class SteamManifestPatcher(ILogger<SteamManifestPatcher> logger) : ISteamManifestPatcher
+public class SteamManifestPatcher(
+    ILogger<SteamManifestPatcher> logger,
+    IConfigurationProviderService configurationProvider) : ISteamManifestPatcher
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true, PropertyNameCaseInsensitive = true };
 
@@ -25,10 +28,7 @@ public class SteamManifestPatcher(ILogger<SteamManifestPatcher> logger) : ISteam
             logger.LogInformation("Patching manifest {ManifestId} for Steam launch: {UseSteamLaunch}", manifestId, useSteamLaunch);
 
             // Locate the manifest file
-            var manifestsDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                AppConstants.AppName,
-                FileTypes.ManifestsDirectory);
+            var manifestsDir = configurationProvider.GetManifestsPath();
 
             if (!Directory.Exists(manifestsDir))
             {
