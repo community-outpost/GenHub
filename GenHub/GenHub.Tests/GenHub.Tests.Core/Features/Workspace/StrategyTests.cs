@@ -6,6 +6,7 @@ using GenHub.Core.Models.Workspace;
 using GenHub.Features.Workspace.Strategies;
 using Microsoft.Extensions.Logging;
 using Moq;
+using ManifestContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Workspace;
 
@@ -249,6 +250,69 @@ public class StrategyTests : IDisposable
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(
             () => strategy.PrepareAsync(null!, null, CancellationToken.None));
+    }
+
+    /// <summary>
+    /// Verifies that hard-link preparation copies CAS content instead of rejecting a cross-volume workspace.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task HardLinkStrategy_WhenVolumesDiffer_FallsBackToCopy()
+    {
+        const string Hash = "test-hash";
+        var strategy = new HardLinkStrategy(_fileOps.Object, new Mock<ILogger<HardLinkStrategy>>().Object);
+        var configuration = new WorkspaceConfiguration
+        {
+            Id = "cross-volume",
+            Strategy = WorkspaceStrategy.HardLink,
+            WorkspaceRootPath = _tempDir,
+            BaseInstallationPath = "relative-installation-path",
+            GameClient = new GameClient { Id = "test" },
+            Manifests =
+            [
+                new ContentManifest
+                {
+                    ContentType = ManifestContentType.GameClient,
+                    Files =
+                    [
+                        new ManifestFile
+                        {
+                            RelativePath = "game.exe",
+                            Hash = Hash,
+                            Size = 1024,
+                            InstallTarget = ContentInstallTarget.Workspace,
+                            SourceType = ContentSourceType.ContentAddressable,
+                        },
+                    ],
+                },
+            ],
+        };
+        _fileOps
+            .Setup(service => service.LinkFromCasAsync(
+                Hash,
+                It.IsAny<string>(),
+                true,
+                ManifestContentType.GameClient,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _fileOps
+            .Setup(service => service.CopyFromCasAsync(
+                Hash,
+                It.IsAny<string>(),
+                ManifestContentType.GameClient,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var result = await strategy.PrepareAsync(configuration, null, CancellationToken.None);
+
+        Assert.True(result.IsPrepared);
+        _fileOps.Verify(
+            service => service.CopyFromCasAsync(
+                Hash,
+                It.IsAny<string>(),
+                ManifestContentType.GameClient,
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     /// <summary>

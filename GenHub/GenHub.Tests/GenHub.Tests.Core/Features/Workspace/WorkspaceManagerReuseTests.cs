@@ -82,7 +82,7 @@ public class WorkspaceManagerReuseTests : IDisposable
         // Arrange
         var workspaceId = "test-workspace";
         var manifestId = "1.0.local.mod.testmanifest";
-        var workspacePath = Path.Combine(_tempPath, "workspace");
+        var workspacePath = Path.Combine(_tempPath, workspaceId);
         Directory.CreateDirectory(workspacePath);
         File.WriteAllText(Path.Combine(workspacePath, "test.txt"), "content");
 
@@ -142,7 +142,7 @@ public class WorkspaceManagerReuseTests : IDisposable
         // Arrange
         var workspaceId = "test-workspace";
         var manifestId = "1.0.local.mod.testmanifest";
-        var workspacePath = Path.Combine(_tempPath, "workspace");
+        var workspacePath = Path.Combine(_tempPath, workspaceId);
         Directory.CreateDirectory(workspacePath);
         File.WriteAllText(Path.Combine(workspacePath, "test.txt"), "content");
 
@@ -205,7 +205,7 @@ public class WorkspaceManagerReuseTests : IDisposable
         // Arrange
         var workspaceId = "test-workspace";
         var manifestId = "1.0.local.mod.testmanifest";
-        var workspacePath = Path.Combine(_tempPath, "workspace");
+        var workspacePath = Path.Combine(_tempPath, workspaceId);
         Directory.CreateDirectory(workspacePath);
         File.WriteAllText(Path.Combine(workspacePath, "test.txt"), "content");
 
@@ -266,7 +266,7 @@ public class WorkspaceManagerReuseTests : IDisposable
         // Arrange
         var workspaceId = "test-workspace";
         var manifestId = "1.0.local.mod.testmanifest";
-        var workspacePath = Path.Combine(_tempPath, "workspace");
+        var workspacePath = Path.Combine(_tempPath, workspaceId);
         Directory.CreateDirectory(workspacePath);
         var executablePath = Path.Combine(workspacePath, "generals");
         await File.WriteAllTextAsync(executablePath, "engine binary");
@@ -314,6 +314,67 @@ public class WorkspaceManagerReuseTests : IDisposable
 
         // Repair happens on the reuse fast path; the strategy never re-materialises.
         _mockStrategy.Verify(x => x.PrepareAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that a workspace is recreated when storage resolution moves it to a new root.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task PrepareWorkspaceAsync_WhenStorageRootChanges_ShouldRecreateWorkspace()
+    {
+        var workspaceId = "test-workspace";
+        var manifestId = "1.0.local.mod.testmanifest";
+        var oldWorkspaceRoot = Path.Combine(_tempPath, "protected-root");
+        var oldWorkspacePath = Path.Combine(oldWorkspaceRoot, workspaceId);
+        var newWorkspaceRoot = Path.Combine(_tempPath, "AppData", "Workspaces");
+        var newWorkspacePath = Path.Combine(newWorkspaceRoot, workspaceId);
+        Directory.CreateDirectory(oldWorkspacePath);
+        File.WriteAllText(Path.Combine(oldWorkspacePath, "test.txt"), "content");
+
+        var cachedWorkspace = new WorkspaceInfo
+        {
+            Id = workspaceId,
+            WorkspacePath = oldWorkspacePath,
+            ManifestIds = [manifestId],
+            ManifestVersions = new Dictionary<string, string> { { manifestId, "1.0" } },
+            Strategy = WorkspaceStrategy.HardLink,
+            IsPrepared = true,
+            FileCount = 1,
+            IsValid = true,
+        };
+        await File.WriteAllTextAsync(_metadataPath, System.Text.Json.JsonSerializer.Serialize(new[] { cachedWorkspace }));
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = workspaceId,
+            Strategy = WorkspaceStrategy.HardLink,
+            Manifests = [new ContentManifest { Id = ManifestId.Create(manifestId), Version = "1.0" }],
+            BaseInstallationPath = _tempPath,
+            WorkspaceRootPath = newWorkspaceRoot,
+            ValidateAfterPreparation = false,
+        };
+        var successValidation = new ValidationResult(workspaceId, []);
+        _mockWorkspaceValidator
+            .Setup(x => x.ValidateConfigurationAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(successValidation);
+        _mockWorkspaceValidator
+            .Setup(x => x.ValidatePrerequisitesAsync(It.IsAny<IWorkspaceStrategy>(), It.IsAny<WorkspaceConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(successValidation);
+        _mockStrategy
+            .Setup(x => x.PrepareAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new WorkspaceInfo { Id = workspaceId, IsPrepared = true, WorkspacePath = newWorkspacePath });
+
+        var result = await _manager.PrepareWorkspaceAsync(config);
+
+        result.Success.Should().BeTrue();
+        result.Data!.WorkspacePath.Should().Be(newWorkspacePath);
+        _mockStrategy.Verify(
+            x => x.PrepareAsync(
+                It.Is<WorkspaceConfiguration>(configuration => configuration.ForceRecreate),
+                It.IsAny<IProgress<WorkspacePreparationProgress>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     /// <summary>
