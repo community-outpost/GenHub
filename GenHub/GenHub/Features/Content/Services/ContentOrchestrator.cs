@@ -37,6 +37,7 @@ public class ContentOrchestrator : IContentOrchestrator
     private readonly IContentManifestPool _manifestPool;
     private readonly IGameInstallationService _installationService;
     private readonly IUserSettingsService _userSettingsService;
+    private readonly IStorageWritabilityProbe _writabilityProbe;
     private readonly object _providerLock = new();
 
     /// <summary>
@@ -81,6 +82,7 @@ public class ContentOrchestrator : IContentOrchestrator
     /// <param name="manifestPool">The manifest pool for acquired content.</param>
     /// <param name="installationService">The game installation service for detecting installations.</param>
     /// <param name="userSettingsService">The user settings service for updating CAS configuration.</param>
+    /// <param name="writabilityProbe">The probe used to confirm a CAS pool location accepts writes.</param>
     public ContentOrchestrator(
         ILogger<ContentOrchestrator> logger,
         IEnumerable<IContentProvider> providers,
@@ -90,7 +92,8 @@ public class ContentOrchestrator : IContentOrchestrator
         IContentValidator contentValidator,
         IContentManifestPool manifestPool,
         IGameInstallationService installationService,
-        IUserSettingsService userSettingsService)
+        IUserSettingsService userSettingsService,
+        IStorageWritabilityProbe writabilityProbe)
     {
         _logger = logger;
         _providers = [.. providers];
@@ -109,6 +112,7 @@ public class ContentOrchestrator : IContentOrchestrator
         _manifestPool = manifestPool;
         _installationService = installationService;
         _userSettingsService = userSettingsService;
+        _writabilityProbe = writabilityProbe;
 
         _logger.LogInformation("ContentOrchestrator initialized with {ProviderCount} providers, {DiscovererCount} discoverers, {ResolverCount} resolvers", _providers.Count, _discoverers.Count, _resolvers.Count);
     }
@@ -736,52 +740,46 @@ public class ContentOrchestrator : IContentOrchestrator
                 return false;
             }
 
-            // If only one installation, use it
-            if (installations.Count == 1)
-            {
-                var installation = installations[0];
-                var installationPath = GetInstallationPath(installation);
-                if (!string.IsNullOrEmpty(installationPath))
-                {
-                    var casPoolPath = Path.Combine(installationPath, ".genhub-cas");
-                    _logger.LogInformation("Auto-setting InstallationPoolRootPath to single installation: {Path}", casPoolPath);
-
-                    return await _userSettingsService.TryUpdateAndSaveAsync(s =>
-                    {
-                        s.CasConfiguration.InstallationPoolRootPath = casPoolPath;
-                        s.PreferredStorageInstallationId = installation.Id;
-                        s.MarkAsExplicitlySet(nameof(s.CasConfiguration.InstallationPoolRootPath));
-                        return true;
-                    });
-                }
-            }
-
             // If multiple installations, prefer Steam over EA App
             // Note: Since we verified installations.Count >= 1, this will never be null
-            var preferredInstallation = installations.FirstOrDefault(i => i.InstallationType == GameInstallationType.Steam)
-                ?? installations.FirstOrDefault(i => i.InstallationType == GameInstallationType.EaApp)
-                ?? installations.First();
+            var preferredInstallation = installations.Count == 1
+                ? installations[0]
+                : installations.FirstOrDefault(i => i.InstallationType == GameInstallationType.Steam)
+                    ?? installations.FirstOrDefault(i => i.InstallationType == GameInstallationType.EaApp)
+                    ?? installations.First();
 
-            if (preferredInstallation != null)
+            var preferredInstallationPath = GetInstallationPath(preferredInstallation);
+            if (string.IsNullOrEmpty(preferredInstallationPath))
             {
-                var installationPath = GetInstallationPath(preferredInstallation);
-                if (!string.IsNullOrEmpty(installationPath))
-                {
-                    var casPoolPath = Path.Combine(installationPath, ".genhub-cas");
-                    _logger.LogInformation("Auto-setting InstallationPoolRootPath to preferred installation ({InstallationType}): {Path}", preferredInstallation.InstallationType, casPoolPath);
-
-                    return await _userSettingsService.TryUpdateAndSaveAsync(s =>
-                    {
-                        s.CasConfiguration.InstallationPoolRootPath = casPoolPath;
-                        s.PreferredStorageInstallationId = preferredInstallation.Id;
-                        s.MarkAsExplicitlySet(nameof(s.CasConfiguration.InstallationPoolRootPath));
-                        return true;
-                    });
-                }
+                _logger.LogWarning("Preferred installation {InstallationId} has no usable path", preferredInstallation.Id);
+                return false;
             }
 
-            // Should not be reachable given the checks above
-            return false;
+            var casPoolPath = Path.Combine(preferredInstallationPath, DirectoryNames.GenHubCasPool);
+
+            // An unwritable pool is not a failure: clearing the path routes this content to the
+            // primary pool instead, and also repairs a protected path persisted by an earlier run.
+            var isPoolWritable = _writabilityProbe.CanCreateStorageAt(casPoolPath);
+            if (isPoolWritable)
+            {
+                _logger.LogInformation(
+                    "Auto-setting InstallationPoolRootPath to preferred installation ({InstallationType}): {Path}",
+                    preferredInstallation.InstallationType,
+                    casPoolPath);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "Installation CAS pool {Path} is not writable; content will be stored in the primary pool",
+                    casPoolPath);
+            }
+
+            return await _userSettingsService.TryUpdateAndSaveAsync(s =>
+            {
+                s.CasConfiguration.InstallationPoolRootPath = isPoolWritable ? casPoolPath : string.Empty;
+                s.PreferredStorageInstallationId = preferredInstallation.Id;
+                return true;
+            });
         }
         catch (Exception ex)
         {

@@ -1,0 +1,20 @@
+namespace GenHub.Core.Interfaces.Common;
+
+/// <summary>
+/// Determines whether GenHub can create storage at a filesystem location.
+/// </summary>
+public interface IStorageWritabilityProbe
+{
+    /// <summary>
+    /// Checks whether a directory can be created at, or files written into, the given path.
+    /// </summary>
+    /// <param name="storagePath">The storage path to check.</param>
+    /// <returns><c>true</c> when the location accepts writes; otherwise, <c>false</c>.</returns>
+    bool CanCreateStorageAt(string storagePath);
+
+    /// <summary>
+    /// Discards any cached result for a storage path so the next check probes the filesystem again.
+    /// </summary>
+    /// <param name="storagePath">The storage path to re-probe, or <c>null</c> to discard every cached result.</param>
+    void Invalidate(string? storagePath = null);
+}

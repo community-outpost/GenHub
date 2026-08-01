@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Enums;
@@ -24,6 +25,7 @@ public class CasPoolManager : ICasPoolManager
     private readonly CasConfiguration _config;
     private readonly ConcurrentDictionary<CasPoolType, ICasStorage> _storages = new();
     private readonly object _initLock = new();
+    private string? _installationPoolRoot;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CasPoolManager"/> class.
@@ -62,6 +64,11 @@ public class CasPoolManager : ICasPoolManager
     /// <inheritdoc/>
     public ICasStorage GetStorage(CasPoolType poolType)
     {
+        if (poolType == CasPoolType.Installation)
+        {
+            DiscardInstallationPoolIfRootChanged();
+        }
+
         if (_storages.TryGetValue(poolType, out var storage))
         {
             _logger.LogDebug("Returning existing {PoolType} pool storage", poolType);
@@ -215,7 +222,38 @@ public class CasPoolManager : ICasPoolManager
                 var storage = new CasStorage(poolConfigOptions, storageLogger, _hashProvider);
                 _storages.TryAdd(poolType, storage);
 
+                if (poolType == CasPoolType.Installation)
+                {
+                    _installationPoolRoot = rootPath;
+                }
+
                 _logger.LogInformation("Initialized {PoolType} CAS pool at {RootPath}", poolType, rootPath);
             }
+    }
+
+    private void DiscardInstallationPoolIfRootChanged()
+    {
+        if (!_storages.ContainsKey(CasPoolType.Installation))
+        {
+            return;
+        }
+
+        var currentRoot = _poolResolver.GetPoolRootPath(CasPoolType.Installation);
+        if (string.Equals(currentRoot, _installationPoolRoot, PathHelper.PathComparison))
+        {
+            return;
+        }
+
+        lock (_initLock)
+        {
+            if (_storages.TryRemove(CasPoolType.Installation, out _))
+            {
+                _logger.LogInformation(
+                    "Installation CAS pool root changed from {PreviousRoot} to {CurrentRoot}; discarding the cached pool",
+                    _installationPoolRoot,
+                    currentRoot);
+                _installationPoolRoot = null;
+            }
+        }
     }
 }

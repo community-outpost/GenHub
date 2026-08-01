@@ -1,8 +1,10 @@
+using GenHub.Common.Services;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Storage;
 using GenHub.Features.Storage.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -18,6 +20,9 @@ public static class CasModule
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddCasServices(this IServiceCollection services)
     {
+        // Pool selection depends on whether a pool location accepts writes
+        services.TryAddSingleton<IStorageWritabilityProbe, StorageWritabilityProbe>();
+
         // Pool management services (must be registered first for CasService to use)
         services.AddSingleton<ICasPoolResolver, CasPoolResolver>();
         services.AddSingleton<ICasPoolManager, CasPoolManager>();

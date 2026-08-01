@@ -1,4 +1,6 @@
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Enums;
@@ -14,6 +16,7 @@ namespace GenHub.Features.Storage.Services;
 public class CasPoolResolver(
     IOptions<CasConfiguration> config,
     IUserSettingsService userSettingsService,
+    IStorageWritabilityProbe writabilityProbe,
     ILogger<CasPoolResolver> logger) : ICasPoolResolver
 {
     /// <summary>
@@ -30,6 +33,7 @@ public class CasPoolResolver(
     ];
 
     private readonly CasConfiguration _config = config.Value;
+    private readonly ConcurrentDictionary<string, bool> _unwritablePoolsLogged = new(PathHelper.PathComparer);
 
     /// <inheritdoc/>
     public CasPoolType ResolvePool(ContentType contentType)
@@ -71,7 +75,24 @@ public class CasPoolResolver(
     public bool IsInstallationPoolAvailable()
     {
         var path = GetInstallationPoolRootPath();
-        return !string.IsNullOrWhiteSpace(path);
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        if (writabilityProbe.CanCreateStorageAt(path))
+        {
+            return true;
+        }
+
+        if (_unwritablePoolsLogged.TryAdd(path, true))
+        {
+            logger.LogWarning(
+                "Installation CAS pool {PoolPath} is not writable; content will use the primary pool",
+                path);
+        }
+
+        return false;
     }
 
     /// <summary>

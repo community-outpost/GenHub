@@ -39,6 +39,7 @@ public class CommunityOutpostDeliverer(
    IUserSettingsService userSettingsService,
    ICasPoolManager? casPoolManager,
    CompressedImageToTgaConverter avifConverter,
+   IStorageWritabilityProbe writabilityProbe,
    ILogger<CommunityOutpostDeliverer> logger)
    : IContentDeliverer
 {
@@ -675,66 +676,59 @@ public class CommunityOutpostDeliverer(
                 return;
             }
 
-            // If only one installation, use it
-            if (installations.Count == 1)
+            // If multiple installations, prefer Steam over EA App
+            var preferredInstallation = installations.Count == 1
+                ? installations[0]
+                : installations.FirstOrDefault(i => i.InstallationType == GameInstallationType.Steam)
+                    ?? installations.FirstOrDefault(i => i.InstallationType == GameInstallationType.EaApp)
+                    ?? installations.FirstOrDefault();
+
+            if (preferredInstallation == null)
             {
-                var installation = installations[0];
-                var installationPath = GetInstallationPath(installation);
-                if (!string.IsNullOrEmpty(installationPath))
-                {
-                    var casPoolPath = Path.Combine(installationPath, ".genhub-cas");
-                    logger.LogInformation("Auto-setting InstallationPoolRootPath to single installation: {Path}", casPoolPath);
-
-                    var saved = await userSettingsService.TryUpdateAndSaveAsync(s =>
-                    {
-                        s.CasConfiguration.InstallationPoolRootPath = casPoolPath;
-                        s.PreferredStorageInstallationId = installation.Id;
-                        s.MarkAsExplicitlySet(nameof(s.CasConfiguration.InstallationPoolRootPath));
-                        return true;
-                    });
-
-                    if (!saved)
-                    {
-                        logger.LogError("Failed to save installation pool path settings for installation {InstallationId}", installation.Id);
-                    }
-
-                    // Verify the setting was applied
-                    var updatedSettings = userSettingsService.Get();
-                    logger.LogInformation("Verified InstallationPoolRootPath is now: {Path}", updatedSettings.CasConfiguration.InstallationPoolRootPath);
-                    return;
-                }
+                logger.LogWarning("No valid installation found for CAS pool path resolution");
+                return;
             }
 
-            // If multiple installations, prefer Steam over EA App
-            var preferredInstallation = installations.FirstOrDefault(i => i.InstallationType == GameInstallationType.Steam)
-                ?? installations.FirstOrDefault(i => i.InstallationType == GameInstallationType.EaApp)
-                ?? installations.FirstOrDefault();
-
-            if (preferredInstallation != null)
+            var preferredInstallationPath = GetInstallationPath(preferredInstallation);
+            if (string.IsNullOrEmpty(preferredInstallationPath))
             {
-                var installationPath = GetInstallationPath(preferredInstallation);
-                if (!string.IsNullOrEmpty(installationPath))
-                {
-                    var casPoolPath = Path.Combine(installationPath, ".genhub-cas");
-                    logger.LogInformation("Auto-setting InstallationPoolRootPath to preferred installation ({InstallationType}): {Path}", preferredInstallation.InstallationType, casPoolPath);
+                logger.LogWarning("Preferred installation {InstallationId} has no usable path", preferredInstallation.Id);
+                return;
+            }
 
-                    await userSettingsService.TryUpdateAndSaveAsync(s =>
-                    {
-                        s.CasConfiguration.InstallationPoolRootPath = casPoolPath;
-                        s.PreferredStorageInstallationId = preferredInstallation.Id;
-                        s.MarkAsExplicitlySet(nameof(s.CasConfiguration.InstallationPoolRootPath));
-                        return true;
-                    });
+            var poolPath = Path.Combine(preferredInstallationPath, DirectoryNames.GenHubCasPool);
 
-                    // Verify the setting was applied
-                    var updatedSettings = userSettingsService.Get();
-                    logger.LogInformation("Verified InstallationPoolRootPath is now: {Path}", updatedSettings.CasConfiguration.InstallationPoolRootPath);
-                }
+            // An unwritable pool is not a failure: clearing the path routes this content to the
+            // primary pool instead, and also repairs a protected path persisted by an earlier run.
+            var isPoolWritable = writabilityProbe.CanCreateStorageAt(poolPath);
+            if (isPoolWritable)
+            {
+                logger.LogInformation(
+                    "Auto-setting InstallationPoolRootPath to preferred installation ({InstallationType}): {Path}",
+                    preferredInstallation.InstallationType,
+                    poolPath);
             }
             else
             {
-                logger.LogWarning("No valid installation found for CAS pool path resolution");
+                logger.LogWarning(
+                    "Installation CAS pool {Path} is not writable; content will be stored in the primary pool",
+                    poolPath);
             }
+
+            var saved = await userSettingsService.TryUpdateAndSaveAsync(s =>
+            {
+                s.CasConfiguration.InstallationPoolRootPath = isPoolWritable ? poolPath : string.Empty;
+                s.PreferredStorageInstallationId = preferredInstallation.Id;
+                return true;
+            });
+
+            if (!saved)
+            {
+                logger.LogError("Failed to save installation pool path settings for installation {InstallationId}", preferredInstallation.Id);
+            }
+
+            var updatedSettings = userSettingsService.Get();
+            logger.LogInformation("Verified InstallationPoolRootPath is now: {Path}", updatedSettings.CasConfiguration.InstallationPoolRootPath);
         }
         catch (Exception ex)
         {

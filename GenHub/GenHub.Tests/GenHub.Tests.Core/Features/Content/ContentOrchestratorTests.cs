@@ -23,6 +23,7 @@ public class ContentOrchestratorTests
     private readonly Mock<IContentManifestPool> _manifestPoolMock = default!;
     private readonly Mock<IGameInstallationService> _installationServiceMock = default!;
     private readonly Mock<IUserSettingsService> _userSettingsServiceMock = default!;
+    private readonly Mock<IStorageWritabilityProbe> _writabilityProbeMock = default!;
     private readonly Mock<ILogger<ContentOrchestrator>> _loggerMock = default!;
 
     /// <summary>
@@ -35,6 +36,7 @@ public class ContentOrchestratorTests
         _manifestPoolMock = new Mock<IContentManifestPool>();
         _installationServiceMock = new Mock<IGameInstallationService>();
         _userSettingsServiceMock = new Mock<IUserSettingsService>();
+        _writabilityProbeMock = new Mock<IStorageWritabilityProbe>();
         _loggerMock = new Mock<ILogger<ContentOrchestrator>>();
     }
 
@@ -71,7 +73,8 @@ public class ContentOrchestratorTests
             _contentValidatorMock.Object,
             _manifestPoolMock.Object,
             _installationServiceMock.Object,
-            _userSettingsServiceMock.Object);
+            _userSettingsServiceMock.Object,
+            _writabilityProbeMock.Object);
 
         // Act
         var result = await orchestrator.SearchAsync(new ContentSearchQuery());
@@ -132,7 +135,8 @@ public class ContentOrchestratorTests
             _contentValidatorMock.Object,
             _manifestPoolMock.Object,
             _installationServiceMock.Object,
-            _userSettingsServiceMock.Object);
+            _userSettingsServiceMock.Object,
+            _writabilityProbeMock.Object);
 
         // Act
         var result = await orchestrator.AcquireContentAsync(searchResult);

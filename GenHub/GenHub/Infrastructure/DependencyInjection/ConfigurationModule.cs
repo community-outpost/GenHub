@@ -3,6 +3,7 @@ using GenHub.Common.Services;
 using GenHub.Core.Interfaces.Common;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Infrastructure.DependencyInjection;
@@ -47,12 +48,15 @@ public static class ConfigurationModule
             bootstrapLoggerFactory.CreateLogger<ConfigurationProviderService>());
         services.AddSingleton<ILogger<StorageLocationService>>(provider =>
             bootstrapLoggerFactory.CreateLogger<StorageLocationService>());
+        services.AddSingleton<ILogger<StorageWritabilityProbe>>(provider =>
+            bootstrapLoggerFactory.CreateLogger<StorageWritabilityProbe>());
 
         services.AddSingleton<ISessionPreferenceService, SessionPreferenceService>();
         services.AddSingleton<IDialogService, DialogService>();
         services.AddSingleton<IAppConfiguration, AppConfiguration>();
         services.AddSingleton<IUserSettingsService, UserSettingsService>();
         services.AddSingleton<IConfigurationProviderService, ConfigurationProviderService>();
+        services.TryAddSingleton<IStorageWritabilityProbe, StorageWritabilityProbe>();
         services.AddSingleton<IStorageLocationService, StorageLocationService>();
 
         return services;
