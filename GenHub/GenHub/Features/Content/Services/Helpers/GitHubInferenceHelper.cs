@@ -191,7 +191,7 @@ public static class GitHubInferenceHelper
     /// <returns>True when the extension matches a known executable type.</returns>
     public static bool IsExecutableFile(string fileName)
     {
-        return ExecutableFileClassifier.RequiresExecutePermission(fileName);
+        return ExecutableFileClassifier.RequiresExecutePermissionFromName(fileName);
     }
 
     /// <summary>

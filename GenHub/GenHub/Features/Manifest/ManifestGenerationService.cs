@@ -949,7 +949,7 @@ public class ManifestGenerationService(
                     // the Steam layout launches game.dat through a proxy, which is a launch
                     // strategy rather than a property of the file, and it forced
                     // SteamManifestPatcher to keep flipping the flag by hand.
-                    var isExecutable = ExecutableFileClassifier.RequiresExecutePermission(finalPath);
+                    var isExecutable = ExecutableFileClassifier.RequiresExecutePermission(finalPath, fullPath);
 
                     await builder.AddGameInstallationFileAsync(finalPath, fullPath, isExecutable);
                     _fileCount++;

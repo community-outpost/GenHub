@@ -146,7 +146,7 @@ public class CommunityOutpostDeliverer(
                 RelativePath = relativePath,
                 Size = fileInfo.Length,
                 IsRequired = true,
-                IsExecutable = ExecutableFileClassifier.RequiresExecutePermission(relativePath),
+                IsExecutable = ExecutableFileClassifier.RequiresExecutePermission(relativePath, file),
                 SourceType = ContentSourceType.ExtractedPackage,
             });
         }
