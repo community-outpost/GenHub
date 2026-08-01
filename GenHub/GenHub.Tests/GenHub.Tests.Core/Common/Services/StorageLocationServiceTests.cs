@@ -52,7 +52,8 @@ public sealed class StorageLocationServiceTests : IDisposable
         var workspacePath = service.GetWorkspacePath(installation);
 
         Assert.Equal(Path.Combine(installationRoot, DirectoryNames.GenHubWorkspace), workspacePath);
-        Assert.Empty(Directory.GetFiles(installationRoot, ProbeSearchPattern));
+        Assert.True(Directory.Exists(workspacePath));
+        Assert.Empty(Directory.GetFiles(workspacePath, ProbeSearchPattern));
     }
 
     /// <summary>
@@ -94,7 +95,8 @@ public sealed class StorageLocationServiceTests : IDisposable
         var workspacePath = service.GetWorkspacePath(installation);
 
         Assert.Equal(customWorkspacePath, workspacePath);
-        Assert.Empty(Directory.GetFiles(_tempPath, ProbeSearchPattern));
+        Assert.True(Directory.Exists(customWorkspacePath));
+        Assert.Empty(Directory.GetFiles(customWorkspacePath, ProbeSearchPattern));
     }
 
     /// <summary>
@@ -117,8 +119,8 @@ public sealed class StorageLocationServiceTests : IDisposable
         var workspacePath = service.GetWorkspacePath(installation);
 
         Assert.Equal(customWorkspacePath, workspacePath);
-        Assert.False(Directory.Exists(missingParent));
-        Assert.Empty(Directory.GetFiles(_tempPath, ProbeSearchPattern));
+        Assert.True(Directory.Exists(customWorkspacePath));
+        Assert.Empty(Directory.GetFiles(customWorkspacePath, ProbeSearchPattern));
     }
 
     /// <summary>

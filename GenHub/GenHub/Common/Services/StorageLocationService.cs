@@ -208,17 +208,17 @@ public class StorageLocationService(
     private bool ProbeStorageLocation(string fullStoragePath)
     {
         string? probePath = null;
+        var storageDirectoryExisted = Directory.Exists(fullStoragePath);
+        var storageDirectoryCreated = false;
+        var probeSucceeded = false;
 
         try
         {
-            var probeDirectory = FindNearestExistingDirectory(fullStoragePath);
-            if (string.IsNullOrWhiteSpace(probeDirectory))
-            {
-                return false;
-            }
+            Directory.CreateDirectory(fullStoragePath);
+            storageDirectoryCreated = !storageDirectoryExisted;
 
             probePath = Path.Combine(
-                probeDirectory,
+                fullStoragePath,
                 $"{StorageConstants.WriteProbeFilePrefix}{Guid.NewGuid():N}.tmp");
             using var probe = new FileStream(
                 probePath,
@@ -228,6 +228,7 @@ public class StorageLocationService(
                 bufferSize: 1,
                 FileOptions.DeleteOnClose);
             probe.WriteByte(0);
+            probeSucceeded = true;
             return true;
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or ArgumentException or NotSupportedException or SecurityException)
@@ -248,27 +249,22 @@ public class StorageLocationService(
                     logger.LogDebug(ex, "Could not remove storage write probe {ProbePath}", probePath);
                 }
             }
-        }
-    }
 
-    private string? FindNearestExistingDirectory(string fullStoragePath)
-    {
-        var candidate = fullStoragePath;
-        while (!string.IsNullOrWhiteSpace(candidate))
-        {
-            if (Directory.Exists(candidate))
+            if (!probeSucceeded && storageDirectoryCreated)
             {
-                return candidate;
+                try
+                {
+                    if (Directory.Exists(fullStoragePath) &&
+                        !Directory.EnumerateFileSystemEntries(fullStoragePath).Any())
+                    {
+                        Directory.Delete(fullStoragePath);
+                    }
+                }
+                catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or SecurityException)
+                {
+                    logger.LogDebug(ex, "Could not remove failed storage probe directory {StoragePath}", fullStoragePath);
+                }
             }
-
-            if (File.Exists(candidate))
-            {
-                return null;
-            }
-
-            candidate = Path.GetDirectoryName(candidate);
         }
-
-        return null;
     }
 }
