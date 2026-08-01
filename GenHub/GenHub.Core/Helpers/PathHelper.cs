@@ -18,6 +18,15 @@ public static class PathHelper
             : StringComparison.Ordinal;
 
     /// <summary>
+    /// Gets the string comparer to use when keying collections by filesystem path, matching
+    /// the case sensitivity of the current platform's default filesystem.
+    /// </summary>
+    public static StringComparer PathComparer =>
+        OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+            ? StringComparer.OrdinalIgnoreCase
+            : StringComparer.Ordinal;
+
+    /// <summary>
     /// Gets the parent directory of a path, with fallback to the path itself if at drive root.
     /// </summary>
     /// <param name="path">The path to get the parent directory from.</param>

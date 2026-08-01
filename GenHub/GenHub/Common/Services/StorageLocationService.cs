@@ -28,7 +28,7 @@ public class StorageLocationService(
     /// Caches write-probe results for the process lifetime, so a permission change
     /// on a probed location only takes effect after a restart.
     /// </summary>
-    private readonly ConcurrentDictionary<string, bool> _writableStorageCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, bool> _writableStorageCache = new(PathHelper.PathComparer);
 
     /// <inheritdoc/>
     public string GetCasPoolPath(IGameInstallation installation)
