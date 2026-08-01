@@ -211,16 +211,15 @@ public class StorageLocationService(
 
         try
         {
-            var probeDirectory = Directory.Exists(fullStoragePath)
-                ? fullStoragePath
-                : Path.GetDirectoryName(fullStoragePath);
-
-            if (string.IsNullOrWhiteSpace(probeDirectory) || !Directory.Exists(probeDirectory))
+            var probeDirectory = FindNearestExistingDirectory(fullStoragePath);
+            if (string.IsNullOrWhiteSpace(probeDirectory))
             {
                 return false;
             }
 
-            probePath = Path.Combine(probeDirectory, $".genhub-write-probe-{Guid.NewGuid():N}.tmp");
+            probePath = Path.Combine(
+                probeDirectory,
+                $"{StorageConstants.WriteProbeFilePrefix}{Guid.NewGuid():N}.tmp");
             using var probe = new FileStream(
                 probePath,
                 FileMode.CreateNew,
@@ -250,5 +249,26 @@ public class StorageLocationService(
                 }
             }
         }
+    }
+
+    private string? FindNearestExistingDirectory(string fullStoragePath)
+    {
+        var candidate = fullStoragePath;
+        while (!string.IsNullOrWhiteSpace(candidate))
+        {
+            if (Directory.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            if (File.Exists(candidate))
+            {
+                return null;
+            }
+
+            candidate = Path.GetDirectoryName(candidate);
+        }
+
+        return null;
     }
 }

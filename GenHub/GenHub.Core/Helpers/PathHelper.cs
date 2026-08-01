@@ -9,20 +9,20 @@ namespace GenHub.Core.Helpers;
 public static class PathHelper
 {
     /// <summary>
-    /// Gets the string comparison to use when comparing filesystem paths, matching the
-    /// case sensitivity of the current platform's default filesystem.
+    /// Gets the string comparison to use when comparing filesystem paths. Windows paths
+    /// are compared case-insensitively; other platforms use conservative case-sensitive semantics.
     /// </summary>
     public static StringComparison PathComparison =>
-        OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+        OperatingSystem.IsWindows()
             ? StringComparison.OrdinalIgnoreCase
             : StringComparison.Ordinal;
 
     /// <summary>
-    /// Gets the string comparer to use when keying collections by filesystem path, matching
-    /// the case sensitivity of the current platform's default filesystem.
+    /// Gets the string comparer to use when keying collections by filesystem path. Windows paths
+    /// are compared case-insensitively; other platforms use conservative case-sensitive semantics.
     /// </summary>
     public static StringComparer PathComparer =>
-        OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+        OperatingSystem.IsWindows()
             ? StringComparer.OrdinalIgnoreCase
             : StringComparer.Ordinal;
 

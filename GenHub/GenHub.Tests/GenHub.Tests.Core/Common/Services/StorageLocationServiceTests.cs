@@ -15,7 +15,7 @@ namespace GenHub.Tests.Core.Common.Services;
 /// </summary>
 public sealed class StorageLocationServiceTests : IDisposable
 {
-    private const string ProbeSearchPattern = ".genhub-write-probe-*";
+    private const string ProbeSearchPattern = StorageConstants.WriteProbeFilePrefix + "*";
 
     private readonly Mock<IUserSettingsService> _userSettingsService = new();
     private readonly Mock<IConfigurationProviderService> _configurationProviderService = new();
@@ -94,6 +94,30 @@ public sealed class StorageLocationServiceTests : IDisposable
         var workspacePath = service.GetWorkspacePath(installation);
 
         Assert.Equal(customWorkspacePath, workspacePath);
+        Assert.Empty(Directory.GetFiles(_tempPath, ProbeSearchPattern));
+    }
+
+    /// <summary>
+    /// Honors a creatable custom workspace path when its immediate parent does not exist yet.
+    /// </summary>
+    [Fact]
+    public void GetWorkspacePath_WhenCustomPathParentDoesNotExist_UsesCustomPath()
+    {
+        var missingParent = Path.Combine(_tempPath, "Missing", "Parents");
+        var customWorkspacePath = Path.Combine(missingParent, "CustomWorkspace");
+        var settings = new UserSettings
+        {
+            UseInstallationAdjacentStorage = false,
+            WorkspacePath = customWorkspacePath,
+        };
+        _userSettingsService.Setup(service => service.Get()).Returns(settings);
+        var service = CreateService();
+        var installation = new GameInstallation(Path.Combine(_tempPath, "Game"), GameInstallationType.Retail);
+
+        var workspacePath = service.GetWorkspacePath(installation);
+
+        Assert.Equal(customWorkspacePath, workspacePath);
+        Assert.False(Directory.Exists(missingParent));
         Assert.Empty(Directory.GetFiles(_tempPath, ProbeSearchPattern));
     }
 
