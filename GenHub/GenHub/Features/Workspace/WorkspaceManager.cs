@@ -65,7 +65,18 @@ public class WorkspaceManager(
                         configuration.Id,
                         workspace.WorkspacePath);
 
-                    if (workspace.Strategy != configuration.Strategy)
+                    var expectedWorkspacePath = Path.GetFullPath(Path.Combine(configuration.WorkspaceRootPath, configuration.Id));
+                    var existingWorkspacePath = Path.GetFullPath(workspace.WorkspacePath);
+                    if (!string.Equals(expectedWorkspacePath, existingWorkspacePath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        logger.LogInformation(
+                            "[Workspace] Storage root changed for workspace {Id} from {ExistingPath} to {ExpectedPath}; workspace will be recreated.",
+                            configuration.Id,
+                            existingWorkspacePath,
+                            expectedWorkspacePath);
+                        configuration.ForceRecreate = true;
+                    }
+                    else if (workspace.Strategy != configuration.Strategy)
                     {
                         logger.LogWarning(
                             "[Workspace] Strategy mismatch detected - existing: {ExistingStrategy}, requested: {RequestedStrategy}. Workspace will be recreated.",

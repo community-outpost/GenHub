@@ -117,25 +117,6 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             var destRoot = Path.GetPathRoot(workspacePath);
             var sameVolume = string.Equals(sourceRoot, destRoot, StringComparison.OrdinalIgnoreCase);
 
-            if (!sameVolume)
-            {
-                var errorMessage = $"HardLink strategy cannot be used across different drives.\n" +
-                    $"Game installation: {configuration.BaseInstallationPath} (drive {sourceRoot})\n" +
-                    $"Workspace location: {workspacePath} (drive {destRoot})\n" +
-                    $"Please manually change to FullCopy strategy in profile settings or move your workspace to the same drive as your game.";
-                Logger.LogError("{ErrorMessage}", errorMessage);
-
-                workspaceInfo.IsPrepared = false;
-                workspaceInfo.ValidationIssues.Add(new()
-                {
-                    Message = errorMessage,
-                    Severity = Core.Models.Validation.ValidationSeverity.Error,
-                });
-
-                CleanupWorkspaceOnFailure(workspacePath);
-                return workspaceInfo;
-            }
-
             Logger.LogDebug("Processing {TotalFiles} files (prioritized by content type)", totalFiles);
             ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 

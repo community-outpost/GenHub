@@ -8,14 +8,14 @@ namespace GenHub.Core.Interfaces.Common;
 public interface IStorageLocationService
 {
     /// <summary>
-    /// Gets the CAS pool path adjacent to the specified game installation.
+    /// Gets a writable CAS pool path for the specified game installation.
     /// </summary>
     /// <param name="installation">The game installation to base the path on.</param>
     /// <returns>The absolute path to the CAS pool directory.</returns>
     string GetCasPoolPath(IGameInstallation installation);
 
     /// <summary>
-    /// Gets the workspace path adjacent to the specified game installation.
+    /// Gets a writable workspace path for the specified game installation.
     /// </summary>
     /// <param name="installation">The game installation to base the path on.</param>
     /// <returns>The absolute path to the workspace directory.</returns>
