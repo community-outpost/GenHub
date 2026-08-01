@@ -135,7 +135,7 @@ public class NativeClientManifestLaunchTests
             engineFiles.Add(new ManifestFile
             {
                 RelativePath = name,
-                IsExecutable = ExecutableFileClassifier.RequiresExecutePermission(name),
+                IsExecutable = ExecutableFileClassifier.RequiresExecutePermission(name, path),
             });
         }
 
