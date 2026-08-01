@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 
 namespace GenHub.Core.Helpers;
@@ -7,6 +8,24 @@ namespace GenHub.Core.Helpers;
 /// </summary>
 public static class PathHelper
 {
+    /// <summary>
+    /// Gets the string comparison to use when comparing filesystem paths. Windows paths
+    /// are compared case-insensitively; other platforms use conservative case-sensitive semantics.
+    /// </summary>
+    public static StringComparison PathComparison =>
+        OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
+    /// <summary>
+    /// Gets the string comparer to use when keying collections by filesystem path. Windows paths
+    /// are compared case-insensitively; other platforms use conservative case-sensitive semantics.
+    /// </summary>
+    public static StringComparer PathComparer =>
+        OperatingSystem.IsWindows()
+            ? StringComparer.OrdinalIgnoreCase
+            : StringComparer.Ordinal;
+
     /// <summary>
     /// Gets the parent directory of a path, with fallback to the path itself if at drive root.
     /// </summary>

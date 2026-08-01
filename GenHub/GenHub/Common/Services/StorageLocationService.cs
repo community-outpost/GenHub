@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
@@ -18,9 +20,16 @@ namespace GenHub.Common.Services;
 /// </summary>
 public class StorageLocationService(
     IUserSettingsService userSettingsService,
+    IConfigurationProviderService configurationProviderService,
     IGameInstallationService gameInstallationService,
     ILogger<StorageLocationService> logger) : IStorageLocationService
 {
+    /// <summary>
+    /// Caches write-probe results for the process lifetime, so a permission change
+    /// on a probed location only takes effect after a restart.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, bool> _writableStorageCache = new(PathHelper.PathComparer);
+
     /// <inheritdoc/>
     public string GetCasPoolPath(IGameInstallation installation)
     {
@@ -50,20 +59,25 @@ public class StorageLocationService(
         ArgumentNullException.ThrowIfNull(installation);
 
         var settings = userSettingsService.Get();
-        if (!settings.UseInstallationAdjacentStorage)
+        if (settings.UseInstallationAdjacentStorage &&
+            TryGetWritableInstallationAdjacentPath(installation, DirectoryNames.GenHubWorkspace, out var adjacentPath))
         {
-            // Fall back to centralized AppData location
-            var appDataPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                AppConstants.AppName,
-                DirectoryNames.Workspaces);
-            logger.LogDebug("Using centralized workspace path: {WorkspacePath} (installation-adjacent disabled)", appDataPath);
-            return appDataPath;
+            logger.LogDebug(
+                "Resolved installation-adjacent workspace path: {WorkspacePath} for installation {InstallationId}",
+                adjacentPath,
+                installation.Id);
+            return adjacentPath;
         }
 
-        var installationRoot = PathHelper.GetSafeParentDirectory(installation.InstallationPath);
-        var workspacePath = Path.Combine(installationRoot, DirectoryNames.GenHubWorkspace);
-        logger.LogDebug("Resolved workspace path: {WorkspacePath} for installation {InstallationId}", workspacePath, installation.Id);
+        var configuredWorkspacePath = settings.WorkspacePath;
+        var workspacePath = !string.IsNullOrWhiteSpace(configuredWorkspacePath) && CanCreateStorageAt(configuredWorkspacePath)
+            ? Path.GetFullPath(configuredWorkspacePath)
+            : Path.Combine(configurationProviderService.GetApplicationDataPath(), DirectoryNames.Workspaces);
+
+        logger.LogInformation(
+            "Using centralized workspace path {WorkspacePath} for installation {InstallationId}",
+            workspacePath,
+            installation.Id);
         return workspacePath;
     }
 
@@ -153,5 +167,104 @@ public class StorageLocationService(
             sameVolume);
 
         return sameVolume;
+    }
+
+    private bool TryGetWritableInstallationAdjacentPath(
+        IGameInstallation installation,
+        string directoryName,
+        out string path)
+    {
+        var installationRoot = PathHelper.GetSafeParentDirectory(installation.InstallationPath);
+        path = Path.Combine(installationRoot, directoryName);
+        if (CanCreateStorageAt(path))
+        {
+            return true;
+        }
+
+        logger.LogWarning(
+            "Installation-adjacent storage path {StoragePath} is not writable for installation {InstallationId}; falling back to user storage",
+            path,
+            installation.Id);
+        return false;
+    }
+
+    private bool CanCreateStorageAt(string storagePath)
+    {
+        string fullStoragePath;
+
+        try
+        {
+            fullStoragePath = Path.GetFullPath(storagePath);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or SecurityException or IOException)
+        {
+            logger.LogDebug(ex, "Storage path {StoragePath} could not be resolved", storagePath);
+            return false;
+        }
+
+        return _writableStorageCache.GetOrAdd(fullStoragePath, ProbeStorageLocation);
+    }
+
+    private bool ProbeStorageLocation(string fullStoragePath)
+    {
+        string? probePath = null;
+        var storageDirectoryExisted = Directory.Exists(fullStoragePath);
+        var storageDirectoryCreated = false;
+        var probeSucceeded = false;
+
+        try
+        {
+            Directory.CreateDirectory(fullStoragePath);
+            storageDirectoryCreated = !storageDirectoryExisted;
+
+            probePath = Path.Combine(
+                fullStoragePath,
+                $"{StorageConstants.WriteProbeFilePrefix}{Guid.NewGuid():N}.tmp");
+            using var probe = new FileStream(
+                probePath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize: 1,
+                FileOptions.DeleteOnClose);
+            probe.WriteByte(0);
+            probeSucceeded = true;
+            return true;
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or ArgumentException or NotSupportedException or SecurityException)
+        {
+            logger.LogDebug(ex, "Storage path {StoragePath} is not writable", fullStoragePath);
+            return false;
+        }
+        finally
+        {
+            if (!string.IsNullOrWhiteSpace(probePath) && File.Exists(probePath))
+            {
+                try
+                {
+                    File.Delete(probePath);
+                }
+                catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+                {
+                    logger.LogDebug(ex, "Could not remove storage write probe {ProbePath}", probePath);
+                }
+            }
+
+            if (!probeSucceeded && storageDirectoryCreated)
+            {
+                try
+                {
+                    if (Directory.Exists(fullStoragePath) &&
+                        !Directory.EnumerateFileSystemEntries(fullStoragePath).Any())
+                    {
+                        Directory.Delete(fullStoragePath);
+                    }
+                }
+                catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or SecurityException)
+                {
+                    logger.LogDebug(ex, "Could not remove failed storage probe directory {StoragePath}", fullStoragePath);
+                }
+            }
+        }
     }
 }

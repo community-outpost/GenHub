@@ -30,6 +30,7 @@ public class ProfileEditorFacade(
     IContentManifestPool manifestPool,
     IConfigurationProviderService config,
     IDependencyResolver dependencyResolver,
+    IStorageLocationService storageLocationService,
     ILogger<ProfileEditorFacade> logger) : IProfileEditorFacade
 {
     private readonly IGameProfileManager _profileManager = profileManager ?? throw new ArgumentNullException(nameof(profileManager));
@@ -39,6 +40,7 @@ public class ProfileEditorFacade(
     private readonly IContentManifestPool _manifestPool = manifestPool ?? throw new ArgumentNullException(nameof(manifestPool));
     private readonly IConfigurationProviderService _config = config ?? throw new ArgumentNullException(nameof(config));
     private readonly IDependencyResolver _dependencyResolver = dependencyResolver ?? throw new ArgumentNullException(nameof(dependencyResolver));
+    private readonly IStorageLocationService _storageLocationService = storageLocationService ?? throw new ArgumentNullException(nameof(storageLocationService));
     private readonly ILogger<ProfileEditorFacade> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <inheritdoc/>
@@ -120,7 +122,7 @@ public class ProfileEditorFacade(
                 }
 
                 workspaceConfig.BaseInstallationPath = install.Data.InstallationPath;
-                workspaceConfig.WorkspaceRootPath = _config.GetWorkspacePath();
+                workspaceConfig.WorkspaceRootPath = _storageLocationService.GetWorkspacePath(install.Data);
 
                 // Build manifests from enabled content IDs
                 if (profile.EnabledContentIds != null && profile.EnabledContentIds.Count > 0)
