@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -23,31 +24,32 @@ public class StorageLocationService(
     IGameInstallationService gameInstallationService,
     ILogger<StorageLocationService> logger) : IStorageLocationService
 {
+    /// <summary>
+    /// Caches write-probe results for the process lifetime, so a permission change
+    /// on a probed location only takes effect after a restart.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, bool> _writableStorageCache = new(StringComparer.OrdinalIgnoreCase);
+
     /// <inheritdoc/>
     public string GetCasPoolPath(IGameInstallation installation)
     {
         ArgumentNullException.ThrowIfNull(installation);
 
         var settings = userSettingsService.Get();
-        if (settings.UseInstallationAdjacentStorage &&
-            TryGetWritableInstallationAdjacentPath(installation, DirectoryNames.GenHubCasPool, out var adjacentPath))
+        if (!settings.UseInstallationAdjacentStorage)
         {
-            logger.LogDebug(
-                "Resolved installation-adjacent CAS pool path: {CasPoolPath} for installation {InstallationId}",
-                adjacentPath,
-                installation.Id);
-            return adjacentPath;
+            // Fall back to centralized AppData location
+            var appDataPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                AppConstants.AppName,
+                DirectoryNames.CasPool);
+            logger.LogDebug("Using centralized CAS pool path: {CasPoolPath} (installation-adjacent disabled)", appDataPath);
+            return appDataPath;
         }
 
-        var configuredCasPath = settings.CasConfiguration.CasRootPath;
-        var casPoolPath = !string.IsNullOrWhiteSpace(configuredCasPath) && CanCreateStorageAt(configuredCasPath)
-            ? Path.GetFullPath(configuredCasPath)
-            : configurationProviderService.GetCasConfiguration().CasRootPath;
-
-        logger.LogInformation(
-            "Using centralized CAS pool path {CasPoolPath} for installation {InstallationId}",
-            casPoolPath,
-            installation.Id);
+        var installationRoot = PathHelper.GetSafeParentDirectory(installation.InstallationPath);
+        var casPoolPath = Path.Combine(installationRoot, DirectoryNames.GenHubCasPool);
+        logger.LogDebug("Resolved CAS pool path: {CasPoolPath} for installation {InstallationId}", casPoolPath, installation.Id);
         return casPoolPath;
     }
 
@@ -188,11 +190,27 @@ public class StorageLocationService(
 
     private bool CanCreateStorageAt(string storagePath)
     {
+        string fullStoragePath;
+
+        try
+        {
+            fullStoragePath = Path.GetFullPath(storagePath);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or SecurityException or IOException)
+        {
+            logger.LogDebug(ex, "Storage path {StoragePath} could not be resolved", storagePath);
+            return false;
+        }
+
+        return _writableStorageCache.GetOrAdd(fullStoragePath, ProbeStorageLocation);
+    }
+
+    private bool ProbeStorageLocation(string fullStoragePath)
+    {
         string? probePath = null;
 
         try
         {
-            var fullStoragePath = Path.GetFullPath(storagePath);
             var probeDirectory = Directory.Exists(fullStoragePath)
                 ? fullStoragePath
                 : Path.GetDirectoryName(fullStoragePath);
@@ -203,18 +221,24 @@ public class StorageLocationService(
             }
 
             probePath = Path.Combine(probeDirectory, $".genhub-write-probe-{Guid.NewGuid():N}.tmp");
-            using var probe = new FileStream(probePath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            using var probe = new FileStream(
+                probePath,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                bufferSize: 1,
+                FileOptions.DeleteOnClose);
             probe.WriteByte(0);
             return true;
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or ArgumentException or NotSupportedException or SecurityException)
         {
-            logger.LogDebug(ex, "Storage path {StoragePath} is not writable", storagePath);
+            logger.LogDebug(ex, "Storage path {StoragePath} is not writable", fullStoragePath);
             return false;
         }
         finally
         {
-            if (!string.IsNullOrWhiteSpace(probePath))
+            if (!string.IsNullOrWhiteSpace(probePath) && File.Exists(probePath))
             {
                 try
                 {

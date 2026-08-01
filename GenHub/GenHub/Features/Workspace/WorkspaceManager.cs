@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
@@ -67,7 +68,7 @@ public class WorkspaceManager(
 
                     var expectedWorkspacePath = Path.GetFullPath(Path.Combine(configuration.WorkspaceRootPath, configuration.Id));
                     var existingWorkspacePath = Path.GetFullPath(workspace.WorkspacePath);
-                    if (!string.Equals(expectedWorkspacePath, existingWorkspacePath, StringComparison.OrdinalIgnoreCase))
+                    if (!string.Equals(expectedWorkspacePath, existingWorkspacePath, PathHelper.PathComparison))
                     {
                         logger.LogInformation(
                             "[Workspace] Storage root changed for workspace {Id} from {ExistingPath} to {ExpectedPath}; workspace will be recreated.",

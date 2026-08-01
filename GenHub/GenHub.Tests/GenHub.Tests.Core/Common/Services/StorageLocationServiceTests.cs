@@ -5,22 +5,22 @@ using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
-using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.Logging;
 using Moq;
 
 namespace GenHub.Tests.Core.Common.Services;
 
 /// <summary>
-/// Tests writable storage path resolution.
+/// Tests writable workspace path resolution.
 /// </summary>
 public sealed class StorageLocationServiceTests : IDisposable
 {
+    private const string ProbeSearchPattern = ".genhub-write-probe-*";
+
     private readonly Mock<IUserSettingsService> _userSettingsService = new();
     private readonly Mock<IConfigurationProviderService> _configurationProviderService = new();
     private readonly Mock<IGameInstallationService> _gameInstallationService = new();
     private readonly string _applicationDataPath;
-    private readonly string _centralCasPath;
     private readonly string _tempPath;
 
     /// <summary>
@@ -30,20 +30,16 @@ public sealed class StorageLocationServiceTests : IDisposable
     {
         _tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         _applicationDataPath = Path.Combine(_tempPath, "AppData");
-        _centralCasPath = Path.Combine(_applicationDataPath, DirectoryNames.CasPool);
         Directory.CreateDirectory(_applicationDataPath);
 
         _configurationProviderService.Setup(service => service.GetApplicationDataPath()).Returns(_applicationDataPath);
-        _configurationProviderService
-            .Setup(service => service.GetCasConfiguration())
-            .Returns(new CasConfiguration { CasRootPath = _centralCasPath });
     }
 
     /// <summary>
     /// Uses installation-adjacent storage when its parent is writable.
     /// </summary>
     [Fact]
-    public void GetStoragePaths_WhenInstallationParentIsWritable_UsesAdjacentPaths()
+    public void GetWorkspacePath_WhenInstallationParentIsWritable_UsesAdjacentPath()
     {
         var settings = new UserSettings { UseInstallationAdjacentStorage = true };
         _userSettingsService.Setup(service => service.Get()).Returns(settings);
@@ -54,18 +50,16 @@ public sealed class StorageLocationServiceTests : IDisposable
         var installation = new GameInstallation(installationPath, GameInstallationType.EaApp);
 
         var workspacePath = service.GetWorkspacePath(installation);
-        var casPath = service.GetCasPoolPath(installation);
 
         Assert.Equal(Path.Combine(installationRoot, DirectoryNames.GenHubWorkspace), workspacePath);
-        Assert.Equal(Path.Combine(installationRoot, DirectoryNames.GenHubCasPool), casPath);
-        Assert.Empty(Directory.GetFiles(installationRoot, ".genhub-write-probe-*"));
+        Assert.Empty(Directory.GetFiles(installationRoot, ProbeSearchPattern));
     }
 
     /// <summary>
     /// Falls back to user storage when the installation parent cannot contain a workspace.
     /// </summary>
     [Fact]
-    public void GetStoragePaths_WhenInstallationParentIsUnavailable_UsesCentralPaths()
+    public void GetWorkspacePath_WhenInstallationParentIsUnavailable_UsesCentralPath()
     {
         var settings = new UserSettings { UseInstallationAdjacentStorage = true };
         _userSettingsService.Setup(service => service.Get()).Returns(settings);
@@ -77,36 +71,73 @@ public sealed class StorageLocationServiceTests : IDisposable
             GameInstallationType.EaApp);
 
         var workspacePath = service.GetWorkspacePath(installation);
-        var casPath = service.GetCasPoolPath(installation);
 
         Assert.Equal(Path.Combine(_applicationDataPath, DirectoryNames.Workspaces), workspacePath);
-        Assert.Equal(_centralCasPath, casPath);
     }
 
     /// <summary>
-    /// Honors writable user-configured storage when adjacent storage is disabled.
+    /// Honors a writable user-configured workspace path when adjacent storage is disabled.
     /// </summary>
     [Fact]
-    public void GetStoragePaths_WhenCustomPathsAreConfigured_UsesCustomPaths()
+    public void GetWorkspacePath_WhenCustomPathIsConfigured_UsesCustomPath()
     {
         var customWorkspacePath = Path.Combine(_tempPath, "CustomWorkspace");
-        var customCasPath = Path.Combine(_tempPath, "CustomCas");
         var settings = new UserSettings
         {
             UseInstallationAdjacentStorage = false,
             WorkspacePath = customWorkspacePath,
-            CasConfiguration = new CasConfiguration { CasRootPath = customCasPath },
         };
         _userSettingsService.Setup(service => service.Get()).Returns(settings);
         var service = CreateService();
         var installation = new GameInstallation(Path.Combine(_tempPath, "Game"), GameInstallationType.Retail);
 
         var workspacePath = service.GetWorkspacePath(installation);
-        var casPath = service.GetCasPoolPath(installation);
 
         Assert.Equal(customWorkspacePath, workspacePath);
-        Assert.Equal(customCasPath, casPath);
-        Assert.Empty(Directory.GetFiles(_tempPath, ".genhub-write-probe-*"));
+        Assert.Empty(Directory.GetFiles(_tempPath, ProbeSearchPattern));
+    }
+
+    /// <summary>
+    /// Falls back to user storage when the configured workspace path cannot be created.
+    /// </summary>
+    [Fact]
+    public void GetWorkspacePath_WhenCustomPathIsUnavailable_UsesCentralPath()
+    {
+        var unavailableRoot = Path.Combine(_tempPath, "custom-root");
+        File.WriteAllText(unavailableRoot, "not a directory");
+        var settings = new UserSettings
+        {
+            UseInstallationAdjacentStorage = false,
+            WorkspacePath = Path.Combine(unavailableRoot, "CustomWorkspace"),
+        };
+        _userSettingsService.Setup(service => service.Get()).Returns(settings);
+        var service = CreateService();
+        var installation = new GameInstallation(Path.Combine(_tempPath, "Game"), GameInstallationType.Retail);
+
+        var workspacePath = service.GetWorkspacePath(installation);
+
+        Assert.Equal(Path.Combine(_applicationDataPath, DirectoryNames.Workspaces), workspacePath);
+    }
+
+    /// <summary>
+    /// Probes a storage location once and reuses the result for later resolutions.
+    /// </summary>
+    [Fact]
+    public void GetWorkspacePath_WhenCalledRepeatedly_ProbesOnce()
+    {
+        var settings = new UserSettings { UseInstallationAdjacentStorage = true };
+        _userSettingsService.Setup(service => service.Get()).Returns(settings);
+        var service = CreateService();
+        var installationRoot = Path.Combine(_tempPath, "EA Games");
+        var installationPath = Path.Combine(installationRoot, "Command and Conquer Generals Zero Hour");
+        Directory.CreateDirectory(installationPath);
+        var installation = new GameInstallation(installationPath, GameInstallationType.EaApp);
+
+        var first = service.GetWorkspacePath(installation);
+        Directory.Delete(installationRoot, true);
+        var second = service.GetWorkspacePath(installation);
+
+        Assert.Equal(first, second);
     }
 
     /// <inheritdoc/>
