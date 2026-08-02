@@ -149,6 +149,33 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Honors cancellation that arrives while resolving the pool and does not persist settings.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsurePoolPathAsync_WhenCancelledBeforeSave_DoesNotPersistSettings()
+    {
+        var installation = CreateInstallation();
+        var poolPath = Path.Combine(installation.InstallationPath, DirectoryNames.GenHubCasPool);
+        var settings = new UserSettings();
+        ConfigureMutableSettings(settings);
+        using var cancellationSource = new CancellationTokenSource();
+        _writabilityProbe
+            .Setup(probe => probe.CanCreateStorageAt(poolPath))
+            .Callback(cancellationSource.Cancel)
+            .Returns(true);
+        var service = CreateService();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            service.EnsurePoolPathAsync([installation], cancellationSource.Token));
+
+        _userSettingsService.Verify(
+            userSettingsService => userSettingsService.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()),
+            Times.Never);
+        _poolManager.Verify(manager => manager.ReinitializeInstallationPool(), Times.Never);
+    }
+
+    /// <summary>
     /// Removes a cached installation pool from every enumeration path after it becomes unavailable.
     /// </summary>
     [Fact]

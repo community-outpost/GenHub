@@ -34,6 +34,7 @@ public sealed class InstallationCasPoolService(
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(installations);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (installations.Count == 0)
         {
@@ -123,6 +124,7 @@ public sealed class InstallationCasPoolService(
             return true;
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         var saved = await userSettingsService.TryUpdateAndSaveAsync(settings =>
         {
             settings.CasConfiguration.InstallationPoolRootPath = effectivePath;
