@@ -167,11 +167,6 @@ public sealed class InstallationCasPoolService(
                 ? installation.ZeroHourPath
                 : installation.GeneralsPath;
 
-        if (string.IsNullOrWhiteSpace(installationPath))
-        {
-            return null;
-        }
-
         return string.IsNullOrWhiteSpace(installationPath)
             ? null
             : Path.Combine(installationPath, DirectoryNames.GenHubCasPool);
