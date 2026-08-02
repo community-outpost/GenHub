@@ -38,9 +38,7 @@ public class StorageLocationService(
 
         if (settings.UseInstallationAdjacentStorage)
         {
-            var installationPath = Path.HasExtension(installation.InstallationPath)
-                ? Path.GetDirectoryName(installation.InstallationPath)
-                : installation.InstallationPath;
+            var installationPath = installation.InstallationPath;
             if (!string.IsNullOrWhiteSpace(installationPath))
             {
                 var adjacentPath = Path.Combine(installationPath, DirectoryNames.GenHubCasPool);

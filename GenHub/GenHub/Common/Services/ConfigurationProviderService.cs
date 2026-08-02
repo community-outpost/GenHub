@@ -317,20 +317,9 @@ public class ConfigurationProviderService(
                 AppConstants.AppName,
                 DirectoryNames.CasPool);
 
-            return new CasConfiguration
-            {
-                CasRootPath = defaultPath,
-                InstallationPoolRootPath = casConfig.InstallationPoolRootPath,
-                IsInstallationPoolRootPathAutoDerived = casConfig.IsInstallationPoolRootPathAutoDerived,
-                LegacyInstallationPoolRootPath = casConfig.LegacyInstallationPoolRootPath,
-                EnableAutomaticGc = casConfig.EnableAutomaticGc,
-                HashAlgorithm = casConfig.HashAlgorithm,
-                GcGracePeriod = casConfig.GcGracePeriod,
-                MaxCacheSizeBytes = casConfig.MaxCacheSizeBytes,
-                AutoGcInterval = casConfig.AutoGcInterval,
-                MaxConcurrentOperations = casConfig.MaxConcurrentOperations,
-                VerifyIntegrity = casConfig.VerifyIntegrity,
-            };
+            var defaultConfig = (CasConfiguration)casConfig.Clone();
+            defaultConfig.CasRootPath = defaultPath;
+            return defaultConfig;
         }
 
         return casConfig;

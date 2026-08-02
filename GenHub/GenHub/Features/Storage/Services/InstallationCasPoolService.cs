@@ -38,7 +38,7 @@ public sealed class InstallationCasPoolService(
         if (installations.Count == 0)
         {
             logger.LogWarning("No installations detected; the primary CAS pool will be used");
-            return false;
+            return true;
         }
 
         var preferredInstallation = installations.Count == 1
@@ -59,14 +59,14 @@ public sealed class InstallationCasPoolService(
             logger.LogWarning(
                 "Preferred installation {InstallationId} has no usable path; the primary CAS pool will be used",
                 preferredInstallation.Id);
-            return false;
+            return true;
         }
 
         candidatePath = NormalizePath(candidatePath);
         if (string.IsNullOrWhiteSpace(candidatePath))
         {
             logger.LogWarning("The derived installation CAS pool path is invalid; the primary pool will be used");
-            return false;
+            return true;
         }
 
         var currentSettings = userSettingsService.Get();
@@ -74,6 +74,9 @@ public sealed class InstallationCasPoolService(
         var currentPath = NormalizePath(configuredCurrentPath);
         var historicalAutoDerivedMarker =
             currentSettings.ExplicitlySetProperties.Contains(ExplicitInstallationPoolPathKey);
+
+        // Older GenHub builds marked their automatically derived installation pool as "explicitly set".
+        // No user-facing setting wrote this nested key, so it is migration provenance rather than user intent.
         if (!string.IsNullOrWhiteSpace(configuredCurrentPath) &&
             string.IsNullOrWhiteSpace(currentPath) &&
             !currentSettings.CasConfiguration.IsInstallationPoolRootPathAutoDerived &&
@@ -165,11 +168,6 @@ public sealed class InstallationCasPoolService(
         if (string.IsNullOrWhiteSpace(installationPath))
         {
             return null;
-        }
-
-        if (Path.HasExtension(installationPath))
-        {
-            installationPath = Path.GetDirectoryName(installationPath);
         }
 
         return string.IsNullOrWhiteSpace(installationPath)

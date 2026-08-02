@@ -84,6 +84,26 @@ public sealed class StorageLocationServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Keeps a dotted installation directory intact when resolving adjacent CAS storage.
+    /// </summary>
+    [Fact]
+    public void GetCasPoolPath_WhenInstallationDirectoryContainsDot_UsesFullDirectory()
+    {
+        var settings = new UserSettings { UseInstallationAdjacentStorage = true };
+        _userSettingsService.Setup(service => service.Get()).Returns(settings);
+        var installationPath = Path.Combine(_tempPath, "ZeroHour v1.04");
+        var installation = new GameInstallation(installationPath, GameInstallationType.Retail);
+        var adjacentPath = Path.Combine(installationPath, DirectoryNames.GenHubCasPool);
+        var probe = new Mock<IStorageWritabilityProbe>();
+        probe.Setup(service => service.CanCreateStorageAt(adjacentPath)).Returns(true);
+        var service = CreateService(probe.Object);
+
+        var result = service.GetCasPoolPath(installation);
+
+        Assert.Equal(adjacentPath, result);
+    }
+
+    /// <summary>
     /// Uses installation-adjacent storage when its parent is writable.
     /// </summary>
     [Fact]

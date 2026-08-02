@@ -1,4 +1,5 @@
 using GenHub.Common.Services;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
@@ -29,7 +30,7 @@ public sealed class CasPoolWritabilityTests : IDisposable
     {
         _tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         _primaryPoolPath = Path.Combine(_tempPath, "primary-pool");
-        _installationPoolPath = Path.Combine(_tempPath, "Game", ".genhub-cas");
+        _installationPoolPath = Path.Combine(_tempPath, "Game", DirectoryNames.GenHubCasPool);
         Directory.CreateDirectory(_primaryPoolPath);
     }
 
@@ -136,8 +137,8 @@ public sealed class CasPoolWritabilityTests : IDisposable
         {
             var probe = new StorageWritabilityProbe(new Mock<ILogger<StorageWritabilityProbe>>().Object);
 
-            Assert.False(probe.CanCreateStorageAt(Path.Combine(lockedPath, ".genhub-cas")));
-            Assert.True(probe.CanCreateStorageAt(Path.Combine(_primaryPoolPath, ".genhub-cas")));
+            Assert.False(probe.CanCreateStorageAt(Path.Combine(lockedPath, DirectoryNames.GenHubCasPool)));
+            Assert.True(probe.CanCreateStorageAt(Path.Combine(_primaryPoolPath, DirectoryNames.GenHubCasPool)));
         }
         finally
         {
@@ -154,11 +155,11 @@ public sealed class CasPoolWritabilityTests : IDisposable
     public void StorageWritabilityProbe_WhenLocationIsWritable_LeavesNoProbeFile()
     {
         var probe = new StorageWritabilityProbe(new Mock<ILogger<StorageWritabilityProbe>>().Object);
-        var targetPath = Path.Combine(_primaryPoolPath, ".genhub-cas");
+        var targetPath = Path.Combine(_primaryPoolPath, DirectoryNames.GenHubCasPool);
 
         Assert.True(probe.CanCreateStorageAt(targetPath));
         Assert.True(Directory.Exists(targetPath));
-        Assert.Empty(Directory.GetFiles(targetPath, ".genhub-write-probe-*"));
+        Assert.Empty(Directory.GetFiles(targetPath, StorageConstants.WriteProbeFilePrefix + "*"));
     }
 
     /// <inheritdoc/>

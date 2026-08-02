@@ -695,18 +695,13 @@ public class ContentOrchestrator : IContentOrchestrator
             var installationsResult = await _installationService.GetAllInstallationsAsync(cancellationToken);
             if (!installationsResult.Success || installationsResult.Data == null)
             {
-                _logger.LogWarning("Failed to get installations for CAS pool path resolution: {Error}", installationsResult.FirstError);
-                return false;
+                _logger.LogWarning(
+                    "Failed to get installations for CAS pool path resolution: {Error}; the primary CAS pool will be used",
+                    installationsResult.FirstError);
+                return true;
             }
 
             var installations = installationsResult.Data.ToList();
-
-            if (installations.Count == 0)
-            {
-                _logger.LogWarning("No installations detected - cannot set InstallationPoolRootPath");
-                return false;
-            }
-
             return await _installationCasPoolService.EnsurePoolPathAsync(installations, cancellationToken);
         }
         catch (Exception ex)

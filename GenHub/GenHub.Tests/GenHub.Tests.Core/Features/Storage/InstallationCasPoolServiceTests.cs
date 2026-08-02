@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Common;
@@ -39,7 +40,7 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
     public async Task EnsurePoolPathAsync_WhenHistoricalPathIsUnwritable_PreservesLegacyLookup()
     {
         var installation = CreateInstallation();
-        var poolPath = Path.Combine(installation.InstallationPath, ".genhub-cas");
+        var poolPath = Path.Combine(installation.InstallationPath, DirectoryNames.GenHubCasPool);
         Directory.CreateDirectory(poolPath);
         var settings = new UserSettings
         {
@@ -95,7 +96,7 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
     public async Task EnsurePoolPathAsync_WhenAdjacentPathIsWritable_RecordsAutoDerivedProvenance()
     {
         var installation = CreateInstallation();
-        var poolPath = Path.Combine(installation.InstallationPath, ".genhub-cas");
+        var poolPath = Path.Combine(installation.InstallationPath, DirectoryNames.GenHubCasPool);
         var settings = new UserSettings();
         ConfigureMutableSettings(settings);
         _writabilityProbe.Setup(probe => probe.CanCreateStorageAt(poolPath)).Returns(true);
@@ -108,6 +109,43 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
         Assert.True(settings.CasConfiguration.IsInstallationPoolRootPathAutoDerived);
         Assert.Equal(installation.Id, settings.PreferredStorageInstallationId);
         _poolManager.Verify(manager => manager.ReinitializeInstallationPool(), Times.Once);
+    }
+
+    /// <summary>
+    /// Continues with primary storage when no installation is available.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsurePoolPathAsync_WhenNoInstallations_ContinuesWithPrimaryPool()
+    {
+        var service = CreateService();
+
+        var result = await service.EnsurePoolPathAsync([]);
+
+        Assert.True(result);
+        _userSettingsService.Verify(
+            settings => settings.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Keeps a dotted installation directory intact when deriving the adjacent pool path.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsurePoolPathAsync_WhenInstallationDirectoryContainsDot_UsesFullDirectory()
+    {
+        var installation = CreateInstallation("ZeroHour v1.04");
+        var poolPath = Path.Combine(installation.InstallationPath, DirectoryNames.GenHubCasPool);
+        var settings = new UserSettings();
+        ConfigureMutableSettings(settings);
+        _writabilityProbe.Setup(probe => probe.CanCreateStorageAt(poolPath)).Returns(true);
+        var service = CreateService();
+
+        var result = await service.EnsurePoolPathAsync([installation]);
+
+        Assert.True(result);
+        Assert.Equal(poolPath, settings.CasConfiguration.InstallationPoolRootPath);
     }
 
     /// <summary>
@@ -148,7 +186,7 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
         Assert.Equal(3, manager.GetAllStorages().Count);
 
         settings.CasConfiguration.InstallationPoolRootPath = string.Empty;
-        manager.EnsureAllPoolsInitialized();
+        manager.ReinitializeInstallationPool();
 
         Assert.Equal(2, manager.GetAllStorages().Count);
         Assert.Same(manager.GetStorage(CasPoolType.Primary), manager.GetStorage(CasPoolType.Installation));
@@ -228,6 +266,76 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
         Assert.Equal(expectedPath, result.Data);
     }
 
+    /// <summary>
+    /// Does not expose a legacy CAS pool inside the application directory.
+    /// </summary>
+    [Fact]
+    public void CasPoolManager_WhenLegacyPoolIsInsideApplicationDirectory_BlocksIt()
+    {
+        var primaryPath = Path.Combine(_tempPath, "primary-security");
+        Directory.CreateDirectory(primaryPath);
+        var settings = new UserSettings
+        {
+            CasConfiguration = new CasConfiguration
+            {
+                LegacyInstallationPoolRootPath = AppContext.BaseDirectory,
+            },
+        };
+        _userSettingsService.Setup(service => service.Get()).Returns(settings);
+        var configuration = new CasConfiguration { CasRootPath = primaryPath };
+        var resolver = new CasPoolResolver(
+            Options.Create(configuration),
+            _userSettingsService.Object,
+            _writabilityProbe.Object,
+            NullLogger<CasPoolResolver>.Instance);
+
+        var manager = new CasPoolManager(
+            resolver,
+            Options.Create(configuration),
+            new Mock<IFileHashProvider>().Object,
+            NullLoggerFactory.Instance,
+            _writabilityProbe.Object,
+            NullLogger<CasPoolManager>.Instance);
+
+        Assert.Single(manager.GetAllStorages());
+        Assert.StartsWith(
+            primaryPath,
+            manager.GetStorage(CasPoolType.Primary).GetObjectPath(new string('a', 64)),
+            StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Avoids refreshing installation pools during ordinary cached storage lookups.
+    /// </summary>
+    [Fact]
+    public void CasPoolManager_WhenPrimaryStorageIsCached_DoesNotRefreshInstallationPools()
+    {
+        var primaryPath = Path.Combine(_tempPath, "primary-cached");
+        Directory.CreateDirectory(primaryPath);
+        var resolver = new Mock<ICasPoolResolver>();
+        resolver
+            .Setup(service => service.GetPoolRootPath(CasPoolType.Primary))
+            .Returns(primaryPath);
+        resolver.Setup(service => service.IsInstallationPoolAvailable()).Returns(false);
+        resolver.Setup(service => service.GetLegacyInstallationPoolRootPath()).Returns(string.Empty);
+        var configuration = new CasConfiguration { CasRootPath = primaryPath };
+        var manager = new CasPoolManager(
+            resolver.Object,
+            Options.Create(configuration),
+            new Mock<IFileHashProvider>().Object,
+            NullLoggerFactory.Instance,
+            _writabilityProbe.Object,
+            NullLogger<CasPoolManager>.Instance);
+        resolver.Invocations.Clear();
+
+        manager.GetStorage(CasPoolType.Primary);
+        manager.GetStorage(CasPoolType.Primary);
+        manager.GetAllStorages();
+
+        resolver.Verify(service => service.IsInstallationPoolAvailable(), Times.Never);
+        resolver.Verify(service => service.GetLegacyInstallationPoolRootPath(), Times.Never);
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {
@@ -235,9 +343,9 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    private GameInstallation CreateInstallation()
+    private GameInstallation CreateInstallation(string directoryName = "Game")
     {
-        var installationPath = Path.Combine(_tempPath, "Game");
+        var installationPath = Path.Combine(_tempPath, directoryName);
         Directory.CreateDirectory(installationPath);
         return new GameInstallation(installationPath, GameInstallationType.Steam);
     }

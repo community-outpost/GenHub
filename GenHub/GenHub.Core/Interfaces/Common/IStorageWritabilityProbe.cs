@@ -8,6 +8,10 @@ public interface IStorageWritabilityProbe
     /// <summary>
     /// Checks whether a directory can be created at, or files written into, the given path.
     /// </summary>
+    /// <remarks>
+    /// A successful check creates the storage directory when it does not already exist and leaves
+    /// that directory in place. Callers should account for this filesystem side effect.
+    /// </remarks>
     /// <param name="storagePath">The storage path to check.</param>
     /// <returns><c>true</c> when the location accepts writes; otherwise, <c>false</c>.</returns>
     bool CanCreateStorageAt(string storagePath);

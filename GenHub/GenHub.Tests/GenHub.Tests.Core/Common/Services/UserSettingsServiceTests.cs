@@ -4,6 +4,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -129,6 +130,37 @@ public class UserSettingsServiceTests : IDisposable
         Assert.Equal("Light", loadedSettings.Theme);
         Assert.Equal("/test/path", loadedSettings.WorkspacePath);
         Assert.Equal(NavigationTab.Downloads, loadedSettings.LastSelectedTab);
+    }
+
+    /// <summary>
+    /// Verifies that the historical installation-pool provenance marker survives settings persistence.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task LoadSettings_AfterSave_PreservesInstallationPoolProvenanceMarker()
+    {
+        var settingsPath = Path.Combine(_tempDirectory, "provenance", FileTypes.SettingsFileName);
+        Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
+        var service1 = new TestableUserSettingsService(
+            _mockLogger.Object,
+            CreateAppConfigMock(),
+            settingsPath);
+        service1.Update(settings =>
+        {
+            settings.CasConfiguration.InstallationPoolRootPath = "/historical/installation/.genhub-cas";
+            settings.MarkAsExplicitlySet(nameof(CasConfiguration.InstallationPoolRootPath));
+        });
+        await service1.SaveAsync();
+
+        var service2 = new TestableUserSettingsService(
+            _mockLogger.Object,
+            CreateAppConfigMock(),
+            settingsPath);
+        var loadedSettings = service2.Get();
+
+        Assert.Contains(
+            nameof(CasConfiguration.InstallationPoolRootPath),
+            loadedSettings.ExplicitlySetProperties);
     }
 
     /// <summary>
