@@ -26,6 +26,7 @@ public static class CasModule
         // Pool management services (must be registered first for CasService to use)
         services.AddSingleton<ICasPoolResolver, CasPoolResolver>();
         services.AddSingleton<ICasPoolManager, CasPoolManager>();
+        services.AddSingleton<IInstallationCasPoolService, InstallationCasPoolService>();
 
         // CAS integration services
         services.AddSingleton<ICasService, CasService>();
@@ -40,6 +41,8 @@ public static class CasModule
             config.EnableAutomaticGc = userCasConfig.EnableAutomaticGc;
             config.CasRootPath = userCasConfig.CasRootPath;
             config.InstallationPoolRootPath = userCasConfig.InstallationPoolRootPath;
+            config.IsInstallationPoolRootPathAutoDerived = userCasConfig.IsInstallationPoolRootPathAutoDerived;
+            config.LegacyInstallationPoolRootPath = userCasConfig.LegacyInstallationPoolRootPath;
             config.HashAlgorithm = userCasConfig.HashAlgorithm;
             config.GcGracePeriod = userCasConfig.GcGracePeriod;
             config.MaxCacheSizeBytes = userCasConfig.MaxCacheSizeBytes;

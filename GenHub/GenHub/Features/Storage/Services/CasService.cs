@@ -564,6 +564,21 @@ public class CasService(
                 return OperationResult<string>.CreateSuccess(path);
             }
 
+            foreach (var fallbackStorage in poolManager.GetAllStorages())
+            {
+                if (ReferenceEquals(fallbackStorage, storage) || ReferenceEquals(fallbackStorage, primaryStorage))
+                {
+                    continue;
+                }
+
+                if (await fallbackStorage.ObjectExistsAsync(hash, cancellationToken))
+                {
+                    var path = fallbackStorage.GetObjectPath(hash);
+                    logger.LogInformation("Found content {Hash} in a legacy CAS pool", hash);
+                    return OperationResult<string>.CreateSuccess(path);
+                }
+            }
+
             return OperationResult<string>.CreateFailure($"Content not found in CAS: {hash}");
         }
         catch (Exception ex)
@@ -605,6 +620,24 @@ public class CasService(
                 if (exists)
                 {
                     logger.LogInformation("Found content {Hash} in primary pool (expected in {ContentType} pool)", hash, contentType);
+                }
+            }
+
+            if (!exists)
+            {
+                foreach (var fallbackStorage in poolManager.GetAllStorages())
+                {
+                    if (ReferenceEquals(fallbackStorage, storage))
+                    {
+                        continue;
+                    }
+
+                    if (await fallbackStorage.ObjectExistsAsync(hash, cancellationToken))
+                    {
+                        logger.LogInformation("Found content {Hash} in a legacy CAS pool", hash);
+                        exists = true;
+                        break;
+                    }
                 }
             }
 

@@ -321,6 +321,8 @@ public class ConfigurationProviderService(
             {
                 CasRootPath = defaultPath,
                 InstallationPoolRootPath = casConfig.InstallationPoolRootPath,
+                IsInstallationPoolRootPathAutoDerived = casConfig.IsInstallationPoolRootPathAutoDerived,
+                LegacyInstallationPoolRootPath = casConfig.LegacyInstallationPoolRootPath,
                 EnableAutomaticGc = casConfig.EnableAutomaticGc,
                 HashAlgorithm = casConfig.HashAlgorithm,
                 GcGracePeriod = casConfig.GcGracePeriod,

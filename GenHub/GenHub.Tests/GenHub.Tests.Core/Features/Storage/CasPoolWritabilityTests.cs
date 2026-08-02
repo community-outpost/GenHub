@@ -46,6 +46,21 @@ public sealed class CasPoolWritabilityTests : IDisposable
     }
 
     /// <summary>
+    /// Exposes an existing unwritable pool for read-only lookup before settings migration runs.
+    /// </summary>
+    [Fact]
+    public void GetLegacyInstallationPoolRootPath_WhenCurrentPoolIsUnwritable_ReturnsCurrentPath()
+    {
+        Directory.CreateDirectory(_installationPoolPath);
+        _writabilityProbe.Setup(probe => probe.CanCreateStorageAt(_installationPoolPath)).Returns(false);
+        var resolver = CreateResolver(_installationPoolPath);
+
+        var result = resolver.GetLegacyInstallationPoolRootPath();
+
+        Assert.Equal(_installationPoolPath, result);
+    }
+
+    /// <summary>
     /// Keeps a writable installation pool selected.
     /// </summary>
     [Fact]
@@ -60,9 +75,13 @@ public sealed class CasPoolWritabilityTests : IDisposable
     /// <summary>
     /// Routes installation-pool content to the primary pool when the installation pool is unwritable.
     /// </summary>
+    /// <param name="contentType">The content type normally routed to installation storage.</param>
     [Theory]
     [InlineData(ContentType.GameClient)]
     [InlineData(ContentType.GameInstallation)]
+    [InlineData(ContentType.Addon)]
+    [InlineData(ContentType.Patch)]
+    [InlineData(ContentType.Map)]
     [InlineData(ContentType.Mod)]
     public void ResolvePool_WhenInstallationPoolIsNotWritable_UsesPrimaryPool(ContentType contentType)
     {
@@ -135,9 +154,11 @@ public sealed class CasPoolWritabilityTests : IDisposable
     public void StorageWritabilityProbe_WhenLocationIsWritable_LeavesNoProbeFile()
     {
         var probe = new StorageWritabilityProbe(new Mock<ILogger<StorageWritabilityProbe>>().Object);
+        var targetPath = Path.Combine(_primaryPoolPath, ".genhub-cas");
 
-        Assert.True(probe.CanCreateStorageAt(Path.Combine(_primaryPoolPath, ".genhub-cas")));
-        Assert.Empty(Directory.GetFiles(_primaryPoolPath, ".genhub-write-probe-*"));
+        Assert.True(probe.CanCreateStorageAt(targetPath));
+        Assert.True(Directory.Exists(targetPath));
+        Assert.Empty(Directory.GetFiles(targetPath, ".genhub-write-probe-*"));
     }
 
     /// <inheritdoc/>

@@ -29,6 +29,12 @@ public interface ICasPoolResolver
     string GetPoolRootPath(ContentType contentType);
 
     /// <summary>
+    /// Gets the previous installation-pool root retained for read-only lookup.
+    /// </summary>
+    /// <returns>The legacy root, or an empty string when none is configured.</returns>
+    string GetLegacyInstallationPoolRootPath();
+
+    /// <summary>
     /// Checks if the installation pool is configured and available.
     /// </summary>
     /// <returns>True if the installation pool is available, false otherwise.</returns>

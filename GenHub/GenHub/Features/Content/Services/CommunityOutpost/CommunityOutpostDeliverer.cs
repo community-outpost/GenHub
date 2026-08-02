@@ -36,10 +36,8 @@ public class CommunityOutpostDeliverer(
    IContentManifestPool manifestPool,
    CommunityOutpostManifestFactory manifestFactory,
    IGameInstallationService installationService,
-   IUserSettingsService userSettingsService,
-   ICasPoolManager? casPoolManager,
+   IInstallationCasPoolService installationCasPoolService,
    CompressedImageToTgaConverter avifConverter,
-   IStorageWritabilityProbe writabilityProbe,
    ILogger<CommunityOutpostDeliverer> logger)
    : IContentDeliverer
 {
@@ -79,37 +77,6 @@ public class CommunityOutpostDeliverer(
         }
 
         return "unknown";
-    }
-
-    /// <summary>
-    /// Gets the installation path for a game installation.
-    /// </summary>
-    private static string? GetInstallationPath(GameInstallation installation)
-    {
-        // For Zero Hour installations, use the installation path directly
-        // For Generals-only installations, use the Generals path
-        if (!string.IsNullOrEmpty(installation.InstallationPath))
-        {
-            // If the path points to a file (e.g. generals.exe), return the directory
-            if (Path.HasExtension(installation.InstallationPath))
-            {
-                return Path.GetDirectoryName(installation.InstallationPath);
-            }
-
-            return installation.InstallationPath;
-        }
-
-        if (!string.IsNullOrEmpty(installation.ZeroHourPath))
-        {
-            return installation.ZeroHourPath;
-        }
-
-        if (!string.IsNullOrEmpty(installation.GeneralsPath))
-        {
-            return installation.GeneralsPath;
-        }
-
-        return null;
     }
 
     /// <summary>
@@ -365,11 +332,6 @@ public class CommunityOutpostDeliverer(
             if (hasGameClientManifest)
             {
                 await EnsureInstallationPoolPathAsync(cancellationToken);
-
-                // CRITICAL: Force the CAS pool manager to reinitialize the Installation pool
-                // after we've updated the path in settings. Without this, the pool manager
-                // will still use the old (or non-existent) Installation pool.
-                casPoolManager?.ReinitializeInstallationPool();
             }
 
             foreach (var manifest in manifests)
@@ -676,59 +638,7 @@ public class CommunityOutpostDeliverer(
                 return;
             }
 
-            // If multiple installations, prefer Steam over EA App
-            var preferredInstallation = installations.Count == 1
-                ? installations[0]
-                : installations.FirstOrDefault(i => i.InstallationType == GameInstallationType.Steam)
-                    ?? installations.FirstOrDefault(i => i.InstallationType == GameInstallationType.EaApp)
-                    ?? installations.FirstOrDefault();
-
-            if (preferredInstallation == null)
-            {
-                logger.LogWarning("No valid installation found for CAS pool path resolution");
-                return;
-            }
-
-            var preferredInstallationPath = GetInstallationPath(preferredInstallation);
-            if (string.IsNullOrEmpty(preferredInstallationPath))
-            {
-                logger.LogWarning("Preferred installation {InstallationId} has no usable path", preferredInstallation.Id);
-                return;
-            }
-
-            var poolPath = Path.Combine(preferredInstallationPath, DirectoryNames.GenHubCasPool);
-
-            // An unwritable pool is not a failure: clearing the path routes this content to the
-            // primary pool instead, and also repairs a protected path persisted by an earlier run.
-            var isPoolWritable = writabilityProbe.CanCreateStorageAt(poolPath);
-            if (isPoolWritable)
-            {
-                logger.LogInformation(
-                    "Auto-setting InstallationPoolRootPath to preferred installation ({InstallationType}): {Path}",
-                    preferredInstallation.InstallationType,
-                    poolPath);
-            }
-            else
-            {
-                logger.LogWarning(
-                    "Installation CAS pool {Path} is not writable; content will be stored in the primary pool",
-                    poolPath);
-            }
-
-            var saved = await userSettingsService.TryUpdateAndSaveAsync(s =>
-            {
-                s.CasConfiguration.InstallationPoolRootPath = isPoolWritable ? poolPath : string.Empty;
-                s.PreferredStorageInstallationId = preferredInstallation.Id;
-                return true;
-            });
-
-            if (!saved)
-            {
-                logger.LogError("Failed to save installation pool path settings for installation {InstallationId}", preferredInstallation.Id);
-            }
-
-            var updatedSettings = userSettingsService.Get();
-            logger.LogInformation("Verified InstallationPoolRootPath is now: {Path}", updatedSettings.CasConfiguration.InstallationPoolRootPath);
+            await installationCasPoolService.EnsurePoolPathAsync(installations, cancellationToken);
         }
         catch (Exception ex)
         {

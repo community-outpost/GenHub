@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Concurrent;
 using System.IO;
+using System.Linq;
 using System.Security;
+using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using Microsoft.Extensions.Logging;
@@ -13,8 +15,6 @@ namespace GenHub.Common.Services;
 /// </summary>
 public class StorageWritabilityProbe(ILogger<StorageWritabilityProbe> logger) : IStorageWritabilityProbe
 {
-    private const string ProbeFilePrefix = ".genhub-write-probe-";
-
     private readonly ConcurrentDictionary<string, bool> _results = new(PathHelper.PathComparer);
 
     /// <inheritdoc/>
@@ -62,20 +62,18 @@ public class StorageWritabilityProbe(ILogger<StorageWritabilityProbe> logger) : 
     private bool Probe(string fullStoragePath)
     {
         string? probePath = null;
+        var storageDirectoryExisted = Directory.Exists(fullStoragePath);
+        var storageDirectoryCreated = false;
+        var probeSucceeded = false;
 
         try
         {
-            var probeDirectory = Directory.Exists(fullStoragePath)
-                ? fullStoragePath
-                : Path.GetDirectoryName(fullStoragePath);
+            Directory.CreateDirectory(fullStoragePath);
+            storageDirectoryCreated = !storageDirectoryExisted;
 
-            if (string.IsNullOrWhiteSpace(probeDirectory) || !Directory.Exists(probeDirectory))
-            {
-                logger.LogDebug("Storage path {StoragePath} has no existing directory to probe", fullStoragePath);
-                return false;
-            }
-
-            probePath = Path.Combine(probeDirectory, $"{ProbeFilePrefix}{Guid.NewGuid():N}.tmp");
+            probePath = Path.Combine(
+                fullStoragePath,
+                $"{StorageConstants.WriteProbeFilePrefix}{Guid.NewGuid():N}.tmp");
             using var probe = new FileStream(
                 probePath,
                 FileMode.CreateNew,
@@ -84,6 +82,7 @@ public class StorageWritabilityProbe(ILogger<StorageWritabilityProbe> logger) : 
                 bufferSize: 1,
                 FileOptions.DeleteOnClose);
             probe.WriteByte(0);
+            probeSucceeded = true;
             return true;
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or ArgumentException or NotSupportedException or SecurityException)
@@ -102,6 +101,22 @@ public class StorageWritabilityProbe(ILogger<StorageWritabilityProbe> logger) : 
                 catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
                 {
                     logger.LogDebug(ex, "Could not remove storage write probe {ProbePath}", probePath);
+                }
+            }
+
+            if (!probeSucceeded && storageDirectoryCreated)
+            {
+                try
+                {
+                    if (Directory.Exists(fullStoragePath) &&
+                        !Directory.EnumerateFileSystemEntries(fullStoragePath).Any())
+                    {
+                        Directory.Delete(fullStoragePath);
+                    }
+                }
+                catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or SecurityException)
+                {
+                    logger.LogDebug(ex, "Could not remove failed storage probe directory {StoragePath}", fullStoragePath);
                 }
             }
         }

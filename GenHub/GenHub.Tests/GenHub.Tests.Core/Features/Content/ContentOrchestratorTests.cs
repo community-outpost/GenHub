@@ -2,6 +2,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
@@ -22,8 +23,7 @@ public class ContentOrchestratorTests
     private readonly Mock<IContentValidator> _contentValidatorMock = default!;
     private readonly Mock<IContentManifestPool> _manifestPoolMock = default!;
     private readonly Mock<IGameInstallationService> _installationServiceMock = default!;
-    private readonly Mock<IUserSettingsService> _userSettingsServiceMock = default!;
-    private readonly Mock<IStorageWritabilityProbe> _writabilityProbeMock = default!;
+    private readonly Mock<IInstallationCasPoolService> _installationCasPoolServiceMock = default!;
     private readonly Mock<ILogger<ContentOrchestrator>> _loggerMock = default!;
 
     /// <summary>
@@ -35,8 +35,7 @@ public class ContentOrchestratorTests
         _contentValidatorMock = new Mock<IContentValidator>();
         _manifestPoolMock = new Mock<IContentManifestPool>();
         _installationServiceMock = new Mock<IGameInstallationService>();
-        _userSettingsServiceMock = new Mock<IUserSettingsService>();
-        _writabilityProbeMock = new Mock<IStorageWritabilityProbe>();
+        _installationCasPoolServiceMock = new Mock<IInstallationCasPoolService>();
         _loggerMock = new Mock<ILogger<ContentOrchestrator>>();
     }
 
@@ -73,8 +72,7 @@ public class ContentOrchestratorTests
             _contentValidatorMock.Object,
             _manifestPoolMock.Object,
             _installationServiceMock.Object,
-            _userSettingsServiceMock.Object,
-            _writabilityProbeMock.Object);
+            _installationCasPoolServiceMock.Object);
 
         // Act
         var result = await orchestrator.SearchAsync(new ContentSearchQuery());
@@ -135,8 +133,7 @@ public class ContentOrchestratorTests
             _contentValidatorMock.Object,
             _manifestPoolMock.Object,
             _installationServiceMock.Object,
-            _userSettingsServiceMock.Object,
-            _writabilityProbeMock.Object);
+            _installationCasPoolServiceMock.Object);
 
         // Act
         var result = await orchestrator.AcquireContentAsync(searchResult);

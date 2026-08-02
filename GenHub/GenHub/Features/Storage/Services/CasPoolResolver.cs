@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
@@ -69,6 +70,23 @@ public class CasPoolResolver(
     {
         var poolType = ResolvePool(contentType);
         return GetPoolRootPath(poolType);
+    }
+
+    /// <inheritdoc/>
+    public string GetLegacyInstallationPoolRootPath()
+    {
+        var configuration = userSettingsService.Get().CasConfiguration;
+        if (!string.IsNullOrWhiteSpace(configuration.LegacyInstallationPoolRootPath))
+        {
+            return configuration.LegacyInstallationPoolRootPath;
+        }
+
+        var currentPath = configuration.InstallationPoolRootPath;
+        return !string.IsNullOrWhiteSpace(currentPath) &&
+            Directory.Exists(currentPath) &&
+            !writabilityProbe.CanCreateStorageAt(currentPath)
+                ? currentPath
+                : string.Empty;
     }
 
     /// <inheritdoc/>

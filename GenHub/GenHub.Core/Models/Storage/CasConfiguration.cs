@@ -46,6 +46,18 @@ public class CasConfiguration : ICloneable
     public string InstallationPoolRootPath { get; set; } = string.Empty;
 
     /// <summary>
+    /// Gets or sets a value indicating whether <see cref="InstallationPoolRootPath"/> was
+    /// selected automatically from a detected game installation.
+    /// </summary>
+    public bool IsInstallationPoolRootPathAutoDerived { get; set; }
+
+    /// <summary>
+    /// Gets or sets a previous installation-pool root that remains available for read-only
+    /// object lookup after new writes have fallen back to another pool.
+    /// </summary>
+    public string LegacyInstallationPoolRootPath { get; set; } = string.Empty;
+
+    /// <summary>
     /// Gets or sets the hash algorithm to use for content addressing.
     /// </summary>
     public HashAlgorithm HashAlgorithm { get; set; } = HashAlgorithm.Sha256;
@@ -133,6 +145,8 @@ public class CasConfiguration : ICloneable
             EnableAutomaticGc = EnableAutomaticGc,
             CasRootPath = CasRootPath,
             InstallationPoolRootPath = InstallationPoolRootPath,
+            IsInstallationPoolRootPathAutoDerived = IsInstallationPoolRootPathAutoDerived,
+            LegacyInstallationPoolRootPath = LegacyInstallationPoolRootPath,
             HashAlgorithm = HashAlgorithm,
             GcGracePeriod = GcGracePeriod,
             MaxCacheSizeBytes = MaxCacheSizeBytes,
