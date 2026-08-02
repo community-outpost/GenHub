@@ -164,6 +164,9 @@ public sealed class StorageLocationServiceTests : IDisposable
         var second = service.GetWorkspacePath(installation);
 
         Assert.Equal(first, second);
+
+        // A second probe would recreate the storage directory, so its absence proves the cache was used.
+        Assert.False(Directory.Exists(installationRoot));
     }
 
     /// <inheritdoc/>

@@ -317,6 +317,66 @@ public class WorkspaceManagerReuseTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that a configuration without a workspace root reuses the existing workspace
+    /// instead of resolving a working-directory-relative path and recreating it.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task PrepareWorkspaceAsync_WhenWorkspaceRootIsBlank_ShouldReuseWorkspace()
+    {
+        var workspaceId = "test-workspace";
+        var manifestId = "1.0.local.mod.testmanifest";
+        var workspacePath = Path.Combine(_tempPath, workspaceId);
+        Directory.CreateDirectory(workspacePath);
+        File.WriteAllText(Path.Combine(workspacePath, "test.txt"), "content");
+
+        var cachedWorkspace = new WorkspaceInfo
+        {
+            Id = workspaceId,
+            WorkspacePath = workspacePath,
+            ManifestIds = [manifestId],
+            ManifestVersions = new Dictionary<string, string> { { manifestId, "1.0" } },
+            Strategy = WorkspaceStrategy.HardLink,
+            IsPrepared = true,
+            FileCount = 1,
+            IsValid = true,
+        };
+        await File.WriteAllTextAsync(_metadataPath, System.Text.Json.JsonSerializer.Serialize(new[] { cachedWorkspace }));
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = workspaceId,
+            Strategy = WorkspaceStrategy.HardLink,
+            Manifests = [new ContentManifest { Id = ManifestId.Create(manifestId), Version = "1.0", Files = [new ManifestFile { RelativePath = "test.txt" }] }],
+            BaseInstallationPath = _tempPath,
+            WorkspaceRootPath = string.Empty,
+            ValidateAfterPreparation = false,
+        };
+
+        var successValidation = new ValidationResult(workspaceId, []);
+        _mockWorkspaceValidator
+            .Setup(x => x.ValidateConfigurationAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(successValidation);
+        _mockWorkspaceValidator
+            .Setup(x => x.ValidatePrerequisitesAsync(It.IsAny<IWorkspaceStrategy>(), It.IsAny<WorkspaceConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(successValidation);
+        _mockWorkspaceValidator
+            .Setup(x => x.ValidateWorkspaceAsync(It.IsAny<WorkspaceInfo>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ValidationResult>.CreateSuccess(successValidation));
+        _mockWorkspaceValidator
+            .Setup(x => x.EnsureEntryPointExecutableAsync(It.IsAny<WorkspaceInfo>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var result = await _manager.PrepareWorkspaceAsync(config);
+
+        result.Success.Should().BeTrue();
+        Directory.Exists(workspacePath).Should().BeTrue();
+        _mockStrategy.Verify(
+            x => x.PrepareAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
     /// Verifies that a workspace is recreated when storage resolution moves it to a new root.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

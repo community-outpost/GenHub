@@ -66,8 +66,13 @@ public class WorkspaceManager(
                         configuration.Id,
                         workspace.WorkspacePath);
 
-                    var expectedWorkspacePath = Path.GetFullPath(Path.Combine(configuration.WorkspaceRootPath, configuration.Id));
                     var existingWorkspacePath = Path.GetFullPath(workspace.WorkspacePath);
+
+                    // Without a configured root there is nothing to compare against, and resolving
+                    // a blank root would produce a working-directory-relative path that always differs.
+                    var expectedWorkspacePath = string.IsNullOrWhiteSpace(configuration.WorkspaceRootPath)
+                        ? existingWorkspacePath
+                        : Path.GetFullPath(Path.Combine(configuration.WorkspaceRootPath, configuration.Id));
                     if (!string.Equals(expectedWorkspacePath, existingWorkspacePath, PathHelper.PathComparison))
                     {
                         logger.LogInformation(
