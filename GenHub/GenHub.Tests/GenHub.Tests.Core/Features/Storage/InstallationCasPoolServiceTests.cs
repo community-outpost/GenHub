@@ -438,7 +438,19 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
     /// <inheritdoc/>
     public void Dispose()
     {
-        Directory.Delete(_tempPath, true);
+        try
+        {
+            Directory.Delete(_tempPath, true);
+        }
+        catch (IOException)
+        {
+            // Best-effort cleanup for temporary test files.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Best-effort cleanup for temporary test files.
+        }
+
         GC.SuppressFinalize(this);
     }
 
