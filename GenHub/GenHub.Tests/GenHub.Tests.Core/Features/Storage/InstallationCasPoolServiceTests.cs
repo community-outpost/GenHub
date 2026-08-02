@@ -258,6 +258,40 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Does not retain the primary pool as a duplicate legacy pool when path formatting differs.
+    /// </summary>
+    [Fact]
+    public void CasPoolManager_WhenLegacyRootMatchesPrimaryRoot_DoesNotRetainDuplicateStorage()
+    {
+        var primaryPath = Path.Combine(_tempPath, "primary-legacy-normalized");
+        Directory.CreateDirectory(primaryPath);
+        var settings = new UserSettings
+        {
+            CasConfiguration = new CasConfiguration
+            {
+                LegacyInstallationPoolRootPath = primaryPath + Path.DirectorySeparatorChar,
+            },
+        };
+        _userSettingsService.Setup(service => service.Get()).Returns(settings);
+        var configuration = new CasConfiguration { CasRootPath = primaryPath };
+        var resolver = new CasPoolResolver(
+            Options.Create(configuration),
+            _userSettingsService.Object,
+            _writabilityProbe.Object,
+            NullLogger<CasPoolResolver>.Instance);
+
+        var manager = new CasPoolManager(
+            resolver,
+            Options.Create(configuration),
+            new Mock<IFileHashProvider>().Object,
+            NullLoggerFactory.Instance,
+            _writabilityProbe.Object,
+            NullLogger<CasPoolManager>.Instance);
+
+        Assert.Single(manager.GetAllStorages());
+    }
+
+    /// <summary>
     /// Reads an existing legacy object without attempting to create writable CAS directories.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>

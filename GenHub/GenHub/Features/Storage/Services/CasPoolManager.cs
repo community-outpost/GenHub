@@ -266,7 +266,11 @@ public class CasPoolManager : ICasPoolManager
         var normalizedActiveRoot = string.IsNullOrWhiteSpace(activeInstallationRoot)
             ? string.Empty
             : Path.TrimEndingDirectorySeparator(Path.GetFullPath(activeInstallationRoot));
-        if (string.Equals(legacyRoot, normalizedActiveRoot, PathHelper.PathComparison))
+        var normalizedPrimaryRoot = string.IsNullOrWhiteSpace(_config.CasRootPath)
+            ? string.Empty
+            : Path.TrimEndingDirectorySeparator(Path.GetFullPath(_config.CasRootPath));
+        if (string.Equals(legacyRoot, normalizedActiveRoot, PathHelper.PathComparison) ||
+            string.Equals(legacyRoot, normalizedPrimaryRoot, PathHelper.PathComparison))
         {
             _legacyInstallationStorage = null;
             _legacyInstallationPoolRoot = null;
