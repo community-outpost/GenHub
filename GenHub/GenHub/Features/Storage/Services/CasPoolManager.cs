@@ -255,15 +255,24 @@ public class CasPoolManager : ICasPoolManager
     {
         var legacyRoot = _poolResolver.GetLegacyInstallationPoolRootPath();
         if (string.IsNullOrWhiteSpace(legacyRoot) ||
-            !Directory.Exists(legacyRoot) ||
-            string.Equals(legacyRoot, activeInstallationRoot, PathHelper.PathComparison))
+            !Directory.Exists(legacyRoot))
         {
             _legacyInstallationStorage = null;
             _legacyInstallationPoolRoot = null;
             return;
         }
 
-        legacyRoot = Path.GetFullPath(legacyRoot);
+        legacyRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(legacyRoot));
+        var normalizedActiveRoot = string.IsNullOrWhiteSpace(activeInstallationRoot)
+            ? string.Empty
+            : Path.TrimEndingDirectorySeparator(Path.GetFullPath(activeInstallationRoot));
+        if (string.Equals(legacyRoot, normalizedActiveRoot, PathHelper.PathComparison))
+        {
+            _legacyInstallationStorage = null;
+            _legacyInstallationPoolRoot = null;
+            return;
+        }
+
         if (IsInsideApplicationDirectory(legacyRoot))
         {
             _legacyInstallationStorage = null;

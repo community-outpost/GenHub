@@ -140,6 +140,7 @@ public class UserSettingsServiceTests : IDisposable
     public async Task LoadSettings_AfterSave_PreservesInstallationPoolProvenanceMarker()
     {
         var settingsPath = Path.Combine(_tempDirectory, "provenance", FileTypes.SettingsFileName);
+        var historicalPoolPath = "/historical/installation/.genhub-cas";
         Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
         var service1 = new TestableUserSettingsService(
             _mockLogger.Object,
@@ -147,7 +148,7 @@ public class UserSettingsServiceTests : IDisposable
             settingsPath);
         service1.Update(settings =>
         {
-            settings.CasConfiguration.InstallationPoolRootPath = "/historical/installation/.genhub-cas";
+            settings.CasConfiguration.InstallationPoolRootPath = historicalPoolPath;
             settings.MarkAsExplicitlySet(nameof(CasConfiguration.InstallationPoolRootPath));
         });
         await service1.SaveAsync();
@@ -161,6 +162,7 @@ public class UserSettingsServiceTests : IDisposable
         Assert.Contains(
             nameof(CasConfiguration.InstallationPoolRootPath),
             loadedSettings.ExplicitlySetProperties);
+        Assert.Equal(historicalPoolPath, loadedSettings.CasConfiguration.InstallationPoolRootPath);
     }
 
     /// <summary>
