@@ -2,7 +2,9 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Content;
+using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
@@ -10,6 +12,8 @@ using GenHub.Core.Models.Validation;
 using GenHub.Features.Content.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
+using GameInstallationType = GenHub.Core.Models.Enums.GameInstallationType;
 
 namespace GenHub.Tests.Core.Features.Content;
 
@@ -22,7 +26,7 @@ public class ContentOrchestratorTests
     private readonly Mock<IContentValidator> _contentValidatorMock = default!;
     private readonly Mock<IContentManifestPool> _manifestPoolMock = default!;
     private readonly Mock<IGameInstallationService> _installationServiceMock = default!;
-    private readonly Mock<IUserSettingsService> _userSettingsServiceMock = default!;
+    private readonly Mock<IInstallationCasPoolService> _installationCasPoolServiceMock = default!;
     private readonly Mock<ILogger<ContentOrchestrator>> _loggerMock = default!;
 
     /// <summary>
@@ -34,7 +38,7 @@ public class ContentOrchestratorTests
         _contentValidatorMock = new Mock<IContentValidator>();
         _manifestPoolMock = new Mock<IContentManifestPool>();
         _installationServiceMock = new Mock<IGameInstallationService>();
-        _userSettingsServiceMock = new Mock<IUserSettingsService>();
+        _installationCasPoolServiceMock = new Mock<IInstallationCasPoolService>();
         _loggerMock = new Mock<ILogger<ContentOrchestrator>>();
     }
 
@@ -71,7 +75,7 @@ public class ContentOrchestratorTests
             _contentValidatorMock.Object,
             _manifestPoolMock.Object,
             _installationServiceMock.Object,
-            _userSettingsServiceMock.Object);
+            _installationCasPoolServiceMock.Object);
 
         // Act
         var result = await orchestrator.SearchAsync(new ContentSearchQuery());
@@ -132,7 +136,7 @@ public class ContentOrchestratorTests
             _contentValidatorMock.Object,
             _manifestPoolMock.Object,
             _installationServiceMock.Object,
-            _userSettingsServiceMock.Object);
+            _installationCasPoolServiceMock.Object);
 
         // Act
         var result = await orchestrator.AcquireContentAsync(searchResult);
@@ -142,5 +146,84 @@ public class ContentOrchestratorTests
         Assert.Equal(manifest, result.Data);
         _manifestPoolMock.Verify(m => m.AddManifestAsync(manifest, It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
         _contentValidatorMock.Verify(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Stops GameClient acquisition when storage settings cannot be saved safely.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AcquireContentAsync_WhenGameClientPoolCannotBeEnsured_ReturnsFailure()
+    {
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.0.genhub.gameclient.test",
+            Name = "Test Client",
+            ProviderName = "TestProvider",
+        };
+        var manifest = new ContentManifest
+        {
+            Id = searchResult.Id,
+            Name = searchResult.Name,
+            ContentType = ContentType.GameClient,
+        };
+        var providerMock = new Mock<IContentProvider>();
+        providerMock.Setup(provider => provider.SourceName).Returns(searchResult.ProviderName);
+        providerMock
+            .Setup(provider => provider.GetValidatedContentAsync(searchResult.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+        providerMock
+            .Setup(provider => provider.PrepareContentAsync(
+                manifest,
+                It.IsAny<string>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+        _cacheMock
+            .Setup(cache => cache.GetAsync<ContentManifest>(manifest.Id.Value, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ContentManifest?)null);
+        _contentValidatorMock
+            .Setup(validator => validator.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, []));
+        _contentValidatorMock
+            .Setup(validator => validator.ValidateAllAsync(
+                It.IsAny<string>(),
+                manifest,
+                It.IsAny<IProgress<ValidationProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, []));
+        _manifestPoolMock
+            .Setup(pool => pool.IsManifestAcquiredAsync(manifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        var installation = new GameInstallation("/game", GameInstallationType.Retail);
+        _installationServiceMock
+            .Setup(service => service.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
+        _installationCasPoolServiceMock
+            .Setup(service => service.EnsurePoolPathAsync(
+                It.IsAny<IReadOnlyList<GameInstallation>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        var orchestrator = new ContentOrchestrator(
+            _loggerMock.Object,
+            [providerMock.Object],
+            [],
+            [],
+            _cacheMock.Object,
+            _contentValidatorMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
+
+        var result = await orchestrator.AcquireContentAsync(searchResult);
+
+        Assert.False(result.Success);
+        _manifestPoolMock.Verify(
+            pool => pool.AddManifestAsync(
+                It.IsAny<ContentManifest>(),
+                It.IsAny<string>(),
+                It.IsAny<IProgress<ContentStorageProgress>>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 }

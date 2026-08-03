@@ -10,6 +10,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
@@ -36,38 +37,8 @@ public class ContentOrchestrator : IContentOrchestrator
     private readonly IContentValidator _contentValidator;
     private readonly IContentManifestPool _manifestPool;
     private readonly IGameInstallationService _installationService;
-    private readonly IUserSettingsService _userSettingsService;
+    private readonly IInstallationCasPoolService _installationCasPoolService;
     private readonly object _providerLock = new();
-
-    /// <summary>
-    /// Gets the installation path for a game installation.
-    /// </summary>
-    private static string? GetInstallationPath(GenHub.Core.Models.GameInstallations.GameInstallation? installation)
-    {
-        if (installation == null)
-        {
-            return null;
-        }
-
-        // For Zero Hour installations, use the installation path directly
-        // For Generals-only installations, use the Generals path
-        if (!string.IsNullOrEmpty(installation.InstallationPath))
-        {
-            return installation.InstallationPath;
-        }
-
-        if (!string.IsNullOrEmpty(installation.ZeroHourPath))
-        {
-            return installation.ZeroHourPath;
-        }
-
-        if (!string.IsNullOrEmpty(installation.GeneralsPath))
-        {
-            return installation.GeneralsPath;
-        }
-
-        return null;
-    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ContentOrchestrator"/> class.
@@ -80,7 +51,7 @@ public class ContentOrchestrator : IContentOrchestrator
     /// <param name="contentValidator">The content validator service for manifest and content integrity.</param>
     /// <param name="manifestPool">The manifest pool for acquired content.</param>
     /// <param name="installationService">The game installation service for detecting installations.</param>
-    /// <param name="userSettingsService">The user settings service for updating CAS configuration.</param>
+    /// <param name="installationCasPoolService">The installation CAS pool selector.</param>
     public ContentOrchestrator(
         ILogger<ContentOrchestrator> logger,
         IEnumerable<IContentProvider> providers,
@@ -90,7 +61,7 @@ public class ContentOrchestrator : IContentOrchestrator
         IContentValidator contentValidator,
         IContentManifestPool manifestPool,
         IGameInstallationService installationService,
-        IUserSettingsService userSettingsService)
+        IInstallationCasPoolService installationCasPoolService)
     {
         _logger = logger;
         _providers = [.. providers];
@@ -108,7 +79,7 @@ public class ContentOrchestrator : IContentOrchestrator
         _contentValidator = contentValidator;
         _manifestPool = manifestPool;
         _installationService = installationService;
-        _userSettingsService = userSettingsService;
+        _installationCasPoolService = installationCasPoolService;
 
         _logger.LogInformation("ContentOrchestrator initialized with {ProviderCount} providers, {DiscovererCount} discoverers, {ResolverCount} resolvers", _providers.Count, _discoverers.Count, _resolvers.Count);
     }
@@ -724,64 +695,14 @@ public class ContentOrchestrator : IContentOrchestrator
             var installationsResult = await _installationService.GetAllInstallationsAsync(cancellationToken);
             if (!installationsResult.Success || installationsResult.Data == null)
             {
-                _logger.LogWarning("Failed to get installations for CAS pool path resolution: {Error}", installationsResult.FirstError);
-                return false;
+                _logger.LogWarning(
+                    "Failed to get installations for CAS pool path resolution: {Error}; the primary CAS pool will be used",
+                    installationsResult.FirstError);
+                return true;
             }
 
             var installations = installationsResult.Data.ToList();
-
-            if (installations.Count == 0)
-            {
-                _logger.LogWarning("No installations detected - cannot set InstallationPoolRootPath");
-                return false;
-            }
-
-            // If only one installation, use it
-            if (installations.Count == 1)
-            {
-                var installation = installations[0];
-                var installationPath = GetInstallationPath(installation);
-                if (!string.IsNullOrEmpty(installationPath))
-                {
-                    var casPoolPath = Path.Combine(installationPath, ".genhub-cas");
-                    _logger.LogInformation("Auto-setting InstallationPoolRootPath to single installation: {Path}", casPoolPath);
-
-                    return await _userSettingsService.TryUpdateAndSaveAsync(s =>
-                    {
-                        s.CasConfiguration.InstallationPoolRootPath = casPoolPath;
-                        s.PreferredStorageInstallationId = installation.Id;
-                        s.MarkAsExplicitlySet(nameof(s.CasConfiguration.InstallationPoolRootPath));
-                        return true;
-                    });
-                }
-            }
-
-            // If multiple installations, prefer Steam over EA App
-            // Note: Since we verified installations.Count >= 1, this will never be null
-            var preferredInstallation = installations.FirstOrDefault(i => i.InstallationType == GameInstallationType.Steam)
-                ?? installations.FirstOrDefault(i => i.InstallationType == GameInstallationType.EaApp)
-                ?? installations.First();
-
-            if (preferredInstallation != null)
-            {
-                var installationPath = GetInstallationPath(preferredInstallation);
-                if (!string.IsNullOrEmpty(installationPath))
-                {
-                    var casPoolPath = Path.Combine(installationPath, ".genhub-cas");
-                    _logger.LogInformation("Auto-setting InstallationPoolRootPath to preferred installation ({InstallationType}): {Path}", preferredInstallation.InstallationType, casPoolPath);
-
-                    return await _userSettingsService.TryUpdateAndSaveAsync(s =>
-                    {
-                        s.CasConfiguration.InstallationPoolRootPath = casPoolPath;
-                        s.PreferredStorageInstallationId = preferredInstallation.Id;
-                        s.MarkAsExplicitlySet(nameof(s.CasConfiguration.InstallationPoolRootPath));
-                        return true;
-                    });
-                }
-            }
-
-            // Should not be reachable given the checks above
-            return false;
+            return await _installationCasPoolService.EnsurePoolPathAsync(installations, cancellationToken);
         }
         catch (Exception ex)
         {

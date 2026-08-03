@@ -33,7 +33,6 @@ public class CasStorage(
     /// <inheritdoc/>
     public string GetObjectPath(string hash)
     {
-        EnsureDirectoriesCreated();
         ValidateHashFormat(hash);
         var subDirectory = hash[..2].ToLowerInvariant();
         return Path.Combine(_objectsDirectory, subDirectory, hash.ToLowerInvariant());

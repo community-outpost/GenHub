@@ -36,8 +36,7 @@ public class CommunityOutpostDeliverer(
    IContentManifestPool manifestPool,
    CommunityOutpostManifestFactory manifestFactory,
    IGameInstallationService installationService,
-   IUserSettingsService userSettingsService,
-   ICasPoolManager? casPoolManager,
+   IInstallationCasPoolService installationCasPoolService,
    CompressedImageToTgaConverter avifConverter,
    ILogger<CommunityOutpostDeliverer> logger)
    : IContentDeliverer
@@ -78,37 +77,6 @@ public class CommunityOutpostDeliverer(
         }
 
         return "unknown";
-    }
-
-    /// <summary>
-    /// Gets the installation path for a game installation.
-    /// </summary>
-    private static string? GetInstallationPath(GameInstallation installation)
-    {
-        // For Zero Hour installations, use the installation path directly
-        // For Generals-only installations, use the Generals path
-        if (!string.IsNullOrEmpty(installation.InstallationPath))
-        {
-            // If the path points to a file (e.g. generals.exe), return the directory
-            if (Path.HasExtension(installation.InstallationPath))
-            {
-                return Path.GetDirectoryName(installation.InstallationPath);
-            }
-
-            return installation.InstallationPath;
-        }
-
-        if (!string.IsNullOrEmpty(installation.ZeroHourPath))
-        {
-            return installation.ZeroHourPath;
-        }
-
-        if (!string.IsNullOrEmpty(installation.GeneralsPath))
-        {
-            return installation.GeneralsPath;
-        }
-
-        return null;
     }
 
     /// <summary>
@@ -363,12 +331,12 @@ public class CommunityOutpostDeliverer(
             var hasGameClientManifest = manifests.Any(m => m.ContentType == ContentType.GameClient);
             if (hasGameClientManifest)
             {
-                await EnsureInstallationPoolPathAsync(cancellationToken);
-
-                // CRITICAL: Force the CAS pool manager to reinitialize the Installation pool
-                // after we've updated the path in settings. Without this, the pool manager
-                // will still use the old (or non-existent) Installation pool.
-                casPoolManager?.ReinitializeInstallationPool();
+                var poolPathReady = await EnsureInstallationPoolPathAsync(cancellationToken);
+                if (!poolPathReady)
+                {
+                    return OperationResult<ContentManifest>.CreateFailure(
+                        "Could not ensure storage for GameClient content.");
+                }
             }
 
             foreach (var manifest in manifests)
@@ -649,7 +617,8 @@ public class CommunityOutpostDeliverer(
     /// Ensures the InstallationPoolRootPath is set before storing GameClient content.
     /// This prevents content from being stored in the wrong CAS pool.
     /// </summary>
-    private async Task EnsureInstallationPoolPathAsync(CancellationToken cancellationToken)
+    /// <returns><c>true</c> when content acquisition may continue; otherwise, <c>false</c>.</returns>
+    private async Task<bool> EnsureInstallationPoolPathAsync(CancellationToken cancellationToken)
     {
         try
         {
@@ -663,82 +632,19 @@ public class CommunityOutpostDeliverer(
             var installationsResult = await installationService.GetAllInstallationsAsync(cancellationToken);
             if (!installationsResult.Success || installationsResult.Data == null)
             {
-                logger.LogWarning("Failed to get installations for CAS pool path resolution: {Error}", installationsResult.FirstError);
-                return;
+                logger.LogWarning(
+                    "Failed to get installations for CAS pool path resolution: {Error}; the primary CAS pool will be used",
+                    installationsResult.FirstError);
+                return true;
             }
 
             var installations = installationsResult.Data.ToList();
-
-            if (installations.Count == 0)
-            {
-                logger.LogWarning("No installations detected - cannot set InstallationPoolRootPath");
-                return;
-            }
-
-            // If only one installation, use it
-            if (installations.Count == 1)
-            {
-                var installation = installations[0];
-                var installationPath = GetInstallationPath(installation);
-                if (!string.IsNullOrEmpty(installationPath))
-                {
-                    var casPoolPath = Path.Combine(installationPath, ".genhub-cas");
-                    logger.LogInformation("Auto-setting InstallationPoolRootPath to single installation: {Path}", casPoolPath);
-
-                    var saved = await userSettingsService.TryUpdateAndSaveAsync(s =>
-                    {
-                        s.CasConfiguration.InstallationPoolRootPath = casPoolPath;
-                        s.PreferredStorageInstallationId = installation.Id;
-                        s.MarkAsExplicitlySet(nameof(s.CasConfiguration.InstallationPoolRootPath));
-                        return true;
-                    });
-
-                    if (!saved)
-                    {
-                        logger.LogError("Failed to save installation pool path settings for installation {InstallationId}", installation.Id);
-                    }
-
-                    // Verify the setting was applied
-                    var updatedSettings = userSettingsService.Get();
-                    logger.LogInformation("Verified InstallationPoolRootPath is now: {Path}", updatedSettings.CasConfiguration.InstallationPoolRootPath);
-                    return;
-                }
-            }
-
-            // If multiple installations, prefer Steam over EA App
-            var preferredInstallation = installations.FirstOrDefault(i => i.InstallationType == GameInstallationType.Steam)
-                ?? installations.FirstOrDefault(i => i.InstallationType == GameInstallationType.EaApp)
-                ?? installations.FirstOrDefault();
-
-            if (preferredInstallation != null)
-            {
-                var installationPath = GetInstallationPath(preferredInstallation);
-                if (!string.IsNullOrEmpty(installationPath))
-                {
-                    var casPoolPath = Path.Combine(installationPath, ".genhub-cas");
-                    logger.LogInformation("Auto-setting InstallationPoolRootPath to preferred installation ({InstallationType}): {Path}", preferredInstallation.InstallationType, casPoolPath);
-
-                    await userSettingsService.TryUpdateAndSaveAsync(s =>
-                    {
-                        s.CasConfiguration.InstallationPoolRootPath = casPoolPath;
-                        s.PreferredStorageInstallationId = preferredInstallation.Id;
-                        s.MarkAsExplicitlySet(nameof(s.CasConfiguration.InstallationPoolRootPath));
-                        return true;
-                    });
-
-                    // Verify the setting was applied
-                    var updatedSettings = userSettingsService.Get();
-                    logger.LogInformation("Verified InstallationPoolRootPath is now: {Path}", updatedSettings.CasConfiguration.InstallationPoolRootPath);
-                }
-            }
-            else
-            {
-                logger.LogWarning("No valid installation found for CAS pool path resolution");
-            }
+            return await installationCasPoolService.EnsurePoolPathAsync(installations, cancellationToken);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to ensure InstallationPoolRootPath is set");
+            return false;
         }
     }
 

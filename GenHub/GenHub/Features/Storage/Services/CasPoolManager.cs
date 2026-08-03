@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Enums;
@@ -21,9 +22,13 @@ public class CasPoolManager : ICasPoolManager
     private readonly ILogger<CasPoolManager> _logger;
     private readonly IFileHashProvider _hashProvider;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly IStorageWritabilityProbe _writabilityProbe;
     private readonly CasConfiguration _config;
     private readonly ConcurrentDictionary<CasPoolType, ICasStorage> _storages = new();
     private readonly object _initLock = new();
+    private string? _installationPoolRoot;
+    private volatile IReadOnlyList<ICasStorage> _legacyInstallationStorages = [];
+    private IReadOnlyList<string> _legacyInstallationPoolRoots = [];
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CasPoolManager"/> class.
@@ -32,28 +37,27 @@ public class CasPoolManager : ICasPoolManager
     /// <param name="config">The CAS configuration.</param>
     /// <param name="hashProvider">The file hash provider.</param>
     /// <param name="loggerFactory">The logger factory for creating storage loggers.</param>
+    /// <param name="writabilityProbe">The storage writability probe.</param>
     /// <param name="logger">The logger instance.</param>
     public CasPoolManager(
         ICasPoolResolver poolResolver,
         IOptions<CasConfiguration> config,
         IFileHashProvider hashProvider,
         ILoggerFactory loggerFactory,
+        IStorageWritabilityProbe writabilityProbe,
         ILogger<CasPoolManager> logger)
     {
         _poolResolver = poolResolver;
         _config = config.Value;
         _hashProvider = hashProvider;
         _loggerFactory = loggerFactory;
+        _writabilityProbe = writabilityProbe;
         _logger = logger;
 
         // Initialize primary pool
         InitializePool(CasPoolType.Primary);
 
-        // Initialize installation pool if configured
-        if (_poolResolver.IsInstallationPoolAvailable())
-        {
-            InitializePool(CasPoolType.Installation);
-        }
+        RefreshInstallationPools();
     }
 
     /// <inheritdoc/>
@@ -111,7 +115,16 @@ public class CasPoolManager : ICasPoolManager
     /// <inheritdoc/>
     public IReadOnlyList<ICasStorage> GetAllStorages()
     {
-        return _storages.Values.ToList().AsReadOnly();
+        var storages = _storages.Values.ToList();
+        foreach (var legacyInstallationStorage in _legacyInstallationStorages)
+        {
+            if (!storages.Contains(legacyInstallationStorage))
+            {
+                storages.Add(legacyInstallationStorage);
+            }
+        }
+
+        return storages.AsReadOnly();
     }
 
     /// <summary>
@@ -129,10 +142,8 @@ public class CasPoolManager : ICasPoolManager
             InitializePool(CasPoolType.Primary);
         }
 
-        // Try to initialize Installation pool if available
         if (!_storages.ContainsKey(CasPoolType.Installation) && _poolResolver.IsInstallationPoolAvailable())
         {
-            _logger.LogInformation("Installation pool not initialized but is available, initializing now");
             InitializePool(CasPoolType.Installation);
         }
     }
@@ -145,21 +156,21 @@ public class CasPoolManager : ICasPoolManager
     {
         _logger.LogInformation("Force reinitializing Installation CAS pool");
 
-        // Remove existing Installation pool if present
-        if (_storages.TryRemove(CasPoolType.Installation, out _))
+        _writabilityProbe.Invalidate();
+
+        lock (_initLock)
         {
-            _logger.LogDebug("Removed existing Installation pool for reinitialization");
+            if (_storages.TryRemove(CasPoolType.Installation, out _))
+            {
+                _logger.LogDebug("Removed existing Installation pool for reinitialization");
+            }
+
+            _installationPoolRoot = null;
+            _legacyInstallationStorages = [];
+            _legacyInstallationPoolRoots = [];
         }
 
-        // Reinitialize if path is available
-        if (_poolResolver.IsInstallationPoolAvailable())
-        {
-            InitializePool(CasPoolType.Installation);
-        }
-        else
-        {
-            _logger.LogWarning("Installation pool path not available, cannot reinitialize");
-        }
+        RefreshInstallationPools();
     }
 
     private void InitializePool(CasPoolType poolType)
@@ -172,50 +183,144 @@ public class CasPoolManager : ICasPoolManager
 
         lock (_initLock)
         {
-                if (_storages.ContainsKey(poolType))
-                {
-                    _logger.LogDebug("Pool {PoolType} already initialized (race condition prevented)", poolType);
-                    return;
-                }
-
-                var rootPath = _poolResolver.GetPoolRootPath(poolType);
-                if (string.IsNullOrWhiteSpace(rootPath))
-                {
-                    _logger.LogWarning("Cannot initialize {PoolType} pool: root path is not configured", poolType);
-                    return;
-                }
-
-                // Security Guard: Prevent initializing CAS in the application directory or an empty path
-                var appBaseDir = Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory);
-                var normalizedRootPath = Path.TrimEndingDirectorySeparator(rootPath);
-
-                if (normalizedRootPath.Equals(appBaseDir, StringComparison.OrdinalIgnoreCase) ||
-                    normalizedRootPath.StartsWith(appBaseDir + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-                {
-                    _logger.LogError("Security Block: Attempted to initialize {PoolType} CAS pool at or inside the application directory: {Path}. This is not allowed.", poolType, rootPath);
-                    return;
-                }
-
-                // Create a configuration specific to this pool
-                var poolConfig = new CasConfiguration
-                {
-                    CasRootPath = rootPath,
-                    HashAlgorithm = _config.HashAlgorithm,
-                    GcGracePeriod = _config.GcGracePeriod,
-                    MaxCacheSizeBytes = _config.MaxCacheSizeBytes,
-                    AutoGcInterval = _config.AutoGcInterval,
-                    MaxConcurrentOperations = _config.MaxConcurrentOperations,
-                    VerifyIntegrity = _config.VerifyIntegrity,
-                    EnableAutomaticGc = _config.EnableAutomaticGc,
-                };
-
-                var poolConfigOptions = Options.Create(poolConfig);
-                var storageLogger = _loggerFactory.CreateLogger<CasStorage>();
-
-                var storage = new CasStorage(poolConfigOptions, storageLogger, _hashProvider);
-                _storages.TryAdd(poolType, storage);
-
-                _logger.LogInformation("Initialized {PoolType} CAS pool at {RootPath}", poolType, rootPath);
+            if (_storages.ContainsKey(poolType))
+            {
+                _logger.LogDebug("Pool {PoolType} already initialized (race condition prevented)", poolType);
+                return;
             }
+
+            var rootPath = _poolResolver.GetPoolRootPath(poolType);
+            if (string.IsNullOrWhiteSpace(rootPath))
+            {
+                _logger.LogWarning("Cannot initialize {PoolType} pool: root path is not configured", poolType);
+                return;
+            }
+
+            // Security Guard: Prevent initializing CAS in the application directory or an empty path
+            if (IsInsideApplicationDirectory(rootPath))
+            {
+                _logger.LogError("Security Block: Attempted to initialize {PoolType} CAS pool at or inside the application directory: {Path}. This is not allowed.", poolType, rootPath);
+                return;
+            }
+
+            var storage = CreateStorage(rootPath);
+            _storages.TryAdd(poolType, storage);
+
+            if (poolType == CasPoolType.Installation)
+            {
+                _installationPoolRoot = rootPath;
+            }
+
+            _logger.LogInformation("Initialized {PoolType} CAS pool at {RootPath}", poolType, rootPath);
+        }
+    }
+
+    private ICasStorage CreateStorage(string rootPath)
+    {
+        var poolConfig = (CasConfiguration)_config.Clone();
+        poolConfig.CasRootPath = rootPath;
+
+        return new CasStorage(
+            Options.Create(poolConfig),
+            _loggerFactory.CreateLogger<CasStorage>(),
+            _hashProvider);
+    }
+
+    private void RefreshInstallationPools()
+    {
+        lock (_initLock)
+        {
+            var installationPoolAvailable = _poolResolver.IsInstallationPoolAvailable();
+            var currentRoot = installationPoolAvailable
+                ? _poolResolver.GetPoolRootPath(CasPoolType.Installation)
+                : string.Empty;
+
+            if (_storages.ContainsKey(CasPoolType.Installation) &&
+                (!installationPoolAvailable ||
+                 !string.Equals(currentRoot, _installationPoolRoot, PathHelper.PathComparison)))
+            {
+                _storages.TryRemove(CasPoolType.Installation, out _);
+                _logger.LogInformation("Discarded cached installation CAS pool at {PreviousRoot}", _installationPoolRoot);
+                _installationPoolRoot = null;
+            }
+
+            if (installationPoolAvailable && !_storages.ContainsKey(CasPoolType.Installation))
+            {
+                InitializePool(CasPoolType.Installation);
+            }
+
+            RefreshLegacyInstallationPool(currentRoot);
+        }
+    }
+
+    private void RefreshLegacyInstallationPool(string activeInstallationRoot)
+    {
+        var normalizedActiveRoot = NormalizeRoot(activeInstallationRoot);
+        var normalizedPrimaryRoot = NormalizeRoot(_config.CasRootPath);
+        var retainedRoots = new List<string>();
+
+        foreach (var configuredRoot in _poolResolver.GetLegacyInstallationPoolRootPaths())
+        {
+            if (string.IsNullOrWhiteSpace(configuredRoot) || !Directory.Exists(configuredRoot))
+            {
+                continue;
+            }
+
+            var legacyRoot = NormalizeRoot(configuredRoot);
+
+            // Both pools are already reachable directly, so retaining them again would duplicate reads.
+            if (string.Equals(legacyRoot, normalizedActiveRoot, PathHelper.PathComparison) ||
+                string.Equals(legacyRoot, normalizedPrimaryRoot, PathHelper.PathComparison))
+            {
+                continue;
+            }
+
+            if (IsInsideApplicationDirectory(legacyRoot))
+            {
+                _logger.LogError(
+                    "Security Block: Attempted to retain a legacy CAS pool at or inside the application directory: {Path}. This is not allowed.",
+                    legacyRoot);
+                continue;
+            }
+
+            if (!retainedRoots.Contains(legacyRoot, PathHelper.PathComparer))
+            {
+                retainedRoots.Add(legacyRoot);
+            }
+        }
+
+        if (retainedRoots.SequenceEqual(_legacyInstallationPoolRoots, PathHelper.PathComparer))
+        {
+            return;
+        }
+
+        _legacyInstallationStorages = retainedRoots.Select(CreateStorage).ToList();
+        _legacyInstallationPoolRoots = retainedRoots;
+
+        if (retainedRoots.Count > 0)
+        {
+            _logger.LogInformation(
+                "Retaining {Count} legacy installation CAS pool(s) for read-only lookup: {LegacyRoots}",
+                retainedRoots.Count,
+                string.Join(", ", retainedRoots));
+        }
+    }
+
+    private static string NormalizeRoot(string? rootPath)
+    {
+        return string.IsNullOrWhiteSpace(rootPath)
+            ? string.Empty
+            : Path.TrimEndingDirectorySeparator(Path.GetFullPath(rootPath));
+    }
+
+    private bool IsInsideApplicationDirectory(string rootPath)
+    {
+        var appBaseDirectory = Path.TrimEndingDirectorySeparator(Path.GetFullPath(AppContext.BaseDirectory));
+        var normalizedRootPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(rootPath));
+
+        return normalizedRootPath.Equals(appBaseDirectory, PathHelper.PathComparison) ||
+            normalizedRootPath.StartsWith(
+                appBaseDirectory + Path.DirectorySeparatorChar,
+                PathHelper.PathComparison);
     }
 }
