@@ -34,7 +34,8 @@ public partial class FileTreeItem : ObservableObject
     /// <summary>
     /// Gets a value indicating whether this file is an executable (.exe).
     /// </summary>
-    public bool IsExecutable => IsFile && ExecutableFileClassifier.IsLegacyLaunchCandidate(Name);
+    public bool IsExecutable => IsFile && ExecutableFileClassifier.IsLegacyLaunchCandidate(
+        Name, string.IsNullOrEmpty(FullPath) ? null : FullPath);
 
     /// <summary>
     /// Gets or sets a value indicating whether this item is selected as the executable.

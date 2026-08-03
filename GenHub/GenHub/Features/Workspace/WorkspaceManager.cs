@@ -149,10 +149,23 @@ public class WorkspaceManager(
                             }
                             else if (!configuration.ForceRecreate && (workspace.FileCount > 0 || Directory.Exists(workspace.WorkspacePath)))
                             {
-                                logger.LogInformation(
-                                    "[Workspace] Reusing existing workspace {Id} for fast launch",
-                                    configuration.Id);
-                                return OperationResult<WorkspaceInfo>.CreateSuccess(workspace);
+                                // Reuse skips materialisation entirely, so this is the only
+                                // moment a workspace bricked by a lost execute bit can be
+                                // repaired before launch.
+                                var entryPointResult = await workspaceValidator.EnsureEntryPointExecutableAsync(workspace, cancellationToken);
+                                if (entryPointResult.Success)
+                                {
+                                    logger.LogInformation(
+                                        "[Workspace] Reusing existing workspace {Id} for fast launch",
+                                        configuration.Id);
+                                    return OperationResult<WorkspaceInfo>.CreateSuccess(workspace);
+                                }
+
+                                logger.LogWarning(
+                                    "[Workspace] Entry point check failed for workspace {Id}: {Error}. Workspace will be recreated.",
+                                    configuration.Id,
+                                    entryPointResult.FirstError);
+                                configuration.ForceRecreate = true;
                             }
                             else
                             {

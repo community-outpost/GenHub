@@ -16,6 +16,7 @@ using GenHub.Features.Storage.Services;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
 
@@ -181,6 +182,9 @@ public class WorkspaceManagerReuseTests : IDisposable
         _mockWorkspaceValidator.Setup(x => x.ValidateWorkspaceAsync(It.IsAny<WorkspaceInfo>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ValidationResult>.CreateSuccess(successValidation));
 
+        _mockWorkspaceValidator.Setup(x => x.EnsureEntryPointExecutableAsync(It.IsAny<WorkspaceInfo>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
         // Act
         var result = await _manager.PrepareWorkspaceAsync(config);
 
@@ -250,6 +254,127 @@ public class WorkspaceManagerReuseTests : IDisposable
                 It.IsAny<IProgress<WorkspacePreparationProgress>>(),
                 It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that a reusable workspace whose entry point cannot be made executable is recreated.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task PrepareWorkspaceAsync_WhenEntryPointCannotBeRepaired_ShouldRecreateWorkspace()
+    {
+        // Arrange
+        var workspaceId = "test-workspace";
+        var manifestId = "1.0.local.mod.testmanifest";
+        var workspacePath = Path.Combine(_tempPath, workspaceId);
+        Directory.CreateDirectory(workspacePath);
+        File.WriteAllText(Path.Combine(workspacePath, "test.txt"), "content");
+
+        var cachedWorkspace = new WorkspaceInfo
+        {
+            Id = workspaceId,
+            WorkspacePath = workspacePath,
+            ManifestIds = [manifestId],
+            ManifestVersions = new Dictionary<string, string> { { manifestId, "1.0" } },
+            Strategy = WorkspaceStrategy.HardLink,
+            IsPrepared = true,
+            FileCount = 1,
+            IsValid = true,
+        };
+        await File.WriteAllTextAsync(_metadataPath, System.Text.Json.JsonSerializer.Serialize(new[] { cachedWorkspace }));
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = workspaceId,
+            Strategy = WorkspaceStrategy.HardLink,
+            Manifests = [new ContentManifest { Id = ManifestId.Create(manifestId), Version = "1.0", Files = [new ManifestFile { RelativePath = "test.txt" }] }],
+            BaseInstallationPath = _tempPath,
+            WorkspaceRootPath = _tempPath,
+            ValidateAfterPreparation = false,
+        };
+
+        _mockWorkspaceValidator.Setup(x => x.ValidateConfigurationAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(workspaceId, []));
+        _mockWorkspaceValidator.Setup(x => x.ValidatePrerequisitesAsync(It.IsAny<IWorkspaceStrategy>(), It.IsAny<WorkspaceConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(workspaceId, []));
+        _mockWorkspaceValidator.Setup(x => x.EnsureEntryPointExecutableAsync(It.IsAny<WorkspaceInfo>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("Workspace entry point not found"));
+
+        _mockStrategy.Setup(x => x.PrepareAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new WorkspaceInfo { Id = workspaceId, IsPrepared = true, WorkspacePath = workspacePath });
+
+        // Act
+        var result = await _manager.PrepareWorkspaceAsync(config);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        _mockStrategy.Verify(x => x.PrepareAsync(It.Is<WorkspaceConfiguration>(c => c.ForceRecreate == true), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that a reused workspace whose entry point lost its execute bit is repaired
+    /// in place so launch preparation proceeds without recreating the workspace.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task PrepareWorkspaceAsync_WhenEntryPointBricked_RepairsAndReusesWorkspace()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        // Arrange
+        var workspaceId = "test-workspace";
+        var manifestId = "1.0.local.mod.testmanifest";
+        var workspacePath = Path.Combine(_tempPath, workspaceId);
+        Directory.CreateDirectory(workspacePath);
+        var executablePath = Path.Combine(workspacePath, "generals");
+        await File.WriteAllTextAsync(executablePath, "engine binary");
+        File.SetUnixFileMode(executablePath, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+
+        var cachedWorkspace = new WorkspaceInfo
+        {
+            Id = workspaceId,
+            WorkspacePath = workspacePath,
+            ExecutablePath = executablePath,
+            ManifestIds = [manifestId],
+            ManifestVersions = new Dictionary<string, string> { { manifestId, "1.0" } },
+            Strategy = WorkspaceStrategy.HardLink,
+            IsPrepared = true,
+            FileCount = 1,
+            IsValid = true,
+        };
+        await File.WriteAllTextAsync(_metadataPath, System.Text.Json.JsonSerializer.Serialize(new[] { cachedWorkspace }));
+
+        var config = new WorkspaceConfiguration
+        {
+            Id = workspaceId,
+            Strategy = WorkspaceStrategy.HardLink,
+            Manifests = [new ContentManifest { Id = ManifestId.Create(manifestId), Version = "1.0", Files = [new ManifestFile { RelativePath = "generals", IsExecutable = true }] }],
+            BaseInstallationPath = _tempPath,
+            WorkspaceRootPath = _tempPath,
+            ValidateAfterPreparation = false,
+        };
+
+        var manager = new WorkspaceManager(
+            [_mockStrategy.Object],
+            _mockConfigProvider.Object,
+            _mockLogger.Object,
+            _casTracker,
+            new WorkspaceValidator(NullLogger<WorkspaceValidator>.Instance),
+            _reconciler);
+
+        // Act
+        var result = await manager.PrepareWorkspaceAsync(config);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        File.GetUnixFileMode(executablePath).HasFlag(UnixFileMode.UserExecute).Should().BeTrue();
+        (await File.ReadAllTextAsync(executablePath)).Should().Be("engine binary");
+
+        // Repair happens on the reuse fast path; the strategy never re-materialises.
+        _mockStrategy.Verify(x => x.PrepareAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     /// <summary>

@@ -135,7 +135,7 @@ public static class ManifestVariantResolver
         var executable = files
             .Where(f =>
                 f.IsExecutable
-                && ExecutableFileClassifier.IsLegacyLaunchCandidate(f.RelativePath))
+                && ExecutableFileClassifier.IsLegacyLaunchCandidateFromName(f.RelativePath))
             .ToList();
         if (executable.Count == 1)
         {
@@ -145,7 +145,7 @@ public static class ManifestVariantResolver
         if (executable.Count == 0)
         {
             var legacy = files
-                .Where(f => ExecutableFileClassifier.IsLegacyLaunchCandidate(f.RelativePath))
+                .Where(f => ExecutableFileClassifier.IsLegacyLaunchCandidateFromName(f.RelativePath))
                 .ToList();
 
             if (legacy.Count == 1)
