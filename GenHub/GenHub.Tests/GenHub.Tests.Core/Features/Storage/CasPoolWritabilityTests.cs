@@ -50,15 +50,15 @@ public sealed class CasPoolWritabilityTests : IDisposable
     /// Exposes an existing unwritable pool for read-only lookup before settings migration runs.
     /// </summary>
     [Fact]
-    public void GetLegacyInstallationPoolRootPath_WhenCurrentPoolIsUnwritable_ReturnsCurrentPath()
+    public void GetLegacyInstallationPoolRootPaths_WhenCurrentPoolIsUnwritable_ReturnsCurrentPath()
     {
         Directory.CreateDirectory(_installationPoolPath);
         _writabilityProbe.Setup(probe => probe.CanCreateStorageAt(_installationPoolPath)).Returns(false);
         var resolver = CreateResolver(_installationPoolPath);
 
-        var result = resolver.GetLegacyInstallationPoolRootPath();
+        var result = resolver.GetLegacyInstallationPoolRootPaths();
 
-        Assert.Equal(_installationPoolPath, result);
+        Assert.Equal([_installationPoolPath], result);
     }
 
     /// <summary>

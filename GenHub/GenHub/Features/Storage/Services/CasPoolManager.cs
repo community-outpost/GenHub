@@ -27,8 +27,8 @@ public class CasPoolManager : ICasPoolManager
     private readonly ConcurrentDictionary<CasPoolType, ICasStorage> _storages = new();
     private readonly object _initLock = new();
     private string? _installationPoolRoot;
-    private volatile ICasStorage? _legacyInstallationStorage;
-    private string? _legacyInstallationPoolRoot;
+    private volatile IReadOnlyList<ICasStorage> _legacyInstallationStorages = [];
+    private IReadOnlyList<string> _legacyInstallationPoolRoots = [];
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CasPoolManager"/> class.
@@ -116,10 +116,12 @@ public class CasPoolManager : ICasPoolManager
     public IReadOnlyList<ICasStorage> GetAllStorages()
     {
         var storages = _storages.Values.ToList();
-        var legacyInstallationStorage = _legacyInstallationStorage;
-        if (legacyInstallationStorage != null && !storages.Contains(legacyInstallationStorage))
+        foreach (var legacyInstallationStorage in _legacyInstallationStorages)
         {
-            storages.Add(legacyInstallationStorage);
+            if (!storages.Contains(legacyInstallationStorage))
+            {
+                storages.Add(legacyInstallationStorage);
+            }
         }
 
         return storages.AsReadOnly();
@@ -164,8 +166,8 @@ public class CasPoolManager : ICasPoolManager
             }
 
             _installationPoolRoot = null;
-            _legacyInstallationStorage = null;
-            _legacyInstallationPoolRoot = null;
+            _legacyInstallationStorages = [];
+            _legacyInstallationPoolRoots = [];
         }
 
         RefreshInstallationPools();
@@ -253,48 +255,62 @@ public class CasPoolManager : ICasPoolManager
 
     private void RefreshLegacyInstallationPool(string activeInstallationRoot)
     {
-        var legacyRoot = _poolResolver.GetLegacyInstallationPoolRootPath();
-        if (string.IsNullOrWhiteSpace(legacyRoot) ||
-            !Directory.Exists(legacyRoot))
+        var normalizedActiveRoot = NormalizeRoot(activeInstallationRoot);
+        var normalizedPrimaryRoot = NormalizeRoot(_config.CasRootPath);
+        var retainedRoots = new List<string>();
+
+        foreach (var configuredRoot in _poolResolver.GetLegacyInstallationPoolRootPaths())
         {
-            _legacyInstallationStorage = null;
-            _legacyInstallationPoolRoot = null;
+            if (string.IsNullOrWhiteSpace(configuredRoot) || !Directory.Exists(configuredRoot))
+            {
+                continue;
+            }
+
+            var legacyRoot = NormalizeRoot(configuredRoot);
+
+            // Both pools are already reachable directly, so retaining them again would duplicate reads.
+            if (string.Equals(legacyRoot, normalizedActiveRoot, PathHelper.PathComparison) ||
+                string.Equals(legacyRoot, normalizedPrimaryRoot, PathHelper.PathComparison))
+            {
+                continue;
+            }
+
+            if (IsInsideApplicationDirectory(legacyRoot))
+            {
+                _logger.LogError(
+                    "Security Block: Attempted to retain a legacy CAS pool at or inside the application directory: {Path}. This is not allowed.",
+                    legacyRoot);
+                continue;
+            }
+
+            if (!retainedRoots.Contains(legacyRoot, PathHelper.PathComparer))
+            {
+                retainedRoots.Add(legacyRoot);
+            }
+        }
+
+        if (retainedRoots.SequenceEqual(_legacyInstallationPoolRoots, PathHelper.PathComparer))
+        {
             return;
         }
 
-        legacyRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(legacyRoot));
-        var normalizedActiveRoot = string.IsNullOrWhiteSpace(activeInstallationRoot)
+        _legacyInstallationStorages = retainedRoots.Select(CreateStorage).ToList();
+        _legacyInstallationPoolRoots = retainedRoots;
+
+        if (retainedRoots.Count > 0)
+        {
+            _logger.LogInformation(
+                "Retaining {Count} legacy installation CAS pool(s) for read-only lookup: {LegacyRoots}",
+                retainedRoots.Count,
+                string.Join(", ", retainedRoots));
+        }
+    }
+
+    private static string NormalizeRoot(string? rootPath)
+    {
+        return string.IsNullOrWhiteSpace(rootPath)
             ? string.Empty
-            : Path.TrimEndingDirectorySeparator(Path.GetFullPath(activeInstallationRoot));
-        var normalizedPrimaryRoot = string.IsNullOrWhiteSpace(_config.CasRootPath)
-            ? string.Empty
-            : Path.TrimEndingDirectorySeparator(Path.GetFullPath(_config.CasRootPath));
-        if (string.Equals(legacyRoot, normalizedActiveRoot, PathHelper.PathComparison) ||
-            string.Equals(legacyRoot, normalizedPrimaryRoot, PathHelper.PathComparison))
-        {
-            _legacyInstallationStorage = null;
-            _legacyInstallationPoolRoot = null;
-            return;
-        }
-
-        if (IsInsideApplicationDirectory(legacyRoot))
-        {
-            _legacyInstallationStorage = null;
-            _legacyInstallationPoolRoot = null;
-            _logger.LogError(
-                "Security Block: Attempted to retain a legacy CAS pool at or inside the application directory: {Path}. This is not allowed.",
-                legacyRoot);
-            return;
-        }
-
-        if (string.Equals(legacyRoot, _legacyInstallationPoolRoot, PathHelper.PathComparison))
-        {
-            return;
-        }
-
-        _legacyInstallationStorage = CreateStorage(legacyRoot);
-        _legacyInstallationPoolRoot = legacyRoot;
-        _logger.LogInformation("Retaining legacy installation CAS pool {LegacyRoot} for read-only lookup", legacyRoot);
+            : Path.TrimEndingDirectorySeparator(Path.GetFullPath(rootPath));
     }
 
     private bool IsInsideApplicationDirectory(string rootPath)

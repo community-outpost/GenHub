@@ -109,14 +109,13 @@ public sealed class InstallationCasPoolService(
 
         var candidateIsWritable = writabilityProbe.CanCreateStorageAt(candidatePath);
         var effectivePath = candidateIsWritable ? candidatePath : string.Empty;
-        var legacyPath = SelectLegacyPath(currentSettings, currentPath, candidatePath, effectivePath);
+        var legacyPaths = SelectLegacyPaths(currentSettings, currentPath, candidatePath, effectivePath);
         var settingsAlreadyMatch =
             string.Equals(currentPath, effectivePath, PathHelper.PathComparison) &&
             currentSettings.CasConfiguration.IsInstallationPoolRootPathAutoDerived == candidateIsWritable &&
-            string.Equals(
-                NormalizePath(currentSettings.CasConfiguration.LegacyInstallationPoolRootPath),
-                legacyPath,
-                PathHelper.PathComparison) &&
+            currentSettings.CasConfiguration.LegacyInstallationPoolRootPaths
+                .Select(NormalizePath)
+                .SequenceEqual(legacyPaths, PathHelper.PathComparer) &&
             string.Equals(currentSettings.PreferredStorageInstallationId, preferredInstallation.Id, StringComparison.Ordinal) &&
             !currentSettings.ExplicitlySetProperties.Contains(ExplicitInstallationPoolPathKey);
         if (settingsAlreadyMatch)
@@ -129,7 +128,7 @@ public sealed class InstallationCasPoolService(
         {
             settings.CasConfiguration.InstallationPoolRootPath = effectivePath;
             settings.CasConfiguration.IsInstallationPoolRootPathAutoDerived = candidateIsWritable;
-            settings.CasConfiguration.LegacyInstallationPoolRootPath = legacyPath;
+            settings.CasConfiguration.LegacyInstallationPoolRootPaths = legacyPaths;
             settings.PreferredStorageInstallationId = preferredInstallation.Id;
             settings.ExplicitlySetProperties.Remove(ExplicitInstallationPoolPathKey);
             return true;
@@ -187,28 +186,48 @@ public sealed class InstallationCasPoolService(
             derivedPaths.Contains(currentPath);
     }
 
-    private static string SelectLegacyPath(
+    private static List<string> SelectLegacyPaths(
         UserSettings settings,
         string currentPath,
         string candidatePath,
         string effectivePath)
     {
-        var existingLegacyPath = NormalizePath(settings.CasConfiguration.LegacyInstallationPoolRootPath);
+        // Every root the pool has previously used is retained. Dropping one would strand the
+        // objects written to it, because nothing copies them into the pool that replaces it.
+        var retainedPaths = new List<string>();
+        foreach (var existingLegacyPath in settings.CasConfiguration.LegacyInstallationPoolRootPaths)
+        {
+            AddLegacyPath(retainedPaths, NormalizePath(existingLegacyPath), effectivePath);
+        }
+
         var previousPath = !string.IsNullOrWhiteSpace(currentPath)
             ? currentPath
             : candidatePath;
-
-        if (!string.IsNullOrWhiteSpace(effectivePath) &&
-            string.Equals(previousPath, effectivePath, PathHelper.PathComparison))
+        if (Directory.Exists(previousPath))
         {
-            return existingLegacyPath.Equals(effectivePath, PathHelper.PathComparison)
-                ? string.Empty
-                : existingLegacyPath;
+            AddLegacyPath(retainedPaths, previousPath, effectivePath);
         }
 
-        return Directory.Exists(previousPath)
-            ? previousPath
-            : existingLegacyPath;
+        return retainedPaths;
+    }
+
+    private static void AddLegacyPath(List<string> retainedPaths, string path, string effectivePath)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        // The pool that now takes writes is reachable directly, so it is never also a legacy root.
+        if (string.Equals(path, effectivePath, PathHelper.PathComparison))
+        {
+            return;
+        }
+
+        if (!retainedPaths.Contains(path, PathHelper.PathComparer))
+        {
+            retainedPaths.Add(path);
+        }
     }
 
     private static string NormalizePath(string? path)

@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
@@ -73,20 +74,27 @@ public class CasPoolResolver(
     }
 
     /// <inheritdoc/>
-    public string GetLegacyInstallationPoolRootPath()
+    public IReadOnlyList<string> GetLegacyInstallationPoolRootPaths()
     {
         var configuration = userSettingsService.Get().CasConfiguration;
-        if (!string.IsNullOrWhiteSpace(configuration.LegacyInstallationPoolRootPath))
+        var roots = new List<string>();
+
+        foreach (var configuredRoot in configuration.LegacyInstallationPoolRootPaths)
         {
-            return configuration.LegacyInstallationPoolRootPath;
+            AddRoot(roots, configuredRoot);
         }
 
+        // A configured pool that exists but cannot be written has not been migrated yet, so it
+        // still holds the only copy of any object written before it became unwritable.
         var currentPath = configuration.InstallationPoolRootPath;
-        return !string.IsNullOrWhiteSpace(currentPath) &&
+        if (!string.IsNullOrWhiteSpace(currentPath) &&
             Directory.Exists(currentPath) &&
-            !writabilityProbe.CanCreateStorageAt(currentPath)
-                ? currentPath
-                : string.Empty;
+            !writabilityProbe.CanCreateStorageAt(currentPath))
+        {
+            AddRoot(roots, currentPath);
+        }
+
+        return roots;
     }
 
     /// <inheritdoc/>
@@ -111,6 +119,14 @@ public class CasPoolResolver(
         }
 
         return false;
+    }
+
+    private static void AddRoot(List<string> roots, string? root)
+    {
+        if (!string.IsNullOrWhiteSpace(root) && !roots.Contains(root, PathHelper.PathComparer))
+        {
+            roots.Add(root);
+        }
     }
 
     /// <summary>

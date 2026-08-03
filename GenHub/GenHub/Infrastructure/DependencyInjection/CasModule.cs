@@ -42,7 +42,7 @@ public static class CasModule
             config.CasRootPath = userCasConfig.CasRootPath;
             config.InstallationPoolRootPath = userCasConfig.InstallationPoolRootPath;
             config.IsInstallationPoolRootPathAutoDerived = userCasConfig.IsInstallationPoolRootPathAutoDerived;
-            config.LegacyInstallationPoolRootPath = userCasConfig.LegacyInstallationPoolRootPath;
+            config.LegacyInstallationPoolRootPaths = [.. userCasConfig.LegacyInstallationPoolRootPaths];
             config.HashAlgorithm = userCasConfig.HashAlgorithm;
             config.GcGracePeriod = userCasConfig.GcGracePeriod;
             config.MaxCacheSizeBytes = userCasConfig.MaxCacheSizeBytes;

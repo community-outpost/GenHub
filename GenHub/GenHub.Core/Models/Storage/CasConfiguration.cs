@@ -52,10 +52,12 @@ public class CasConfiguration : ICloneable
     public bool IsInstallationPoolRootPathAutoDerived { get; set; }
 
     /// <summary>
-    /// Gets or sets a previous installation-pool root that remains available for read-only
-    /// object lookup after new writes have fallen back to another pool.
+    /// Gets or sets the previous installation-pool roots that remain available for read-only
+    /// object lookup after new writes have fallen back to another pool. Every root the pool has
+    /// previously used is retained, because objects written to any of them stay reachable only
+    /// through this list.
     /// </summary>
-    public string LegacyInstallationPoolRootPath { get; set; } = string.Empty;
+    public List<string> LegacyInstallationPoolRootPaths { get; set; } = [];
 
     /// <summary>
     /// Gets or sets the hash algorithm to use for content addressing.
@@ -146,7 +148,7 @@ public class CasConfiguration : ICloneable
             CasRootPath = CasRootPath,
             InstallationPoolRootPath = InstallationPoolRootPath,
             IsInstallationPoolRootPathAutoDerived = IsInstallationPoolRootPathAutoDerived,
-            LegacyInstallationPoolRootPath = LegacyInstallationPoolRootPath,
+            LegacyInstallationPoolRootPaths = [.. LegacyInstallationPoolRootPaths],
             HashAlgorithm = HashAlgorithm,
             GcGracePeriod = GcGracePeriod,
             MaxCacheSizeBytes = MaxCacheSizeBytes,

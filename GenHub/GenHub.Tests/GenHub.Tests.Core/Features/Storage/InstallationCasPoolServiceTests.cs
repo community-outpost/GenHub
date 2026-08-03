@@ -55,7 +55,7 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
 
         Assert.True(result);
         Assert.Empty(settings.CasConfiguration.InstallationPoolRootPath);
-        Assert.Equal(poolPath, settings.CasConfiguration.LegacyInstallationPoolRootPath);
+        Assert.Equal([poolPath], settings.CasConfiguration.LegacyInstallationPoolRootPaths);
         Assert.False(settings.CasConfiguration.IsInstallationPoolRootPathAutoDerived);
         Assert.DoesNotContain(nameof(CasConfiguration.InstallationPoolRootPath), settings.ExplicitlySetProperties);
         _poolManager.Verify(manager => manager.ReinitializeInstallationPool(), Times.Once);
@@ -192,7 +192,7 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
             CasConfiguration = new CasConfiguration
             {
                 InstallationPoolRootPath = installationPath,
-                LegacyInstallationPoolRootPath = legacyPath,
+                LegacyInstallationPoolRootPaths = [legacyPath],
             },
         };
         _userSettingsService.Setup(service => service.Get()).Returns(settings);
@@ -234,7 +234,7 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
             CasConfiguration = new CasConfiguration
             {
                 InstallationPoolRootPath = installationPath,
-                LegacyInstallationPoolRootPath = installationPath + Path.DirectorySeparatorChar,
+                LegacyInstallationPoolRootPaths = [installationPath + Path.DirectorySeparatorChar],
             },
         };
         _userSettingsService.Setup(service => service.Get()).Returns(settings);
@@ -269,7 +269,7 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
         {
             CasConfiguration = new CasConfiguration
             {
-                LegacyInstallationPoolRootPath = primaryPath + Path.DirectorySeparatorChar,
+                LegacyInstallationPoolRootPaths = [primaryPath + Path.DirectorySeparatorChar],
             },
         };
         _userSettingsService.Setup(service => service.Get()).Returns(settings);
@@ -332,7 +332,7 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
         {
             CasConfiguration = new CasConfiguration
             {
-                LegacyInstallationPoolRootPath = legacyPath,
+                LegacyInstallationPoolRootPaths = [legacyPath],
             },
         };
         _userSettingsService.Setup(service => service.Get()).Returns(settings);
@@ -377,7 +377,7 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
         {
             CasConfiguration = new CasConfiguration
             {
-                LegacyInstallationPoolRootPath = AppContext.BaseDirectory,
+                LegacyInstallationPoolRootPaths = [AppContext.BaseDirectory],
             },
         };
         _userSettingsService.Setup(service => service.Get()).Returns(settings);
@@ -416,7 +416,7 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
             .Setup(service => service.GetPoolRootPath(CasPoolType.Primary))
             .Returns(primaryPath);
         resolver.Setup(service => service.IsInstallationPoolAvailable()).Returns(false);
-        resolver.Setup(service => service.GetLegacyInstallationPoolRootPath()).Returns(string.Empty);
+        resolver.Setup(service => service.GetLegacyInstallationPoolRootPaths()).Returns([]);
         var configuration = new CasConfiguration { CasRootPath = primaryPath };
         var manager = new CasPoolManager(
             resolver.Object,
@@ -432,7 +432,7 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
         manager.GetAllStorages();
 
         resolver.Verify(service => service.IsInstallationPoolAvailable(), Times.Never);
-        resolver.Verify(service => service.GetLegacyInstallationPoolRootPath(), Times.Never);
+        resolver.Verify(service => service.GetLegacyInstallationPoolRootPaths(), Times.Never);
     }
 
     /// <inheritdoc/>
@@ -459,6 +459,82 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
         var installationPath = Path.Combine(_tempPath, directoryName);
         Directory.CreateDirectory(installationPath);
         return new GameInstallation(installationPath, GameInstallationType.Steam);
+    }
+
+    /// <summary>
+    /// Retains every previously used pool root when the pool moves more than once, because nothing
+    /// copies objects out of a root that is replaced.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsurePoolPathAsync_WhenPoolMovesAgain_RetainsEveryPreviousRoot()
+    {
+        var firstLegacyPath = Path.Combine(_tempPath, "first-legacy");
+        var currentInstallation = CreateInstallation("CurrentGame");
+        var currentPoolPath = Path.Combine(currentInstallation.InstallationPath, DirectoryNames.GenHubCasPool);
+        var nextInstallation = CreateInstallation("NextGame");
+        var nextPoolPath = Path.Combine(nextInstallation.InstallationPath, DirectoryNames.GenHubCasPool);
+        Directory.CreateDirectory(firstLegacyPath);
+        Directory.CreateDirectory(currentPoolPath);
+        var settings = new UserSettings
+        {
+            CasConfiguration = new CasConfiguration
+            {
+                InstallationPoolRootPath = currentPoolPath,
+                IsInstallationPoolRootPathAutoDerived = true,
+                LegacyInstallationPoolRootPaths = [firstLegacyPath],
+            },
+        };
+        ConfigureMutableSettings(settings);
+        _writabilityProbe.Setup(probe => probe.CanCreateStorageAt(nextPoolPath)).Returns(true);
+        var service = CreateService();
+
+        var result = await service.EnsurePoolPathAsync([nextInstallation]);
+
+        Assert.True(result);
+        Assert.Equal(nextPoolPath, settings.CasConfiguration.InstallationPoolRootPath);
+        Assert.Equal(
+            [firstLegacyPath, currentPoolPath],
+            settings.CasConfiguration.LegacyInstallationPoolRootPaths);
+    }
+
+    /// <summary>
+    /// Exposes every retained legacy root for read-only lookup rather than only the most recent one.
+    /// </summary>
+    [Fact]
+    public void CasPoolManager_WhenMultipleLegacyRootsAreRetained_ExposesEachForLookup()
+    {
+        var primaryPath = Path.Combine(_tempPath, "primary-multi");
+        var firstLegacyPath = Path.Combine(_tempPath, "legacy-one");
+        var secondLegacyPath = Path.Combine(_tempPath, "legacy-two");
+        Directory.CreateDirectory(primaryPath);
+        Directory.CreateDirectory(firstLegacyPath);
+        Directory.CreateDirectory(secondLegacyPath);
+        var settings = new UserSettings
+        {
+            CasConfiguration = new CasConfiguration
+            {
+                LegacyInstallationPoolRootPaths = [firstLegacyPath, secondLegacyPath],
+            },
+        };
+        _userSettingsService.Setup(service => service.Get()).Returns(settings);
+        var configuration = new CasConfiguration { CasRootPath = primaryPath };
+        var resolver = new CasPoolResolver(
+            Options.Create(configuration),
+            _userSettingsService.Object,
+            _writabilityProbe.Object,
+            NullLogger<CasPoolResolver>.Instance);
+
+        var manager = new CasPoolManager(
+            resolver,
+            Options.Create(configuration),
+            new Mock<IFileHashProvider>().Object,
+            NullLoggerFactory.Instance,
+            _writabilityProbe.Object,
+            NullLogger<CasPoolManager>.Instance);
+
+        // The primary pool plus both retained legacy roots.
+        Assert.Equal(3, manager.GetAllStorages().Count);
     }
 
     private InstallationCasPoolService CreateService()
