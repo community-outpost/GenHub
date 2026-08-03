@@ -564,6 +564,21 @@ public class CasService(
                 return OperationResult<string>.CreateSuccess(path);
             }
 
+            foreach (var fallbackStorage in poolManager.GetAllStorages())
+            {
+                if (ReferenceEquals(fallbackStorage, storage) || ReferenceEquals(fallbackStorage, primaryStorage))
+                {
+                    continue;
+                }
+
+                if (await fallbackStorage.ObjectExistsAsync(hash, cancellationToken))
+                {
+                    var path = fallbackStorage.GetObjectPath(hash);
+                    logger.LogDebug("Found content {Hash} in a legacy CAS pool", hash);
+                    return OperationResult<string>.CreateSuccess(path);
+                }
+            }
+
             return OperationResult<string>.CreateFailure($"Content not found in CAS: {hash}");
         }
         catch (Exception ex)
@@ -593,18 +608,38 @@ public class CasService(
 
             var storage = poolManager.GetStorage(contentType);
             var exists = await storage.ObjectExistsAsync(hash, cancellationToken);
+            ICasStorage? primaryStorage = null;
 
             if (!exists)
             {
                 // Not found in the pool for this content type
                 // As a fallback, check if it exists in the primary pool (may have been stored there before pool routing was implemented)
                 logger.LogDebug("Content {Hash} not found in {ContentType} pool, checking primary pool as fallback", hash, contentType);
-                var primaryStorage = poolManager.GetStorage(CasPoolType.Primary);
+                primaryStorage = poolManager.GetStorage(CasPoolType.Primary);
                 exists = await primaryStorage.ObjectExistsAsync(hash, cancellationToken);
 
                 if (exists)
                 {
                     logger.LogInformation("Found content {Hash} in primary pool (expected in {ContentType} pool)", hash, contentType);
+                }
+            }
+
+            if (!exists)
+            {
+                foreach (var fallbackStorage in poolManager.GetAllStorages())
+                {
+                    if (ReferenceEquals(fallbackStorage, storage) ||
+                        ReferenceEquals(fallbackStorage, primaryStorage))
+                    {
+                        continue;
+                    }
+
+                    if (await fallbackStorage.ObjectExistsAsync(hash, cancellationToken))
+                    {
+                        logger.LogDebug("Found content {Hash} in a legacy CAS pool", hash);
+                        exists = true;
+                        break;
+                    }
                 }
             }
 

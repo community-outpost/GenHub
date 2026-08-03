@@ -5,6 +5,7 @@ using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -21,6 +22,7 @@ public sealed class StorageLocationServiceTests : IDisposable
     private readonly Mock<IConfigurationProviderService> _configurationProviderService = new();
     private readonly Mock<IGameInstallationService> _gameInstallationService = new();
     private readonly string _applicationDataPath;
+    private readonly string _primaryCasPath;
     private readonly string _tempPath;
 
     /// <summary>
@@ -30,9 +32,75 @@ public sealed class StorageLocationServiceTests : IDisposable
     {
         _tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         _applicationDataPath = Path.Combine(_tempPath, "AppData");
+        _primaryCasPath = Path.Combine(_applicationDataPath, DirectoryNames.CasPool);
         Directory.CreateDirectory(_applicationDataPath);
 
         _configurationProviderService.Setup(service => service.GetApplicationDataPath()).Returns(_applicationDataPath);
+        _configurationProviderService
+            .Setup(service => service.GetCasConfiguration())
+            .Returns(new CasConfiguration { CasRootPath = _primaryCasPath });
+    }
+
+    /// <summary>
+    /// Reports the effective primary CAS path when installation-adjacent storage is unavailable.
+    /// </summary>
+    [Fact]
+    public void GetCasPoolPath_WhenAdjacentPathIsUnavailable_UsesPrimaryPool()
+    {
+        var settings = new UserSettings { UseInstallationAdjacentStorage = true };
+        _userSettingsService.Setup(service => service.Get()).Returns(settings);
+        var installationPath = Path.Combine(_tempPath, "Game");
+        var installation = new GameInstallation(installationPath, GameInstallationType.Retail);
+        var adjacentPath = Path.Combine(installationPath, DirectoryNames.GenHubCasPool);
+        var probe = new Mock<IStorageWritabilityProbe>();
+        probe.Setup(service => service.CanCreateStorageAt(adjacentPath)).Returns(false);
+        var service = CreateService(probe.Object);
+
+        var result = service.GetCasPoolPath(installation);
+
+        Assert.Equal(_primaryCasPath, result);
+    }
+
+    /// <summary>
+    /// Reports a writable user-configured installation CAS path.
+    /// </summary>
+    [Fact]
+    public void GetCasPoolPath_WhenConfiguredPathIsWritable_UsesConfiguredPool()
+    {
+        var configuredPath = Path.Combine(_tempPath, "CustomCas");
+        var settings = new UserSettings
+        {
+            CasConfiguration = new CasConfiguration { InstallationPoolRootPath = configuredPath },
+        };
+        _userSettingsService.Setup(service => service.Get()).Returns(settings);
+        var probe = new Mock<IStorageWritabilityProbe>();
+        probe.Setup(service => service.CanCreateStorageAt(configuredPath)).Returns(true);
+        var service = CreateService(probe.Object);
+        var installation = new GameInstallation(Path.Combine(_tempPath, "Game"), GameInstallationType.Retail);
+
+        var result = service.GetCasPoolPath(installation);
+
+        Assert.Equal(configuredPath, result);
+    }
+
+    /// <summary>
+    /// Keeps a dotted installation directory intact when resolving adjacent CAS storage.
+    /// </summary>
+    [Fact]
+    public void GetCasPoolPath_WhenInstallationDirectoryContainsDot_UsesFullDirectory()
+    {
+        var settings = new UserSettings { UseInstallationAdjacentStorage = true };
+        _userSettingsService.Setup(service => service.Get()).Returns(settings);
+        var installationPath = Path.Combine(_tempPath, "ZeroHour v1.04");
+        var installation = new GameInstallation(installationPath, GameInstallationType.Retail);
+        var adjacentPath = Path.Combine(installationPath, DirectoryNames.GenHubCasPool);
+        var probe = new Mock<IStorageWritabilityProbe>();
+        probe.Setup(service => service.CanCreateStorageAt(adjacentPath)).Returns(true);
+        var service = CreateService(probe.Object);
+
+        var result = service.GetCasPoolPath(installation);
+
+        Assert.Equal(adjacentPath, result);
     }
 
     /// <summary>
@@ -185,9 +253,10 @@ public sealed class StorageLocationServiceTests : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    private StorageLocationService CreateService() => new(
+    private StorageLocationService CreateService(IStorageWritabilityProbe? writabilityProbe = null) => new(
         _userSettingsService.Object,
         _configurationProviderService.Object,
         _gameInstallationService.Object,
+        writabilityProbe ?? new StorageWritabilityProbe(new Mock<ILogger<StorageWritabilityProbe>>().Object),
         new Mock<ILogger<StorageLocationService>>().Object);
 }

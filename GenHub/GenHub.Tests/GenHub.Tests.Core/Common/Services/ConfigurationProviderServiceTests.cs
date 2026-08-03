@@ -3,6 +3,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -82,6 +83,30 @@ public class ConfigurationProviderServiceTests
                 _mockAppConfig.Object,
                 _mockUserSettings.Object,
                 null!));
+    }
+
+    /// <summary>
+    /// Preserves every CAS option when applying the default primary pool path.
+    /// </summary>
+    [Fact]
+    public void GetCasConfiguration_WhenPrimaryPathIsEmpty_PreservesGcLockTimeout()
+    {
+        var expectedTimeout = TimeSpan.FromSeconds(91);
+        var settings = new UserSettings
+        {
+            CasConfiguration = new CasConfiguration
+            {
+                CasRootPath = string.Empty,
+                GcLockTimeout = expectedTimeout,
+            },
+        };
+        _mockUserSettings.Setup(service => service.Get()).Returns(settings);
+        var provider = CreateProvider();
+
+        var result = provider.GetCasConfiguration();
+
+        Assert.Equal(expectedTimeout, result.GcLockTimeout);
+        Assert.False(string.IsNullOrWhiteSpace(result.CasRootPath));
     }
 
     /// <summary>
