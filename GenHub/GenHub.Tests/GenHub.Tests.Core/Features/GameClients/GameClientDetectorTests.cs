@@ -635,8 +635,9 @@ public class GameClientDetectorTests : IDisposable
         await File.WriteAllTextAsync(executablePath, "dummy content");
 
         // An extensionless native client binary, the shape a Mach-O or ELF build has.
+        // Real ELF magic, because selection classifies extensionless files by content.
         var nativeBinaryPath = Path.Combine(combinedPath, "GeneralsZH");
-        await File.WriteAllTextAsync(nativeBinaryPath, "dummy content");
+        await File.WriteAllBytesAsync(nativeBinaryPath, [0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00]);
 
         var nativeIdentifierMock = new Mock<IGameClientIdentifier>();
         nativeIdentifierMock.Setup(x => x.PublisherId).Returns("TestNativePublisher");

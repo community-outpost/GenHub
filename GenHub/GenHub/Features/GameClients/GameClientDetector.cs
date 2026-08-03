@@ -200,15 +200,15 @@ public class GameClientDetector(
     /// <remarks>
     /// Replaces the old <c>*.exe</c> glob, which hid extensionless binaries — the shape
     /// of a native Mach-O or ELF game client — from publisher detection entirely.
-    /// Selection goes through <see cref="ExecutableFileClassifier.IsLegacyLaunchCandidate"/>,
-    /// today a name-based rule that keeps <c>.exe</c> results identical while admitting
-    /// extensionless files; a content-based (magic-byte) classification slots in at that
-    /// same call without this site changing.
+    /// Selection goes through <see cref="ExecutableFileClassifier.IsLegacyLaunchCandidate(string, string?)"/>,
+    /// which keeps <c>.exe</c> results identical while classifying extensionless files by
+    /// their magic bytes. These paths are on disk, so the absolute path is supplied and the
+    /// content-based rule applies rather than the name-only fallback.
     /// </remarks>
     private static string[] GetLaunchCandidateFiles(string directoryPath)
     {
         return Directory.EnumerateFiles(directoryPath, "*", SearchOption.TopDirectoryOnly)
-            .Where(ExecutableFileClassifier.IsLegacyLaunchCandidate)
+            .Where(path => ExecutableFileClassifier.IsLegacyLaunchCandidate(path, path))
             .ToArray();
     }
 
