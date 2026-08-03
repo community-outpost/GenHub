@@ -360,7 +360,16 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
 
         try
         {
-            await Task.Run(() => ExecutableFileSwap.MakeExecutable(executablePath), cancellationToken);
+            var quarantineCleared = await Task.Run(
+                () => ExecutableFileSwap.MakeExecutable(executablePath),
+                cancellationToken);
+            if (!quarantineCleared)
+            {
+                logger.LogWarning(
+                    "Could not clear the macOS quarantine attribute from workspace entry point {ExecutablePath}; " +
+                    "macOS may refuse to launch it until it is cleared manually",
+                    executablePath);
+            }
         }
         catch (Exception ex)
         {

@@ -644,7 +644,16 @@ public abstract class WorkspaceStrategyBase<T>(
             // A delete-then-move sequence would expose both of those states. The second
             // is only papered over later — validation can restore a lost execute bit on
             // the entry point, but not on any other executable the manifest names.
-            await Task.Run(() => ExecutableFileSwap.MakeExecutable(targetPath), cancellationToken);
+            var quarantineCleared = await Task.Run(
+                () => ExecutableFileSwap.MakeExecutable(targetPath),
+                cancellationToken);
+            if (!quarantineCleared)
+            {
+                Logger.LogWarning(
+                    "Could not clear the macOS quarantine attribute from {RelativePath}; " +
+                    "macOS may refuse to launch it until it is cleared manually",
+                    file.RelativePath);
+            }
 
             Logger.LogDebug("Marked {RelativePath} executable on a workspace-owned copy", file.RelativePath);
         }

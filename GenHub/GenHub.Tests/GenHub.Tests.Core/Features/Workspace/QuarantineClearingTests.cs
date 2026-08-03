@@ -72,8 +72,11 @@ public sealed class QuarantineClearingTests : IDisposable
             SetQuarantine(path);
         }
 
-        ExecutableFileSwap.MakeExecutable(path);
+        var quarantineCleared = ExecutableFileSwap.MakeExecutable(path);
 
+        // Callers log on false, so the reported value has to be accurate and not merely
+        // a constant the call site would never act on.
+        Assert.True(quarantineCleared);
         Assert.True(File.GetUnixFileMode(path).HasFlag(UnixFileMode.UserExecute));
         Assert.Equal("engine binary", File.ReadAllText(path));
         if (OperatingSystem.IsMacOS())
@@ -122,7 +125,13 @@ public sealed class QuarantineClearingTests : IDisposable
             RedirectStandardError = true,
         })!;
 
-        var output = process.StandardOutput.ReadToEnd();
+        // Both streams are read before waiting. Draining only one risks the child
+        // blocking on a full pipe for the other, which would hang the test run rather
+        // than fail it.
+        var outputTask = process.StandardOutput.ReadToEndAsync();
+        var errorTask = process.StandardError.ReadToEndAsync();
+        var output = outputTask.GetAwaiter().GetResult();
+        errorTask.GetAwaiter().GetResult();
         process.WaitForExit();
         return (process.ExitCode, output);
     }

@@ -36,7 +36,13 @@ internal static class ExecutableFileSwap
     /// Swaps the file at <paramref name="targetPath"/> for an executable private copy.
     /// </summary>
     /// <param name="targetPath">The absolute path of the workspace file.</param>
-    internal static void MakeExecutable(string targetPath)
+    /// <returns>
+    /// <c>true</c> when the resulting file is known not to be quarantined. <c>false</c>
+    /// means the file is executable but macOS may still refuse to run it, which callers
+    /// should report — it is the difference between a working profile and a game that
+    /// will not start for a reason nothing else explains.
+    /// </returns>
+    internal static bool MakeExecutable(string targetPath)
     {
         var temporaryPath = targetPath + TemporaryMarker + Guid.NewGuid().ToString("N");
 
@@ -60,9 +66,15 @@ internal static class ExecutableFileSwap
             //
             // Cleared before the swap for the same reason the mode is: the destination is
             // never observable in a half-prepared state.
-            MacOSNativeMethods.TryClearQuarantine(temporaryPath);
+            var quarantineCleared = MacOSNativeMethods.TryClearQuarantine(temporaryPath);
 
             File.Move(temporaryPath, targetPath, overwrite: true);
+
+            // Not an exception: the file is materialized and correct, and failing the
+            // whole swap would be worse than a file that needs one manual command. The
+            // caller logs it so the cause is recoverable from the logs when a launch is
+            // later refused.
+            return quarantineCleared;
         }
         catch
         {
