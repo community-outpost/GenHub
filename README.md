@@ -9,6 +9,29 @@ Launcher for C&C: Generals and Zero Hour with patch management and mod support
 - [ ] Comprehensive mod support with easy installation
 - [ ] Compatibility fixes for Windows 10/11
 
+## Installing on macOS
+
+GenHub is not signed with an Apple Developer ID, so macOS quarantines it after
+download and Gatekeeper refuses to open it. Clear the quarantine attribute once,
+before the first launch:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/GenHub.app
+```
+
+You can instead open **System Settings → Privacy & Security**, find the blocked-app
+notice after a failed launch attempt, and choose **Open Anyway**. The Control-click →
+*Open* shortcut no longer works for unsigned apps; Apple removed it in macOS 15.
+
+Prefer the command. macOS propagates quarantine from a quarantined application to the
+files it writes, and if GenHub is still marked when it first runs, that can reach the
+game files it prepares. GenHub clears the attribute from the game executables it
+materializes, so the game itself launches either way — but clearing it on the app up
+front avoids the situation entirely.
+
+None of this applies to a build you compiled yourself. Quarantine is only attached to
+downloaded files.
+
 ## Documentation
 
 For detailed documentation and guides, visit our [Wiki](https://generalshub.netlify.app/wiki/).

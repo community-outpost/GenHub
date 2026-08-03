@@ -51,6 +51,17 @@ internal static class ExecutableFileSwap
                 File.SetUnixFileMode(temporaryPath, ExecutableMode);
             }
 
+            // On macOS the execute bit alone is not enough. A GenHub that was itself
+            // downloaded carries com.apple.quarantine, and macOS propagates that to the
+            // files it writes — so the engine binary lands quarantined and Gatekeeper
+            // refuses to run it. The user sees GenHub start normally and the game fail,
+            // which is a hard failure to attribute. Clearing it here, on the private copy
+            // GenHub just created, keeps that invisible to them.
+            //
+            // Cleared before the swap for the same reason the mode is: the destination is
+            // never observable in a half-prepared state.
+            MacOSNativeMethods.TryClearQuarantine(temporaryPath);
+
             File.Move(temporaryPath, targetPath, overwrite: true);
         }
         catch
