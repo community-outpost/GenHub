@@ -227,7 +227,7 @@ public class SuperHackersManifestFactory(
             return result;
 
         var allFiles = Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories)
-            .Where(ExecutableFileClassifier.IsLegacyLaunchCandidate);
+            .Where(path => ExecutableFileClassifier.IsLegacyLaunchCandidate(path, path));
 
         foreach (var filePath in allFiles)
         {
