@@ -356,6 +356,10 @@ public class SuperHackersProfileReconciler(
 
             return OperationResult<List<ContentManifest>>.CreateSuccess(newManifests);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "[SH Reconciler] Failed to acquire latest version");
