@@ -169,6 +169,10 @@ public class ContentOrchestrator : IContentOrchestrator
                         _logger.LogWarning("Provider {ProviderName} failed: {Error}", provider.SourceName, result.FirstError);
                     }
                 }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Search failed for provider: {ProviderName}", provider.SourceName);
@@ -180,6 +184,10 @@ public class ContentOrchestrator : IContentOrchestrator
             });
 
         await Task.WhenAll(searchTasksAsync);
+
+        // A provider that handled cancellation internally reports it as a failed result rather
+        // than an exception, which would otherwise surface here as an empty successful search.
+        cancellationToken.ThrowIfCancellationRequested();
 
         // Apply orchestrator-level sorting and pagination
         var sortedResults = ApplySorting(allResults, query.SortOrder)
@@ -589,6 +597,10 @@ public class ContentOrchestrator : IContentOrchestrator
                 }
             }
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to acquire content {ContentId}", searchResult.Id);
@@ -703,6 +715,10 @@ public class ContentOrchestrator : IContentOrchestrator
 
             var installations = installationsResult.Data.ToList();
             return await _installationCasPoolService.EnsurePoolPathAsync(installations, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
