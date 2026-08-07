@@ -169,7 +169,9 @@ public class ContentOrchestrator : IContentOrchestrator
                         _logger.LogWarning("Provider {ProviderName} failed: {Error}", provider.SourceName, result.FirstError);
                     }
                 }
-                catch (OperationCanceledException)
+                // Filtered on the caller's token: a provider timing out on its own token raises
+                // TaskCanceledException too, and must not abort the other providers' results.
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
                     throw;
                 }
@@ -597,7 +599,7 @@ public class ContentOrchestrator : IContentOrchestrator
                 }
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
         }
@@ -716,7 +718,7 @@ public class ContentOrchestrator : IContentOrchestrator
             var installations = installationsResult.Data.ToList();
             return await _installationCasPoolService.EnsurePoolPathAsync(installations, cancellationToken);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
         }
