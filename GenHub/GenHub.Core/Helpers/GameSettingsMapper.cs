@@ -210,10 +210,10 @@ public static class GameSettingsMapper
         settings.MoneyTransactionVolume = profile.TshMoneyTransactionVolume ?? 50;
         settings.ShowMoneyPerMinute = profile.TshShowMoneyPerMinute ?? false;
         settings.PlayerObserverEnabled = profile.TshPlayerObserverEnabled ?? false;
-        settings.SystemTimeFontSize = profile.TshSystemTimeFontSize ?? 12;
-        settings.NetworkLatencyFontSize = profile.TshNetworkLatencyFontSize ?? 12;
-        settings.RenderFpsFontSize = profile.TshRenderFpsFontSize ?? 12;
-        settings.ResolutionFontAdjustment = profile.TshResolutionFontAdjustment ?? -100;
+        settings.SystemTimeFontSize = profile.TshSystemTimeFontSize ?? GameSettingsTheSuperHackersConstants.DefaultSystemTimeFontSize;
+        settings.NetworkLatencyFontSize = profile.TshNetworkLatencyFontSize ?? GameSettingsTheSuperHackersConstants.DefaultNetworkLatencyFontSize;
+        settings.RenderFpsFontSize = profile.TshRenderFpsFontSize ?? GameSettingsTheSuperHackersConstants.DefaultRenderFpsFontSize;
+        settings.ResolutionFontAdjustment = profile.TshResolutionFontAdjustment ?? GameSettingsTheSuperHackersConstants.DefaultResolutionFontAdjustment;
         settings.CursorCaptureEnabledInFullscreenGame = profile.TshCursorCaptureEnabledInFullscreenGame ?? false;
         settings.CursorCaptureEnabledInFullscreenMenu = profile.TshCursorCaptureEnabledInFullscreenMenu ?? false;
         settings.CursorCaptureEnabledInWindowedGame = profile.TshCursorCaptureEnabledInWindowedGame ?? false;

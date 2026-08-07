@@ -59,4 +59,69 @@ public class GameSettingsMapperTests
         // Assert
         Assert.Equal(expectedQuality, profile.VideoTextureQuality);
     }
+
+    /// <summary>
+    /// Verifies that a profile with no TheSuperHackers font sizes set falls back to the declared defaults.
+    /// </summary>
+    [Fact]
+    public void ApplyToGeneralsOnlineSettings_UnsetFontSizes_UsesDeclaredDefaults()
+    {
+        // Arrange
+        var profile = new GameProfile();
+        var settings = new GeneralsOnlineSettings();
+
+        // Act
+        GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
+
+        // Assert
+        Assert.Equal(GameSettingsTheSuperHackersConstants.DefaultSystemTimeFontSize, settings.SystemTimeFontSize);
+        Assert.Equal(GameSettingsTheSuperHackersConstants.DefaultNetworkLatencyFontSize, settings.NetworkLatencyFontSize);
+        Assert.Equal(GameSettingsTheSuperHackersConstants.DefaultRenderFpsFontSize, settings.RenderFpsFontSize);
+        Assert.Equal(GameSettingsTheSuperHackersConstants.DefaultResolutionFontAdjustment, settings.ResolutionFontAdjustment);
+    }
+
+    /// <summary>
+    /// Verifies that the fallback defaults match the values declared on the settings model itself.
+    /// </summary>
+    [Fact]
+    public void ApplyToGeneralsOnlineSettings_UnsetFontSizes_MatchesModelDefaults()
+    {
+        // Arrange
+        var profile = new GameProfile();
+        var expected = new GeneralsOnlineSettings();
+        var settings = new GeneralsOnlineSettings();
+
+        // Act
+        GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
+
+        // Assert
+        Assert.Equal(expected.SystemTimeFontSize, settings.SystemTimeFontSize);
+        Assert.Equal(expected.NetworkLatencyFontSize, settings.NetworkLatencyFontSize);
+        Assert.Equal(expected.RenderFpsFontSize, settings.RenderFpsFontSize);
+        Assert.Equal(expected.ResolutionFontAdjustment, settings.ResolutionFontAdjustment);
+    }
+
+    /// <summary>
+    /// Verifies that explicit TheSuperHackers font sizes on the profile are written through unchanged.
+    /// </summary>
+    [Fact]
+    public void ApplyToGeneralsOnlineSettings_ExplicitFontSizes_ArePreserved()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            TshSystemTimeFontSize = 20,
+            TshNetworkLatencyFontSize = 21,
+            TshRenderFpsFontSize = 22,
+        };
+        var settings = new GeneralsOnlineSettings();
+
+        // Act
+        GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
+
+        // Assert
+        Assert.Equal(20, settings.SystemTimeFontSize);
+        Assert.Equal(21, settings.NetworkLatencyFontSize);
+        Assert.Equal(22, settings.RenderFpsFontSize);
+    }
 }
