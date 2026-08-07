@@ -139,4 +139,45 @@ public class GeneralsOnlineProfileReconcilerTests
             Times.Never,
             "Local manifest should not be removed during reconciliation");
     }
+
+    /// <summary>
+    /// Propagates cancellation from acquisition instead of surfacing it as a generic download failure.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CheckAndReconcileIfNeededAsync_AcquireCancelled_PropagatesCancellation()
+    {
+        // Arrange
+        string latestVersion = "0.0.99";
+        _updateServiceMock.Setup(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentUpdateCheckResult.CreateUpdateAvailable(latestVersion, "0.0.1"));
+
+        var settings = new UserSettings();
+        settings.SetAutoUpdatePreference(GeneralsOnlineConstants.PublisherType, true);
+        _userSettingsServiceMock.Setup(x => x.Get())
+            .Returns(settings);
+
+        _manifestPoolMock.Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        _contentOrchestratorMock.Setup(
+                x => x.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
+            [
+                new() { Name = "New GO Version", Version = latestVersion },
+            ]));
+
+        _contentOrchestratorMock.Setup(x => x.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+
+        using var cts = new CancellationTokenSource();
+
+        // Act & Assert
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => _reconciler.CheckAndReconcileIfNeededAsync("profile1", cts.Token));
+
+        _notificationServiceMock.Verify(
+            x => x.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
 }
