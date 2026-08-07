@@ -8,22 +8,22 @@ namespace GenHub.Core.Interfaces.Content;
 public class GenLauncherNormalizationResult
 {
     /// <summary>
-    /// Number of files successfully normalized.
+    /// Gets or sets the number of files successfully normalized.
     /// </summary>
     public int NormalizedCount { get; set; }
 
     /// <summary>
-    /// Number of symbolic links removed.
+    /// Gets or sets the number of symbolic links removed.
     /// </summary>
     public int SymbolicLinksRemoved { get; set; }
 
     /// <summary>
-    /// List of files that failed to normalize.
+    /// Gets or sets the list of files that failed to normalize.
     /// </summary>
     public List<string> FailedFiles { get; set; } = [];
 
     /// <summary>
-    /// Whether normalization was fully successful.
+    /// Gets a value indicating whether normalization was fully successful.
     /// </summary>
     public bool IsFullySuccessful => FailedFiles.Count == 0;
 }

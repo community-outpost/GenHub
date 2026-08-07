@@ -42,13 +42,15 @@ public class GenLauncherNormalizationService(ILogger<GenLauncherNormalizationSer
 
         try
         {
-            await Task.Run(() =>
-            {
-                // Manual recursion to avoid following directory symlinks
-                ScanDirectory(directoryPath, result, cancellationToken);
+            await Task.Run(
+                () =>
+                {
+                    // Manual recursion to avoid following directory symlinks
+                    ScanDirectory(directoryPath, result, cancellationToken);
 
-                result.HasGenLauncherFiles = result.TotalAffectedFiles > 0;
-            }, cancellationToken).ConfigureAwait(false);
+                    result.HasGenLauncherFiles = result.TotalAffectedFiles > 0;
+                },
+                cancellationToken).ConfigureAwait(false);
 
             logger.LogInformation(
                 "Detection complete. Found {TotalCount} GenLauncher files: {Summary}",

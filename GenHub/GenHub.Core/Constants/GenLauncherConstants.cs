@@ -31,6 +31,11 @@ public static class GenLauncherConstants
     public const string BigExtension = ".big";
 
     /// <summary>
+    /// Session key for "do not ask again" preference for normalization dialog.
+    /// </summary>
+    public const string NormalizationDialogSessionKey = "genlauncher.normalization.skip";
+
+    /// <summary>
     /// All GenLauncher suffixes that should be removed during normalization.
     /// </summary>
     public static readonly string[] AllSuffixes =
@@ -39,9 +44,4 @@ public static class GenLauncherConstants
         OriginalFileSuffix,
         TempCopySuffix,
     ];
-
-    /// <summary>
-    /// Session key for "do not ask again" preference for normalization dialog.
-    /// </summary>
-    public const string NormalizationDialogSessionKey = "genlauncher.normalization.skip";
 }

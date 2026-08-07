@@ -395,13 +395,16 @@ public partial class AddLocalContentViewModel(
                     {
                         logger?.LogInformation("GenLauncher files detected: {Summary}", detectionResult.GetSummary());
 
-                        var shouldNormalize = await dialogService.ShowConfirmationAsync(
-                            "GenLauncher Files Detected",
+                        var normalizationPrompt =
                             $"This content contains GenLauncher-modified files:\n\n{detectionResult.GetSummary()}\n\nWould you like to normalize these files to standard format?\n\n" +
                             "This will:\n" +
                             "• Convert .gib files to .big\n" +
                             "• Remove .GLR, .GOF, .GLTC suffixes\n" +
-                            "• Remove symbolic links",
+                            "• Remove symbolic links";
+
+                        var shouldNormalize = await dialogService.ShowConfirmationAsync(
+                            "GenLauncher Files Detected",
+                            normalizationPrompt,
                             "Normalize",
                             "Skip",
                             sessionKey: GenLauncherConstants.NormalizationDialogSessionKey);

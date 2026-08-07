@@ -8,37 +8,37 @@ namespace GenHub.Core.Interfaces.Content;
 public class GenLauncherDetectionResult
 {
     /// <summary>
-    /// Whether any GenLauncher files were detected.
+    /// Gets or sets a value indicating whether any GenLauncher files were detected.
     /// </summary>
     public bool HasGenLauncherFiles { get; set; }
 
     /// <summary>
-    /// List of .gib files found.
+    /// Gets or sets the list of .gib files found.
     /// </summary>
     public List<string> GibFiles { get; set; } = [];
 
     /// <summary>
-    /// List of files with .GLR suffix.
+    /// Gets or sets the list of files with .GLR suffix.
     /// </summary>
     public List<string> GlrFiles { get; set; } = [];
 
     /// <summary>
-    /// List of files with .GOF suffix.
+    /// Gets or sets the list of files with .GOF suffix.
     /// </summary>
     public List<string> GofFiles { get; set; } = [];
 
     /// <summary>
-    /// List of files with .GLTC suffix.
+    /// Gets or sets the list of files with .GLTC suffix.
     /// </summary>
     public List<string> GltcFiles { get; set; } = [];
 
     /// <summary>
-    /// List of symbolic links detected.
+    /// Gets or sets the list of symbolic links detected.
     /// </summary>
     public List<string> SymbolicLinks { get; set; } = [];
 
     /// <summary>
-    /// Total count of affected files.
+    /// Gets the total count of affected files.
     /// </summary>
     public int TotalAffectedFiles =>
         GibFiles.Count + GlrFiles.Count + GofFiles.Count + GltcFiles.Count + SymbolicLinks.Count;
