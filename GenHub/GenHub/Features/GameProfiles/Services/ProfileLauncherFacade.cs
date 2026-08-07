@@ -592,6 +592,10 @@ public class ProfileLauncherFacade(
 
             return ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to launch profile {ProfileId}", profileId);
