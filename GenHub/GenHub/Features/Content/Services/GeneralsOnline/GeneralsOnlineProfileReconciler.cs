@@ -427,6 +427,7 @@ public class GeneralsOnlineProfileReconciler(
             };
 
             var clientResult = await contentOrchestrator.SearchAsync(clientQuery, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
             // Search for Map Packs (required dependency)
             var mapPackQuery = new ContentSearchQuery

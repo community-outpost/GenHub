@@ -259,6 +259,38 @@ public class ContentOrchestratorTests
     }
 
     /// <summary>
+    /// Verifies that a cached search result cannot mask an already-cancelled caller.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SearchAsync_WhenCancelledBeforeCacheHit_PropagatesCancellation()
+    {
+        _cacheMock
+            .Setup(cache => cache.GetAsync<List<ContentSearchResult>>(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([new ContentSearchResult { Id = "cached.mod", Name = "Cached Mod" }]);
+
+        var providerMock = new Mock<IContentProvider>();
+        providerMock.Setup(provider => provider.IsEnabled).Returns(true);
+        providerMock.Setup(provider => provider.SourceName).Returns("TestProvider");
+
+        var orchestrator = new ContentOrchestrator(
+            _loggerMock.Object,
+            [providerMock.Object],
+            [],
+            [],
+            _cacheMock.Object,
+            _contentValidatorMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => orchestrator.SearchAsync(new ContentSearchQuery(), cts.Token));
+    }
+
+    /// <summary>
     /// Verifies that a provider timing out on its own token does not abort the aggregate search,
     /// since <see cref="TaskCanceledException"/> is also raised by HttpClient timeouts.
     /// </summary>
