@@ -138,4 +138,102 @@ public class GameSettingsMapperTests
         Assert.Equal(22, settings.RenderFpsFontSize);
         Assert.Equal(23, settings.ResolutionFontAdjustment);
     }
+
+    /// <summary>
+    /// Verifies that a profile with no cursor capture, edge scroll or observer toggles set
+    /// falls back to the declared defaults.
+    /// </summary>
+    [Fact]
+    public void ApplyToGeneralsOnlineSettings_UnsetToggles_UsesDeclaredDefaults()
+    {
+        // Arrange - seed each toggle inverted, so a missing assignment fails
+        var profile = new GameProfile();
+        var settings = new GeneralsOnlineSettings
+        {
+            PlayerObserverEnabled = false,
+            CursorCaptureEnabledInFullscreenGame = false,
+            CursorCaptureEnabledInFullscreenMenu = false,
+            CursorCaptureEnabledInWindowedGame = false,
+            CursorCaptureEnabledInWindowedMenu = true,
+            ScreenEdgeScrollEnabledInFullscreenApp = false,
+            ScreenEdgeScrollEnabledInWindowedApp = true,
+        };
+
+        // Act
+        GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
+
+        // Assert
+        Assert.Equal(GameSettingsTheSuperHackersConstants.DefaultPlayerObserverEnabled, settings.PlayerObserverEnabled);
+        Assert.Equal(GameSettingsTheSuperHackersConstants.DefaultCursorCaptureEnabledInFullscreenGame, settings.CursorCaptureEnabledInFullscreenGame);
+        Assert.Equal(GameSettingsTheSuperHackersConstants.DefaultCursorCaptureEnabledInFullscreenMenu, settings.CursorCaptureEnabledInFullscreenMenu);
+        Assert.Equal(GameSettingsTheSuperHackersConstants.DefaultCursorCaptureEnabledInWindowedGame, settings.CursorCaptureEnabledInWindowedGame);
+        Assert.Equal(GameSettingsTheSuperHackersConstants.DefaultCursorCaptureEnabledInWindowedMenu, settings.CursorCaptureEnabledInWindowedMenu);
+        Assert.Equal(GameSettingsTheSuperHackersConstants.DefaultScreenEdgeScrollEnabledInFullscreenApp, settings.ScreenEdgeScrollEnabledInFullscreenApp);
+        Assert.Equal(GameSettingsTheSuperHackersConstants.DefaultScreenEdgeScrollEnabledInWindowedApp, settings.ScreenEdgeScrollEnabledInWindowedApp);
+    }
+
+    /// <summary>
+    /// Verifies that the toggle fallbacks match the values declared on the settings model itself.
+    /// </summary>
+    [Fact]
+    public void ApplyToGeneralsOnlineSettings_UnsetToggles_MatchesModelDefaults()
+    {
+        // Arrange - seed each toggle inverted, so a missing assignment fails
+        var profile = new GameProfile();
+        var expected = new GeneralsOnlineSettings();
+        var settings = new GeneralsOnlineSettings
+        {
+            PlayerObserverEnabled = false,
+            CursorCaptureEnabledInFullscreenGame = false,
+            CursorCaptureEnabledInFullscreenMenu = false,
+            CursorCaptureEnabledInWindowedGame = false,
+            CursorCaptureEnabledInWindowedMenu = true,
+            ScreenEdgeScrollEnabledInFullscreenApp = false,
+            ScreenEdgeScrollEnabledInWindowedApp = true,
+        };
+
+        // Act
+        GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
+
+        // Assert
+        Assert.Equal(expected.PlayerObserverEnabled, settings.PlayerObserverEnabled);
+        Assert.Equal(expected.CursorCaptureEnabledInFullscreenGame, settings.CursorCaptureEnabledInFullscreenGame);
+        Assert.Equal(expected.CursorCaptureEnabledInFullscreenMenu, settings.CursorCaptureEnabledInFullscreenMenu);
+        Assert.Equal(expected.CursorCaptureEnabledInWindowedGame, settings.CursorCaptureEnabledInWindowedGame);
+        Assert.Equal(expected.CursorCaptureEnabledInWindowedMenu, settings.CursorCaptureEnabledInWindowedMenu);
+        Assert.Equal(expected.ScreenEdgeScrollEnabledInFullscreenApp, settings.ScreenEdgeScrollEnabledInFullscreenApp);
+        Assert.Equal(expected.ScreenEdgeScrollEnabledInWindowedApp, settings.ScreenEdgeScrollEnabledInWindowedApp);
+    }
+
+    /// <summary>
+    /// Verifies that explicit toggle values on the profile are written through unchanged.
+    /// </summary>
+    [Fact]
+    public void ApplyToGeneralsOnlineSettings_ExplicitToggles_ArePreserved()
+    {
+        // Arrange - every value is the opposite of its default
+        var profile = new GameProfile
+        {
+            TshPlayerObserverEnabled = false,
+            TshCursorCaptureEnabledInFullscreenGame = false,
+            TshCursorCaptureEnabledInFullscreenMenu = false,
+            TshCursorCaptureEnabledInWindowedGame = false,
+            TshCursorCaptureEnabledInWindowedMenu = true,
+            TshScreenEdgeScrollEnabledInFullscreenApp = false,
+            TshScreenEdgeScrollEnabledInWindowedApp = true,
+        };
+        var settings = new GeneralsOnlineSettings();
+
+        // Act
+        GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
+
+        // Assert
+        Assert.False(settings.PlayerObserverEnabled);
+        Assert.False(settings.CursorCaptureEnabledInFullscreenGame);
+        Assert.False(settings.CursorCaptureEnabledInFullscreenMenu);
+        Assert.False(settings.CursorCaptureEnabledInWindowedGame);
+        Assert.True(settings.CursorCaptureEnabledInWindowedMenu);
+        Assert.False(settings.ScreenEdgeScrollEnabledInFullscreenApp);
+        Assert.True(settings.ScreenEdgeScrollEnabledInWindowedApp);
+    }
 }
