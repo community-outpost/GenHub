@@ -286,16 +286,16 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     private bool _tshPlayerObserverEnabled;
 
     [ObservableProperty]
-    private int _tshSystemTimeFontSize = 12;
+    private int _tshSystemTimeFontSize = GameSettingsTheSuperHackersConstants.DefaultSystemTimeFontSize;
 
     [ObservableProperty]
-    private int _tshNetworkLatencyFontSize = 12;
+    private int _tshNetworkLatencyFontSize = GameSettingsTheSuperHackersConstants.DefaultNetworkLatencyFontSize;
 
     [ObservableProperty]
-    private int _tshRenderFpsFontSize = 12;
+    private int _tshRenderFpsFontSize = GameSettingsTheSuperHackersConstants.DefaultRenderFpsFontSize;
 
     [ObservableProperty]
-    private int _tshResolutionFontAdjustment = -100;
+    private int _tshResolutionFontAdjustment = GameSettingsTheSuperHackersConstants.DefaultResolutionFontAdjustment;
 
     [ObservableProperty]
     private bool _tshCursorCaptureEnabledInFullscreenGame;
