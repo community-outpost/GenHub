@@ -317,7 +317,7 @@ public static class DemoViewModelFactory
         var mockService = new MockLocalContentService();
         var mockLogger = new MockLogger<AddLocalContentViewModel>();
 
-        return new AddLocalContentViewModel(mockService, null, mockLogger);
+        return new AddLocalContentViewModel(mockService, null, null, null, mockLogger);
     }
 
     /// <summary>
@@ -359,6 +359,8 @@ public static class DemoViewModelFactory
             mockManifests,
             mockStorage,
             mockLocalContent,
+            null, // genLauncherNormalizationService
+            null, // dialogService
             mockLogger,
             mockSettingsLogger)
         {
@@ -401,6 +403,8 @@ public static class DemoViewModelFactory
             mockManifests,
             mockStorage,
             mockLocalContent,
+            null, // genLauncherNormalizationService
+            null, // dialogService
             mockLogger,
             mockSettingsLogger)
         {
@@ -446,6 +450,8 @@ public static class DemoViewModelFactory
                 mockManifests,
                 mockStorage,
                 mockLocalContent,
+                null, // genLauncherNormalizationService
+                null, // dialogService
                 mockLogger,
                 mockSettingsLogger)
             {
@@ -475,6 +481,8 @@ public static class DemoViewModelFactory
                 new MockContentManifestPool(),
                 new MockContentStorageService(),
                 new MockLocalContentService(),
+                null, // genLauncherNormalizationService
+                null, // dialogService
                 mockLogger,
                 mockSettingsLogger)
              {

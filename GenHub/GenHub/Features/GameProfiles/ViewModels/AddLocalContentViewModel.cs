@@ -8,6 +8,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.Logging;
@@ -19,10 +21,14 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// </summary>
 /// <param name="localContentService">Service for handling local content operations.</param>
 /// <param name="contentStorageService">Service for content storage operations.</param>
+/// <param name="genLauncherNormalizationService">Service for GenLauncher file normalization.</param>
+/// <param name="dialogService">Service for showing dialogs.</param>
 /// <param name="logger">Logger instance.</param>
 public partial class AddLocalContentViewModel(
     ILocalContentService localContentService,
     IContentStorageService? contentStorageService,
+    IGenLauncherNormalizationService? genLauncherNormalizationService,
+    IDialogService? dialogService,
     ILogger<AddLocalContentViewModel>? logger = null) : ObservableObject
 {
     /// <summary>
@@ -369,8 +375,102 @@ public partial class AddLocalContentViewModel(
             // Auto-organization: If we have .map files at the root level, move them into subdirectories
             CreateMapFoldersIfNeeded();
 
+            // Detect and normalize GenLauncher files
+            _cts ??= new CancellationTokenSource();
+            if (_cts.IsCancellationRequested)
+            {
+                _cts.Dispose();
+                _cts = new CancellationTokenSource();
+            }
+
+            var cancellationToken = _cts.Token;
+            var normalizationSetStatus = false;
+            try
+            {
+                if (genLauncherNormalizationService != null && dialogService != null)
+                {
+                    var detectionResult = await genLauncherNormalizationService.DetectGenLauncherFilesAsync(_stagingPath, cancellationToken);
+
+                    if (detectionResult.HasGenLauncherFiles)
+                    {
+                        logger?.LogInformation("GenLauncher files detected: {Summary}", detectionResult.GetSummary());
+
+                        var shouldNormalize = await dialogService.ShowConfirmationAsync(
+                            "GenLauncher Files Detected",
+                            $"This content contains GenLauncher-modified files:\n\n{detectionResult.GetSummary()}\n\nWould you like to normalize these files to standard format?\n\n" +
+                            "This will:\n" +
+                            "• Convert .gib files to .big\n" +
+                            "• Remove .GLR, .GOF, .GLTC suffixes\n" +
+                            "• Remove symbolic links",
+                            "Normalize",
+                            "Skip",
+                            sessionKey: GenLauncherConstants.NormalizationDialogSessionKey);
+
+                        if (shouldNormalize)
+                        {
+                            StatusMessage = "Normalizing GenLauncher files...";
+                            logger?.LogInformation("User confirmed normalization");
+
+                            var normalizationResult = await genLauncherNormalizationService.NormalizeFilesAsync(
+                                _stagingPath,
+                                cancellationToken);
+
+                            if (normalizationResult.Success)
+                            {
+                                var result = normalizationResult.Data;
+                                StatusMessage = result.IsFullySuccessful
+                                    ? $"Normalized {result.NormalizedCount} file(s). Import successful."
+                                    : $"Normalized {result.NormalizedCount} file(s); {result.FailedFiles.Count} failed. Import successful.";
+                                normalizationSetStatus = true;
+                                logger?.LogInformation(
+                                    "Normalization completed: {NormalizedCount} files, {SymlinksRemoved} symlinks removed",
+                                    result.NormalizedCount,
+                                    result.SymbolicLinksRemoved);
+
+                                if (!result.IsFullySuccessful)
+                                {
+                                    logger?.LogWarning(
+                                        "Some files failed to normalize: {FailedFiles}",
+                                        string.Join(", ", result.FailedFiles));
+                                }
+                            }
+                            else
+                            {
+                                StatusMessage = $"Normalization warning: {normalizationResult.FirstError}. Import will continue.";
+                                normalizationSetStatus = true;
+                                logger?.LogWarning("Normalization failed: {Error}", normalizationResult.FirstError);
+                            }
+                        }
+                        else
+                        {
+                            logger?.LogInformation("User skipped normalization");
+                            StatusMessage = "Import successful (GenLauncher files not normalized).";
+                            normalizationSetStatus = true;
+                        }
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                logger?.LogInformation("GenLauncher detection/normalization was cancelled");
+                StatusMessage = "Import cancelled.";
+                return;
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError(ex, "Error during GenLauncher detection/normalization");
+                StatusMessage = "Import successful (normalization check failed).";
+                normalizationSetStatus = true;
+            }
+
             await RefreshStagingTreeAsync();
-            StatusMessage = "Import successful.";
+
+            // Only set generic message if normalization didn't set a specific one
+            if (!normalizationSetStatus)
+            {
+                StatusMessage = "Import successful.";
+            }
+
             Validate();
         }
         catch (Exception ex)
