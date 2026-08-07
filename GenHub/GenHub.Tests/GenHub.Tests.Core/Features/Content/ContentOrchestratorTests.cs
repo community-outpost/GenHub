@@ -226,4 +226,136 @@ public class ContentOrchestratorTests
                 It.IsAny<CancellationToken>()),
             Times.Never);
     }
+
+    /// <summary>
+    /// Verifies that provider cancellation escapes <see cref="ContentOrchestrator.SearchAsync"/>
+    /// instead of being aggregated into an empty success result.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SearchAsync_WhenProviderCancels_PropagatesCancellation()
+    {
+        var providerMock = new Mock<IContentProvider>();
+        providerMock.Setup(provider => provider.IsEnabled).Returns(true);
+        providerMock.Setup(provider => provider.SourceName).Returns("TestProvider");
+        providerMock
+            .Setup(provider => provider.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+        var orchestrator = new ContentOrchestrator(
+            _loggerMock.Object,
+            [providerMock.Object],
+            [],
+            [],
+            _cacheMock.Object,
+            _contentValidatorMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => orchestrator.SearchAsync(new ContentSearchQuery()));
+    }
+
+    /// <summary>
+    /// Verifies that provider cancellation escapes <see cref="ContentOrchestrator.AcquireContentAsync"/>
+    /// instead of being converted into a failure result.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AcquireContentAsync_WhenProviderCancels_PropagatesCancellation()
+    {
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.0.genhub.mod.test",
+            Name = "Test Mod",
+            ProviderName = "TestProvider",
+        };
+        var providerMock = new Mock<IContentProvider>();
+        providerMock.Setup(provider => provider.SourceName).Returns(searchResult.ProviderName);
+        providerMock
+            .Setup(provider => provider.GetValidatedContentAsync(searchResult.Id, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+        _cacheMock
+            .Setup(cache => cache.GetAsync<ContentManifest>(searchResult.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ContentManifest?)null);
+        var orchestrator = new ContentOrchestrator(
+            _loggerMock.Object,
+            [providerMock.Object],
+            [],
+            [],
+            _cacheMock.Object,
+            _contentValidatorMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => orchestrator.AcquireContentAsync(searchResult));
+    }
+
+    /// <summary>
+    /// Verifies that cancellation during installation detection escapes GameClient acquisition
+    /// instead of being reported as an unusable CAS pool.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AcquireContentAsync_WhenInstallationDetectionCancels_PropagatesCancellation()
+    {
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.0.genhub.gameclient.test",
+            Name = "Test Client",
+            ProviderName = "TestProvider",
+        };
+        var manifest = new ContentManifest
+        {
+            Id = searchResult.Id,
+            Name = searchResult.Name,
+            ContentType = ContentType.GameClient,
+        };
+        var providerMock = new Mock<IContentProvider>();
+        providerMock.Setup(provider => provider.SourceName).Returns(searchResult.ProviderName);
+        providerMock
+            .Setup(provider => provider.GetValidatedContentAsync(searchResult.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+        providerMock
+            .Setup(provider => provider.PrepareContentAsync(
+                manifest,
+                It.IsAny<string>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+        _cacheMock
+            .Setup(cache => cache.GetAsync<ContentManifest>(manifest.Id.Value, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ContentManifest?)null);
+        _contentValidatorMock
+            .Setup(validator => validator.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, []));
+        _contentValidatorMock
+            .Setup(validator => validator.ValidateAllAsync(
+                It.IsAny<string>(),
+                manifest,
+                It.IsAny<IProgress<ValidationProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, []));
+        _manifestPoolMock
+            .Setup(pool => pool.IsManifestAcquiredAsync(manifest.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        _installationServiceMock
+            .Setup(service => service.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+        var orchestrator = new ContentOrchestrator(
+            _loggerMock.Object,
+            [providerMock.Object],
+            [],
+            [],
+            _cacheMock.Object,
+            _contentValidatorMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => orchestrator.AcquireContentAsync(searchResult));
+    }
 }
