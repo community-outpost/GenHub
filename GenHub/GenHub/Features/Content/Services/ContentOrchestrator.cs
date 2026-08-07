@@ -102,6 +102,9 @@ public class ContentOrchestrator : IContentOrchestrator
             return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure("Take must be between 1 and 1000");
         }
 
+        // Checked before the cache lookup so a cache hit cannot mask an already-cancelled caller.
+        cancellationToken.ThrowIfCancellationRequested();
+
         _logger.LogDebug("Starting orchestrated content search with query: {SearchTerm}, ContentType: {ContentType}", query.SearchTerm, query.ContentType);
 
         // Check cache first
