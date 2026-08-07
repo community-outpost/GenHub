@@ -295,6 +295,13 @@ public class GameProcessManager(
             logger.LogInformation("Started game process {ProcessId} for executable {ExecutablePath}", process.Id, configuration.ExecutablePath);
             return OperationResult<GameProcessInfo>.CreateSuccess(processInfo);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // A cancelled launch is not a start failure. Reporting it as one hides the reason from
+            // the caller and bypasses GameLauncher.LaunchProfileAsync's cancellation handling.
+            logger.LogInformation("Start of {ExecutablePath} was cancelled", configuration.ExecutablePath);
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to start process for executable {ExecutablePath}", configuration.ExecutablePath);
@@ -790,10 +797,47 @@ public class GameProcessManager(
                 await Task.Delay(ProcessConstants.SpawnedChildPollIntervalMs, cancellationToken);
             }
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Matches TerminateProcessAsync, and lets GameLauncher.LaunchProfileAsync reach its
+            // own cancellation branch instead of reporting a generic start failure.
+            logger.LogInformation(
+                "[Process] Adoption of {ExpectedName} was cancelled; terminating launcher {LauncherId}",
+                expectedName,
+                launcher.Id);
+
+            TerminateAbandonedLauncher(launcher);
+            throw;
+        }
         finally
         {
             // Releases our handle only; the launcher keeps running and owns its own lifetime.
             launcher.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Kills a launcher whose child was never adopted. Without this a cancelled launch leaves the
+    /// bootstrapper running with no tracked process and no handle for the caller to reach it.
+    /// </summary>
+    /// <param name="launcher">The launcher to terminate.</param>
+    private void TerminateAbandonedLauncher(Process launcher)
+    {
+        try
+        {
+            if (launcher.HasExited)
+            {
+                return;
+            }
+
+            // The child may already exist but not yet be discoverable, so take the tree with it.
+            launcher.Kill(entireProcessTree: true);
+            launcher.WaitForExit(ProcessConstants.AbandonedLauncherKillWaitMs);
+        }
+        catch (Exception ex)
+        {
+            // The caller is already unwinding a cancellation; cleanup failure must not mask it.
+            logger.LogWarning(ex, "[Process] Failed to terminate abandoned launcher {LauncherId}", launcher.Id);
         }
     }
 

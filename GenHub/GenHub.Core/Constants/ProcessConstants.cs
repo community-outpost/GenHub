@@ -94,4 +94,10 @@ public static class ProcessConstants
     /// Interval in milliseconds between polls for a launcher's expected child process.
     /// </summary>
     public const int SpawnedChildPollIntervalMs = 100;
+
+    /// <summary>
+    /// How long to wait for an abandoned launcher to exit after it is killed. The launcher is
+    /// already being torn down on a cancelled launch, so this only bounds the cleanup.
+    /// </summary>
+    public const int AbandonedLauncherKillWaitMs = 2_000;
 }

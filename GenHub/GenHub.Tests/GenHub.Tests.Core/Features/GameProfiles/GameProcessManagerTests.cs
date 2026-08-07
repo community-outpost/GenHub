@@ -140,6 +140,33 @@ public class GameProcessManagerTests
     }
 
     /// <summary>
+    /// A cancelled adoption must surface as cancellation rather than a generic start failure.
+    /// Swallowing it disagrees with TerminateProcessAsync, which rethrows, and prevents
+    /// GameLauncher.LaunchProfileAsync from reaching its own cancellation branch.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task StartProcessAsync_WhenAdoptionIsCancelled_PropagatesCancellation()
+    {
+        using var harness = LauncherHarness.Create(spawnChild: false);
+
+        var config = new GameLaunchConfiguration
+        {
+            ExecutablePath = harness.LauncherPath,
+            WorkingDirectory = harness.WorkingDirectory,
+            ExpectedChildProcessName = LauncherHarness.ChildProcessName,
+
+            // Long enough that the timeout cannot be what ends the wait.
+            ExpectedChildDiscoveryTimeout = TimeSpan.FromSeconds(30),
+        };
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => _processManager.StartProcessAsync(config, cts.Token));
+    }
+
+    /// <summary>
     /// Tests that StartProcessAsync handles invalid executable path.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
