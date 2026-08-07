@@ -53,9 +53,23 @@ public static class GameProcessSelector
         return directory != null && Normalize(directory).Equals(Normalize(workingDirectory), StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string Normalize(string path) =>
-        path
+    private static string Normalize(string path)
+    {
+        // MainModule.FileName is always absolute and fully resolved, while the configured working
+        // directory is neither guaranteed. Canonicalize first so a relative spelling or a "."
+        // segment does not read as a different directory and abandon an adoptable process.
+        try
+        {
+            path = Path.GetFullPath(path);
+        }
+        catch (Exception)
+        {
+            // A malformed path compares on its original spelling rather than aborting the scan.
+        }
+
+        return path
             .Replace(Path.DirectorySeparatorChar, '/')
             .Replace(Path.AltDirectorySeparatorChar, '/')
             .TrimEnd('/');
+    }
 }
