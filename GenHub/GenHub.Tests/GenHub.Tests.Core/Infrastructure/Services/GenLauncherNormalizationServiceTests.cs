@@ -2,6 +2,8 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
+using GenHub.Core.Utilities;
 using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -280,6 +282,37 @@ public class GenLauncherNormalizationServiceTests : IDisposable
 
         Assert.True(detection.HasGenLauncherFiles);
         Assert.Single(detection.GibFiles);
+    }
+
+    /// <summary>
+    /// A native game binary has no extension, so GenLauncher's suffix hides it from
+    /// <see cref="ExecutableFileClassifier"/>: the name ends in <c>.GOF</c>, which is
+    /// neither a library nor a runnable extension, so the magic bytes are never read.
+    /// Stripping the suffix is what restores the extensionless shape that classification
+    /// by content depends on, which makes the ordering in the import flow load-bearing.
+    /// </summary>
+    /// <param name="header">Native executable magic bytes to write to the file.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData(new byte[] { 0xCF, 0xFA, 0xED, 0xFE, 0x0C, 0x00, 0x00, 0x01 })]
+    [InlineData(new byte[] { 0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00 })]
+    public async Task NormalizeFilesAsync_UnmasksNativeBinaryForMagicByteClassification(byte[] header)
+    {
+        var suffixedPath = Path.Combine(_tempDir, "generals" + GenLauncherConstants.OriginalFileSuffix);
+        await File.WriteAllBytesAsync(suffixedPath, header);
+
+        Assert.False(ExecutableFileClassifier.RequiresExecutePermission("generals.GOF", suffixedPath));
+        Assert.False(ExecutableFileClassifier.IsLegacyLaunchCandidate("generals.GOF", suffixedPath));
+
+        var result = await _service.NormalizeFilesAsync(_tempDir);
+
+        Assert.True(result.Success);
+        var normalizedPath = Path.Combine(_tempDir, "generals");
+        Assert.False(File.Exists(suffixedPath));
+        Assert.True(File.Exists(normalizedPath));
+
+        Assert.True(ExecutableFileClassifier.RequiresExecutePermission("generals", normalizedPath));
+        Assert.True(ExecutableFileClassifier.IsLegacyLaunchCandidate("generals", normalizedPath));
     }
 
     private bool TryCreateFileSymlink(out string? skipReason)
