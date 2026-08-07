@@ -7,6 +7,7 @@ using GenHub.Core.Utilities;
 using GenHub.Infrastructure.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Xunit.Abstractions;
 
 namespace GenHub.Tests.Core.Infrastructure.Services;
 
@@ -17,12 +18,15 @@ public class GenLauncherNormalizationServiceTests : IDisposable
 {
     private readonly string _tempDir;
     private readonly GenLauncherNormalizationService _service;
+    private readonly ITestOutputHelper _testOutput;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GenLauncherNormalizationServiceTests"/> class.
     /// </summary>
-    public GenLauncherNormalizationServiceTests()
+    /// <param name="testOutput">The test output helper.</param>
+    public GenLauncherNormalizationServiceTests(ITestOutputHelper testOutput)
     {
+        _testOutput = testOutput;
         _tempDir = Path.Combine(Path.GetTempPath(), "GenHubTests", Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempDir);
         _service = new GenLauncherNormalizationService(new Mock<ILogger<GenLauncherNormalizationService>>().Object);
@@ -186,6 +190,7 @@ public class GenLauncherNormalizationServiceTests : IDisposable
     {
         if (!TryCreateFileSymlink(out var skipReason))
         {
+            _testOutput.WriteLine($"Not exercised: file symbolic links are unavailable here ({skipReason}).");
             return;
         }
 
@@ -211,6 +216,7 @@ public class GenLauncherNormalizationServiceTests : IDisposable
     {
         if (!TryCreateFileSymlink(out var skipReason))
         {
+            _testOutput.WriteLine($"Not exercised: file symbolic links are unavailable here ({skipReason}).");
             return;
         }
 
@@ -234,6 +240,7 @@ public class GenLauncherNormalizationServiceTests : IDisposable
     {
         if (!TryCreateDirectorySymlink(out var skipReason))
         {
+            _testOutput.WriteLine($"Not exercised: directory symbolic links are unavailable here ({skipReason}).");
             return;
         }
 
