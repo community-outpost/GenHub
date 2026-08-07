@@ -44,4 +44,46 @@ public static class GameSettingsTheSuperHackersConstants
     /// Default font size for system time display.
     /// </summary>
     public const int DefaultSystemTimeFontSize = 8;
+
+    /// <summary>
+    /// Default for whether player observer mode is enabled.
+    /// Matches the engine fallback in OptionPreferences::getPlayerObserverEnabled.
+    /// </summary>
+    public const bool DefaultPlayerObserverEnabled = true;
+
+    /// <summary>
+    /// Default for cursor capture in fullscreen game.
+    /// Included in the engine's CursorCaptureMode_Default mask.
+    /// </summary>
+    public const bool DefaultCursorCaptureEnabledInFullscreenGame = true;
+
+    /// <summary>
+    /// Default for cursor capture in fullscreen menu.
+    /// Included in the engine's CursorCaptureMode_Default mask.
+    /// </summary>
+    public const bool DefaultCursorCaptureEnabledInFullscreenMenu = true;
+
+    /// <summary>
+    /// Default for cursor capture in windowed game.
+    /// Included in the engine's CursorCaptureMode_Default mask.
+    /// </summary>
+    public const bool DefaultCursorCaptureEnabledInWindowedGame = true;
+
+    /// <summary>
+    /// Default for cursor capture in windowed menu.
+    /// Absent from the engine's CursorCaptureMode_Default mask.
+    /// </summary>
+    public const bool DefaultCursorCaptureEnabledInWindowedMenu = false;
+
+    /// <summary>
+    /// Default for screen edge scrolling in a fullscreen app.
+    /// The engine's ScreenEdgeScrollMode_Default is exactly this flag.
+    /// </summary>
+    public const bool DefaultScreenEdgeScrollEnabledInFullscreenApp = true;
+
+    /// <summary>
+    /// Default for screen edge scrolling in a windowed app.
+    /// Absent from the engine's ScreenEdgeScrollMode_Default.
+    /// </summary>
+    public const bool DefaultScreenEdgeScrollEnabledInWindowedApp = false;
 }
