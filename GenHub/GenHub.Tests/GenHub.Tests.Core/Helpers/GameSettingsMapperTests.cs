@@ -66,9 +66,15 @@ public class GameSettingsMapperTests
     [Fact]
     public void ApplyToGeneralsOnlineSettings_UnsetFontSizes_UsesDeclaredDefaults()
     {
-        // Arrange
+        // Arrange - seed with values the mapper must overwrite, so a missing assignment fails
         var profile = new GameProfile();
-        var settings = new GeneralsOnlineSettings();
+        var settings = new GeneralsOnlineSettings
+        {
+            SystemTimeFontSize = 99,
+            NetworkLatencyFontSize = 99,
+            RenderFpsFontSize = 99,
+            ResolutionFontAdjustment = 99,
+        };
 
         // Act
         GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
@@ -86,10 +92,16 @@ public class GameSettingsMapperTests
     [Fact]
     public void ApplyToGeneralsOnlineSettings_UnsetFontSizes_MatchesModelDefaults()
     {
-        // Arrange
+        // Arrange - seed with values the mapper must overwrite, so a missing assignment fails
         var profile = new GameProfile();
         var expected = new GeneralsOnlineSettings();
-        var settings = new GeneralsOnlineSettings();
+        var settings = new GeneralsOnlineSettings
+        {
+            SystemTimeFontSize = 99,
+            NetworkLatencyFontSize = 99,
+            RenderFpsFontSize = 99,
+            ResolutionFontAdjustment = 99,
+        };
 
         // Act
         GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
@@ -113,6 +125,7 @@ public class GameSettingsMapperTests
             TshSystemTimeFontSize = 20,
             TshNetworkLatencyFontSize = 21,
             TshRenderFpsFontSize = 22,
+            TshResolutionFontAdjustment = 23,
         };
         var settings = new GeneralsOnlineSettings();
 
@@ -123,5 +136,6 @@ public class GameSettingsMapperTests
         Assert.Equal(20, settings.SystemTimeFontSize);
         Assert.Equal(21, settings.NetworkLatencyFontSize);
         Assert.Equal(22, settings.RenderFpsFontSize);
+        Assert.Equal(23, settings.ResolutionFontAdjustment);
     }
 }
