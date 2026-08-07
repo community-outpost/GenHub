@@ -241,4 +241,50 @@ public class SuperHackersProfileReconcilerTests
             x => x.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Never);
     }
+
+    /// <summary>
+    /// Treats an acquisition failure raised while shutting down as cancellation, covering the
+    /// pipeline layers that convert <see cref="OperationCanceledException"/> into a failed result
+    /// before it can reach the reconciler as an exception.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckAndReconcileIfNeededAsync_AcquireFailsWhileCancelled_PropagatesCancellation()
+    {
+        const string latestVersion = "2.0.0";
+
+        _updateServiceMock
+            .Setup(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentUpdateCheckResult.CreateUpdateAvailable(latestVersion, "1.0.0"));
+
+        var settings = new UserSettings();
+        settings.SetAutoUpdatePreference(PublisherTypeConstants.TheSuperHackers, true);
+        _userSettingsServiceMock.Setup(x => x.Get()).Returns(settings);
+
+        _manifestPoolMock
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        _contentOrchestratorMock
+            .Setup(x => x.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
+            [
+                new ContentSearchResult { Name = "SuperHackers", Version = latestVersion },
+            ]));
+
+        using var cts = new CancellationTokenSource();
+
+        _contentOrchestratorMock
+            .Setup(x => x.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .Callback(() => cts.Cancel())
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateFailure(
+                "Content acquisition failed: The operation was canceled."));
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => _reconciler.CheckAndReconcileIfNeededAsync("profile1", cts.Token));
+
+        _notificationServiceMock.Verify(
+            x => x.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
 }
