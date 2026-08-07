@@ -8,6 +8,7 @@ using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.GameClients;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -345,6 +346,53 @@ public class GameClientDetectorTests : IDisposable
         Assert.True(result.Success);
         var only = Assert.Single(result.Items);
         Assert.Equal(wrapperPath, only.ExecutablePath);
+    }
+
+    /// <summary>
+    /// The bootstrapper is absent from the retail hash registry by definition, so an unrecognized
+    /// hash must fall through to the publisher identifier rather than to the generic entry. A
+    /// GeneralsOnline client reported as GameType.Generals never matches the Zero Hour launch
+    /// path, which is what writes settings.json.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ScanDirectoryForGameClientsAsync_WithEacLauncherAndUnknownHash_ClassifiesAsZeroHourGeneralsOnline()
+    {
+        var gameDir = Path.Combine(_tempDirectory, "GeneralsOnline");
+        Directory.CreateDirectory(gameDir);
+        var wrapperPath = Path.Combine(gameDir, GameClientConstants.GeneralsOnlineEacLauncherExecutable);
+        await File.WriteAllTextAsync(wrapperPath, "dummy content");
+
+        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("unknown_hash_12345");
+
+        var manifestBuilderMock = new Mock<IContentManifestBuilder>();
+        manifestBuilderMock.Setup(x => x.Build())
+            .Returns(new ContentManifest { Id = ManifestId.Create("1.0.generalsonline.gameclient.generals-generalsonline-60hz") });
+
+        _manifestGenerationServiceMock.Setup(x => x.CreateGameClientManifestAsync(
+                It.IsAny<string>(), It.IsAny<GameType>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<PublisherInfo?>()))
+            .ReturnsAsync(manifestBuilderMock.Object);
+
+        _contentManifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // The production identifier, so this pins real classification rather than a mock's answer.
+        var detector = new GameClientDetector(
+            _manifestGenerationServiceMock.Object,
+            _contentManifestPoolMock.Object,
+            _hashProviderMock.Object,
+            _hashRegistryMock.Object,
+            [new GeneralsOnlineClientIdentifier()],
+            NullLogger<GameClientDetector>.Instance);
+
+        var result = await detector.ScanDirectoryForGameClientsAsync(_tempDirectory);
+
+        Assert.True(result.Success);
+        var only = Assert.Single(result.Items);
+        Assert.Equal(wrapperPath, only.ExecutablePath);
+        Assert.Equal(GameType.ZeroHour, only.GameType);
+        Assert.Equal(GameClientConstants.GeneralsOnline60HzDisplayName, only.Name);
     }
 
     /// <summary>

@@ -271,6 +271,17 @@ public class GameClientDetector(
                 };
             }
 
+            // A publisher entry point is absent from the retail hash registry by definition, so an
+            // unrecognized hash means "not retail" rather than "unidentifiable". Ask the publisher
+            // identifiers before falling back, otherwise the GeneralsOnline anti-cheat bootstrapper
+            // is reported as Unknown Game with GameType.Generals and never matches the Zero Hour
+            // launch path.
+            var identifiedClient = IdentifyPublisherClient(executablePath, workingDirectory);
+            if (identifiedClient != null)
+            {
+                return identifiedClient;
+            }
+
             // If hash is not recognized, create a generic entry for manual identification
             logger.LogDebug("Unknown game executable found at {ExecutablePath} with hash {Hash}", executablePath, hash);
             return new GameClient
@@ -290,6 +301,60 @@ public class GameClientDetector(
             logger.LogWarning(ex, "Failed to analyze executable {ExecutablePath}", executablePath);
             return null;
         }
+    }
+
+    /// <summary>
+    /// Classifies an executable through the registered publisher identifiers.
+    /// </summary>
+    /// <param name="executablePath">The path to the executable file.</param>
+    /// <param name="workingDirectory">The working directory for the game client.</param>
+    /// <returns>A GameClient if a publisher recognizes the executable, otherwise null.</returns>
+    private GameClient? IdentifyPublisherClient(string executablePath, string workingDirectory)
+    {
+        foreach (var identifier in gameClientIdentifiers)
+        {
+            if (!identifier.CanIdentify(executablePath))
+            {
+                continue;
+            }
+
+            try
+            {
+                var identification = identifier.Identify(executablePath);
+                if (identification == null)
+                {
+                    continue;
+                }
+
+                logger.LogInformation(
+                    "Identified {PublisherId} client {DisplayName} at {ExecutablePath}",
+                    identification.PublisherId,
+                    identification.DisplayName,
+                    executablePath);
+
+                return new GameClient
+                {
+                    Name = identification.DisplayName,
+                    Id = string.Empty, // Will be set by manifest generation
+                    Version = identification.LocalVersion ?? GameClientConstants.UnknownVersion,
+                    ExecutablePath = executablePath,
+                    GameType = identification.GameType,
+                    WorkingDirectory = workingDirectory,
+                    InstallationId = string.Empty,
+                    SourceType = ContentType.GameClient,
+                };
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(
+                    ex,
+                    "Publisher identifier {PublisherId} failed for {ExecutablePath}",
+                    identifier.PublisherId,
+                    executablePath);
+            }
+        }
+
+        return null;
     }
 
     private async Task GenerateClientManifestAndSetIdAsync(GameClient gameClient, string clientPath, GameInstallation? installation, GameType gameType)
