@@ -398,8 +398,8 @@ public partial class AddLocalContentViewModel(
                         var normalizationPrompt =
                             $"This content contains GenLauncher-modified files:\n\n{detectionResult.GetSummary()}\n\nWould you like to normalize these files to standard format?\n\n" +
                             "This will:\n" +
-                            "• Convert .gib files to .big\n" +
-                            "• Remove .GLR, .GOF, .GLTC suffixes\n" +
+                            $"• Convert {GenLauncherConstants.GibExtension} files to {GenLauncherConstants.BigExtension}\n" +
+                            $"• Remove {string.Join(", ", GenLauncherConstants.AllSuffixes)} suffixes\n" +
                             "• Remove symbolic links";
 
                         var shouldNormalize = await dialogService.ShowConfirmationAsync(

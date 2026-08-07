@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using GenHub.Core.Constants;
 
 namespace GenHub.Core.Interfaces.Content;
 
@@ -52,22 +53,22 @@ public class GenLauncherDetectionResult
         var parts = new List<string>();
         if (GibFiles.Count > 0)
         {
-            parts.Add($"{GibFiles.Count} .gib file(s)");
+            parts.Add($"{GibFiles.Count} {GenLauncherConstants.GibExtension} file(s)");
         }
 
         if (GlrFiles.Count > 0)
         {
-            parts.Add($"{GlrFiles.Count} .GLR file(s)");
+            parts.Add($"{GlrFiles.Count} {GenLauncherConstants.ReplaceSuffix} file(s)");
         }
 
         if (GofFiles.Count > 0)
         {
-            parts.Add($"{GofFiles.Count} .GOF file(s)");
+            parts.Add($"{GofFiles.Count} {GenLauncherConstants.OriginalFileSuffix} file(s)");
         }
 
         if (GltcFiles.Count > 0)
         {
-            parts.Add($"{GltcFiles.Count} .GLTC file(s)");
+            parts.Add($"{GltcFiles.Count} {GenLauncherConstants.TempCopySuffix} file(s)");
         }
 
         if (SymbolicLinks.Count > 0)
