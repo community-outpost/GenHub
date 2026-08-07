@@ -283,37 +283,37 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     private bool _tshShowMoneyPerMinute;
 
     [ObservableProperty]
-    private bool _tshPlayerObserverEnabled;
+    private bool _tshPlayerObserverEnabled = GameSettingsTheSuperHackersConstants.DefaultPlayerObserverEnabled;
 
     [ObservableProperty]
-    private int _tshSystemTimeFontSize = 12;
+    private int _tshSystemTimeFontSize = GameSettingsTheSuperHackersConstants.DefaultSystemTimeFontSize;
 
     [ObservableProperty]
-    private int _tshNetworkLatencyFontSize = 12;
+    private int _tshNetworkLatencyFontSize = GameSettingsTheSuperHackersConstants.DefaultNetworkLatencyFontSize;
 
     [ObservableProperty]
-    private int _tshRenderFpsFontSize = 12;
+    private int _tshRenderFpsFontSize = GameSettingsTheSuperHackersConstants.DefaultRenderFpsFontSize;
 
     [ObservableProperty]
-    private int _tshResolutionFontAdjustment = -100;
+    private int _tshResolutionFontAdjustment = GameSettingsTheSuperHackersConstants.DefaultResolutionFontAdjustment;
 
     [ObservableProperty]
-    private bool _tshCursorCaptureEnabledInFullscreenGame;
+    private bool _tshCursorCaptureEnabledInFullscreenGame = GameSettingsTheSuperHackersConstants.DefaultCursorCaptureEnabledInFullscreenGame;
 
     [ObservableProperty]
-    private bool _tshCursorCaptureEnabledInFullscreenMenu;
+    private bool _tshCursorCaptureEnabledInFullscreenMenu = GameSettingsTheSuperHackersConstants.DefaultCursorCaptureEnabledInFullscreenMenu;
 
     [ObservableProperty]
-    private bool _tshCursorCaptureEnabledInWindowedGame;
+    private bool _tshCursorCaptureEnabledInWindowedGame = GameSettingsTheSuperHackersConstants.DefaultCursorCaptureEnabledInWindowedGame;
 
     [ObservableProperty]
-    private bool _tshCursorCaptureEnabledInWindowedMenu;
+    private bool _tshCursorCaptureEnabledInWindowedMenu = GameSettingsTheSuperHackersConstants.DefaultCursorCaptureEnabledInWindowedMenu;
 
     [ObservableProperty]
-    private bool _tshScreenEdgeScrollEnabledInFullscreenApp;
+    private bool _tshScreenEdgeScrollEnabledInFullscreenApp = GameSettingsTheSuperHackersConstants.DefaultScreenEdgeScrollEnabledInFullscreenApp;
 
     [ObservableProperty]
-    private bool _tshScreenEdgeScrollEnabledInWindowedApp;
+    private bool _tshScreenEdgeScrollEnabledInWindowedApp = GameSettingsTheSuperHackersConstants.DefaultScreenEdgeScrollEnabledInWindowedApp;
 
     [ObservableProperty]
     private int _tshMoneyTransactionVolume = 50;
