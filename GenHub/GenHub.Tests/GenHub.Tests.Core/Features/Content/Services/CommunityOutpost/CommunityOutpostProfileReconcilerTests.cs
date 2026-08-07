@@ -198,4 +198,46 @@ public class CommunityOutpostProfileReconcilerTests
         Assert.False(result.Success);
         Assert.Contains("server unavailable", result.FirstError, StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>
+    /// Propagates cancellation from acquisition instead of surfacing it as a generic download failure.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckAndReconcileIfNeededAsync_AcquireCancelled_PropagatesCancellation()
+    {
+        const string latestVersion = "2.0.0";
+
+        _updateServiceMock
+            .Setup(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentUpdateCheckResult.CreateUpdateAvailable(latestVersion, "1.0.0"));
+
+        var settings = new UserSettings();
+        settings.SetAutoUpdatePreference(CommunityOutpostConstants.PublisherType, true);
+        _userSettingsServiceMock.Setup(x => x.Get()).Returns(settings);
+
+        _manifestPoolMock
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([]));
+
+        _contentOrchestratorMock
+            .Setup(x => x.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
+            [
+                new ContentSearchResult { Name = "Community Patch", Version = latestVersion },
+            ]));
+
+        _contentOrchestratorMock
+            .Setup(x => x.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+
+        using var cts = new CancellationTokenSource();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => _reconciler.CheckAndReconcileIfNeededAsync("profile1", cts.Token));
+
+        _notificationServiceMock.Verify(
+            x => x.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
 }
