@@ -562,7 +562,14 @@ public class GameProcessManager(
                     logger.LogWarning(ex, "Failed to enable raising events for discovered process {ProcessId}", process.Id);
                 }
 
-                return OperationResult<GameProcessInfo>.CreateSuccess(BuildProcessInfo(process, workingDirectory));
+                // BuildProcessInfo assigns the fallback to GameProcessInfo.ExecutablePath, which
+                // GameLauncher persists. Passing the directory alone would store a folder where a
+                // file path is expected, so rebuild the executable path from what we were given.
+                var fallbackExecutable = Path.Combine(
+                    workingDirectory,
+                    OperatingSystem.IsWindows() ? processName + ".exe" : processName);
+
+                return OperationResult<GameProcessInfo>.CreateSuccess(BuildProcessInfo(process, fallbackExecutable));
             }
 
             await Task.Delay(DelayMs, cancellationToken);
@@ -736,6 +743,8 @@ public class GameProcessManager(
         var timeout = configuration.ExpectedChildDiscoveryTimeout
             ?? TimeSpan.FromMilliseconds(ProcessConstants.SpawnedChildDiscoveryTimeoutMs);
         var deadline = DateTime.UtcNow + timeout;
+        var gracePeriod = TimeSpan.FromMilliseconds(ProcessConstants.LauncherExitGracePeriodMs);
+        DateTime? launcherExitedAt = null;
 
         logger.LogInformation(
             "[Process] Waiting up to {TimeoutMs}ms for launcher {LauncherId} to start {ExpectedName}",
@@ -781,6 +790,26 @@ public class GameProcessManager(
                         expectedName);
                     return OperationResult<GameProcessInfo>.CreateFailure(
                         $"Launcher exited with code {launcher.ExitCode} before starting {expectedName}.");
+                }
+
+                // A clean exit with no child is still a failure - the bootstrapper bailing without
+                // launching the game looks identical to success from the exit code alone. Allow a
+                // short grace period for the spawn-then-enumerate race, then stop: once the
+                // launcher is gone a child will not appear, and waiting out the full discovery
+                // timeout only delays the failure and reports a misleading timeout as the cause.
+                if (launcher.HasExited)
+                {
+                    launcherExitedAt ??= DateTime.UtcNow;
+
+                    if (DateTime.UtcNow - launcherExitedAt.Value >= gracePeriod)
+                    {
+                        logger.LogError(
+                            "[Process] Launcher {LauncherId} exited cleanly without starting {ExpectedName}",
+                            launcher.Id,
+                            expectedName);
+                        return OperationResult<GameProcessInfo>.CreateFailure(
+                            $"Launcher exited without starting {expectedName}.");
+                    }
                 }
 
                 if (DateTime.UtcNow >= deadline)

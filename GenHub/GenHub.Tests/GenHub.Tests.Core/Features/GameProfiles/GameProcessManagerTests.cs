@@ -140,6 +140,36 @@ public class GameProcessManagerTests
     }
 
     /// <summary>
+    /// A bootstrapper that bails without launching the game exits with code 0, so the exit code
+    /// alone cannot distinguish it from success. Once the launcher is gone no child is coming, and
+    /// waiting out the full discovery timeout only delays the failure behind a misleading message.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task StartProcessAsync_WhenLauncherExitsCleanlyWithoutChild_FailsWithoutWaitingOutTheTimeout()
+    {
+        using var harness = LauncherHarness.Create(spawnChild: false, exitImmediately: true);
+
+        var config = new GameLaunchConfiguration
+        {
+            ExecutablePath = harness.LauncherPath,
+            WorkingDirectory = harness.WorkingDirectory,
+            ExpectedChildProcessName = LauncherHarness.ChildProcessName,
+            ExpectedChildDiscoveryTimeout = TimeSpan.FromSeconds(10),
+        };
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var result = await _processManager.StartProcessAsync(config);
+        stopwatch.Stop();
+
+        Assert.False(result.Success);
+        Assert.Contains("without starting", string.Join(", ", result.Errors));
+        Assert.True(
+            stopwatch.Elapsed < TimeSpan.FromSeconds(5),
+            $"Expected a fast failure once the launcher exited, but it took {stopwatch.Elapsed}.");
+    }
+
+    /// <summary>
     /// A cancelled adoption must surface as cancellation rather than a generic start failure.
     /// Swallowing it disagrees with TerminateProcessAsync, which rethrows, and prevents
     /// GameLauncher.LaunchProfileAsync from reaching its own cancellation branch.
@@ -307,6 +337,9 @@ public class GameProcessManagerTests
         /// <summary>How long the launcher keeps running after it spawns the child.</summary>
         public const int LauncherLifetimeSeconds = 20;
 
+        /// <summary>File the launcher writes its own PID into, so Dispose can stop it.</summary>
+        private const string LauncherPidFileName = "launcher.pid";
+
         private LauncherHarness(string workingDirectory, string launcherPath)
         {
             WorkingDirectory = workingDirectory;
@@ -321,8 +354,9 @@ public class GameProcessManagerTests
 
         /// <summary>Creates a harness, optionally spawning a child.</summary>
         /// <param name="spawnChild">Whether the launcher should spawn the child.</param>
+        /// <param name="exitImmediately">Whether the launcher should exit cleanly instead of staying alive.</param>
         /// <returns>The created harness.</returns>
-        public static LauncherHarness Create(bool spawnChild = true)
+        public static LauncherHarness Create(bool spawnChild = true, bool exitImmediately = false)
         {
             var workingDirectory = Path.Combine(Path.GetTempPath(), "genhub-launcher-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(workingDirectory);
@@ -336,13 +370,20 @@ public class GameProcessManagerTests
             {
                 launcherPath = Path.Combine(workingDirectory, "genhublauncher.bat");
                 var spawn = spawnChild ? $"start \"\" /b \"{childPath}\" -n {LauncherLifetimeSeconds + 1} 127.0.0.1 >nul\n" : string.Empty;
-                script = $"@echo off\n{spawn}ping -n {LauncherLifetimeSeconds + 1} 127.0.0.1 >nul\n";
+
+                // Leave the working directory afterwards: a batch host holds its current directory
+                // open, which would defeat the cleanup delete for the launcher's whole lifetime.
+                var linger = exitImmediately ? string.Empty : $"ping -n {LauncherLifetimeSeconds + 1} 127.0.0.1 >nul\n";
+                script = $"@echo off\n{spawn}cd /d \"%TEMP%\"\n{linger}";
             }
             else
             {
                 launcherPath = Path.Combine(workingDirectory, "genhublauncher.sh");
                 var spawn = spawnChild ? $"\"{childPath}\" {LauncherLifetimeSeconds} &\n" : string.Empty;
-                script = $"#!/bin/bash\n{spawn}sleep {LauncherLifetimeSeconds}\n";
+                var linger = exitImmediately ? string.Empty : $"sleep {LauncherLifetimeSeconds}\n";
+
+                // The harness does not start the launcher, so it cannot learn the PID by itself.
+                script = $"#!/bin/bash\necho $$ > \"{Path.Combine(workingDirectory, LauncherPidFileName)}\"\n{spawn}{linger}";
             }
 
             File.WriteAllText(launcherPath, script);
@@ -355,6 +396,8 @@ public class GameProcessManagerTests
         /// <inheritdoc/>
         public void Dispose()
         {
+            KillLauncher();
+
             foreach (var process in System.Diagnostics.Process.GetProcessesByName(ChildProcessName))
             {
                 try
@@ -375,13 +418,52 @@ public class GameProcessManagerTests
                 }
             }
 
+            DeleteWorkingDirectory();
+        }
+
+        /// <summary>
+        /// Stops the launcher so it does not outlive the test by <see cref="LauncherLifetimeSeconds"/>.
+        /// </summary>
+        private void KillLauncher()
+        {
+            var pidFile = Path.Combine(WorkingDirectory, LauncherPidFileName);
+
             try
             {
-                Directory.Delete(WorkingDirectory, recursive: true);
+                if (!File.Exists(pidFile) || !int.TryParse(File.ReadAllText(pidFile).Trim(), out var launcherId))
+                {
+                    return;
+                }
+
+                using var launcher = System.Diagnostics.Process.GetProcessById(launcherId);
+                launcher.Kill(entireProcessTree: true);
+                launcher.WaitForExit(2000);
             }
             catch
             {
-                // Best effort - a still-dying child can hold a handle briefly.
+                // Best effort - the launcher may have exited, or never recorded a PID.
+            }
+        }
+
+        private void DeleteWorkingDirectory()
+        {
+            // A killed process can hold a handle for a moment after it stops, so retry rather than
+            // leaking the directory for the rest of the run.
+            for (var attempt = 0; attempt < 5; attempt++)
+            {
+                try
+                {
+                    Directory.Delete(WorkingDirectory, recursive: true);
+                    return;
+                }
+                catch when (attempt < 4)
+                {
+                    Thread.Sleep(100);
+                }
+                catch
+                {
+                    // Best effort.
+                }
             }
         }
 

@@ -100,4 +100,11 @@ public static class ProcessConstants
     /// already being torn down on a cancelled launch, so this only bounds the cleanup.
     /// </summary>
     public const int AbandonedLauncherKillWaitMs = 2_000;
+
+    /// <summary>
+    /// How long to keep polling for the expected child after the launcher itself exits cleanly.
+    /// Covers the race between the child being spawned and becoming enumerable, without waiting
+    /// out <see cref="SpawnedChildDiscoveryTimeoutMs"/> once the launcher is known to be gone.
+    /// </summary>
+    public const int LauncherExitGracePeriodMs = 1_000;
 }
