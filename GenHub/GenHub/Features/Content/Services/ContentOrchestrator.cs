@@ -102,6 +102,9 @@ public class ContentOrchestrator : IContentOrchestrator
             return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure("Take must be between 1 and 1000");
         }
 
+        // Checked before the cache lookup so a cache hit cannot mask an already-cancelled caller.
+        cancellationToken.ThrowIfCancellationRequested();
+
         _logger.LogDebug("Starting orchestrated content search with query: {SearchTerm}, ContentType: {ContentType}", query.SearchTerm, query.ContentType);
 
         // Check cache first
@@ -169,6 +172,12 @@ public class ContentOrchestrator : IContentOrchestrator
                         _logger.LogWarning("Provider {ProviderName} failed: {Error}", provider.SourceName, result.FirstError);
                     }
                 }
+                // Filtered on the caller's token: a provider timing out on its own token raises
+                // TaskCanceledException too, and must not abort the other providers' results.
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Search failed for provider: {ProviderName}", provider.SourceName);
@@ -180,6 +189,10 @@ public class ContentOrchestrator : IContentOrchestrator
             });
 
         await Task.WhenAll(searchTasksAsync);
+
+        // A provider that handled cancellation internally reports it as a failed result rather
+        // than an exception, which would otherwise surface here as an empty successful search.
+        cancellationToken.ThrowIfCancellationRequested();
 
         // Apply orchestrator-level sorting and pagination
         var sortedResults = ApplySorting(allResults, query.SortOrder)
@@ -589,6 +602,10 @@ public class ContentOrchestrator : IContentOrchestrator
                 }
             }
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to acquire content {ContentId}", searchResult.Id);
@@ -703,6 +720,10 @@ public class ContentOrchestrator : IContentOrchestrator
 
             var installations = installationsResult.Data.ToList();
             return await _installationCasPoolService.EnsurePoolPathAsync(installations, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {

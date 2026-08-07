@@ -311,6 +311,10 @@ public class CommunityOutpostProfileReconciler(
 
             var searchResult = await contentOrchestrator.SearchAsync(query, cancellationToken);
 
+            // Layers beneath the orchestrator still report cancellation as a failed result, so a
+            // failure raised while shutting down must not be surfaced as a real acquisition error.
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (!searchResult.Success || searchResult.Data == null || !searchResult.Data.Any())
             {
                 return OperationResult<List<ContentManifest>>.CreateFailure(
@@ -320,6 +324,7 @@ public class CommunityOutpostProfileReconciler(
             foreach (var result in searchResult.Data)
             {
                 var acquireOp = await contentOrchestrator.AcquireContentAsync(result, progress: null, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
                 if (!acquireOp.Success)
                 {
                     logger.LogError(

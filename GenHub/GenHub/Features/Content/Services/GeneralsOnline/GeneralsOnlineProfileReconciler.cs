@@ -427,6 +427,7 @@ public class GeneralsOnlineProfileReconciler(
             };
 
             var clientResult = await contentOrchestrator.SearchAsync(clientQuery, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
             // Search for Map Packs (required dependency)
             var mapPackQuery = new ContentSearchQuery
@@ -450,6 +451,10 @@ public class GeneralsOnlineProfileReconciler(
                 allResults.AddRange(mapPackResult.Data);
             }
 
+            // Layers beneath the orchestrator still report cancellation as a failed result, so a
+            // failure raised while shutting down must not be surfaced as a real acquisition error.
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (allResults.Count == 0)
             {
                 return OperationResult<List<ContentManifest>>.CreateFailure(
@@ -459,6 +464,7 @@ public class GeneralsOnlineProfileReconciler(
             foreach (var result in allResults)
             {
                 var acquireOp = await contentOrchestrator.AcquireContentAsync(result, progress: null, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
                 if (!acquireOp.Success)
                 {
                     logger.LogError(
