@@ -402,11 +402,16 @@ public class GameProcessManagerTests
                 launcherPath = Path.Combine(workingDirectory, "genhublauncher.bat");
                 var spawn = spawnChild ? $"start \"\" /b \"{childPath}\" -n {LauncherLifetimeSeconds + 1} 127.0.0.1 >nul\n" : string.Empty;
 
+                // Batch has no $$. PowerShell's own parent is the batch host, so it can report the
+                // PID the harness needs. If PowerShell is unavailable the loop simply writes
+                // nothing and Dispose falls back to leaving the launcher alone.
+                var recordPid = $"for /f %%p in ('powershell -NoProfile -Command \"(Get-Process -Id $PID).Parent.Id\"') do @echo %%p> \"{Path.Combine(workingDirectory, LauncherPidFileName)}\"\n";
+
                 // Leave the working directory afterwards: a batch host holds its current directory
                 // open, which would defeat the cleanup delete for the launcher's whole lifetime.
                 var linger = exitImmediately ? string.Empty : $"ping -n {LauncherLifetimeSeconds + 1} 127.0.0.1 >nul\n";
                 var complain = stderrMessage is null ? string.Empty : $"echo {stderrMessage} 1>&2\n";
-                script = $"@echo off\n{complain}{spawn}cd /d \"%TEMP%\"\n{linger}";
+                script = $"@echo off\n{recordPid}{complain}{spawn}cd /d \"%TEMP%\"\n{linger}";
             }
             else
             {
@@ -415,7 +420,7 @@ public class GameProcessManagerTests
                 var linger = exitImmediately ? string.Empty : $"sleep {LauncherLifetimeSeconds}\n";
                 var complain = stderrMessage is null ? string.Empty : $"echo \"{stderrMessage}\" >&2\n";
 
-                // The harness does not start the launcher, so it cannot learn the PID by itself.
+                // The harness does not start the launcher, so the launcher reports its own PID.
                 script = $"#!/bin/bash\necho $$ > \"{Path.Combine(workingDirectory, LauncherPidFileName)}\"\n{complain}{spawn}{linger}";
             }
 

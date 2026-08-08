@@ -260,8 +260,11 @@ public class GameProcessManager(
 
                         // A bootstrapper hands the session to a differently-named binary, so the
                         // name to adopt comes from the caller — never from the path we started.
-                        var executableName = configuration.ExpectedChildProcessName
-                            ?? Path.GetFileNameWithoutExtension(configuration.ExecutablePath);
+                        // Same emptiness test as the adoption guard above: `??` would accept a
+                        // whitespace-only name that skipped adoption, then match no process.
+                        var executableName = !string.IsNullOrWhiteSpace(configuration.ExpectedChildProcessName)
+                            ? configuration.ExpectedChildProcessName
+                            : Path.GetFileNameWithoutExtension(configuration.ExecutablePath);
                         var spawnedProcess = FindSpawnedGameProcess(executableName, configuration.WorkingDirectory ?? Path.GetDirectoryName(configuration.ExecutablePath)!);
 
                         if (spawnedProcess != null)
@@ -884,17 +887,19 @@ public class GameProcessManager(
                     return OperationResult<GameProcessInfo>.CreateSuccess(BuildProcessInfo(child, configuration.ExecutablePath));
                 }
 
+                var (launcherExited, launcherExitCode) = ReadLauncherExit(launcher);
+
                 // A launcher that fails outright will never produce a child - do not wait it out.
-                if (launcher.HasExited && launcher.ExitCode != ProcessConstants.ExitCodeSuccess)
+                if (launcherExited && launcherExitCode is int exitCode && exitCode != ProcessConstants.ExitCodeSuccess)
                 {
                     logger.LogError(
                         "[Process] Launcher {LauncherId} exited with code {ExitCode} before starting {ExpectedName}",
                         launcher.Id,
-                        launcher.ExitCode,
+                        exitCode,
                         expectedName);
                     return OperationResult<GameProcessInfo>.CreateFailure(
                         AppendLauncherErrors(
-                            $"Launcher exited with code {launcher.ExitCode} before starting {expectedName}.",
+                            $"Launcher exited with code {exitCode} before starting {expectedName}.",
                             launcher,
                             capturedErrors));
                 }
@@ -904,7 +909,7 @@ public class GameProcessManager(
                 // short grace period for the spawn-then-enumerate race, then stop: once the
                 // launcher is gone a child will not appear, and waiting out the full discovery
                 // timeout only delays the failure and reports a misleading timeout as the cause.
-                if (launcher.HasExited)
+                if (launcherExited)
                 {
                     launcherExitedAt ??= DateTime.UtcNow;
 
@@ -1089,6 +1094,49 @@ public class GameProcessManager(
             }
 
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Reads a launcher's exit state without throwing.
+    /// </summary>
+    /// <param name="launcher">The launcher to inspect.</param>
+    /// <returns>
+    /// Whether the launcher has exited, and its exit code when that could be read.
+    /// </returns>
+    /// <remarks>
+    /// <see cref="Process.HasExited"/> and <see cref="Process.ExitCode"/> throw
+    /// <see cref="InvalidOperationException"/> with no handle and
+    /// <see cref="System.ComponentModel.Win32Exception"/> when the code cannot be read — both
+    /// plausible for the hard-crashing launcher this loop exists to report on. Letting either
+    /// escape would replace the launcher diagnosis with a generic start failure.
+    /// An unreadable state is reported as still running, so the loop keeps polling to its
+    /// deadline rather than concluding anything from a failed probe.
+    /// </remarks>
+    private (bool Exited, int? ExitCode) ReadLauncherExit(Process launcher)
+    {
+        try
+        {
+            if (!launcher.HasExited)
+            {
+                return (false, null);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "[Process] Could not determine whether the launcher had exited");
+            return (false, null);
+        }
+
+        try
+        {
+            return (true, launcher.ExitCode);
+        }
+        catch (Exception ex)
+        {
+            // Exited, but the code is unavailable. The clean-exit path still applies.
+            logger.LogDebug(ex, "[Process] Could not read the launcher's exit code");
+            return (true, null);
         }
     }
 
