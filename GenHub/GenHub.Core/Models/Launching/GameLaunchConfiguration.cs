@@ -20,4 +20,19 @@ public class GameLaunchConfiguration
 
     /// <summary>Gets or sets the timeout for waiting.</summary>
     public TimeSpan? Timeout { get; set; }
+
+    /// <summary>
+    /// Gets or sets the process name, without extension, that <see cref="ExecutablePath"/> is
+    /// expected to spawn and hand the session to — the Easy Anti-Cheat bootstrapper being the
+    /// case that needs it. Leave <see langword="null"/> when the started executable *is* the game;
+    /// tracking then follows the started process as before.
+    /// </summary>
+    public string? ExpectedChildProcessName { get; set; }
+
+    /// <summary>
+    /// Gets or sets how long to wait for <see cref="ExpectedChildProcessName"/> to appear before
+    /// failing the launch. Defaults to
+    /// <see cref="GenHub.Core.Constants.ProcessConstants.SpawnedChildDiscoveryTimeoutMs"/>.
+    /// </summary>
+    public TimeSpan? ExpectedChildDiscoveryTimeout { get; set; }
 }
