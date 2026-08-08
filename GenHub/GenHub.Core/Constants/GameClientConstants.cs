@@ -69,6 +69,15 @@ public static class GameClientConstants
     /// <summary>GeneralsOnline default client executable name.</summary>
     public const string GeneralsOnlineDefaultExecutable = "generalsonlinezh.exe";
 
+    /// <summary>
+    /// Easy Anti-Cheat bootstrapper shipped since GeneralsOnline 060526_QFE1. It launches the
+    /// binary named by <c>EasyAntiCheat/Settings.json</c> and is the supported launch target.
+    /// </summary>
+    public const string GeneralsOnlineEacLauncherExecutable = "EAC_LaunchGeneralsOnline.exe";
+
+    /// <summary>Epic Online Services Easy Anti-Cheat installer shipped in the GeneralsOnline portable.</summary>
+    public const string GeneralsOnlineEacSetupExecutable = "EasyAntiCheat_EOS_Setup.exe";
+
     /// <summary>Display name for GeneralsOnline 60Hz variant.</summary>
     public const string GeneralsOnline60HzDisplayName = "GeneralsOnline 60Hz";
 
@@ -180,12 +189,19 @@ public static class GameClientConstants
     ];
 
     /// <summary>
-    /// List of GeneralsOnline executable names to detect.
-    /// Only includes 30Hz and 60Hz variants as these are the primary clients.
-    /// GeneralsOnline provides auto-updated clients for Command &amp; Conquer Generals and Zero Hour.
+    /// The GeneralsOnline executable names that are supported launch entry points.
+    /// Since 060526_QFE1 the Easy Anti-Cheat bootstrapper starts the binary named by
+    /// <c>EasyAntiCheat/Settings.json</c>; older packages launch the 60Hz binary directly.
+    /// <c>GeneralsOnlineZH.exe</c> ships alongside both but is not wrapped, so it is workspace
+    /// content rather than an entry point.
     /// </summary>
+    /// <remarks>
+    /// Membership only. When both are present the bootstrapper wins, but that precedence is
+    /// expressed in the resolving code rather than by the order of this list.
+    /// </remarks>
     public static readonly IReadOnlyList<string> GeneralsOnlineExecutableNames =
     [
+        GeneralsOnlineEacLauncherExecutable,
         GeneralsOnline60HzExecutable,
     ];
 

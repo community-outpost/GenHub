@@ -8,6 +8,7 @@ using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.GameClients;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -19,7 +20,13 @@ namespace GenHub.Tests.Core.Features.GameClients;
 /// </summary>
 public class GameClientDetectorTests : IDisposable
 {
-    private static readonly IReadOnlyList<string> PossibleExecutableNames = [GameClientConstants.GeneralsExecutable, GameClientConstants.GeneralsOnline60HzExecutable];
+    private static readonly IReadOnlyList<string> PossibleExecutableNames =
+    [
+        GameClientConstants.GeneralsExecutable,
+        GameClientConstants.GeneralsOnlineEacLauncherExecutable,
+        GameClientConstants.GeneralsOnline60HzExecutable,
+    ];
+
     private readonly Mock<IManifestGenerationService> _manifestGenerationServiceMock;
     private readonly Mock<IContentManifestPool> _contentManifestPoolMock;
     private readonly Mock<IFileHashProvider> _hashProviderMock;
@@ -306,6 +313,123 @@ public class GameClientDetectorTests : IDisposable
     }
 
     /// <summary>
+    /// A GeneralsOnline directory holds both the Easy Anti-Cheat bootstrapper and the binary it
+    /// wraps. A scan must report the installation once, through the bootstrapper.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ScanDirectoryForGameClientsAsync_WithEacLauncherBesideSixtyHertz_FindsOnlyWrapper()
+    {
+        var gameDir = Path.Combine(_tempDirectory, "GeneralsOnline");
+        Directory.CreateDirectory(gameDir);
+        var wrapperPath = Path.Combine(gameDir, GameClientConstants.GeneralsOnlineEacLauncherExecutable);
+        var sixtyHertzPath = Path.Combine(gameDir, GameClientConstants.GeneralsOnline60HzExecutable);
+        await File.WriteAllTextAsync(wrapperPath, "dummy content");
+        await File.WriteAllTextAsync(sixtyHertzPath, "dummy content");
+
+        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("unknown_hash_12345");
+
+        var manifestBuilderMock = new Mock<IContentManifestBuilder>();
+        manifestBuilderMock.Setup(x => x.Build())
+            .Returns(new ContentManifest { Id = ManifestId.Create("1.0.genhub.gameclient.unknownclient") });
+
+        _manifestGenerationServiceMock.Setup(x => x.CreateGameClientManifestAsync(
+                It.IsAny<string>(), It.IsAny<GameType>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<PublisherInfo?>()))
+            .ReturnsAsync(manifestBuilderMock.Object);
+
+        _contentManifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var result = await _detector.ScanDirectoryForGameClientsAsync(_tempDirectory);
+
+        Assert.True(result.Success);
+        var only = Assert.Single(result.Items);
+        Assert.Equal(wrapperPath, only.ExecutablePath);
+    }
+
+    /// <summary>
+    /// The bootstrapper is absent from the retail hash registry by definition, so an unrecognized
+    /// hash must fall through to the publisher identifier rather than to the generic entry. A
+    /// GeneralsOnline client reported as GameType.Generals never matches the Zero Hour launch
+    /// path, which is what writes settings.json.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ScanDirectoryForGameClientsAsync_WithEacLauncherAndUnknownHash_ClassifiesAsZeroHourGeneralsOnline()
+    {
+        var gameDir = Path.Combine(_tempDirectory, "GeneralsOnline");
+        Directory.CreateDirectory(gameDir);
+        var wrapperPath = Path.Combine(gameDir, GameClientConstants.GeneralsOnlineEacLauncherExecutable);
+        await File.WriteAllTextAsync(wrapperPath, "dummy content");
+
+        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("unknown_hash_12345");
+
+        var manifestBuilderMock = new Mock<IContentManifestBuilder>();
+        manifestBuilderMock.Setup(x => x.Build())
+            .Returns(new ContentManifest { Id = ManifestId.Create("1.0.generalsonline.gameclient.generals-generalsonline-60hz") });
+
+        _manifestGenerationServiceMock.Setup(x => x.CreateGameClientManifestAsync(
+                It.IsAny<string>(), It.IsAny<GameType>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<PublisherInfo?>()))
+            .ReturnsAsync(manifestBuilderMock.Object);
+
+        _contentManifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // The production identifier, so this pins real classification rather than a mock's answer.
+        var detector = new GameClientDetector(
+            _manifestGenerationServiceMock.Object,
+            _contentManifestPoolMock.Object,
+            _hashProviderMock.Object,
+            _hashRegistryMock.Object,
+            [new GeneralsOnlineClientIdentifier()],
+            NullLogger<GameClientDetector>.Instance);
+
+        var result = await detector.ScanDirectoryForGameClientsAsync(_tempDirectory);
+
+        Assert.True(result.Success);
+        var only = Assert.Single(result.Items);
+        Assert.Equal(wrapperPath, only.ExecutablePath);
+        Assert.Equal(GameType.ZeroHour, only.GameType);
+        Assert.Equal(GameClientConstants.GeneralsOnline60HzDisplayName, only.Name);
+    }
+
+    /// <summary>
+    /// Portables predating 060526_QFE1 ship no bootstrapper, so the wrapped binary stays the
+    /// entry point rather than being filtered out with it.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ScanDirectoryForGameClientsAsync_WithoutEacLauncher_FindsSixtyHertzClient()
+    {
+        var gameDir = Path.Combine(_tempDirectory, "GeneralsOnlinePreEac");
+        Directory.CreateDirectory(gameDir);
+        var sixtyHertzPath = Path.Combine(gameDir, GameClientConstants.GeneralsOnline60HzExecutable);
+        await File.WriteAllTextAsync(sixtyHertzPath, "dummy content");
+
+        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("unknown_hash_12345");
+
+        var manifestBuilderMock = new Mock<IContentManifestBuilder>();
+        manifestBuilderMock.Setup(x => x.Build())
+            .Returns(new ContentManifest { Id = ManifestId.Create("1.0.genhub.gameclient.unknownclient") });
+
+        _manifestGenerationServiceMock.Setup(x => x.CreateGameClientManifestAsync(
+                It.IsAny<string>(), It.IsAny<GameType>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<PublisherInfo?>()))
+            .ReturnsAsync(manifestBuilderMock.Object);
+
+        _contentManifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var result = await _detector.ScanDirectoryForGameClientsAsync(_tempDirectory);
+
+        Assert.True(result.Success);
+        var only = Assert.Single(result.Items);
+        Assert.Equal(sixtyHertzPath, only.ExecutablePath);
+    }
+
+    /// <summary>
     /// Tests that DetectGameClientsFromInstallationsAsync detects GeneralsOnline 60Hz client.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
@@ -401,6 +525,59 @@ public class GameClientDetectorTests : IDisposable
         Assert.Equal(generalsOnlineExePath, generalsOnlineClient.ExecutablePath);
 
         Assert.Contains("60Hz", generalsOnlineClient.Name);
+    }
+
+    /// <summary>
+    /// Since 060526_QFE1 the Easy Anti-Cheat bootstrapper ships beside the binary it wraps.
+    /// Detection must yield a single client pointing at the bootstrapper, not one client per
+    /// recognised executable name.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DetectGameClientsFromInstallationsAsync_WithEacLauncherBesideSixtyHertz_DetectsOnlyWrapper()
+    {
+        var identifierMock = new Mock<IGameClientIdentifier>();
+        identifierMock.Setup(x => x.PublisherId).Returns(PublisherTypeConstants.GeneralsOnline);
+        identifierMock.Setup(x => x.CanIdentify(It.IsAny<string>())).Returns(false);
+
+        var detector = new GameClientDetector(
+            _manifestGenerationServiceMock.Object,
+            _contentManifestPoolMock.Object,
+            _hashProviderMock.Object,
+            _hashRegistryMock.Object,
+            [identifierMock.Object],
+            NullLogger<GameClientDetector>.Instance);
+
+        var zeroHourPath = Path.Combine(_tempDirectory, "ZeroHourEac");
+        Directory.CreateDirectory(zeroHourPath);
+
+        var wrapperPath = Path.Combine(zeroHourPath, GameClientConstants.GeneralsOnlineEacLauncherExecutable);
+        var sixtyHertzPath = Path.Combine(zeroHourPath, GameClientConstants.GeneralsOnline60HzExecutable);
+        await File.WriteAllTextAsync(wrapperPath, "dummy content");
+        await File.WriteAllTextAsync(sixtyHertzPath, "dummy content");
+
+        var installation = new GameInstallation("C:\\TestInstallEac", GameInstallationType.Steam)
+        {
+            HasZeroHour = true,
+            ZeroHourPath = zeroHourPath,
+        };
+
+        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("any_hash");
+
+        _contentManifestPoolMock
+            .Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var result = await detector.DetectGameClientsFromInstallationsAsync([installation]);
+
+        Assert.True(result.Success);
+        var generalsOnlineClients = result.Items
+            .Where(client => client.Name.Contains("GeneralsOnline", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var only = Assert.Single(generalsOnlineClients);
+        Assert.Equal(wrapperPath, only.ExecutablePath);
     }
 
     /// <summary>

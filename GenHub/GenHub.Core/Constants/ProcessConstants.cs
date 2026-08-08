@@ -82,4 +82,29 @@ public static class ProcessConstants
     /// Threshold in seconds to consider a process exit as "early" or "immediate".
     /// </summary>
     public const double EarlyExitThresholdSeconds = 10.0;
+
+    /// <summary>
+    /// How long to wait for a launcher's expected child process to appear. Measured spawn latency
+    /// for the Easy Anti-Cheat bootstrapper is well under two seconds. Must not exceed
+    /// <see cref="EarlyExitThresholdSeconds"/>, which bounds how old an adoptable process may be.
+    /// </summary>
+    public const int SpawnedChildDiscoveryTimeoutMs = 10_000;
+
+    /// <summary>
+    /// Interval in milliseconds between polls for a launcher's expected child process.
+    /// </summary>
+    public const int SpawnedChildPollIntervalMs = 100;
+
+    /// <summary>
+    /// How long to wait for an abandoned launcher to exit after it is killed. The launcher is
+    /// already being torn down on a cancelled launch, so this only bounds the cleanup.
+    /// </summary>
+    public const int AbandonedLauncherKillWaitMs = 2_000;
+
+    /// <summary>
+    /// How long to keep polling for the expected child after the launcher itself exits cleanly.
+    /// Covers the race between the child being spawned and becoming enumerable, without waiting
+    /// out <see cref="SpawnedChildDiscoveryTimeoutMs"/> once the launcher is known to be gone.
+    /// </summary>
+    public const int LauncherExitGracePeriodMs = 1_000;
 }
