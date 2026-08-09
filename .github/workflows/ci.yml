@@ -17,12 +17,22 @@ on:
     branches: [main, development, 'release/**']
   workflow_dispatch:
 
-# Keyed on branch name rather than PR number so that a push and a pull request describing the
-# same branch share a group. A release branch is normally the head of an open release PR, so
-# without this every push to it would start a second full matrix under a different key.
-# Feature branches are unaffected: they match no push filter, so only their PR run exists.
+# A release branch is normally the head of an open release PR, so a push to it would otherwise
+# start a second full matrix under a different key. Same-repository pull requests therefore share
+# a group with pushes describing the same branch, and collapse.
+#
+# Only same-repository heads are keyed by branch name. A fork's head ref is contributor-controlled,
+# so keying on it unconditionally would let a fork branch named `development`, `main` or
+# `release/*` land in a protected branch's group — and because cancel-in-progress is on for pull
+# requests, each push to that PR would cancel the protected branch's running CI. Fork pull requests
+# fall back to github.ref_name, which is `<pr-number>/merge` and therefore unique per PR.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
+  group: >-
+    ${{ github.workflow }}-${{
+      github.event.pull_request.head.repo.full_name == github.repository
+        && github.event.pull_request.head.ref
+        || github.ref_name
+    }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
