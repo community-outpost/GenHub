@@ -9,16 +9,20 @@ on:
   # today because an open release PR happens to point at main, which makes its head a pull_request
   # head — so coverage disappears the moment that PR merges or closes.
   push:
-    branches: [ main, development, 'release/**' ]
+    branches: [main, development, 'release/**']
 
   # Filters on the base branch, so without release/** a PR *into* a release branch gets no
   # pre-merge CI at all. That is how #343 and #368 merged unbuilt.
   pull_request:
-    branches: [ main, development, 'release/**' ]
+    branches: [main, development, 'release/**']
   workflow_dispatch:
 
+# Keyed on branch name rather than PR number so that a push and a pull request describing the
+# same branch share a group. A release branch is normally the head of an open release PR, so
+# without this every push to it would start a second full matrix under a different key.
+# Feature branches are unaffected: they match no push filter, so only their PR run exists.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
