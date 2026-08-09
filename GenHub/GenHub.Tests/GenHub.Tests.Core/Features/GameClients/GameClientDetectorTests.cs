@@ -393,6 +393,61 @@ public class GameClientDetectorTests : IDisposable
         Assert.Equal(wrapperPath, only.ExecutablePath);
         Assert.Equal(GameType.ZeroHour, only.GameType);
         Assert.Equal(GameClientConstants.GeneralsOnline60HzDisplayName, only.Name);
+
+        // IsPublisherClient turns on PublisherType alone. Without it the client reads as a base
+        // retail install, so version resolution treats it as the base game and the launcher UI
+        // never sees a publisher client.
+        Assert.Equal(PublisherTypeConstants.GeneralsOnline, only.PublisherType);
+        Assert.True(only.IsPublisherClient);
+    }
+
+    /// <summary>
+    /// One misbehaving identifier must not take the rest down with it. The caller's handler
+    /// swallows anything thrown here and returns null, so an escaping exception would drop the
+    /// executable entirely rather than falling through to the identifiers after it.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ScanDirectoryForGameClientsAsync_WhenAnIdentifierThrows_StillTriesTheRest()
+    {
+        var gameDir = Path.Combine(_tempDirectory, "GeneralsOnline");
+        Directory.CreateDirectory(gameDir);
+        var wrapperPath = Path.Combine(gameDir, GameClientConstants.GeneralsOnlineEacLauncherExecutable);
+        await File.WriteAllTextAsync(wrapperPath, "dummy content");
+
+        _hashProviderMock.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("unknown_hash_12345");
+
+        var manifestBuilderMock = new Mock<IContentManifestBuilder>();
+        manifestBuilderMock.Setup(x => x.Build())
+            .Returns(new ContentManifest { Id = ManifestId.Create("1.0.generalsonline.gameclient.generals-generalsonline-60hz") });
+
+        _manifestGenerationServiceMock.Setup(x => x.CreateGameClientManifestAsync(
+                It.IsAny<string>(), It.IsAny<GameType>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<PublisherInfo?>()))
+            .ReturnsAsync(manifestBuilderMock.Object);
+
+        _contentManifestPoolMock.Setup(x => x.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Throws from CanIdentify, which is the probe that runs before Identify.
+        var throwingIdentifier = new Mock<IGameClientIdentifier>();
+        throwingIdentifier.Setup(x => x.PublisherId).Returns("throwing");
+        throwingIdentifier.Setup(x => x.CanIdentify(It.IsAny<string>())).Throws(new InvalidOperationException("boom"));
+
+        var detector = new GameClientDetector(
+            _manifestGenerationServiceMock.Object,
+            _contentManifestPoolMock.Object,
+            _hashProviderMock.Object,
+            _hashRegistryMock.Object,
+            [throwingIdentifier.Object, new GeneralsOnlineClientIdentifier()],
+            NullLogger<GameClientDetector>.Instance);
+
+        var result = await detector.ScanDirectoryForGameClientsAsync(_tempDirectory);
+
+        Assert.True(result.Success);
+        var only = Assert.Single(result.Items);
+        Assert.Equal(GameType.ZeroHour, only.GameType);
+        Assert.Equal(GameClientConstants.GeneralsOnline60HzDisplayName, only.Name);
     }
 
     /// <summary>

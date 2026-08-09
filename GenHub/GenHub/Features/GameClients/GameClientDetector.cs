@@ -313,13 +313,15 @@ public class GameClientDetector(
     {
         foreach (var identifier in gameClientIdentifiers)
         {
-            if (!identifier.CanIdentify(executablePath))
-            {
-                continue;
-            }
-
             try
             {
+                // Inside the try: a throwing identifier must not stop the ones after it, and
+                // the caller's handler would swallow the executable entirely.
+                if (!identifier.CanIdentify(executablePath))
+                {
+                    continue;
+                }
+
                 var identification = identifier.Identify(executablePath);
                 if (identification == null)
                 {
@@ -342,6 +344,11 @@ public class GameClientDetector(
                     WorkingDirectory = workingDirectory,
                     InstallationId = string.Empty,
                     SourceType = ContentType.GameClient,
+
+                    // IsPublisherClient turns on this alone. Without it the client reads as a
+                    // base retail install, so version resolution picks it as the base game and
+                    // the launcher UI does not see a publisher client at all.
+                    PublisherType = identification.PublisherId,
                 };
             }
             catch (Exception ex)
