@@ -5,10 +5,16 @@ permissions:
   pull-requests: write
 
 on:
+  # release/** is covered explicitly rather than incidentally. A release branch is only built
+  # today because an open release PR happens to point at main, which makes its head a pull_request
+  # head — so coverage disappears the moment that PR merges or closes.
   push:
-    branches: [ main, development]
+    branches: [ main, development, 'release/**' ]
+
+  # Filters on the base branch, so without release/** a PR *into* a release branch gets no
+  # pre-merge CI at all. That is how #343 and #368 merged unbuilt.
   pull_request:
-    branches: [ main, development]
+    branches: [ main, development, 'release/**' ]
   workflow_dispatch:
 
 concurrency:
