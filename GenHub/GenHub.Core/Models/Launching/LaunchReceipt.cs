@@ -58,6 +58,19 @@ public class LaunchReceipt
     public Dictionary<string, string> EnvironmentVariableHashes { get; set; } = [];
 
     /// <summary>
+    /// Gets or sets the random salt the environment value hashes were computed with, so the
+    /// same value hashes differently in every receipt.
+    /// </summary>
+    /// <remarks>
+    /// Comparison always runs against the receipt that carries the salt, so drift detection is
+    /// unaffected. This does not defeat an attacker who holds the receipt and guesses likely
+    /// values — they hold the salt too — but it does stop precomputed tables, and it stops
+    /// receipts being compared across hosts or profiles to confirm that two installations share
+    /// a value without ever recovering it.
+    /// </remarks>
+    public string EnvironmentHashSalt { get; set; } = string.Empty;
+
+    /// <summary>
     /// Gets or sets the resolved variant and entry-point identity that determined what was
     /// launched. Null when the profile carried no game client manifest: the legacy fallback
     /// resolves the executable by filename search and no variant machinery participates, so

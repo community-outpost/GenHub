@@ -441,6 +441,33 @@ public class LaunchReceiptServiceTests : IDisposable
     }
 
     /// <summary>
+    /// The same environment value hashes differently in two receipts, so receipts cannot be
+    /// compared across hosts or profiles to confirm a shared value. Drift still resolves,
+    /// because comparison runs against the receipt that carries the salt.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task RecordLaunchAsync_SaltsEnvironmentHashesPerReceipt()
+    {
+        await _service.RecordLaunchAsync(CreateContext());
+        var first = await ReadReceiptAsync();
+
+        await _service.RecordLaunchAsync(CreateContext());
+        var second = await ReadReceiptAsync();
+
+        Assert.NotEqual(first.EnvironmentHashSalt, second.EnvironmentHashSalt);
+        Assert.NotEmpty(first.EnvironmentHashSalt);
+        Assert.NotEqual(
+            first.EnvironmentVariableHashes["GENHUB_TEST_VARIABLE"],
+            second.EnvironmentVariableHashes["GENHUB_TEST_VARIABLE"]);
+
+        Assert.False(_service.CompareUpcomingLaunch(first, CreateContext()).HasDrift);
+        Assert.Contains(
+            _service.CompareUpcomingLaunch(first, CreateContext(environmentValue: "beta")).DriftedFields,
+            f => f.Contains("GENHUB_TEST_VARIABLE") && f.Contains("changed value"));
+    }
+
+    /// <summary>
     /// A changed profile-defined environment variable is reported as drift naming the
     /// variable, without either value appearing in the message.
     /// </summary>
