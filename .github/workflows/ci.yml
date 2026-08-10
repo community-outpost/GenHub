@@ -597,7 +597,9 @@ jobs:
 
   summary:
     name: Build Summary
-    needs: [build-windows, build-linux, build-macos, engine-launch-smoke]
+    # detect-changes is in `needs` so its own failure reaches the gate below. Without it a
+    # failed detect-changes skips every build, and all-skipped reads as a clean pass.
+    needs: [detect-changes, build-windows, build-linux, build-macos, engine-launch-smoke]
     if: always()
     runs-on: ubuntu-latest
     steps:
