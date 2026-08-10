@@ -42,13 +42,20 @@ public class LaunchReceipt
     public Dictionary<string, LaunchReceiptArchiveRoot> ArchiveRoots { get; set; } = [];
 
     /// <summary>
-    /// Gets or sets the environment variables GenHub itself set for the child process: the
-    /// built launch environment — retail archive roots plus any profile-defined variables.
+    /// Gets or sets a hash per environment variable GenHub itself set for the child process:
+    /// the built launch environment — retail archive roots plus any profile-defined variables.
     /// The inherited process environment is deliberately not recorded; it is large, differs
     /// between hosts without meaning anything for the launch, and can carry secrets that a
     /// receipt on disk must never capture.
     /// </summary>
-    public Dictionary<string, string> EnvironmentVariables { get; set; } = [];
+    /// <remarks>
+    /// Values are hashed rather than stored, because a profile-defined variable can itself
+    /// carry a secret and detecting drift only needs to know that a value changed, not what
+    /// it changed to. Archive root paths are exempt and recorded in full under
+    /// <see cref="ArchiveRoots"/>: they are locations, not credentials, and naming them is
+    /// what makes a misconfigured root actionable.
+    /// </remarks>
+    public Dictionary<string, string> EnvironmentVariableHashes { get; set; } = [];
 
     /// <summary>
     /// Gets or sets the resolved variant and entry-point identity that determined what was

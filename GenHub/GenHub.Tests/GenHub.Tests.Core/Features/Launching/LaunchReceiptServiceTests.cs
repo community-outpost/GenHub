@@ -263,6 +263,25 @@ public class LaunchReceiptServiceTests : IDisposable
     }
 
     /// <summary>
+    /// A receipt that parses but carries null fields is reported as drift, not thrown.
+    /// Revalidation is awaited on the launch path, so an escaping exception would fail the
+    /// launch — which drift is never allowed to do.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task RevalidateAsync_WithNullReceiptFields_ReportsDriftWithoutThrowing()
+    {
+        await File.WriteAllTextAsync(
+            Path.Combine(_workspacePath, FileTypes.LaunchReceiptFileName),
+            """{"SchemaVersion":1,"Executable":null,"ArchiveRoots":null,"EnvironmentVariableHashes":null}""");
+
+        var result = await _service.RevalidateAsync(_workspacePath);
+
+        Assert.True(result.Success);
+        Assert.True(result.Data!.HasReceipt);
+    }
+
+    /// <summary>
     /// An upcoming launch identical to the recorded one reports no configuration drift, and
     /// revalidation hands back the parsed receipt for that comparison.
     /// </summary>
@@ -405,7 +424,7 @@ public class LaunchReceiptServiceTests : IDisposable
         await _service.RecordLaunchAsync(CreateContext());
 
         var receipt = await ReadReceiptAsync();
-        Assert.Equal("alpha", receipt.EnvironmentVariables["GENHUB_TEST_VARIABLE"]);
+        Assert.Contains("GENHUB_TEST_VARIABLE", receipt.EnvironmentVariableHashes.Keys);
         Assert.NotNull(receipt.Variant);
         Assert.Equal("1.0.genhub.mod.test", receipt.Variant.GameClientManifestId);
         Assert.Equal("generalszh", receipt.Variant.EntryPointRelativePath);
@@ -418,7 +437,7 @@ public class LaunchReceiptServiceTests : IDisposable
 
     /// <summary>
     /// A changed profile-defined environment variable is reported as drift naming the
-    /// variable and both values.
+    /// variable, without either value appearing in the message.
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
@@ -431,7 +450,30 @@ public class LaunchReceiptServiceTests : IDisposable
 
         Assert.True(report.HasDrift);
         Assert.Contains(report.DriftedFields, f =>
-            f.Contains("GENHUB_TEST_VARIABLE") && f.Contains("changed from alpha to beta"));
+            f.Contains("GENHUB_TEST_VARIABLE") && f.Contains("changed value"));
+        Assert.DoesNotContain(report.DriftedFields, f => f.Contains("alpha") || f.Contains("beta"));
+    }
+
+    /// <summary>
+    /// A profile-defined environment value never reaches the receipt on disk, nor the drift
+    /// messages that carry it into the log and the post-launch notice.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task RecordLaunchAsync_DoesNotPersistEnvironmentValues()
+    {
+        const string secret = "s3cr3t-token-value";
+
+        await _service.RecordLaunchAsync(CreateContext(environmentValue: secret));
+
+        var receiptJson = await File.ReadAllTextAsync(
+            Path.Combine(_workspacePath, FileTypes.LaunchReceiptFileName));
+        Assert.DoesNotContain(secret, receiptJson, StringComparison.Ordinal);
+        Assert.Contains("GENHUB_TEST_VARIABLE", receiptJson, StringComparison.Ordinal);
+
+        var receipt = await ReadReceiptAsync();
+        var report = _service.CompareUpcomingLaunch(receipt, CreateContext(environmentValue: "replacement"));
+        Assert.DoesNotContain(report.DriftedFields, f => f.Contains(secret));
     }
 
     /// <summary>
