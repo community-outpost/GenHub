@@ -1596,6 +1596,19 @@ public partial class GameProfileLauncherViewModel(
                 profile.IsProcessRunning = false;
                 profile.ProcessId = 0;
                 logger.LogInformation("Updated profile {ProfileName} - process no longer running", profile.Name);
+
+                // The late-failure channel's user-facing end. A launch that outlived the
+                // post-spawn detection window was announced as running; if it then died
+                // abnormally, clearing the running state alone would leave the user with
+                // a game that silently vanished. Same channel as a failed launch:
+                // status, error message, and a notification.
+                var failureReason = e.DescribeFailure();
+                if (failureReason != null)
+                {
+                    StatusMessage = $"{profile.Name} exited unexpectedly";
+                    ErrorMessage = failureReason;
+                    notificationService.ShowError("Game Exited Unexpectedly", $"{profile.Name}: {failureReason}");
+                }
             }
         }
         catch (Exception ex)

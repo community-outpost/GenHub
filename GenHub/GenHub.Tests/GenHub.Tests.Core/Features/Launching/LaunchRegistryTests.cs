@@ -1,3 +1,5 @@
+using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Models.Events;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Launching;
 using GenHub.Features.Launching;
@@ -86,5 +88,266 @@ public class LaunchRegistryTests
 
         // Assert
         Assert.Null(result);
+    }
+
+    /// <summary>
+    /// The placeholder-PID race: the launcher registers a launch with PID -1 before
+    /// spawning and records the real PID only after the start operation returns. An
+    /// exit event landing in that gap matches nothing — it must be buffered and applied
+    /// when the registration with the real PID arrives, failure evidence intact.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ExitEventBeforePidRegistration_IsAppliedWhenTheRealPidArrives()
+    {
+        var processManager = new Mock<IGameProcessManager>();
+        var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), null, processManager.Object);
+
+        const int realPid = 987654;
+        const string launchId = "race-launch";
+
+        // 1. Placeholder registration, exactly as GameLauncher does it.
+        await registry.RegisterLaunchAsync(new GameLaunchInfo
+        {
+            LaunchId = launchId,
+            ProfileId = "profile1",
+            WorkspaceId = string.Empty,
+            ProcessInfo = new GameProcessInfo { ProcessId = -1 },
+        });
+
+        // 2. The process dies before the registry has learned its PID.
+        processManager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
+        {
+            ProcessId = realPid,
+            ExitCode = 1,
+            StandardErrorTail = "init abort",
+            UnmountableArchives = ["TexturesZH.big"],
+        });
+
+        // 3. The launcher then updates the entry with the real PID.
+        await registry.RegisterLaunchAsync(new GameLaunchInfo
+        {
+            LaunchId = launchId,
+            ProfileId = "profile1",
+            WorkspaceId = "workspace1",
+            ProcessInfo = new GameProcessInfo { ProcessId = realPid },
+        });
+
+        var launch = await registry.GetLaunchInfoAsync(launchId);
+
+        Assert.NotNull(launch);
+        Assert.True(launch!.HasFailed);
+        Assert.Equal(1, launch.ExitCode);
+        Assert.False(launch.IsRunning);
+        Assert.Contains("TexturesZH.big", launch.FailureReason);
+    }
+
+    /// <summary>
+    /// Double delivery: the same exit seen both before the PID update (buffered, applied
+    /// at registration) and after it (matched directly) must neither duplicate nor
+    /// contradict the recorded failure.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ExitEventDeliveredBeforeAndAfterPidRegistration_IsRecordedOnce()
+    {
+        var processManager = new Mock<IGameProcessManager>();
+        var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), null, processManager.Object);
+
+        const int realPid = 987655;
+        const string launchId = "double-delivery-launch";
+
+        await registry.RegisterLaunchAsync(new GameLaunchInfo
+        {
+            LaunchId = launchId,
+            ProfileId = "profile1",
+            WorkspaceId = string.Empty,
+            ProcessInfo = new GameProcessInfo { ProcessId = -1 },
+        });
+
+        var exitEvent = new GameProcessExitedEventArgs
+        {
+            ProcessId = realPid,
+            ExitCode = 1,
+            StandardErrorTail = "init abort",
+            UnmountableArchives = ["INIZH.big"],
+        };
+
+        processManager.Raise(m => m.ProcessExited += null, exitEvent);
+
+        await registry.RegisterLaunchAsync(new GameLaunchInfo
+        {
+            LaunchId = launchId,
+            ProfileId = "profile1",
+            WorkspaceId = "workspace1",
+            ProcessInfo = new GameProcessInfo { ProcessId = realPid },
+        });
+
+        var afterFirst = await registry.GetLaunchInfoAsync(launchId);
+        var recordedReason = afterFirst!.FailureReason;
+        var recordedAt = afterFirst.TerminatedAt;
+
+        // The same exit surfaces again, now matching the registered PID directly.
+        processManager.Raise(m => m.ProcessExited += null, exitEvent);
+
+        var afterSecond = await registry.GetLaunchInfoAsync(launchId);
+
+        Assert.NotNull(afterSecond);
+        Assert.True(afterSecond!.HasFailed);
+        Assert.Equal(1, afterSecond.ExitCode);
+        Assert.Equal(recordedReason, afterSecond.FailureReason);
+        Assert.Equal(recordedAt, afterSecond.TerminatedAt);
+    }
+
+    /// <summary>
+    /// The stranding interleaving: the exit handler's lookup misses, and the
+    /// registration carrying the real PID starts precisely before the handler's buffer
+    /// write lands. Without atomicity the registration drains a still-empty buffer and
+    /// the event strands until it expires. The test seam pauses the handler in exactly
+    /// that window while the registration runs on another thread; the lock forces the
+    /// registration to wait, so the buffered event must still be applied.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ExitEventInterleavedWithRegistration_IsNotStranded()
+    {
+        var processManager = new Mock<IGameProcessManager>();
+        var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), null, processManager.Object);
+
+        const int realPid = 987657;
+        const string launchId = "stranding-launch";
+
+        await registry.RegisterLaunchAsync(new GameLaunchInfo
+        {
+            LaunchId = launchId,
+            ProfileId = "profile1",
+            WorkspaceId = string.Empty,
+            ProcessInfo = new GameProcessInfo { ProcessId = -1 },
+        });
+
+        using var handlerInWindow = new ManualResetEventSlim(false);
+        using var releaseHandler = new ManualResetEventSlim(false);
+        registry.PendingExitBufferingHook = () =>
+        {
+            handlerInWindow.Set();
+            releaseHandler.Wait(TimeSpan.FromSeconds(10));
+        };
+
+        // The exit event arrives; its lookup misses (only the placeholder is known) and
+        // the handler is now paused between that miss and its buffer write.
+        var exitDelivery = Task.Run(() => processManager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
+        {
+            ProcessId = realPid,
+            ExitCode = 1,
+            StandardErrorTail = "init abort",
+            UnmountableArchives = ["TexturesZH.big"],
+        }));
+
+        Assert.True(handlerInWindow.Wait(TimeSpan.FromSeconds(10)), "The exit handler never reached the buffering window.");
+
+        // The registration with the real PID is started inside that window — the exact
+        // schedule that would drain an empty buffer and strand the event.
+        var registration = Task.Run(() => registry.RegisterLaunchAsync(new GameLaunchInfo
+        {
+            LaunchId = launchId,
+            ProfileId = "profile1",
+            WorkspaceId = "workspace1",
+            ProcessInfo = new GameProcessInfo { ProcessId = realPid },
+        }));
+
+        releaseHandler.Set();
+        await exitDelivery;
+        await registration;
+
+        var launch = await registry.GetLaunchInfoAsync(launchId);
+
+        Assert.NotNull(launch);
+        Assert.True(launch!.HasFailed, "The exit event was stranded in the pending buffer instead of being applied.");
+        Assert.Equal(1, launch.ExitCode);
+        Assert.False(launch.IsRunning);
+        Assert.Contains("TexturesZH.big", launch.FailureReason);
+    }
+
+    /// <summary>
+    /// A termination the user asked for kills the process, and the kill exits non-zero;
+    /// that must record a normal termination, not a failure.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task RequestedTerminationWithNonZeroExit_IsNotRecordedAsAFailure()
+    {
+        var processManager = new Mock<IGameProcessManager>();
+        var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), null, processManager.Object);
+
+        const int realPid = 987658;
+        const string launchId = "requested-stop-launch";
+
+        await registry.RegisterLaunchAsync(new GameLaunchInfo
+        {
+            LaunchId = launchId,
+            ProfileId = "profile1",
+            WorkspaceId = "workspace1",
+            ProcessInfo = new GameProcessInfo { ProcessId = realPid },
+        });
+
+        processManager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
+        {
+            ProcessId = realPid,
+            ExitCode = 137,
+            TerminationRequested = true,
+        });
+
+        var launch = await registry.GetLaunchInfoAsync(launchId);
+
+        Assert.NotNull(launch);
+        Assert.False(launch!.HasFailed);
+        Assert.Null(launch.FailureReason);
+        Assert.Equal(137, launch.ExitCode);
+        Assert.False(launch.IsRunning);
+    }
+
+    /// <summary>
+    /// A clean exit buffered across the same race is applied as a normal termination:
+    /// the launch ends, but it is not marked as failed.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CleanExitBufferedAcrossTheRace_TerminatesWithoutFailure()
+    {
+        var processManager = new Mock<IGameProcessManager>();
+        var registry = new LaunchRegistry(Mock.Of<ILogger<LaunchRegistry>>(), null, processManager.Object);
+
+        const int realPid = 987656;
+        const string launchId = "clean-exit-launch";
+
+        await registry.RegisterLaunchAsync(new GameLaunchInfo
+        {
+            LaunchId = launchId,
+            ProfileId = "profile1",
+            WorkspaceId = string.Empty,
+            ProcessInfo = new GameProcessInfo { ProcessId = -1 },
+        });
+
+        processManager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
+        {
+            ProcessId = realPid,
+            ExitCode = 0,
+        });
+
+        await registry.RegisterLaunchAsync(new GameLaunchInfo
+        {
+            LaunchId = launchId,
+            ProfileId = "profile1",
+            WorkspaceId = "workspace1",
+            ProcessInfo = new GameProcessInfo { ProcessId = realPid },
+        });
+
+        var launch = await registry.GetLaunchInfoAsync(launchId);
+
+        Assert.NotNull(launch);
+        Assert.False(launch!.HasFailed);
+        Assert.Null(launch.FailureReason);
+        Assert.Equal(0, launch.ExitCode);
+        Assert.False(launch.IsRunning);
     }
 }

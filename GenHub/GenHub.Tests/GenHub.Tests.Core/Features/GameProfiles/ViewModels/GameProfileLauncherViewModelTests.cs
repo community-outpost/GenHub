@@ -11,6 +11,7 @@ using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Core.Interfaces.Steam;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Events;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.GameProfile;
@@ -311,6 +312,122 @@ public class GameProfileLauncherViewModelTests
         Assert.Equal($"Test Profile {string.Format(ProfileConstants.CopyNameNumberedFormat, 3)}", uniqueName);
     }
 
+    /// <summary>
+    /// A process that dies after the launch was announced as running must not vanish
+    /// silently: the late failure surfaces through the same status, error, and
+    /// notification channel as a failed launch, naming the archive when known.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ProcessExitedWithFailure_SurfacesTheFailureToTheUser()
+    {
+        var gameProcessManager = new Mock<IGameProcessManager>();
+        var notificationService = new Mock<INotificationService>();
+        var vm = CreateViewModelWithMockDependencies(gameProcessManager, notificationService);
+
+        // InitializeAsync is where the view model subscribes to ProcessExited.
+        await vm.InitializeAsync();
+
+        var profile = CreateProfileItem("Failing Profile");
+        profile.ProcessId = 4242;
+        profile.IsProcessRunning = true;
+        vm.Profiles.Add(profile);
+
+        gameProcessManager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
+        {
+            ProcessId = 4242,
+            ExitCode = 1,
+            StandardErrorTail = "init abort",
+            UnmountableArchives = ["TexturesZH.big"],
+        });
+
+        Assert.False(profile.IsProcessRunning);
+        Assert.Equal(0, profile.ProcessId);
+        Assert.Contains("exited unexpectedly", vm.StatusMessage);
+        Assert.Contains("Failing Profile", vm.StatusMessage);
+        Assert.Contains("TexturesZH.big", vm.ErrorMessage);
+        notificationService.Verify(
+            n => n.ShowError(
+                "Game Exited Unexpectedly",
+                It.Is<string>(s => s.Contains("TexturesZH.big") && s.Contains("Failing Profile")),
+                It.IsAny<int?>(),
+                It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// A clean exit is the user quitting: the running state clears and nothing is
+    /// reported as an error.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ProcessExitedCleanly_DoesNotReportAFailure()
+    {
+        var gameProcessManager = new Mock<IGameProcessManager>();
+        var notificationService = new Mock<INotificationService>();
+        var vm = CreateViewModelWithMockDependencies(gameProcessManager, notificationService);
+
+        // InitializeAsync is where the view model subscribes to ProcessExited.
+        await vm.InitializeAsync();
+
+        var profile = CreateProfileItem("Quitting Profile");
+        profile.ProcessId = 4243;
+        profile.IsProcessRunning = true;
+        vm.Profiles.Add(profile);
+
+        gameProcessManager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
+        {
+            ProcessId = 4243,
+            ExitCode = 0,
+        });
+
+        Assert.False(profile.IsProcessRunning);
+        Assert.Equal(0, profile.ProcessId);
+        Assert.Equal(string.Empty, vm.ErrorMessage);
+        notificationService.Verify(
+            n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// A stop the user asked for kills the process with a non-zero exit code; that must
+    /// not raise the "exited unexpectedly" alarm — the stop path's own status stands.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ProcessExitedFromARequestedStop_DoesNotRaiseTheFailureAlarm()
+    {
+        var gameProcessManager = new Mock<IGameProcessManager>();
+        var notificationService = new Mock<INotificationService>();
+        var vm = CreateViewModelWithMockDependencies(gameProcessManager, notificationService);
+
+        // InitializeAsync is where the view model subscribes to ProcessExited.
+        await vm.InitializeAsync();
+
+        var profile = CreateProfileItem("Stopped Profile");
+        profile.ProcessId = 4244;
+        profile.IsProcessRunning = true;
+        vm.Profiles.Add(profile);
+
+        // The status a completed stop leaves behind; the exit event must not replace it.
+        vm.StatusMessage = "Stopped Profile stopped successfully";
+
+        gameProcessManager.Raise(m => m.ProcessExited += null, new GameProcessExitedEventArgs
+        {
+            ProcessId = 4244,
+            ExitCode = 137,
+            TerminationRequested = true,
+        });
+
+        Assert.False(profile.IsProcessRunning);
+        Assert.Equal(0, profile.ProcessId);
+        Assert.Equal("Stopped Profile stopped successfully", vm.StatusMessage);
+        Assert.Equal(string.Empty, vm.ErrorMessage);
+        notificationService.Verify(
+            n => n.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
     private static ProfileResourceService CreateProfileResourceService()
     {
         return new ProfileResourceService(NullLogger<ProfileResourceService>.Instance);
@@ -346,7 +463,30 @@ public class GameProfileLauncherViewModelTests
     /// <returns>A GameProfileLauncherViewModel instance for testing.</returns>
     private static GameProfileLauncherViewModel CreateViewModelWithMockDependencies()
     {
+        return CreateViewModelWithMockDependencies(
+            new Mock<IGameProcessManager>(),
+            new Mock<INotificationService>());
+    }
+
+    /// <summary>
+    /// Creates a GameProfileLauncherViewModel wired to the given process manager and
+    /// notification mocks, so tests can raise process events and observe notifications.
+    /// </summary>
+    /// <param name="gameProcessManager">The process manager mock the view model subscribes to.</param>
+    /// <param name="notificationService">The notification service mock to observe.</param>
+    /// <returns>A GameProfileLauncherViewModel instance for testing.</returns>
+    private static GameProfileLauncherViewModel CreateViewModelWithMockDependencies(
+        Mock<IGameProcessManager> gameProcessManager,
+        Mock<INotificationService> notificationService)
+    {
         var gameProfileManager = new Mock<IGameProfileManager>();
+
+        // InitializeAsync must complete cleanly: it is what subscribes the view model to
+        // ProcessExited, and a failed profile load would pollute the error state these
+        // tests assert on.
+        gameProfileManager
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
 
         return new GameProfileLauncherViewModel(
             new Mock<IGameInstallationService>().Object,
@@ -368,15 +508,30 @@ public class GameProfileLauncherViewModelTests
                 NullLogger<GameSettingsViewModel>.Instance),
             new Mock<IProfileEditorFacade>().Object,
             new Mock<IConfigurationProviderService>().Object,
-            new Mock<IGameProcessManager>().Object,
+            gameProcessManager.Object,
             new Mock<IShortcutService>().Object,
             new Mock<IPublisherProfileOrchestrator>().Object,
             new Mock<ISteamManifestPatcher>().Object,
             CreateProfileResourceService(),
             new Mock<IGameClientDetector>().Object,
-            new Mock<INotificationService>().Object,
+            notificationService.Object,
             new Mock<ISetupWizardService>().Object,
             new Mock<IDialogService>().Object,
             NullLogger<GameProfileLauncherViewModel>.Instance);
+    }
+
+    /// <summary>
+    /// Creates a profile item view model backed by a mocked profile.
+    /// </summary>
+    /// <param name="name">The profile name.</param>
+    /// <returns>A profile item for the launcher's collection.</returns>
+    private static GameProfileItemViewModel CreateProfileItem(string name)
+    {
+        var profile = new Mock<IGameProfile>();
+        profile.SetupGet(p => p.Name).Returns(name);
+        profile.SetupGet(p => p.Version).Returns("1.0");
+        profile.SetupGet(p => p.ExecutablePath).Returns(string.Empty);
+
+        return new GameProfileItemViewModel("profile-1", profile.Object, string.Empty, string.Empty);
     }
 }

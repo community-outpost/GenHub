@@ -59,9 +59,31 @@ public static class ProcessConstants
     // Process discovery and timing constants
 
     /// <summary>
-    /// Delay in milliseconds to wait before checking if a process has exited (launcher detection).
+    /// Minimum time in milliseconds a Windows launcher stub's child is given to appear,
+    /// measured from launch, before it is searched for.
     /// </summary>
+    /// <remarks>
+    /// Formerly the fixed delay before the single exited-yet check. Exit detection now
+    /// waits on the process itself (see <see cref="PostSpawnExitDetectionWindowMs"/>),
+    /// which can observe a stub exiting well before 500 ms; this floor preserves the time
+    /// the fixed delay always gave the spawned game process to register.
+    /// </remarks>
     public const int LauncherDetectionDelayMs = 500;
+
+    /// <summary>
+    /// Bounded window in milliseconds during which a just-started game process is watched
+    /// for an early exit before the launch is reported successful.
+    /// </summary>
+    /// <remarks>
+    /// Sized from measurement rather than guessed. The native Zero Hour client aborting
+    /// initialisation in an empty workspace exits 1 after roughly 0.8–0.9 s once warm
+    /// (macOS, Apple Silicon), so three seconds is ~3x the observed abort, absorbing slow
+    /// disks and emulation. The very first run of a freshly copied binary can take 3–5 s
+    /// because macOS validates the new inode before execution; an abort that slow falls
+    /// outside the window and is reported through the process-exited event instead of the
+    /// launch result.
+    /// </remarks>
+    public const int PostSpawnExitDetectionWindowMs = 3000;
 
     /// <summary>
     /// Interval in milliseconds for process cleanup / reconciliation background task.
