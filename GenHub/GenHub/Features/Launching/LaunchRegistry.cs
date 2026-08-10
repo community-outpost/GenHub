@@ -22,12 +22,13 @@ public class LaunchRegistry : ILaunchRegistry
     /// How long an exit event that matched no launch is kept for a late registration.
     /// </summary>
     /// <remarks>
-    /// Generous against the actual gap, which is the time between a start operation
-    /// returning and the launcher updating the registry — milliseconds. Bounded because
-    /// PIDs are recycled: an event held indefinitely could be applied to an unrelated
-    /// later launch that happened to receive the same PID.
+    /// The gap this covers is the time between a start operation returning and the launcher
+    /// updating the registry — milliseconds. Two seconds is three orders of magnitude of
+    /// margin against that while keeping the window small, because the buffer is keyed by
+    /// PID and Windows recycles PIDs: a stale event drained by a later launch that happened
+    /// to receive the same PID would mark a running game as terminated.
     /// </remarks>
-    private static readonly TimeSpan PendingExitRetention = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan PendingExitRetention = TimeSpan.FromSeconds(2);
 
     private readonly ILogger<LaunchRegistry> _logger;
     private readonly IWorkspaceManager? _workspaceManager;
@@ -192,11 +193,23 @@ public class LaunchRegistry : ILaunchRegistry
         // write drains an empty buffer, and this event strands until it expires.
         lock (_exitSync)
         {
-            // Find launch info by process ID
-            var launch = _activeLaunches.Values.FirstOrDefault(l => l.ProcessInfo.ProcessId == e.ProcessId);
+            // Find the live launch holding this PID. Terminated launches keep their PID in
+            // the registry, so a recycled PID would otherwise match the dead launch first
+            // and lose the event to the idempotency guard rather than applying it to the
+            // live launch the PID now belongs to.
+            var launch = _activeLaunches.Values.FirstOrDefault(
+                l => l.ProcessInfo.ProcessId == e.ProcessId && !l.TerminatedAt.HasValue);
             if (launch != null)
             {
                 ApplyProcessExit(launch, e);
+                return;
+            }
+
+            // Only a terminated launch holds this PID, so this is the second delivery of an
+            // exit already applied through the buffer. Absorb it: buffering it here would
+            // hand a spent event to whichever launch next receives this PID.
+            if (_activeLaunches.Values.Any(l => l.ProcessInfo.ProcessId == e.ProcessId))
+            {
                 return;
             }
 
