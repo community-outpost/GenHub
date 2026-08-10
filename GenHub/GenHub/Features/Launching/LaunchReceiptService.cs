@@ -2,11 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Models.Launching;
@@ -64,7 +67,7 @@ public class LaunchReceiptService(
 
             foreach (var (variableName, value) in context.EnvironmentVariables)
             {
-                receipt.EnvironmentVariables[variableName] = value;
+                receipt.EnvironmentVariableHashes[variableName] = HashEnvironmentValue(value);
             }
 
             foreach (var variableName in RetailArchiveConstants.InstallPathVariables)
@@ -125,10 +128,34 @@ public class LaunchReceiptService(
         }
 
         report.Receipt = receipt;
-        CompareExecutable(receipt.Executable, report);
-        foreach (var (variableName, recordedRoot) in receipt.ArchiveRoots)
+
+        // Guarded as widely as the parse above. A receipt that parses but carries null or
+        // malformed fields must degrade to a drift line, never to an exception: revalidation
+        // is awaited on the launch path, so anything escaping here fails the launch through
+        // LaunchProfileAsync's catch-all — the opposite of the guarantee this method makes.
+        try
         {
-            CompareArchiveRoot(variableName, recordedRoot, report);
+            if (receipt.Executable is not null)
+            {
+                CompareExecutable(receipt.Executable, report);
+            }
+
+            var recordedRoots = receipt.ArchiveRoots;
+            if (recordedRoots is not null)
+            {
+                foreach (var (variableName, recordedRoot) in recordedRoots)
+                {
+                    if (recordedRoot is not null)
+                    {
+                        CompareArchiveRoot(variableName, recordedRoot, report);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Launch receipt at {ReceiptPath} could not be revalidated", receiptPath);
+            report.DriftedFields.Add($"Receipt could not be revalidated: {receiptPath} ({ex.Message})");
         }
 
         return OperationResult<LaunchReceiptDriftReport>.CreateSuccess(report);
@@ -180,14 +207,28 @@ public class LaunchReceiptService(
     /// Compares two paths ignoring a trailing directory separator, which the archive root
     /// variables carry by engine requirement and other paths do not.
     /// </summary>
+    /// <remarks>
+    /// Separators are normalised and the comparison follows platform casing rules, so the
+    /// same location written two ways is not reported as drift. Compared as text rather than
+    /// resolved through the filesystem: this runs before the launch and a recorded path that
+    /// no longer exists is drift to report, not an exception to throw.
+    /// </remarks>
     /// <param name="left">One path.</param>
     /// <param name="right">The other path.</param>
     /// <returns>Whether the paths are equal.</returns>
     private static bool PathsEqual(string left, string right) =>
-        string.Equals(
-            Path.TrimEndingDirectorySeparator(left),
-            Path.TrimEndingDirectorySeparator(right),
-            StringComparison.Ordinal);
+        string.Equals(NormalizePath(left), NormalizePath(right), PathHelper.PathComparison);
+
+    /// <summary>
+    /// Normalises a path for comparison by unifying separators and dropping a trailing one.
+    /// </summary>
+    /// <param name="path">The path to normalise.</param>
+    /// <returns>The normalised path.</returns>
+    private static string NormalizePath(string path) =>
+        string.IsNullOrEmpty(path)
+            ? string.Empty
+            : Path.TrimEndingDirectorySeparator(
+                path.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar));
 
     /// <summary>
     /// Compares the recorded manifest set and versions against the upcoming launch's.
@@ -280,7 +321,10 @@ public class LaunchReceiptService(
     /// <param name="report">The report drifted fields are added to.</param>
     private static void CompareEnvironment(LaunchReceipt receipt, LaunchReceiptContext upcoming, LaunchReceiptDriftReport report)
     {
-        foreach (var (variableName, recordedValue) in receipt.EnvironmentVariables)
+        // Names, never values. These lines reach the log and the post-launch notice, both of
+        // which travel further than the machine that produced them, and a profile-defined
+        // variable can carry a credential. Which variable changed is the actionable part.
+        foreach (var (variableName, recordedHash) in receipt.EnvironmentVariableHashes)
         {
             if (IsArchiveRootVariable(variableName))
             {
@@ -289,24 +333,32 @@ public class LaunchReceiptService(
 
             if (!upcoming.EnvironmentVariables.TryGetValue(variableName, out var upcomingValue))
             {
-                report.DriftedFields.Add($"Environment variable {variableName} no longer set; was {recordedValue}");
+                report.DriftedFields.Add($"Environment variable {variableName} is no longer set");
             }
-            else if (!string.Equals(recordedValue, upcomingValue, StringComparison.Ordinal))
+            else if (!string.Equals(recordedHash, HashEnvironmentValue(upcomingValue), StringComparison.Ordinal))
             {
-                report.DriftedFields.Add(
-                    $"Environment variable {variableName} changed from {recordedValue} to {upcomingValue}");
+                report.DriftedFields.Add($"Environment variable {variableName} changed value");
             }
         }
 
-        foreach (var (variableName, upcomingValue) in upcoming.EnvironmentVariables)
+        foreach (var (variableName, _) in upcoming.EnvironmentVariables)
         {
             if (!IsArchiveRootVariable(variableName) &&
-                !receipt.EnvironmentVariables.ContainsKey(variableName))
+                !receipt.EnvironmentVariableHashes.ContainsKey(variableName))
             {
-                report.DriftedFields.Add($"Environment variable {variableName} newly set: {upcomingValue}");
+                report.DriftedFields.Add($"Environment variable {variableName} is newly set");
             }
         }
     }
+
+    /// <summary>
+    /// Hashes an environment variable value so drift can be detected without the receipt, the
+    /// log or the post-launch notice ever carrying the value itself.
+    /// </summary>
+    /// <param name="value">The value to hash.</param>
+    /// <returns>The lowercase hexadecimal SHA-256 of the value.</returns>
+    private static string HashEnvironmentValue(string value) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value ?? string.Empty))).ToLowerInvariant();
 
     /// <summary>
     /// Determines whether a variable is one of the retail archive root variables.
