@@ -279,6 +279,11 @@ public class LaunchReceiptServiceTests : IDisposable
 
         Assert.True(result.Success);
         Assert.True(result.Data!.HasReceipt);
+
+        // The comparison path runs on the same launch and reads the same null collections,
+        // so tolerating them on read alone would still fail the launch a step later.
+        var report = _service.CompareUpcomingLaunch(result.Data.Receipt!, CreateContext());
+        Assert.NotNull(report);
     }
 
     /// <summary>

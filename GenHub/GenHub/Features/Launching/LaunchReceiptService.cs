@@ -169,28 +169,41 @@ public class LaunchReceiptService(
 
         var report = new LaunchReceiptDriftReport { HasReceipt = true, Receipt = receipt };
 
-        if (!string.Equals(receipt.GameClientId ?? string.Empty, upcoming.GameClientId ?? string.Empty, StringComparison.Ordinal))
+        // Guarded for the same reason RevalidateAsync is: this runs on the launch path, and a
+        // receipt that parses but carries null collections would otherwise throw here and fail
+        // the launch through LaunchProfileAsync's catch-all. Every field below comes from a
+        // deserialized file, so none of them can be assumed present.
+        try
         {
-            report.DriftedFields.Add(
-                $"Game client changed from {receipt.GameClientId ?? "(none)"} to {upcoming.GameClientId ?? "(none)"}");
-        }
+            if (!string.Equals(receipt.GameClientId ?? string.Empty, upcoming.GameClientId ?? string.Empty, StringComparison.Ordinal))
+            {
+                report.DriftedFields.Add(
+                    $"Game client changed from {receipt.GameClientId ?? "(none)"} to {upcoming.GameClientId ?? "(none)"}");
+            }
 
-        if (receipt.GameType != upcoming.GameType)
+            if (receipt.GameType != upcoming.GameType)
+            {
+                report.DriftedFields.Add($"Game type changed from {receipt.GameType} to {upcoming.GameType}");
+            }
+
+            if (receipt.Executable is not null &&
+                !string.IsNullOrEmpty(upcoming.ExecutablePath) &&
+                !PathsEqual(receipt.Executable.Path, upcoming.ExecutablePath))
+            {
+                report.DriftedFields.Add(
+                    $"Executable path changed from {receipt.Executable.Path} to {upcoming.ExecutablePath}");
+            }
+
+            CompareManifests(receipt, upcoming, report);
+            CompareArchiveRootConfiguration(receipt, upcoming, report);
+            CompareEnvironment(receipt, upcoming, report);
+            CompareVariant(receipt.Variant, upcoming.Variant, report);
+        }
+        catch (Exception ex)
         {
-            report.DriftedFields.Add($"Game type changed from {receipt.GameType} to {upcoming.GameType}");
+            logger.LogWarning(ex, "Launch receipt for profile {ProfileId} could not be compared", upcoming.ProfileId);
+            report.DriftedFields.Add($"Receipt could not be compared against the upcoming launch ({ex.Message})");
         }
-
-        if (!string.IsNullOrEmpty(upcoming.ExecutablePath) &&
-            !PathsEqual(receipt.Executable.Path, upcoming.ExecutablePath))
-        {
-            report.DriftedFields.Add(
-                $"Executable path changed from {receipt.Executable.Path} to {upcoming.ExecutablePath}");
-        }
-
-        CompareManifests(receipt, upcoming, report);
-        CompareArchiveRootConfiguration(receipt, upcoming, report);
-        CompareEnvironment(receipt, upcoming, report);
-        CompareVariant(receipt.Variant, upcoming.Variant, report);
 
         return report;
     }
@@ -238,10 +251,11 @@ public class LaunchReceiptService(
     /// <param name="report">The report drifted fields are added to.</param>
     private static void CompareManifests(LaunchReceipt receipt, LaunchReceiptContext upcoming, LaunchReceiptDriftReport report)
     {
-        var recordedIds = new HashSet<string>(receipt.ManifestIds, StringComparer.Ordinal);
+        var recordedManifestIds = receipt.ManifestIds ?? [];
+        var recordedIds = new HashSet<string>(recordedManifestIds, StringComparer.Ordinal);
         var upcomingIds = new HashSet<string>(upcoming.ManifestIds, StringComparer.Ordinal);
 
-        foreach (var manifestId in receipt.ManifestIds)
+        foreach (var manifestId in recordedManifestIds)
         {
             if (!upcomingIds.Contains(manifestId))
             {
@@ -257,7 +271,7 @@ public class LaunchReceiptService(
             }
         }
 
-        foreach (var (manifestId, recordedVersion) in receipt.ManifestVersions)
+        foreach (var (manifestId, recordedVersion) in receipt.ManifestVersions ?? [])
         {
             if (upcoming.ManifestVersions.TryGetValue(manifestId, out var upcomingVersion) &&
                 !string.Equals(recordedVersion, upcomingVersion, StringComparison.Ordinal))
@@ -279,7 +293,7 @@ public class LaunchReceiptService(
     {
         foreach (var variableName in RetailArchiveConstants.InstallPathVariables)
         {
-            receipt.ArchiveRoots.TryGetValue(variableName, out var recordedRoot);
+            (receipt.ArchiveRoots ?? []).TryGetValue(variableName, out var recordedRoot);
             var upcomingRoot =
                 upcoming.EnvironmentVariables.TryGetValue(variableName, out var configured) &&
                 !string.IsNullOrWhiteSpace(configured)
@@ -324,7 +338,8 @@ public class LaunchReceiptService(
         // Names, never values. These lines reach the log and the post-launch notice, both of
         // which travel further than the machine that produced them, and a profile-defined
         // variable can carry a credential. Which variable changed is the actionable part.
-        foreach (var (variableName, recordedHash) in receipt.EnvironmentVariableHashes)
+        var recordedHashes = receipt.EnvironmentVariableHashes ?? [];
+        foreach (var (variableName, recordedHash) in recordedHashes)
         {
             if (IsArchiveRootVariable(variableName))
             {
@@ -344,7 +359,7 @@ public class LaunchReceiptService(
         foreach (var (variableName, _) in upcoming.EnvironmentVariables)
         {
             if (!IsArchiveRootVariable(variableName) &&
-                !receipt.EnvironmentVariableHashes.ContainsKey(variableName))
+                !recordedHashes.ContainsKey(variableName))
             {
                 report.DriftedFields.Add($"Environment variable {variableName} is newly set");
             }
