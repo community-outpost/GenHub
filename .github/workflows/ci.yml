@@ -578,7 +578,17 @@ jobs:
             --repo bobtista/GeneralsGameCode \
             --pattern 'GeneralsZH-macos-arm64.zip' \
             --dir engine-download
-          unzip -q engine-download/GeneralsZH-macos-arm64.zip -d native-client
+          # The archive wraps everything in a GeneralsZH-macos-arm64/ directory, so it is
+          # staged and the wrapper's contents lifted out. Not `unzip -j`: that would also
+          # flatten Data/INI/, which the engine reads by path.
+          unzip -q engine-download/GeneralsZH-macos-arm64.zip -d engine-staging
+          root="$(find engine-staging -mindepth 1 -maxdepth 1 -type d)"
+          if [ ! -f "$root/generalszh" ]; then
+            echo "::error::generalszh not found in the release archive; contents were:"
+            find engine-staging -maxdepth 2
+            exit 1
+          fi
+          mv "$root" native-client
           chmod +x native-client/generalszh
           ls -l native-client
 
