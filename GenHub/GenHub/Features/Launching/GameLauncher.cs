@@ -1394,7 +1394,7 @@ public class GameLauncher(
             var processInfo = processResult.Data;
             logger.LogInformation("[GameLauncher] Process started successfully - PID: {ProcessId}", processInfo.ProcessId);
 
-            await RecordLaunchReceiptAsync(receiptContext, cancellationToken);
+            await RecordLaunchReceiptAsync(receiptContext);
 
             // Update the placeholder launch entry with real process info
             // (The placeholder was registered earlier to prevent deletion during launch)
@@ -1489,15 +1489,28 @@ public class GameLauncher(
     /// Records a receipt of what this launch consisted of into the workspace. A failure to
     /// record is logged and never fails a launch that has already started.
     /// </summary>
+    /// <remarks>
+    /// Deliberately not passed the launch cancellation token: the child process is already
+    /// running by the time this is called, so cancelling the launch operation must not abandon
+    /// the write half-done, and the resulting <see cref="OperationCanceledException"/> must not
+    /// reach the caller's catch and report a running game as a failed launch. Everything else
+    /// is caught here for the same reason.
+    /// </remarks>
     /// <param name="receiptContext">What the launch consisted of.</param>
-    /// <param name="cancellationToken">A cancellation token to observe while waiting for the task to complete.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    private async Task RecordLaunchReceiptAsync(LaunchReceiptContext receiptContext, CancellationToken cancellationToken)
+    private async Task RecordLaunchReceiptAsync(LaunchReceiptContext receiptContext)
     {
-        var receiptResult = await launchReceiptService.RecordLaunchAsync(receiptContext, cancellationToken);
-        if (!receiptResult.Success)
+        try
         {
-            logger.LogWarning("[GameLauncher] Failed to record launch receipt: {Error}", receiptResult.FirstError);
+            var receiptResult = await launchReceiptService.RecordLaunchAsync(receiptContext, CancellationToken.None);
+            if (!receiptResult.Success)
+            {
+                logger.LogWarning("[GameLauncher] Failed to record launch receipt: {Error}", receiptResult.FirstError);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "[GameLauncher] Failed to record launch receipt for profile {ProfileId}", receiptContext.ProfileId);
         }
     }
 

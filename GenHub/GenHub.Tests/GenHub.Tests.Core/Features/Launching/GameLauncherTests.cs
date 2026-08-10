@@ -1126,6 +1126,58 @@ public class GameLauncherTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies a launch that has already started is not failed by a receipt-recording
+    /// exception, including cancellation: the child process is running by then, so reporting
+    /// failure would leave the caller believing a running game never started.
+    /// </summary>
+    /// <param name="thrown">The exception the recorder throws.</param>
+    /// <returns>The async task.</returns>
+    [Theory]
+    [MemberData(nameof(ReceiptRecordingExceptions))]
+    public async Task LaunchProfileAsync_WhenReceiptRecordingThrows_StillSucceeds(Exception thrown)
+    {
+        // Arrange
+        var profile = CreateTestProfile();
+        var workspacePath = Path.Combine(_retailRoot, "workspace");
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = profile.Id,
+            WorkspacePath = workspacePath,
+            ExecutablePath = Path.Combine(workspacePath, "generalszh"),
+        };
+        var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "generals.exe" };
+        var manifest = new ContentManifest { Id = "1.0.genhub.mod.test", Name = "Test Content" };
+
+        _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+        _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
+                It.Is<IEnumerable<string>>(ids => ids.SequenceEqual(TestContentIds)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DependencyResolutionResult.CreateSuccess(TestContentIds, [manifest], []));
+        _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
+        _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
+        _launchReceiptServiceMock.Setup(x => x.RecordLaunchAsync(It.IsAny<LaunchReceiptContext>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(thrown);
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
+
+        // Assert
+        Assert.True(result.Success);
+    }
+
+    /// <summary>
+    /// Gets the exceptions a post-spawn receipt write can realistically throw.
+    /// </summary>
+    public static TheoryData<Exception> ReceiptRecordingExceptions => new()
+    {
+        new IOException("disk full"),
+        new OperationCanceledException(),
+    };
+
+    /// <summary>
     /// Removes the temporary retail root.
     /// </summary>
     public void Dispose()
