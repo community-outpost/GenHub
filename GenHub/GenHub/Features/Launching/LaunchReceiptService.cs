@@ -65,9 +65,11 @@ public class LaunchReceiptService(
                 receipt.ManifestVersions[manifestId] = version;
             }
 
+            receipt.EnvironmentHashSalt = Convert.ToBase64String(RandomNumberGenerator.GetBytes(16));
             foreach (var (variableName, value) in context.EnvironmentVariables)
             {
-                receipt.EnvironmentVariableHashes[variableName] = HashEnvironmentValue(value);
+                receipt.EnvironmentVariableHashes[variableName] =
+                    HashEnvironmentValue(value, receipt.EnvironmentHashSalt);
             }
 
             foreach (var variableName in RetailArchiveConstants.InstallPathVariables)
@@ -186,12 +188,11 @@ public class LaunchReceiptService(
                 report.DriftedFields.Add($"Game type changed from {receipt.GameType} to {upcoming.GameType}");
             }
 
-            if (receipt.Executable is not null &&
-                !string.IsNullOrEmpty(upcoming.ExecutablePath) &&
-                !PathsEqual(receipt.Executable.Path, upcoming.ExecutablePath))
+            if (!string.IsNullOrEmpty(upcoming.ExecutablePath) &&
+                !PathsEqual(receipt.Executable?.Path ?? string.Empty, upcoming.ExecutablePath))
             {
                 report.DriftedFields.Add(
-                    $"Executable path changed from {receipt.Executable.Path} to {upcoming.ExecutablePath}");
+                    $"Executable path changed from {NameOrNone(receipt.Executable?.Path)} to {upcoming.ExecutablePath}");
             }
 
             CompareManifests(receipt, upcoming, report);
@@ -231,6 +232,14 @@ public class LaunchReceiptService(
     /// <returns>Whether the paths are equal.</returns>
     private static bool PathsEqual(string left, string right) =>
         string.Equals(NormalizePath(left), NormalizePath(right), PathHelper.PathComparison);
+
+    /// <summary>
+    /// Renders a recorded value that a corrupt receipt may have left unset.
+    /// </summary>
+    /// <param name="value">The value to render.</param>
+    /// <returns>The value, or a placeholder when it is missing.</returns>
+    private static string NameOrNone(string? value) =>
+        string.IsNullOrEmpty(value) ? "(none)" : value;
 
     /// <summary>
     /// Normalises a path for comparison by unifying separators and dropping a trailing one.
@@ -350,7 +359,10 @@ public class LaunchReceiptService(
             {
                 report.DriftedFields.Add($"Environment variable {variableName} is no longer set");
             }
-            else if (!string.Equals(recordedHash, HashEnvironmentValue(upcomingValue), StringComparison.Ordinal))
+            else if (!string.Equals(
+                recordedHash,
+                HashEnvironmentValue(upcomingValue, receipt.EnvironmentHashSalt),
+                StringComparison.Ordinal))
             {
                 report.DriftedFields.Add($"Environment variable {variableName} changed value");
             }
@@ -371,9 +383,14 @@ public class LaunchReceiptService(
     /// log or the post-launch notice ever carrying the value itself.
     /// </summary>
     /// <param name="value">The value to hash.</param>
-    /// <returns>The lowercase hexadecimal SHA-256 of the value.</returns>
-    private static string HashEnvironmentValue(string value) =>
-        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value ?? string.Empty))).ToLowerInvariant();
+    /// <param name="salt">The receipt's salt, keying the hash so it is unique to that receipt.</param>
+    /// <returns>The lowercase hexadecimal keyed hash of the value.</returns>
+    private static string HashEnvironmentValue(string value, string salt) =>
+        Convert.ToHexString(
+            HMACSHA256.HashData(
+                Encoding.UTF8.GetBytes(salt ?? string.Empty),
+                Encoding.UTF8.GetBytes(value ?? string.Empty)))
+            .ToLowerInvariant();
 
     /// <summary>
     /// Determines whether a variable is one of the retail archive root variables.
