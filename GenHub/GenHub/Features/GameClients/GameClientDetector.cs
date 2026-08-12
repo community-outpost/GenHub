@@ -15,6 +15,7 @@ using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.GameClients;
@@ -55,28 +56,49 @@ public class GameClientDetector(
 
         foreach (var inst in installations)
         {
+            // A combined directory flags both games at one path. Its single executable
+            // set must be scanned once, as Zero Hour: running the Generals scan over the
+            // same directory would wrap the very same executable in a second, duplicate
+            // GameClient. Publisher detection below is unaffected — identifiers match
+            // per-game executables and filter on the identified game type themselves.
+            var isCombinedDirectory = inst.HasGenerals
+                && inst.HasZeroHour
+                && !string.IsNullOrEmpty(inst.GeneralsPath)
+                && !string.IsNullOrEmpty(inst.ZeroHourPath)
+                && Path.GetFullPath(inst.GeneralsPath).Equals(Path.GetFullPath(inst.ZeroHourPath), StringComparison.OrdinalIgnoreCase);
+
             if (inst.HasGenerals && !string.IsNullOrEmpty(inst.GeneralsPath) && Directory.Exists(inst.GeneralsPath))
             {
-                // First, detect the standard installation client (priority over GeneralsOnline for auto-selection)
-                var (version, actualExePath) = await DetectVersionFromInstallationAsync(inst.GeneralsPath, GameType.Generals, cancellationToken);
-                if (File.Exists(actualExePath))
+                if (isCombinedDirectory)
                 {
-                    var generalsVersion = new GameClient
-                    {
-                        Name = $"Generals {version}",
-                        Id = string.Empty, // Set later by manifest
-                        Version = version,
-                        ExecutablePath = actualExePath,
-                        GameType = GameType.Generals,
-                        InstallationId = inst.Id,
-                        WorkingDirectory = inst.GeneralsPath,
-                    };
-                    await GenerateClientManifestAndSetIdAsync(generalsVersion, inst.GeneralsPath, inst, GameType.Generals);
-                    gameClients.Add(generalsVersion);
+                    logger.LogDebug(
+                        "Skipping standard Generals client scan for {InstallationId}: {GeneralsPath} is a combined directory scanned once as Zero Hour",
+                        inst.Id,
+                        inst.GeneralsPath);
                 }
                 else
                 {
-                    logger.LogWarning("Skipping Generals game client for {InstallationId}: no valid executable found at {ExePath}", inst.Id, actualExePath);
+                    // First, detect the standard installation client (priority over GeneralsOnline for auto-selection)
+                    var (version, actualExePath) = await DetectVersionFromInstallationAsync(inst.GeneralsPath, GameType.Generals, cancellationToken);
+                    if (File.Exists(actualExePath))
+                    {
+                        var generalsVersion = new GameClient
+                        {
+                            Name = $"Generals {version}",
+                            Id = string.Empty, // Set later by manifest
+                            Version = version,
+                            ExecutablePath = actualExePath,
+                            GameType = GameType.Generals,
+                            InstallationId = inst.Id,
+                            WorkingDirectory = inst.GeneralsPath,
+                        };
+                        await GenerateClientManifestAndSetIdAsync(generalsVersion, inst.GeneralsPath, inst, GameType.Generals);
+                        gameClients.Add(generalsVersion);
+                    }
+                    else
+                    {
+                        logger.LogWarning("Skipping Generals game client for {InstallationId}: no valid executable found at {ExePath}", inst.Id, actualExePath);
+                    }
                 }
 
                 // Detect publisher clients (GeneralsOnline, SuperHackers, etc.) using registered identifiers
@@ -168,6 +190,26 @@ public class GameClientDetector(
     {
         var isValid = !string.IsNullOrEmpty(gameClient.ExecutablePath) && File.Exists(gameClient.ExecutablePath);
         return Task.FromResult(isValid);
+    }
+
+    /// <summary>
+    /// Enumerates the top-level files of a directory that could be launched.
+    /// </summary>
+    /// <param name="directoryPath">The directory to scan.</param>
+    /// <returns>Full paths of the launch candidates.</returns>
+    /// <remarks>
+    /// Replaces the old <c>*.exe</c> glob, which hid extensionless binaries — the shape
+    /// of a native Mach-O or ELF game client — from publisher detection entirely.
+    /// Selection goes through <see cref="ExecutableFileClassifier.IsLegacyLaunchCandidate(string, string?)"/>,
+    /// which keeps <c>.exe</c> results identical while classifying extensionless files by
+    /// their magic bytes. These paths are on disk, so the absolute path is supplied and the
+    /// content-based rule applies rather than the name-only fallback.
+    /// </remarks>
+    private static string[] GetLaunchCandidateFiles(string directoryPath)
+    {
+        return Directory.EnumerateFiles(directoryPath, "*", SearchOption.TopDirectoryOnly)
+            .Where(path => ExecutableFileClassifier.IsLegacyLaunchCandidate(path, path))
+            .ToArray();
     }
 
     /// <summary>
@@ -563,7 +605,7 @@ public class GameClientDetector(
         HashSet<string> publishersHandledFromPool,
         List<GameClient> detectedClients)
     {
-        var executableFiles = Directory.GetFiles(installationPath, "*.exe", SearchOption.TopDirectoryOnly);
+        var executableFiles = GetLaunchCandidateFiles(installationPath);
 
         foreach (var identifier in gameClientIdentifiers)
         {
@@ -739,7 +781,7 @@ public class GameClientDetector(
             return Task.FromResult(detectedPublishers);
         }
 
-        var executableFiles = Directory.GetFiles(installationPath, "*.exe", SearchOption.TopDirectoryOnly);
+        var executableFiles = GetLaunchCandidateFiles(installationPath);
 
         foreach (var executablePath in executableFiles)
         {

@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -37,6 +38,31 @@ public class SuperHackersManifestFactory(
         }
 
         return 0;
+    }
+
+    /// <summary>
+    /// Determines whether a file carries a known executable name, with or without its
+    /// <c>.exe</c> extension.
+    /// </summary>
+    /// <param name="filePath">The candidate file path.</param>
+    /// <param name="windowsExecutableName">The Windows name of the executable, ending in <c>.exe</c>.</param>
+    /// <returns>True when the file is that executable in Windows or native form.</returns>
+    private static bool MatchesExecutableName(string filePath, string windowsExecutableName)
+    {
+        var fileName = Path.GetFileName(filePath);
+
+        if (string.Equals(fileName, windowsExecutableName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // A native build of the same client drops the extension: generalszh.exe on
+        // Windows is GeneralsZH as a Mach-O or ELF binary.
+        return !Path.HasExtension(fileName)
+            && string.Equals(
+                fileName,
+                Path.GetFileNameWithoutExtension(windowsExecutableName),
+                StringComparison.OrdinalIgnoreCase);
     }
 
     /// <inheritdoc />
@@ -185,6 +211,14 @@ public class SuperHackersManifestFactory(
     /// <summary>
     /// Detects SuperHackers game executables in the extracted directory.
     /// </summary>
+    /// <remarks>
+    /// Candidates are selected via <see cref="ExecutableFileClassifier.IsLegacyLaunchCandidate"/>
+    /// instead of a <c>*.exe</c> glob, because a native Mach-O or ELF build of the same
+    /// client is extensionless and the glob hid it entirely. The name match then accepts
+    /// either the Windows executable name or its extensionless form; a content-based
+    /// (magic-byte) classification slots in at the classifier call without this site
+    /// changing. Windows <c>.exe</c> results are unaffected.
+    /// </remarks>
     private Dictionary<GameType, string> DetectGameExecutables(string directory)
     {
         var result = new Dictionary<GameType, string>();
@@ -192,19 +226,18 @@ public class SuperHackersManifestFactory(
         if (!Directory.Exists(directory))
             return result;
 
-        var allFiles = Directory.GetFiles(directory, "*.exe", SearchOption.AllDirectories);
+        var allFiles = Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories)
+            .Where(path => ExecutableFileClassifier.IsLegacyLaunchCandidate(path, path));
 
         foreach (var filePath in allFiles)
         {
-            var fileName = Path.GetFileName(filePath).ToLowerInvariant();
-
             // Check for SuperHackers executables
-            if (string.Equals(fileName, GameClientConstants.SuperHackersGeneralsExecutable, StringComparison.OrdinalIgnoreCase))
+            if (MatchesExecutableName(filePath, GameClientConstants.SuperHackersGeneralsExecutable))
             {
                 result[GameType.Generals] = filePath;
                 logger.LogInformation("Detected SuperHackers Generals executable: {Path}", filePath);
             }
-            else if (string.Equals(fileName, GameClientConstants.SuperHackersZeroHourExecutable, StringComparison.OrdinalIgnoreCase))
+            else if (MatchesExecutableName(filePath, GameClientConstants.SuperHackersZeroHourExecutable))
             {
                 result[GameType.ZeroHour] = filePath;
                 logger.LogInformation("Detected SuperHackers Zero Hour executable: {Path}", filePath);

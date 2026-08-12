@@ -173,13 +173,31 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
     /// <param name="installation">The installation to get a manifest for.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>The manifest if found or generated; otherwise null.</returns>
-    public async Task<ContentManifest?> GetManifestAsync(GameInstallation installation, CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// This single-manifest entry point can only surface one game, and it prefers Zero
+    /// Hour when both are flagged — a combined installation carries both games, so a
+    /// caller that relies on this overload never sees a Generals manifest for it. Callers
+    /// that know which game they are asking about must use
+    /// <see cref="GetManifestAsync(GameInstallation, GameType, CancellationToken)"/>.
+    /// </remarks>
+    public Task<ContentManifest?> GetManifestAsync(GameInstallation installation, CancellationToken cancellationToken = default)
+    {
+        var gameType = installation.HasZeroHour ? GameType.ZeroHour : GameType.Generals;
+        return GetManifestAsync(installation, gameType, cancellationToken);
+    }
+
+    /// <summary>
+    /// Gets or generates a manifest for one game of a <see cref="GameInstallation"/>.
+    /// </summary>
+    /// <param name="installation">The installation to get a manifest for.</param>
+    /// <param name="gameType">The game whose manifest is requested.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>The manifest if found or generated; otherwise null.</returns>
+    public async Task<ContentManifest?> GetManifestAsync(GameInstallation installation, GameType gameType, CancellationToken cancellationToken = default)
     {
         // Prefer a deterministic manifest id for installations so tests and embedded resources can
         // reference stable ids instead of runtime GUIDs. Generate using ManifestIdGenerator.
         var tempInstallForId = new GameInstallation(installation.InstallationPath, installation.InstallationType, null);
-
-        var gameType = installation.HasZeroHour ? GameType.ZeroHour : GameType.Generals;
 
         // Use appropriate manifest version for generated installation manifests
         var manifestVersion = gameType == GameType.ZeroHour
@@ -233,7 +251,7 @@ public class ManifestProvider(ILogger<ManifestProvider> logger, IContentManifest
             logger.LogInformation("Generating fallback manifest for installation {Id}", installation.Id);
 
             // Determine the correct source path based on the game type
-            var manifestGameType = installation.HasZeroHour ? GameType.ZeroHour : GameType.Generals;
+            var manifestGameType = gameType;
             var sourcePath = manifestGameType == GameType.ZeroHour
                 ? (!string.IsNullOrEmpty(installation.ZeroHourPath) ? installation.ZeroHourPath : installation.InstallationPath)
                 : (!string.IsNullOrEmpty(installation.GeneralsPath) ? installation.GeneralsPath : installation.InstallationPath);
