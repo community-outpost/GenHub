@@ -281,17 +281,69 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
         // Act
         var manifests = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir, CancellationToken.None);
 
-        var gameClient = manifests.First(m => m.ContentType == ContentType.GameClient);
-        var mapPack = manifests.First(m => m.ContentType == ContentType.MapPack);
-        var gameDataPatch = manifests.First(m => m.ContentType == ContentType.Patch);
-
-        // Assert - MapPack and GameData patch must not contain sibling files
-        Assert.Empty(mapPack.Files);
-        Assert.Empty(gameDataPatch.Files);
+        // Assert - MapPack and GameData patch are omitted because they have 0 files
+        Assert.Single(manifests);
+        var gameClient = manifests.Single();
+        Assert.Equal(ContentType.GameClient, gameClient.ContentType);
+        Assert.DoesNotContain(manifests, m => m.ContentType == ContentType.MapPack);
+        Assert.DoesNotContain(manifests, m => m.ContentType == ContentType.Patch);
 
         // Assert - GameClient must contain the sibling files as workspace files
         Assert.Contains(gameClient.Files, f => f.RelativePath.Contains("Maps_backup"));
         Assert.Contains(gameClient.Files, f => f.RelativePath.Contains("GeneralsOnlineGameData_backup"));
+    }
+
+    /// <summary>
+    /// Verifies that <see cref="GeneralsOnlineManifestFactory.CreateManifestsFromExtractedContentAsync"/> throws
+    /// <see cref="OperationCanceledException"/> when passed a cancelled token.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_PreCancelledToken_ThrowsOperationCanceledException()
+    {
+        // Arrange
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.1015255.generalsonline.gameclient.60hz"),
+            Name = GameClientConstants.GeneralsOnline60HzDisplayName,
+            Version = "101525_QFE5",
+            ContentType = ContentType.GameClient,
+            Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GeneralsOnline },
+        };
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act & Assert
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir, cts.Token));
+    }
+
+    /// <summary>
+    /// Verifies that GameData patch metadata tags do not contain duplicate tags.
+    /// </summary>
+    [Fact]
+    public void CreateManifests_GameDataPatchTags_HasNoDuplicateTags()
+    {
+        // Arrange
+        var release = new GeneralsOnlineRelease
+        {
+            Version = "101525_QFE5",
+            ReleaseDate = DateTime.UtcNow,
+            PortableUrl = "https://example.com/test.zip",
+        };
+
+        // Act
+        var manifests = _factory.CreateManifests(release);
+        var gameDataPatch = manifests.First(m => m.ContentType == ContentType.Patch);
+
+        // Assert
+        var tags = gameDataPatch.Metadata?.Tags ?? [];
+        var distinctTags = tags.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        Assert.Equal(distinctTags.Count, tags.Count);
+        Assert.Contains("gamedata", tags);
+        Assert.Contains("patch", tags);
+        Assert.Contains("generalsonline", tags);
     }
 
     /// <summary>
@@ -311,12 +363,13 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
         var builder = new GeneralsOnlineDependencyBuilder();
         var patchManifest = new ContentManifest
         {
+            Version = "101525_QFE5",
             ContentType = ContentType.Patch,
             Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GeneralsOnline },
         };
         var resolvedDeps = builder.GetDependencies(patchManifest);
         Assert.Equal(2, resolvedDeps.Count);
         Assert.Contains(resolvedDeps, d => d.DependencyType == ContentType.GameInstallation);
-        Assert.Contains(resolvedDeps, d => d.DependencyType == ContentType.GameClient);
+        Assert.Contains(resolvedDeps, d => d.DependencyType == ContentType.GameClient && d.Id.Value.Contains("1015255"));
     }
 }

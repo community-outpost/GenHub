@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Services.Dependencies;
@@ -130,11 +131,25 @@ public class GeneralsOnlineDependencyBuilder : BaseDependencyBuilder
     {
         var dependencies = new List<ContentDependency>();
 
+        var userVersion = 0;
+        if (!string.IsNullOrWhiteSpace(manifest.Version))
+        {
+            userVersion = GameVersionHelper.GetGeneralsOnlineManifestIdComponent(manifest.Version);
+        }
+        else if (!string.IsNullOrWhiteSpace(manifest.Id.Value))
+        {
+            var parts = manifest.Id.Value.Split('.');
+            if (parts.Length >= 2 && int.TryParse(parts[1], out var parsedVersion))
+            {
+                userVersion = parsedVersion;
+            }
+        }
+
         // All Generals Online game clients require Zero Hour 1.04 and the QuickMatch MapPack
         if (manifest.ContentType == ContentType.GameClient)
         {
             dependencies.Add(CreateZeroHourDependencyForGeneralsOnline());
-            dependencies.Add(CreateQuickMatchMapPackDependency());
+            dependencies.Add(CreateQuickMatchMapPackDependency(userVersion));
         }
         else if (manifest.ContentType == ContentType.MapPack)
         {
@@ -145,7 +160,7 @@ public class GeneralsOnlineDependencyBuilder : BaseDependencyBuilder
         {
             // Data patch requires Zero Hour installation and GeneralsOnline GameClient
             dependencies.Add(CreateZeroHourDependencyForGeneralsOnline());
-            dependencies.Add(CreateGameClient60HzDependency());
+            dependencies.Add(CreateGameClient60HzDependency(userVersion));
         }
 
         return dependencies;

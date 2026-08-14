@@ -142,8 +142,16 @@ public class GeneralsOnlineDelivererTests : IDisposable
         using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
         {
             var entry = archive.CreateEntry("generalsonlinezh_60.exe");
-            using var writer = new StreamWriter(entry.Open());
-            writer.Write("fake content");
+            using (var writer = new StreamWriter(entry.Open()))
+            {
+                writer.Write("fake content");
+            }
+
+            var gameDataEntry = archive.CreateEntry("GeneralsOnlineGameData/splash.bmp");
+            using (var writer = new StreamWriter(gameDataEntry.Open()))
+            {
+                writer.Write("fake splash");
+            }
         }
 
         _downloadServiceMock

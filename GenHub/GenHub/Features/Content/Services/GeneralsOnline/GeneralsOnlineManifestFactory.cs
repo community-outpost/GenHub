@@ -521,12 +521,11 @@ public class GeneralsOnlineManifestFactory(
 
         List<(string RelativePath, FileInfo FileInfo, string Hash, bool IsMap, bool IsGameData)> filesWithHashes = [];
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         foreach (var filePath in allFiles)
         {
-            if (cancellationToken.IsCancellationRequested)
-            {
-                break;
-            }
+            cancellationToken.ThrowIfCancellationRequested();
 
             var relativePath = Path.GetRelativePath(extractPath, filePath);
             var fileInfo = new FileInfo(filePath);
@@ -629,6 +628,15 @@ public class GeneralsOnlineManifestFactory(
                 }
 
                 logger.LogInformation("GameClient manifest '{Name}' updated with {Count} files", manifest.Name, manifestFiles.Count);
+            }
+
+            if (manifestFiles.Count == 0 && (isMapPackManifest || isPatchManifest))
+            {
+                logger.LogInformation(
+                    "Skipping empty {Type} manifest '{Name}' because no matching files were found in extract path",
+                    manifest.ContentType,
+                    manifest.Name);
+                continue;
             }
 
             updatedManifests.Add(new ContentManifest

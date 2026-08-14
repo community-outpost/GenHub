@@ -325,7 +325,8 @@ public class GeneralsOnlineProfileReconciler(
         var lastPart = parts[^1];
 
         if (lastPart.Equals(GeneralsOnlineConstants.Variant60HzSuffix, StringComparison.OrdinalIgnoreCase) ||
-            lastPart.Equals(GeneralsOnlineConstants.QuickMatchMapPackSuffix, StringComparison.OrdinalIgnoreCase))
+            lastPart.Equals(GeneralsOnlineConstants.QuickMatchMapPackSuffix, StringComparison.OrdinalIgnoreCase) ||
+            lastPart.Equals(GeneralsOnlineConstants.GameDataPatchSuffix, StringComparison.OrdinalIgnoreCase))
         {
             return lastPart.ToLowerInvariant();
         }
@@ -375,6 +376,11 @@ public class GeneralsOnlineProfileReconciler(
                 if (tag.Equals(GeneralsOnlineVariantTags.TagQuickMatchMaps, StringComparison.OrdinalIgnoreCase))
                 {
                     return GeneralsOnlineConstants.QuickMatchMapPackSuffix;
+                }
+
+                if (tag.Equals(GeneralsOnlineVariantTags.TagGameData, StringComparison.OrdinalIgnoreCase))
+                {
+                    return GeneralsOnlineConstants.GameDataPatchSuffix;
                 }
             }
         }

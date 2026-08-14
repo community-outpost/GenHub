@@ -138,5 +138,5 @@ public static class GeneralsOnlineConstants
     /// <summary>
     /// Default tags for GameData patch manifests.
     /// </summary>
-    public static readonly string[] GameDataTags = ["patch", "generalsonline", "gamedata"];
+    public static readonly string[] GameDataTags = ["patch", "generalsonline"];
 }
