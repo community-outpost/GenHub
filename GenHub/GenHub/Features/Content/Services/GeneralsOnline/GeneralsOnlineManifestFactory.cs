@@ -104,13 +104,14 @@ public class GeneralsOnlineManifestFactory(
     }
 
     /// <summary>
-    /// Creates two content manifests from a GeneralsOnline release:
+    /// Creates content manifests from a GeneralsOnline release:
     /// - 60Hz game client variant
     /// - QuickMatch MapPack (required for multiplayer)
+    /// - GeneralsOnlineGameData data patch (optional patch, depends on 60Hz game client)
     /// This creates the initial manifests with download URLs.
     /// </summary>
     /// <param name="release">The GeneralsOnlineRelease to create the manifests from.</param>
-    /// <returns>A list containing two ContentManifest instances.</returns>
+    /// <returns>A list containing the ContentManifest instances.</returns>
     public List<ContentManifest> CreateManifests(GeneralsOnlineRelease release)
     {
         List<ContentManifest> manifests = [];
@@ -118,8 +119,11 @@ public class GeneralsOnlineManifestFactory(
         // Create manifest for 60Hz variant
         manifests.Add(CreateVariantManifest(release, GeneralsOnlineConstants.Variant60HzSuffix, GameClientConstants.GeneralsOnline60HzDisplayName));
 
-        // Create manifest for QuickMatch MapPack (required dependency for both variants)
+        // Create manifest for QuickMatch MapPack (required dependency for game client)
         manifests.Add(CreateQuickMatchMapPackManifest(release));
+
+        // Create manifest for GeneralsOnlineGameData data patch (optional patch, depends on 60Hz game client)
+        manifests.Add(CreateGameDataPatchManifest(release));
 
         return manifests;
     }
@@ -130,7 +134,8 @@ public class GeneralsOnlineManifestFactory(
         var publisherMatches = manifest.Publisher?.PublisherType?.Equals(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true;
         var isGameClient = manifest.ContentType == ContentType.GameClient;
         var isMapPack = manifest.ContentType == ContentType.MapPack;
-        return publisherMatches && (isGameClient || isMapPack);
+        var isPatch = manifest.ContentType == ContentType.Patch;
+        return publisherMatches && (isGameClient || isMapPack || isPatch);
     }
 
     /// <inheritdoc />
@@ -141,7 +146,7 @@ public class GeneralsOnlineManifestFactory(
     {
         logger.LogInformation("Creating GeneralsOnline manifests from extracted content in: {Directory}", extractedDirectory);
 
-        // Create all variant manifests (30Hz, 60Hz, and QuickMatch MapPack) from extracted files
+        // Create all variant manifests (60Hz, QuickMatch MapPack, and GeneralsOnlineGameData data patch) from extracted files
         var manifests = CreateVariantManifestsFromOriginal(originalManifest);
 
         // Update manifests with extracted files (compute hashes, set file entries)
@@ -230,6 +235,20 @@ public class GeneralsOnlineManifestFactory(
         };
     }
 
+    private static ManifestFile CreateGameDataManifestFile(string relativePath, FileInfo fileInfo, string hash)
+    {
+        return new ManifestFile
+        {
+            RelativePath = relativePath,
+            Size = fileInfo.Length,
+            Hash = hash,
+            SourceType = ContentSourceType.ContentAddressable,
+            SourcePath = fileInfo.FullName,
+            InstallTarget = ContentInstallTarget.Workspace,
+            IsExecutable = false,
+        };
+    }
+
     /// <summary>
     /// Gets variant-specific tags for a given variant suffix.
     /// </summary>
@@ -247,7 +266,62 @@ public class GeneralsOnlineManifestFactory(
             return [GeneralsOnlineVariantTags.TagQuickMatchMaps];
         }
 
+        if (variantSuffix.Equals(GeneralsOnlineConstants.GameDataPatchSuffix, StringComparison.OrdinalIgnoreCase))
+        {
+            return [GeneralsOnlineVariantTags.TagGameData];
+        }
+
         return [];
+    }
+
+    /// <summary>
+    /// Creates a content manifest for the GeneralsOnlineGameData data patch.
+    /// This manifest contains game data files (splash screens, map cache configuration).
+    /// </summary>
+    /// <param name="release">The Generals Online release information.</param>
+    /// <returns>A content manifest for the GeneralsOnlineGameData data patch.</returns>
+    public ContentManifest CreateGameDataPatchManifest(GeneralsOnlineRelease release)
+    {
+        var provider = providerLoader.GetProvider(PublisherTypeConstants.GeneralsOnline);
+        var websiteUrl = provider?.Endpoints.WebsiteUrl ?? GeneralsOnlineConstants.WebsiteUrl;
+        var supportUrl = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.SupportUrl) ?? GeneralsOnlineConstants.SupportUrl;
+        var downloadPageUrl = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.DownloadPageUrl) ?? GeneralsOnlineConstants.DownloadPageUrl;
+        var iconUrl = GeneralsOnlineConstants.LogoSource;
+        var userVersion = ParseVersionForManifestId(release.Version);
+        var manifestId = ManifestId.Create(ManifestIdGenerator.GeneratePublisherContentId(
+            PublisherTypeConstants.GeneralsOnline,
+            ContentType.Patch,
+            GeneralsOnlineConstants.GameDataPatchSuffix,
+            userVersion));
+
+        return new ContentManifest
+        {
+            Id = manifestId,
+            Name = GeneralsOnlineConstants.GameDataDisplayName,
+            Version = release.Version,
+            ContentType = ContentType.Patch,
+            TargetGame = GameType.ZeroHour,
+            Publisher = new PublisherInfo
+            {
+                Name = GeneralsOnlineConstants.PublisherName,
+                PublisherType = PublisherTypeConstants.GeneralsOnline,
+                Website = websiteUrl,
+                SupportUrl = supportUrl,
+                ContentIndexUrl = downloadPageUrl,
+                UpdateCheckIntervalHours = GeneralsOnlineConstants.UpdateCheckIntervalHours,
+            },
+            Metadata = new ContentMetadata
+            {
+                Description = GeneralsOnlineConstants.GameDataDescription,
+                ReleaseDate = release.ReleaseDate,
+                IconUrl = iconUrl,
+                ThemeColor = GeneralsOnlineConstants.ThemeColor,
+                Tags = [.. GeneralsOnlineConstants.GameDataTags, .. GetVariantTags(GeneralsOnlineConstants.GameDataPatchSuffix)],
+                ChangelogUrl = release.Changelog,
+            },
+            Files = [], // Files will be populated during extraction
+            Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesForGameData(userVersion),
+        };
     }
 
     /// <summary>
@@ -395,14 +469,41 @@ public class GeneralsOnlineManifestFactory(
             ],
         });
 
+        // Create GeneralsOnlineGameData data patch
+        manifests.Add(new ContentManifest
+        {
+            Id = ManifestId.Create(ManifestIdGenerator.GeneratePublisherContentId(
+                PublisherTypeConstants.GeneralsOnline,
+                ContentType.Patch,
+                GeneralsOnlineConstants.GameDataPatchSuffix,
+                userVersion)),
+            Name = GeneralsOnlineConstants.GameDataDisplayName,
+            Version = version,
+            ContentType = ContentType.Patch,
+            TargetGame = GameType.ZeroHour,
+            Publisher = publisherInfo,
+            Metadata = new ContentMetadata
+            {
+                Description = GeneralsOnlineConstants.GameDataDescription,
+                ReleaseDate = releaseDate,
+                IconUrl = iconUrl,
+                ThemeColor = GeneralsOnlineConstants.ThemeColor,
+                Tags = [.. GeneralsOnlineConstants.GameDataTags, .. GetVariantTags(GeneralsOnlineConstants.GameDataPatchSuffix)],
+                ChangelogUrl = changelogUrl,
+            },
+            Files = [],
+            Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesForGameData(userVersion),
+        });
+
         return manifests;
     }
 
     /// <summary>
-    /// Updates manifests (60Hz and QuickMatch MapPack) with extracted file information.
+    /// Updates manifests (60Hz, QuickMatch MapPack, and GeneralsOnlineGameData data patch) with extracted file information.
     /// Computes SHA-256 hashes for all files for CAS integration.
     /// Each variant gets only the files it needs plus shared files.
     /// Maps are extracted to the MapPack manifest with UserMapsDirectory install target.
+    /// Game data files are extracted to the Patch manifest with Workspace install target.
     /// </summary>
     /// <param name="manifests">The original content manifests to update.</param>
     /// <param name="extractPath">The path to the directory containing extracted files.</param>
@@ -418,11 +519,15 @@ public class GeneralsOnlineManifestFactory(
         var allFiles = Directory.GetFiles(extractPath, "*", SearchOption.AllDirectories);
         logger.LogInformation("Processing {Count} files", allFiles.Length);
 
-        List<(string RelativePath, FileInfo FileInfo, string Hash, bool IsMap)> filesWithHashes = [];
+        List<(string RelativePath, FileInfo FileInfo, string Hash, bool IsMap, bool IsGameData)> filesWithHashes = [];
 
         // Detect Maps directory (case-insensitive)
         var mapsDirectory = Directory.GetDirectories(extractPath, "*", SearchOption.TopDirectoryOnly)
             .FirstOrDefault(d => Path.GetFileName(d).Equals(GeneralsOnlineConstants.MapsSubdirectory, StringComparison.OrdinalIgnoreCase));
+
+        // Detect GeneralsOnlineGameData directory (case-insensitive)
+        var gameDataDirectory = Directory.GetDirectories(extractPath, "*", SearchOption.TopDirectoryOnly)
+            .FirstOrDefault(d => Path.GetFileName(d).Equals(GeneralsOnlineConstants.GameDataSubdirectory, StringComparison.OrdinalIgnoreCase));
 
         foreach (var filePath in allFiles)
         {
@@ -435,7 +540,14 @@ public class GeneralsOnlineManifestFactory(
             var fileInfo = new FileInfo(filePath);
 
             // Determine if this file is inside the Maps directory
-            var isMap = mapsDirectory != null && filePath.StartsWith(mapsDirectory, StringComparison.OrdinalIgnoreCase);
+            var isMap = (mapsDirectory != null && filePath.StartsWith(mapsDirectory, StringComparison.OrdinalIgnoreCase)) ||
+                        relativePath.StartsWith(GeneralsOnlineConstants.MapsSubdirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+                        relativePath.StartsWith(GeneralsOnlineConstants.MapsSubdirectory + "/", StringComparison.OrdinalIgnoreCase);
+
+            // Determine if this file is inside the GeneralsOnlineGameData directory
+            var isGameData = (gameDataDirectory != null && filePath.StartsWith(gameDataDirectory, StringComparison.OrdinalIgnoreCase)) ||
+                             relativePath.StartsWith(GeneralsOnlineConstants.GameDataSubdirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+                             relativePath.StartsWith(GeneralsOnlineConstants.GameDataSubdirectory + "/", StringComparison.OrdinalIgnoreCase);
 
             string hash;
             using (var stream = File.OpenRead(filePath))
@@ -444,8 +556,8 @@ public class GeneralsOnlineManifestFactory(
                 hash = Convert.ToHexString(hashBytes).ToLowerInvariant();
             }
 
-            filesWithHashes.Add((relativePath, fileInfo, hash, isMap));
-            logger.LogDebug("Processed file: {File} ({Size} bytes, hash: {Hash}, isMap: {IsMap})", relativePath, fileInfo.Length, hash[..8], isMap);
+            filesWithHashes.Add((relativePath, fileInfo, hash, isMap, isGameData));
+            logger.LogDebug("Processed file: {File} ({Size} bytes, hash: {Hash}, isMap: {IsMap}, isGameData: {IsGameData})", relativePath, fileInfo.Length, hash[..8], isMap, isGameData);
         }
 
         List<ContentManifest> updatedManifests = [];
@@ -454,11 +566,12 @@ public class GeneralsOnlineManifestFactory(
         {
             List<ManifestFile> manifestFiles = [];
             var isMapPackManifest = manifest.ContentType == ContentType.MapPack;
+            var isPatchManifest = manifest.ContentType == ContentType.Patch;
 
             if (isMapPackManifest)
             {
                 // MapPack manifest: only include map files with UserMapsDirectory install target
-                foreach (var (relativePath, fileInfo, hash, isMap) in filesWithHashes)
+                foreach (var (relativePath, fileInfo, hash, isMap, isGameData) in filesWithHashes)
                 {
                     if (!isMap)
                     {
@@ -470,26 +583,40 @@ public class GeneralsOnlineManifestFactory(
 
                 logger.LogInformation("MapPack manifest '{Name}' updated with {Count} map files", manifest.Name, manifestFiles.Count);
             }
+            else if (isPatchManifest)
+            {
+                // Data patch manifest: only include GeneralsOnlineGameData files with Workspace install target
+                foreach (var (relativePath, fileInfo, hash, isMap, isGameData) in filesWithHashes)
+                {
+                    if (!isGameData)
+                    {
+                        continue;
+                    }
+
+                    manifestFiles.Add(CreateGameDataManifestFile(relativePath, fileInfo, hash));
+                }
+
+                logger.LogInformation("GameData patch manifest '{Name}' updated with {Count} files", manifest.Name, manifestFiles.Count);
+            }
             else
             {
-                // Game client manifest: include executables, shared files, AND map files
-                // Map files are included with UserMapsDirectory install target so they install to Documents
+                // Game client manifest: include executables and shared files (skipping maps and game data files)
                 // Since 060526_QFE1 the portable ships an Easy Anti-Cheat bootstrapper that starts the
                 // binary named by EasyAntiCheat/Settings.json. When present it is the only launch target;
                 // the wrapped binary stays in the workspace as ordinary content for EAC to start.
                 var hasEacLauncher = filesWithHashes.Any(file =>
-                    !file.IsMap && IsArchiveRootFile(file.RelativePath, GameClientConstants.GeneralsOnlineEacLauncherExecutable));
+                    !file.IsMap && !file.IsGameData && IsArchiveRootFile(file.RelativePath, GameClientConstants.GeneralsOnlineEacLauncherExecutable));
 
                 var targetExecutable = hasEacLauncher
                     ? GameClientConstants.GeneralsOnlineEacLauncherExecutable
                     : GameClientConstants.GeneralsOnline60HzExecutable;
 
-                foreach (var (relativePath, fileInfo, hash, isMap) in filesWithHashes)
+                foreach (var (relativePath, fileInfo, hash, isMap, isGameData) in filesWithHashes)
                 {
                     var isExecutable = false;
 
-                    // Skip map files in GameClient manifests - they belong in the MapPack manifest
-                    if (isMap)
+                    // Skip map files and game data files in GameClient manifests
+                    if (isMap || isGameData)
                     {
                         continue;
                     }

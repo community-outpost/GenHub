@@ -12,4 +12,7 @@ internal static class GeneralsOnlineVariantTags
 
     /// <summary>Tag indicating QuickMatch MapPack variant.</summary>
     public const string TagQuickMatchMaps = GeneralsOnlineConstants.QuickMatchMapPackSuffix;
+
+    /// <summary>Tag indicating GeneralsOnlineGameData data patch variant.</summary>
+    public const string TagGameData = GeneralsOnlineConstants.GameDataPatchSuffix;
 }

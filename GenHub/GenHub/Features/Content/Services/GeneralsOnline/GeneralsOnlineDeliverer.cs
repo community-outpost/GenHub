@@ -124,7 +124,7 @@ public class GeneralsOnlineDeliverer(
             }
 
             // Step 4: Register all variant manifests to CAS
-            // This ensures all files (including both executables and map pack) are stored before validation
+            // This ensures all files (including executables, map pack, and data patch) are stored before validation
             progress?.Report(new ContentAcquisitionProgress
             {
                 Phase = ContentAcquisitionPhase.Copying,
@@ -132,36 +132,23 @@ public class GeneralsOnlineDeliverer(
                 CurrentOperation = "Registering all variant manifests to content library",
             });
 
-            logger.LogInformation("Registering all variant manifests (60Hz, QuickMatch MapPack) in pool");
+            logger.LogInformation("Registering all variant manifests (60Hz, QuickMatch MapPack, GameData patch) in pool");
 
-            // Register 60Hz manifest
-            var hz60Manifest = manifests[0];
-            var add60Result = await manifestPool.AddManifestAsync(hz60Manifest, extractPath, cancellationToken: cancellationToken);
-            if (!add60Result.Success)
+            foreach (var manifest in manifests)
             {
-                logger.LogWarning(
-                    "Failed to register 60Hz manifest {ManifestId}: {Error}",
-                    hz60Manifest.Id,
-                    add60Result.FirstError);
-            }
-            else
-            {
-                logger.LogInformation("Successfully registered 60Hz manifest: {ManifestId}", hz60Manifest.Id);
-            }
-
-            // Register QuickMatch MapPack manifest
-            var mapPackManifest = manifests[1];
-            var addMapPackResult = await manifestPool.AddManifestAsync(mapPackManifest, extractPath, cancellationToken: cancellationToken);
-            if (!addMapPackResult.Success)
-            {
-                logger.LogWarning(
-                    "Failed to register QuickMatch MapPack manifest {ManifestId}: {Error}",
-                    mapPackManifest.Id,
-                    addMapPackResult.FirstError);
-            }
-            else
-            {
-                logger.LogInformation("Successfully registered QuickMatch MapPack manifest: {ManifestId}", mapPackManifest.Id);
+                var addResult = await manifestPool.AddManifestAsync(manifest, extractPath, cancellationToken: cancellationToken);
+                if (!addResult.Success)
+                {
+                    logger.LogWarning(
+                        "Failed to register manifest {ManifestId} ({Name}): {Error}",
+                        manifest.Id,
+                        manifest.Name,
+                        addResult.FirstError);
+                }
+                else
+                {
+                    logger.LogInformation("Successfully registered manifest: {ManifestId} ({Name})", manifest.Id, manifest.Name);
+                }
             }
 
             var parentDir = Directory.GetParent(extractPath)?.FullName;
@@ -209,7 +196,8 @@ public class GeneralsOnlineDeliverer(
 
             var primaryManifest = manifests[0];
             logger.LogInformation(
-                "Successfully delivered Generals Online content: 2 manifests created, all registered to pool");
+                "Successfully delivered Generals Online content: {Count} manifests created, all registered to pool",
+                manifests.Count);
 
             return OperationResult<ContentManifest>.CreateSuccess(primaryManifest);
         }

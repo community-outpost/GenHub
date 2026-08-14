@@ -87,6 +87,9 @@ public static class GeneralsOnlineConstants
     /// <summary>Manifest name suffix for QuickMatch MapPack.</summary>
     public const string QuickMatchMapPackSuffix = "quickmatch-maps";
 
+    /// <summary>Manifest name suffix for GeneralsOnlineGameData data patch.</summary>
+    public const string GameDataPatchSuffix = "gamedata";
+
     /// <summary>The default tick rate variant suffix.</summary>
     public const string DefaultVariantSuffix = Variant60HzSuffix;
 
@@ -96,8 +99,17 @@ public static class GeneralsOnlineConstants
     /// <summary>Description for QuickMatch MapPack.</summary>
     public const string QuickMatchMapPackDescription = "Official map pack required for GeneralsOnline QuickMatch multiplayer. Contains competitively balanced maps.";
 
+    /// <summary>Display name for GeneralsOnlineGameData data patch.</summary>
+    public const string GameDataDisplayName = "GeneralsOnline Game Data";
+
+    /// <summary>Description for GeneralsOnlineGameData data patch.</summary>
+    public const string GameDataDescription = "Game data patch for GeneralsOnline containing splash screens and map cache configuration.";
+
     /// <summary>Subdirectory within the portable ZIP containing maps.</summary>
     public const string MapsSubdirectory = "Maps";
+
+    /// <summary>Subdirectory within the portable ZIP containing GeneralsOnline game data.</summary>
+    public const string GameDataSubdirectory = "GeneralsOnlineGameData";
 
     // ===== Component Identifiers =====
 
@@ -122,4 +134,9 @@ public static class GeneralsOnlineConstants
     /// Default tags for MapPack manifests.
     /// </summary>
     public static readonly string[] MapPackTags = ["mappack", "generalsonline", "quickmatch", "competitive"];
+
+    /// <summary>
+    /// Default tags for GameData patch manifests.
+    /// </summary>
+    public static readonly string[] GameDataTags = ["patch", "generalsonline", "gamedata"];
 }
