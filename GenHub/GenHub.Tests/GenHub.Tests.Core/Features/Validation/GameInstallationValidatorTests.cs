@@ -86,16 +86,13 @@ public class GameInstallationValidatorTests
             // Ensure the installation is properly fetched to have consistent state
             installation.Fetch();
 
-            // Use thread-safe collection for progress reports
-            var progressReports = new System.Collections.Concurrent.ConcurrentBag<ValidationProgress>();
-            var progress = new Progress<ValidationProgress>(p => progressReports.Add(p));
+            var progress = new SynchronousProgress<ValidationProgress>();
 
             // Act
             await _validator.ValidateAsync(installation, progress);
-            await Task.Delay(100); // Ensure all progress callbacks are processed
 
             // Assert
-            var reportsList = progressReports.ToList();
+            var reportsList = progress.Reports.ToList();
             Assert.True(reportsList.Count > 0, "Expected progress reports to be generated");
 
             // Find the final progress report (highest processed count)

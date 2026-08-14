@@ -43,7 +43,9 @@ public class GeneralsOnlineDeliverer(
     public bool CanDeliver(ContentManifest manifest)
     {
         // Can deliver if it's a Generals Online manifest with a portable ZIP URL
-        return manifest.Publisher?.Name?.Equals(GeneralsOnlineConstants.PublisherName, StringComparison.OrdinalIgnoreCase) == true &&
+        var isPublisher = manifest.Publisher?.PublisherType?.Equals(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true ||
+                          manifest.Publisher?.Name?.Equals(GeneralsOnlineConstants.PublisherName, StringComparison.OrdinalIgnoreCase) == true;
+        return isPublisher &&
                manifest.Files.Any(f => f.DownloadUrl?.EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase) == true);
     }
 
@@ -139,16 +141,17 @@ public class GeneralsOnlineDeliverer(
                 var addResult = await manifestPool.AddManifestAsync(manifest, extractPath, cancellationToken: cancellationToken);
                 if (!addResult.Success)
                 {
-                    logger.LogWarning(
+                    logger.LogError(
                         "Failed to register manifest {ManifestId} ({Name}): {Error}",
                         manifest.Id,
                         manifest.Name,
                         addResult.FirstError);
+
+                    return OperationResult<ContentManifest>.CreateFailure(
+                        $"Failed to register manifest {manifest.Id} ({manifest.Name}): {addResult.FirstError}");
                 }
-                else
-                {
-                    logger.LogInformation("Successfully registered manifest: {ManifestId} ({Name})", manifest.Id, manifest.Name);
-                }
+
+                logger.LogInformation("Successfully registered manifest: {ManifestId} ({Name})", manifest.Id, manifest.Name);
             }
 
             var parentDir = Directory.GetParent(extractPath)?.FullName;

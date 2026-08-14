@@ -252,6 +252,49 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that directories with names starting with "Maps" or "GeneralsOnlineGameData" (e.g. Maps_backup, GeneralsOnlineGameData_backup)
+    /// are not misclassified as Maps or GeneralsOnlineGameData.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_SiblingDirectories_AreNotMisclassified()
+    {
+        // Arrange
+        var siblingMapDir = Path.Combine(_tempDir, "Maps_backup");
+        Directory.CreateDirectory(siblingMapDir);
+        File.WriteAllText(Path.Combine(siblingMapDir, "backup.map"), "fake map backup");
+
+        var siblingGameDataDir = Path.Combine(_tempDir, "GeneralsOnlineGameData_backup");
+        Directory.CreateDirectory(siblingGameDataDir);
+        File.WriteAllText(Path.Combine(siblingGameDataDir, "backup.ini"), "fake ini backup");
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.1015255.generalsonline.gameclient.60hz"),
+            Name = GameClientConstants.GeneralsOnline60HzDisplayName,
+            Version = "101525_QFE5",
+            ContentType = ContentType.GameClient,
+            Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GeneralsOnline },
+            Metadata = new ContentMetadata { ReleaseDate = DateTime.UtcNow },
+        };
+
+        // Act
+        var manifests = await _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir, CancellationToken.None);
+
+        var gameClient = manifests.First(m => m.ContentType == ContentType.GameClient);
+        var mapPack = manifests.First(m => m.ContentType == ContentType.MapPack);
+        var gameDataPatch = manifests.First(m => m.ContentType == ContentType.Patch);
+
+        // Assert - MapPack and GameData patch must not contain sibling files
+        Assert.Empty(mapPack.Files);
+        Assert.Empty(gameDataPatch.Files);
+
+        // Assert - GameClient must contain the sibling files as workspace files
+        Assert.Contains(gameClient.Files, f => f.RelativePath.Contains("Maps_backup"));
+        Assert.Contains(gameClient.Files, f => f.RelativePath.Contains("GeneralsOnlineGameData_backup"));
+    }
+
+    /// <summary>
     /// Verifies <see cref="GeneralsOnlineDependencyBuilder"/> directly returns the expected GameData dependencies.
     /// </summary>
     [Fact]

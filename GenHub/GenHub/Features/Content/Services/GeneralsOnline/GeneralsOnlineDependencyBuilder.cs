@@ -25,10 +25,14 @@ public class GeneralsOnlineDependencyBuilder : BaseDependencyBuilder
             Id = ManifestId.Create($"1.104.genhub.gameinstallation.zerohour"),
             Name = GameClientConstants.ZeroHourInstallationDependencyName,
             DependencyType = ContentType.GameInstallation,
-            MinVersion = ManifestConstants.ZeroHourManifestVersion, // "1.04"
+
+            // "1.04"
+            MinVersion = ManifestConstants.ZeroHourManifestVersion,
             InstallBehavior = DependencyInstallBehavior.RequireExisting,
             IsOptional = false,
-            StrictPublisher = false, // Any publisher's ZH installation will work
+
+            // Any publisher's ZH installation will work
+            StrictPublisher = false,
             CompatibleGameTypes = new List<GameType> { GameType.ZeroHour },
         };
     }
@@ -52,7 +56,9 @@ public class GeneralsOnlineDependencyBuilder : BaseDependencyBuilder
             DependencyType = ContentType.MapPack,
             InstallBehavior = DependencyInstallBehavior.AutoInstall,
             IsOptional = false,
-            StrictPublisher = true, // Must be from GeneralsOnline publisher
+
+            // Must be from GeneralsOnline publisher
+            StrictPublisher = true,
             PublisherType = PublisherTypeConstants.GeneralsOnline,
             CompatibleGameTypes = new List<GameType> { GameType.ZeroHour },
         };
@@ -77,7 +83,9 @@ public class GeneralsOnlineDependencyBuilder : BaseDependencyBuilder
             DependencyType = ContentType.GameClient,
             InstallBehavior = DependencyInstallBehavior.AutoInstall,
             IsOptional = false,
-            StrictPublisher = true, // Must be from GeneralsOnline publisher
+
+            // Must be from GeneralsOnline publisher
+            StrictPublisher = true,
             PublisherType = PublisherTypeConstants.GeneralsOnline,
             CompatibleGameTypes = new List<GameType> { GameType.ZeroHour },
         };

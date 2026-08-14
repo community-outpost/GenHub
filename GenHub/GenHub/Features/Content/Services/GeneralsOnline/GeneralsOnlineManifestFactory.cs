@@ -280,7 +280,7 @@ public class GeneralsOnlineManifestFactory(
     /// </summary>
     /// <param name="release">The Generals Online release information.</param>
     /// <returns>A content manifest for the GeneralsOnlineGameData data patch.</returns>
-    public ContentManifest CreateGameDataPatchManifest(GeneralsOnlineRelease release)
+    private ContentManifest CreateGameDataPatchManifest(GeneralsOnlineRelease release)
     {
         var provider = providerLoader.GetProvider(PublisherTypeConstants.GeneralsOnline);
         var websiteUrl = provider?.Endpoints.WebsiteUrl ?? GeneralsOnlineConstants.WebsiteUrl;
@@ -521,14 +521,6 @@ public class GeneralsOnlineManifestFactory(
 
         List<(string RelativePath, FileInfo FileInfo, string Hash, bool IsMap, bool IsGameData)> filesWithHashes = [];
 
-        // Detect Maps directory (case-insensitive)
-        var mapsDirectory = Directory.GetDirectories(extractPath, "*", SearchOption.TopDirectoryOnly)
-            .FirstOrDefault(d => Path.GetFileName(d).Equals(GeneralsOnlineConstants.MapsSubdirectory, StringComparison.OrdinalIgnoreCase));
-
-        // Detect GeneralsOnlineGameData directory (case-insensitive)
-        var gameDataDirectory = Directory.GetDirectories(extractPath, "*", SearchOption.TopDirectoryOnly)
-            .FirstOrDefault(d => Path.GetFileName(d).Equals(GeneralsOnlineConstants.GameDataSubdirectory, StringComparison.OrdinalIgnoreCase));
-
         foreach (var filePath in allFiles)
         {
             if (cancellationToken.IsCancellationRequested)
@@ -540,13 +532,11 @@ public class GeneralsOnlineManifestFactory(
             var fileInfo = new FileInfo(filePath);
 
             // Determine if this file is inside the Maps directory
-            var isMap = (mapsDirectory != null && filePath.StartsWith(mapsDirectory, StringComparison.OrdinalIgnoreCase)) ||
-                        relativePath.StartsWith(GeneralsOnlineConstants.MapsSubdirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+            var isMap = relativePath.StartsWith(GeneralsOnlineConstants.MapsSubdirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
                         relativePath.StartsWith(GeneralsOnlineConstants.MapsSubdirectory + "/", StringComparison.OrdinalIgnoreCase);
 
             // Determine if this file is inside the GeneralsOnlineGameData directory
-            var isGameData = (gameDataDirectory != null && filePath.StartsWith(gameDataDirectory, StringComparison.OrdinalIgnoreCase)) ||
-                             relativePath.StartsWith(GeneralsOnlineConstants.GameDataSubdirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
+            var isGameData = relativePath.StartsWith(GeneralsOnlineConstants.GameDataSubdirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
                              relativePath.StartsWith(GeneralsOnlineConstants.GameDataSubdirectory + "/", StringComparison.OrdinalIgnoreCase);
 
             string hash;
