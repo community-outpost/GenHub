@@ -653,6 +653,22 @@ public class GeneralsOnlineManifestFactory(
             });
         }
 
+        // If MapPack was not created from archive, remove MapPack dependency so dependency resolution does not fail
+        var hasMapPack = updatedManifests.Any(m => m.ContentType == ContentType.MapPack);
+        if (!hasMapPack)
+        {
+            foreach (var m in updatedManifests)
+            {
+                if (m.Dependencies.Any(d => d.DependencyType == ContentType.MapPack))
+                {
+                    logger.LogInformation(
+                        "Removing MapPack dependency from manifest '{Name}' because MapPack was not found in archive",
+                        m.Name);
+                    m.Dependencies = m.Dependencies.Where(d => d.DependencyType != ContentType.MapPack).ToList();
+                }
+            }
+        }
+
         return updatedManifests;
     }
 }

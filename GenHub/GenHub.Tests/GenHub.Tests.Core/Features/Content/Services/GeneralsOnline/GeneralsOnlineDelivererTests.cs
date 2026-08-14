@@ -200,6 +200,13 @@ public class GeneralsOnlineDelivererTests : IDisposable
                     : OperationResult<bool>.CreateFailure("Simulated pool registration failure");
             });
 
+        _manifestPoolMock
+            .Setup(p => p.RemoveManifestAsync(
+                It.IsAny<ManifestId>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
         // Act
         var targetDir = Path.Combine(_tempDir, "delivery");
         Directory.CreateDirectory(targetDir);
@@ -208,5 +215,102 @@ public class GeneralsOnlineDelivererTests : IDisposable
         // Assert
         Assert.False(result.Success);
         Assert.Contains("Simulated pool registration failure", result.FirstError);
+
+        // Verifies that earlier successfully registered manifest was rolled back
+        _manifestPoolMock.Verify(
+            p => p.RemoveManifestAsync(
+                It.IsAny<ManifestId>(),
+                false,
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies the happy path of DeliverContentAsync: all manifests register,
+    /// files are moved to target directory, and temporary extraction directory is cleaned up.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_HappyPath_RegistersAllManifestsAndCleansUp()
+    {
+        // Arrange
+        var zipPath = Path.Combine(_tempDir, "happy_test.zip");
+        using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            var entry = archive.CreateEntry("generalsonlinezh_60.exe");
+            using (var writer = new StreamWriter(entry.Open()))
+            {
+                writer.Write("fake content");
+            }
+
+            var gameDataEntry = archive.CreateEntry("GeneralsOnlineGameData/splash.bmp");
+            using (var writer = new StreamWriter(gameDataEntry.Open()))
+            {
+                writer.Write("fake splash");
+            }
+        }
+
+        _downloadServiceMock
+            .Setup(d => d.DownloadFileAsync(
+                It.IsAny<Uri>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<DownloadProgress>?>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<Uri, string, string?, IProgress<DownloadProgress>?, CancellationToken>((url, path, hash, prog, token) =>
+            {
+                File.Copy(zipPath, path, true);
+            })
+            .ReturnsAsync(DownloadResult.CreateSuccess(zipPath, 100, TimeSpan.FromSeconds(1)));
+
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.1015255.generalsonline.gameclient.60hz"),
+            Name = GameClientConstants.GeneralsOnline60HzDisplayName,
+            Version = "101525_QFE5",
+            ContentType = ContentType.GameClient,
+            Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GeneralsOnline },
+            Files =
+            [
+                new ManifestFile
+                {
+                    DownloadUrl = "https://example.com/GeneralsOnline_101525_QFE5.zip",
+                    SourceType = ContentSourceType.RemoteDownload,
+                },
+            ],
+        };
+
+        _manifestPoolMock
+            .Setup(p => p.AddManifestAsync(
+                It.IsAny<ContentManifest>(),
+                It.IsAny<string>(),
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        var targetDir = Path.Combine(_tempDir, "happy_delivery");
+        Directory.CreateDirectory(targetDir);
+        var result = await _deliverer.DeliverContentAsync(manifest, targetDir, null, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+
+        // Multiple manifests were registered in pool (GameClient and GameData Patch)
+        _manifestPoolMock.Verify(
+            p => p.AddManifestAsync(
+                It.IsAny<ContentManifest>(),
+                It.IsAny<string>(),
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
+                It.IsAny<CancellationToken>()),
+            Times.AtLeast(2));
+
+        // Files were moved to target directory
+        Assert.True(File.Exists(Path.Combine(targetDir, "generalsonlinezh_60.exe")));
+        Assert.True(File.Exists(Path.Combine(targetDir, "GeneralsOnlineGameData", "splash.bmp")));
+
+        // Temporary extracted directory was cleaned up
+        Assert.False(Directory.Exists(Path.Combine(targetDir, "extracted")));
     }
 }

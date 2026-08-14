@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -134,7 +135,7 @@ public class GeneralsOnlineDeliverer(
                 CurrentOperation = "Registering all variant manifests to content library",
             });
 
-            logger.LogInformation("Registering all variant manifests (60Hz, QuickMatch MapPack, GameData patch) in pool");
+            var registeredManifests = new List<ContentManifest>();
 
             foreach (var manifest in manifests)
             {
@@ -147,10 +148,27 @@ public class GeneralsOnlineDeliverer(
                         manifest.Name,
                         addResult.FirstError);
 
+                    // Roll back previously registered manifests to prevent partial acquisition state
+                    foreach (var registeredManifest in registeredManifests)
+                    {
+                        try
+                        {
+                            await manifestPool.RemoveManifestAsync(registeredManifest.Id, cancellationToken: cancellationToken);
+                        }
+                        catch (Exception rollbackEx)
+                        {
+                            logger.LogWarning(
+                                rollbackEx,
+                                "Failed to rollback manifest {ManifestId} during delivery failure cleanup",
+                                registeredManifest.Id);
+                        }
+                    }
+
                     return OperationResult<ContentManifest>.CreateFailure(
                         $"Failed to register manifest {manifest.Id} ({manifest.Name}): {addResult.FirstError}");
                 }
 
+                registeredManifests.Add(manifest);
                 logger.LogInformation("Successfully registered manifest: {ManifestId} ({Name})", manifest.Id, manifest.Name);
             }
 
