@@ -55,6 +55,10 @@ public class GeneralsOnlineDelivererTests : IDisposable
                 },
             });
 
+        _manifestPoolMock
+            .Setup(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
         _manifestFactory = new GeneralsOnlineManifestFactory(
             NullLogger<GeneralsOnlineManifestFactory>.Instance,
             _providerLoaderMock.Object);

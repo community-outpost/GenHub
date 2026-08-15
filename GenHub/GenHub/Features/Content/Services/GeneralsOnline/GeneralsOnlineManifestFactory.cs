@@ -516,12 +516,12 @@ public class GeneralsOnlineManifestFactory(
     {
         logger.LogInformation("Updating manifests with extracted files from: {Path}", extractPath);
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         var allFiles = Directory.GetFiles(extractPath, "*", SearchOption.AllDirectories);
         logger.LogInformation("Processing {Count} files", allFiles.Length);
 
         List<(string RelativePath, FileInfo FileInfo, string Hash, bool IsMap, bool IsGameData)> filesWithHashes = [];
-
-        cancellationToken.ThrowIfCancellationRequested();
 
         foreach (var filePath in allFiles)
         {
@@ -630,13 +630,26 @@ public class GeneralsOnlineManifestFactory(
                 logger.LogInformation("GameClient manifest '{Name}' updated with {Count} files", manifest.Name, manifestFiles.Count);
             }
 
-            if (manifestFiles.Count == 0 && (isMapPackManifest || isPatchManifest))
+            if (manifestFiles.Count == 0)
             {
-                logger.LogInformation(
-                    "Skipping empty {Type} manifest '{Name}' because no matching files were found in extract path",
-                    manifest.ContentType,
-                    manifest.Name);
-                continue;
+                if (isMapPackManifest || isPatchManifest)
+                {
+                    logger.LogInformation(
+                        "Skipping empty {Type} manifest '{Name}' because no matching files were found in extract path",
+                        manifest.ContentType,
+                        manifest.Name);
+                    continue;
+                }
+
+                if (manifest.ContentType == ContentType.GameClient)
+                {
+                    logger.LogError(
+                        "GameClient manifest '{Name}' has zero files in extract path '{ExtractPath}'",
+                        manifest.Name,
+                        extractPath);
+                    throw new InvalidDataException(
+                        $"GameClient manifest '{manifest.Name}' has no files in extract path '{extractPath}'.");
+                }
             }
 
             updatedManifests.Add(new ContentManifest

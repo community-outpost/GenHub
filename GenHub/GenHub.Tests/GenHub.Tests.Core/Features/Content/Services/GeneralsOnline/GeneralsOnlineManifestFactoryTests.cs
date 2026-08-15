@@ -144,7 +144,7 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
 
         Assert.NotNull(zhDepInPatch);
         Assert.NotNull(clientDepInPatch);
-        Assert.Contains(GeneralsOnlineConstants.Variant60HzSuffix, clientDepInPatch.Id.Value);
+        Assert.Equal(gameClient.Id.Value, clientDepInPatch.Id.Value);
         Assert.False(clientDepInPatch.IsOptional);
         Assert.True(clientDepInPatch.StrictPublisher);
         Assert.Equal(PublisherTypeConstants.GeneralsOnline, clientDepInPatch.PublisherType);
@@ -347,18 +347,49 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that <see cref="GeneralsOnlineManifestFactory.CreateManifestsFromExtractedContentAsync"/> throws
+    /// <see cref="InvalidDataException"/> when the GameClient manifest has zero files.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_EmptyGameClient_ThrowsInvalidDataException()
+    {
+        // Arrange: Only create map files, no GameClient files
+        var mapsDir = Path.Combine(_tempDir, GeneralsOnlineConstants.MapsSubdirectory, "TestMap");
+        Directory.CreateDirectory(mapsDir);
+        File.WriteAllText(Path.Combine(mapsDir, "TestMap.map"), "fake map");
+
+        var originalManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.1015255.generalsonline.gameclient.60hz"),
+            Name = GameClientConstants.GeneralsOnline60HzDisplayName,
+            Version = "101525_QFE5",
+            ContentType = ContentType.GameClient,
+            Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GeneralsOnline },
+        };
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            _factory.CreateManifestsFromExtractedContentAsync(originalManifest, _tempDir, CancellationToken.None));
+    }
+
+    /// <summary>
     /// Verifies <see cref="GeneralsOnlineDependencyBuilder"/> directly returns the expected GameData dependencies.
     /// </summary>
     [Fact]
     public void DependencyBuilder_GetDependenciesForGameData_ReturnsExpectedDependencies()
     {
+        // Arrange
+        var expectedClientId = ManifestId.Create("1.1015255.generalsonline.gameclient.60hz");
+
         // Act
         var dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesForGameData(1015255);
 
         // Assert
         Assert.Equal(2, dependencies.Count);
         Assert.Contains(dependencies, d => d.DependencyType == ContentType.GameInstallation);
-        Assert.Contains(dependencies, d => d.DependencyType == ContentType.GameClient && d.Id.Value.Contains("60hz"));
+        var clientDep = dependencies.First(d => d.DependencyType == ContentType.GameClient);
+        Assert.Equal(expectedClientId.Value, clientDep.Id.Value);
 
         var builder = new GeneralsOnlineDependencyBuilder();
         var patchManifest = new ContentManifest
@@ -370,6 +401,7 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
         var resolvedDeps = builder.GetDependencies(patchManifest);
         Assert.Equal(2, resolvedDeps.Count);
         Assert.Contains(resolvedDeps, d => d.DependencyType == ContentType.GameInstallation);
-        Assert.Contains(resolvedDeps, d => d.DependencyType == ContentType.GameClient && d.Id.Value.Contains("1015255"));
+        var resolvedClientDep = resolvedDeps.First(d => d.DependencyType == ContentType.GameClient);
+        Assert.Equal(expectedClientId.Value, resolvedClientDep.Id.Value);
     }
 }

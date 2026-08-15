@@ -135,10 +135,17 @@ public class GeneralsOnlineDeliverer(
                 CurrentOperation = "Registering all variant manifests to content library",
             });
 
-            var registeredManifests = new List<ContentManifest>();
+            var newlyRegisteredManifests = new List<ContentManifest>();
 
             foreach (var manifest in manifests)
             {
+                var isPreExisting = false;
+                var checkResult = await manifestPool.IsManifestAcquiredAsync(manifest.Id, cancellationToken: cancellationToken);
+                if (checkResult?.Success == true && checkResult.Data)
+                {
+                    isPreExisting = true;
+                }
+
                 var addResult = await manifestPool.AddManifestAsync(manifest, extractPath, cancellationToken: cancellationToken);
                 if (!addResult.Success)
                 {
@@ -148,12 +155,21 @@ public class GeneralsOnlineDeliverer(
                         manifest.Name,
                         addResult.FirstError);
 
-                    // Roll back previously registered manifests to prevent partial acquisition state
-                    foreach (var registeredManifest in registeredManifests)
+                    // Roll back newly registered manifests to prevent partial acquisition state
+                    var rollbackErrors = new List<string>();
+                    foreach (var registeredManifest in newlyRegisteredManifests)
                     {
                         try
                         {
-                            await manifestPool.RemoveManifestAsync(registeredManifest.Id, cancellationToken: cancellationToken);
+                            var removeResult = await manifestPool.RemoveManifestAsync(registeredManifest.Id, cancellationToken: CancellationToken.None);
+                            if (!removeResult.Success)
+                            {
+                                logger.LogWarning(
+                                    "Failed to rollback manifest {ManifestId} during delivery failure cleanup: {Error}",
+                                    registeredManifest.Id,
+                                    removeResult.FirstError);
+                                rollbackErrors.Add($"Rollback of manifest {registeredManifest.Id} failed: {removeResult.FirstError}");
+                            }
                         }
                         catch (Exception rollbackEx)
                         {
@@ -161,14 +177,24 @@ public class GeneralsOnlineDeliverer(
                                 rollbackEx,
                                 "Failed to rollback manifest {ManifestId} during delivery failure cleanup",
                                 registeredManifest.Id);
+                            rollbackErrors.Add($"Rollback exception for manifest {registeredManifest.Id}: {rollbackEx.Message}");
                         }
                     }
 
-                    return OperationResult<ContentManifest>.CreateFailure(
-                        $"Failed to register manifest {manifest.Id} ({manifest.Name}): {addResult.FirstError}");
+                    var errorMessage = $"Failed to register manifest {manifest.Id} ({manifest.Name}): {addResult.FirstError}";
+                    if (rollbackErrors.Count > 0)
+                    {
+                        errorMessage += $"; Rollback warnings: {string.Join("; ", rollbackErrors)}";
+                    }
+
+                    return OperationResult<ContentManifest>.CreateFailure(errorMessage);
                 }
 
-                registeredManifests.Add(manifest);
+                if (!isPreExisting)
+                {
+                    newlyRegisteredManifests.Add(manifest);
+                }
+
                 logger.LogInformation("Successfully registered manifest: {ManifestId} ({Name})", manifest.Id, manifest.Name);
             }
 
@@ -222,9 +248,14 @@ public class GeneralsOnlineDeliverer(
 
             return OperationResult<ContentManifest>.CreateSuccess(primaryManifest);
         }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation("Generals Online content delivery was canceled for {Version}", packageManifest.Version);
+            throw;
+        }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to deliver Generals Online content");
+            logger.LogError(ex, "Failed to deliver Generals Online content for {Version}", packageManifest.Version);
             return OperationResult<ContentManifest>.CreateFailure($"Content delivery failed: {ex.Message}");
         }
     }
