@@ -129,8 +129,6 @@ public class GeneralsOnlineDependencyBuilder : BaseDependencyBuilder
     /// <returns>List of dependencies.</returns>
     public override List<ContentDependency> GetDependencies(ContentManifest manifest)
     {
-        var dependencies = new List<ContentDependency>();
-
         var userVersion = 0;
         if (!string.IsNullOrWhiteSpace(manifest.Version))
         {
@@ -145,24 +143,12 @@ public class GeneralsOnlineDependencyBuilder : BaseDependencyBuilder
             }
         }
 
-        // All Generals Online game clients require Zero Hour 1.04 and the QuickMatch MapPack
-        if (manifest.ContentType == ContentType.GameClient)
+        return manifest.ContentType switch
         {
-            dependencies.Add(CreateZeroHourDependencyForGeneralsOnline());
-            dependencies.Add(CreateQuickMatchMapPackDependency(userVersion));
-        }
-        else if (manifest.ContentType == ContentType.MapPack)
-        {
-            // MapPacks only require Zero Hour installation
-            dependencies.Add(CreateZeroHourDependencyForGeneralsOnline());
-        }
-        else if (manifest.ContentType == ContentType.Patch)
-        {
-            // Data patch requires Zero Hour installation and GeneralsOnline GameClient
-            dependencies.Add(CreateZeroHourDependencyForGeneralsOnline());
-            dependencies.Add(CreateGameClient60HzDependency(userVersion));
-        }
-
-        return dependencies;
+            ContentType.GameClient => GetDependenciesFor60Hz(userVersion),
+            ContentType.MapPack => [CreateZeroHourDependencyForGeneralsOnline()],
+            ContentType.Patch => GetDependenciesForGameData(userVersion),
+            _ => [],
+        };
     }
 }

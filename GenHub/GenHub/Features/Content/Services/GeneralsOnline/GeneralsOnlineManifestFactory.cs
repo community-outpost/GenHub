@@ -505,7 +505,7 @@ public class GeneralsOnlineManifestFactory(
     /// Computes SHA-256 hashes for all files for CAS integration.
     /// Each variant gets only the files it needs plus shared files.
     /// Maps are extracted to the MapPack manifest with UserMapsDirectory install target.
-    /// Game data files are extracted to the Patch manifest with Workspace install target.
+    /// Game data files are extracted to the Patch manifest with UserDataDirectory install target.
     /// </summary>
     /// <param name="manifests">The original content manifests to update.</param>
     /// <param name="extractPath">The path to the directory containing extracted files.</param>

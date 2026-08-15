@@ -135,6 +135,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             IsEnabled = coreItem.IsEnabled,
             IsEditable = coreItem.IsEditable,
             SourcePath = coreItem.SourcePath,
+            IsLocked = false,
+            CanToggle = true,
         };
     }
 
@@ -390,6 +392,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
                             Version = existing.Version,
                             IsEditable = existing.IsEditable,
                             SourcePath = existing.SourcePath,
+                            IsLocked = existing.IsLocked,
+                            CanToggle = existing.CanToggle,
                         });
                     }
                 }

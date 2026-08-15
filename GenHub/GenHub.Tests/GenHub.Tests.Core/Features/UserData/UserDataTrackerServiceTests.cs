@@ -341,4 +341,65 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         Assert.False(Directory.Exists(subDir)); // Empty subfolder cleaned up
         Assert.True(Directory.Exists(_zeroHourDataDir)); // Root folder kept safe
     }
+
+    /// <summary>
+    /// Verifies that if a user modifies a deployed file, deactivation preserves the modified file and does not overwrite it with the backup.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task DeactivateProfileUserDataAsync_WhenUserModifiesDeployedFile_PreservesModifiedFileAndDoesNotOverwriteWithBackup()
+    {
+        // Arrange: pre-existing user file
+        var gameDataDir = Path.Combine(_zeroHourDataDir, "GeneralsOnlineGameData");
+        Directory.CreateDirectory(gameDataDir);
+        var splashPath = Path.Combine(gameDataDir, "splash.bmp");
+        var originalUserContent = "original-user-splash";
+        File.WriteAllText(splashPath, originalUserContent);
+
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "GeneralsOnlineGameData/splash.bmp",
+                Hash = "hash-splash-expected",
+                Size = 100,
+                InstallTarget = ContentInstallTarget.UserDataDirectory,
+            },
+        };
+
+        var installResult = await _trackerService.InstallUserDataAsync(
+            "1.1015255.generalsonline.patch.gamedata",
+            "profile-user-edit-test",
+            GameType.ZeroHour,
+            files,
+            "101525_QFE5",
+            "GameData Patch",
+            CancellationToken.None);
+
+        Assert.True(installResult.Success);
+        Assert.True(installResult.Data!.InstalledFiles[0].WasOverwritten);
+
+        // Simulate user editing the deployed splash.bmp after install
+        var modifiedContent = "user-edited-splash-content";
+        File.WriteAllText(splashPath, modifiedContent);
+
+        // Configure hash verification to fail for the modified file
+        _fileOperationsMock
+            .Setup(f => f.VerifyFileHashAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        // Act: Deactivate profile
+        var deactivateResult = await _trackerService.DeactivateProfileUserDataAsync("profile-user-edit-test", CancellationToken.None);
+
+        // Assert: Modified file was preserved and NOT overwritten by the backup
+        Assert.True(deactivateResult.Success);
+        Assert.True(File.Exists(splashPath));
+        Assert.Equal(modifiedContent, File.ReadAllText(splashPath));
+
+        // Backup file remains intact in the backup store for recovery
+        var backupPath = installResult.Data.InstalledFiles[0].BackupPath;
+        Assert.NotNull(backupPath);
+        Assert.True(File.Exists(backupPath));
+        Assert.Equal(originalUserContent, File.ReadAllText(backupPath!));
+    }
 }

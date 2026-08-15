@@ -110,8 +110,9 @@ public class UserDataTrackerService(
                         backupPath = await BackupExistingFileAsync(targetPath, targetGame, cancellationToken);
                         if (string.IsNullOrEmpty(backupPath))
                         {
-                            logger.LogError("[UserData] Failed to create safety backup for user file {Path}; skipping to prevent data loss", targetPath);
-                            continue;
+                            logger.LogError("[UserData] Failed to create safety backup for user file {Path}; aborting installation to prevent data loss", targetPath);
+                            await CleanupInstalledFilesAsync(userDataManifest, cancellationToken);
+                            return OperationResult<UserDataManifest>.CreateFailure($"Failed to create safety backup for '{targetPath}'. Installation aborted.");
                         }
 
                         wasOverwritten = true;
@@ -156,8 +157,9 @@ public class UserDataTrackerService(
                         var copyResult = await fileOperations.CopyFromCasAsync(file.Hash, targetPath, contentType: null, cancellationToken: cancellationToken);
                         if (!copyResult)
                         {
-                            logger.LogError("[UserData] Failed to install file {Path}", targetPath);
-                            continue;
+                            logger.LogError("[UserData] Failed to install file {Path}; aborting installation", targetPath);
+                            await CleanupInstalledFilesAsync(userDataManifest, cancellationToken);
+                            return OperationResult<UserDataManifest>.CreateFailure($"Failed to install file '{targetPath}'. Installation aborted.");
                         }
 
                         logger.LogDebug("[UserData] Copied file for {Path} (hard link failed)", targetPath);
@@ -165,8 +167,9 @@ public class UserDataTrackerService(
                 }
                 else
                 {
-                    logger.LogWarning("[UserData] File {Path} has no hash, skipping", file.RelativePath);
-                    continue;
+                    logger.LogError("[UserData] File {Path} has no hash; aborting installation", file.RelativePath);
+                    await CleanupInstalledFilesAsync(userDataManifest, cancellationToken);
+                    return OperationResult<UserDataManifest>.CreateFailure($"File '{file.RelativePath}' has no hash. Installation aborted.");
                 }
 
                 var entry = new UserDataFileEntry
@@ -280,7 +283,7 @@ public class UserDataTrackerService(
 
                     if (File.Exists(file.AbsolutePath))
                     {
-                        if (file.IsHardLink || await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken))
+                        if (await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken))
                         {
                             continue; // File already exists and matches hash
                         }
@@ -290,11 +293,14 @@ public class UserDataTrackerService(
                         if (string.IsNullOrEmpty(file.BackupPath) || !File.Exists(file.BackupPath))
                         {
                             var backupPath = await BackupExistingFileAsync(file.AbsolutePath, manifest.TargetGame, cancellationToken);
-                            if (!string.IsNullOrEmpty(backupPath))
+                            if (string.IsNullOrEmpty(backupPath))
                             {
-                                file.BackupPath = backupPath;
-                                file.WasOverwritten = true;
+                                logger.LogError("[UserData] Failed to create safety backup for {Path} during activation", file.AbsolutePath);
+                                return OperationResult<bool>.CreateFailure($"Failed to create safety backup for '{file.AbsolutePath}' during activation");
                             }
+
+                            file.BackupPath = backupPath;
+                            file.WasOverwritten = true;
                         }
 
                         FileOperationsService.DeleteFileIfExists(file.AbsolutePath);
@@ -371,7 +377,7 @@ public class UserDataTrackerService(
                     {
                         try
                         {
-                            if (file.IsHardLink || await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken))
+                            if (await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken))
                             {
                                 File.Delete(file.AbsolutePath);
                                 CleanupEmptyDirectories(Path.GetDirectoryName(file.AbsolutePath), userDataBasePath);
@@ -387,8 +393,8 @@ public class UserDataTrackerService(
                         }
                     }
 
-                    // If an original user file was backed up, restore it upon deactivation
-                    if (!string.IsNullOrEmpty(file.BackupPath) && File.Exists(file.BackupPath))
+                    // If an original user file was backed up and the target file was removed or absent, restore it upon deactivation
+                    if (!File.Exists(file.AbsolutePath) && !string.IsNullOrEmpty(file.BackupPath) && File.Exists(file.BackupPath))
                     {
                         try
                         {
@@ -808,8 +814,8 @@ public class UserDataTrackerService(
             {
                 if (File.Exists(file.AbsolutePath))
                 {
-                    // Verify we should delete this file (hash matches or is our hard link)
-                    if (file.IsHardLink || await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken))
+                    // Verify we should delete this file (hash matches)
+                    if (await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken))
                     {
                         File.Delete(file.AbsolutePath);
                         logger.LogDebug("[UserData] Deleted file: {Path}", file.AbsolutePath);
@@ -823,8 +829,8 @@ public class UserDataTrackerService(
                     }
                 }
 
-                // Restore backup if exists
-                if (!string.IsNullOrEmpty(file.BackupPath) && File.Exists(file.BackupPath))
+                // Restore backup if exists and target file was removed or absent
+                if (!File.Exists(file.AbsolutePath) && !string.IsNullOrEmpty(file.BackupPath) && File.Exists(file.BackupPath))
                 {
                     var targetDir = Path.GetDirectoryName(file.AbsolutePath);
                     if (!string.IsNullOrEmpty(targetDir))
