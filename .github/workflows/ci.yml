@@ -613,9 +613,6 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       # A job skipped by detect-changes gating is a legitimate outcome, rendered as
       # such rather than as a failure.
       - name: Generate Summary
