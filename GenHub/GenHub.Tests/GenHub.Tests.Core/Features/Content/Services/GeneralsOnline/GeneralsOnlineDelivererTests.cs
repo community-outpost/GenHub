@@ -325,4 +325,97 @@ public class GeneralsOnlineDelivererTests : IDisposable
         // Temporary extracted directory was cleaned up
         Assert.False(Directory.Exists(Path.Combine(targetDir, "extracted")));
     }
+
+    /// <summary>
+    /// Verifies that if manifest acquisition check fails, rollback is triggered and failure is returned.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_CheckAcquisitionFails_RollsBackAndReturnsFailure()
+    {
+        // Arrange
+        var zipPath = Path.Combine(_tempDir, "check_fail.zip");
+        using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            var exeEntry = archive.CreateEntry("generalsonlinezh_60.exe");
+            using (var writer = new StreamWriter(exeEntry.Open()))
+            {
+                writer.Write("fake exe");
+            }
+
+            var gameDataEntry = archive.CreateEntry("GeneralsOnlineGameData/splash.bmp");
+            using (var writer = new StreamWriter(gameDataEntry.Open()))
+            {
+                writer.Write("fake splash");
+            }
+        }
+
+        _downloadServiceMock
+            .Setup(d => d.DownloadFileAsync(
+                It.IsAny<Uri>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<DownloadProgress>?>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<Uri, string, string?, IProgress<DownloadProgress>?, CancellationToken>((url, path, hash, prog, token) =>
+            {
+                File.Copy(zipPath, path, true);
+            })
+            .ReturnsAsync(DownloadResult.CreateSuccess(zipPath, 100, TimeSpan.FromSeconds(1)));
+
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.1015255.generalsonline.gameclient.60hz"),
+            Name = GameClientConstants.GeneralsOnline60HzDisplayName,
+            Version = "101525_QFE5",
+            ContentType = ContentType.GameClient,
+            Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GeneralsOnline },
+            Files =
+            [
+                new ManifestFile
+                {
+                    DownloadUrl = "https://example.com/GeneralsOnline_101525_QFE5.zip",
+                    SourceType = ContentSourceType.RemoteDownload,
+                },
+            ],
+        };
+
+        // First check succeeds, second check fails
+        _manifestPoolMock
+            .SetupSequence(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("CAS index corrupted"));
+
+        _manifestPoolMock
+            .Setup(p => p.AddManifestAsync(
+                It.IsAny<ContentManifest>(),
+                It.IsAny<string>(),
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        _manifestPoolMock
+            .Setup(p => p.RemoveManifestAsync(
+                It.IsAny<ManifestId>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        var targetDir = Path.Combine(_tempDir, "check_fail_delivery");
+        Directory.CreateDirectory(targetDir);
+        var result = await _deliverer.DeliverContentAsync(manifest, targetDir, null, CancellationToken.None);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Failed to check manifest acquisition status", result.FirstError);
+
+        // First manifest was rolled back
+        _manifestPoolMock.Verify(
+            p => p.RemoveManifestAsync(
+                It.IsAny<ManifestId>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
 }

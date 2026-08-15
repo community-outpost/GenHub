@@ -196,6 +196,11 @@ public abstract class BaseContentProvider(
 
             return result;
         }
+        catch (OperationCanceledException)
+        {
+            Logger.LogInformation("Content preparation was canceled for manifest {ManifestId}", manifest.Id);
+            throw;
+        }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to prepare content for manifest {ManifestId}", manifest.Id);

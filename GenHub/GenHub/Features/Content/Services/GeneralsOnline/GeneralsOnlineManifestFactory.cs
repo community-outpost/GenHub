@@ -319,7 +319,9 @@ public class GeneralsOnlineManifestFactory(
                 Tags = [.. GeneralsOnlineConstants.GameDataTags, .. GetVariantTags(GeneralsOnlineConstants.GameDataPatchSuffix)],
                 ChangelogUrl = release.Changelog,
             },
-            Files = [], // Files will be populated during extraction
+
+            // Files will be populated during extraction
+            Files = [],
             Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesForGameData(userVersion),
         };
     }
@@ -393,9 +395,9 @@ public class GeneralsOnlineManifestFactory(
 
         // Get URLs from provider definition (prefer original manifest metadata if available)
         var provider = providerLoader.GetProvider(PublisherTypeConstants.GeneralsOnline);
-        var websiteUrl = provider?.Endpoints.WebsiteUrl ?? string.Empty;
-        var supportUrl = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.SupportUrl) ?? string.Empty;
-        var downloadPageUrl = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.DownloadPageUrl) ?? string.Empty;
+        var websiteUrl = provider?.Endpoints.WebsiteUrl ?? GeneralsOnlineConstants.WebsiteUrl;
+        var supportUrl = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.SupportUrl) ?? GeneralsOnlineConstants.SupportUrl;
+        var downloadPageUrl = provider?.Endpoints.GetEndpoint(ProviderEndpointConstants.DownloadPageUrl) ?? GeneralsOnlineConstants.DownloadPageUrl;
         var iconUrl = GeneralsOnlineConstants.LogoSource;
 
         // Create publisher info once (shared by all variants)
@@ -650,6 +652,14 @@ public class GeneralsOnlineManifestFactory(
                     throw new InvalidDataException(
                         $"GameClient manifest '{manifest.Name}' has no files in extract path '{extractPath}'.");
                 }
+
+                logger.LogError(
+                    "Manifest '{Name}' of type {Type} has zero files in extract path '{ExtractPath}'",
+                    manifest.Name,
+                    manifest.ContentType,
+                    extractPath);
+                throw new InvalidDataException(
+                    $"Manifest '{manifest.Name}' of type {manifest.ContentType} has no files in extract path '{extractPath}'.");
             }
 
             updatedManifests.Add(new ContentManifest

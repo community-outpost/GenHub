@@ -237,7 +237,6 @@ public class GeneralsOnlineProfileReconcilerTests
 
         _manifestPoolMock.SetupSequence(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([oldClientManifest, oldPatchManifest]))
-            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([oldClientManifest, oldPatchManifest, newClientManifest, newPatchManifest]))
             .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([oldClientManifest, oldPatchManifest, newClientManifest, newPatchManifest]));
 
         _contentOrchestratorMock.Setup(

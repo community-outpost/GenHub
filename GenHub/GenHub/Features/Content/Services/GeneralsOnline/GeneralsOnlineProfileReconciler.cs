@@ -170,7 +170,7 @@ public class GeneralsOnlineProfileReconciler(
             // If strategy is ReplaceCurrent, we delete if the subscription/user settings allow it.
             bool shouldDeleteOldVersions = (strategy != UpdateStrategy.CreateNewProfile) && (subscription?.DeleteOldVersions ?? true);
 
-            var manifestMapping = BuildManifestMapping(oldManifests, newManifests, versionComparer.GetScheme(GeneralsOnlineConstants.PublisherType));
+            Dictionary<string, string>? manifestMapping = null;
 
             if (strategy == UpdateStrategy.CreateNewProfile)
             {
@@ -181,6 +181,8 @@ public class GeneralsOnlineProfileReconciler(
             else
             {
                 // ReplaceCurrent
+                manifestMapping = BuildManifestMapping(oldManifests, newManifests, versionComparer.GetScheme(GeneralsOnlineConstants.PublisherType));
+
                 // CRITICAL: Pass removeOld = false to prevent premature deletion
                 // We'll handle deletion after MapPack enforcement succeeds
                 var bulkUpdateResult = await reconciliationService.OrchestrateBulkUpdateAsync(
@@ -219,7 +221,7 @@ public class GeneralsOnlineProfileReconciler(
             }
 
             // Step 6: Delete old manifests only if enforcement succeeded and deletion is enabled
-            if (shouldDeleteOldVersions && !anyFailure)
+            if (shouldDeleteOldVersions && !anyFailure && manifestMapping != null)
             {
                 logger.LogInformation("[GO Reconciler] Deleting old manifests that have mapped successors");
                 var oldManifestIds = oldManifests
