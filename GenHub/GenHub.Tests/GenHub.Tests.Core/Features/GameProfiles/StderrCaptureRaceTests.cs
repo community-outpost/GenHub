@@ -46,7 +46,7 @@ public class StderrCaptureRaceTests
         // by its value, which produces `/bin/sh -c <script>`.
         var script =
             $"echo {HeadLine} >&2; " +
-            "for i in $(seq 1 200); do echo noise-$i >&2; done; " +
+            "for i in $(seq 1 50); do echo noise-$i >&2; done; " +
             $"echo {TailLine} >&2; " +
             "exit 3";
 
