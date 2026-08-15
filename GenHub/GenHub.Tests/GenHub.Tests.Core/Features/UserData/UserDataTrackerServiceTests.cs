@@ -465,4 +465,62 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         Assert.True(File.Exists(splashPath));
         Assert.Equal(newerUserContent, File.ReadAllText(splashPath));
     }
+
+    /// <summary>
+    /// Verifies that when activation materialization fails, rollback restores the backup even if parent directory was deleted during the attempt.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ActivateProfileUserDataAsync_WhenMaterializationFails_RollsBackAndRestoresBackup()
+    {
+        // Arrange
+        var gameDataDir = Path.Combine(_zeroHourDataDir, "GeneralsOnlineGameData");
+        Directory.CreateDirectory(gameDataDir);
+        var splashPath = Path.Combine(gameDataDir, "splash.bmp");
+        var originalUserContent = "original-user-splash";
+        File.WriteAllText(splashPath, originalUserContent);
+
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "GeneralsOnlineGameData/splash.bmp",
+                Hash = "hash-splash-expected",
+                Size = 100,
+                InstallTarget = ContentInstallTarget.UserDataDirectory,
+            },
+        };
+
+        // 1. Install & Deactivate
+        await _trackerService.InstallUserDataAsync(
+            "1.1015255.generalsonline.patch.gamedata",
+            "profile-fail-materialize-test",
+            GameType.ZeroHour,
+            files,
+            "101525_QFE5",
+            "GameData Patch",
+            CancellationToken.None);
+
+        await _trackerService.DeactivateProfileUserDataAsync("profile-fail-materialize-test", CancellationToken.None);
+        Assert.Equal(originalUserContent, File.ReadAllText(splashPath));
+
+        // 2. Mock CAS materialization failure and hash check
+        _fileOperationsMock
+            .Setup(f => f.VerifyFileHashAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _fileOperationsMock
+            .Setup(f => f.LinkFromCasAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<ContentType?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _fileOperationsMock
+            .Setup(f => f.CopyFromCasAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<ContentType?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        // 3. Act: Activate profile
+        var activateResult = await _trackerService.ActivateProfileUserDataAsync("profile-fail-materialize-test", CancellationToken.None);
+
+        // 4. Assert: Activation failed, rollback restored user backup
+        Assert.False(activateResult.Success);
+        Assert.True(File.Exists(splashPath));
+        Assert.Equal(originalUserContent, File.ReadAllText(splashPath));
+    }
 }

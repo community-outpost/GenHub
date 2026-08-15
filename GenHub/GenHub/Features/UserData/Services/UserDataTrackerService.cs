@@ -353,12 +353,21 @@ public class UserDataTrackerService(
                             if (File.Exists(file.AbsolutePath))
                             {
                                 File.Delete(file.AbsolutePath);
-                                CleanupEmptyDirectories(Path.GetDirectoryName(file.AbsolutePath), userDataBasePath);
                             }
 
                             if (!string.IsNullOrEmpty(file.BackupPath) && File.Exists(file.BackupPath))
                             {
+                                var targetDir = Path.GetDirectoryName(file.AbsolutePath);
+                                if (!string.IsNullOrEmpty(targetDir))
+                                {
+                                    Directory.CreateDirectory(targetDir);
+                                }
+
                                 File.Copy(file.BackupPath, file.AbsolutePath, overwrite: true);
+                            }
+                            else
+                            {
+                                CleanupEmptyDirectories(Path.GetDirectoryName(file.AbsolutePath), userDataBasePath);
                             }
                         }
                         catch (Exception ex)
