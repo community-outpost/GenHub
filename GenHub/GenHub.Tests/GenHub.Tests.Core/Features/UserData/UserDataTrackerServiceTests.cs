@@ -402,4 +402,67 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         Assert.True(File.Exists(backupPath));
         Assert.Equal(originalUserContent, File.ReadAllText(backupPath!));
     }
+
+    /// <summary>
+    /// Verifies that when a user modifies a restored backup while deactivated, reactivation creates a new backup of the new content and restores it cleanly on subsequent deactivation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ReactivateProfileUserDataAsync_WhenUserModifiesRestoredFileWhileDeactivated_BacksUpNewContentAndRestoresItOnSubsequentDeactivation()
+    {
+        // Arrange
+        var gameDataDir = Path.Combine(_zeroHourDataDir, "GeneralsOnlineGameData");
+        Directory.CreateDirectory(gameDataDir);
+        var splashPath = Path.Combine(gameDataDir, "splash.bmp");
+        var originalUserContent = "original-user-splash";
+        File.WriteAllText(splashPath, originalUserContent);
+
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "GeneralsOnlineGameData/splash.bmp",
+                Hash = "hash-splash-expected",
+                Size = 100,
+                InstallTarget = ContentInstallTarget.UserDataDirectory,
+            },
+        };
+
+        // 1. Install profile
+        var installResult = await _trackerService.InstallUserDataAsync(
+            "1.1015255.generalsonline.patch.gamedata",
+            "profile-reactivate-test",
+            GameType.ZeroHour,
+            files,
+            "101525_QFE5",
+            "GameData Patch",
+            CancellationToken.None);
+
+        Assert.True(installResult.Success);
+
+        // 2. Deactivate profile (restores original backup)
+        var deactivateResult = await _trackerService.DeactivateProfileUserDataAsync("profile-reactivate-test", CancellationToken.None);
+        Assert.True(deactivateResult.Success);
+        Assert.Equal(originalUserContent, File.ReadAllText(splashPath));
+
+        // 3. User modifies the file while profile is inactive
+        var newerUserContent = "newer-user-splash-created-while-inactive";
+        File.WriteAllText(splashPath, newerUserContent);
+
+        // Configure hash check: deployed CAS file matches "hash-splash-expected", user file does not
+        _fileOperationsMock
+            .Setup(f => f.VerifyFileHashAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string path, string hash, CancellationToken _) => File.Exists(path) && File.ReadAllText(path).StartsWith("cas-content"));
+
+        // 4. Reactivate profile (should back up newerUserContent and deploy CAS file)
+        var reactivateResult = await _trackerService.ActivateProfileUserDataAsync("profile-reactivate-test", CancellationToken.None);
+        Assert.True(reactivateResult.Success);
+        Assert.Equal("cas-content-hash-splash-expected", File.ReadAllText(splashPath));
+
+        // 5. Deactivate profile again (should restore the newerUserContent, NOT the stale original)
+        var secondDeactivateResult = await _trackerService.DeactivateProfileUserDataAsync("profile-reactivate-test", CancellationToken.None);
+        Assert.True(secondDeactivateResult.Success);
+        Assert.True(File.Exists(splashPath));
+        Assert.Equal(newerUserContent, File.ReadAllText(splashPath));
+    }
 }

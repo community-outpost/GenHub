@@ -292,25 +292,25 @@ public class UserDataTrackerService(
                             continue; // File already exists and matches hash
                         }
 
-                        // Existing file doesn't match our CAS hash (e.g. user modified it or restored backup)
-                        // Make sure we have a backup if not already tracked
-                        if (string.IsNullOrEmpty(file.BackupPath) || !File.Exists(file.BackupPath))
+                        // Existing file doesn't match our CAS hash (e.g. user modified it while inactive or restored backup)
+                        // Always create a fresh safety backup of the latest file content on disk before replacing
+                        var backupPath = await BackupExistingFileAsync(file.AbsolutePath, manifest.TargetGame, cancellationToken);
+                        if (string.IsNullOrEmpty(backupPath))
                         {
-                            var backupPath = await BackupExistingFileAsync(file.AbsolutePath, manifest.TargetGame, cancellationToken);
-                            if (string.IsNullOrEmpty(backupPath))
-                            {
-                                logger.LogError("[UserData] Failed to create safety backup for {Path} during activation", file.AbsolutePath);
-                                failureReason = $"Failed to create safety backup for '{file.AbsolutePath}' during activation";
-                                activationFailed = true;
-                                break;
-                            }
-
-                            file.BackupPath = backupPath;
-                            file.WasOverwritten = true;
+                            logger.LogError("[UserData] Failed to create safety backup for {Path} during activation", file.AbsolutePath);
+                            failureReason = $"Failed to create safety backup for '{file.AbsolutePath}' during activation";
+                            activationFailed = true;
+                            break;
                         }
+
+                        file.BackupPath = backupPath;
+                        file.WasOverwritten = true;
 
                         FileOperationsService.DeleteFileIfExists(file.AbsolutePath);
                     }
+
+                    // Track file as touched during this activation pass so rollback restores its backup if needed
+                    filesActivatedInThisManifest.Add(file);
 
                     if (!string.IsNullOrEmpty(file.CasHash))
                     {
@@ -339,8 +339,6 @@ public class UserDataTrackerService(
                                 break;
                             }
                         }
-
-                        filesActivatedInThisManifest.Add(file);
                     }
                 }
 
