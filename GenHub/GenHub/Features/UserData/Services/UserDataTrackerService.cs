@@ -276,6 +276,10 @@ public class UserDataTrackerService(
                     continue; // Already active
                 }
 
+                var filesActivatedInThisManifest = new List<UserDataFileEntry>();
+                var activationFailed = false;
+                string? failureReason = null;
+
                 // Re-create hard links for all files
                 foreach (var file in manifest.InstalledFiles)
                 {
@@ -296,7 +300,9 @@ public class UserDataTrackerService(
                             if (string.IsNullOrEmpty(backupPath))
                             {
                                 logger.LogError("[UserData] Failed to create safety backup for {Path} during activation", file.AbsolutePath);
-                                return OperationResult<bool>.CreateFailure($"Failed to create safety backup for '{file.AbsolutePath}' during activation");
+                                failureReason = $"Failed to create safety backup for '{file.AbsolutePath}' during activation";
+                                activationFailed = true;
+                                break;
                             }
 
                             file.BackupPath = backupPath;
@@ -324,9 +330,50 @@ public class UserDataTrackerService(
                         if (!linkResult)
                         {
                             // Fall back to copy
-                            await fileOperations.CopyFromCasAsync(file.CasHash, file.AbsolutePath, contentType: null, cancellationToken: cancellationToken);
+                            var copyResult = await fileOperations.CopyFromCasAsync(file.CasHash, file.AbsolutePath, contentType: null, cancellationToken: cancellationToken);
+                            if (!copyResult)
+                            {
+                                logger.LogError("[UserData] Failed to materialize file {Path} during activation", file.AbsolutePath);
+                                failureReason = $"Failed to materialize file '{file.AbsolutePath}' during activation";
+                                activationFailed = true;
+                                break;
+                            }
+                        }
+
+                        filesActivatedInThisManifest.Add(file);
+                    }
+                }
+
+                if (activationFailed)
+                {
+                    // Roll back files activated during this attempt and restore backups
+                    var userDataBasePath = GetUserDataBasePath(manifest.TargetGame);
+                    foreach (var file in filesActivatedInThisManifest)
+                    {
+                        try
+                        {
+                            if (File.Exists(file.AbsolutePath))
+                            {
+                                File.Delete(file.AbsolutePath);
+                                CleanupEmptyDirectories(Path.GetDirectoryName(file.AbsolutePath), userDataBasePath);
+                            }
+
+                            if (!string.IsNullOrEmpty(file.BackupPath) && File.Exists(file.BackupPath))
+                            {
+                                File.Copy(file.BackupPath, file.AbsolutePath, overwrite: true);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogWarning(ex, "[UserData] Error rolling back activation for {Path}", file.AbsolutePath);
                         }
                     }
+
+                    // Save manifest state to preserve any backup mappings created
+                    manifest.IsActive = false;
+                    await SaveUserDataManifestAsync(manifest, cancellationToken);
+
+                    return OperationResult<bool>.CreateFailure(failureReason ?? "Activation failed");
                 }
 
                 // Update manifest state
