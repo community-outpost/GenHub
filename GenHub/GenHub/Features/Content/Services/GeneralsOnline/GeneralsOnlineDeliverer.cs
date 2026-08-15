@@ -57,6 +57,8 @@ public class GeneralsOnlineDeliverer(
         IProgress<ContentAcquisitionProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        var newlyRegisteredManifests = new List<ContentManifest>();
+
         try
         {
             logger.LogInformation("Starting Generals Online content delivery for {Version}", packageManifest.Version);
@@ -106,15 +108,14 @@ public class GeneralsOnlineDeliverer(
             logger.LogDebug("Extracting ZIP to {Path}", extractPath);
             ZipFile.ExtractToDirectory(zipPath, extractPath, overwriteFiles: true);
 
-            // Step 3: Create all variant manifests using the factory (30Hz, 60Hz GameClients + QuickMatch MapPack)
+            // Step 3: Create variant manifests from extracted files
             progress?.Report(new ContentAcquisitionProgress
             {
                 Phase = ContentAcquisitionPhase.Copying,
-                ProgressPercentage = 50,
-                CurrentOperation = "Creating manifests for all variants",
+                ProgressPercentage = 80,
+                CurrentOperation = "Generating variant manifests (60Hz, MapPack, and GameData Patch)",
             });
 
-            logger.LogInformation("Creating manifests for GeneralsOnline variants (60Hz, QuickMatch MapPack)");
             var manifests = await manifestFactory.CreateManifestsFromExtractedContentAsync(
                 packageManifest,
                 extractPath,
@@ -122,12 +123,12 @@ public class GeneralsOnlineDeliverer(
 
             if (manifests.Count == 0)
             {
+                logger.LogError("No manifests could be created from extracted content");
                 return OperationResult<ContentManifest>.CreateFailure(
-                    $"Got 0 Manifests");
+                    "Failed to create any variant manifests from extracted content");
             }
 
-            // Step 4: Register all variant manifests to CAS
-            // This ensures all files (including executables, map pack, and data patch) are stored before validation
+            // Step 4: Add all variant manifests to the ContentManifestPool
             progress?.Report(new ContentAcquisitionProgress
             {
                 Phase = ContentAcquisitionPhase.Copying,
@@ -135,15 +136,16 @@ public class GeneralsOnlineDeliverer(
                 CurrentOperation = "Registering all variant manifests to content library",
             });
 
-            var newlyRegisteredManifests = new List<ContentManifest>();
-
             foreach (var manifest in manifests)
             {
-                var isPreExisting = false;
                 var checkResult = await manifestPool.IsManifestAcquiredAsync(manifest.Id, cancellationToken: cancellationToken);
                 if (checkResult?.Success == true && checkResult.Data)
                 {
-                    isPreExisting = true;
+                    logger.LogInformation(
+                        "Manifest {ManifestId} ({Name}) is already acquired in pool; skipping registration",
+                        manifest.Id,
+                        manifest.Name);
+                    continue;
                 }
 
                 var addResult = await manifestPool.AddManifestAsync(manifest, extractPath, cancellationToken: cancellationToken);
@@ -155,31 +157,8 @@ public class GeneralsOnlineDeliverer(
                         manifest.Name,
                         addResult.FirstError);
 
-                    // Roll back newly registered manifests to prevent partial acquisition state
-                    var rollbackErrors = new List<string>();
-                    foreach (var registeredManifest in newlyRegisteredManifests)
-                    {
-                        try
-                        {
-                            var removeResult = await manifestPool.RemoveManifestAsync(registeredManifest.Id, cancellationToken: CancellationToken.None);
-                            if (!removeResult.Success)
-                            {
-                                logger.LogWarning(
-                                    "Failed to rollback manifest {ManifestId} during delivery failure cleanup: {Error}",
-                                    registeredManifest.Id,
-                                    removeResult.FirstError);
-                                rollbackErrors.Add($"Rollback of manifest {registeredManifest.Id} failed: {removeResult.FirstError}");
-                            }
-                        }
-                        catch (Exception rollbackEx)
-                        {
-                            logger.LogWarning(
-                                rollbackEx,
-                                "Failed to rollback manifest {ManifestId} during delivery failure cleanup",
-                                registeredManifest.Id);
-                            rollbackErrors.Add($"Rollback exception for manifest {registeredManifest.Id}: {rollbackEx.Message}");
-                        }
-                    }
+                    var rollbackErrors = await RollbackManifestsAsync(newlyRegisteredManifests);
+                    newlyRegisteredManifests.Clear();
 
                     var errorMessage = $"Failed to register manifest {manifest.Id} ({manifest.Name}): {addResult.FirstError}";
                     if (rollbackErrors.Count > 0)
@@ -190,11 +169,7 @@ public class GeneralsOnlineDeliverer(
                     return OperationResult<ContentManifest>.CreateFailure(errorMessage);
                 }
 
-                if (!isPreExisting)
-                {
-                    newlyRegisteredManifests.Add(manifest);
-                }
-
+                newlyRegisteredManifests.Add(manifest);
                 logger.LogInformation("Successfully registered manifest: {ManifestId} ({Name})", manifest.Id, manifest.Name);
             }
 
@@ -251,12 +226,29 @@ public class GeneralsOnlineDeliverer(
         catch (OperationCanceledException)
         {
             logger.LogInformation("Generals Online content delivery was canceled for {Version}", packageManifest.Version);
+            if (newlyRegisteredManifests.Count > 0)
+            {
+                await RollbackManifestsAsync(newlyRegisteredManifests);
+            }
+
             throw;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to deliver Generals Online content for {Version}", packageManifest.Version);
-            return OperationResult<ContentManifest>.CreateFailure($"Content delivery failed: {ex.Message}");
+            var rollbackErrors = new List<string>();
+            if (newlyRegisteredManifests.Count > 0)
+            {
+                rollbackErrors = await RollbackManifestsAsync(newlyRegisteredManifests);
+            }
+
+            var errorMessage = $"Content delivery failed: {ex.Message}";
+            if (rollbackErrors.Count > 0)
+            {
+                errorMessage += $"; Rollback warnings: {string.Join("; ", rollbackErrors)}";
+            }
+
+            return OperationResult<ContentManifest>.CreateFailure(errorMessage);
         }
     }
 
@@ -278,5 +270,35 @@ public class GeneralsOnlineDeliverer(
             logger.LogError(ex, "Validation failed for Generals Online manifest {ManifestId}", manifest.Id);
             return Task.FromResult(OperationResult<bool>.CreateFailure($"Validation failed: {ex.Message}"));
         }
+    }
+
+    private async Task<List<string>> RollbackManifestsAsync(IReadOnlyList<ContentManifest> manifestsToRollback)
+    {
+        var rollbackErrors = new List<string>();
+        foreach (var registeredManifest in manifestsToRollback)
+        {
+            try
+            {
+                var removeResult = await manifestPool.RemoveManifestAsync(registeredManifest.Id, cancellationToken: CancellationToken.None);
+                if (!removeResult.Success)
+                {
+                    logger.LogWarning(
+                        "Failed to rollback manifest {ManifestId} during delivery failure cleanup: {Error}",
+                        registeredManifest.Id,
+                        removeResult.FirstError);
+                    rollbackErrors.Add($"Rollback of manifest {registeredManifest.Id} failed: {removeResult.FirstError}");
+                }
+            }
+            catch (Exception rollbackEx)
+            {
+                logger.LogWarning(
+                    rollbackEx,
+                    "Failed to rollback manifest {ManifestId} during delivery failure cleanup",
+                    registeredManifest.Id);
+                rollbackErrors.Add($"Rollback exception for manifest {registeredManifest.Id}: {rollbackEx.Message}");
+            }
+        }
+
+        return rollbackErrors;
     }
 }

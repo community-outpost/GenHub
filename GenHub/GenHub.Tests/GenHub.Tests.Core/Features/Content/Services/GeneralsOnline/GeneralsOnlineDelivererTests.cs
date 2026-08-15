@@ -301,14 +301,22 @@ public class GeneralsOnlineDelivererTests : IDisposable
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
 
-        // Multiple manifests were registered in pool (GameClient and GameData Patch)
+        // Exactly 2 manifests were registered in pool (GameClient and GameData Patch; empty MapPack is skipped)
         _manifestPoolMock.Verify(
             p => p.AddManifestAsync(
                 It.IsAny<ContentManifest>(),
                 It.IsAny<string>(),
                 It.IsAny<IProgress<ContentStorageProgress>?>(),
                 It.IsAny<CancellationToken>()),
-            Times.AtLeast(2));
+            Times.Exactly(2));
+
+        // Rollback was never invoked on the happy path
+        _manifestPoolMock.Verify(
+            p => p.RemoveManifestAsync(
+                It.IsAny<ManifestId>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
 
         // Files were moved to target directory
         Assert.True(File.Exists(Path.Combine(targetDir, "generalsonlinezh_60.exe")));

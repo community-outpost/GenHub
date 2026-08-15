@@ -170,6 +170,8 @@ public class GeneralsOnlineProfileReconciler(
             // If strategy is ReplaceCurrent, we delete if the subscription/user settings allow it.
             bool shouldDeleteOldVersions = (strategy != UpdateStrategy.CreateNewProfile) && (subscription?.DeleteOldVersions ?? true);
 
+            var manifestMapping = BuildManifestMapping(oldManifests, newManifests, versionComparer.GetScheme(GeneralsOnlineConstants.PublisherType));
+
             if (strategy == UpdateStrategy.CreateNewProfile)
             {
                 var createResult = await CreateNewProfilesForUpdateAsync(oldManifests, newManifests, updateResult.LatestVersion ?? "Unknown", cancellationToken);
@@ -179,8 +181,6 @@ public class GeneralsOnlineProfileReconciler(
             else
             {
                 // ReplaceCurrent
-                var manifestMapping = BuildManifestMapping(oldManifests, newManifests, versionComparer.GetScheme(GeneralsOnlineConstants.PublisherType));
-
                 // CRITICAL: Pass removeOld = false to prevent premature deletion
                 // We'll handle deletion after MapPack enforcement succeeds
                 var bulkUpdateResult = await reconciliationService.OrchestrateBulkUpdateAsync(
@@ -221,13 +221,20 @@ public class GeneralsOnlineProfileReconciler(
             // Step 6: Delete old manifests only if enforcement succeeded and deletion is enabled
             if (shouldDeleteOldVersions && !anyFailure)
             {
-                logger.LogInformation("[GO Reconciler] Deleting old manifests after successful enforcement");
-                var oldManifestIds = oldManifests.Select(m => m.Id).ToList();
-                var removalResult = await reconciliationService.OrchestrateBulkRemovalAsync(oldManifestIds, cancellationToken);
-                if (!removalResult.Success)
+                logger.LogInformation("[GO Reconciler] Deleting old manifests that have mapped successors");
+                var oldManifestIds = oldManifests
+                    .Where(m => manifestMapping.ContainsKey(m.Id.Value))
+                    .Select(m => m.Id)
+                    .ToList();
+
+                if (oldManifestIds.Count > 0)
                 {
-                    logger.LogWarning("[GO Reconciler] Failed to remove old manifests: {Error}", removalResult.FirstError);
-                    anyFailure = true;
+                    var removalResult = await reconciliationService.OrchestrateBulkRemovalAsync(oldManifestIds, cancellationToken);
+                    if (!removalResult.Success)
+                    {
+                        logger.LogWarning("[GO Reconciler] Failed to remove old manifests: {Error}", removalResult.FirstError);
+                        anyFailure = true;
+                    }
                 }
             }
             else if (shouldDeleteOldVersions && anyFailure)

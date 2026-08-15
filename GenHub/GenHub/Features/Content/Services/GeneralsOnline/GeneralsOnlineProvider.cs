@@ -229,6 +229,11 @@ public class GeneralsOnlineProvider(
             Logger.LogInformation("Successfully prepared Generals Online content {ManifestId}", manifest.Id);
             return OperationResult<ContentManifest>.CreateSuccess(resultManifest);
         }
+        catch (OperationCanceledException)
+        {
+            Logger.LogInformation("Generals Online content preparation was canceled for {Version}", manifest.Version);
+            throw;
+        }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Failed to prepare Generals Online content");

@@ -17,6 +17,7 @@ using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Tests.Core.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Content.Services.GeneralsOnline;
 
@@ -179,5 +180,97 @@ public class GeneralsOnlineProfileReconcilerTests
         _notificationServiceMock.Verify(
             x => x.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
             Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that old and new GameData patch manifests are recognized by variant and included in reconciliation mapping.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CheckAndReconcileIfNeededAsync_WithGameDataPatchManifest_MapsAndReconcilesGameDataPatch()
+    {
+        // Arrange
+        const string oldVersion = "101524";
+        const string newVersion = "101525";
+
+        _updateServiceMock.Setup(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ContentUpdateCheckResult.CreateUpdateAvailable(newVersion, oldVersion));
+
+        var settings = new UserSettings();
+        settings.SetAutoUpdatePreference(GeneralsOnlineConstants.PublisherType, true);
+        _userSettingsServiceMock.Setup(x => x.Get())
+            .Returns(settings);
+
+        var oldClientManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.101524.generalsonline.gameclient.60hz"),
+            Version = oldVersion,
+            ContentType = ContentType.GameClient,
+            Publisher = new PublisherInfo { PublisherType = GeneralsOnlineConstants.PublisherType },
+        };
+
+        var oldPatchManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.101524.generalsonline.patch.gamedata"),
+            Version = oldVersion,
+            ContentType = ContentType.Patch,
+            Publisher = new PublisherInfo { PublisherType = GeneralsOnlineConstants.PublisherType },
+            Metadata = new ContentMetadata { Tags = ["gamedata", "patch", "generalsonline"] },
+        };
+
+        var newClientManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.101525.generalsonline.gameclient.60hz"),
+            Version = newVersion,
+            ContentType = ContentType.GameClient,
+            Publisher = new PublisherInfo { PublisherType = GeneralsOnlineConstants.PublisherType },
+        };
+
+        var newPatchManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.101525.generalsonline.patch.gamedata"),
+            Version = newVersion,
+            ContentType = ContentType.Patch,
+            Publisher = new PublisherInfo { PublisherType = GeneralsOnlineConstants.PublisherType },
+            Metadata = new ContentMetadata { Tags = ["gamedata", "patch", "generalsonline"] },
+        };
+
+        _manifestPoolMock.SetupSequence(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([oldClientManifest, oldPatchManifest]))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([oldClientManifest, oldPatchManifest, newClientManifest, newPatchManifest]))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([oldClientManifest, oldPatchManifest, newClientManifest, newPatchManifest]));
+
+        _contentOrchestratorMock.Setup(
+                x => x.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(
+            [
+                new() { Name = "New GO Version", Version = newVersion },
+            ]));
+
+        _contentOrchestratorMock.Setup(x => x.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(newClientManifest));
+
+        IReadOnlyDictionary<string, string>? capturedMapping = null;
+        _reconciliationServiceMock
+            .Setup(x => x.OrchestrateBulkUpdateAsync(
+                It.IsAny<IReadOnlyDictionary<string, string>>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<IReadOnlyDictionary<string, string>, bool, CancellationToken>((mapping, createNew, token) =>
+            {
+                capturedMapping = mapping;
+            })
+            .ReturnsAsync(OperationResult<ReconciliationResult>.CreateSuccess(new ReconciliationResult(1, 0)));
+
+        // Act
+        var result = await _reconciler.CheckAndReconcileIfNeededAsync("profile1", CancellationToken.None);
+
+        // Assert
+        Assert.True(result.Success, $"Reconciliation failed: {result.FirstError}");
+        Assert.NotNull(capturedMapping);
+        Assert.True(capturedMapping.ContainsKey(oldClientManifest.Id.Value));
+        Assert.Equal(newClientManifest.Id.Value, capturedMapping[oldClientManifest.Id.Value]);
+        Assert.True(capturedMapping.ContainsKey(oldPatchManifest.Id.Value));
+        Assert.Equal(newPatchManifest.Id.Value, capturedMapping[oldPatchManifest.Id.Value]);
     }
 }
