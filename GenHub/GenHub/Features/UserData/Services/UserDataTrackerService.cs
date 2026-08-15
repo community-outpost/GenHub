@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
@@ -26,7 +27,8 @@ namespace GenHub.Features.UserData.Services;
 public class UserDataTrackerService(
     IConfigurationProviderService configProvider,
     IFileOperationsService fileOperations,
-    ILogger<UserDataTrackerService> logger) : IUserDataTracker
+    ILogger<UserDataTrackerService> logger,
+    IGamePathProvider? pathProvider = null) : IUserDataTracker
 {
     private static readonly SemaphoreSlim IndexLock = new(1, 1);
     private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
@@ -106,6 +108,12 @@ public class UserDataTrackerService(
                     {
                         // User's own file - back it up
                         backupPath = await BackupExistingFileAsync(targetPath, targetGame, cancellationToken);
+                        if (string.IsNullOrEmpty(backupPath))
+                        {
+                            logger.LogError("[UserData] Failed to create safety backup for user file {Path}; skipping to prevent data loss", targetPath);
+                            continue;
+                        }
+
                         wasOverwritten = true;
                         logger.LogInformation("[UserData] Backed up existing user file: {Path} -> {Backup}", targetPath, backupPath);
                     }
@@ -272,7 +280,24 @@ public class UserDataTrackerService(
 
                     if (File.Exists(file.AbsolutePath))
                     {
-                        continue; // File already exists
+                        if (file.IsHardLink || await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken))
+                        {
+                            continue; // File already exists and matches hash
+                        }
+
+                        // Existing file doesn't match our CAS hash (e.g. user modified it or restored backup)
+                        // Make sure we have a backup if not already tracked
+                        if (string.IsNullOrEmpty(file.BackupPath) || !File.Exists(file.BackupPath))
+                        {
+                            var backupPath = await BackupExistingFileAsync(file.AbsolutePath, manifest.TargetGame, cancellationToken);
+                            if (!string.IsNullOrEmpty(backupPath))
+                            {
+                                file.BackupPath = backupPath;
+                                file.WasOverwritten = true;
+                            }
+                        }
+
+                        FileOperationsService.DeleteFileIfExists(file.AbsolutePath);
                     }
 
                     if (!string.IsNullOrEmpty(file.CasHash))
@@ -335,21 +360,50 @@ public class UserDataTrackerService(
                     continue; // Already inactive
                 }
 
-                // Remove hard links but keep tracking
+                var userDataBasePath = GetUserDataBasePath(manifest.TargetGame);
+
+                // Remove hard links and copied files but keep tracking
                 foreach (var file in manifest.InstalledFiles)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    if (file.IsHardLink && File.Exists(file.AbsolutePath))
+                    if (File.Exists(file.AbsolutePath))
                     {
                         try
                         {
-                            File.Delete(file.AbsolutePath);
-                            CleanupEmptyDirectories(Path.GetDirectoryName(file.AbsolutePath));
+                            if (file.IsHardLink || await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken))
+                            {
+                                File.Delete(file.AbsolutePath);
+                                CleanupEmptyDirectories(Path.GetDirectoryName(file.AbsolutePath), userDataBasePath);
+                            }
+                            else
+                            {
+                                logger.LogWarning("[UserData] File hash mismatch, user may have modified: {Path}; preserving file", file.AbsolutePath);
+                            }
                         }
                         catch (Exception ex)
                         {
-                            logger.LogWarning(ex, "[UserData] Failed to remove hard link: {Path}", file.AbsolutePath);
+                            logger.LogWarning(ex, "[UserData] Failed to remove active file: {Path}", file.AbsolutePath);
+                        }
+                    }
+
+                    // If an original user file was backed up, restore it upon deactivation
+                    if (!string.IsNullOrEmpty(file.BackupPath) && File.Exists(file.BackupPath))
+                    {
+                        try
+                        {
+                            var targetDir = Path.GetDirectoryName(file.AbsolutePath);
+                            if (!string.IsNullOrEmpty(targetDir))
+                            {
+                                Directory.CreateDirectory(targetDir);
+                            }
+
+                            File.Copy(file.BackupPath, file.AbsolutePath, overwrite: true);
+                            logger.LogInformation("[UserData] Restored backup during deactivation: {Backup} -> {Path}", file.BackupPath, file.AbsolutePath);
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogWarning(ex, "[UserData] Failed to restore backup during deactivation: {Path}", file.AbsolutePath);
                         }
                     }
                 }
@@ -655,18 +709,6 @@ public class UserDataTrackerService(
         }
     }
 
-    private static string GetUserDataBasePath(GameType gameType)
-    {
-        var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-
-        return gameType switch
-        {
-            GameType.Generals => Path.Combine(documentsPath, GameSettingsConstants.FolderNames.Generals),
-            GameType.ZeroHour => Path.Combine(documentsPath, GameSettingsConstants.FolderNames.ZeroHour),
-            _ => Path.Combine(documentsPath, GameSettingsConstants.FolderNames.ZeroHour),
-        };
-    }
-
     private static string ResolveUserDataTargetPath(ContentInstallTarget installTarget, string relativePath, string userDataBasePath)
     {
         return installTarget switch
@@ -700,7 +742,7 @@ public class UserDataTrackerService(
         return path;
     }
 
-    private static void CleanupEmptyDirectories(string? directoryPath)
+    private static void CleanupEmptyDirectories(string? directoryPath, string? stopAtDirectory = null)
     {
         if (string.IsNullOrEmpty(directoryPath))
         {
@@ -709,9 +751,20 @@ public class UserDataTrackerService(
 
         try
         {
-            while (Directory.Exists(directoryPath) &&
-                   !Directory.EnumerateFileSystemEntries(directoryPath).Any())
+            var normalizedStop = string.IsNullOrEmpty(stopAtDirectory) ? null : Path.GetFullPath(stopAtDirectory);
+            while (Directory.Exists(directoryPath))
             {
+                var fullDir = Path.GetFullPath(directoryPath);
+                if (normalizedStop != null && string.Equals(fullDir, normalizedStop, StringComparison.OrdinalIgnoreCase))
+                {
+                    break;
+                }
+
+                if (Directory.EnumerateFileSystemEntries(directoryPath).Any())
+                {
+                    break;
+                }
+
                 Directory.Delete(directoryPath);
                 directoryPath = Path.GetDirectoryName(directoryPath);
 
@@ -727,8 +780,26 @@ public class UserDataTrackerService(
         }
     }
 
+    private string GetUserDataBasePath(GameType gameType)
+    {
+        if (pathProvider != null)
+        {
+            return pathProvider.GetOptionsDirectory(gameType);
+        }
+
+        var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+
+        return gameType switch
+        {
+            GameType.Generals => Path.Combine(documentsPath, GameSettingsConstants.FolderNames.Generals),
+            GameType.ZeroHour => Path.Combine(documentsPath, GameSettingsConstants.FolderNames.ZeroHour),
+            _ => Path.Combine(documentsPath, GameSettingsConstants.FolderNames.ZeroHour),
+        };
+    }
+
     private async Task CleanupInstalledFilesAsync(UserDataManifest manifest, CancellationToken cancellationToken)
     {
+        var userDataBasePath = GetUserDataBasePath(manifest.TargetGame);
         foreach (var file in manifest.InstalledFiles)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -743,8 +814,8 @@ public class UserDataTrackerService(
                         File.Delete(file.AbsolutePath);
                         logger.LogDebug("[UserData] Deleted file: {Path}", file.AbsolutePath);
 
-                        // Clean up empty directories
-                        CleanupEmptyDirectories(Path.GetDirectoryName(file.AbsolutePath));
+                        // Clean up empty directories up to the base user data path
+                        CleanupEmptyDirectories(Path.GetDirectoryName(file.AbsolutePath), userDataBasePath);
                     }
                     else
                     {
@@ -761,7 +832,7 @@ public class UserDataTrackerService(
                         Directory.CreateDirectory(targetDir);
                     }
 
-                    File.Move(file.BackupPath, file.AbsolutePath);
+                    File.Move(file.BackupPath, file.AbsolutePath, overwrite: true);
                     logger.LogInformation("[UserData] Restored backup: {Backup} -> {Path}", file.BackupPath, file.AbsolutePath);
                 }
             }

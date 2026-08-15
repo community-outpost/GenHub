@@ -240,7 +240,7 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
         Assert.Single(gameDataPatch.Files);
         Assert.All(gameDataPatch.Files, f =>
         {
-            Assert.Equal(ContentInstallTarget.Workspace, f.InstallTarget);
+            Assert.Equal(ContentInstallTarget.UserDataDirectory, f.InstallTarget);
             Assert.False(f.IsExecutable);
             Assert.StartsWith(GeneralsOnlineConstants.GameDataSubdirectory, f.RelativePath, StringComparison.OrdinalIgnoreCase);
             Assert.NotEmpty(f.Hash);

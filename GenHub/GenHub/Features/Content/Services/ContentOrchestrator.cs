@@ -172,10 +172,10 @@ public class ContentOrchestrator : IContentOrchestrator
                         _logger.LogWarning("Provider {ProviderName} failed: {Error}", provider.SourceName, result.FirstError);
                     }
                 }
-                // Filtered on the caller's token: a provider timing out on its own token raises
-                // TaskCanceledException too, and must not abort the other providers' results.
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
+                    // Filtered on the caller's token: a provider timing out on its own token raises
+                    // TaskCanceledException too, and must not abort the other providers' results.
                     throw;
                 }
                 catch (Exception ex)

@@ -17,6 +17,18 @@ public partial class ContentDisplayItem : ObservableObject
     private bool _isEnabled;
 
     /// <summary>
+    /// Gets or sets a value indicating whether this content is locked and cannot be modified.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isLocked;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this content can be toggled by the user.
+    /// </summary>
+    [ObservableProperty]
+    private bool _canToggle = true;
+
+    /// <summary>
     /// Gets or sets the unique identifier for this content item.
     /// </summary>
     public string Id { get; set; } = string.Empty;

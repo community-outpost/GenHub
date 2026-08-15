@@ -6,10 +6,10 @@ using GenHub.Core.Interfaces.Shortcuts;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Infrastructure.DependencyInjection;
+using GenHub.Tests.Shared;
 using GenHub.Windows.Features.GitHub.Services;
 using GenHub.Windows.GameInstallations;
 using GenHub.Windows.Infrastructure.DependencyInjection;
-using GenHub.Tests.Shared;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 

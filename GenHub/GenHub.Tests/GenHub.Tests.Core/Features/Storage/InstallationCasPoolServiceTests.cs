@@ -454,13 +454,6 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    private GameInstallation CreateInstallation(string directoryName = "Game")
-    {
-        var installationPath = Path.Combine(_tempPath, directoryName);
-        Directory.CreateDirectory(installationPath);
-        return new GameInstallation(installationPath, GameInstallationType.Steam);
-    }
-
     /// <summary>
     /// Retains every previously used pool root when the pool moves more than once, because nothing
     /// copies objects out of a root that is replaced.
@@ -535,6 +528,13 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
 
         // The primary pool plus both retained legacy roots.
         Assert.Equal(3, manager.GetAllStorages().Count);
+    }
+
+    private GameInstallation CreateInstallation(string directoryName = "Game")
+    {
+        var installationPath = Path.Combine(_tempPath, directoryName);
+        Directory.CreateDirectory(installationPath);
+        return new GameInstallation(installationPath, GameInstallationType.Steam);
     }
 
     private InstallationCasPoolService CreateService()

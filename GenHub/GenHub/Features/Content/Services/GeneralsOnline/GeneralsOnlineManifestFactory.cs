@@ -244,7 +244,7 @@ public class GeneralsOnlineManifestFactory(
             Hash = hash,
             SourceType = ContentSourceType.ContentAddressable,
             SourcePath = fileInfo.FullName,
-            InstallTarget = ContentInstallTarget.Workspace,
+            InstallTarget = ContentInstallTarget.UserDataDirectory,
             IsExecutable = false,
         };
     }

@@ -178,6 +178,13 @@ public partial class GameProfileSettingsViewModel
             return;
         }
 
+        if (contentItem.IsLocked || !contentItem.CanToggle)
+        {
+            StatusMessage = "This content item is locked and cannot be modified";
+            _logger?.LogWarning("DisableContent: Cannot disable locked item {DisplayName}", contentItem.DisplayName);
+            return;
+        }
+
         _logger?.LogInformation(
             "DisableContent called for: {DisplayName} (ManifestId: {ManifestId})",
             contentItem.DisplayName,

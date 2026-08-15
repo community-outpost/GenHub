@@ -173,6 +173,13 @@ public class CasPoolManager : ICasPoolManager
         RefreshInstallationPools();
     }
 
+    private static string NormalizeRoot(string? rootPath)
+    {
+        return string.IsNullOrWhiteSpace(rootPath)
+            ? string.Empty
+            : Path.TrimEndingDirectorySeparator(Path.GetFullPath(rootPath));
+    }
+
     private void InitializePool(CasPoolType poolType)
     {
         // Double-check locking to ensure thread safety
@@ -304,13 +311,6 @@ public class CasPoolManager : ICasPoolManager
                 retainedRoots.Count,
                 string.Join(", ", retainedRoots));
         }
-    }
-
-    private static string NormalizeRoot(string? rootPath)
-    {
-        return string.IsNullOrWhiteSpace(rootPath)
-            ? string.Empty
-            : Path.TrimEndingDirectorySeparator(Path.GetFullPath(rootPath));
     }
 
     private bool IsInsideApplicationDirectory(string rootPath)
