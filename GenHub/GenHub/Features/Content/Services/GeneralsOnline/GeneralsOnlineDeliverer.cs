@@ -220,10 +220,14 @@ public class GeneralsOnlineDeliverer(
                         {
                             backupPath = targetPath + ".gh_bak_" + Guid.NewGuid().ToString("N");
                             File.Move(targetPath, backupPath);
+                            movedFiles.Add((targetPath, backupPath));
                         }
 
                         File.Move(file, targetPath, overwrite: true);
-                        movedFiles.Add((targetPath, backupPath));
+                        if (backupPath == null)
+                        {
+                            movedFiles.Add((targetPath, null));
+                        }
                     }
                 }
                 catch
