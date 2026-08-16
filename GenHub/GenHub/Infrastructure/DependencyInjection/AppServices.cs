@@ -49,6 +49,7 @@ public static class AppServices
         services.AddReplayManagerServices();
         services.AddMapManager();
         services.AddGenHotkeys();
+        services.AddModBuilder();
 
         // Register Notification services
         services.AddNotificationModule();

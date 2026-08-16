@@ -365,4 +365,14 @@ public static class ContentConstants
     /// Structured media type suffixes that indicate descriptor documents.
     /// </summary>
     public static readonly string[] SizeProbeDescriptorMediaTypeSuffixes = ["+json", "+xml"];
+
+    /// <summary>
+    /// Maximum number of search results per query.
+    /// </summary>
+    public const int MaxSearchResultsPerQuery = 1000;
+
+    /// <summary>
+    /// Minimum number of search results per query.
+    /// </summary>
+    public const int MinSearchResultsPerQuery = 1;
 }

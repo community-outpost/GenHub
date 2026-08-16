@@ -193,3 +193,8 @@ public/
 Landing-page/assets/data/*.json
 __pycache__/
 *.pyc
+
+# Visual Studio metadata (exclude except AI context)
+.vs/
+!.vs/Project-Overview.md
+!.vs/prompt.md

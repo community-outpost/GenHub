@@ -207,4 +207,21 @@ public static class UiConstants
     /// Maximum allowed length of HTML input strings to prevent regex denial of service.
     /// </summary>
     public const int MaxHtmlInputLength = 1_000_000;
+
+    // Tab titles and descriptions
+
+    /// <summary>
+    /// Title for the Downloads tab.
+    /// </summary>
+    public const string DownloadsTabTitle = "Downloads";
+
+    /// <summary>
+    /// Description for the Downloads tab.
+    /// </summary>
+    public const string DownloadsTabDescription = "Manage your downloads and installations";
+
+    /// <summary>
+    /// Generic loading text displayed during async operations.
+    /// </summary>
+    public const string LoadingText = "Loading...";
 }

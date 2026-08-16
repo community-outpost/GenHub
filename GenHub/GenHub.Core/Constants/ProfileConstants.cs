@@ -79,4 +79,9 @@ public static class ProfileConstants
     /// Default fallback format for workspace failed notification message.
     /// </summary>
     public const string WorkspaceFailedDefaultFormat = "Workspace initialization failed for '{0}'.";
+
+    /// <summary>
+    /// Default name for new profiles.
+    /// </summary>
+    public const string DefaultProfileName = "New Profile";
 }
