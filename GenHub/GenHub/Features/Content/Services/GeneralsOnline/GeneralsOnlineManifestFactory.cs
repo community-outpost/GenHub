@@ -382,7 +382,7 @@ public class GeneralsOnlineManifestFactory(
     }
 
     /// <summary>
-    /// Creates all variant manifests (60Hz, MapPack) from the original manifest.
+    /// Creates all variant manifests (60Hz, MapPack, and GameData Patch) from the original manifest.
     /// This is called AFTER extraction - we use the original manifest's metadata to create variants.
     /// </summary>
     /// <param name="originalManifest">The manifest from the Resolver (contains version, publisher info, etc.).</param>

@@ -263,6 +263,10 @@ public class UserDataTrackerService(
 
             return OperationResult<UserDataManifest>.CreateSuccess(userDataManifest);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "[UserData] Failed to install user data for manifest {ManifestId}", manifestId);
@@ -351,6 +355,7 @@ public class UserDataTrackerService(
 
                         // Existing file doesn't match our CAS hash (e.g. user modified it while inactive or restored backup)
                         // Always create a fresh safety backup of the latest file content on disk before replacing
+                        var oldBackup = file.BackupPath;
                         var backupPath = await BackupExistingFileAsync(file.AbsolutePath, manifest.TargetGame, cancellationToken);
                         if (string.IsNullOrEmpty(backupPath))
                         {
@@ -358,6 +363,19 @@ public class UserDataTrackerService(
                             failureReason = $"Failed to create safety backup for '{file.AbsolutePath}' during activation";
                             activationFailed = true;
                             break;
+                        }
+
+                        // Delete previous superseded backup file to avoid accumulating orphaned backup files
+                        if (!string.IsNullOrEmpty(oldBackup) && !string.Equals(oldBackup, backupPath, StringComparison.OrdinalIgnoreCase) && File.Exists(oldBackup))
+                        {
+                            try
+                            {
+                                File.Delete(oldBackup);
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.LogWarning(ex, "[UserData] Failed to delete superseded backup file {OldBackup}", oldBackup);
+                            }
                         }
 
                         file.BackupPath = backupPath;
@@ -450,6 +468,10 @@ public class UserDataTrackerService(
             logger.LogInformation("[UserData] Activated {Count} manifests for profile {ProfileId}", manifestsResult.Data.Count, profileId);
             return OperationResult<bool>.CreateSuccess(true);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "[UserData] Failed to activate user data for profile {ProfileId}", profileId);
@@ -534,6 +556,10 @@ public class UserDataTrackerService(
 
             logger.LogInformation("[UserData] Deactivated {Count} manifests for profile {ProfileId}", manifestsResult.Data.Count, profileId);
             return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

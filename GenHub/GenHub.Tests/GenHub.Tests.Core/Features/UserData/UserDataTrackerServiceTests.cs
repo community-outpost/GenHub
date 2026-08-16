@@ -467,7 +467,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that when activation materialization fails, rollback restores the backup even if parent directory was deleted during the attempt.
+    /// Verifies that when activation materialization fails, rollback restores the existing user file backup.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
