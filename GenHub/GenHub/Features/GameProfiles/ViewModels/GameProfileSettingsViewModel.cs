@@ -349,9 +349,15 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     {
         if (contentItem == null) return;
         if (IsLoadingContent && !bypassLoadingGuard) return;
-        if (contentItem.IsLocked || !contentItem.CanToggle)
+        if (contentItem.IsLocked)
         {
             StatusMessage = "This content item is locked and cannot be modified";
+            return;
+        }
+
+        if (!contentItem.CanToggle)
+        {
+            StatusMessage = "This content item cannot be toggled";
             return;
         }
 

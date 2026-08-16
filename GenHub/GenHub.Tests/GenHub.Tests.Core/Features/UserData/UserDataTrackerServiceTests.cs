@@ -452,7 +452,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         // Configure hash check: deployed CAS file matches "hash-splash-expected", user file does not
         _fileOperationsMock
             .Setup(f => f.VerifyFileHashAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string path, string hash, CancellationToken _) => File.Exists(path) && File.ReadAllText(path).StartsWith("cas-content"));
+            .ReturnsAsync((string path, string hash, CancellationToken _) => File.Exists(path) && File.ReadAllText(path).StartsWith("cas-content", StringComparison.Ordinal));
 
         // 4. Reactivate profile (should back up newerUserContent and deploy CAS file)
         var reactivateResult = await _trackerService.ActivateProfileUserDataAsync("profile-reactivate-test", CancellationToken.None);

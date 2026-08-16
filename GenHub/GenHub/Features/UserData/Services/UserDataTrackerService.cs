@@ -28,7 +28,7 @@ public class UserDataTrackerService(
     IConfigurationProviderService configProvider,
     IFileOperationsService fileOperations,
     ILogger<UserDataTrackerService> logger,
-    IGamePathProvider? pathProvider = null) : IUserDataTracker
+    IGamePathProvider pathProvider) : IUserDataTracker
 {
     private static readonly SemaphoreSlim IndexLock = new(1, 1);
     private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
@@ -111,7 +111,7 @@ public class UserDataTrackerService(
                         if (string.IsNullOrEmpty(backupPath))
                         {
                             logger.LogError("[UserData] Failed to create safety backup for user file {Path}; aborting installation to prevent data loss", targetPath);
-                            await CleanupInstalledFilesAsync(userDataManifest, cancellationToken);
+                            await CleanupInstalledFilesAsync(userDataManifest, CancellationToken.None);
                             return OperationResult<UserDataManifest>.CreateFailure($"Failed to create safety backup for '{targetPath}'. Installation aborted.");
                         }
 
@@ -205,7 +205,7 @@ public class UserDataTrackerService(
                             }
                         }
 
-                        await CleanupInstalledFilesAsync(userDataManifest, cancellationToken);
+                        await CleanupInstalledFilesAsync(userDataManifest, CancellationToken.None);
                         return OperationResult<UserDataManifest>.CreateFailure($"Failed to install file '{targetPath}'. Installation aborted.");
                     }
                 }
@@ -225,7 +225,7 @@ public class UserDataTrackerService(
                         }
                     }
 
-                    await CleanupInstalledFilesAsync(userDataManifest, cancellationToken);
+                    await CleanupInstalledFilesAsync(userDataManifest, CancellationToken.None);
                     return OperationResult<UserDataManifest>.CreateFailure($"File '{file.RelativePath}' has no hash. Installation aborted.");
                 }
 
@@ -366,90 +366,66 @@ public class UserDataTrackerService(
                         FileOperationsService.DeleteFileIfExists(file.AbsolutePath);
                     }
 
-                    // Track file as touched during this activation pass so rollback restores its backup if needed
                     filesActivatedInThisManifest.Add(file);
 
-                    if (!string.IsNullOrEmpty(file.CasHash))
+                    if (string.IsNullOrEmpty(file.CasHash))
                     {
-                        var targetDir = Path.GetDirectoryName(file.AbsolutePath);
-                        if (!string.IsNullOrEmpty(targetDir))
+                        logger.LogError("[UserData] File {Path} has no CAS hash; cannot activate", file.AbsolutePath);
+                        failureReason = $"File '{file.AbsolutePath}' has no CAS hash";
+                        activationFailed = true;
+                        break;
+                    }
+
+                    var targetDir = Path.GetDirectoryName(file.AbsolutePath);
+                    if (!string.IsNullOrEmpty(targetDir))
+                    {
+                        Directory.CreateDirectory(targetDir);
+                    }
+
+                    var fileMaterialized = false;
+                    try
+                    {
+                        var linkResult = await fileOperations.LinkFromCasAsync(
+                            file.CasHash,
+                            file.AbsolutePath,
+                            useHardLink: true,
+                            contentType: null,
+                            cancellationToken: cancellationToken);
+
+                        if (linkResult)
                         {
-                            Directory.CreateDirectory(targetDir);
+                            fileMaterialized = true;
                         }
-
-                        var fileMaterialized = false;
-                        try
+                        else
                         {
-                            var linkResult = await fileOperations.LinkFromCasAsync(
-                                file.CasHash,
-                                file.AbsolutePath,
-                                useHardLink: true,
-                                contentType: null,
-                                cancellationToken: cancellationToken);
-
-                            if (linkResult)
+                            // Fall back to copy
+                            var copyResult = await fileOperations.CopyFromCasAsync(file.CasHash, file.AbsolutePath, contentType: null, cancellationToken: cancellationToken);
+                            if (copyResult)
                             {
                                 fileMaterialized = true;
                             }
-                            else
-                            {
-                                // Fall back to copy
-                                var copyResult = await fileOperations.CopyFromCasAsync(file.CasHash, file.AbsolutePath, contentType: null, cancellationToken: cancellationToken);
-                                if (copyResult)
-                                {
-                                    fileMaterialized = true;
-                                }
-                            }
                         }
-                        catch (OperationCanceledException)
-                        {
-                            var userDataBasePath = GetUserDataBasePath(manifest.TargetGame);
-                            foreach (var f in filesActivatedInThisManifest)
-                            {
-                                try
-                                {
-                                    if (File.Exists(f.AbsolutePath))
-                                    {
-                                        File.Delete(f.AbsolutePath);
-                                    }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        var userDataBasePath = GetUserDataBasePath(manifest.TargetGame);
+                        RollbackActivatedFiles(filesActivatedInThisManifest, userDataBasePath);
 
-                                    if (!string.IsNullOrEmpty(f.BackupPath) && File.Exists(f.BackupPath))
-                                    {
-                                        var tDir = Path.GetDirectoryName(f.AbsolutePath);
-                                        if (!string.IsNullOrEmpty(tDir))
-                                        {
-                                            Directory.CreateDirectory(tDir);
-                                        }
+                        manifest.IsActive = false;
+                        await SaveUserDataManifestAsync(manifest, CancellationToken.None);
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "[UserData] Exception while materializing file {Path} during activation", file.AbsolutePath);
+                    }
 
-                                        File.Copy(f.BackupPath, f.AbsolutePath, overwrite: true);
-                                    }
-                                    else
-                                    {
-                                        CleanupEmptyDirectories(Path.GetDirectoryName(f.AbsolutePath), userDataBasePath);
-                                    }
-                                }
-                                catch (Exception ex)
-                                {
-                                    logger.LogWarning(ex, "[UserData] Error rolling back activation for {Path} on cancellation", f.AbsolutePath);
-                                }
-                            }
-
-                            manifest.IsActive = false;
-                            await SaveUserDataManifestAsync(manifest, CancellationToken.None);
-                            throw;
-                        }
-                        catch (Exception ex)
-                        {
-                            logger.LogError(ex, "[UserData] Exception while materializing file {Path} during activation", file.AbsolutePath);
-                        }
-
-                        if (!fileMaterialized)
-                        {
-                            logger.LogError("[UserData] Failed to materialize file {Path} during activation", file.AbsolutePath);
-                            failureReason = $"Failed to materialize file '{file.AbsolutePath}' during activation";
-                            activationFailed = true;
-                            break;
-                        }
+                    if (!fileMaterialized)
+                    {
+                        logger.LogError("[UserData] Failed to materialize file {Path} during activation", file.AbsolutePath);
+                        failureReason = $"Failed to materialize file '{file.AbsolutePath}' during activation";
+                        activationFailed = true;
+                        break;
                     }
                 }
 
@@ -457,39 +433,11 @@ public class UserDataTrackerService(
                 {
                     // Roll back files activated during this attempt and restore backups
                     var userDataBasePath = GetUserDataBasePath(manifest.TargetGame);
-                    foreach (var file in filesActivatedInThisManifest)
-                    {
-                        try
-                        {
-                            if (File.Exists(file.AbsolutePath))
-                            {
-                                File.Delete(file.AbsolutePath);
-                            }
-
-                            if (!string.IsNullOrEmpty(file.BackupPath) && File.Exists(file.BackupPath))
-                            {
-                                var targetDir = Path.GetDirectoryName(file.AbsolutePath);
-                                if (!string.IsNullOrEmpty(targetDir))
-                                {
-                                    Directory.CreateDirectory(targetDir);
-                                }
-
-                                File.Copy(file.BackupPath, file.AbsolutePath, overwrite: true);
-                            }
-                            else
-                            {
-                                CleanupEmptyDirectories(Path.GetDirectoryName(file.AbsolutePath), userDataBasePath);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            logger.LogWarning(ex, "[UserData] Error rolling back activation for {Path}", file.AbsolutePath);
-                        }
-                    }
+                    RollbackActivatedFiles(filesActivatedInThisManifest, userDataBasePath);
 
                     // Save manifest state to preserve any backup mappings created
                     manifest.IsActive = false;
-                    await SaveUserDataManifestAsync(manifest, cancellationToken);
+                    await SaveUserDataManifestAsync(manifest, CancellationToken.None);
 
                     return OperationResult<bool>.CreateFailure(failureReason ?? "Activation failed");
                 }
@@ -920,13 +868,19 @@ public class UserDataTrackerService(
             return;
         }
 
+        if (string.IsNullOrEmpty(directoryPath) || string.IsNullOrEmpty(stopAtDirectory))
+        {
+            return;
+        }
+
         try
         {
-            var normalizedStop = string.IsNullOrEmpty(stopAtDirectory) ? null : Path.GetFullPath(stopAtDirectory);
+            var normalizedStop = Path.TrimEndingDirectorySeparator(Path.GetFullPath(stopAtDirectory));
             while (Directory.Exists(directoryPath))
             {
-                var fullDir = Path.GetFullPath(directoryPath);
-                if (normalizedStop != null && string.Equals(fullDir, normalizedStop, StringComparison.OrdinalIgnoreCase))
+                var fullDir = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directoryPath));
+                if (string.Equals(fullDir, normalizedStop, StringComparison.OrdinalIgnoreCase) ||
+                    !fullDir.StartsWith(normalizedStop + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                 {
                     break;
                 }
@@ -951,22 +905,40 @@ public class UserDataTrackerService(
         }
     }
 
-    private string GetUserDataBasePath(GameType gameType)
+    private void RollbackActivatedFiles(IReadOnlyList<UserDataFileEntry> filesActivated, string userDataBasePath)
     {
-        if (pathProvider != null)
+        foreach (var file in filesActivated)
         {
-            return pathProvider.GetOptionsDirectory(gameType);
+            try
+            {
+                if (File.Exists(file.AbsolutePath))
+                {
+                    File.Delete(file.AbsolutePath);
+                }
+
+                if (!string.IsNullOrEmpty(file.BackupPath) && File.Exists(file.BackupPath))
+                {
+                    var targetDir = Path.GetDirectoryName(file.AbsolutePath);
+                    if (!string.IsNullOrEmpty(targetDir))
+                    {
+                        Directory.CreateDirectory(targetDir);
+                    }
+
+                    File.Copy(file.BackupPath, file.AbsolutePath, overwrite: true);
+                }
+                else
+                {
+                    CleanupEmptyDirectories(Path.GetDirectoryName(file.AbsolutePath), userDataBasePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "[UserData] Error rolling back activation for {Path}", file.AbsolutePath);
+            }
         }
-
-        var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-
-        return gameType switch
-        {
-            GameType.Generals => Path.Combine(documentsPath, GameSettingsConstants.FolderNames.Generals),
-            GameType.ZeroHour => Path.Combine(documentsPath, GameSettingsConstants.FolderNames.ZeroHour),
-            _ => Path.Combine(documentsPath, GameSettingsConstants.FolderNames.ZeroHour),
-        };
     }
+
+    private string GetUserDataBasePath(GameType gameType) => pathProvider.GetOptionsDirectory(gameType);
 
     private async Task CleanupInstalledFilesAsync(UserDataManifest manifest, CancellationToken cancellationToken)
     {
