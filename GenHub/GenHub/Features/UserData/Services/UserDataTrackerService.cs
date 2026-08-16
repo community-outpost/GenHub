@@ -338,6 +338,7 @@ public class UserDataTrackerService(
                 }
 
                 var filesActivatedInThisManifest = new List<UserDataFileEntry>();
+                var supersededBackups = new List<string>();
                 var activationFailed = false;
                 string? failureReason = null;
 
@@ -365,17 +366,9 @@ public class UserDataTrackerService(
                             break;
                         }
 
-                        // Delete previous superseded backup file to avoid accumulating orphaned backup files
-                        if (!string.IsNullOrEmpty(oldBackup) && !string.Equals(oldBackup, backupPath, StringComparison.OrdinalIgnoreCase) && File.Exists(oldBackup))
+                        if (!string.IsNullOrEmpty(oldBackup) && !string.Equals(oldBackup, backupPath, StringComparison.OrdinalIgnoreCase))
                         {
-                            try
-                            {
-                                File.Delete(oldBackup);
-                            }
-                            catch (Exception ex)
-                            {
-                                logger.LogWarning(ex, "[UserData] Failed to delete superseded backup file {OldBackup}", oldBackup);
-                            }
+                            supersededBackups.Add(oldBackup);
                         }
 
                         file.BackupPath = backupPath;
@@ -463,6 +456,22 @@ public class UserDataTrackerService(
                 // Update manifest state
                 manifest.IsActive = true;
                 await SaveUserDataManifestAsync(manifest, cancellationToken);
+
+                // Clean up superseded backups now that the manifest with updated backup paths is safely persisted
+                foreach (var oldBackup in supersededBackups)
+                {
+                    try
+                    {
+                        if (File.Exists(oldBackup))
+                        {
+                            File.Delete(oldBackup);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "[UserData] Failed to delete superseded backup file {OldBackup}", oldBackup);
+                    }
+                }
             }
 
             logger.LogInformation("[UserData] Activated {Count} manifests for profile {ProfileId}", manifestsResult.Data.Count, profileId);
