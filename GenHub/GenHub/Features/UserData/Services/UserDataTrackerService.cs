@@ -491,7 +491,15 @@ public class UserDataTrackerService(
                     RollbackActivatedFiles(filesActivatedInThisManifest, userDataBasePath);
 
                     manifest.IsActive = false;
-                    await SaveUserDataManifestAsync(manifest, CancellationToken.None);
+                    try
+                    {
+                        await SaveUserDataManifestAsync(manifest, CancellationToken.None);
+                    }
+                    catch (Exception saveEx)
+                    {
+                        logger.LogError(saveEx, "[UserData] Failed to persist rolled-back manifest state for {ManifestId}", manifest.ManifestId);
+                    }
+
                     CleanupSupersededBackups(supersededBackups, logger);
                     throw;
                 }
@@ -1091,14 +1099,15 @@ public class UserDataTrackerService(
         try
         {
             var fileName = Path.GetFileName(filePath);
-            var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+            var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmssfff");
+            var uniqueSuffix = Guid.NewGuid().ToString("N")[..8];
             var relativeDirPath = Path.GetDirectoryName(Path.GetRelativePath(GetUserDataBasePath(gameType), filePath)) ?? string.Empty;
             var backupDir = Path.Combine(_backupsPath, gameType.ToString(), relativeDirPath);
             Directory.CreateDirectory(backupDir);
 
-            var backupPath = Path.Combine(backupDir, $"{Path.GetFileNameWithoutExtension(fileName)}.{timestamp}{Path.GetExtension(fileName)}{FileTypes.BackupExtension}");
+            var backupPath = Path.Combine(backupDir, $"{Path.GetFileNameWithoutExtension(fileName)}.{timestamp}_{uniqueSuffix}{Path.GetExtension(fileName)}{FileTypes.BackupExtension}");
 
-            await Task.Run(() => File.Copy(filePath, backupPath, overwrite: true), cancellationToken);
+            await Task.Run(() => File.Copy(filePath, backupPath, overwrite: false), cancellationToken);
 
             return backupPath;
         }
@@ -1118,8 +1127,10 @@ public class UserDataTrackerService(
     {
         EnsureDirectoriesExist();
         var filePath = GetManifestFilePath(manifest.InstallationKey);
+        var tempPath = $"{filePath}.{Guid.NewGuid():N}.tmp";
         var json = JsonSerializer.Serialize(manifest, _jsonOptions);
-        await File.WriteAllTextAsync(filePath, json, cancellationToken);
+        await File.WriteAllTextAsync(tempPath, json, cancellationToken);
+        File.Move(tempPath, filePath, overwrite: true);
     }
 
     private async Task DeleteUserDataManifestAsync(string manifestId, string profileId, CancellationToken cancellationToken)
