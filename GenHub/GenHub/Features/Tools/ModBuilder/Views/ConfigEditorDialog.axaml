@@ -1,0 +1,269 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:GenHub.Features.Tools.ModBuilder.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+        x:Class="GenHub.Features.Tools.ModBuilder.Views.ConfigEditorDialog"
+        x:DataType="vm:ConfigEditorViewModel"
+        Title="Configuration Editor"
+        Width="1200" Height="800"
+        MinWidth="1000" MinHeight="600"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource BackgroundPrimaryBrush}">
+
+  <Window.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="/Features/Tools/ModBuilder/Styles/ModBuilderStyles.axaml"/>
+        <ResourceInclude Source="/Features/Tools/ModBuilder/Styles/ModBuilderIcons.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Window.Resources>
+
+  <Grid RowDefinitions="Auto,*,Auto" Margin="{StaticResource PaddingLarge}">
+    <!-- Header -->
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+      <StackPanel Grid.Column="0" Spacing="{StaticResource SpacingSmall}">
+        <TextBlock Text="Configuration Editor"
+                   FontSize="{StaticResource FontSizeHeading2}"
+                   FontWeight="{StaticResource FontWeightSemiBold}"
+                   Foreground="{StaticResource TextPrimaryBrush}"/>
+
+        <TextBlock Text="Manage bundle items and packs for your mod"
+                   FontSize="{StaticResource FontSizeNormal}"
+                   Foreground="{StaticResource TextSecondaryBrush}"/>
+      </StackPanel>
+
+      <StackPanel Grid.Column="1" Spacing="{StaticResource SpacingXSmall}">
+        <TextBlock Text="Total Items"
+                   FontSize="{StaticResource FontSizeSmall}"
+                   Foreground="{StaticResource TextTertiaryBrush}"
+                   HorizontalAlignment="Right"/>
+        <TextBlock Text="{Binding BundleItems.Count}"
+                   FontSize="{StaticResource FontSizeXLarge}"
+                   FontWeight="{StaticResource FontWeightBold}"
+                   Foreground="{StaticResource TextPrimaryBrush}"
+                   HorizontalAlignment="Right"/>
+        <TextBlock FontSize="{StaticResource FontSizeSmall}"
+                   Foreground="{StaticResource TextSecondaryBrush}"
+                   HorizontalAlignment="Right">
+          <Run Text="{Binding BundlePacks.Count}"/>
+          <Run Text="packs"/>
+        </TextBlock>
+      </StackPanel>
+    </Grid>
+
+    <!-- Main content with tabs -->
+    <TabControl Grid.Row="1" SelectedIndex="{Binding ActiveTabIndex}">
+      <!-- Bundle Items Tab -->
+      <TabItem Header="Bundle Items">
+        <Grid RowDefinitions="Auto,*">
+          <!-- Toolbar -->
+          <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
+            <Button Command="{Binding AddBundleItemCommand}"
+                    Classes="Primary"
+                    ToolTip.Tip="Add a new bundle item">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Path Data="{StaticResource IconAdd}"
+                      Fill="{Binding $parent[Button].Foreground}"
+                      Width="14" Height="14"
+                      Stretch="Uniform"/>
+                <TextBlock Text="Add Item"/>
+              </StackPanel>
+            </Button>
+
+            <Button Command="{Binding RemoveBundleItemCommand}"
+                    IsEnabled="{Binding SelectedBundleItem, Converter={x:Static ObjectConverters.IsNotNull}}"
+                    ToolTip.Tip="Remove selected bundle item">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Path Data="{StaticResource IconRemove}"
+                      Fill="{Binding $parent[Button].Foreground}"
+                      Width="14" Height="14"
+                      Stretch="Uniform"/>
+                <TextBlock Text="Remove"/>
+              </StackPanel>
+            </Button>
+          </StackPanel>
+
+          <!-- Bundle Items List -->
+          <Border Grid.Row="1"
+                  Background="{StaticResource BackgroundSecondaryBrush}"
+                  BorderBrush="{StaticResource BorderBrush}"
+                  BorderThickness="{StaticResource BorderThicknessNormal}"
+                  CornerRadius="{StaticResource CornerRadiusNormal}"
+                  Padding="{StaticResource PaddingNormal}">
+
+            <DataGrid ItemsSource="{Binding BundleItems}"
+                      SelectedItem="{Binding SelectedBundleItem}"
+                      AutoGenerateColumns="False"
+                      CanUserReorderColumns="True"
+                      CanUserResizeColumns="True"
+                      CanUserSortColumns="True"
+                      GridLinesVisibility="Horizontal"
+                      HeadersVisibility="Column"
+                      IsReadOnly="True"
+                      SelectionMode="Single"
+                      Background="Transparent"
+                      BorderThickness="0">
+
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Name"
+                                    Binding="{Binding Name}"
+                                    Width="*"
+                                    MinWidth="150"/>
+
+                <DataGridTextColumn Header="Display Name"
+                                    Binding="{Binding DisplayName}"
+                                    Width="*"
+                                    MinWidth="200"/>
+
+                <DataGridTextColumn Header="Files"
+                                    Binding="{Binding FileCount}"
+                                    Width="Auto"
+                                    MinWidth="80"/>
+
+                <DataGridCheckBoxColumn Header="Is .big"
+                                        Binding="{Binding IsBig}"
+                                        Width="Auto"
+                                        MinWidth="80"/>
+
+                <DataGridTextColumn Header="Language"
+                                    Binding="{Binding SetGameLanguageOnInstall}"
+                                    Width="Auto"
+                                    MinWidth="100"/>
+              </DataGrid.Columns>
+            </DataGrid>
+          </Border>
+        </Grid>
+      </TabItem>
+
+      <!-- Bundle Packs Tab -->
+      <TabItem Header="Bundle Packs">
+        <Grid RowDefinitions="Auto,*">
+          <!-- Toolbar -->
+          <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
+            <Button Command="{Binding AddBundlePackCommand}"
+                    Classes="Primary"
+                    ToolTip.Tip="Add a new bundle pack">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Path Data="{StaticResource IconAdd}"
+                      Fill="{Binding $parent[Button].Foreground}"
+                      Width="14" Height="14"
+                      Stretch="Uniform"/>
+                <TextBlock Text="Add Pack"/>
+              </StackPanel>
+            </Button>
+
+            <Button Command="{Binding RemoveBundlePackCommand}"
+                    IsEnabled="{Binding SelectedBundlePack, Converter={x:Static ObjectConverters.IsNotNull}}"
+                    ToolTip.Tip="Remove selected bundle pack">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Path Data="{StaticResource IconRemove}"
+                      Fill="{Binding $parent[Button].Foreground}"
+                      Width="14" Height="14"
+                      Stretch="Uniform"/>
+                <TextBlock Text="Remove"/>
+              </StackPanel>
+            </Button>
+          </StackPanel>
+
+          <!-- Bundle Packs List -->
+          <Border Grid.Row="1"
+                  Background="{StaticResource BackgroundSecondaryBrush}"
+                  BorderBrush="{StaticResource BorderBrush}"
+                  BorderThickness="{StaticResource BorderThicknessNormal}"
+                  CornerRadius="{StaticResource CornerRadiusNormal}"
+                  Padding="{StaticResource PaddingNormal}">
+
+            <DataGrid ItemsSource="{Binding BundlePacks}"
+                      SelectedItem="{Binding SelectedBundlePack}"
+                      AutoGenerateColumns="False"
+                      CanUserReorderColumns="True"
+                      CanUserResizeColumns="True"
+                      CanUserSortColumns="True"
+                      GridLinesVisibility="Horizontal"
+                      HeadersVisibility="Column"
+                      IsReadOnly="True"
+                      SelectionMode="Single"
+                      Background="Transparent"
+                      BorderThickness="0">
+
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Name"
+                                    Binding="{Binding Name}"
+                                    Width="*"
+                                    MinWidth="150"/>
+
+                <DataGridTextColumn Header="Display Name"
+                                    Binding="{Binding DisplayName}"
+                                    Width="*"
+                                    MinWidth="200"/>
+
+                <DataGridTextColumn Header="Items"
+                                    Binding="{Binding ItemNames.Count}"
+                                    Width="Auto"
+                                    MinWidth="80"/>
+
+                <DataGridCheckBoxColumn Header="Allow Build"
+                                        Binding="{Binding AllowBuild}"
+                                        Width="Auto"
+                                        MinWidth="100"/>
+
+                <DataGridCheckBoxColumn Header="Allow Install"
+                                        Binding="{Binding AllowInstall}"
+                                        Width="Auto"
+                                        MinWidth="100"/>
+
+                <DataGridTextColumn Header="Language"
+                                    Binding="{Binding SetGameLanguageOnInstall}"
+                                    Width="Auto"
+                                    MinWidth="100"/>
+              </DataGrid.Columns>
+            </DataGrid>
+          </Border>
+        </Grid>
+      </TabItem>
+    </TabControl>
+
+    <!-- Footer actions -->
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" Margin="0,16,0,0">
+      <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <Border Background="{StaticResource WarningBrush}"
+                CornerRadius="3"
+                Padding="8,4"
+                IsVisible="{Binding HasChanges}">
+          <TextBlock Text="Unsaved Changes"
+                     FontSize="{StaticResource FontSizeSmall}"
+                     Foreground="{StaticResource BackgroundPrimaryBrush}"/>
+        </Border>
+
+        <TextBlock Text="Changes will be saved to configuration files"
+                   FontSize="{StaticResource FontSizeSmall}"
+                   Foreground="{StaticResource TextTertiaryBrush}"
+                   VerticalAlignment="Center"
+                   IsVisible="{Binding HasChanges}"/>
+      </StackPanel>
+
+      <Button Grid.Column="1"
+              Command="{Binding SaveCommand}"
+              Classes="Primary"
+              Margin="0,0,8,0"
+              MinWidth="100">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Path Data="{StaticResource IconSave}"
+                Fill="{Binding $parent[Button].Foreground}"
+                Width="14" Height="14"
+                Stretch="Uniform"/>
+          <TextBlock Text="Save"/>
+        </StackPanel>
+      </Button>
+
+      <Button Grid.Column="2"
+              Command="{Binding CancelCommand}"
+              MinWidth="100">
+        <TextBlock Text="Close"/>
+      </Button>
+    </Grid>
+  </Grid>
+</Window>

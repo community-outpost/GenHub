@@ -1,14 +1,11 @@
 using System;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
-using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
@@ -28,8 +25,7 @@ public partial class DownloadsViewModel(
     IServiceProvider serviceProvider,
     ILogger<DownloadsViewModel> logger,
     INotificationService notificationService,
-    GitHubTopicsDiscoverer gitHubTopicsDiscoverer,
-    IConfigurationProviderService configurationProvider) : ViewModelBase
+    GitHubTopicsDiscoverer gitHubTopicsDiscoverer) : ViewModelBase
 {
     [ObservableProperty]
     private string _title = "Downloads";
@@ -752,40 +748,5 @@ public partial class DownloadsViewModel(
         notificationService.ShowInfo(
             "Coming Soon",
             "GitHub Manager will allow you to browse and manage GitHub repositories, releases, and artifacts.");
-    }
-
-    [RelayCommand]
-    private void OpenDownloadFolder()
-    {
-        try
-        {
-            var manifestsPath = configurationProvider.GetManifestsPath();
-
-            if (string.IsNullOrWhiteSpace(manifestsPath))
-            {
-                logger.LogWarning("Manifests directory path is not configured");
-                notificationService.ShowError("Error", "Download folder path is not valid");
-                return;
-            }
-
-            logger.LogInformation("Opening download (manifests) folder: {Path}", manifestsPath);
-
-            if (!Directory.Exists(manifestsPath))
-            {
-                logger.LogWarning("Manifests directory not found at {Path}, creating it", manifestsPath);
-                Directory.CreateDirectory(manifestsPath);
-            }
-
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = manifestsPath,
-                UseShellExecute = true,
-            });
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to open download folder");
-            notificationService.ShowError("Error", $"Failed to open download folder: {ex.Message}", 5000);
-        }
     }
 }

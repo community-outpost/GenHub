@@ -673,8 +673,7 @@ public class MainViewModelTests
             mockServiceProvider.Object,
             mockLogger.Object,
             mockNotificationService.Object,
-            realGitHubDiscoverer,
-            configProvider);
+            realGitHubDiscoverer);
     }
 
     /// <summary>

@@ -1,0 +1,85 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="200" d:DesignHeight="100"
+             x:Class="GenHub.Features.Tools.ModBuilder.Controls.MetricDisplay">
+
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="../Styles/ModBuilderStyles.axaml"/>
+        <ResourceInclude Source="../Styles/ModBuilderIcons.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </UserControl.Resources>
+
+  <Border Background="{StaticResource SurfaceBrush}"
+          BorderBrush="{StaticResource BorderBrush}"
+          BorderThickness="{StaticResource BorderThicknessThin}"
+          CornerRadius="{StaticResource CornerRadiusMedium}"
+          Padding="{StaticResource PaddingMedium}">
+
+    <Grid RowDefinitions="Auto,Auto,Auto">
+
+      <!-- Icon & Label -->
+      <Grid Grid.Row="0" ColumnDefinitions="Auto,*">
+
+        <!-- Icon -->
+        <Border Grid.Column="0"
+                Width="32" Height="32"
+                Background="{Binding IconBackground}"
+                CornerRadius="{StaticResource CornerRadiusSmall}"
+                Margin="0,0,12,0">
+          <Path Width="18" Height="18"
+                Fill="{Binding IconForeground}"
+                Data="{Binding Icon}"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"/>
+        </Border>
+
+        <!-- Label -->
+        <TextBlock Grid.Column="1"
+                   Text="{Binding Label}"
+                   FontSize="{StaticResource FontSizeSmall}"
+                   Foreground="{StaticResource TextSecondaryBrush}"
+                   VerticalAlignment="Center"/>
+
+      </Grid>
+
+      <!-- Value -->
+      <TextBlock Grid.Row="1"
+                 Text="{Binding Value}"
+                 FontSize="{StaticResource FontSizeHeading2}"
+                 FontWeight="{StaticResource FontWeightBold}"
+                 Foreground="{Binding IsHighlighted, Converter={StaticResource BoolToColorConverter}, ConverterParameter='#00D9FF|#FFFFFF', FallbackValue={StaticResource TextPrimaryBrush}}"
+                 Margin="0,8,0,0"/>
+
+
+      <!-- Trend Indicator -->
+      <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto" Margin="0,4,0,0">
+
+        <!-- Trend Icon -->
+        <Path Grid.Column="0"
+              Width="12" Height="12"
+              Fill="{Binding TrendColor}"
+              Data="{Binding TrendIcon}"
+              VerticalAlignment="Center"
+              Margin="0,0,4,0"
+              IsVisible="{Binding HasTrend}"/>
+
+        <!-- Trend Text -->
+        <TextBlock Grid.Column="1"
+                   Text="{Binding TrendText}"
+                   FontSize="{StaticResource FontSizeXSmall}"
+                   Foreground="{Binding TrendColor}"
+                   VerticalAlignment="Center"
+                   IsVisible="{Binding HasTrend}"/>
+
+      </Grid>
+
+    </Grid>
+
+  </Border>
+
+</UserControl>

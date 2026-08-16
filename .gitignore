@@ -173,3 +173,8 @@ _NCrunch*
 # Velopack releases
 releases/
 Releases/
+
+# Visual Studio metadata (exclude except AI context)
+.vs/
+!.vs/Project-Overview.md
+!.vs/prompt.md

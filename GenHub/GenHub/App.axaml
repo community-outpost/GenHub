@@ -8,6 +8,7 @@
         <StyleInclude Source="avares://GenHub/Assets/Styles/ComboBoxStyles.axaml" />
         <StyleInclude Source="avares://GenHub/Common/Controls/SidebarLayoutStyles.axaml" />
         <StyleInclude Source="avares://GenHub/Assets/Styles/ScrollbarStyles.axaml" />
+        <StyleInclude Source="avares://GenHub/Assets/Styles/SidebarStyles.axaml" />
     </Application.Styles>
     <Application.Resources>
         <ResourceDictionary>
@@ -22,11 +23,6 @@
         <local:EqualityConverter x:Key="EqualityConverter" />
         <local:BoolToExpandIconConverter x:Key="BoolToExpandIconConverter" />
         <local:BoolToExpandTextConverter x:Key="BoolToExpandTextConverter" />
+        <local:FileIconConverter x:Key="FileIconConverter" />
     </Application.Resources>
-    <Application.Styles>
-        <FluentTheme />
-        <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml"/>
-        <StyleInclude Source="avares://GenHub/Assets/Styles/ComboBoxStyles.axaml" />
-        <StyleInclude Source="avares://GenHub/Assets/Styles/SidebarStyles.axaml" />
-    </Application.Styles>
 </Application>

@@ -50,4 +50,50 @@ public static class ToolConstants
         /// </summary>
         public static readonly string[] Tags = ["replays", "file-management", "sharing"];
     }
+
+    /// <summary>
+    /// Constants for the ModBuilder tool plugin.
+    /// </summary>
+    public static class ModBuilder
+    {
+        /// <summary>
+        /// The unique identifier for the ModBuilder tool.
+        /// </summary>
+        public const string Id = "genhub.tools.modbuilder";
+
+        /// <summary>
+        /// The display name for the ModBuilder tool.
+        /// </summary>
+        public const string Name = "ModBuilder";
+
+        /// <summary>
+        /// The version of the ModBuilder tool.
+        /// </summary>
+        public const string Version = "1.0.0";
+
+        /// <summary>
+        /// The author of the ModBuilder tool.
+        /// </summary>
+        public const string Author = "GenHub Team";
+
+        /// <summary>
+        /// The description of the ModBuilder tool.
+        /// </summary>
+        public const string Description = "Build automation tool for Command & Conquer: Generals mods. Compile, package, and deploy your mod projects.";
+
+        /// <summary>
+        /// The icon path for the ModBuilder tool.
+        /// </summary>
+        public const string IconPath = "🔨";
+
+        /// <summary>
+        /// Whether the ModBuilder tool is bundled with the application.
+        /// </summary>
+        public const bool IsBundled = true;
+
+        /// <summary>
+        /// The tags associated with the ModBuilder tool.
+        /// </summary>
+        public static readonly string[] Tags = ["modding", "build-automation", "development"];
+    }
 }

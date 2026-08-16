@@ -94,4 +94,14 @@ public static class ContentConstants
     /// Maximum allowed size for the content catalog in bytes (10 MB).
     /// </summary>
     public const long MaxCatalogSizeBytes = 10 * ConversionConstants.BytesPerMegabyte;
+
+    /// <summary>
+    /// Maximum number of search results per query.
+    /// </summary>
+    public const int MaxSearchResultsPerQuery = 1000;
+
+    /// <summary>
+    /// Minimum number of search results per query.
+    /// </summary>
+    public const int MinSearchResultsPerQuery = 1;
 }

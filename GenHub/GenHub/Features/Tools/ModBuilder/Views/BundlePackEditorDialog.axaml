@@ -1,0 +1,330 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:GenHub.Features.Tools.ModBuilder.ViewModels"
+        xmlns:models="using:GenHub.Features.Tools.ModBuilder.Models"
+        mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
+        x:Class="GenHub.Features.Tools.ModBuilder.Views.BundlePackEditorDialog"
+        x:DataType="vm:BundlePackEditorViewModel"
+        Title="Bundle Pack Editor"
+        Width="1000" Height="700"
+        MinWidth="800" MinHeight="600"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource BackgroundPrimaryBrush}">
+
+  <Window.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="/Features/Tools/ModBuilder/Styles/ModBuilderStyles.axaml"/>
+        <ResourceInclude Source="/Features/Tools/ModBuilder/Styles/ModBuilderIcons.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Window.Resources>
+
+  <Grid RowDefinitions="Auto,*,Auto" Margin="{StaticResource PaddingLarge}">
+    <!-- Header -->
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+      <StackPanel Grid.Column="0" Spacing="{StaticResource SpacingSmall}">
+        <TextBlock Text="Bundle Pack Editor"
+                   FontSize="{StaticResource FontSizeHeading2}"
+                   FontWeight="{StaticResource FontWeightSemiBold}"
+                   Foreground="{StaticResource TextPrimaryBrush}"/>
+
+        <TextBlock Text="{Binding BundlePackName}"
+                   FontSize="{StaticResource FontSizeMedium}"
+                   Foreground="{StaticResource AccentPrimaryBrush}"/>
+      </StackPanel>
+
+      <StackPanel Grid.Column="1" Spacing="{StaticResource SpacingXSmall}">
+        <TextBlock Text="Total Files"
+                   FontSize="{StaticResource FontSizeSmall}"
+                   Foreground="{StaticResource TextTertiaryBrush}"
+                   HorizontalAlignment="Right"/>
+        <TextBlock Text="{Binding TotalFileCount}"
+                   FontSize="{StaticResource FontSizeXLarge}"
+                   FontWeight="{StaticResource FontWeightBold}"
+                   Foreground="{StaticResource TextPrimaryBrush}"
+                   HorizontalAlignment="Right"/>
+        <TextBlock Text="{Binding TotalSizeFormatted}"
+                   FontSize="{StaticResource FontSizeSmall}"
+                   Foreground="{StaticResource TextSecondaryBrush}"
+                   HorizontalAlignment="Right"/>
+      </StackPanel>
+    </Grid>
+
+    <!-- Main content -->
+    <Grid Grid.Row="1" ColumnDefinitions="*,300">
+      <!-- File list -->
+      <Border Grid.Column="0"
+              Background="{StaticResource BackgroundSecondaryBrush}"
+              BorderBrush="{StaticResource BorderBrush}"
+              BorderThickness="{StaticResource BorderThicknessNormal}"
+              CornerRadius="{StaticResource CornerRadiusNormal}"
+              Padding="{StaticResource PaddingNormal}"
+              Margin="0,0,8,0">
+
+        <Grid RowDefinitions="Auto,Auto,*">
+          <!-- Search bar -->
+          <TextBox Grid.Row="0"
+                   Text="{Binding SearchFilter}"
+                   Watermark="Search files..."
+                   Margin="0,0,0,12">
+            <TextBox.InnerLeftContent>
+              <Path Data="{StaticResource IconSearch}"
+                    Fill="{StaticResource TextTertiaryBrush}"
+                    Width="16" Height="16"
+                    Stretch="Uniform"
+                    Margin="8,0,0,0"/>
+            </TextBox.InnerLeftContent>
+          </TextBox>
+
+          <!-- Toolbar -->
+          <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
+            <Button Command="{Binding AddFilesCommand}"
+                    Classes="Primary"
+                    ToolTip.Tip="Add files to bundle (Ctrl+A)">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Path Data="{StaticResource IconAdd}"
+                      Fill="{Binding $parent[Button].Foreground}"
+                      Width="14" Height="14"
+                      Stretch="Uniform"/>
+                <TextBlock Text="Add Files"/>
+              </StackPanel>
+            </Button>
+
+            <Button Command="{Binding RemoveFilesCommand}"
+                    IsEnabled="{Binding SelectedFiles.Count}"
+                    ToolTip.Tip="Remove selected files (Delete)">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Path Data="{StaticResource IconRemove}"
+                      Fill="{Binding $parent[Button].Foreground}"
+                      Width="14" Height="14"
+                      Stretch="Uniform"/>
+                <TextBlock Text="Remove"/>
+              </StackPanel>
+            </Button>
+
+            <Separator Width="1" Height="24" Background="{StaticResource BorderBrush}"/>
+
+            <Button Command="{Binding MoveUpCommand}"
+                    IsEnabled="{Binding SelectedFile, Converter={x:Static ObjectConverters.IsNotNull}}"
+                    ToolTip.Tip="Move up (Ctrl+Up)">
+              <Path Data="{StaticResource IconChevronUp}"
+                    Fill="{Binding $parent[Button].Foreground}"
+                    Width="14" Height="14"
+                    Stretch="Uniform"/>
+            </Button>
+
+            <Button Command="{Binding MoveDownCommand}"
+                    IsEnabled="{Binding SelectedFile, Converter={x:Static ObjectConverters.IsNotNull}}"
+                    ToolTip.Tip="Move down (Ctrl+Down)">
+              <Path Data="{StaticResource IconChevronDown}"
+                    Fill="{Binding $parent[Button].Foreground}"
+                    Width="14" Height="14"
+                    Stretch="Uniform"/>
+            </Button>
+
+            <Separator Width="1" Height="24" Background="{StaticResource BorderBrush}"/>
+
+            <Button Command="{Binding ConvertAllToDdsCommand}"
+                    ToolTip.Tip="Convert all TGA files to DDS">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Path Data="{StaticResource IconConverting}"
+                      Fill="{Binding $parent[Button].Foreground}"
+                      Width="14" Height="14"
+                      Stretch="Uniform"/>
+                <TextBlock Text="Convert All"/>
+              </StackPanel>
+            </Button>
+          </StackPanel>
+
+          <!-- File list -->
+          <ListBox Grid.Row="2"
+                   ItemsSource="{Binding Files}"
+                   SelectedItem="{Binding SelectedFile}"
+                   SelectionMode="Multiple"
+                   Background="Transparent"
+                   BorderThickness="0">
+
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="models:BundleFileInfo">
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="4">
+                  <!-- File icon -->
+                  <Border Grid.Column="0"
+                          Width="32" Height="32"
+                          Background="{StaticResource SurfaceBrush}"
+                          CornerRadius="4"
+                          Margin="0,0,12,0">
+                    <Path Data="{DynamicResource {Binding IconKey}}"
+                          Fill="{StaticResource AccentPrimaryBrush}"
+                          Width="16" Height="16"
+                          Stretch="Uniform"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"/>
+                  </Border>
+
+                  <!-- File info -->
+                  <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                    <TextBlock Text="{Binding FileName}"
+                               FontSize="{StaticResource FontSizeNormal}"
+                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                    <TextBlock FontSize="{StaticResource FontSizeSmall}"
+                               Foreground="{StaticResource TextSecondaryBrush}">
+                      <Run Text="{Binding FileType}"/>
+                      <Run Text="•"/>
+                      <Run Text="{Binding FileSizeFormatted}"/>
+                    </TextBlock>
+                  </StackPanel>
+
+                  <!-- Status badges -->
+                  <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" Margin="8,0">
+                    <Border Background="{StaticResource SuccessBrush}"
+                            CornerRadius="3"
+                            Padding="6,2"
+                            IsVisible="{Binding IsCached}">
+                      <TextBlock Text="Cached"
+                                 FontSize="{StaticResource FontSizeXSmall}"
+                                 Foreground="{StaticResource BackgroundPrimaryBrush}"/>
+                    </Border>
+
+                    <Border Background="{StaticResource WarningBrush}"
+                            CornerRadius="3"
+                            Padding="6,2"
+                            IsVisible="{Binding IsModified}">
+                      <TextBlock Text="Modified"
+                                 FontSize="{StaticResource FontSizeXSmall}"
+                                 Foreground="{StaticResource BackgroundPrimaryBrush}"/>
+                    </Border>
+                  </StackPanel>
+
+                  <!-- Order number -->
+                  <TextBlock Grid.Column="3"
+                             Text="{Binding Order}"
+                             FontSize="{StaticResource FontSizeSmall}"
+                             Foreground="{StaticResource TextTertiaryBrush}"
+                             VerticalAlignment="Center"
+                             Margin="8,0,0,0"/>
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+
+      <!-- Preview panel -->
+      <Border Grid.Column="1"
+              Background="{StaticResource BackgroundSecondaryBrush}"
+              BorderBrush="{StaticResource BorderBrush}"
+              BorderThickness="{StaticResource BorderThicknessNormal}"
+              CornerRadius="{StaticResource CornerRadiusNormal}"
+              Padding="{StaticResource PaddingNormal}">
+
+        <Grid RowDefinitions="Auto,*">
+          <TextBlock Grid.Row="0"
+                     Text="File Preview"
+                     FontSize="{StaticResource FontSizeMedium}"
+                     FontWeight="{StaticResource FontWeightSemiBold}"
+                     Foreground="{StaticResource TextPrimaryBrush}"
+                     Margin="0,0,0,12"/>
+
+          <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="{StaticResource SpacingNormal}"
+                        IsVisible="{Binding SelectedFile, Converter={x:Static ObjectConverters.IsNotNull}}">
+
+              <!-- File details -->
+              <StackPanel Spacing="{StaticResource SpacingSmall}">
+                <TextBlock Text="File Name"
+                           FontSize="{StaticResource FontSizeSmall}"
+                           Foreground="{StaticResource TextTertiaryBrush}"/>
+                <TextBlock Text="{Binding SelectedFile.FileName}"
+                           FontSize="{StaticResource FontSizeNormal}"
+                           Foreground="{StaticResource TextPrimaryBrush}"
+                           TextWrapping="Wrap"/>
+              </StackPanel>
+
+              <StackPanel Spacing="{StaticResource SpacingSmall}">
+                <TextBlock Text="Source Path"
+                           FontSize="{StaticResource FontSizeSmall}"
+                           Foreground="{StaticResource TextTertiaryBrush}"/>
+                <TextBlock Text="{Binding SelectedFile.SourcePath}"
+                           FontSize="{StaticResource FontSizeSmall}"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           TextWrapping="Wrap"/>
+              </StackPanel>
+
+              <StackPanel Spacing="{StaticResource SpacingSmall}">
+                <TextBlock Text="File Type"
+                           FontSize="{StaticResource FontSizeSmall}"
+                           Foreground="{StaticResource TextTertiaryBrush}"/>
+                <TextBlock Text="{Binding SelectedFile.FileType}"
+                           FontSize="{StaticResource FontSizeNormal}"
+                           Foreground="{StaticResource TextPrimaryBrush}"/>
+              </StackPanel>
+
+              <StackPanel Spacing="{StaticResource SpacingSmall}">
+                <TextBlock Text="File Size"
+                           FontSize="{StaticResource FontSizeSmall}"
+                           Foreground="{StaticResource TextTertiaryBrush}"/>
+                <TextBlock Text="{Binding SelectedFile.FileSizeFormatted}"
+                           FontSize="{StaticResource FontSizeNormal}"
+                           Foreground="{StaticResource TextPrimaryBrush}"/>
+              </StackPanel>
+
+              <StackPanel Spacing="{StaticResource SpacingSmall}">
+                <TextBlock Text="Last Modified"
+                           FontSize="{StaticResource FontSizeSmall}"
+                           Foreground="{StaticResource TextTertiaryBrush}"/>
+                <TextBlock Text="{Binding SelectedFile.LastModified, StringFormat='{}{0:yyyy-MM-dd HH:mm:ss}'}"
+                           FontSize="{StaticResource FontSizeNormal}"
+                           Foreground="{StaticResource TextPrimaryBrush}"/>
+              </StackPanel>
+
+              <!-- Image preview placeholder -->
+              <Border Background="{StaticResource SurfaceBrush}"
+                      CornerRadius="{StaticResource CornerRadiusNormal}"
+                      Height="200"
+                      Margin="0,12,0,0">
+                <TextBlock Text="Image preview coming soon"
+                           FontSize="{StaticResource FontSizeSmall}"
+                           Foreground="{StaticResource TextTertiaryBrush}"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"/>
+              </Border>
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+      </Border>
+    </Grid>
+
+    <!-- Footer actions -->
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" Margin="0,16,0,0">
+      <TextBlock Grid.Column="0"
+                 Text="* Changes will be applied when you save the project"
+                 FontSize="{StaticResource FontSizeSmall}"
+                 Foreground="{StaticResource TextTertiaryBrush}"
+                 VerticalAlignment="Center"
+                 IsVisible="{Binding HasChanges}"/>
+
+      <Button Grid.Column="1"
+              Command="{Binding SaveCommand}"
+              Classes="Primary"
+              Margin="0,0,8,0"
+              MinWidth="100">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Path Data="{StaticResource IconSave}"
+                Fill="{Binding $parent[Button].Foreground}"
+                Width="14" Height="14"
+                Stretch="Uniform"/>
+          <TextBlock Text="Save"/>
+        </StackPanel>
+      </Button>
+
+      <Button Grid.Column="2"
+              Command="{Binding CancelCommand}"
+              MinWidth="100">
+        <TextBlock Text="Cancel"/>
+      </Button>
+    </Grid>
+  </Grid>
+</Window>
