@@ -478,13 +478,18 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
     /// <inheritdoc />
     public async Task<BuildConfiguration?> LoadProjectConfigurationAsync(string projectPath, CancellationToken cancellationToken = default)
     {
-        var projectDir = Path.GetDirectoryName(projectPath);
+        var projectDir = Directory.Exists(projectPath) ? projectPath : Path.GetDirectoryName(projectPath);
         if (string.IsNullOrEmpty(projectDir) || !Directory.Exists(projectDir))
         {
             return null;
         }
 
         var configDir = Path.Combine(projectDir, ModBuilderConstants.ConfigDir);
+        if (!Directory.Exists(configDir))
+        {
+            configDir = Path.Combine(projectDir, "Configs");
+        }
+
         if (!Directory.Exists(configDir))
         {
             return null;
@@ -502,6 +507,15 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         if (File.Exists(bundlePacksPath))
         {
             configFiles.Add(bundlePacksPath);
+        }
+
+        if (configFiles.Count == 0)
+        {
+            var legacyBundlesPath = Path.Combine(configDir, "bundles.json");
+            if (File.Exists(legacyBundlesPath))
+            {
+                configFiles.Add(legacyBundlesPath);
+            }
         }
 
         if (configFiles.Count == 0)

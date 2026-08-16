@@ -268,7 +268,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// Gets or sets a value indicating whether clean action is enabled.
     /// </summary>
     [ObservableProperty]
-    private bool _cleanEnabled = true;
+    private bool _cleanEnabled;
 
     /// <summary>
     /// Gets or sets a value indicating whether build action is enabled.

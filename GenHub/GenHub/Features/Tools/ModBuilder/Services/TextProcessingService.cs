@@ -104,8 +104,8 @@ public sealed class TextProcessingService(
                 continue;
             }
 
-            // Remove inline comments
-            var commentIndex = line.IndexOf(commentPrefix, StringComparison.Ordinal);
+            // Remove inline comments (quote-aware)
+            var commentIndex = FindInlineCommentIndex(line, commentPrefix);
             if (commentIndex >= 0)
             {
                 result.Append(line.Substring(0, commentIndex).TrimEnd());
@@ -124,6 +124,24 @@ public sealed class TextProcessingService(
 
         logger.LogDebug("Removed {Count} comments with style {Style}", removedCount, style);
         return Task.FromResult(result.ToString());
+    }
+
+    private static int FindInlineCommentIndex(string line, string commentPrefix)
+    {
+        var inQuotes = false;
+        for (int j = 0; j < line.Length; j++)
+        {
+            if (line[j] == '"')
+            {
+                inQuotes = !inQuotes;
+            }
+            else if (!inQuotes && line.AsSpan(j).StartsWith(commentPrefix, StringComparison.Ordinal))
+            {
+                return j;
+            }
+        }
+
+        return -1;
     }
 
     /// <inheritdoc />

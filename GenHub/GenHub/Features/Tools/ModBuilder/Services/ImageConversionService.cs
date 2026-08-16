@@ -294,6 +294,12 @@ public class ImageConversionService : IImageConversionService
         IDictionary<string, object>? parameters,
         CancellationToken cancellationToken)
     {
+        var targetExt = Path.GetExtension(targetPath).ToLowerInvariant();
+        if (targetExt == ".dds")
+        {
+            return await ConvertToDdsAsync(sourcePath, targetPath, parameters, cancellationToken).ConfigureAwait(false);
+        }
+
         return await Task.Run(() =>
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -312,7 +318,6 @@ public class ImageConversionService : IImageConversionService
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            var targetExt = Path.GetExtension(targetPath).ToLowerInvariant();
             switch (targetExt)
             {
                 case ".bmp":
@@ -325,9 +330,6 @@ public class ImageConversionService : IImageConversionService
                         Compression = TgaCompression.None
                     });
                     break;
-                case ".dds":
-                    _logger.LogWarning("DDS encoding not yet implemented. Use external tool.");
-                    return false;
                 default:
                     resizedImage.Save(targetPath);
                     break;
@@ -526,7 +528,7 @@ public class ImageConversionService : IImageConversionService
         };
 
         // Convert to Rgba32 for channel manipulation
-        var rgba32Image = image.CloneAs<Rgba32>();
+        using var rgba32Image = image.CloneAs<Rgba32>();
 
         // Extract channels
         using var rChannel = new Image<L8>(rgba32Image.Width, rgba32Image.Height);

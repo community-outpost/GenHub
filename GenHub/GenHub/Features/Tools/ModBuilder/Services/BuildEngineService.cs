@@ -23,6 +23,7 @@ public sealed class BuildEngineService(
     IFileConversionService fileConversionService,
     IMd5HashProvider hashProvider,
     IConfigurationLoaderService configurationLoaderService,
+    IArchiveService archiveService,
     ILogger<BuildEngineService> logger) : IBuildEngineService
 {
     private readonly SemaphoreSlim _buildLock = new(1, 1);
@@ -353,19 +354,78 @@ public sealed class BuildEngineService(
 
         logger.LogInformation("Processing {Count} files for stage {Stage}", filesToProcess.Count, stage);
 
-        // process files in parallel for optimum performance
-        await Parallel.ForEachAsync(
-            filesToProcess,
-            new ParallelOptions
+        if (stage == BuildIndex.BigBundleItem)
+        {
+            var rawDir = Path.Combine(setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.RawBundleItemsSubdir);
+            var bundlesDir = Path.Combine(setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.BundlesSubdir);
+
+            if (Directory.Exists(rawDir))
             {
-                MaxDegreeOfParallelism = Environment.ProcessorCount,
-                CancellationToken = cancellationToken
-            },
-            async (file, ct) =>
+                if (!Directory.Exists(bundlesDir))
+                {
+                    Directory.CreateDirectory(bundlesDir);
+                }
+
+                if (setup.Bundles?.Items != null)
+                {
+                    foreach (var item in setup.Bundles.Items.Where(i => i.IsBig))
+                    {
+                        var bigFileName = $"{item.GetFullName()}{item.BigSuffix}.big";
+                        var bigFilePath = Path.Combine(bundlesDir, bigFileName);
+                        var archiveResult = await archiveService.CreateBigArchiveAsync(rawDir, bigFilePath, null, cancellationToken).ConfigureAwait(false);
+                        if (!archiveResult.Success)
+                        {
+                            logger.LogError("Failed to create BIG archive {Archive}: {Error}", bigFilePath, archiveResult.FirstError);
+                            Interlocked.Increment(ref _filesFailed);
+                        }
+                    }
+                }
+            }
+        }
+        else if (stage == BuildIndex.ReleaseBundlePack)
+        {
+            var bundlesDir = Path.Combine(setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.BundlesSubdir);
+            var releaseDir = setup.Folders?.AbsReleaseDir ?? ModBuilderConstants.DefaultReleaseDir;
+
+            if (Directory.Exists(bundlesDir) && !string.IsNullOrEmpty(releaseDir))
             {
-                await ProcessFileAsync(file, stage, setup, ct).ConfigureAwait(false);
-            })
-            .ConfigureAwait(false);
+                if (!Directory.Exists(releaseDir))
+                {
+                    Directory.CreateDirectory(releaseDir);
+                }
+
+                if (setup.Bundles?.Packs != null)
+                {
+                    foreach (var pack in setup.Bundles.Packs.Where(p => p.AllowBuild))
+                    {
+                        var zipFileName = $"{pack.GetFullName()}.zip";
+                        var zipFilePath = Path.Combine(releaseDir, zipFileName);
+                        var archiveResult = await archiveService.CreateZipArchiveAsync(bundlesDir, zipFilePath, System.IO.Compression.CompressionLevel.Optimal, null, cancellationToken).ConfigureAwait(false);
+                        if (!archiveResult.Success)
+                        {
+                            logger.LogError("Failed to create release ZIP archive {Archive}: {Error}", zipFilePath, archiveResult.FirstError);
+                            Interlocked.Increment(ref _filesFailed);
+                        }
+                    }
+                }
+            }
+        }
+        else if (stage == BuildIndex.RawBundleItem)
+        {
+            // process files in parallel for optimum performance
+            await Parallel.ForEachAsync(
+                filesToProcess,
+                new ParallelOptions
+                {
+                    MaxDegreeOfParallelism = Environment.ProcessorCount,
+                    CancellationToken = cancellationToken
+                },
+                async (file, ct) =>
+                {
+                    await ProcessFileAsync(file, stage, setup, ct).ConfigureAwait(false);
+                })
+                .ConfigureAwait(false);
+        }
 
         // fire finish event
         var finishEvent = GetFinishBuildEvent(stage);
@@ -409,7 +469,8 @@ public sealed class BuildEngineService(
 
                 // still add to new cache
                 var fileInfo = new FileInfo(filePath);
-                cacheService.AddFile(filePath, fileInfo.LastWriteTimeUtc.ToFileTimeUtc(), currentMd5, null);
+                var unixTime = fileInfo.LastWriteTimeUtc.Subtract(DateTime.UnixEpoch).TotalSeconds;
+                cacheService.AddFile(filePath, unixTime, currentMd5, null);
 
                 Interlocked.Increment(ref _filesSkipped);
                 return;
@@ -449,7 +510,8 @@ public sealed class BuildEngineService(
 
             // update cache entry
             var fileInfoFinal = new FileInfo(filePath);
-            cacheService.AddFile(filePath, fileInfoFinal.LastWriteTimeUtc.ToFileTimeUtc(), currentMd5, null);
+            var unixTimeFinal = fileInfoFinal.LastWriteTimeUtc.Subtract(DateTime.UnixEpoch).TotalSeconds;
+            cacheService.AddFile(filePath, unixTimeFinal, currentMd5, null);
 
             Interlocked.Increment(ref _filesProcessed);
 
@@ -590,11 +652,15 @@ public sealed class BuildEngineService(
                 var fileName = Path.GetFileName(sourcePath);
                 var targetPath = Path.Combine(gameDir, fileName);
 
-                // backup existing file if it exists
+                // backup existing file if it exists and hasn't already been backed up
                 if (File.Exists(targetPath))
                 {
                     var backupPath = targetPath + ModBuilderConstants.BackupFileExtension;
-                    File.Copy(targetPath, backupPath, overwrite: true);
+                    if (!File.Exists(backupPath))
+                    {
+                        File.Copy(targetPath, backupPath, overwrite: false);
+                    }
+
                     _installedFiles[targetPath] = backupPath;
                     logger.LogDebug("Backed up: {File}", targetPath);
                 }

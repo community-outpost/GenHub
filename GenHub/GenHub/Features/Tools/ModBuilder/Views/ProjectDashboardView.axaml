@@ -35,6 +35,18 @@
       <!-- Quick Actions -->
       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
 
+        <Button Command="{Binding LoadSampleProjectCommand}"
+                Classes="Secondary"
+                Padding="16,12"
+                ToolTip.Tip="Load the bundled BasicMod sample project">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Path Width="18" Height="18"
+                  Fill="{StaticResource TextPrimaryBrush}"
+                  Data="{StaticResource IconPackage}"/>
+            <TextBlock Text="Load Sample Project"/>
+          </StackPanel>
+        </Button>
+
         <Button Command="{Binding NewProjectCommand}"
                 Classes="Primary"
                 Padding="16,12">
@@ -106,11 +118,23 @@
                          FontWeight="{StaticResource FontWeightSemiBold}"
                          Foreground="{StaticResource TextSecondaryBrush}"
                          HorizontalAlignment="Center"/>
-              <TextBlock Text="Create a new project or open an existing one to get started"
+              <TextBlock Text="Create a new project or explore the bundled sample project to get started"
                          FontSize="{StaticResource FontSizeNormal}"
                          Foreground="{StaticResource TextTertiaryBrush}"
                          HorizontalAlignment="Center"
                          TextAlignment="Center"/>
+              <Button Command="{Binding LoadSampleProjectCommand}"
+                      Classes="Secondary"
+                      HorizontalAlignment="Center"
+                      Margin="0,8,0,0"
+                      Padding="16,10">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Path Width="16" Height="16"
+                        Fill="{StaticResource TextPrimaryBrush}"
+                        Data="{StaticResource IconPackage}"/>
+                  <TextBlock Text="Explore BasicMod Sample"/>
+                </StackPanel>
+              </Button>
             </StackPanel>
           </Border>
 
