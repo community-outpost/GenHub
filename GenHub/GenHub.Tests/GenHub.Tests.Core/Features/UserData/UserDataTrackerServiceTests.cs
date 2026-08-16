@@ -563,7 +563,10 @@ public sealed class UserDataTrackerServiceTests : IDisposable
 
         using var cts = new CancellationTokenSource();
 
-        // Mock CAS linking to cancel token mid-operation after backup and delete happen
+        _fileOperationsMock
+            .Setup(f => f.VerifyFileHashAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
         _fileOperationsMock
             .Setup(f => f.LinkFromCasAsync(
                 It.IsAny<string>(),
@@ -571,11 +574,15 @@ public sealed class UserDataTrackerServiceTests : IDisposable
                 It.IsAny<bool>(),
                 It.IsAny<ContentType?>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<string, string, bool, ContentType?, CancellationToken>((hash, targetPath, useHardLink, contentType, token) =>
-            {
-                cts.Cancel();
-                cts.Token.ThrowIfCancellationRequested();
-            });
+            .ThrowsAsync(new OperationCanceledException(cts.Token));
+
+        _fileOperationsMock
+            .Setup(f => f.CopyFromCasAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<ContentType?>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException(cts.Token));
 
         // Act & Assert
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
@@ -636,7 +643,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
                 if (Interlocked.Increment(ref verifiedCount) > 1)
                 {
                     cts.Cancel();
-                    cts.Token.ThrowIfCancellationRequested();
+                    return Task.FromException<bool>(new OperationCanceledException(cts.Token));
                 }
 
                 return Task.FromResult(true);
