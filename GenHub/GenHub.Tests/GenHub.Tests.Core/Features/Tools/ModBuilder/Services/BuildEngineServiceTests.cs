@@ -21,6 +21,7 @@ public sealed class BuildEngineServiceTests : IDisposable
     private readonly Mock<IFileConversionService> _mockFileConversionService;
     private readonly Mock<IMd5HashProvider> _mockHashProvider;
     private readonly Mock<IConfigurationLoaderService> _mockConfigurationLoaderService;
+    private readonly Mock<IArchiveService> _mockArchiveService;
     private readonly Mock<ILogger<BuildEngineService>> _mockLogger;
     private readonly BuildEngineService _service;
     private readonly string _tempDirectory;
@@ -31,6 +32,7 @@ public sealed class BuildEngineServiceTests : IDisposable
         _mockFileConversionService = new Mock<IFileConversionService>();
         _mockHashProvider = new Mock<IMd5HashProvider>();
         _mockConfigurationLoaderService = new Mock<IConfigurationLoaderService>();
+        _mockArchiveService = new Mock<IArchiveService>();
         _mockLogger = new Mock<ILogger<BuildEngineService>>();
         _tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempDirectory);
@@ -38,11 +40,18 @@ public sealed class BuildEngineServiceTests : IDisposable
         _mockConfigurationLoaderService.Setup(x => x.ResolveWildcardsAsync(It.IsAny<BuildConfiguration>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((BuildConfiguration config, CancellationToken ct) => config);
 
+        _mockArchiveService.Setup(x => x.CreateBigArchiveAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
+
+        _mockArchiveService.Setup(x => x.CreateZipArchiveAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<System.IO.Compression.CompressionLevel>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
+
         _service = new BuildEngineService(
             _mockCacheService.Object,
             _mockFileConversionService.Object,
             _mockHashProvider.Object,
             _mockConfigurationLoaderService.Object,
+            _mockArchiveService.Object,
             _mockLogger.Object);
     }
 
@@ -63,6 +72,7 @@ public sealed class BuildEngineServiceTests : IDisposable
             _mockFileConversionService.Object,
             _mockHashProvider.Object,
             _mockConfigurationLoaderService.Object,
+            _mockArchiveService.Object,
             _mockLogger.Object);
 
         // Assert

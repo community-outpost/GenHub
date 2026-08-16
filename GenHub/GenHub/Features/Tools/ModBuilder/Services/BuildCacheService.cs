@@ -21,6 +21,7 @@ public sealed class BuildCacheService : IBuildCacheService
     private const int MaximumCacheCapacity = 10000;
     private const double CapacityGrowthFactor = 0.1; // 10% buffer
 
+    private readonly object _cacheLock = new();
     private readonly IMd5HashProvider _md5Provider;
     private readonly IFileHashRegistryService? _registryService;
     private readonly ILogger<BuildCacheService> _logger;
@@ -88,15 +89,18 @@ public sealed class BuildCacheService : IBuildCacheService
         if (cache != null)
         {
             var estimatedCapacity = EstimateCacheCapacity(cache.Count);
-            _oldCache.Clear();
-            _oldCache.EnsureCapacity(estimatedCapacity);
-
-            foreach (var kvp in cache)
+            lock (_cacheLock)
             {
-                _oldCache[kvp.Key] = kvp.Value;
+                _oldCache.Clear();
+                _oldCache.EnsureCapacity(estimatedCapacity);
+
+                foreach (var kvp in cache)
+                {
+                    _oldCache[kvp.Key] = kvp.Value;
+                }
             }
 
-            _logger.LogInformation("Loaded MessagePack build cache with {Count} entries from {CachePath}", _oldCache.Count, cachePath);
+            _logger.LogInformation("Loaded MessagePack build cache with {Count} entries from {CachePath}", cache.Count, cachePath);
             return true;
         }
 
@@ -117,15 +121,18 @@ public sealed class BuildCacheService : IBuildCacheService
         if (cache != null)
         {
             var estimatedCapacity = EstimateCacheCapacity(cache.Count);
-            _oldCache.Clear();
-            _oldCache.EnsureCapacity(estimatedCapacity);
-
-            foreach (var kvp in cache)
+            lock (_cacheLock)
             {
-                _oldCache[kvp.Key] = kvp.Value;
+                _oldCache.Clear();
+                _oldCache.EnsureCapacity(estimatedCapacity);
+
+                foreach (var kvp in cache)
+                {
+                    _oldCache[kvp.Key] = kvp.Value;
+                }
             }
 
-            _logger.LogInformation("Loaded JSON build cache with {Count} entries from {CachePath}", _oldCache.Count, cachePath);
+            _logger.LogInformation("Loaded JSON build cache with {Count} entries from {CachePath}", cache.Count, cachePath);
             return true;
         }
 
@@ -146,16 +153,23 @@ public sealed class BuildCacheService : IBuildCacheService
                 Directory.CreateDirectory(directory);
             }
 
+            // Snapshot cache under lock
+            Dictionary<string, BuildFilePathInfo> cacheSnapshot;
+            lock (_cacheLock)
+            {
+                cacheSnapshot = new Dictionary<string, BuildFilePathInfo>(_newCache, StringComparer.OrdinalIgnoreCase);
+            }
+
             // Save as MessagePack format (10x faster than JSON)
             var msgpackPath = Path.ChangeExtension(cachePath, ".msgpack");
             await using var stream = File.Create(msgpackPath);
             await MessagePackSerializer.SerializeAsync(
                 stream,
-                _newCache,
+                cacheSnapshot,
                 cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
-            _logger.LogInformation("Saved MessagePack build cache with {Count} entries to {CachePath}", _newCache.Count, msgpackPath);
+            _logger.LogInformation("Saved MessagePack build cache with {Count} entries to {CachePath}", cacheSnapshot.Count, msgpackPath);
             return true;
         }
         catch (OperationCanceledException)
@@ -175,27 +189,33 @@ public sealed class BuildCacheService : IBuildCacheService
     {
         var normalizedPath = NormalizePath(filePath);
 
-        // Pre-allocate capacity based on old cache size to avoid rehashing
-        if (_newCache.Count == 0 && _oldCache.Count > 0)
+        lock (_cacheLock)
         {
-            var estimatedCapacity = EstimateCacheCapacity(_oldCache.Count);
-            _newCache.EnsureCapacity(estimatedCapacity);
-        }
+            // Pre-allocate capacity based on old cache size to avoid rehashing
+            if (_newCache.Count == 0 && _oldCache.Count > 0)
+            {
+                var estimatedCapacity = EstimateCacheCapacity(_oldCache.Count);
+                _newCache.EnsureCapacity(estimatedCapacity);
+            }
 
-        _newCache[normalizedPath] = new BuildFilePathInfo
-        {
-            Path = filePath,
-            ModifiedTime = modifiedTime,
-            Md5 = md5,
-            Params = @params,
-        };
+            _newCache[normalizedPath] = new BuildFilePathInfo
+            {
+                Path = filePath,
+                ModifiedTime = modifiedTime,
+                Md5 = md5,
+                Params = @params,
+            };
+        }
     }
 
     /// <inheritdoc/>
     public BuildFilePathInfo? FindOldFile(string filePath)
     {
         var normalizedPath = NormalizePath(filePath);
-        return _oldCache.TryGetValue(normalizedPath, out var info) ? info : null;
+        lock (_cacheLock)
+        {
+            return _oldCache.TryGetValue(normalizedPath, out var info) ? info : null;
+        }
     }
 
     /// <inheritdoc/>
@@ -257,8 +277,12 @@ public sealed class BuildCacheService : IBuildCacheService
     /// <inheritdoc/>
     public void Clear()
     {
-        _oldCache.Clear();
-        _newCache.Clear();
+        lock (_cacheLock)
+        {
+            _oldCache.Clear();
+            _newCache.Clear();
+        }
+
         _logger.LogDebug("Build cache cleared");
     }
 
