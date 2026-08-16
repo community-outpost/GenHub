@@ -342,135 +342,125 @@ public class UserDataTrackerService(
                 var activationFailed = false;
                 string? failureReason = null;
 
-                // Re-create hard links for all files
-                foreach (var file in manifest.InstalledFiles)
+                try
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    if (File.Exists(file.AbsolutePath))
+                    // Re-create hard links for all files
+                    foreach (var file in manifest.InstalledFiles)
                     {
-                        if (await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken))
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        if (File.Exists(file.AbsolutePath))
                         {
-                            continue; // File already exists and matches hash
+                            if (await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken))
+                            {
+                                continue; // File already exists and matches hash
+                            }
+
+                            // Existing file doesn't match our CAS hash (e.g. user modified it while inactive or restored backup)
+                            // Always create a fresh safety backup of the latest file content on disk before replacing
+                            var oldBackup = file.BackupPath;
+                            var backupPath = await BackupExistingFileAsync(file.AbsolutePath, manifest.TargetGame, cancellationToken);
+                            if (string.IsNullOrEmpty(backupPath))
+                            {
+                                logger.LogError("[UserData] Failed to create safety backup for {Path} during activation", file.AbsolutePath);
+                                failureReason = $"Failed to create safety backup for '{file.AbsolutePath}' during activation";
+                                activationFailed = true;
+                                break;
+                            }
+
+                            if (!string.IsNullOrEmpty(oldBackup) && !string.Equals(oldBackup, backupPath, StringComparison.OrdinalIgnoreCase))
+                            {
+                                supersededBackups.Add(oldBackup);
+                            }
+
+                            file.BackupPath = backupPath;
+                            file.WasOverwritten = true;
+
+                            FileOperationsService.DeleteFileIfExists(file.AbsolutePath);
                         }
 
-                        // Existing file doesn't match our CAS hash (e.g. user modified it while inactive or restored backup)
-                        // Always create a fresh safety backup of the latest file content on disk before replacing
-                        var oldBackup = file.BackupPath;
-                        var backupPath = await BackupExistingFileAsync(file.AbsolutePath, manifest.TargetGame, cancellationToken);
-                        if (string.IsNullOrEmpty(backupPath))
+                        filesActivatedInThisManifest.Add(file);
+
+                        if (string.IsNullOrEmpty(file.CasHash))
                         {
-                            logger.LogError("[UserData] Failed to create safety backup for {Path} during activation", file.AbsolutePath);
-                            failureReason = $"Failed to create safety backup for '{file.AbsolutePath}' during activation";
+                            logger.LogError("[UserData] File {Path} has no CAS hash; cannot activate", file.AbsolutePath);
+                            failureReason = $"File '{file.AbsolutePath}' has no CAS hash";
                             activationFailed = true;
                             break;
                         }
 
-                        if (!string.IsNullOrEmpty(oldBackup) && !string.Equals(oldBackup, backupPath, StringComparison.OrdinalIgnoreCase))
+                        var targetDir = Path.GetDirectoryName(file.AbsolutePath);
+                        if (!string.IsNullOrEmpty(targetDir))
                         {
-                            supersededBackups.Add(oldBackup);
+                            Directory.CreateDirectory(targetDir);
                         }
 
-                        file.BackupPath = backupPath;
-                        file.WasOverwritten = true;
-
-                        FileOperationsService.DeleteFileIfExists(file.AbsolutePath);
-                    }
-
-                    filesActivatedInThisManifest.Add(file);
-
-                    if (string.IsNullOrEmpty(file.CasHash))
-                    {
-                        logger.LogError("[UserData] File {Path} has no CAS hash; cannot activate", file.AbsolutePath);
-                        failureReason = $"File '{file.AbsolutePath}' has no CAS hash";
-                        activationFailed = true;
-                        break;
-                    }
-
-                    var targetDir = Path.GetDirectoryName(file.AbsolutePath);
-                    if (!string.IsNullOrEmpty(targetDir))
-                    {
-                        Directory.CreateDirectory(targetDir);
-                    }
-
-                    var fileMaterialized = false;
-                    try
-                    {
-                        var linkResult = await fileOperations.LinkFromCasAsync(
-                            file.CasHash,
-                            file.AbsolutePath,
-                            useHardLink: true,
-                            contentType: null,
-                            cancellationToken: cancellationToken);
-
-                        if (linkResult)
+                        var fileMaterialized = false;
+                        try
                         {
-                            fileMaterialized = true;
-                        }
-                        else
-                        {
-                            // Fall back to copy
-                            var copyResult = await fileOperations.CopyFromCasAsync(file.CasHash, file.AbsolutePath, contentType: null, cancellationToken: cancellationToken);
-                            if (copyResult)
+                            var linkResult = await fileOperations.LinkFromCasAsync(
+                                file.CasHash,
+                                file.AbsolutePath,
+                                useHardLink: true,
+                                contentType: null,
+                                cancellationToken: cancellationToken);
+
+                            if (linkResult)
                             {
                                 fileMaterialized = true;
                             }
+                            else
+                            {
+                                // Fall back to copy
+                                var copyResult = await fileOperations.CopyFromCasAsync(file.CasHash, file.AbsolutePath, contentType: null, cancellationToken: cancellationToken);
+                                if (copyResult)
+                                {
+                                    fileMaterialized = true;
+                                }
+                            }
+                        }
+                        catch (Exception ex) when (ex is not OperationCanceledException)
+                        {
+                            logger.LogError(ex, "[UserData] Exception while materializing file {Path} during activation", file.AbsolutePath);
+                        }
+
+                        if (!fileMaterialized)
+                        {
+                            logger.LogError("[UserData] Failed to materialize file {Path} during activation", file.AbsolutePath);
+                            failureReason = $"Failed to materialize file '{file.AbsolutePath}' during activation";
+                            activationFailed = true;
+                            break;
                         }
                     }
-                    catch (OperationCanceledException)
+
+                    if (activationFailed)
                     {
+                        // Roll back files activated during this attempt and restore backups
                         var userDataBasePath = GetUserDataBasePath(manifest.TargetGame);
                         RollbackActivatedFiles(filesActivatedInThisManifest, userDataBasePath);
 
+                        // Save manifest state to preserve any backup mappings created
                         manifest.IsActive = false;
                         await SaveUserDataManifestAsync(manifest, CancellationToken.None);
-                        throw;
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogError(ex, "[UserData] Exception while materializing file {Path} during activation", file.AbsolutePath);
+                        CleanupSupersededBackups(supersededBackups, logger);
+
+                        return OperationResult<bool>.CreateFailure(failureReason ?? "Activation failed");
                     }
 
-                    if (!fileMaterialized)
-                    {
-                        logger.LogError("[UserData] Failed to materialize file {Path} during activation", file.AbsolutePath);
-                        failureReason = $"Failed to materialize file '{file.AbsolutePath}' during activation";
-                        activationFailed = true;
-                        break;
-                    }
+                    // Update manifest state
+                    manifest.IsActive = true;
+                    await SaveUserDataManifestAsync(manifest, cancellationToken);
+                    CleanupSupersededBackups(supersededBackups, logger);
                 }
-
-                if (activationFailed)
+                catch (OperationCanceledException)
                 {
-                    // Roll back files activated during this attempt and restore backups
                     var userDataBasePath = GetUserDataBasePath(manifest.TargetGame);
                     RollbackActivatedFiles(filesActivatedInThisManifest, userDataBasePath);
 
-                    // Save manifest state to preserve any backup mappings created
                     manifest.IsActive = false;
                     await SaveUserDataManifestAsync(manifest, CancellationToken.None);
-
-                    return OperationResult<bool>.CreateFailure(failureReason ?? "Activation failed");
-                }
-
-                // Update manifest state
-                manifest.IsActive = true;
-                await SaveUserDataManifestAsync(manifest, cancellationToken);
-
-                // Clean up superseded backups now that the manifest with updated backup paths is safely persisted
-                foreach (var oldBackup in supersededBackups)
-                {
-                    try
-                    {
-                        if (File.Exists(oldBackup))
-                        {
-                            File.Delete(oldBackup);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "[UserData] Failed to delete superseded backup file {OldBackup}", oldBackup);
-                    }
+                    CleanupSupersededBackups(supersededBackups, logger);
+                    throw;
                 }
             }
 
@@ -512,55 +502,64 @@ public class UserDataTrackerService(
 
                 var userDataBasePath = GetUserDataBasePath(manifest.TargetGame);
 
-                // Remove hard links and copied files but keep tracking
-                foreach (var file in manifest.InstalledFiles)
+                try
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    if (File.Exists(file.AbsolutePath))
+                    // Remove hard links and copied files but keep tracking
+                    foreach (var file in manifest.InstalledFiles)
                     {
-                        try
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        if (File.Exists(file.AbsolutePath))
                         {
-                            if (await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken))
+                            try
                             {
-                                File.Delete(file.AbsolutePath);
-                                CleanupEmptyDirectories(Path.GetDirectoryName(file.AbsolutePath), userDataBasePath);
+                                if (await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken))
+                                {
+                                    File.Delete(file.AbsolutePath);
+                                    CleanupEmptyDirectories(Path.GetDirectoryName(file.AbsolutePath), userDataBasePath);
+                                }
+                                else
+                                {
+                                    logger.LogWarning("[UserData] File hash mismatch, user may have modified: {Path}; preserving file", file.AbsolutePath);
+                                }
                             }
-                            else
+                            catch (Exception ex)
                             {
-                                logger.LogWarning("[UserData] File hash mismatch, user may have modified: {Path}; preserving file", file.AbsolutePath);
+                                logger.LogWarning(ex, "[UserData] Failed to remove active file: {Path}", file.AbsolutePath);
                             }
                         }
-                        catch (Exception ex)
+
+                        // If an original user file was backed up and the target file was removed or absent, restore it upon deactivation
+                        if (!File.Exists(file.AbsolutePath) && !string.IsNullOrEmpty(file.BackupPath) && File.Exists(file.BackupPath))
                         {
-                            logger.LogWarning(ex, "[UserData] Failed to remove active file: {Path}", file.AbsolutePath);
+                            try
+                            {
+                                var targetDir = Path.GetDirectoryName(file.AbsolutePath);
+                                if (!string.IsNullOrEmpty(targetDir))
+                                {
+                                    Directory.CreateDirectory(targetDir);
+                                }
+
+                                File.Copy(file.BackupPath, file.AbsolutePath, overwrite: true);
+                                logger.LogInformation("[UserData] Restored backup during deactivation: {Backup} -> {Path}", file.BackupPath, file.AbsolutePath);
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.LogWarning(ex, "[UserData] Failed to restore backup during deactivation: {Path}", file.AbsolutePath);
+                            }
                         }
                     }
 
-                    // If an original user file was backed up and the target file was removed or absent, restore it upon deactivation
-                    if (!File.Exists(file.AbsolutePath) && !string.IsNullOrEmpty(file.BackupPath) && File.Exists(file.BackupPath))
-                    {
-                        try
-                        {
-                            var targetDir = Path.GetDirectoryName(file.AbsolutePath);
-                            if (!string.IsNullOrEmpty(targetDir))
-                            {
-                                Directory.CreateDirectory(targetDir);
-                            }
-
-                            File.Copy(file.BackupPath, file.AbsolutePath, overwrite: true);
-                            logger.LogInformation("[UserData] Restored backup during deactivation: {Backup} -> {Path}", file.BackupPath, file.AbsolutePath);
-                        }
-                        catch (Exception ex)
-                        {
-                            logger.LogWarning(ex, "[UserData] Failed to restore backup during deactivation: {Path}", file.AbsolutePath);
-                        }
-                    }
+                    // Update manifest state
+                    manifest.IsActive = false;
+                    await SaveUserDataManifestAsync(manifest, cancellationToken);
                 }
-
-                // Update manifest state
-                manifest.IsActive = false;
-                await SaveUserDataManifestAsync(manifest, cancellationToken);
+                catch (OperationCanceledException)
+                {
+                    manifest.IsActive = false;
+                    await SaveUserDataManifestAsync(manifest, CancellationToken.None);
+                    throw;
+                }
             }
 
             logger.LogInformation("[UserData] Deactivated {Count} manifests for profile {ProfileId}", manifestsResult.Data.Count, profileId);
@@ -896,13 +895,26 @@ public class UserDataTrackerService(
         return path;
     }
 
+    private static void CleanupSupersededBackups(IReadOnlyList<string> supersededBackups, ILogger logger)
+    {
+        foreach (var oldBackup in supersededBackups)
+        {
+            try
+            {
+                if (File.Exists(oldBackup))
+                {
+                    File.Delete(oldBackup);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "[UserData] Failed to delete superseded backup file {OldBackup}", oldBackup);
+            }
+        }
+    }
+
     private static void CleanupEmptyDirectories(string? directoryPath, string? stopAtDirectory = null)
     {
-        if (string.IsNullOrEmpty(directoryPath))
-        {
-            return;
-        }
-
         if (string.IsNullOrEmpty(directoryPath) || string.IsNullOrEmpty(stopAtDirectory))
         {
             return;
