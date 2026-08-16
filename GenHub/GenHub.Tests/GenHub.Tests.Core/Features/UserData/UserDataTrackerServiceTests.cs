@@ -700,15 +700,23 @@ public sealed class UserDataTrackerServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Tests that installing a file with relative path escaping user data directory fails containment check.
+    /// Tests that installing a manifest with a relative path escaping user data directory fails containment check without leaving partial artifacts.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task InstallUserDataAsync_WhenRelativePathEscapesUserDataDirectory_Fails()
     {
         // Arrange
+        var validFilePath = Path.Combine(_zeroHourDataDir, "GeneralsOnlineGameData", "valid.bmp");
         var files = new List<ManifestFile>
         {
+            new()
+            {
+                RelativePath = "GeneralsOnlineGameData/valid.bmp",
+                Hash = "hash-valid",
+                Size = 100,
+                InstallTarget = ContentInstallTarget.UserDataDirectory,
+            },
             new()
             {
                 RelativePath = "../../evil.ini",
@@ -730,5 +738,6 @@ public sealed class UserDataTrackerServiceTests : IDisposable
 
         // Assert
         Assert.False(result.Success);
+        Assert.False(File.Exists(validFilePath));
     }
 }

@@ -86,13 +86,29 @@ public class UserDataTrackerService(
             };
 
             var userDataBasePath = GetUserDataBasePath(targetGame);
-            long totalSize = 0;
-
+            var resolvedFiles = new List<(ManifestFile File, string TargetPath)>(userDataFiles.Count);
             foreach (var file in userDataFiles)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                string targetPath;
+                try
+                {
+                    targetPath = ResolveUserDataTargetPath(file.InstallTarget, file.RelativePath, userDataBasePath);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "[UserData] Invalid file path in manifest: {Path}", file.RelativePath);
+                    return OperationResult<UserDataManifest>.CreateFailure($"Invalid file path in manifest: {file.RelativePath}");
+                }
 
-                var targetPath = ResolveUserDataTargetPath(file.InstallTarget, file.RelativePath, userDataBasePath);
+                resolvedFiles.Add((file, targetPath));
+            }
+
+            long totalSize = 0;
+
+            foreach (var (file, targetPath) in resolvedFiles)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
 
                 logger.LogDebug("[UserData] Installing {RelativePath} to {TargetPath}", file.RelativePath, targetPath);
 
@@ -883,7 +899,8 @@ public class UserDataTrackerService(
 
         var fullPath = Path.GetFullPath(targetPath);
         var basePath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(userDataBasePath));
-        if (!fullPath.StartsWith(basePath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        if (!fullPath.StartsWith(basePath + Path.DirectorySeparatorChar, comparison))
         {
             throw new InvalidOperationException($"Relative path escapes the user data directory: {relativePath}");
         }
@@ -940,11 +957,12 @@ public class UserDataTrackerService(
         try
         {
             var normalizedStop = Path.TrimEndingDirectorySeparator(Path.GetFullPath(stopAtDirectory));
+            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
             while (Directory.Exists(directoryPath))
             {
                 var fullDir = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directoryPath));
-                if (string.Equals(fullDir, normalizedStop, StringComparison.OrdinalIgnoreCase) ||
-                    !fullDir.StartsWith(normalizedStop + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(fullDir, normalizedStop, comparison) ||
+                    !fullDir.StartsWith(normalizedStop + Path.DirectorySeparatorChar, comparison))
                 {
                     break;
                 }
