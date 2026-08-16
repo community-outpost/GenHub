@@ -523,4 +523,99 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         Assert.True(File.Exists(splashPath));
         Assert.Equal(originalUserContent, File.ReadAllText(splashPath));
     }
+
+    /// <summary>
+    /// Verifies that when activation is cancelled, rollback restores user files and rethrows OperationCanceledException.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ActivateProfileUserDataAsync_WhenCanceled_RollsBackAndRethrows()
+    {
+        // Arrange
+        var gameDataDir = Path.Combine(_zeroHourDataDir, "GeneralsOnlineGameData");
+        Directory.CreateDirectory(gameDataDir);
+        var splashPath = Path.Combine(gameDataDir, "splash.bmp");
+        var originalUserContent = "original-user-splash";
+        File.WriteAllText(splashPath, originalUserContent);
+
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "GeneralsOnlineGameData/splash.bmp",
+                Hash = "hash-splash-expected",
+                Size = 100,
+                InstallTarget = ContentInstallTarget.UserDataDirectory,
+            },
+        };
+
+        await _trackerService.InstallUserDataAsync(
+            "1.1015255.generalsonline.patch.gamedata",
+            "profile-cancel-activate-test",
+            GameType.ZeroHour,
+            files,
+            "101525_QFE5",
+            "GameData Patch",
+            CancellationToken.None);
+
+        await _trackerService.DeactivateProfileUserDataAsync("profile-cancel-activate-test", CancellationToken.None);
+        Assert.Equal(originalUserContent, File.ReadAllText(splashPath));
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act & Assert
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            await _trackerService.ActivateProfileUserDataAsync("profile-cancel-activate-test", cts.Token);
+        });
+
+        // Rollback restores user backup
+        Assert.True(File.Exists(splashPath));
+        Assert.Equal(originalUserContent, File.ReadAllText(splashPath));
+    }
+
+    /// <summary>
+    /// Verifies that when deactivation is cancelled, manifest remains active on disk so a retry completes remaining files.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task DeactivateProfileUserDataAsync_WhenCanceled_PreservesManifestActiveForRetry()
+    {
+        // Arrange
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "GeneralsOnlineGameData/splash.bmp",
+                Hash = "hash-splash-expected",
+                Size = 100,
+                InstallTarget = ContentInstallTarget.UserDataDirectory,
+            },
+        };
+
+        await _trackerService.InstallUserDataAsync(
+            "1.1015255.generalsonline.patch.gamedata",
+            "profile-cancel-deactivate-test",
+            GameType.ZeroHour,
+            files,
+            "101525_QFE5",
+            "GameData Patch",
+            CancellationToken.None);
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act & Assert
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            await _trackerService.DeactivateProfileUserDataAsync("profile-cancel-deactivate-test", cts.Token);
+        });
+
+        // Manifest remains active on disk to allow retry
+        var profileData = await _trackerService.GetProfileUserDataAsync("profile-cancel-deactivate-test", CancellationToken.None);
+        Assert.True(profileData.Success);
+        Assert.Single(profileData.Data!);
+        Assert.True(profileData.Data![0].IsActive);
+    }
 }
