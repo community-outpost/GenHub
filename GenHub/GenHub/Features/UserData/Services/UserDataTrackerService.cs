@@ -139,35 +139,92 @@ public class UserDataTrackerService(
                 var isHardLink = false;
                 if (!string.IsNullOrEmpty(file.Hash))
                 {
-                    var linkResult = await fileOperations.LinkFromCasAsync(
-                        file.Hash,
-                        targetPath,
-                        useHardLink: true,
-                        contentType: null,
-                        cancellationToken: cancellationToken);
+                    var materialized = false;
+                    try
+                    {
+                        var linkResult = await fileOperations.LinkFromCasAsync(
+                            file.Hash,
+                            targetPath,
+                            useHardLink: true,
+                            contentType: null,
+                            cancellationToken: cancellationToken);
 
-                    if (linkResult)
-                    {
-                        isHardLink = true;
-                        logger.LogDebug("[UserData] Created hard link for {Path}", targetPath);
-                    }
-                    else
-                    {
-                        // Fall back to copy
-                        var copyResult = await fileOperations.CopyFromCasAsync(file.Hash, targetPath, contentType: null, cancellationToken: cancellationToken);
-                        if (!copyResult)
+                        if (linkResult)
                         {
-                            logger.LogError("[UserData] Failed to install file {Path}; aborting installation", targetPath);
-                            await CleanupInstalledFilesAsync(userDataManifest, cancellationToken);
-                            return OperationResult<UserDataManifest>.CreateFailure($"Failed to install file '{targetPath}'. Installation aborted.");
+                            isHardLink = true;
+                            materialized = true;
+                            logger.LogDebug("[UserData] Created hard link for {Path}", targetPath);
+                        }
+                        else
+                        {
+                            // Fall back to copy
+                            var copyResult = await fileOperations.CopyFromCasAsync(file.Hash, targetPath, contentType: null, cancellationToken: cancellationToken);
+                            if (copyResult)
+                            {
+                                materialized = true;
+                                logger.LogDebug("[UserData] Copied file for {Path} (hard link failed)", targetPath);
+                            }
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        if (wasOverwritten && !string.IsNullOrEmpty(backupPath) && File.Exists(backupPath))
+                        {
+                            try
+                            {
+                                File.Copy(backupPath, targetPath, overwrite: true);
+                                File.Delete(backupPath);
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.LogWarning(ex, "[UserData] Failed to restore backup from {BackupPath} to {TargetPath} on canceled install", backupPath, targetPath);
+                            }
                         }
 
-                        logger.LogDebug("[UserData] Copied file for {Path} (hard link failed)", targetPath);
+                        await CleanupInstalledFilesAsync(userDataManifest, CancellationToken.None);
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "[UserData] Exception while materializing file {Path} from CAS", targetPath);
+                    }
+
+                    if (!materialized)
+                    {
+                        logger.LogError("[UserData] Failed to install file {Path}; aborting installation", targetPath);
+                        if (wasOverwritten && !string.IsNullOrEmpty(backupPath) && File.Exists(backupPath))
+                        {
+                            try
+                            {
+                                File.Copy(backupPath, targetPath, overwrite: true);
+                                File.Delete(backupPath);
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.LogWarning(ex, "[UserData] Failed to restore backup from {BackupPath} to {TargetPath} on aborted install", backupPath, targetPath);
+                            }
+                        }
+
+                        await CleanupInstalledFilesAsync(userDataManifest, cancellationToken);
+                        return OperationResult<UserDataManifest>.CreateFailure($"Failed to install file '{targetPath}'. Installation aborted.");
                     }
                 }
                 else
                 {
                     logger.LogError("[UserData] File {Path} has no hash; aborting installation", file.RelativePath);
+                    if (wasOverwritten && !string.IsNullOrEmpty(backupPath) && File.Exists(backupPath))
+                    {
+                        try
+                        {
+                            File.Copy(backupPath, targetPath, overwrite: true);
+                            File.Delete(backupPath);
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogWarning(ex, "[UserData] Failed to restore backup from {BackupPath} to {TargetPath} on aborted install", backupPath, targetPath);
+                        }
+                    }
+
                     await CleanupInstalledFilesAsync(userDataManifest, cancellationToken);
                     return OperationResult<UserDataManifest>.CreateFailure($"File '{file.RelativePath}' has no hash. Installation aborted.");
                 }
@@ -320,24 +377,78 @@ public class UserDataTrackerService(
                             Directory.CreateDirectory(targetDir);
                         }
 
-                        var linkResult = await fileOperations.LinkFromCasAsync(
-                            file.CasHash,
-                            file.AbsolutePath,
-                            useHardLink: true,
-                            contentType: null,
-                            cancellationToken: cancellationToken);
-
-                        if (!linkResult)
+                        var fileMaterialized = false;
+                        try
                         {
-                            // Fall back to copy
-                            var copyResult = await fileOperations.CopyFromCasAsync(file.CasHash, file.AbsolutePath, contentType: null, cancellationToken: cancellationToken);
-                            if (!copyResult)
+                            var linkResult = await fileOperations.LinkFromCasAsync(
+                                file.CasHash,
+                                file.AbsolutePath,
+                                useHardLink: true,
+                                contentType: null,
+                                cancellationToken: cancellationToken);
+
+                            if (linkResult)
                             {
-                                logger.LogError("[UserData] Failed to materialize file {Path} during activation", file.AbsolutePath);
-                                failureReason = $"Failed to materialize file '{file.AbsolutePath}' during activation";
-                                activationFailed = true;
-                                break;
+                                fileMaterialized = true;
                             }
+                            else
+                            {
+                                // Fall back to copy
+                                var copyResult = await fileOperations.CopyFromCasAsync(file.CasHash, file.AbsolutePath, contentType: null, cancellationToken: cancellationToken);
+                                if (copyResult)
+                                {
+                                    fileMaterialized = true;
+                                }
+                            }
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            var userDataBasePath = GetUserDataBasePath(manifest.TargetGame);
+                            foreach (var f in filesActivatedInThisManifest)
+                            {
+                                try
+                                {
+                                    if (File.Exists(f.AbsolutePath))
+                                    {
+                                        File.Delete(f.AbsolutePath);
+                                    }
+
+                                    if (!string.IsNullOrEmpty(f.BackupPath) && File.Exists(f.BackupPath))
+                                    {
+                                        var tDir = Path.GetDirectoryName(f.AbsolutePath);
+                                        if (!string.IsNullOrEmpty(tDir))
+                                        {
+                                            Directory.CreateDirectory(tDir);
+                                        }
+
+                                        File.Copy(f.BackupPath, f.AbsolutePath, overwrite: true);
+                                    }
+                                    else
+                                    {
+                                        CleanupEmptyDirectories(Path.GetDirectoryName(f.AbsolutePath), userDataBasePath);
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    logger.LogWarning(ex, "[UserData] Error rolling back activation for {Path} on cancellation", f.AbsolutePath);
+                                }
+                            }
+
+                            manifest.IsActive = false;
+                            await SaveUserDataManifestAsync(manifest, CancellationToken.None);
+                            throw;
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogError(ex, "[UserData] Exception while materializing file {Path} during activation", file.AbsolutePath);
+                        }
+
+                        if (!fileMaterialized)
+                        {
+                            logger.LogError("[UserData] Failed to materialize file {Path} during activation", file.AbsolutePath);
+                            failureReason = $"Failed to materialize file '{file.AbsolutePath}' during activation";
+                            activationFailed = true;
+                            break;
                         }
                     }
                 }
