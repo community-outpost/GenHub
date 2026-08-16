@@ -141,6 +141,9 @@ public sealed class PythonBundleFileGroup
 
     [JsonPropertyName("params")]
     public Dictionary<string, object>? Params { get; set; }
+
+    [JsonPropertyName("excludeMarkersList")]
+    public List<List<string>>? ExcludeMarkersList { get; set; }
 }
 
 /// <summary>
@@ -165,6 +168,48 @@ public sealed class PythonBundleEvent
 
     [JsonPropertyName("args")]
     public string? Args { get; set; }
+}
+
+/// <summary>
+/// ModJsonFiles.json master configuration list.
+/// </summary>
+public sealed class PythonModJsonFilesConfig
+{
+    [JsonPropertyName("build")]
+    public PythonModJsonFilesBuild? Build { get; set; }
+}
+
+public sealed class PythonModJsonFilesBuild
+{
+    [JsonPropertyName("version")]
+    public int Version { get; set; }
+
+    [JsonPropertyName("files")]
+    public List<string>? Files { get; set; }
+}
+
+/// <summary>
+/// ModFolders.json folders configuration.
+/// </summary>
+public sealed class PythonModFoldersConfig
+{
+    [JsonPropertyName("folders")]
+    public PythonModFoldersData? Folders { get; set; }
+}
+
+public sealed class PythonModFoldersData
+{
+    [JsonPropertyName("version")]
+    public int Version { get; set; }
+
+    [JsonPropertyName("buildDir")]
+    public string? BuildDir { get; set; }
+
+    [JsonPropertyName("releaseDir")]
+    public string? ReleaseDir { get; set; }
+
+    [JsonPropertyName("gameDir")]
+    public string? GameDir { get; set; }
 }
 
 /// <summary>

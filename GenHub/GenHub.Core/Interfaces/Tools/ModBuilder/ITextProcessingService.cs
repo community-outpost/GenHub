@@ -58,6 +58,18 @@ public interface ITextProcessingService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Removes sections of text enclosed between delimiter marker pairs.
+    /// </summary>
+    /// <param name="content">The text content to process.</param>
+    /// <param name="markers">List of [startMarker, endMarker] pairs to remove.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Text with delimited sections removed.</returns>
+    Task<string> RemoveMarkersAsync(
+        string content,
+        IReadOnlyList<IReadOnlyList<string>> markers,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Optimizes INI files by removing comments, normalizing line endings, and cleaning whitespace.
     /// </summary>
     /// <param name="content">The INI file content to optimize.</param>
@@ -97,6 +109,11 @@ public class TextProcessingOptions
     /// Gets or sets the whitespace removal mode to use.
     /// </summary>
     public WhitespaceMode WhitespaceMode { get; set; } = WhitespaceMode.ExtraOnly;
+
+    /// <summary>
+    /// Gets or sets the list of delimiter marker pairs to strip out of the text.
+    /// </summary>
+    public IReadOnlyList<IReadOnlyList<string>>? ExcludeMarkersList { get; set; }
 }
 
 /// <summary>

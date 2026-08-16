@@ -201,6 +201,11 @@ public sealed class BuildEngineService(
                 success &= await ReleaseAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
             }
 
+            if (success && (setup.Step & BuildStep.Uninstall) != 0)
+            {
+                success &= await UninstallAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
+            }
+
             if (success && (setup.Step & BuildStep.Install) != 0)
             {
                 success &= await InstallAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
@@ -209,11 +214,6 @@ public sealed class BuildEngineService(
             if (success && (setup.Step & BuildStep.Run) != 0)
             {
                 success &= await RunGameAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
-            }
-
-            if (success && (setup.Step & BuildStep.Uninstall) != 0)
-            {
-                success &= await UninstallAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
             }
 
             logger.LogInformation("Build pipeline completed with success={Success}", success);
@@ -370,7 +370,10 @@ public sealed class BuildEngineService(
                 {
                     foreach (var item in setup.Bundles.Items.Where(i => i.IsBig))
                     {
-                        var bigFileName = $"{item.GetFullName()}{item.BigSuffix}.big";
+                        var suffix = item.BigSuffix ?? string.Empty;
+                        var bigFileName = suffix.EndsWith(".big", StringComparison.OrdinalIgnoreCase)
+                            ? $"{item.GetFullName()}{suffix}"
+                            : $"{item.GetFullName()}{suffix}.big";
                         var bigFilePath = Path.Combine(bundlesDir, bigFileName);
                         var archiveResult = await archiveService.CreateBigArchiveAsync(rawDir, bigFilePath, null, cancellationToken).ConfigureAwait(false);
                         if (!archiveResult.Success)
@@ -396,12 +399,37 @@ public sealed class BuildEngineService(
 
                 if (setup.Bundles?.Packs != null)
                 {
-                    foreach (var pack in setup.Bundles.Packs.Where(p => p.AllowBuild))
+                    var packsToRelease = setup.SelectedPacks != null && setup.SelectedPacks.Count > 0
+                        ? setup.Bundles.Packs.Where(p => p.AllowBuild && setup.SelectedPacks.Contains(p.Name, StringComparer.OrdinalIgnoreCase))
+                        : setup.Bundles.Packs.Where(p => p.AllowBuild);
+
+                    foreach (var pack in packsToRelease)
                     {
                         var zipFileName = $"{pack.GetFullName()}.zip";
                         var zipFilePath = Path.Combine(releaseDir, zipFileName);
                         var archiveResult = await archiveService.CreateZipArchiveAsync(bundlesDir, zipFilePath, System.IO.Compression.CompressionLevel.Optimal, null, cancellationToken).ConfigureAwait(false);
-                        if (!archiveResult.Success)
+                        if (archiveResult.Success)
+                        {
+                            try
+                            {
+                                if (File.Exists(zipFilePath))
+                                {
+                                    var fileBytes = await File.ReadAllBytesAsync(zipFilePath, cancellationToken).ConfigureAwait(false);
+                                    var md5Hex = Convert.ToHexString(System.Security.Cryptography.MD5.HashData(fileBytes)).ToLowerInvariant();
+                                    var sha256Hex = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(fileBytes)).ToLowerInvariant();
+                                    var sizeBytes = fileBytes.Length.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+                                    await File.WriteAllTextAsync($"{zipFilePath}.md5", md5Hex, cancellationToken).ConfigureAwait(false);
+                                    await File.WriteAllTextAsync($"{zipFilePath}.sha256", sha256Hex, cancellationToken).ConfigureAwait(false);
+                                    await File.WriteAllTextAsync($"{zipFilePath}.size", sizeBytes, cancellationToken).ConfigureAwait(false);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.LogWarning(ex, "Failed to generate release checksum files for {ZipFile}", zipFilePath);
+                            }
+                        }
+                        else
                         {
                             logger.LogError("Failed to create release ZIP archive {Archive}: {Error}", zipFilePath, archiveResult.FirstError);
                             Interlocked.Increment(ref _filesFailed);

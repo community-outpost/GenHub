@@ -57,4 +57,9 @@ public sealed class BuildSetup
     /// Gets or sets the game runner configuration for launching the game.
     /// </summary>
     public RunnerConfiguration? RunnerConfig { get; set; }
+
+    /// <summary>
+    /// Gets or sets the list of selected pack names to build or release. If null or empty, all enabled packs are processed.
+    /// </summary>
+    public List<string>? SelectedPacks { get; set; }
 }
