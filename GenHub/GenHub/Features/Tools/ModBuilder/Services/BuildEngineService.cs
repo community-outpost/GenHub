@@ -154,69 +154,70 @@ public sealed class BuildEngineService(
             logger.LogInformation("Starting ModBuilder build pipeline");
 
             var setup = buildStructure.Setup;
+            var steps = setup.Step;
 
             // validate setup
-            if (setup.Step == BuildStep.Zero)
+            if (steps == BuildStep.Zero)
             {
                 logger.LogWarning("BuildStep is Zero, nothing to do");
                 return true;
             }
 
             // auto-enable dependent steps
-            if ((setup.Step & BuildStep.Release) != 0)
+            if ((steps & BuildStep.Release) != 0)
             {
-                setup.Step |= BuildStep.Build;
+                steps |= BuildStep.Build;
             }
 
-            if ((setup.Step & BuildStep.Build) != 0)
+            if ((steps & BuildStep.Build) != 0)
             {
-                setup.Step |= BuildStep.PostBuild;
+                steps |= BuildStep.PostBuild;
             }
 
-            if ((setup.Step & (BuildStep.Clean | BuildStep.Build | BuildStep.Install | BuildStep.Uninstall | BuildStep.Run)) != 0)
+            if ((steps & (BuildStep.Clean | BuildStep.Build | BuildStep.Install | BuildStep.Uninstall | BuildStep.Run)) != 0)
             {
-                setup.Step |= BuildStep.PreBuild;
+                steps |= BuildStep.PreBuild;
             }
 
             var success = true;
 
             // execute build pipeline stages
-            if (success && (setup.Step & BuildStep.PreBuild) != 0)
+            if (success && (steps & BuildStep.PreBuild) != 0)
             {
                 success &= await PreBuildAsync(buildStructure, progress, _abortTokenSource.Token).ConfigureAwait(false);
             }
 
-            if (success && (setup.Step & BuildStep.Clean) != 0)
+            if (success && (steps & BuildStep.Clean) != 0)
             {
                 success &= await CleanAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
             }
 
-            if (success && (setup.Step & BuildStep.Build) != 0)
+            if (success && (steps & BuildStep.Build) != 0)
             {
                 success &= await BuildAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
             }
 
-            if (success && (setup.Step & BuildStep.PostBuild) != 0)
+            if (success && (steps & BuildStep.PostBuild) != 0)
             {
                 success &= await PostBuildAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
             }
 
-            if (success && (setup.Step & BuildStep.Release) != 0)
+            if (success && (steps & BuildStep.Release) != 0)
             {
                 success &= await ReleaseAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
             }
 
-            if (success && (setup.Step & BuildStep.Uninstall) != 0)
+            if (success && (steps & BuildStep.Uninstall) != 0)
             {
                 success &= await UninstallAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
             }
 
-            if (success && (setup.Step & BuildStep.Install) != 0)
+            if (success && (steps & BuildStep.Install) != 0)
             {
                 success &= await InstallAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
             }
 
-            if (success && (setup.Step & BuildStep.Run) != 0)
+            if (success && (steps & BuildStep.Run) != 0)
             {
                 success &= await RunGameAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
             }
@@ -354,6 +355,8 @@ public sealed class BuildEngineService(
 
         await cacheService.LoadCacheAsync(cachePath, cancellationToken).ConfigureAwait(false);
 
+        var initialFailed = Volatile.Read(ref _filesFailed);
+
         // get files to process for this stage
         var filesToProcess = GetFilesForStage(stage, setup);
 
@@ -419,10 +422,13 @@ public sealed class BuildEngineService(
                             {
                                 if (File.Exists(zipFilePath))
                                 {
-                                    var fileBytes = await File.ReadAllBytesAsync(zipFilePath, cancellationToken).ConfigureAwait(false);
-                                    var md5Hex = Convert.ToHexString(System.Security.Cryptography.MD5.HashData(fileBytes)).ToLowerInvariant();
-                                    var sha256Hex = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(fileBytes)).ToLowerInvariant();
-                                    var sizeBytes = fileBytes.Length.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                                    using var fileStream = File.OpenRead(zipFilePath);
+                                    var md5Hash = await System.Security.Cryptography.MD5.HashDataAsync(fileStream, cancellationToken).ConfigureAwait(false);
+                                    fileStream.Position = 0;
+                                    var sha256Hash = await System.Security.Cryptography.SHA256.HashDataAsync(fileStream, cancellationToken).ConfigureAwait(false);
+                                    var md5Hex = Convert.ToHexString(md5Hash).ToLowerInvariant();
+                                    var sha256Hex = Convert.ToHexString(sha256Hash).ToLowerInvariant();
+                                    var sizeBytes = fileStream.Length.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
                                     await File.WriteAllTextAsync($"{zipFilePath}.md5", md5Hex, cancellationToken).ConfigureAwait(false);
                                     await File.WriteAllTextAsync($"{zipFilePath}.sha256", sha256Hex, cancellationToken).ConfigureAwait(false);
@@ -467,7 +473,8 @@ public sealed class BuildEngineService(
         // save cache
         await cacheService.SaveCacheAsync(cachePath, cancellationToken).ConfigureAwait(false);
 
-        return true;
+        var stageFailed = Volatile.Read(ref _filesFailed) > initialFailed;
+        return !stageFailed;
     }
 
     /// <summary>
@@ -825,7 +832,7 @@ public sealed class BuildEngineService(
             startInfo.Arguments = args;
         }
 
-        var process = new Process { StartInfo = startInfo };
+        using var process = new Process { StartInfo = startInfo };
 
         try
         {
@@ -838,7 +845,6 @@ public sealed class BuildEngineService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to launch game: {Message}", ex.Message);
-            process.Dispose();
             throw;
         }
     }
@@ -989,6 +995,7 @@ public sealed class BuildEngineService(
         if (_cachedBuildStructure != null && _cachedConfigHash == configHash)
         {
             logger.LogDebug("Using cached build structure");
+            _cachedBuildStructure.Setup.Step = buildSteps;
             return _cachedBuildStructure;
         }
 

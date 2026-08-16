@@ -416,12 +416,6 @@ public sealed class ProjectConfigService : IProjectConfigService
                 .Take(maxCount)
                 .ToList();
 
-            // Update the file if we filtered out any invalid projects
-            if (validProjects.Count != recentProjects.Count)
-            {
-                await SaveRecentProjectsAsync(validProjects, cancellationToken).ConfigureAwait(false);
-            }
-
             sw.Stop();
             return ProjectOperationResult<List<string>>.CreateSuccess(validProjects, sw.Elapsed);
         }
@@ -746,6 +740,7 @@ public sealed class ProjectConfigService : IProjectConfigService
             IoConstants.DefaultFileBufferSize,
             FileOptions.Asynchronous | FileOptions.SequentialScan);
         await JsonSerializer.SerializeAsync(stream, recentProjects, _jsonOptions, cancellationToken).ConfigureAwait(false);
+        _fileExistsCache[_recentProjectsPath] = true;
     }
 
     /// <summary>

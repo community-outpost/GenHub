@@ -46,13 +46,34 @@ public sealed class ArchiveService(
                 Directory.CreateDirectory(targetDir);
             }
 
-            // use existing BigFilePacker
-            await BigFilePacker.PackAsync(sourceDirectory, targetBigPath);
+            var tempBigPath = targetBigPath + "." + Guid.NewGuid().ToString("N")[..8] + ".tmp";
 
-            if (!File.Exists(targetBigPath))
+            try
             {
-                logger.LogError("BIG archive creation completed but file was not created: {Path}", targetBigPath);
-                return OperationResult<bool>.CreateFailure("BIG archive creation failed: target file was not created");
+                // use existing BigFilePacker
+                await BigFilePacker.PackAsync(sourceDirectory, tempBigPath, cancellationToken).ConfigureAwait(false);
+
+                if (!File.Exists(tempBigPath))
+                {
+                    logger.LogError("BIG archive creation completed but temporary file was not created: {Path}", tempBigPath);
+                    return OperationResult<bool>.CreateFailure("BIG archive creation failed: temporary file was not created");
+                }
+
+                File.Move(tempBigPath, targetBigPath, overwrite: true);
+            }
+            finally
+            {
+                if (File.Exists(tempBigPath))
+                {
+                    try
+                    {
+                        File.Delete(tempBigPath);
+                    }
+                    catch
+                    {
+                        // Ignore cleanup errors
+                    }
+                }
             }
 
             logger.LogInformation("Successfully created BIG archive: {Target}", targetBigPath);
@@ -92,11 +113,7 @@ public sealed class ArchiveService(
                 Directory.CreateDirectory(targetDir);
             }
 
-            // delete existing file if it exists
-            if (File.Exists(targetZipPath))
-            {
-                File.Delete(targetZipPath);
-            }
+            var tempZipPath = targetZipPath + "." + Guid.NewGuid().ToString("N")[..8] + ".tmp";
 
             progress?.Report(0.0);
 
@@ -148,52 +165,71 @@ public sealed class ArchiveService(
                     .ConfigureAwait(false);
             }
 
-            // create archive with pre-loaded data and streaming for large files
-            using (var archive = ZipFile.Open(targetZipPath, ZipArchiveMode.Create))
+            try
             {
-                // process small files from cache
-                foreach (var fileInfo in smallFiles)
+                // create archive with pre-loaded data and streaming for large files
+                using (var archive = ZipFile.Open(tempZipPath, ZipArchiveMode.Create))
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
+                    // process small files from cache
+                    foreach (var fileInfo in smallFiles)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
 
-                    var relativePath = Path.GetRelativePath(sourceDirectory, fileInfo.FullName);
-                    var entry = archive.CreateEntry(relativePath, compressionLevel);
-                    await using var entryStream = entry.Open();
-                    await entryStream.WriteAsync(fileDataCache[fileInfo.FullName], cancellationToken).ConfigureAwait(false);
+                        var relativePath = Path.GetRelativePath(sourceDirectory, fileInfo.FullName).Replace('\\', '/');
+                        var entry = archive.CreateEntry(relativePath, compressionLevel);
+                        await using var entryStream = entry.Open();
+                        await entryStream.WriteAsync(fileDataCache[fileInfo.FullName], cancellationToken).ConfigureAwait(false);
 
-                    processedFiles++;
-                    progress?.Report((double)processedFiles / totalFiles);
+                        processedFiles++;
+                        progress?.Report((double)processedFiles / totalFiles);
+                    }
+
+                    // stream large files directly
+                    foreach (var fileInfo in largeFiles)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        var relativePath = Path.GetRelativePath(sourceDirectory, fileInfo.FullName).Replace('\\', '/');
+                        logger.LogDebug("Streaming large file: {Path} ({Size:N0} bytes)", relativePath, fileInfo.Length);
+
+                        var entry = archive.CreateEntry(relativePath, compressionLevel);
+                        await using var entryStream = entry.Open();
+                        await using var fileStream = new FileStream(
+                            fileInfo.FullName,
+                            FileMode.Open,
+                            FileAccess.Read,
+                            FileShare.Read,
+                            IoConstants.DefaultFileBufferSize,
+                            useAsync: true);
+
+                        await fileStream.CopyToAsync(entryStream, cancellationToken).ConfigureAwait(false);
+
+                        processedFiles++;
+                        progress?.Report((double)processedFiles / totalFiles);
+                    }
                 }
 
-                // stream large files directly
-                foreach (var fileInfo in largeFiles)
+                if (!File.Exists(tempZipPath))
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    var relativePath = Path.GetRelativePath(sourceDirectory, fileInfo.FullName);
-                    logger.LogDebug("Streaming large file: {Path} ({Size:N0} bytes)", relativePath, fileInfo.Length);
-
-                    var entry = archive.CreateEntry(relativePath, compressionLevel);
-                    await using var entryStream = entry.Open();
-                    await using var fileStream = new FileStream(
-                        fileInfo.FullName,
-                        FileMode.Open,
-                        FileAccess.Read,
-                        FileShare.Read,
-                        IoConstants.DefaultFileBufferSize,
-                        useAsync: true);
-
-                    await fileStream.CopyToAsync(entryStream, cancellationToken).ConfigureAwait(false);
-
-                    processedFiles++;
-                    progress?.Report((double)processedFiles / totalFiles);
+                    logger.LogError("ZIP archive creation completed but temporary file was not created: {Path}", tempZipPath);
+                    return OperationResult<bool>.CreateFailure("ZIP archive creation failed: temporary file was not created");
                 }
+
+                File.Move(tempZipPath, targetZipPath, overwrite: true);
             }
-
-            if (!File.Exists(targetZipPath))
+            finally
             {
-                logger.LogError("ZIP archive creation completed but file was not created: {Path}", targetZipPath);
-                return OperationResult<bool>.CreateFailure("ZIP archive creation failed: target file was not created");
+                if (File.Exists(tempZipPath))
+                {
+                    try
+                    {
+                        File.Delete(tempZipPath);
+                    }
+                    catch
+                    {
+                        // Ignore cleanup errors
+                    }
+                }
             }
 
             progress?.Report(1.0);

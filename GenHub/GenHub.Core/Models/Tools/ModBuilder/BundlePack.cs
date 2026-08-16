@@ -22,13 +22,13 @@ public class BundlePack
     /// <summary>
     /// Alias property for itemNames to support "items" JSON key.
     /// </summary>
-    [JsonIgnore]
+    [JsonPropertyName("items")]
     public List<string>? Items
     {
         get => ItemNames;
         set
         {
-            if (value != null)
+            if (value != null && value.Count > 0 && ItemNames.Count == 0)
             {
                 ItemNames = value;
             }

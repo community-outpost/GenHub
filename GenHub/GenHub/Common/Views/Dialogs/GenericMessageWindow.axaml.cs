@@ -7,9 +7,6 @@ using Avalonia.Diagnostics;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using GenHub.Common.ViewModels.Dialogs;
-#if DEBUG
-using Avalonia.Diagnostics;
-#endif
 
 namespace GenHub.Common.Views.Dialogs;
 
@@ -24,9 +21,6 @@ public partial class GenericMessageWindow : Window
     public GenericMessageWindow()
     {
         InitializeComponent();
-#if DEBUG
-        // this.AttachDevTools(); // Commented out - DevTools not available in this context
-#endif
     }
 
     /// <inheritdoc/>

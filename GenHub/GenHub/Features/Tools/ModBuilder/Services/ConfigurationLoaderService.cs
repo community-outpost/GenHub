@@ -79,20 +79,27 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             // try python format (with "bundles" wrapper)
             if (json.Contains("\"bundles\"", StringComparison.OrdinalIgnoreCase))
             {
-                var pythonConfig = JsonSerializer.Deserialize<PythonConfigRoot>(json, _jsonOptions);
-                if (pythonConfig?.Bundles != null)
+                try
                 {
-                    logger.LogInformation("Detected Python ModBuilder config format");
-                    var configDir = Path.GetDirectoryName(configPath) ?? string.Empty;
-                    var projectDir = configDir;
-                    if (!string.IsNullOrEmpty(configDir) && Path.GetFileName(configDir).Equals(ModBuilderConstants.ConfigDir, StringComparison.OrdinalIgnoreCase))
+                    var pythonConfig = JsonSerializer.Deserialize<PythonConfigRoot>(json, _jsonOptions);
+                    if (pythonConfig?.Bundles != null)
                     {
-                        projectDir = Path.GetDirectoryName(configDir) ?? configDir;
-                    }
+                        logger.LogInformation("Detected Python ModBuilder config format");
+                        var configDir = Path.GetDirectoryName(configPath) ?? string.Empty;
+                        var projectDir = configDir;
+                        if (!string.IsNullOrEmpty(configDir) && Path.GetFileName(configDir).Equals(ModBuilderConstants.ConfigDir, StringComparison.OrdinalIgnoreCase))
+                        {
+                            projectDir = Path.GetDirectoryName(configDir) ?? configDir;
+                        }
 
-                    config = ConvertPythonConfig(pythonConfig.Bundles, projectDir);
-                    config.LoadedConfigFiles.Add(configPath);
-                    return config;
+                        config = ConvertPythonConfig(pythonConfig.Bundles, projectDir);
+                        config.LoadedConfigFiles.Add(configPath);
+                        return config;
+                    }
+                }
+                catch (JsonException)
+                {
+                    logger.LogDebug("Failed to parse as Python format, falling back to direct format");
                 }
             }
 
@@ -501,10 +508,11 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                 var masterList = JsonSerializer.Deserialize<PythonModJsonFilesConfig>(jsonContent, _jsonOptions);
                 if (masterList?.Build?.Files != null)
                 {
+                    var fullProjectDir = Path.GetFullPath(projectDir);
                     foreach (var file in masterList.Build.Files)
                     {
-                        var resolvedPath = Path.IsPathRooted(file) ? file : Path.Combine(projectDir, file);
-                        if (File.Exists(resolvedPath))
+                        var resolvedPath = Path.GetFullPath(Path.IsPathRooted(file) ? file : Path.Combine(projectDir, file));
+                        if (resolvedPath.StartsWith(fullProjectDir, StringComparison.OrdinalIgnoreCase) && File.Exists(resolvedPath))
                         {
                             configFiles.Add(resolvedPath);
                         }

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
         <Nullable>enable</Nullable>
@@ -85,7 +85,7 @@
 
     <!-- Copy sample projects to output directory -->
     <ItemGroup>
-      <Content Include="..\..\SampleProjects\**\*.*">
+      <Content Include="..\..\SampleProjects\**\*.json;..\..\SampleProjects\**\*.mbproj;..\..\SampleProjects\**\*.md;..\..\SampleProjects\**\*.txt">
         <Link>SampleProjects\%(RecursiveDir)%(Filename)%(Extension)</Link>
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>

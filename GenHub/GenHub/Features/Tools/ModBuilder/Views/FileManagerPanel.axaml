@@ -97,7 +97,7 @@
           <TextBlock Grid.Row="0" Text="Game Installation Files"
                      FontWeight="Bold" FontSize="14" Margin="0,0,0,8"/>
 
-          <Border Grid.Row="1" BorderBrush="{DynamicResource DividerColor}"
+          <Border Grid.Row="1" BorderBrush="{DynamicResource BorderBrush}"
                   BorderThickness="1" CornerRadius="4" Background="#05000000"
                   MinHeight="400" MaxHeight="800">
             <ScrollViewer VerticalScrollBarVisibility="Auto"
@@ -168,7 +168,7 @@
           <TextBlock Grid.Row="0" Text="Project Files (GameFilesEdited)"
                      FontWeight="Bold" FontSize="14" Margin="0,0,0,8"/>
 
-          <Border Grid.Row="1" BorderBrush="{DynamicResource DividerColor}"
+          <Border Grid.Row="1" BorderBrush="{DynamicResource BorderBrush}"
                   BorderThickness="1" CornerRadius="4" Background="#05000000"
                   MinHeight="400" MaxHeight="800">
             <ScrollViewer VerticalScrollBarVisibility="Auto"

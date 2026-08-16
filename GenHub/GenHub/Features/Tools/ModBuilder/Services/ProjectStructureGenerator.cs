@@ -50,7 +50,7 @@ public sealed class ProjectStructureGenerator(
             ModBuilderConstants.DefaultReleaseDir,
             ModBuilderConstants.ReleaseFilesDir,
             ModBuilderConstants.ResourcesDir,
-            ModBuilderConstants.FileHashRegistrySubdir,
+            $"{ModBuilderConstants.ResourcesDir}/{ModBuilderConstants.FileHashRegistrySubdir}",
             ModBuilderConstants.ConfigDir
         };
 

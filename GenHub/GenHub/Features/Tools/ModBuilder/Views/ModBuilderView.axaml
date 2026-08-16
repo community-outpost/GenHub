@@ -180,7 +180,7 @@
                   <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding BundlePacks}">
                       <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:BundlePackViewModel">
+                        <DataTemplate x:DataType="vm:BundleItemViewModel">
                           <CheckBox Content="{Binding Name}" IsChecked="{Binding IsSelected}"
                                     Margin="0,6" Foreground="White"/>
                         </DataTemplate>

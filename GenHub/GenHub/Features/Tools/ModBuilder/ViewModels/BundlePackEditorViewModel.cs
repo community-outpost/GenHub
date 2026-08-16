@@ -139,7 +139,7 @@ public partial class BundlePackEditorViewModel : ObservableObject
                     new FilePickerFileType("Image Files") { Patterns = ["*.tga", "*.dds", "*.psd", "*.png", "*.jpg"] },
                     new FilePickerFileType("Text Files") { Patterns = ["*.csf", "*.ini", "*.txt"] }
                 ]
-            }).ConfigureAwait(false);
+            });
 
             if (files.Count > 0)
             {

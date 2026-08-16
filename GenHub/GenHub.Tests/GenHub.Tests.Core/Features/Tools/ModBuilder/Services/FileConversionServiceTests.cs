@@ -152,7 +152,7 @@ public sealed class FileConversionServiceTests : IDisposable
 
         _mockExternalToolService.Setup(x => x.ExecuteToolAsync(
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IProgress<string>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ToolOperationResult { Success = true });
+            .ReturnsAsync(ToolOperationResult.CreateSuccess());
 
         // Act
         var result = await _service.ConvertFileAsync(sourcePath, destPath);

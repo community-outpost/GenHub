@@ -1,3 +1,4 @@
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
@@ -207,7 +208,7 @@ public partial class BuildProgressViewModel : ObservableObject
         // Hide overlay after a short delay
         Task.Delay(2000).ContinueWith(_ =>
         {
-            IsVisible = false;
+            Dispatcher.UIThread.Post(() => IsVisible = false);
         });
     }
 

@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -25,10 +26,6 @@ public partial class ConfigEditorViewModel(
     INotificationService notificationService,
     ILogger<ConfigEditorViewModel> logger) : ObservableObject
 {
-    private readonly IConfigurationLoaderService _configurationLoaderService = configurationLoaderService;
-    private readonly INotificationService _notificationService = notificationService;
-    private readonly ILogger<ConfigEditorViewModel> _logger = logger;
-
     /// <summary>
     /// Gets or sets the current project.
     /// </summary>
@@ -243,8 +240,15 @@ public partial class ConfigEditorViewModel(
 
         try
         {
-            // Index existing items by name to preserve files and events
-            var existingItems = Configuration.Items.ToDictionary(i => i.Name, StringComparer.OrdinalIgnoreCase);
+            // Index existing items by name safely to prevent duplicate key crashes
+            var existingItems = new Dictionary<string, BundleItem>(StringComparer.OrdinalIgnoreCase);
+            foreach (var item in Configuration.Items)
+            {
+                if (!string.IsNullOrEmpty(item.Name) && !existingItems.ContainsKey(item.Name))
+                {
+                    existingItems[item.Name] = item;
+                }
+            }
 
             // Update configuration from view models
             Configuration.Items.Clear();
@@ -282,9 +286,26 @@ public partial class ConfigEditorViewModel(
                 Configuration.Packs.Add(pack);
             }
 
+            // Persist configuration files to disk if project directory exists
+            if (!string.IsNullOrEmpty(CurrentProject.ProjectDir))
+            {
+                var configDir = Path.Combine(CurrentProject.ProjectDir, ModBuilderConstants.ConfigDir);
+                if (!Directory.Exists(configDir))
+                {
+                    Directory.CreateDirectory(configDir);
+                }
+
+                var itemsPath = Path.Combine(configDir, ModBuilderConstants.BundleItemsConfigFileName);
+                var packsPath = Path.Combine(configDir, ModBuilderConstants.BundlePacksConfigFileName);
+
+                var jsonOptions = new System.Text.Json.JsonSerializerOptions { WriteIndented = true };
+                File.WriteAllText(itemsPath, System.Text.Json.JsonSerializer.Serialize(Configuration.Items, jsonOptions));
+                File.WriteAllText(packsPath, System.Text.Json.JsonSerializer.Serialize(Configuration.Packs, jsonOptions));
+            }
+
             HasChanges = false;
-            _notificationService.ShowSuccess("Configuration Saved", "Configuration changes saved successfully");
-            _logger.LogInformation("Configuration saved successfully");
+            notificationService.ShowSuccess("Configuration Saved", "Configuration changes saved successfully");
+            logger.LogInformation("Configuration saved successfully");
 
             // Close the dialog after successful save
             if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
@@ -298,8 +319,8 @@ public partial class ConfigEditorViewModel(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to save configuration");
-            _notificationService.ShowError("Save Failed", ex.Message);
+            logger.LogError(ex, "Failed to save configuration");
+            notificationService.ShowError("Save Failed", $"Failed to save configuration: {ex.Message}");
         }
     }
 

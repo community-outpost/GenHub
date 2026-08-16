@@ -19,12 +19,6 @@ public sealed class FileConversionService(
     IExternalToolService externalToolService,
     ILogger<FileConversionService> logger) : IFileConversionService
 {
-    private readonly IImageConversionService _imageConversionService = imageConversionService;
-    private readonly IStringTableConversionService _stringTableConversionService = stringTableConversionService;
-    private readonly ITextProcessingService _textProcessingService = textProcessingService;
-    private readonly IExternalToolService _externalToolService = externalToolService;
-    private readonly ILogger<FileConversionService> _logger = logger;
-
     /// <inheritdoc />
     public async Task<ConversionOperationResult> ConvertFileAsync(
         string sourcePath,
@@ -38,7 +32,7 @@ public sealed class FileConversionService(
 
         try
         {
-            _logger.LogInformation("Converting file: {Source} -> {Destination}", sourcePath, destinationPath);
+            logger.LogInformation("Converting file: {Source} -> {Destination}", sourcePath, destinationPath);
 
             if (!File.Exists(sourcePath))
             {
@@ -89,7 +83,7 @@ public sealed class FileConversionService(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "File conversion failed");
+            logger.LogError(ex, "File conversion failed");
             return new ConversionOperationResult
             {
                 Success = false,
@@ -117,7 +111,7 @@ public sealed class FileConversionService(
     {
         progress?.Report(0.1);
 
-        var success = await _imageConversionService.ConvertImageAsync(
+        var success = await imageConversionService.ConvertImageAsync(
             sourcePath,
             destinationPath,
             parameters: null,
@@ -146,12 +140,12 @@ public sealed class FileConversionService(
 
         var sourceExt = Path.GetExtension(sourcePath).ToLowerInvariant();
         var result = sourceExt == ".str"
-            ? await _stringTableConversionService.ConvertStrToCsfAsync(
+            ? await stringTableConversionService.ConvertStrToCsfAsync(
                 sourcePath,
                 destinationPath,
                 cancellationToken: cancellationToken)
                 .ConfigureAwait(false)
-            : await _stringTableConversionService.ConvertCsfToStrAsync(
+            : await stringTableConversionService.ConvertCsfToStrAsync(
                 sourcePath,
                 destinationPath,
                 cancellationToken: cancellationToken)
@@ -177,22 +171,17 @@ public sealed class FileConversionService(
     {
         progress?.Report(0.1);
 
-        _logger.LogInformation("Executing Blender conversion: {Source} -> {Destination}", sourcePath, destinationPath);
+        logger.LogInformation("Executing Blender conversion: {Source} -> {Destination}", sourcePath, destinationPath);
 
-        // TODO: Get Blender tool path from configuration
-        // For now, assume blender is in PATH
         var blenderPath = "blender";
-
-        // Build Blender command-line arguments
-        // Example: blender -b input.blend -o output.w3d -F W3D
         var arguments = $"-b \"{sourcePath}\" -o \"{destinationPath}\" --python-exit-code 1";
 
         var toolProgress = new Progress<string>(msg =>
         {
-            _logger.LogDebug("Blender: {Message}", msg);
+            logger.LogDebug("Blender: {Message}", msg);
         });
 
-        var result = await _externalToolService.ExecuteToolAsync(
+        var result = await externalToolService.ExecuteToolAsync(
             blenderPath,
             arguments,
             workingDirectory: Path.GetDirectoryName(sourcePath),
@@ -205,7 +194,7 @@ public sealed class FileConversionService(
         return new ConversionOperationResult
         {
             Success = result.Success,
-            Errors = result.Errors
+            Errors = [.. result.Errors]
         };
     }
 
@@ -235,13 +224,13 @@ public sealed class FileConversionService(
             if (sourceExt == ".ini")
             {
                 // Optimize INI files
-                processedContent = await _textProcessingService.OptimizeIniFileAsync(content, cancellationToken)
+                processedContent = await textProcessingService.OptimizeIniFileAsync(content, cancellationToken)
                     .ConfigureAwait(false);
             }
             else
             {
                 // For .txt files, just normalize line endings
-                processedContent = await _textProcessingService.NormalizeLineEndingsAsync(
+                processedContent = await textProcessingService.NormalizeLineEndingsAsync(
                     content,
                     LineEndingType.CRLF,
                     cancellationToken)
@@ -270,7 +259,7 @@ public sealed class FileConversionService(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Text file processing failed");
+            logger.LogError(ex, "Text file processing failed");
             return new ConversionOperationResult
             {
                 Success = false,
@@ -359,11 +348,11 @@ public sealed class FileConversionService(
 
             var isSupported = sourceExt switch
             {
-                ".psd" or ".tga" or ".tiff" or ".tif" or ".dds" or ".bmp" when IsImageTarget(targetExt) => true,
-                ".str" when targetExt == ".csf" => true,
-                ".csf" when targetExt == ".str" => true,
-                ".blend" => true,
-                _ => true // Copy is always supported
+                ".psd" or ".tga" or ".tiff" or ".tif" or ".dds" or ".bmp" => IsImageTarget(targetExt),
+                ".str" => targetExt == ".csf",
+                ".csf" => targetExt == ".str",
+                ".blend" => targetExt is ".w3d" or ".blend",
+                _ => sourceExt == targetExt
             };
 
             return Task.FromResult(new ConversionOperationResult<bool>
@@ -374,7 +363,7 @@ public sealed class FileConversionService(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Validation failed");
+            logger.LogError(ex, "Validation failed");
             return Task.FromResult(new ConversionOperationResult<bool>
             {
                 Success = false,

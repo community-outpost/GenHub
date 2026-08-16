@@ -53,6 +53,16 @@ public class BundleFileInfo
     public string IconKey { get; set; } = "IconTextFile";
 
     /// <summary>
+    /// Gets the icon geometry path for the file type.
+    /// </summary>
+    public string IconData => IconKey switch
+    {
+        "IconImageFile" => "M8.5,13.5L11,16.5L14.5,12L19,18H5M21,19V5C21,3.89 20.1,3 19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19Z",
+        "IconArchiveFile" => "M12,2L3,7L12,12L21,7L12,2M3,17L12,22L21,17V10.5L12,15.5L3,10.5V17Z",
+        _ => "M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"
+    };
+
+    /// <summary>
     /// Gets or sets the last modified date.
     /// </summary>
     public DateTime LastModified { get; set; }
