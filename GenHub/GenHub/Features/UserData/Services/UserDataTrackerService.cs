@@ -320,12 +320,18 @@ public class UserDataTrackerService(
         string profileId,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         logger.LogInformation("[UserData] Activating user data for profile {ProfileId}", profileId);
 
         try
         {
             var manifestsResult = await GetProfileUserDataAsync(profileId, cancellationToken);
-            if (!manifestsResult.Success || manifestsResult.Data == null)
+            if (!manifestsResult.Success)
+            {
+                return OperationResult<bool>.CreateFailure(manifestsResult.FirstError ?? "Failed to get user data manifests");
+            }
+
+            if (manifestsResult.Data == null || manifestsResult.Data.Count == 0)
             {
                 return OperationResult<bool>.CreateSuccess(true); // No user data to activate
             }
@@ -483,12 +489,18 @@ public class UserDataTrackerService(
         string profileId,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         logger.LogInformation("[UserData] Deactivating user data for profile {ProfileId}", profileId);
 
         try
         {
             var manifestsResult = await GetProfileUserDataAsync(profileId, cancellationToken);
-            if (!manifestsResult.Success || manifestsResult.Data == null)
+            if (!manifestsResult.Success)
+            {
+                return OperationResult<bool>.CreateFailure(manifestsResult.FirstError ?? "Failed to get user data manifests");
+            }
+
+            if (manifestsResult.Data == null || manifestsResult.Data.Count == 0)
             {
                 return OperationResult<bool>.CreateSuccess(true); // No user data to deactivate
             }
@@ -521,7 +533,7 @@ public class UserDataTrackerService(
                                 logger.LogWarning("[UserData] File hash mismatch, user may have modified: {Path}; preserving file", file.AbsolutePath);
                             }
                         }
-                        catch (Exception ex)
+                        catch (Exception ex) when (ex is not OperationCanceledException)
                         {
                             logger.LogWarning(ex, "[UserData] Failed to remove active file: {Path}", file.AbsolutePath);
                         }
@@ -541,7 +553,7 @@ public class UserDataTrackerService(
                             File.Copy(file.BackupPath, file.AbsolutePath, overwrite: true);
                             logger.LogInformation("[UserData] Restored backup during deactivation: {Backup} -> {Path}", file.BackupPath, file.AbsolutePath);
                         }
-                        catch (Exception ex)
+                        catch (Exception ex) when (ex is not OperationCanceledException)
                         {
                             logger.LogWarning(ex, "[UserData] Failed to restore backup during deactivation: {Path}", file.AbsolutePath);
                         }
@@ -550,7 +562,7 @@ public class UserDataTrackerService(
 
                 // Update manifest state only after all files in this manifest are processed
                 manifest.IsActive = false;
-                await SaveUserDataManifestAsync(manifest, cancellationToken);
+                await SaveUserDataManifestAsync(manifest, CancellationToken.None);
             }
 
             logger.LogInformation("[UserData] Deactivated {Count} manifests for profile {ProfileId}", manifestsResult.Data.Count, profileId);
@@ -591,6 +603,10 @@ public class UserDataTrackerService(
             }
 
             return OperationResult<IReadOnlyList<UserDataManifest>>.CreateSuccess(manifests);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

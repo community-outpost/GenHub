@@ -525,7 +525,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that when activation is cancelled, rollback restores user files and rethrows OperationCanceledException.
+    /// Verifies that when activation is cancelled mid-materialization, rollback restores user files and rethrows OperationCanceledException.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
@@ -562,7 +562,20 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         Assert.Equal(originalUserContent, File.ReadAllText(splashPath));
 
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+
+        // Mock CAS linking to cancel token mid-operation after backup and delete happen
+        _fileOperationsMock
+            .Setup(f => f.LinkFromCasAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>(),
+                It.IsAny<ContentType?>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<string, string, bool, ContentType?, CancellationToken>((hash, targetPath, useHardLink, contentType, token) =>
+            {
+                cts.Cancel();
+                cts.Token.ThrowIfCancellationRequested();
+            });
 
         // Act & Assert
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
@@ -576,7 +589,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that when deactivation is cancelled, manifest remains active on disk so a retry completes remaining files.
+    /// Verifies that when deactivation is cancelled mid-loop, manifest remains active on disk so a retry completes remaining files.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
@@ -587,8 +600,15 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         {
             new()
             {
-                RelativePath = "GeneralsOnlineGameData/splash.bmp",
-                Hash = "hash-splash-expected",
+                RelativePath = "GeneralsOnlineGameData/file1.bmp",
+                Hash = "hash-file1-expected",
+                Size = 100,
+                InstallTarget = ContentInstallTarget.UserDataDirectory,
+            },
+            new()
+            {
+                RelativePath = "GeneralsOnlineGameData/file2.bmp",
+                Hash = "hash-file2-expected",
                 Size = 100,
                 InstallTarget = ContentInstallTarget.UserDataDirectory,
             },
@@ -604,7 +624,23 @@ public sealed class UserDataTrackerServiceTests : IDisposable
             CancellationToken.None);
 
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+
+        var verifiedCount = 0;
+        _fileOperationsMock
+            .Setup(f => f.VerifyFileHashAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .Returns<string, string, CancellationToken>((path, hash, token) =>
+            {
+                if (Interlocked.Increment(ref verifiedCount) > 1)
+                {
+                    cts.Cancel();
+                    cts.Token.ThrowIfCancellationRequested();
+                }
+
+                return Task.FromResult(true);
+            });
 
         // Act & Assert
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
