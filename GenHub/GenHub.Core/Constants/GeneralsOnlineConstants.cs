@@ -103,7 +103,7 @@ public static class GeneralsOnlineConstants
     public const string GameDataDisplayName = "GeneralsOnline Game Data";
 
     /// <summary>Description for GeneralsOnlineGameData data patch.</summary>
-    public const string GameDataDescription = "Game data patch for GeneralsOnline containing splash screens and map cache configuration.";
+    public const string GameDataDescription = "Game data patch for GeneralsOnline containing community balance and core INI configuration.";
 
     /// <summary>Subdirectory within the portable ZIP containing maps.</summary>
     public const string MapsSubdirectory = "Maps";

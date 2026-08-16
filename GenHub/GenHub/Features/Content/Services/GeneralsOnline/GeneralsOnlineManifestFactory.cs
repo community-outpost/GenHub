@@ -276,7 +276,7 @@ public class GeneralsOnlineManifestFactory(
 
     /// <summary>
     /// Creates a content manifest for the GeneralsOnlineGameData data patch.
-    /// This manifest contains game data files (splash screens, map cache configuration).
+    /// This manifest contains game data files (community balance patch and core INI configuration).
     /// </summary>
     /// <param name="release">The Generals Online release information.</param>
     /// <returns>A content manifest for the GeneralsOnlineGameData data patch.</returns>

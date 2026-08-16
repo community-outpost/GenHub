@@ -151,10 +151,10 @@ public class GeneralsOnlineDelivererTests : IDisposable
                 writer.Write("fake content");
             }
 
-            var gameDataEntry = archive.CreateEntry("GeneralsOnlineGameData/splash.bmp");
+            var gameDataEntry = archive.CreateEntry("GeneralsOnlineGameData/500_900_CommunityPatch_CoreINI.big");
             using (var writer = new StreamWriter(gameDataEntry.Open()))
             {
-                writer.Write("fake splash");
+                writer.Write("fake big content");
             }
         }
 
@@ -247,10 +247,10 @@ public class GeneralsOnlineDelivererTests : IDisposable
                 writer.Write("fake content");
             }
 
-            var gameDataEntry = archive.CreateEntry("GeneralsOnlineGameData/splash.bmp");
+            var gameDataEntry = archive.CreateEntry("GeneralsOnlineGameData/500_900_CommunityPatch_CoreINI.big");
             using (var writer = new StreamWriter(gameDataEntry.Open()))
             {
-                writer.Write("fake splash");
+                writer.Write("fake big content");
             }
         }
 
@@ -320,7 +320,7 @@ public class GeneralsOnlineDelivererTests : IDisposable
 
         // Files were moved to target directory
         Assert.True(File.Exists(Path.Combine(targetDir, "generalsonlinezh_60.exe")));
-        Assert.True(File.Exists(Path.Combine(targetDir, "GeneralsOnlineGameData", "splash.bmp")));
+        Assert.True(File.Exists(Path.Combine(targetDir, "GeneralsOnlineGameData", "500_900_CommunityPatch_CoreINI.big")));
 
         // Temporary extracted directory was cleaned up
         Assert.False(Directory.Exists(Path.Combine(targetDir, "extracted")));
@@ -343,10 +343,10 @@ public class GeneralsOnlineDelivererTests : IDisposable
                 writer.Write("fake exe");
             }
 
-            var gameDataEntry = archive.CreateEntry("GeneralsOnlineGameData/splash.bmp");
+            var gameDataEntry = archive.CreateEntry("GeneralsOnlineGameData/500_900_CommunityPatch_CoreINI.big");
             using (var writer = new StreamWriter(gameDataEntry.Open()))
             {
-                writer.Write("fake splash");
+                writer.Write("fake big content");
             }
         }
 

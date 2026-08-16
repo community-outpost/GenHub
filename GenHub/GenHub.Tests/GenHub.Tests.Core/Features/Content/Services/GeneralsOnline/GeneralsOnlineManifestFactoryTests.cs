@@ -198,10 +198,8 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
 
         var gameDataDir = Path.Combine(_tempDir, GeneralsOnlineConstants.GameDataSubdirectory);
         Directory.CreateDirectory(gameDataDir);
-        var splashPath = Path.Combine(gameDataDir, "GOSplash.bmp");
-        var mapCachePath = Path.Combine(gameDataDir, "MapCacheGO.ini");
-        File.WriteAllText(splashPath, "fake splash bmp");
-        File.WriteAllText(mapCachePath, "fake mapcache ini");
+        var bigPath = Path.Combine(gameDataDir, "500_900_CommunityPatch_CoreINI.big");
+        File.WriteAllText(bigPath, "fake big content");
 
         var originalManifest = new ContentManifest
         {
@@ -239,7 +237,7 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
         Assert.False(mapFile.RelativePath.StartsWith("Maps", StringComparison.OrdinalIgnoreCase));
 
         // Check GameData patch files
-        Assert.Equal(2, gameDataPatch.Files.Count);
+        Assert.Single(gameDataPatch.Files);
         Assert.All(gameDataPatch.Files, f =>
         {
             Assert.Equal(ContentInstallTarget.Workspace, f.InstallTarget);
@@ -247,8 +245,7 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
             Assert.StartsWith(GeneralsOnlineConstants.GameDataSubdirectory, f.RelativePath, StringComparison.OrdinalIgnoreCase);
             Assert.NotEmpty(f.Hash);
         });
-        Assert.Contains(gameDataPatch.Files, f => f.RelativePath.EndsWith("GOSplash.bmp", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(gameDataPatch.Files, f => f.RelativePath.EndsWith("MapCacheGO.ini", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(gameDataPatch.Files, f => f.RelativePath.EndsWith("500_900_CommunityPatch_CoreINI.big", StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>

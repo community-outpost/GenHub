@@ -42,11 +42,12 @@ public class StderrCaptureRaceTests
             return;
         }
 
-        // Arguments are key/value pairs; a leading '-' key is emitted as a flag followed
-        // by its value, which produces `/bin/sh -c <script>`.
+        // 50 lines exceeds the 10 head + 20 tail (30 total) bounded error buffer capacity
+        // to verify middle line dropping without causing race conditions from heavy I/O in CI.
+        const int noiseLines = 50;
         var script =
             $"echo {HeadLine} >&2; " +
-            "for i in $(seq 1 50); do echo noise-$i >&2; done; " +
+            $"for i in $(seq 1 {noiseLines}); do echo noise-$i >&2; done; " +
             $"echo {TailLine} >&2; " +
             "exit 3";
 
