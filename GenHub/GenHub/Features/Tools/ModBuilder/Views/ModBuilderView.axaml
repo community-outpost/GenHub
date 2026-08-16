@@ -74,6 +74,15 @@
                 <TextBlock Text="Save" FontWeight="Medium"/>
               </StackPanel>
             </Button>
+            <Button Command="{Binding CloseProjectCommand}" Padding="16,10" CornerRadius="8"
+                    Background="#30FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1"
+                    IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}"
+                    ToolTip.Tip="Close current project and return to dashboard">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="✖" FontSize="14"/>
+                <TextBlock Text="Close" FontWeight="Medium"/>
+              </StackPanel>
+            </Button>
           </StackPanel>
         </Grid>
       </Border>
@@ -303,7 +312,7 @@
                                  FontWeight="SemiBold" Foreground="White"/>
                     </Grid>
 
-                    <ProgressBar Value="{Binding BuildProgress}" Minimum="0" Maximum="100"
+                    <ProgressBar Value="{Binding PercentComplete}" Minimum="0" Maximum="100"
                                  Height="8" CornerRadius="4" Background="#20FFFFFF">
                       <ProgressBar.Foreground>
                         <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">

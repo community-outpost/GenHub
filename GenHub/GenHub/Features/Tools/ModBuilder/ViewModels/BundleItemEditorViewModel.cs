@@ -55,6 +55,8 @@ public partial class BundleItemEditorViewModel : ObservableObject
     public string DisplayName => $"{NamePrefix}{Name}{NameSuffix}";
 
     partial void OnNameChanged(string value) => OnPropertyChanged(nameof(DisplayName));
+
     partial void OnNamePrefixChanged(string value) => OnPropertyChanged(nameof(DisplayName));
+
     partial void OnNameSuffixChanged(string value) => OnPropertyChanged(nameof(DisplayName));
 }

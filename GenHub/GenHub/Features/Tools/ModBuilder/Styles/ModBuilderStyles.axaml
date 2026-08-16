@@ -1,5 +1,13 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters">
+
+  <!-- Converters -->
+  <conv:ActiveBorderConverter x:Key="ActiveBorderConverter"/>
+  <conv:IndentConverter x:Key="IndentConverter"/>
+  <conv:BoolToColorConverter x:Key="BoolToColorConverter"/>
+  <conv:BoolToTextConverter x:Key="BoolToStringConverter"/>
+  <conv:BoolToTextConverter x:Key="BoolToTextConverter"/>
 
   <!-- ============================================ -->
   <!-- MODBUILDER DESIGN SYSTEM                     -->

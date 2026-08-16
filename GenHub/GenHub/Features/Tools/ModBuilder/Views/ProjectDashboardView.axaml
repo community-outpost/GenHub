@@ -128,68 +128,71 @@
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
                   <!-- Project Card (Simplified for string paths) -->
-                  <Border Width="280" Height="160"
-                          Background="{StaticResource BackgroundElevatedBrush}"
-                          BorderBrush="{StaticResource BorderBrush}"
-                          BorderThickness="{StaticResource BorderThicknessThin}"
-                          CornerRadius="{StaticResource CornerRadiusLarge}"
-                          Padding="{StaticResource PaddingMedium}"
-                          Margin="0,0,16,16"
-                          BoxShadow="{StaticResource ShadowNormal}"
-                          Cursor="Hand">
+                  <Button Background="Transparent" BorderThickness="0" Padding="0" Margin="0,0,16,16"
+                          Command="{Binding $parent[UserControl].((vm:ModBuilderViewModel)DataContext).OpenRecentProjectCommand}"
+                          CommandParameter="{Binding}">
+                    <Border Width="280" Height="160"
+                            Background="{StaticResource BackgroundElevatedBrush}"
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="{StaticResource BorderThicknessThin}"
+                            CornerRadius="{StaticResource CornerRadiusLarge}"
+                            Padding="{StaticResource PaddingMedium}"
+                            BoxShadow="{StaticResource ShadowNormal}"
+                            Cursor="Hand">
 
-                    <Border.Styles>
-                      <Style Selector="Border:pointerover">
-                        <Setter Property="BorderBrush" Value="{StaticResource AccentPrimaryBrush}"/>
-                        <Setter Property="BoxShadow" Value="{StaticResource GlowAccent}"/>
-                      </Style>
-                    </Border.Styles>
+                      <Border.Styles>
+                        <Style Selector="Border:pointerover">
+                          <Setter Property="BorderBrush" Value="{StaticResource AccentPrimaryBrush}"/>
+                          <Setter Property="BoxShadow" Value="{StaticResource GlowAccent}"/>
+                        </Style>
+                      </Border.Styles>
 
-                    <Grid RowDefinitions="Auto,*,Auto">
+                      <Grid RowDefinitions="Auto,*,Auto">
 
-                      <!-- Project Name (from file path) -->
-                      <TextBlock Grid.Row="0"
-                                 Text="{Binding}"
-                                 FontSize="{StaticResource FontSizeLarge}"
-                                 FontWeight="{StaticResource FontWeightSemiBold}"
-                                 Foreground="{StaticResource TextPrimaryBrush}"
-                                 TextTrimming="CharacterEllipsis"
-                                 ToolTip.Tip="{Binding}"/>
-
-                      <!-- Project Info -->
-                      <StackPanel Grid.Row="1" Spacing="8" Margin="0,12,0,0">
-
-                        <Grid ColumnDefinitions="Auto,*">
-                          <Path Grid.Column="0"
-                                Width="14" Height="14"
-                                Fill="{StaticResource TextTertiaryBrush}"
-                                Data="{StaticResource IconOpenFolder}"
-                                VerticalAlignment="Center"
-                                Margin="0,0,8,0"/>
-                          <TextBlock Grid.Column="1"
-                                     Text="ModBuilder Project"
-                                     FontSize="{StaticResource FontSizeSmall}"
-                                     Foreground="{StaticResource TextSecondaryBrush}"
-                                     VerticalAlignment="Center"/>
-                        </Grid>
-
-                      </StackPanel>
-
-                      <!-- Path Display -->
-                      <Border Grid.Row="2"
-                              Background="{StaticResource SurfaceBrush}"
-                              CornerRadius="{StaticResource CornerRadiusSmall}"
-                              Padding="{StaticResource PaddingSmall}">
-                        <TextBlock Text="{Binding}"
-                                   FontSize="{StaticResource FontSizeXSmall}"
-                                   Foreground="{StaticResource TextTertiaryBrush}"
+                        <!-- Project Name (from file path) -->
+                        <TextBlock Grid.Row="0"
+                                   Text="{Binding}"
+                                   FontSize="{StaticResource FontSizeLarge}"
+                                   FontWeight="{StaticResource FontWeightSemiBold}"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
                                    TextTrimming="CharacterEllipsis"
                                    ToolTip.Tip="{Binding}"/>
-                      </Border>
 
-                    </Grid>
+                        <!-- Project Info -->
+                        <StackPanel Grid.Row="1" Spacing="8" Margin="0,12,0,0">
 
-                  </Border>
+                          <Grid ColumnDefinitions="Auto,*">
+                            <Path Grid.Column="0"
+                                  Width="14" Height="14"
+                                  Fill="{StaticResource TextTertiaryBrush}"
+                                  Data="{StaticResource IconOpenFolder}"
+                                  VerticalAlignment="Center"
+                                  Margin="0,0,8,0"/>
+                            <TextBlock Grid.Column="1"
+                                       Text="ModBuilder Project"
+                                       FontSize="{StaticResource FontSizeSmall}"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       VerticalAlignment="Center"/>
+                          </Grid>
+
+                        </StackPanel>
+
+                        <!-- Path Display -->
+                        <Border Grid.Row="2"
+                                Background="{StaticResource SurfaceBrush}"
+                                CornerRadius="{StaticResource CornerRadiusSmall}"
+                                Padding="{StaticResource PaddingSmall}">
+                          <TextBlock Text="{Binding}"
+                                     FontSize="{StaticResource FontSizeXSmall}"
+                                     Foreground="{StaticResource TextTertiaryBrush}"
+                                     TextTrimming="CharacterEllipsis"
+                                     ToolTip.Tip="{Binding}"/>
+                        </Border>
+
+                      </Grid>
+
+                    </Border>
+                  </Button>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
 

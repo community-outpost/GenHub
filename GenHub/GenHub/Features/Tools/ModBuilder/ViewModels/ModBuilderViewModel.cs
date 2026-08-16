@@ -5,6 +5,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
@@ -228,6 +229,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// Gets or sets the percent complete.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProgressText))]
     private double _percentComplete;
 
     /// <summary>
@@ -528,6 +530,23 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
+    /// Opens a recent project from its file path.
+    /// </summary>
+    /// <param name="path">The file path of the project to open.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [RelayCommand]
+    private async Task OpenRecentProjectAsync(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            _notificationService.ShowWarning("Project Not Found", $"Could not find project file at: {path}");
+            return;
+        }
+
+        await LoadProjectFromPathAsync(path).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Loads the sample project for testing.
     /// </summary>
     [RelayCommand]
@@ -537,15 +556,16 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         {
             var samplePath = Path.Combine(
                 AppDomain.CurrentDomain.BaseDirectory,
-                "SampleProjects", "ModBuilder", "BasicMod", "BasicMod.mbproj"
-            );
+                "SampleProjects",
+                "ModBuilder",
+                "BasicMod",
+                "BasicMod.mbproj");
 
             if (!File.Exists(samplePath))
             {
                 _notificationService.ShowWarning(
                     "Sample Not Found",
-                    "Sample project not found. It may not be included in this build."
-                );
+                    "Sample project not found. It may not be included in this build.");
                 AppendBuildLog($"Sample project not found at: {samplePath}");
                 return;
             }
@@ -557,8 +577,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
             _notificationService.ShowSuccess(
                 "Sample Loaded",
-                "Sample project loaded. Click 'Execute Build' to test ModBuilder."
-            );
+                "Sample project loaded. Click 'Execute Build' to test ModBuilder.");
         }
         catch (Exception ex)
         {
@@ -925,14 +944,15 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         {
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                _notificationService.ShowWarning(
-                    "No Files to Build",
-                    "Your GameFilesEdited folder is empty or no bundles are configured.\n\n" +
+                const string warningMessage = "Your GameFilesEdited folder is empty or no bundles are configured.\n\n" +
                     "Steps:\n" +
                     "1. Click 'Open GameFilesEdited Folder'\n" +
                     "2. Copy game files to appropriate folders\n" +
                     "3. Edit config/ModBundleItems.json to configure bundles\n" +
-                    "4. Try building again",
+                    "4. Try building again";
+                _notificationService.ShowWarning(
+                    "No Files to Build",
+                    warningMessage,
                     autoDismissMs: 10000);
             });
             AppendBuildLog("Build aborted: No files to build");
@@ -995,6 +1015,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 {
                     filesProcessed++;
                 }
+
                 if (message.Contains("Created bundle:") || message.Contains(".big"))
                 {
                     bundlesCreated++;
@@ -1032,24 +1053,26 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 {
                     if (filesProcessed == 0)
                     {
-                        _notificationService.ShowInfo(
-                            "Build Complete (No Files)",
-                            "Build completed but no files were processed.\n" +
+                        const string noFilesMessage = "Build completed but no files were processed.\n" +
                             "Check that:\n" +
                             "- Files exist in GameFilesEdited folder\n" +
                             "- Bundles are configured in config/ModBundleItems.json\n" +
-                            "- File paths in config match actual files",
+                            "- File paths in config match actual files";
+                        _notificationService.ShowInfo(
+                            "Build Complete (No Files)",
+                            noFilesMessage,
                             autoDismissMs: 8000);
                     }
                     else
                     {
                         var outputPath = Path.Combine(CurrentProject.ProjectDir, CurrentProject.Directories.Build);
-                        _notificationService.ShowSuccess(
-                            "Build Complete",
-                            $"Processed {filesProcessed} files\n" +
+                        var summaryMessage = $"Processed {filesProcessed} files\n" +
                             $"Created {bundlesCreated} bundles\n" +
                             $"Time: {LastBuildTime:mm\\:ss}\n" +
-                            $"Output: {outputPath}");
+                            $"Output: {outputPath}";
+                        _notificationService.ShowSuccess(
+                            "Build Complete",
+                            summaryMessage);
                     }
                 });
 
@@ -1335,7 +1358,14 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var releasePath = Path.Combine(ProjectPath, CurrentProject.Directories.Build, "Release");
+        var projectDir = Path.GetDirectoryName(ProjectPath);
+        if (string.IsNullOrEmpty(projectDir))
+        {
+            return;
+        }
+
+        var releaseDir = CurrentProject.Directories.Release ?? ModBuilderConstants.DefaultReleaseDir;
+        var releasePath = Path.Combine(projectDir, releaseDir);
         if (Directory.Exists(releasePath))
         {
             Process.Start(new ProcessStartInfo
@@ -1372,16 +1402,14 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         try
         {
+            var projectDir = Path.GetDirectoryName(ProjectPath) ?? CurrentProject.ProjectDir;
+
             // Load configuration if not already loaded
-            if (CurrentProject.Configuration == null && CurrentProject.ConfigFiles.Count > 0)
+            if (CurrentProject.Configuration == null && !string.IsNullOrEmpty(projectDir))
             {
-                var configPath = Path.Combine(CurrentProject.ProjectDir, CurrentProject.ConfigFiles[0]);
-                if (File.Exists(configPath))
-                {
-                    CurrentProject.Configuration = await _configurationLoaderService.LoadConfigurationAsync(
-                        configPath,
-                        CancellationToken.None).ConfigureAwait(false);
-                }
+                CurrentProject.Configuration = await _configurationLoaderService.LoadProjectConfigurationAsync(
+                    projectDir,
+                    CancellationToken.None).ConfigureAwait(false);
             }
 
             await Dispatcher.UIThread.InvokeAsync(() =>
@@ -1416,7 +1444,6 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             });
 
             // Initialize file manager with project path
-            var projectDir = Path.GetDirectoryName(ProjectPath);
             if (!string.IsNullOrEmpty(projectDir))
             {
                 await FileManager.InitializeAsync(projectDir).ConfigureAwait(false);
