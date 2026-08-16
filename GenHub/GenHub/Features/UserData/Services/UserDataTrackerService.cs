@@ -871,16 +871,24 @@ public class UserDataTrackerService(
 
     private static string ResolveUserDataTargetPath(ContentInstallTarget installTarget, string relativePath, string userDataBasePath)
     {
+        var normalizedRelativePath = relativePath.Replace('\\', '/');
         var targetPath = installTarget switch
         {
-            ContentInstallTarget.UserDataDirectory => Path.Combine(userDataBasePath, relativePath),
-            ContentInstallTarget.UserMapsDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Maps, StripLeadingDirectory(relativePath, "Maps")),
-            ContentInstallTarget.UserReplaysDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Replays, StripLeadingDirectory(relativePath, "Replays")),
-            ContentInstallTarget.UserScreenshotsDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Screenshots, StripLeadingDirectory(relativePath, "Screenshots")),
-            _ => Path.Combine(userDataBasePath, relativePath),
+            ContentInstallTarget.UserDataDirectory => Path.Combine(userDataBasePath, normalizedRelativePath),
+            ContentInstallTarget.UserMapsDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Maps, StripLeadingDirectory(normalizedRelativePath, "Maps")),
+            ContentInstallTarget.UserReplaysDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Replays, StripLeadingDirectory(normalizedRelativePath, "Replays")),
+            ContentInstallTarget.UserScreenshotsDirectory => Path.Combine(userDataBasePath, GameSettingsConstants.FolderNames.Screenshots, StripLeadingDirectory(normalizedRelativePath, "Screenshots")),
+            _ => Path.Combine(userDataBasePath, normalizedRelativePath),
         };
 
-        return Path.GetFullPath(targetPath);
+        var fullPath = Path.GetFullPath(targetPath);
+        var basePath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(userDataBasePath));
+        if (!fullPath.StartsWith(basePath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException($"Relative path escapes the user data directory: {relativePath}");
+        }
+
+        return fullPath;
     }
 
     /// <summary>

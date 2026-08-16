@@ -661,4 +661,74 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         Assert.Single(profileData.Data!);
         Assert.True(profileData.Data![0].IsActive);
     }
+
+    /// <summary>
+    /// Tests that installing a file targeted to UserMapsDirectory normalizes the path correctly and detects conflicts.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InstallUserDataAsync_WithUserMapsDirectoryTarget_NormalizesPathAndDetectsConflict()
+    {
+        // Arrange
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "Maps/CustomMap/map.ini",
+                Hash = "hash-custom-map",
+                Size = 50,
+                InstallTarget = ContentInstallTarget.UserMapsDirectory,
+            },
+        };
+
+        // Act
+        var result = await _trackerService.InstallUserDataAsync(
+            "1.1015255.generalsonline.patch.custommap",
+            "profile-map-test",
+            GameType.ZeroHour,
+            files,
+            "101525_QFE5",
+            "Custom Map",
+            CancellationToken.None);
+
+        Assert.True(result.Success);
+
+        var expectedPath = Path.Combine(_zeroHourDataDir, "Maps", "CustomMap", "map.ini");
+        var conflictResult = await _trackerService.CheckFileConflictAsync(expectedPath);
+        Assert.True(conflictResult.Success);
+        Assert.Equal("1.1015255.generalsonline.patch.custommap_profile-map-test", conflictResult.Data);
+    }
+
+    /// <summary>
+    /// Tests that installing a file with relative path escaping user data directory fails containment check.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InstallUserDataAsync_WhenRelativePathEscapesUserDataDirectory_Fails()
+    {
+        // Arrange
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "../../evil.ini",
+                Hash = "hash-evil",
+                Size = 10,
+                InstallTarget = ContentInstallTarget.UserDataDirectory,
+            },
+        };
+
+        // Act
+        var result = await _trackerService.InstallUserDataAsync(
+            "1.1015255.generalsonline.patch.evil",
+            "profile-evil-test",
+            GameType.ZeroHour,
+            files,
+            "101525_QFE5",
+            "Evil Patch",
+            CancellationToken.None);
+
+        // Assert
+        Assert.False(result.Success);
+    }
 }
