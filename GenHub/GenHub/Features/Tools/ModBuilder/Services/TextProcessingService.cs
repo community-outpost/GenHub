@@ -25,6 +25,12 @@ public sealed class TextProcessingService(
         var result = content;
 
         // Apply transformations in order
+        if (options.ExcludeMarkersList != null && options.ExcludeMarkersList.Count > 0)
+        {
+            result = await RemoveMarkersAsync(result, options.ExcludeMarkersList, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
         if (options.DeleteComments)
         {
             result = await RemoveCommentsAsync(result, options.CommentStyle, cancellationToken)
@@ -44,6 +50,57 @@ public sealed class TextProcessingService(
         }
 
         return result;
+    }
+
+    /// <inheritdoc />
+    public Task<string> RemoveMarkersAsync(
+        string content,
+        IReadOnlyList<IReadOnlyList<string>> markers,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (string.IsNullOrEmpty(content) || markers == null || markers.Count == 0)
+        {
+            return Task.FromResult(content);
+        }
+
+        var result = content;
+        foreach (var pair in markers)
+        {
+            if (pair == null || pair.Count < 2)
+            {
+                continue;
+            }
+
+            var startMarker = pair[0];
+            var endMarker = pair[1];
+            if (string.IsNullOrEmpty(startMarker) || string.IsNullOrEmpty(endMarker))
+            {
+                continue;
+            }
+
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var sIdx = result.IndexOf(startMarker, StringComparison.Ordinal);
+                if (sIdx < 0)
+                {
+                    break;
+                }
+
+                var afterStart = sIdx + startMarker.Length;
+                var eIdx = result.IndexOf(endMarker, afterStart, StringComparison.Ordinal);
+                if (eIdx < 0)
+                {
+                    break;
+                }
+
+                var afterEnd = eIdx + endMarker.Length;
+                result = string.Concat(result.AsSpan(0, sIdx), result.AsSpan(afterEnd));
+            }
+        }
+
+        return Task.FromResult(result);
     }
 
     /// <inheritdoc />

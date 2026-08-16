@@ -32,6 +32,12 @@ public class BundleFile
     public Dictionary<string, object>? Params { get; set; }
 
     /// <summary>
+    /// Gets or sets the list of delimiter marker pairs to exclude from text files.
+    /// </summary>
+    [JsonPropertyName("excludeMarkersList")]
+    public List<List<string>>? ExcludeMarkersList { get; set; }
+
+    /// <summary>
     /// Gets or sets the file hash registry definition for change detection.
     /// </summary>
     [JsonPropertyName("registry")]

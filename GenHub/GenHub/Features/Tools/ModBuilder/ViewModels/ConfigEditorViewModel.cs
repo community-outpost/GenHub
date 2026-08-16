@@ -234,7 +234,7 @@ public partial class ConfigEditorViewModel(
     /// Saves the configuration changes.
     /// </summary>
     [RelayCommand]
-    private async Task SaveAsync()
+    private void Save()
     {
         if (Configuration == null || CurrentProject == null)
         {

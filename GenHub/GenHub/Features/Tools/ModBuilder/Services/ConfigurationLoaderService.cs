@@ -484,37 +484,96 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             return null;
         }
 
-        var configDir = Path.Combine(projectDir, ModBuilderConstants.ConfigDir);
-        if (!Directory.Exists(configDir))
-        {
-            configDir = Path.Combine(projectDir, "Configs");
-        }
-
-        if (!Directory.Exists(configDir))
-        {
-            return null;
-        }
-
-        var bundleItemsPath = Path.Combine(configDir, ModBuilderConstants.BundleItemsConfigFileName);
-        var bundlePacksPath = Path.Combine(configDir, ModBuilderConstants.BundlePacksConfigFileName);
-
         var configFiles = new List<string>();
-        if (File.Exists(bundleItemsPath))
+
+        // 1. Check ModJsonFiles.json master list
+        var modJsonFilesPath = Path.Combine(projectDir, "ModJsonFiles.json");
+        if (!File.Exists(modJsonFilesPath))
         {
-            configFiles.Add(bundleItemsPath);
+            modJsonFilesPath = Path.Combine(projectDir, ModBuilderConstants.ConfigDir, "ModJsonFiles.json");
         }
 
-        if (File.Exists(bundlePacksPath))
+        if (File.Exists(modJsonFilesPath))
         {
-            configFiles.Add(bundlePacksPath);
+            try
+            {
+                var jsonContent = await File.ReadAllTextAsync(modJsonFilesPath, cancellationToken).ConfigureAwait(false);
+                var masterList = JsonSerializer.Deserialize<PythonModJsonFilesConfig>(jsonContent, _jsonOptions);
+                if (masterList?.Build?.Files != null)
+                {
+                    foreach (var file in masterList.Build.Files)
+                    {
+                        var resolvedPath = Path.IsPathRooted(file) ? file : Path.Combine(projectDir, file);
+                        if (File.Exists(resolvedPath))
+                        {
+                            configFiles.Add(resolvedPath);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to parse ModJsonFiles.json at {Path}", modJsonFilesPath);
+            }
         }
 
+        // 2. Direct folder inspection
         if (configFiles.Count == 0)
         {
-            var legacyBundlesPath = Path.Combine(configDir, "bundles.json");
-            if (File.Exists(legacyBundlesPath))
+            var configDir = Path.Combine(projectDir, ModBuilderConstants.ConfigDir);
+            if (!Directory.Exists(configDir))
             {
-                configFiles.Add(legacyBundlesPath);
+                configDir = Path.Combine(projectDir, "Configs");
+            }
+
+            if (Directory.Exists(configDir))
+            {
+                var bundleItemsPath = Path.Combine(configDir, ModBuilderConstants.BundleItemsConfigFileName);
+                var bundlePacksPath = Path.Combine(configDir, ModBuilderConstants.BundlePacksConfigFileName);
+
+                if (File.Exists(bundleItemsPath))
+                {
+                    configFiles.Add(bundleItemsPath);
+                }
+
+                if (File.Exists(bundlePacksPath))
+                {
+                    configFiles.Add(bundlePacksPath);
+                }
+
+                if (configFiles.Count == 0)
+                {
+                    var legacyBundlesPath = Path.Combine(configDir, "bundles.json");
+                    if (File.Exists(legacyBundlesPath))
+                    {
+                        configFiles.Add(legacyBundlesPath);
+                    }
+                }
+            }
+        }
+
+        // 3. Fallback recursive discovery
+        if (configFiles.Count == 0)
+        {
+            try
+            {
+                foreach (var file in Directory.EnumerateFiles(projectDir, "*.json", SearchOption.AllDirectories))
+                {
+                    var fileName = Path.GetFileName(file).ToLowerInvariant();
+                    if (fileName.StartsWith('.') || fileName.StartsWith('$'))
+                    {
+                        continue;
+                    }
+
+                    if (fileName.Contains("bundle") && (fileName.Contains("items") || fileName.Contains("packs")))
+                    {
+                        configFiles.Add(file);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Recursive config discovery completed with non-fatal warnings");
             }
         }
 
@@ -524,6 +583,48 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         }
 
         var config = await LoadAndMergeConfigurationsAsync(configFiles, cancellationToken).ConfigureAwait(false);
+
+        // 4. Check ModFolders.json override
+        var modFoldersPath = Path.Combine(projectDir, "ModFolders.json");
+        if (!File.Exists(modFoldersPath))
+        {
+            modFoldersPath = Path.Combine(projectDir, ModBuilderConstants.ConfigDir, "ModFolders.json");
+        }
+
+        if (File.Exists(modFoldersPath))
+        {
+            try
+            {
+                var jsonContent = await File.ReadAllTextAsync(modFoldersPath, cancellationToken).ConfigureAwait(false);
+                var foldersConfig = JsonSerializer.Deserialize<PythonModFoldersConfig>(jsonContent, _jsonOptions);
+                if (foldersConfig?.Folders != null)
+                {
+                    if (!string.IsNullOrEmpty(foldersConfig.Folders.BuildDir))
+                    {
+                        config.Folders.AbsBuildDir = Path.IsPathRooted(foldersConfig.Folders.BuildDir)
+                            ? foldersConfig.Folders.BuildDir
+                            : Path.Combine(projectDir, foldersConfig.Folders.BuildDir);
+                    }
+
+                    if (!string.IsNullOrEmpty(foldersConfig.Folders.ReleaseDir))
+                    {
+                        config.Folders.AbsReleaseDir = Path.IsPathRooted(foldersConfig.Folders.ReleaseDir)
+                            ? foldersConfig.Folders.ReleaseDir
+                            : Path.Combine(projectDir, foldersConfig.Folders.ReleaseDir);
+                    }
+
+                    if (!string.IsNullOrEmpty(foldersConfig.Folders.GameDir))
+                    {
+                        config.Folders.AbsGameDir = foldersConfig.Folders.GameDir;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to parse ModFolders.json at {Path}", modFoldersPath);
+            }
+        }
+
         config = await ResolveWildcardsAsync(config, cancellationToken).ConfigureAwait(false);
         NormalizePaths(config);
         return config;
@@ -698,6 +799,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                                     AbsSourceFile = pair.Source,
                                     RelTargetFile = pair.Target,
                                     Params = fileGroup.Params,
+                                    ExcludeMarkersList = fileGroup.ExcludeMarkersList,
                                 };
 
                                 if (fileGroup.RegistryList != null && fileGroup.RegistryList.Count > 0)
@@ -721,6 +823,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                                     AbsSourceFile = source,
                                     RelTargetFile = source,
                                     Params = fileGroup.Params,
+                                    ExcludeMarkersList = fileGroup.ExcludeMarkersList,
                                 };
 
                                 if (fileGroup.RegistryList != null && fileGroup.RegistryList.Count > 0)
@@ -742,6 +845,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                                 AbsSourceFile = fileGroup.Source,
                                 RelTargetFile = fileGroup.Target,
                                 Params = fileGroup.Params,
+                                ExcludeMarkersList = fileGroup.ExcludeMarkersList,
                             };
 
                             if (fileGroup.RegistryList != null && fileGroup.RegistryList.Count > 0)
