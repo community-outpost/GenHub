@@ -12,23 +12,10 @@ namespace GenHub.Features.Tools.ModBuilder.Services;
 /// Service for executing external tools (crunch, gametextcompiler, blender, etc.).
 /// Uses process pooling to limit concurrent external tool execution.
 /// </summary>
-public sealed class ExternalToolService : IExternalToolService
+public sealed class ExternalToolService(ILogger<ExternalToolService> logger) : IExternalToolService
 {
-    private readonly ILogger<ExternalToolService> _logger;
-    private readonly SemaphoreSlim _processPool;
+    private readonly SemaphoreSlim _processPool = new(Environment.ProcessorCount, Environment.ProcessorCount);
     private bool _disposed;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ExternalToolService"/> class.
-    /// </summary>
-    /// <param name="logger">The logger instance.</param>
-    public ExternalToolService(ILogger<ExternalToolService> logger)
-    {
-        _logger = logger;
-        _processPool = new SemaphoreSlim(
-            Environment.ProcessorCount,
-            Environment.ProcessorCount);
-    }
 
     /// <inheritdoc />
     public async Task<ToolOperationResult> ExecuteToolAsync(
@@ -71,23 +58,23 @@ public sealed class ExternalToolService : IExternalToolService
         IProgress<string>? progress,
         CancellationToken cancellationToken)
     {
+        var resolvedPath = FindToolInPath(toolPath) ?? toolPath;
         try
         {
-            _logger.LogInformation("Executing tool: {ToolPath} {Arguments}", toolPath, arguments);
-            progress?.Report($"Executing: {toolPath} {arguments}\n");
+            logger.LogInformation("Executing tool: {ToolPath} {Arguments}", resolvedPath, arguments);
+            progress?.Report($"Executing: {resolvedPath} {arguments}\n");
 
-            var startInfo = new ProcessStartInfo
+            using var process = new Process();
+            process.StartInfo = new ProcessStartInfo
             {
-                FileName = toolPath,
+                FileName = resolvedPath,
                 Arguments = arguments,
-                WorkingDirectory = workingDirectory ?? Environment.CurrentDirectory,
+                WorkingDirectory = workingDirectory ?? string.Empty,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 CreateNoWindow = true,
             };
-
-            using var process = new Process { StartInfo = startInfo };
 
             process.OutputDataReceived += (sender, e) =>
             {
@@ -109,32 +96,46 @@ public sealed class ExternalToolService : IExternalToolService
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
 
-            await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill(entireProcessTree: true);
+                    }
+                }
+                catch
+                {
+                    // Ignore failure killing already exited process
+                }
+
+                throw;
+            }
 
             var exitCode = process.ExitCode;
             var success = exitCode == 0;
 
             if (!success)
             {
-                _logger.LogWarning("Tool exited with code {ExitCode}", exitCode);
+                logger.LogWarning("Tool exited with code {ExitCode}", exitCode);
+                return ToolOperationResult.CreateFailure($"Tool exited with code {exitCode}", exitCode);
             }
 
-            return new ToolOperationResult
-            {
-                Success = success,
-                ExitCode = exitCode,
-                Errors = success ? [] : [$"Tool exited with code {exitCode}"],
-            };
+            return ToolOperationResult.CreateSuccess(exitCode);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to execute tool: {ToolPath}", toolPath);
-            return new ToolOperationResult
-            {
-                Success = false,
-                ExitCode = -1,
-                Errors = [ex.Message],
-            };
+            logger.LogError(ex, "Failed to execute tool: {ToolPath}", toolPath);
+            return ToolOperationResult.CreateFailure(ex.Message);
         }
     }
 
@@ -145,30 +146,53 @@ public sealed class ExternalToolService : IExternalToolService
     {
         try
         {
-            var exists = System.IO.File.Exists(toolPath);
+            var exists = System.IO.File.Exists(toolPath) || FindToolInPath(toolPath) != null;
 
             if (!exists)
             {
-                _logger.LogWarning("Tool not found: {ToolPath}", toolPath);
+                logger.LogWarning("Tool not found: {ToolPath}", toolPath);
+                return Task.FromResult(ToolOperationResult<bool>.CreateFailure($"Tool not found: {toolPath}"));
             }
 
-            return Task.FromResult(new ToolOperationResult<bool>
-            {
-                Success = exists,
-                Data = exists,
-                Errors = exists ? [] : [$"Tool not found: {toolPath}"],
-            });
+            return Task.FromResult(ToolOperationResult<bool>.CreateSuccess(true));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to validate tool: {ToolPath}", toolPath);
-            return Task.FromResult(new ToolOperationResult<bool>
-            {
-                Success = false,
-                Data = false,
-                Errors = [ex.Message],
-            });
+            logger.LogError(ex, "Failed to validate tool: {ToolPath}", toolPath);
+            return Task.FromResult(ToolOperationResult<bool>.CreateFailure(ex.Message));
         }
+    }
+
+    private static string? FindToolInPath(string toolName)
+    {
+        if (System.IO.File.Exists(toolName))
+        {
+            return toolName;
+        }
+
+        var pathEnv = Environment.GetEnvironmentVariable("PATH");
+        if (string.IsNullOrEmpty(pathEnv))
+        {
+            return null;
+        }
+
+        var extensions = OperatingSystem.IsWindows()
+            ? new[] { string.Empty, ".exe", ".cmd", ".bat" }
+            : new[] { string.Empty };
+
+        foreach (var path in pathEnv.Split(System.IO.Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        {
+            foreach (var ext in extensions)
+            {
+                var fullPath = System.IO.Path.Combine(path, toolName + ext);
+                if (System.IO.File.Exists(fullPath))
+                {
+                    return fullPath;
+                }
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

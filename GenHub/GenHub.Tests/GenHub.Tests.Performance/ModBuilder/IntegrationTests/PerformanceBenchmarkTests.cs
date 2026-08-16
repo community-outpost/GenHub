@@ -334,7 +334,7 @@ public sealed class PerformanceBenchmarkTests : IAsyncLifetime
         for (int i = 0; i < 5; i++)
         {
             await File.WriteAllBytesAsync(
-                Path.Combine(texturesPath, $"texture_{i}.tga"),
+                Path.Combine(texturesPath, $"texture_{i}.dat"),
                 GenerateRandomBytes(512 * 1024)); // 512KB each
         }
 
@@ -363,7 +363,7 @@ public sealed class PerformanceBenchmarkTests : IAsyncLifetime
         for (int i = 0; i < 50; i++)
         {
             await File.WriteAllBytesAsync(
-                Path.Combine(texturesPath, $"texture_{i}.tga"),
+                Path.Combine(texturesPath, $"texture_{i}.dat"),
                 GenerateRandomBytes(512 * 1024)); // 512KB each
         }
 
@@ -395,7 +395,7 @@ public sealed class PerformanceBenchmarkTests : IAsyncLifetime
                         new
                         {
                             absSourceParent = gameFilesPath,
-                            absSourceFile = Path.Combine(texturesPath, "*.tga"),
+                            absSourceFile = Path.Combine(texturesPath, "*.dat"),
                             relTargetFile = "Data/Textures",
                         },
                     },

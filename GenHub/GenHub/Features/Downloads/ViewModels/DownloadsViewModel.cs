@@ -28,10 +28,10 @@ public partial class DownloadsViewModel(
     GitHubTopicsDiscoverer gitHubTopicsDiscoverer) : ViewModelBase
 {
     [ObservableProperty]
-    private string _title = "Downloads";
+    private string _title = UiConstants.DownloadsTabTitle;
 
     [ObservableProperty]
-    private string _description = "Manage your downloads and installations";
+    private string _description = UiConstants.DownloadsTabDescription;
 
     [ObservableProperty]
     private bool _isInstallingGeneralsOnline;

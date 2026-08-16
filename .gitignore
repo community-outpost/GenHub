@@ -195,6 +195,6 @@ __pycache__/
 *.pyc
 
 # Visual Studio metadata (exclude except AI context)
-.vs/
+.vs/*
 !.vs/Project-Overview.md
 !.vs/prompt.md

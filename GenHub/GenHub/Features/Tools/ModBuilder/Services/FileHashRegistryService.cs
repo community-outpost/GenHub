@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,19 +12,9 @@ namespace GenHub.Features.Tools.ModBuilder.Services;
 /// Manages file hash registry for skipping unchanged files.
 /// Implements the FileHashRegistry optimization from Python ModBuilder (20-30% performance gain).
 /// </summary>
-public sealed class FileHashRegistryService : IFileHashRegistryService
+public sealed class FileHashRegistryService(ILogger<FileHashRegistryService> logger) : IFileHashRegistryService
 {
-    private readonly Dictionary<string, string> _hashRegistry = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ILogger<FileHashRegistryService> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="FileHashRegistryService"/> class.
-    /// </summary>
-    /// <param name="logger">The logger instance.</param>
-    public FileHashRegistryService(ILogger<FileHashRegistryService> logger)
-    {
-        _logger = logger;
-    }
+    private readonly ConcurrentDictionary<string, string> _hashRegistry = new(StringComparer.OrdinalIgnoreCase);
 
     /// <inheritdoc/>
     public async Task LoadRegistryAsync(string csvPath, CancellationToken cancellationToken = default)
@@ -33,7 +23,7 @@ public sealed class FileHashRegistryService : IFileHashRegistryService
         {
             if (!File.Exists(csvPath))
             {
-                _logger.LogDebug("Hash registry file not found at {CsvPath}", csvPath);
+                logger.LogDebug("Hash registry file not found at {CsvPath}", csvPath);
                 return;
             }
 
@@ -58,11 +48,11 @@ public sealed class FileHashRegistryService : IFileHashRegistryService
                 }
             }
 
-            _logger.LogInformation("Loaded {Count} hash entries from registry", _hashRegistry.Count);
+            logger.LogInformation("Loaded {Count} hash entries from registry", _hashRegistry.Count);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to load hash registry from {CsvPath}", csvPath);
+            logger.LogWarning(ex, "Failed to load hash registry from {CsvPath}", csvPath);
         }
     }
 

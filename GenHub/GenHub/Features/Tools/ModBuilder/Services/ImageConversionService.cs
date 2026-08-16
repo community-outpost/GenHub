@@ -21,7 +21,7 @@ namespace GenHub.Features.Tools.ModBuilder.Services;
 /// Implementation of image conversion service for ModBuilder.
 /// Handles PSD, TGA, TIFF, DDS, and BMP conversions with advanced features.
 /// </summary>
-public class ImageConversionService : IImageConversionService
+public class ImageConversionService(ILogger<ImageConversionService> logger) : IImageConversionService
 {
     // Supported resampling algorithms
     private static readonly Dictionary<string, ResamplingMode> ResamplingModes = new(StringComparer.OrdinalIgnoreCase)
@@ -34,13 +34,6 @@ public class ImageConversionService : IImageConversionService
         { "lanczos", ResamplingMode.Lanczos },
     };
 
-    private readonly ILogger<ImageConversionService> _logger;
-
-    public ImageConversionService(ILogger<ImageConversionService> logger)
-    {
-        _logger = logger;
-    }
-
     public async Task<bool> ConvertImageAsync(
         string sourcePath,
         string targetPath,
@@ -51,52 +44,35 @@ public class ImageConversionService : IImageConversionService
         {
             if (!File.Exists(sourcePath))
             {
-                _logger.LogError("Source file does not exist: {SourcePath}", sourcePath);
+                logger.LogError("Source file does not exist: {SourcePath}", sourcePath);
                 return false;
             }
 
-            var sourceExt = Path.GetExtension(sourcePath).ToLowerInvariant();
-            var targetExt = Path.GetExtension(targetPath).ToLowerInvariant();
-
-            // Create target directory if needed
             var targetDir = Path.GetDirectoryName(targetPath);
             if (!string.IsNullOrEmpty(targetDir) && !Directory.Exists(targetDir))
             {
                 Directory.CreateDirectory(targetDir);
             }
 
-            return await Task.Run(async () =>
+            var ext = Path.GetExtension(sourcePath).ToLowerInvariant();
+
+            return ext switch
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                // Route to appropriate conversion method
-                return (sourceExt, targetExt) switch
-                {
-                    (".psd", ".bmp") or (".psd", ".tga") or (".psd", ".dds") =>
-                        await ConvertPsdAsync(sourcePath, targetPath, parameters, cancellationToken),
-
-                    (".tga", ".bmp") or (".tga", ".dds") =>
-                        await ConvertTgaAsync(sourcePath, targetPath, parameters, cancellationToken),
-
-                    (".tiff", ".bmp") or (".tiff", ".tga") or (".tiff", ".dds") or
-                    (".tif", ".bmp") or (".tif", ".tga") or (".tif", ".dds") =>
-                        await ConvertTiffAsync(sourcePath, targetPath, parameters, cancellationToken),
-
-                    (".dds", ".dds") =>
-                        await ConvertDdsAsync(sourcePath, targetPath, parameters, cancellationToken),
-
-                    _ => await ConvertGenericAsync(sourcePath, targetPath, parameters, cancellationToken)
-                };
-            }, cancellationToken);
+                ".psd" => await ConvertPsdAsync(sourcePath, targetPath, parameters, cancellationToken),
+                ".tga" => await ConvertTgaAsync(sourcePath, targetPath, parameters, cancellationToken),
+                ".tif" or ".tiff" => await ConvertTiffAsync(sourcePath, targetPath, parameters, cancellationToken),
+                ".dds" => await ConvertDdsAsync(sourcePath, targetPath, parameters, cancellationToken),
+                _ => await ConvertGenericAsync(sourcePath, targetPath, parameters, cancellationToken),
+            };
         }
         catch (OperationCanceledException)
         {
-            _logger.LogInformation("Image conversion cancelled: {SourcePath}", sourcePath);
+            logger.LogInformation("Image conversion cancelled: {SourcePath}", sourcePath);
             return false;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to convert image from {SourcePath} to {TargetPath}", sourcePath, targetPath);
+            logger.LogError(ex, "Failed to convert image from {SourcePath} to {TargetPath}", sourcePath, targetPath);
             return false;
         }
     }
@@ -111,6 +87,12 @@ public class ImageConversionService : IImageConversionService
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
+                if (ext == ".dds")
+                {
+                    using var magickImage = new MagickImage(imagePath);
+                    return magickImage.HasAlpha;
+                }
+
                 if (ext == ".psd")
                 {
                     return HasAlphaChannelPsd(imagePath);
@@ -122,7 +104,7 @@ public class ImageConversionService : IImageConversionService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to detect alpha channel in {ImagePath}", imagePath);
+            logger.LogError(ex, "Failed to detect alpha channel in {ImagePath}", imagePath);
             return false;
         }
     }
@@ -192,7 +174,7 @@ public class ImageConversionService : IImageConversionService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to convert PSD: {SourcePath}", sourcePath);
+            logger.LogError(ex, "Failed to convert PSD: {SourcePath}", sourcePath);
             return false;
         }
     }
@@ -232,7 +214,7 @@ public class ImageConversionService : IImageConversionService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to detect alpha channel in PSD: {SourcePath}", sourcePath);
+            logger.LogError(ex, "Failed to detect alpha channel in PSD: {SourcePath}", sourcePath);
             return false;
         }
     }
@@ -310,7 +292,7 @@ public class ImageConversionService : IImageConversionService
             // Note: No composite support, single alpha channel only, no transparent background
             if (image.PixelType.BitsPerPixel < 24)
             {
-                _logger.LogError("TIFF image has unsupported color mode: {SourcePath}", sourcePath);
+                logger.LogError("TIFF image has unsupported color mode: {SourcePath}", sourcePath);
                 return false;
             }
 
@@ -361,59 +343,71 @@ public class ImageConversionService : IImageConversionService
     {
         try
         {
-            using var image = await Image.LoadAsync<Rgba32>(sourcePath, cancellationToken);
+            byte[] rawData;
+            int width;
+            int height;
+            bool hasAlpha;
 
-            // Convert ImageSharp image to BCnEncoder format
-            var pixels = new BCnEncoder.Shared.ColorRgba32[image.Width * image.Height];
-            int index = 0;
-
-            image.ProcessPixelRows(accessor =>
+            if (sourcePath.EndsWith(".dds", StringComparison.OrdinalIgnoreCase))
             {
-                for (int y = 0; y < accessor.Height; y++)
+                using var magickImage = new MagickImage(sourcePath);
+                width = (int)magickImage.Width;
+                height = (int)magickImage.Height;
+                hasAlpha = magickImage.HasAlpha;
+                var pixelCollection = magickImage.GetPixels();
+                rawData = pixelCollection.ToByteArray(PixelMapping.RGBA) ?? Array.Empty<byte>();
+            }
+            else
+            {
+                using var image = await Image.LoadAsync<Rgba32>(sourcePath, cancellationToken);
+                width = image.Width;
+                height = image.Height;
+                hasAlpha = await HasAlphaChannelAsync(sourcePath, cancellationToken);
+
+                rawData = new byte[width * height * 4];
+                int index = 0;
+
+                image.ProcessPixelRows(accessor =>
                 {
-                    var row = accessor.GetRowSpan(y);
-                    for (int x = 0; x < row.Length; x++)
+                    for (int y = 0; y < accessor.Height; y++)
                     {
-                        var pixel = row[x];
-                        pixels[index++] = new BCnEncoder.Shared.ColorRgba32(pixel.R, pixel.G, pixel.B, pixel.A);
+                        var row = accessor.GetRowSpan(y);
+                        for (int x = 0; x < row.Length; x++)
+                        {
+                            var pixel = row[x];
+                            rawData[index++] = pixel.R;
+                            rawData[index++] = pixel.G;
+                            rawData[index++] = pixel.B;
+                            rawData[index++] = pixel.A;
+                        }
                     }
-                }
-            });
+                });
+            }
 
             var encoder = new BcEncoder();
             encoder.OutputOptions.GenerateMipMaps = true;
             encoder.OutputOptions.Quality = CompressionQuality.Balanced;
 
             // Auto-detect format based on alpha
-            encoder.OutputOptions.Format = await HasAlphaChannelAsync(sourcePath, cancellationToken)
+            encoder.OutputOptions.Format = hasAlpha
                 ? CompressionFormat.Bc3 // DXT5 with alpha
                 : CompressionFormat.Bc1; // DXT1 no alpha
 
             await using var output = File.Create(targetPath);
 
-            // BCnEncoder expects raw RGBA data
-            var rawData = new byte[pixels.Length * 4];
-            for (int i = 0; i < pixels.Length; i++)
-            {
-                rawData[i * 4] = pixels[i].r;
-                rawData[i * 4 + 1] = pixels[i].g;
-                rawData[i * 4 + 2] = pixels[i].b;
-                rawData[i * 4 + 3] = pixels[i].a;
-            }
-
             await encoder.EncodeToStreamAsync(
                 rawData,
-                image.Width,
-                image.Height,
+                width,
+                height,
                 BCnEncoder.Encoder.PixelFormat.Rgba32,
                 output).ConfigureAwait(false);
 
-            _logger.LogInformation("Converted {Source} to DDS format {Format}", sourcePath, encoder.OutputOptions.Format);
+            logger.LogInformation("Converted {Source} to DDS format {Format}", sourcePath, encoder.OutputOptions.Format);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to convert to DDS: {SourcePath}", sourcePath);
+            logger.LogError(ex, "Failed to convert to DDS: {SourcePath}", sourcePath);
             return false;
         }
     }
@@ -427,6 +421,13 @@ public class ImageConversionService : IImageConversionService
         return await Task.Run(() =>
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            if (sourcePath.EndsWith(".dds", StringComparison.OrdinalIgnoreCase))
+            {
+                using var magickImage = new MagickImage(sourcePath);
+                magickImage.Write(targetPath);
+                return true;
+            }
 
             using var image = Image.Load(sourcePath);
             var resizedImage = ApplyResizeParameters(image, parameters);

@@ -7,7 +7,9 @@ using GenHub.Core.Models.Tools;
 using GenHub.Features.Tools.ModBuilder.ViewModels;
 using GenHub.Features.Tools.ModBuilder.Views;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
+using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.ModBuilder;
 
@@ -49,7 +51,18 @@ public sealed class ModBuilderToolPlugin : IToolPlugin
         var viewModel = _serviceProvider.GetRequiredService<ModBuilderViewModel>();
 
         // Initialize the ViewModel
-        _ = viewModel.InitializeAsync();
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await viewModel.InitializeAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                var logger = _serviceProvider.GetService<ILogger<ModBuilderToolPlugin>>();
+                logger?.LogError(ex, "Failed to initialize ModBuilder ViewModel");
+            }
+        });
 
         // Create container panel for view switching
         var container = new Panel();

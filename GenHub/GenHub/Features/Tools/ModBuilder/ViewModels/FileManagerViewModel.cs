@@ -53,8 +53,18 @@ public partial class FileManagerViewModel : ObservableObject
             _gameInstallationPath = value.Path;
             if (!IsLoading)
             {
-                _ = Task.Run(async () => await LoadGameFilesAsync(default).ConfigureAwait(false));
-                _ = Task.Run(async () => await LoadProjectFilesAsync(default).ConfigureAwait(false));
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await LoadGameFilesAsync(default).ConfigureAwait(false);
+                        await LoadProjectFilesAsync(default).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to reload files on installation change");
+                    }
+                });
             }
         }
     }
@@ -476,22 +486,26 @@ public partial class FileManagerViewModel : ObservableObject
                 : [SelectedGameFile];
 
             var gameFilesEditedPath = Path.Combine(_projectPath, "GameFilesEdited");
-            var copiedCount = 0;
-
-            foreach (var file in filesToAdd)
+            var copiedCount = await Task.Run(() =>
             {
-                var destPath = Path.Combine(gameFilesEditedPath, file.RelativePath);
-                var destDir = Path.GetDirectoryName(destPath);
-
-                if (!string.IsNullOrEmpty(destDir))
-                    Directory.CreateDirectory(destDir);
-
-                if (!File.Exists(destPath))
+                var count = 0;
+                foreach (var file in filesToAdd)
                 {
-                    File.Copy(file.FullPath, destPath, overwrite: false);
-                    copiedCount++;
+                    var destPath = Path.Combine(gameFilesEditedPath, file.RelativePath);
+                    var destDir = Path.GetDirectoryName(destPath);
+
+                    if (!string.IsNullOrEmpty(destDir))
+                        Directory.CreateDirectory(destDir);
+
+                    if (!File.Exists(destPath))
+                    {
+                        File.Copy(file.FullPath, destPath, overwrite: false);
+                        count++;
+                    }
                 }
-            }
+
+                return count;
+            }).ConfigureAwait(false);
 
             await LoadProjectFilesAsync(default).ConfigureAwait(false);
 
@@ -528,24 +542,27 @@ public partial class FileManagerViewModel : ObservableObject
                 ? GetAllFiles([SelectedProjectFile]).ToList()
                 : [SelectedProjectFile];
 
-            foreach (var file in filesToRemove)
+            await Task.Run(() =>
             {
-                if (File.Exists(file.FullPath))
-                    File.Delete(file.FullPath);
-            }
+                foreach (var file in filesToRemove)
+                {
+                    if (File.Exists(file.FullPath))
+                        File.Delete(file.FullPath);
+                }
 
-            // Remove empty directories
-            if (SelectedProjectFile.IsDirectory && Directory.Exists(SelectedProjectFile.FullPath))
-            {
-                try
+                // Remove empty directories
+                if (SelectedProjectFile.IsDirectory && Directory.Exists(SelectedProjectFile.FullPath))
                 {
-                    Directory.Delete(SelectedProjectFile.FullPath, recursive: true);
+                    try
+                    {
+                        Directory.Delete(SelectedProjectFile.FullPath, recursive: true);
+                    }
+                    catch
+                    {
+                        // Directory might not be empty
+                    }
                 }
-                catch
-                {
-                    // Directory might not be empty
-                }
-            }
+            }).ConfigureAwait(false);
 
             await LoadProjectFilesAsync(default).ConfigureAwait(false);
 

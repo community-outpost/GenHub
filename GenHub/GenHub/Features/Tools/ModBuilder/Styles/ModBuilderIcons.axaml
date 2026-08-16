@@ -160,4 +160,9 @@
     M3,3H21V7H3V3M4,8H20V21H4V8M9.5,11A0.5,0.5 0 0,0 9,11.5V13H15V11.5A0.5,0.5 0 0,0 14.5,11H9.5Z
   </StreamGeometry>
 
+  <!-- Package / Bundle Pack Icon -->
+  <StreamGeometry x:Key="IconPackage">
+    M12,2L3,7L12,12L21,7L12,2M3,17L12,22L21,17V10.5L12,15.5L3,10.5V17Z
+  </StreamGeometry>
+
 </ResourceDictionary>

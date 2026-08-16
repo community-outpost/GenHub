@@ -58,7 +58,7 @@ public static class ModBuilderConstants
     /// <summary>
     /// Directory name for project configuration files.
     /// </summary>
-    public const string ConfigDir = "config";
+    public const string ConfigDir = "Configs";
 
     /// <summary>
     /// File name for bundle items configuration.
@@ -83,7 +83,7 @@ public static class ModBuilderConstants
     /// <summary>
     /// Subdirectory name for file hash registry files within resources.
     /// </summary>
-    public const string FileHashRegistrySubdir = "Resources/FileHashRegistry";
+    public const string FileHashRegistrySubdir = "FileHashRegistry";
 
     /// <summary>
     /// Default streaming threshold size in bytes (10MB).

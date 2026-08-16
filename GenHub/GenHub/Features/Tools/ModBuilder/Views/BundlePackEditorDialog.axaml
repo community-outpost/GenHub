@@ -82,6 +82,7 @@
           <!-- Toolbar -->
           <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
             <Button Command="{Binding AddFilesCommand}"
+                    CommandParameter="{Binding $parent[Window]}"
                     Classes="Primary"
                     ToolTip.Tip="Add files to bundle (Ctrl+A)">
               <StackPanel Orientation="Horizontal" Spacing="6">
@@ -94,7 +95,7 @@
             </Button>
 
             <Button Command="{Binding RemoveFilesCommand}"
-                    IsEnabled="{Binding SelectedFiles.Count}"
+                    IsEnabled="{Binding SelectedFile, Converter={x:Static ObjectConverters.IsNotNull}}"
                     ToolTip.Tip="Remove selected files (Delete)">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <Path Data="{StaticResource IconRemove}"
@@ -143,7 +144,6 @@
           <ListBox Grid.Row="2"
                    ItemsSource="{Binding Files}"
                    SelectedItem="{Binding SelectedFile}"
-                   SelectionMode="Multiple"
                    Background="Transparent"
                    BorderThickness="0">
 
@@ -156,7 +156,7 @@
                           Background="{StaticResource SurfaceBrush}"
                           CornerRadius="4"
                           Margin="0,0,12,0">
-                    <Path Data="{DynamicResource {Binding IconKey}}"
+                    <Path Data="{Binding IconData}"
                           Fill="{StaticResource AccentPrimaryBrush}"
                           Width="16" Height="16"
                           Stretch="Uniform"

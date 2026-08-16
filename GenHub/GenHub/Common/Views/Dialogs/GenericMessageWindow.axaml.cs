@@ -21,9 +21,6 @@ public partial class GenericMessageWindow : Window
     public GenericMessageWindow()
     {
         InitializeComponent();
-#if DEBUG
-        // this.AttachDevTools(); // Commented out - DevTools not available in this context
-#endif
     }
 
     /// <inheritdoc/>

@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Interfaces.Notifications;
@@ -9,6 +10,7 @@ using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Features.Tools.ModBuilder.Models;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -91,16 +93,16 @@ public sealed partial class ProjectDashboardViewModel(
     /// </summary>
     private async Task LoadRecentProjectsAsync()
     {
-        RecentProjects.Clear();
-
         var recentResult = await _projectConfigService.GetRecentProjectsAsync().ConfigureAwait(false);
+        var projects = new List<RecentProjectInfo>();
+
         if (recentResult.Success && recentResult.Data != null)
         {
             foreach (var path in recentResult.Data)
             {
                 if (File.Exists(path))
                 {
-                    RecentProjects.Add(new RecentProjectInfo
+                    projects.Add(new RecentProjectInfo
                     {
                         Name = Path.GetFileNameWithoutExtension(path),
                         Path = path,
@@ -111,11 +113,18 @@ public sealed partial class ProjectDashboardViewModel(
             }
         }
 
-        HasRecentProjects = RecentProjects.Count > 0;
-        TotalProjects = RecentProjects.Count;
-        TotalBuilds = RecentProjects.Count * 2;
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            RecentProjects.Clear();
+            foreach (var p in projects)
+            {
+                RecentProjects.Add(p);
+            }
 
-        await Task.CompletedTask.ConfigureAwait(false);
+            HasRecentProjects = RecentProjects.Count > 0;
+            TotalProjects = RecentProjects.Count;
+            TotalBuilds = RecentProjects.Count;
+        });
     }
 
     /// <summary>

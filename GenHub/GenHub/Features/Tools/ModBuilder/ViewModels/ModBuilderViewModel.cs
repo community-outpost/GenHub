@@ -823,6 +823,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                         Name = item.Name,
                         IsSelected = true,
                         IsBig = item.IsBig,
+                        FileCount = item.Files?.Count ?? 0,
                     });
                 }
             }
@@ -1032,12 +1033,12 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 // Track processed files and bundles
                 if (message.Contains("Processing file:") || message.Contains("Converted"))
                 {
-                    filesProcessed++;
+                    Interlocked.Increment(ref filesProcessed);
                 }
 
                 if (message.Contains("Created bundle:") || message.Contains(".big"))
                 {
-                    bundlesCreated++;
+                    Interlocked.Increment(ref bundlesCreated);
                 }
             });
 
@@ -1383,15 +1384,23 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return;
         }
 
-        var releaseDir = CurrentProject.Directories.Release ?? ModBuilderConstants.DefaultReleaseDir;
-        var releasePath = Path.Combine(projectDir, releaseDir);
-        if (Directory.Exists(releasePath))
+        try
         {
-            Process.Start(new ProcessStartInfo
+            var releaseDir = CurrentProject.Directories.Release ?? ModBuilderConstants.DefaultReleaseDir;
+            var releasePath = Path.Combine(projectDir, releaseDir);
+            if (Directory.Exists(releasePath))
             {
-                FileName = releasePath,
-                UseShellExecute = true,
-            });
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = releasePath,
+                    UseShellExecute = true,
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to open release folder");
+            _notificationService.ShowError("Open Folder Failed", $"Failed to open release folder: {ex.Message}");
         }
     }
 
@@ -1445,6 +1454,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                             Name = item.Name,
                             IsSelected = true,
                             IsBig = item.IsBig,
+                            FileCount = item.Files?.Count ?? 0,
                         });
                     }
                 }

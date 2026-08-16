@@ -93,11 +93,11 @@
     <EmbeddedResource Include="Resources\crc-mapping.json" />
   </ItemGroup>
 
-  <!-- Copy sample projects to output directory -->
-  <ItemGroup>
-    <Content Include="..\..\SampleProjects\**\*.*">
-      <Link>SampleProjects\%(RecursiveDir)%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
+    <!-- Copy sample projects to output directory -->
+    <ItemGroup>
+      <Content Include="..\..\SampleProjects\**\*.json;..\..\SampleProjects\**\*.mbproj;..\..\SampleProjects\**\*.md;..\..\SampleProjects\**\*.txt">
+        <Link>SampleProjects\%(RecursiveDir)%(Filename)%(Extension)</Link>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+    </ItemGroup>
 </Project>

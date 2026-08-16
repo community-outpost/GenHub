@@ -192,10 +192,26 @@ public sealed class StringTableConversionService(
             };
 
             process.Start();
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
+            try
+            {
+                await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill(entireProcessTree: true);
+                    }
+                }
+                catch
+                {
+                    // Ignore failure killing already exited process
+                }
 
-            await process.WaitForExitAsync(cancellationToken);
+                throw;
+            }
 
             var exitCode = process.ExitCode;
 
@@ -207,6 +223,10 @@ public sealed class StringTableConversionService(
             }
 
             return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -221,26 +241,36 @@ public sealed class StringTableConversionService(
     /// <returns>The tool path if found; otherwise, null.</returns>
     private string? FindToolPath()
     {
+        var extensions = OperatingSystem.IsWindows()
+            ? new[] { ".exe", string.Empty }
+            : new[] { string.Empty, ".exe" };
+
         // Check if tool exists in PATH
         var pathEnv = Environment.GetEnvironmentVariable("PATH");
         if (!string.IsNullOrEmpty(pathEnv))
         {
-            var paths = pathEnv.Split(Path.PathSeparator);
+            var paths = pathEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries);
             foreach (var path in paths)
             {
-                var toolPath = Path.Combine(path, ToolName + ".exe");
-                if (File.Exists(toolPath))
+                foreach (var ext in extensions)
                 {
-                    return toolPath;
+                    var toolPath = Path.Combine(path, ToolName + ext);
+                    if (File.Exists(toolPath))
+                    {
+                        return toolPath;
+                    }
                 }
             }
         }
 
         // Check current directory
-        var currentDirTool = Path.Combine(Environment.CurrentDirectory, ToolName + ".exe");
-        if (File.Exists(currentDirTool))
+        foreach (var ext in extensions)
         {
-            return currentDirTool;
+            var currentDirTool = Path.Combine(Environment.CurrentDirectory, ToolName + ext);
+            if (File.Exists(currentDirTool))
+            {
+                return currentDirTool;
+            }
         }
 
         // Check common tool locations
