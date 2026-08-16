@@ -9,6 +9,7 @@ using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
@@ -104,7 +105,7 @@ public partial class ConfigEditorViewModel(
             return;
         }
 
-        await Dispatcher.UIThread.InvokeAsync(() =>
+        void LoadData()
         {
             BundleItems.Clear();
             BundlePacks.Clear();
@@ -146,7 +147,16 @@ public partial class ConfigEditorViewModel(
             }
 
             HasChanges = false;
-        });
+        }
+
+        if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            LoadData();
+        }
+        else
+        {
+            await Dispatcher.UIThread.InvokeAsync(LoadData);
+        }
     }
 
     /// <summary>
@@ -233,10 +243,15 @@ public partial class ConfigEditorViewModel(
 
         try
         {
+            // Index existing items by name to preserve files and events
+            var existingItems = Configuration.Items.ToDictionary(i => i.Name, StringComparer.OrdinalIgnoreCase);
+
             // Update configuration from view models
             Configuration.Items.Clear();
             foreach (var itemVm in BundleItems)
             {
+                existingItems.TryGetValue(itemVm.Name, out var existingItem);
+
                 var item = new BundleItem
                 {
                     Name = itemVm.Name,
@@ -245,6 +260,8 @@ public partial class ConfigEditorViewModel(
                     IsBig = itemVm.IsBig,
                     BigSuffix = itemVm.BigSuffix,
                     SetGameLanguageOnInstall = itemVm.SetGameLanguageOnInstall,
+                    Files = existingItem?.Files != null ? new List<BundleFile>(existingItem.Files) : [],
+                    Events = existingItem?.Events != null ? new Dictionary<BundleEventType, BundleEvent>(existingItem.Events) : [],
                 };
                 Configuration.Items.Add(item);
             }
@@ -270,15 +287,14 @@ public partial class ConfigEditorViewModel(
             _logger.LogInformation("Configuration saved successfully");
 
             // Close the dialog after successful save
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
             {
-                if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime lifetime)
-                {
-                    var windows = lifetime.Windows;
-                    var configDialog = windows.FirstOrDefault(w => w is Views.ConfigEditorDialog);
-                    configDialog?.Close();
-                }
-            });
+                CloseDialog();
+            }
+            else
+            {
+                Dispatcher.UIThread.Post(CloseDialog);
+            }
         }
         catch (Exception ex)
         {
@@ -300,15 +316,24 @@ public partial class ConfigEditorViewModel(
         }
 
         // Close the dialog
-        await Dispatcher.UIThread.InvokeAsync(() =>
+        if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
         {
-            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime lifetime)
-            {
-                var windows = lifetime.Windows;
-                var configDialog = windows.FirstOrDefault(w => w is Views.ConfigEditorDialog);
-                configDialog?.Close();
-            }
-        });
+            CloseDialog();
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(CloseDialog);
+        }
+    }
+
+    private static void CloseDialog()
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime lifetime)
+        {
+            var windows = lifetime.Windows;
+            var configDialog = windows.FirstOrDefault(w => w is Views.ConfigEditorDialog);
+            configDialog?.Close();
+        }
     }
 
     partial void OnSelectedBundleItemChanged(BundleItemEditorViewModel? value)

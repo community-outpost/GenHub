@@ -400,7 +400,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             var result = await _projectConfigService.GetRecentProjectsAsync(10).ConfigureAwait(false);
             if (result.Success && result.Data != null)
             {
-                await Dispatcher.UIThread.InvokeAsync(() =>
+                await InvokeOnUIThreadAsync(() =>
                 {
                     RecentProjects.Clear();
                     foreach (var projectPath in result.Data)
@@ -762,7 +762,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             await configEditorViewModel.InitializeAsync(CurrentProject).ConfigureAwait(false);
 
             // Show the dialog
-            await Dispatcher.UIThread.InvokeAsync(async () =>
+            await InvokeOnUIThreadAsync(async () =>
             {
                 var dialog = new Views.ConfigEditorDialog(configEditorViewModel);
                 await dialog.ShowDialog(mainWindow).ConfigureAwait(false);
@@ -790,7 +790,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return;
         }
 
-        await Dispatcher.UIThread.InvokeAsync(() =>
+        await InvokeOnUIThreadAsync(() =>
         {
             Bundles.Clear();
 
@@ -824,7 +824,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         }
 
         // TODO: Prompt to save if there are unsaved changes
-        await Dispatcher.UIThread.InvokeAsync(() =>
+        await InvokeOnUIThreadAsync(() =>
         {
             CurrentProject = null;
             ProjectPath = string.Empty;
@@ -851,7 +851,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return;
         }
 
-        await Dispatcher.UIThread.InvokeAsync(() =>
+        await InvokeOnUIThreadAsync(() =>
         {
             var newBundle = new BundleItem
             {
@@ -888,7 +888,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return;
         }
 
-        await Dispatcher.UIThread.InvokeAsync(() =>
+        await InvokeOnUIThreadAsync(() =>
         {
             var bundleToRemove = CurrentProject.Configuration.Items
                 .FirstOrDefault(b => b.Name == SelectedBundle.Name);
@@ -942,7 +942,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         if (fileCount == 0)
         {
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            await InvokeOnUIThreadAsync(() =>
             {
                 const string warningMessage = "Your GameFilesEdited folder is empty or no bundles are configured.\n\n" +
                     "Steps:\n" +
@@ -966,7 +966,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         int filesProcessed = 0;
         int bundlesCreated = 0;
 
-        await Dispatcher.UIThread.InvokeAsync(() =>
+        await InvokeOnUIThreadAsync(() =>
         {
             BuildLog.Clear();
             ProcessedFiles = 0;
@@ -1049,7 +1049,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 AppendBuildLog($"\n=== Build Completed Successfully in {LastBuildTime:mm\\:ss\\.fff} ===");
 
                 // Show build summary
-                await Dispatcher.UIThread.InvokeAsync(() =>
+                await InvokeOnUIThreadAsync(() =>
                 {
                     if (filesProcessed == 0)
                     {
@@ -1094,7 +1094,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             _buildStopwatch.Stop();
             _logger.LogInformation("Build cancelled by user");
             AppendBuildLog("\n=== Build Cancelled ===");
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            await InvokeOnUIThreadAsync(() =>
             {
                 _notificationService.ShowInfo(
                     "Build Cancelled",
@@ -1382,7 +1382,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void ClearOutput()
     {
-        Dispatcher.UIThread.Post(() =>
+        PostToUIThread(() =>
         {
             BuildLog.Clear();
             OnPropertyChanged(nameof(BuildOutput));
@@ -1412,7 +1412,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                     CancellationToken.None).ConfigureAwait(false);
             }
 
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            await InvokeOnUIThreadAsync(() =>
             {
                 Bundles.Clear();
 
@@ -1450,7 +1450,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             }
 
             // Notify command state changes on UI thread
-            Dispatcher.UIThread.Post(() =>
+            PostToUIThread(() =>
             {
                 SaveProjectCommand.NotifyCanExecuteChanged();
                 CloseProjectCommand.NotifyCanExecuteChanged();
@@ -1465,7 +1465,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to load project data");
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            await InvokeOnUIThreadAsync(() =>
             {
                 _notificationService.ShowError(
                     "Load Error",
@@ -1479,7 +1479,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// </summary>
     private void AppendBuildLog(string message)
     {
-        Dispatcher.UIThread.Post(() =>
+        PostToUIThread(() =>
         {
             var timestamp = DateTime.Now.ToString("HH:mm:ss");
             BuildLog.Add($"[{timestamp}] {message}");
@@ -1492,7 +1492,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// </summary>
     private void OnBuildProgress(BuildProgress progress)
     {
-        Dispatcher.UIThread.Post(() =>
+        PostToUIThread(() =>
         {
             BuildProgress = progress;
             BuildStage = progress.CurrentStage.ToString();
@@ -1513,7 +1513,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     {
         OnPropertyChanged(nameof(IsBuilding));
 
-        Dispatcher.UIThread.Post(() =>
+        PostToUIThread(() =>
         {
             BuildCommand.NotifyCanExecuteChanged();
             CleanCommand.NotifyCanExecuteChanged();
@@ -1546,7 +1546,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         IsProjectLoaded = value != null;
 
         // Dispatch UI updates to UI thread
-        Dispatcher.UIThread.Post(() =>
+        PostToUIThread(() =>
         {
             SaveProjectCommand.NotifyCanExecuteChanged();
             CloseProjectCommand.NotifyCanExecuteChanged();
@@ -1559,11 +1559,48 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedBundleChanged(BundleItemViewModel? value)
     {
-        Dispatcher.UIThread.Post(() =>
+        PostToUIThread(() =>
         {
             RemoveBundleCommand.NotifyCanExecuteChanged();
             EditBundleCommand.NotifyCanExecuteChanged();
         });
+    }
+
+    private static async Task InvokeOnUIThreadAsync(Action action)
+    {
+        if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+            await Task.CompletedTask;
+        }
+        else
+        {
+            await Dispatcher.UIThread.InvokeAsync(action);
+        }
+    }
+
+    private static async Task InvokeOnUIThreadAsync(Func<Task> action)
+    {
+        if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            await action().ConfigureAwait(false);
+        }
+        else
+        {
+            await Dispatcher.UIThread.InvokeAsync(action);
+        }
+    }
+
+    private static void PostToUIThread(Action action)
+    {
+        if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(action);
+        }
     }
 
     private bool _disposed;
