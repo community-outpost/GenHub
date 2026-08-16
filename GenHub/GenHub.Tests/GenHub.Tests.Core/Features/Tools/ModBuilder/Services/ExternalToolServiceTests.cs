@@ -210,11 +210,12 @@ public sealed class ExternalToolServiceTests : IDisposable
 
         if (!isWindows)
         {
-            File.SetUnixFileMode(
-                filePath,
+            const UnixFileMode mode =
                 UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
                 UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
-                UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+                UnixFileMode.OtherRead | UnixFileMode.OtherExecute;
+
+            File.SetUnixFileMode(filePath, mode);
         }
 
         return filePath;

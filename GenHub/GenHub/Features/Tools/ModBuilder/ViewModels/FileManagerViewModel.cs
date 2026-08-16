@@ -1,3 +1,4 @@
+using Avalonia;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -50,8 +51,11 @@ public partial class FileManagerViewModel : ObservableObject
         if (value != null)
         {
             _gameInstallationPath = value.Path;
-            _ = Task.Run(async () => await LoadGameFilesAsync(default).ConfigureAwait(false));
-            _ = Task.Run(async () => await LoadProjectFilesAsync(default).ConfigureAwait(false));
+            if (!IsLoading)
+            {
+                _ = Task.Run(async () => await LoadGameFilesAsync(default).ConfigureAwait(false));
+                _ = Task.Run(async () => await LoadProjectFilesAsync(default).ConfigureAwait(false));
+            }
         }
     }
 
@@ -162,7 +166,7 @@ public partial class FileManagerViewModel : ObservableObject
             var installationsResult = await _gameInstallationService.GetAllInstallationsAsync(cancellationToken).ConfigureAwait(false);
             if (installationsResult.Success && installationsResult.Data?.Count > 0)
             {
-                await Dispatcher.UIThread.InvokeAsync(() =>
+                void PopulateInstallations()
                 {
                     AvailableInstallations.Clear();
                     foreach (var installation in installationsResult.Data)
@@ -198,7 +202,16 @@ public partial class FileManagerViewModel : ObservableObject
                         SelectedInstallation = AvailableInstallations[0];
                         _gameInstallationPath = SelectedInstallation.Path;
                     }
-                });
+                }
+
+                if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
+                {
+                    PopulateInstallations();
+                }
+                else
+                {
+                    await Dispatcher.UIThread.InvokeAsync(PopulateInstallations);
+                }
 
                 await LoadGameFilesAsync(cancellationToken).ConfigureAwait(false);
             }
@@ -229,12 +242,21 @@ public partial class FileManagerViewModel : ObservableObject
         await Task.Run(() =>
         {
             var rootNodes = BuildFileTree(_gameInstallationPath, _gameInstallationPath);
-            Dispatcher.UIThread.Post(() =>
+            void Apply()
             {
                 GameFiles.Clear();
                 foreach (var node in rootNodes)
                     GameFiles.Add(node);
-            });
+            }
+
+            if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
+            {
+                Apply();
+            }
+            else
+            {
+                Dispatcher.UIThread.Post(Apply);
+            }
         }, cancellationToken).ConfigureAwait(false);
     }
 
@@ -259,14 +281,23 @@ public partial class FileManagerViewModel : ObservableObject
             // Calculate file statuses
             await CalculateFileStatusesAsync(rootNodes, cancellationToken).ConfigureAwait(false);
 
-            Dispatcher.UIThread.Post(() =>
+            void Apply()
             {
                 ProjectFiles.Clear();
                 foreach (var node in rootNodes)
                     ProjectFiles.Add(node);
 
                 UpdateFileCounts();
-            });
+            }
+
+            if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
+            {
+                Apply();
+            }
+            else
+            {
+                Dispatcher.UIThread.Post(Apply);
+            }
         }, cancellationToken).ConfigureAwait(false);
     }
 

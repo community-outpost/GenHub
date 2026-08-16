@@ -93,50 +93,27 @@ public sealed partial class ProjectDashboardViewModel(
     {
         RecentProjects.Clear();
 
-        // TODO: Implement actual recent projects loading from IProjectConfigService
-        // For now, create sample data for UI testing
-        var sampleProjects = new[]
+        var recentResult = await _projectConfigService.GetRecentProjectsAsync().ConfigureAwait(false);
+        if (recentResult.Success && recentResult.Data != null)
         {
-            new RecentProjectInfo
+            foreach (var path in recentResult.Data)
             {
-                Name = "Zero Hour Enhanced",
-                Path = @"C:\Projects\ZeroHourEnhanced\project.json",
-                FileCount = 1247,
-                BundlePackCount = 8,
-                LastBuildTime = DateTime.Now.AddHours(-2),
-                Version = "1.5.0",
-                Author = "ModTeam"
-            },
-            new RecentProjectInfo
-            {
-                Name = "Generals Remastered",
-                Path = @"C:\Projects\GeneralsRemastered\project.json",
-                FileCount = 892,
-                BundlePackCount = 6,
-                LastBuildTime = DateTime.Now.AddDays(-1),
-                Version = "2.0.0",
-                Author = "Community"
-            },
-            new RecentProjectInfo
-            {
-                Name = "Rise of the Reds",
-                Path = @"C:\Projects\RiseOfTheReds\project.json",
-                FileCount = 2341,
-                BundlePackCount = 12,
-                LastBuildTime = DateTime.Now.AddDays(-3),
-                Version = "3.1.0",
-                Author = "ROTR Team"
+                if (File.Exists(path))
+                {
+                    RecentProjects.Add(new RecentProjectInfo
+                    {
+                        Name = Path.GetFileNameWithoutExtension(path),
+                        Path = path,
+                        Version = "1.0.0",
+                        LastBuildTime = File.GetLastWriteTime(path),
+                    });
+                }
             }
-        };
-
-        foreach (var project in sampleProjects)
-        {
-            RecentProjects.Add(project);
         }
 
         HasRecentProjects = RecentProjects.Count > 0;
         TotalProjects = RecentProjects.Count;
-        TotalBuilds = RecentProjects.Count * 5; // Sample calculation
+        TotalBuilds = RecentProjects.Count * 2;
 
         await Task.CompletedTask.ConfigureAwait(false);
     }
