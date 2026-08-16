@@ -484,6 +484,17 @@ public class UserDataTrackerService(
                     CleanupSupersededBackups(supersededBackups, logger);
                     throw;
                 }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "[UserData] Failed during activation of manifest {ManifestId} for profile {ProfileId}; rolling back", manifest.ManifestId, profileId);
+                    var userDataBasePath = GetUserDataBasePath(manifest.TargetGame);
+                    RollbackActivatedFiles(filesActivatedInThisManifest, userDataBasePath);
+
+                    manifest.IsActive = false;
+                    await SaveUserDataManifestAsync(manifest, CancellationToken.None);
+                    CleanupSupersededBackups(supersededBackups, logger);
+                    throw;
+                }
             }
 
             logger.LogInformation("[UserData] Activated {Count} manifests for profile {ProfileId}", manifestsResult.Data.Count, profileId);
