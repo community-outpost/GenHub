@@ -194,17 +194,17 @@
             <!-- Build Actions -->
             <Border Background="#40000000" BorderBrush="#20FFFFFF" BorderThickness="1"
                     CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #30000000">
-              <StackPanel Spacing="12">
+              <StackPanel Spacing="12" IsEnabled="{Binding !IsBuilding}">
                 <TextBlock Text="Build Actions" FontWeight="Bold" FontSize="14" Foreground="White"/>
                 <Separator Background="#20FFFFFF" Height="1"/>
                 <Border Background="#20FFFFFF" CornerRadius="8" Padding="12">
                   <StackPanel Spacing="8">
-                    <CheckBox Content="Clean" IsChecked="{Binding CleanEnabled}" Foreground="White"/>
-                    <CheckBox Content="Build" IsChecked="{Binding BuildEnabled}" Foreground="White"/>
-                    <CheckBox Content="Release" IsChecked="{Binding ReleaseEnabled}" Foreground="White"/>
-                    <CheckBox Content="Install" IsChecked="{Binding InstallEnabled}" Foreground="White"/>
-                    <CheckBox Content="Run Game" IsChecked="{Binding RunGameEnabled}" Foreground="White"/>
-                    <CheckBox Content="Uninstall" IsChecked="{Binding UninstallEnabled}" Foreground="White"/>
+                    <CheckBox Content="Clean" IsChecked="{Binding CleanEnabled}" Foreground="White" ToolTip.Tip="Deletes temporary build and output artifacts before building"/>
+                    <CheckBox Content="Build" IsChecked="{Binding BuildEnabled}" Foreground="White" ToolTip.Tip="Compiles and packages edited assets into .big bundles"/>
+                    <CheckBox Content="Release" IsChecked="{Binding ReleaseEnabled}" Foreground="White" ToolTip.Tip="Generates distributable release archive packages"/>
+                    <CheckBox Content="Uninstall" IsChecked="{Binding UninstallEnabled}" Foreground="White" ToolTip.Tip="Removes previously installed mod files from the game directory"/>
+                    <CheckBox Content="Install" IsChecked="{Binding InstallEnabled}" Foreground="White" ToolTip.Tip="Copies newly built mod files into the target game directory"/>
+                    <CheckBox Content="Run Game" IsChecked="{Binding RunGameEnabled}" Foreground="White" ToolTip.Tip="Launches the game executable with configured arguments"/>
                   </StackPanel>
                 </Border>
               </StackPanel>
@@ -366,9 +366,8 @@
                     CornerRadius="12" Padding="20" BoxShadow="0 4 16 0 #30000000">
               <StackPanel Spacing="12">
                 <!-- Execute Build Button -->
-                <Button Command="{Binding ExecuteBuildCommand}" HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Center" Padding="0,18" CornerRadius="12"
-                        IsEnabled="{Binding !IsBuilding}">
+                <Button Command="{Binding BuildCommand}" HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center" Padding="0,18" CornerRadius="12">
                   <Button.Background>
                     <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
                       <GradientStop Color="#673AB7" Offset="0"/>
@@ -383,8 +382,7 @@
 
                 <!-- Abort Build Button -->
                 <Button Command="{Binding AbortBuildCommand}" HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Center" Padding="0,14" CornerRadius="12"
-                        IsEnabled="{Binding IsBuilding}">
+                        HorizontalContentAlignment="Center" Padding="0,14" CornerRadius="12">
                   <Button.Background>
                     <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
                       <GradientStop Color="#E53935" Offset="0"/>

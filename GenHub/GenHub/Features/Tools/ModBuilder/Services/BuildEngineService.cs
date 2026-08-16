@@ -70,6 +70,11 @@ public sealed class BuildEngineService(
             var buildStructure = await GetOrCreateBuildStructureAsync(project, configuration, buildSteps, cancellationToken)
                 .ConfigureAwait(false);
 
+            if (selectedBundlePacks != null && buildStructure.Setup != null)
+            {
+                buildStructure.Setup.SelectedPacks = selectedBundlePacks;
+            }
+
             // wrap IProgress<string> to IProgress<BuildProgress>
             IProgress<BuildProgress>? buildProgress = null;
             if (progress != null)
