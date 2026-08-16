@@ -20,7 +20,7 @@ public class BundlePack
     public List<string> ItemNames { get; set; } = new();
 
     /// <summary>
-    /// Alias property for itemNames to support "items" JSON key.
+    /// Gets or sets the alias property for itemNames to support "items" JSON key.
     /// </summary>
     [JsonPropertyName("items")]
     public List<string>? Items
