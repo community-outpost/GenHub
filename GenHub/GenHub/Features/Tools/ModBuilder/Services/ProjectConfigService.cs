@@ -320,6 +320,8 @@ public sealed class ProjectConfigService : IProjectConfigService
         ModBuilderProject project,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        await Task.Yield();
         var sw = Stopwatch.StartNew();
         var validationErrors = new List<string>();
 
@@ -523,6 +525,8 @@ public sealed class ProjectConfigService : IProjectConfigService
         ModBuilderProject project,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        await Task.Yield();
         var sw = Stopwatch.StartNew();
 
         try
@@ -628,6 +632,8 @@ public sealed class ProjectConfigService : IProjectConfigService
         ProjectDirectories directories,
         CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        await Task.Yield();
         try
         {
             var dirsToCreate = new[]

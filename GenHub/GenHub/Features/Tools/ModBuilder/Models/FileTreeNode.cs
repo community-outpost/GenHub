@@ -145,6 +145,9 @@ public partial class FileTreeNode : ObservableObject
     /// <summary>
     /// Creates a FileTreeNode from a file system path.
     /// </summary>
+    /// <param name="path">The full path of the file or directory.</param>
+    /// <param name="rootPath">The root directory path for relative path calculation.</param>
+    /// <returns>A new <see cref="FileTreeNode"/> instance.</returns>
     public static FileTreeNode FromPath(string path, string rootPath)
     {
         var isDirectory = Directory.Exists(path);

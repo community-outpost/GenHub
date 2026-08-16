@@ -77,6 +77,9 @@ public partial class ConfigEditorViewModel(
     /// <summary>
     /// Initializes the editor with a project.
     /// </summary>
+    /// <param name="project">The mod project to initialize with.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public async Task InitializeAsync(ModBuilderProject project, CancellationToken cancellationToken = default)
     {
         CurrentProject = project;
