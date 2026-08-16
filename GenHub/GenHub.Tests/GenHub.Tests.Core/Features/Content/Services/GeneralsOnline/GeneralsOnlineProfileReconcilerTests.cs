@@ -271,5 +271,11 @@ public class GeneralsOnlineProfileReconcilerTests
         Assert.Equal(newClientManifest.Id.Value, capturedMapping[oldClientManifest.Id.Value]);
         Assert.True(capturedMapping.ContainsKey(oldPatchManifest.Id.Value));
         Assert.Equal(newPatchManifest.Id.Value, capturedMapping[oldPatchManifest.Id.Value]);
+
+        _reconciliationServiceMock.Verify(
+            x => x.OrchestrateBulkRemovalAsync(
+                It.Is<IEnumerable<ManifestId>>(ids => ids.Contains(oldClientManifest.Id) && ids.Contains(oldPatchManifest.Id)),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 }

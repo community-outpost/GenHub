@@ -684,7 +684,7 @@ public class GeneralsOnlineManifestFactory(
             {
                 if (m.Dependencies.Any(d => d.DependencyType == ContentType.MapPack))
                 {
-                    logger.LogInformation(
+                    logger.LogWarning(
                         "Removing MapPack dependency from manifest '{Name}' because MapPack was not found in archive",
                         m.Name);
                     m.Dependencies = m.Dependencies.Where(d => d.DependencyType != ContentType.MapPack).ToList();

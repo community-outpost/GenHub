@@ -44,8 +44,7 @@ public class GeneralsOnlineDeliverer(
     public bool CanDeliver(ContentManifest manifest)
     {
         // Can deliver if it's a Generals Online manifest with a portable ZIP URL
-        var isPublisher = manifest.Publisher?.PublisherType?.Equals(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true ||
-                          manifest.Publisher?.Name?.Equals(GeneralsOnlineConstants.PublisherName, StringComparison.OrdinalIgnoreCase) == true;
+        var isPublisher = manifest.Publisher?.PublisherType?.Equals(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true;
         return isPublisher &&
                manifest.Files.Any(f => f.DownloadUrl?.EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase) == true);
     }
@@ -115,7 +114,7 @@ public class GeneralsOnlineDeliverer(
             progress?.Report(new ContentAcquisitionProgress
             {
                 Phase = ContentAcquisitionPhase.Copying,
-                ProgressPercentage = 80,
+                ProgressPercentage = 60,
                 CurrentOperation = "Generating variant manifests (60Hz, MapPack, and GameData Patch)",
             });
 
@@ -136,7 +135,7 @@ public class GeneralsOnlineDeliverer(
             progress?.Report(new ContentAcquisitionProgress
             {
                 Phase = ContentAcquisitionPhase.Copying,
-                ProgressPercentage = 90,
+                ProgressPercentage = 80,
                 CurrentOperation = "Registering all variant manifests to content library",
             });
 
@@ -230,8 +229,10 @@ public class GeneralsOnlineDeliverer(
                         }
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
+                    logger.LogError(ex, "Failed to move extracted files from {ExtractPath} to parent {ParentDir}; rolling back moved files", extractPath, parentDir);
+
                     // Roll back moved files
                     foreach (var (targetPath, backupPath) in movedFiles)
                     {
