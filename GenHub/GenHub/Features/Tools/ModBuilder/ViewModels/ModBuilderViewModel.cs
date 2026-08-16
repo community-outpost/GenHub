@@ -11,6 +11,7 @@ using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
@@ -107,11 +108,35 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// </summary>
     public ObservableCollection<string> RecentProjects { get; } = [];
 
+    private readonly List<string> _allRecentProjects = [];
+
     /// <summary>
     /// Gets or sets the search query for filtering projects.
     /// </summary>
     [ObservableProperty]
     private string _searchQuery = string.Empty;
+
+    partial void OnSearchQueryChanged(string value)
+    {
+        ApplyProjectFilter();
+    }
+
+    private void ApplyProjectFilter()
+    {
+        RecentProjects.Clear();
+        var query = SearchQuery?.Trim() ?? string.Empty;
+        var filtered = string.IsNullOrEmpty(query)
+            ? _allRecentProjects
+            : _allRecentProjects.Where(p => Path.GetFileName(p).Contains(query, StringComparison.OrdinalIgnoreCase) || p.Contains(query, StringComparison.OrdinalIgnoreCase));
+
+        foreach (var projectPath in filtered)
+        {
+            RecentProjects.Add(projectPath);
+        }
+
+        OnPropertyChanged(nameof(HasRecentProjects));
+        OnPropertyChanged(nameof(TotalProjects));
+    }
 
     /// <summary>
     /// Gets a value indicating whether there are recent projects.
@@ -402,15 +427,9 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             {
                 await InvokeOnUIThreadAsync(() =>
                 {
-                    RecentProjects.Clear();
-                    foreach (var projectPath in result.Data)
-                    {
-                        RecentProjects.Add(projectPath);
-                    }
-
-                    // Notify property changes for dashboard
-                    OnPropertyChanged(nameof(HasRecentProjects));
-                    OnPropertyChanged(nameof(TotalProjects));
+                    _allRecentProjects.Clear();
+                    _allRecentProjects.AddRange(result.Data);
+                    ApplyProjectFilter();
                 });
 
                 _logger.LogInformation("Loaded {Count} recent projects", result.Data.Count);
