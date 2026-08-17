@@ -297,6 +297,18 @@ public static class LoggingModule
         }
     }
 
+    private static string GetLogFilePath()
+    {
+        var logDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            AppConstants.AppName,
+            DirectoryNames.Logs);
+
+        Directory.CreateDirectory(logDir);
+        var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        return Path.Combine(logDir, $"{AppConstants.AppName.ToLowerInvariant()}-{timestamp}.log");
+    }
+
     private static string ToCamelCase(this string str)
     {
         if (string.IsNullOrEmpty(str) || char.IsLower(str[0]))
