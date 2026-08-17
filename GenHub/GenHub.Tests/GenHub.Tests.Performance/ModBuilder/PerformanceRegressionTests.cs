@@ -167,6 +167,7 @@ public class PerformanceRegressionTests : IDisposable
         {
             File.Delete(sourcePath);
         }
+
         if (File.Exists(targetPath))
         {
             File.Delete(targetPath);
@@ -229,6 +230,7 @@ public class PerformanceRegressionTests : IDisposable
         {
             File.Delete(cachePath);
         }
+
         var msgpackPath = Path.ChangeExtension(cachePath, ".msgpack");
         if (File.Exists(msgpackPath))
         {
@@ -293,6 +295,7 @@ public class PerformanceRegressionTests : IDisposable
         {
             File.Delete(cachePath);
         }
+
         var msgpackPath = Path.ChangeExtension(cachePath, ".msgpack");
         if (File.Exists(msgpackPath))
         {
