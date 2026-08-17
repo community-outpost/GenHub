@@ -371,6 +371,7 @@ public sealed class ModBuilderIntegrationTests : IAsyncLifetime
         };
         var selectedPacks = project.Configuration.Packs.Select(p => p.Name).ToList();
         var firstBuild = await _buildEngine.ExecuteBuildAsync(project, project.Configuration, selectedPacks, BuildStep.Build, null, CancellationToken.None);
+        firstBuild.Success.Should().BeTrue();
 
         // Verify build directory exists
         Directory.Exists(buildDir).Should().BeTrue("Build directory should be created");
@@ -541,9 +542,6 @@ public sealed class ModBuilderIntegrationTests : IAsyncLifetime
 
     private static byte[] GenerateRandomBytes(int size)
     {
-        var random = new Random();
-        var buffer = new byte[size];
-        random.NextBytes(buffer);
-        return buffer;
+        return System.Security.Cryptography.RandomNumberGenerator.GetBytes(size);
     }
 }

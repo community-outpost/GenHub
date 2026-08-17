@@ -194,13 +194,12 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
     /// </summary>
     private Image<Rgba32> BuildImageFromPsd(string sourcePath)
     {
-        // This method requires a PSD parsing library that supports:
-        // - Channel extraction
-        // - Multi-alpha compositing
-        // - RGB color mode verification
-        throw new NotImplementedException(
-            "PSD multi-alpha compositing requires a specialized PSD library. " +
-            "Consider using Magick.NET or implementing a custom PSD parser.");
+        using var magickImage = new MagickImage(sourcePath);
+        magickImage.Format = MagickFormat.Png;
+        using var ms = new MemoryStream();
+        magickImage.Write(ms);
+        ms.Position = 0;
+        return Image.Load<Rgba32>(ms);
     }
 
     private bool HasAlphaChannelPsd(string sourcePath)
@@ -343,10 +342,10 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
     {
         try
         {
-            byte[] rawData;
-            int width;
-            int height;
-            bool hasAlpha;
+            byte[] rawData = [];
+            int width = 0;
+            int height = 0;
+            bool hasAlpha = false;
 
             if (sourcePath.EndsWith(".dds", StringComparison.OrdinalIgnoreCase))
             {
@@ -365,23 +364,7 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
                 hasAlpha = await HasAlphaChannelAsync(sourcePath, cancellationToken);
 
                 rawData = new byte[width * height * 4];
-                int index = 0;
-
-                image.ProcessPixelRows(accessor =>
-                {
-                    for (int y = 0; y < accessor.Height; y++)
-                    {
-                        var row = accessor.GetRowSpan(y);
-                        for (int x = 0; x < row.Length; x++)
-                        {
-                            var pixel = row[x];
-                            rawData[index++] = pixel.R;
-                            rawData[index++] = pixel.G;
-                            rawData[index++] = pixel.B;
-                            rawData[index++] = pixel.A;
-                        }
-                    }
-                });
+                image.CopyPixelDataTo(rawData);
             }
 
             var encoder = new BcEncoder();
@@ -475,12 +458,11 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
 
         // Parse resampling mode
         var resamplingMode = ResamplingMode.Bilinear; // Default
-        if (parameters.TryGetValue("resampling", out var resamplingObj) && resamplingObj is string resamplingStr)
+        if (parameters.TryGetValue("resampling", out var resamplingObj) &&
+            resamplingObj is string resamplingStr &&
+            ResamplingModes.TryGetValue(resamplingStr, out var mode))
         {
-            if (ResamplingModes.TryGetValue(resamplingStr, out var mode))
-            {
-                resamplingMode = mode;
-            }
+            resamplingMode = mode;
         }
 
         // For RGBA images, resize channels separately to prevent color loss where alpha is black

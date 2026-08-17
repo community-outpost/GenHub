@@ -35,7 +35,7 @@ public sealed class FileHashRegistryServiceTests
     }
 
     [Fact]
-    public async Task LoadRegistryAsync_WithValidCsvFile_LoadsSuccessfully()
+    public async Task LoadRegistryAsync_WithValidCsvFile_LoadsSuccessfullyAsync()
     {
         // Arrange
         var csvPath = Path.Combine(_tempDirectory, "registry.csv");
@@ -50,7 +50,7 @@ public sealed class FileHashRegistryServiceTests
     }
 
     [Fact]
-    public async Task LoadRegistryAsync_WithNonExistentFile_DoesNotThrow()
+    public async Task LoadRegistryAsync_WithNonExistentFile_DoesNotThrowAsync()
     {
         // Arrange
         var csvPath = Path.Combine(_tempDirectory, "nonexistent.csv");
@@ -63,7 +63,7 @@ public sealed class FileHashRegistryServiceTests
     }
 
     [Fact]
-    public async Task LoadRegistryAsync_WithEmptyFile_LoadsSuccessfully()
+    public async Task LoadRegistryAsync_WithEmptyFile_LoadsSuccessfullyAsync()
     {
         // Arrange
         var csvPath = Path.Combine(_tempDirectory, "empty.csv");
@@ -77,7 +77,7 @@ public sealed class FileHashRegistryServiceTests
     }
 
     [Fact]
-    public async Task IsFileIrrelevant_WhenFileAndHashMatch_ReturnsTrue()
+    public async Task IsFileIrrelevant_WhenFileAndHashMatch_ReturnsTrueAsync()
     {
         // Arrange
         var csvPath = Path.Combine(_tempDirectory, "test.csv");
@@ -92,7 +92,7 @@ public sealed class FileHashRegistryServiceTests
     }
 
     [Fact]
-    public async Task IsFileIrrelevant_WhenFileNotInRegistry_ReturnsFalse()
+    public async Task IsFileIrrelevant_WhenFileNotInRegistry_ReturnsFalseAsync()
     {
         // Arrange
         var csvPath = Path.Combine(_tempDirectory, "test2.csv");
@@ -107,7 +107,7 @@ public sealed class FileHashRegistryServiceTests
     }
 
     [Fact]
-    public async Task IsFileIrrelevant_WhenHashNotInRegistry_ReturnsFalse()
+    public async Task IsFileIrrelevant_WhenHashNotInRegistry_ReturnsFalseAsync()
     {
         // Arrange
         var csvPath = Path.Combine(_tempDirectory, "test3.csv");
@@ -122,7 +122,7 @@ public sealed class FileHashRegistryServiceTests
     }
 
     [Fact]
-    public async Task IsFileIrrelevant_IsCaseInsensitive()
+    public async Task IsFileIrrelevant_IsCaseInsensitiveAsync()
     {
         // Arrange
         var csvPath = Path.Combine(_tempDirectory, "test4.csv");
@@ -147,7 +147,7 @@ public sealed class FileHashRegistryServiceTests
     }
 
     [Fact]
-    public async Task LoadRegistryAsync_CalledTwice_ReplacesOldRegistry()
+    public async Task LoadRegistryAsync_CalledTwice_ReplacesOldRegistryAsync()
     {
         // Arrange
         var csvPath1 = Path.Combine(_tempDirectory, "registry1.csv");
@@ -165,7 +165,7 @@ public sealed class FileHashRegistryServiceTests
     }
 
     [Fact]
-    public async Task IsFileIrrelevant_WithEmptyHash_ReturnsFalse()
+    public async Task IsFileIrrelevant_WithEmptyHash_ReturnsFalseAsync()
     {
         // Arrange
         var csvPath = Path.Combine(_tempDirectory, "test5.csv");
@@ -180,7 +180,7 @@ public sealed class FileHashRegistryServiceTests
     }
 
     [Fact]
-    public async Task IsFileIrrelevant_WithEmptyFilePath_ReturnsFalse()
+    public async Task IsFileIrrelevant_WithEmptyFilePath_ReturnsFalseAsync()
     {
         // Arrange
         var csvPath = Path.Combine(_tempDirectory, "test6.csv");
@@ -195,7 +195,7 @@ public sealed class FileHashRegistryServiceTests
     }
 
     [Fact]
-    public async Task IsFileIrrelevant_WithNormalizedPaths_WorksCorrectly()
+    public async Task IsFileIrrelevant_WithNormalizedPaths_WorksCorrectlyAsync()
     {
         // Arrange
         var csvPath = Path.Combine(_tempDirectory, "test7.csv");

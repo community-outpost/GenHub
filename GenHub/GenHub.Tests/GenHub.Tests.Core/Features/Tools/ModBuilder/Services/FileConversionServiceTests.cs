@@ -253,6 +253,7 @@ public sealed class FileConversionServiceTests : IDisposable
         var result = await _service.ConvertFileAsync(sourcePath, destPath);
 
         // Assert
+        result.Success.Should().BeTrue();
         _mockImageService.Verify(x => x.ConvertImageAsync(
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IDictionary<string, object>>(), It.IsAny<CancellationToken>()), Times.Once);
     }

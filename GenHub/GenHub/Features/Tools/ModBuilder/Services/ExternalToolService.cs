@@ -64,16 +64,18 @@ public sealed class ExternalToolService(ILogger<ExternalToolService> logger) : I
             logger.LogInformation("Executing tool: {ToolPath} {Arguments}", resolvedPath, arguments);
             progress?.Report($"Executing: {resolvedPath} {arguments}\n");
 
-            using var process = new Process();
-            process.StartInfo = new ProcessStartInfo
+            using var process = new Process
             {
-                FileName = resolvedPath,
-                Arguments = arguments,
-                WorkingDirectory = workingDirectory ?? string.Empty,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true,
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = resolvedPath,
+                    Arguments = arguments,
+                    WorkingDirectory = workingDirectory ?? string.Empty,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                },
             };
 
             process.OutputDataReceived += (sender, e) =>

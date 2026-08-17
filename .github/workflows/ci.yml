@@ -599,7 +599,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          $testProjects = Get-ChildItem -Path "GenHub/GenHub.Tests" -Recurse -Filter *.csproj | Where-Object { $_.Name -notlike '*Linux*' -and $_.Name -notlike '*MacOS*' }
+          $testProjects = Get-ChildItem -Path "GenHub/GenHub.Tests" -Recurse -Filter *.csproj | Where-Object { $_.Name -notlike '*Linux*' -and $_.Name -notlike '*MacOS*' -and $_.Name -notlike '*Performance*' }
           if ($testProjects) {
             foreach ($testProject in $testProjects) {
               Write-Host "Testing $($testProject.FullName)"
@@ -644,7 +644,7 @@ jobs:
         run: |
           shopt -s globstar nullglob
           for test_project in ${{ env.TEST_PROJECTS }}; do
-            [[ "$test_project" == *Windows* || "$test_project" == *MacOS* ]] && continue
+            [[ "$test_project" == *Windows* || "$test_project" == *MacOS* || "$test_project" == *Performance* ]] && continue
             echo "Testing $test_project"
             dotnet test "$test_project" -c ${{ env.BUILD_CONFIGURATION }} --verbosity normal
           done

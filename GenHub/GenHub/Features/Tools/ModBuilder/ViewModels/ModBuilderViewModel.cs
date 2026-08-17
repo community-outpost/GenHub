@@ -1111,12 +1111,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             _buildStopwatch.Stop();
             _logger.LogInformation("Build cancelled by user");
             AppendBuildLog("\n=== Build Cancelled ===");
-            await InvokeOnUIThreadAsync(() =>
-            {
-                _notificationService.ShowInfo(
-                    "Build Cancelled",
-                    "Build operation was cancelled");
-            });
+            await InvokeOnUIThreadAsync(() => _notificationService.ShowInfo("Build Cancelled", "Build operation was cancelled"));
             StatusMessage = "Build cancelled";
         }
         catch (Exception ex)
@@ -1491,12 +1486,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to load project data");
-            await InvokeOnUIThreadAsync(() =>
-            {
-                _notificationService.ShowError(
-                    "Load Error",
-                    $"Failed to load project data: {ex.Message}");
-            });
+            await InvokeOnUIThreadAsync(() => _notificationService.ShowError("Load Error", $"Failed to load project data: {ex.Message}"));
         }
     }
 
@@ -1507,7 +1497,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     {
         PostToUIThread(() =>
         {
-            var timestamp = DateTime.Now.ToString("HH:mm:ss");
+            var timestamp = DateTime.UtcNow.ToString("HH:mm:ss");
             BuildLog.Add($"[{timestamp}] {message}");
             OnPropertyChanged(nameof(BuildOutput));
         });

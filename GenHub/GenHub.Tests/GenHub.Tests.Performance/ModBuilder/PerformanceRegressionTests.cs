@@ -268,7 +268,7 @@ public class PerformanceRegressionTests : IDisposable
         {
             var filePath = $"test_file_{i}.txt";
             var currentHash = i % 2 == 0 ? $"hash_{i:X8}" : $"modified_hash_{i:X8}"; // 50% changed
-            var status = comparisonService.DetermineFileStatus(filePath, currentHash);
+            _ = comparisonService.DetermineFileStatus(filePath, currentHash);
         }
 
         sw.Stop();
@@ -299,21 +299,18 @@ public class PerformanceRegressionTests : IDisposable
     /// <param name="disposing">Whether to dispose managed resources.</param>
     protected virtual void Dispose(bool disposing)
     {
-        if (!this.disposed)
+        if (!this.disposed && disposing)
         {
-            if (disposing)
+            // Cleanup test data directory
+            if (Directory.Exists(this.testDataPath))
             {
-                // Cleanup test data directory
-                if (Directory.Exists(this.testDataPath))
+                try
                 {
-                    try
-                    {
-                        Directory.Delete(this.testDataPath, true);
-                    }
-                    catch
-                    {
-                        // Ignore cleanup errors
-                    }
+                    Directory.Delete(this.testDataPath, true);
+                }
+                catch
+                {
+                    // Ignore cleanup errors
                 }
             }
 

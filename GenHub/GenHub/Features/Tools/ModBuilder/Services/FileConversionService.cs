@@ -219,23 +219,9 @@ public sealed class FileConversionService(
 
             // Process based on file type
             var sourceExt = Path.GetExtension(sourcePath).ToLowerInvariant();
-            string processedContent;
-
-            if (sourceExt == ".ini")
-            {
-                // Optimize INI files
-                processedContent = await textProcessingService.OptimizeIniFileAsync(content, cancellationToken)
-                    .ConfigureAwait(false);
-            }
-            else
-            {
-                // For .txt files, just normalize line endings
-                processedContent = await textProcessingService.NormalizeLineEndingsAsync(
-                    content,
-                    LineEndingType.CRLF,
-                    cancellationToken)
-                    .ConfigureAwait(false);
-            }
+            var processedContent = sourceExt == ".ini"
+                ? await textProcessingService.OptimizeIniFileAsync(content, cancellationToken).ConfigureAwait(false)
+                : await textProcessingService.NormalizeLineEndingsAsync(content, LineEndingType.CRLF, cancellationToken).ConfigureAwait(false);
 
             progress?.Report(0.7);
 

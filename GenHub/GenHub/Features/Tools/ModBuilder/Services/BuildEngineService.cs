@@ -396,9 +396,14 @@ public sealed class BuildEngineService(
 
                         foreach (var file in item.Files)
                         {
-                            var targetRel = !string.IsNullOrEmpty(file.RelTargetFile)
-                                ? file.RelTargetFile
-                                : (!string.IsNullOrEmpty(file.GetRelSourceFile()) ? file.GetRelSourceFile() : Path.GetFileName(file.AbsSourceFile));
+                            var targetRel = file.RelTargetFile;
+                            if (string.IsNullOrEmpty(targetRel))
+                            {
+                                targetRel = !string.IsNullOrEmpty(file.GetRelSourceFile())
+                                    ? file.GetRelSourceFile()
+                                    : Path.GetFileName(file.AbsSourceFile);
+                            }
+
                             if (!string.IsNullOrEmpty(targetRel))
                             {
                                 var srcInRaw = Path.Combine(rawDir, targetRel.TrimStart('/', '\\'));
@@ -456,7 +461,7 @@ public sealed class BuildEngineService(
 
                 if (setup.Bundles?.Packs != null)
                 {
-                    var packsToRelease = setup.SelectedPacks != null && setup.SelectedPacks.Count > 0
+                    var packsToRelease = setup.SelectedPacks is { Count: > 0 }
                         ? setup.Bundles.Packs.Where(p => p.AllowBuild && setup.SelectedPacks.Contains(p.Name, StringComparer.OrdinalIgnoreCase))
                         : setup.Bundles.Packs.Where(p => p.AllowBuild);
 
@@ -508,10 +513,7 @@ public sealed class BuildEngineService(
                     MaxDegreeOfParallelism = Environment.ProcessorCount,
                     CancellationToken = cancellationToken
                 },
-                async (file, ct) =>
-                {
-                    await ProcessFileAsync(file, stage, setup, ct).ConfigureAwait(false);
-                })
+                (file, ct) => new ValueTask(ProcessFileAsync(file, stage, setup, ct)))
                 .ConfigureAwait(false);
         }
 

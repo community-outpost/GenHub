@@ -31,7 +31,7 @@ public class ConfigEditorViewModelTests
     }
 
     [Fact]
-    public async Task InitializeAsync_PopulatesBundleItemsAndPacksFromProject()
+    public async Task InitializeAsync_PopulatesBundleItemsAndPacksFromProjectAsync()
     {
         var project = new ModBuilderProject
         {
@@ -78,7 +78,7 @@ public class ConfigEditorViewModelTests
     }
 
     [Fact]
-    public async Task AddAndRemoveBundleItem_UpdatesCollectionAndFlagsChanges()
+    public async Task AddAndRemoveBundleItem_UpdatesCollectionAndFlagsChangesAsync()
     {
         var project = new ModBuilderProject
         {
@@ -106,7 +106,7 @@ public class ConfigEditorViewModelTests
     }
 
     [Fact]
-    public async Task SaveAsync_PreservesExistingFilesAndEventsWithoutDataLoss()
+    public async Task SaveAsync_PreservesExistingFilesAndEventsWithoutDataLossAsync()
     {
         var existingFile = new BundleFile { AbsSourceFile = "/data/GameData.ini", RelTargetFile = "Data/INI/GameData.ini" };
         var existingEvent = new BundleEvent { Type = BundleEventType.OnPreBuild, AbsScript = "tools/patch.py" };
