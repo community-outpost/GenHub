@@ -59,8 +59,8 @@ public partial class GameProfileSettingsViewModel
             StatusMessage = "Loading content...";
             var existingLocks = AvailableContent
                 .Concat(EnabledContent)
-                .GroupBy(x => x.ManifestId.Value)
-                .ToDictionary(g => g.Key, g => (g.First().IsLocked, g.First().CanToggle));
+                .GroupBy(x => x.ManifestId.Value, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => (g.First().IsLocked, g.First().CanToggle), StringComparer.OrdinalIgnoreCase);
 
             AvailableContent.Clear();
 

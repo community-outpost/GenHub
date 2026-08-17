@@ -183,22 +183,6 @@ public class LaunchRegistry : ILaunchRegistry
                 }
             }
         }
-        catch (UnauthorizedAccessException uaex)
-        {
-            var failures = _inspectionFailureCounts.AddOrUpdate(launchId, 1, (_, count) => count + 1);
-            if (failures >= MaxInspectionFailures)
-            {
-                _logger.LogWarning(uaex, "[LaunchRegistry] Process inspection failed {Failures} consecutive times for launch {LaunchId}. Marking as terminated.", failures, launchId);
-                launchInfo.TerminatedAt = DateTime.UtcNow;
-                launchInfo.ProcessInfo.IsRunning = false;
-                _inspectionFailureCounts.TryRemove(launchId, out _);
-            }
-            else
-            {
-                // Do not mark process terminated on transient inspection error; preserve it as active so safe teardown guards hold
-                _logger.LogWarning(uaex, "Access denied checking process status for launch {LaunchId} (attempt {Failures}/{MaxFailures})", launchId, failures, MaxInspectionFailures);
-            }
-        }
         catch (Exception ex)
         {
             var failures = _inspectionFailureCounts.AddOrUpdate(launchId, 1, (_, count) => count + 1);
@@ -207,7 +191,7 @@ public class LaunchRegistry : ILaunchRegistry
                 _logger.LogWarning(ex, "[LaunchRegistry] Process inspection failed {Failures} consecutive times for launch {LaunchId}. Marking as terminated.", failures, launchId);
                 launchInfo.TerminatedAt = DateTime.UtcNow;
                 launchInfo.ProcessInfo.IsRunning = false;
-                _inspectionFailureCounts.TryRemove(launchId, out _);
+                ((ICollection<KeyValuePair<string, int>>)_inspectionFailureCounts).Remove(new KeyValuePair<string, int>(launchId, failures));
             }
             else
             {

@@ -127,6 +127,25 @@ public class GameProcessManager(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to start process for executable {ExecutablePath}", configuration?.ExecutablePath);
+            if (process != null)
+            {
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill(entireProcessTree: true);
+                    }
+                }
+                catch (Exception killEx)
+                {
+                    logger.LogDebug(killEx, "[Process] Ignored exception while terminating untracked process for {ExecutablePath}", configuration?.ExecutablePath);
+                }
+                finally
+                {
+                    process.Dispose();
+                }
+            }
+
             return OperationResult<GameProcessInfo>.CreateFailure($"Failed to start process: {ex.Message}");
         }
     }
@@ -768,11 +787,11 @@ public class GameProcessManager(
             DateTime? launcherStartTime = null;
             try
             {
-                launcherStartTime = process.StartTime;
+                launcherStartTime = process.StartTime.ToUniversalTime();
             }
-            catch
+            catch (Exception ex)
             {
-                // Fallback if process already uninspectable
+                logger.LogDebug(ex, "[Process] Unable to inspect start time for exiting launcher {ProcessId}", process.Id);
             }
 
             var spawnedProcess = FindSpawnedGameProcess(
@@ -909,11 +928,11 @@ public class GameProcessManager(
         DateTime? launcherStartTime = null;
         try
         {
-            launcherStartTime = launcher.StartTime;
+            launcherStartTime = launcher.StartTime.ToUniversalTime();
         }
-        catch
+        catch (Exception ex)
         {
-            // Launcher may be uninspectable
+            logger.LogDebug(ex, "[Process] Unable to inspect start time for launcher {ProcessId}", launcher.Id);
         }
 
         try
@@ -994,7 +1013,7 @@ public class GameProcessManager(
                         launcher.Id,
                         expectedName,
                         (int)timeout.TotalMilliseconds);
-                    TerminateAbandonedLauncher(launcher);
+                    await TerminateAbandonedLauncherAsync(launcher);
                     return OperationResult<GameProcessInfo>.CreateFailure(
                         AppendLauncherErrors(
                             $"Launcher did not start {expectedName} within {timeout.TotalSeconds:0.#}s.",
@@ -1014,7 +1033,7 @@ public class GameProcessManager(
                 expectedName,
                 launcher.Id);
 
-            TerminateAbandonedLauncher(launcher);
+            await TerminateAbandonedLauncherAsync(launcher);
             throw;
         }
         finally
@@ -1029,7 +1048,7 @@ public class GameProcessManager(
     /// bootstrapper running with no tracked process and no handle for the caller to reach it.
     /// </summary>
     /// <param name="launcher">The launcher to terminate.</param>
-    private void TerminateAbandonedLauncher(Process launcher)
+    private async Task TerminateAbandonedLauncherAsync(Process launcher)
     {
         try
         {
@@ -1038,14 +1057,31 @@ public class GameProcessManager(
                 return;
             }
 
-            // The child may already exist but not yet be discoverable, so take the tree with it.
-            launcher.Kill(entireProcessTree: true);
-            launcher.WaitForExit(ProcessConstants.AbandonedLauncherKillWaitMs);
+            await Task.Run(
+                () =>
+                {
+                    try
+                    {
+                        if (!launcher.HasExited)
+                        {
+                            launcher.Kill(entireProcessTree: true);
+                            launcher.WaitForExit(ProcessConstants.AbandonedLauncherKillWaitMs);
+                        }
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // Process already exited or disposed
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "[Process] Failed to terminate abandoned launcher {LauncherId}", launcher.Id);
+                    }
+                },
+                CancellationToken.None);
         }
         catch (Exception ex)
         {
-            // The caller is already unwinding a cancellation; cleanup failure must not mask it.
-            logger.LogWarning(ex, "[Process] Failed to terminate abandoned launcher {LauncherId}", launcher.Id);
+            logger.LogWarning(ex, "[Process] Failed to dispatch termination for abandoned launcher {LauncherId}", launcher.Id);
         }
     }
 

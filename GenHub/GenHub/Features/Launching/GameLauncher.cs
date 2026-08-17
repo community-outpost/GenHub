@@ -66,11 +66,11 @@ public class GameLauncher(
         return new SemaphoreReleaser(semaphore);
     }
 
-    private static async Task<IDisposable> AcquireSteamInstallationLockAsync(
+    private async Task<IDisposable> AcquireSteamInstallationLockAsync(
         string installationPath,
         CancellationToken cancellationToken)
     {
-        var normalizedPath = InstallationPathLockKey.Create(installationPath);
+        var normalizedPath = InstallationPathLockKey.Create(installationPath, logger);
         var semaphore = _steamInstallationLaunchLocks.GetOrAdd(
             normalizedPath,
             _ => new SemaphoreSlim(1, 1));

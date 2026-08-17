@@ -45,7 +45,7 @@ public class GeneralsOnlineDeliverer(
     {
         // Can deliver if it's a Generals Online manifest with a portable ZIP URL
         var isPublisher = string.Equals(manifest.Publisher?.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(manifest.Publisher?.Name, GeneralsOnlineConstants.PublisherName, StringComparison.OrdinalIgnoreCase);
+            || (string.IsNullOrEmpty(manifest.Publisher?.PublisherType) && string.Equals(manifest.Publisher?.Name, GeneralsOnlineConstants.PublisherName, StringComparison.OrdinalIgnoreCase));
         return isPublisher &&
                manifest.Files.Any(f => f.DownloadUrl is { } url && url.EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase));
     }

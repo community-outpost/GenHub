@@ -58,6 +58,7 @@ public class UserDataTrackerService(
             profileId,
             targetGame);
 
+        await IndexLock.WaitAsync(cancellationToken);
         try
         {
             // Filter to only user data files
@@ -130,7 +131,7 @@ public class UserDataTrackerService(
                 await SaveUserDataManifestAsync(userDataManifest, cancellationToken);
 
                 // Update the index
-                await UpdateIndexAsync(userDataManifest, isAdd: true, cancellationToken);
+                await UpdateIndexUnlockedAsync(userDataManifest, isAdd: true, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -161,6 +162,10 @@ public class UserDataTrackerService(
             logger.LogError(ex, "[UserData] Failed to install user data for manifest {ManifestId}", manifestId);
             return OperationResult<UserDataManifest>.CreateFailure($"Failed to install user data: {ex.Message}");
         }
+        finally
+        {
+            IndexLock.Release();
+        }
     }
 
     /// <inheritdoc />
@@ -171,6 +176,7 @@ public class UserDataTrackerService(
     {
         logger.LogInformation("[UserData] Uninstalling user data for manifest {ManifestId}, profile {ProfileId}", manifestId, profileId);
 
+        await IndexLock.WaitAsync(cancellationToken);
         try
         {
             var manifestResult = await GetUserDataManifestAsync(manifestId, profileId, cancellationToken);
@@ -188,7 +194,7 @@ public class UserDataTrackerService(
             await DeleteUserDataManifestAsync(manifestId, profileId, cancellationToken);
 
             // Update the index
-            await UpdateIndexAsync(manifest, isAdd: false, cancellationToken);
+            await UpdateIndexUnlockedAsync(manifest, isAdd: false, cancellationToken);
 
             logger.LogInformation("[UserData] Successfully uninstalled user data for manifest {ManifestId}", manifestId);
             return OperationResult<bool>.CreateSuccess(true);
@@ -201,6 +207,10 @@ public class UserDataTrackerService(
         {
             logger.LogError(ex, "[UserData] Failed to uninstall user data for manifest {ManifestId}", manifestId);
             return OperationResult<bool>.CreateFailure($"Failed to uninstall user data: {ex.Message}");
+        }
+        finally
+        {
+            IndexLock.Release();
         }
     }
 
@@ -803,7 +813,15 @@ public class UserDataTrackerService(
                     RollbackActivatedFiles(filesActivatedInThisManifest, userDataBasePath);
 
                     manifest.IsActive = false;
-                    await SaveUserDataManifestAsync(manifest, CancellationToken.None);
+                    try
+                    {
+                        await SaveUserDataManifestAsync(manifest, CancellationToken.None);
+                    }
+                    catch (Exception saveEx)
+                    {
+                        logger.LogError(saveEx, "[UserData] Failed to persist rolled-back manifest state for {ManifestId}", manifest.ManifestId);
+                    }
+
                     CleanupSupersededBackups(supersededBackups, logger);
 
                     return fileResult;
@@ -821,7 +839,15 @@ public class UserDataTrackerService(
             RollbackActivatedFiles(filesActivatedInThisManifest, userDataBasePath);
 
             manifest.IsActive = false;
-            await SaveUserDataManifestAsync(manifest, CancellationToken.None);
+            try
+            {
+                await SaveUserDataManifestAsync(manifest, CancellationToken.None);
+            }
+            catch (Exception saveEx)
+            {
+                logger.LogError(saveEx, "[UserData] Failed to persist cancelled manifest state for {ManifestId}", manifest.ManifestId);
+            }
+
             CleanupSupersededBackups(supersededBackups, logger);
             throw;
         }
@@ -868,7 +894,8 @@ public class UserDataTrackerService(
                 return OperationResult<bool>.CreateFailure($"Failed to create safety backup for '{file.AbsolutePath}' during activation");
             }
 
-            if (!string.IsNullOrEmpty(oldBackup) && !string.Equals(oldBackup, backupPath, StringComparison.OrdinalIgnoreCase))
+            var pathComparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            if (!string.IsNullOrEmpty(oldBackup) && !string.Equals(oldBackup, backupPath, pathComparison))
             {
                 supersededBackups.Add(oldBackup);
             }
@@ -937,7 +964,7 @@ public class UserDataTrackerService(
         string installationKey,
         CancellationToken cancellationToken)
     {
-        var conflictResult = await CheckFileConflictAsync(targetPath, cancellationToken);
+        var conflictResult = await CheckFileConflictUnlockedAsync(targetPath, cancellationToken);
         if (!conflictResult.Success)
         {
             logger.LogError("[UserData] Failed to check file conflict for {Path}: {Error}; aborting installation", targetPath, conflictResult.FirstError);
@@ -1055,11 +1082,6 @@ public class UserDataTrackerService(
         {
             try
             {
-                if (File.Exists(file.AbsolutePath))
-                {
-                    File.Delete(file.AbsolutePath);
-                }
-
                 if (!string.IsNullOrEmpty(file.BackupPath) && File.Exists(file.BackupPath))
                 {
                     var targetDir = Path.GetDirectoryName(file.AbsolutePath);
@@ -1072,6 +1094,16 @@ public class UserDataTrackerService(
                 }
                 else
                 {
+                    if (!string.IsNullOrEmpty(file.BackupPath))
+                    {
+                        logger.LogWarning("[UserData] Backup file not found during rollback for {Path}: {BackupPath}", file.AbsolutePath, file.BackupPath);
+                    }
+
+                    if (File.Exists(file.AbsolutePath))
+                    {
+                        File.Delete(file.AbsolutePath);
+                    }
+
                     CleanupEmptyDirectories(Path.GetDirectoryName(file.AbsolutePath), userDataBasePath);
                 }
             }
@@ -1144,11 +1176,33 @@ public class UserDataTrackerService(
             var fileName = Path.GetFileName(filePath);
             var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmssfff");
             var uniqueSuffix = Guid.NewGuid().ToString("N")[..8];
-            var relativeDirPath = Path.GetDirectoryName(Path.GetRelativePath(GetUserDataBasePath(gameType), filePath)) ?? string.Empty;
+            var relativeDirPath = string.Empty;
+            try
+            {
+                var rel = Path.GetRelativePath(GetUserDataBasePath(gameType), filePath);
+                if (!rel.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathRooted(rel))
+                {
+                    relativeDirPath = Path.GetDirectoryName(rel) ?? string.Empty;
+                }
+            }
+            catch
+            {
+                relativeDirPath = string.Empty;
+            }
+
             var backupDir = Path.Combine(_backupsPath, gameType.ToString(), relativeDirPath);
             Directory.CreateDirectory(backupDir);
 
             var backupPath = Path.Combine(backupDir, $"{Path.GetFileNameWithoutExtension(fileName)}.{timestamp}_{uniqueSuffix}{Path.GetExtension(fileName)}{FileTypes.BackupExtension}");
+
+            // Ensure backupPath never escapes _backupsPath
+            var fullBackupPath = Path.GetFullPath(backupPath);
+            var fullBackupsRoot = Path.GetFullPath(_backupsPath);
+            var pathComparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            if (!fullBackupPath.StartsWith(fullBackupsRoot, pathComparison))
+            {
+                backupPath = Path.Combine(_backupsPath, gameType.ToString(), $"{Path.GetFileNameWithoutExtension(fileName)}.{timestamp}_{uniqueSuffix}{Path.GetExtension(fileName)}{FileTypes.BackupExtension}");
+            }
 
             await Task.Run(() => File.Copy(filePath, backupPath, overwrite: false), cancellationToken);
 
@@ -1265,88 +1319,115 @@ public class UserDataTrackerService(
         _cachedIndex = index;
     }
 
+    private async Task<OperationResult<string?>> CheckFileConflictUnlockedAsync(
+        string absolutePath,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var index = await LoadIndexUnlockedAsync(cancellationToken);
+            var normalizedPath = Path.GetFullPath(absolutePath);
+
+            if (index.FileToInstallationMap.TryGetValue(normalizedPath, out var installationKey))
+            {
+                return OperationResult<string?>.CreateSuccess(installationKey);
+            }
+
+            return OperationResult<string?>.CreateSuccess(null);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[UserData] Failed to check file conflict for {Path}", absolutePath);
+            return OperationResult<string?>.CreateFailure($"Failed to check file conflict: {ex.Message}");
+        }
+    }
+
     private async Task UpdateIndexAsync(UserDataManifest manifest, bool isAdd, CancellationToken cancellationToken)
     {
         await IndexLock.WaitAsync(cancellationToken);
         try
         {
-            // Use LoadIndexUnlockedAsync to avoid deadlock (we already hold IndexLock)
-            var index = await LoadIndexUnlockedAsync(cancellationToken);
-            var key = manifest.InstallationKey;
-
-            if (isAdd)
-            {
-                if (!index.InstallationKeys.Contains(key))
-                {
-                    index.InstallationKeys.Add(key);
-                }
-
-                // Update file mappings
-                foreach (var file in manifest.InstalledFiles)
-                {
-                    index.FileToInstallationMap[file.AbsolutePath] = key;
-                }
-
-                // Update profile mappings
-                if (!index.ProfileInstallations.TryGetValue(manifest.ProfileId, out var profileKeys))
-                {
-                    profileKeys = [];
-                    index.ProfileInstallations[manifest.ProfileId] = profileKeys;
-                }
-
-                if (!profileKeys.Contains(key))
-                {
-                    profileKeys.Add(key);
-                }
-
-                // Update manifest mappings
-                if (!index.ManifestInstallations.TryGetValue(manifest.ManifestId, out var manifestKeys))
-                {
-                    manifestKeys = [];
-                    index.ManifestInstallations[manifest.ManifestId] = manifestKeys;
-                }
-
-                if (!manifestKeys.Contains(key))
-                {
-                    manifestKeys.Add(key);
-                }
-            }
-            else
-            {
-                index.InstallationKeys.Remove(key);
-
-                // Remove file mappings
-                foreach (var file in manifest.InstalledFiles)
-                {
-                    index.FileToInstallationMap.Remove(file.AbsolutePath);
-                }
-
-                // Remove from profile mappings
-                if (index.ProfileInstallations.TryGetValue(manifest.ProfileId, out var profileKeys))
-                {
-                    profileKeys.Remove(key);
-                    if (profileKeys.Count == 0)
-                    {
-                        index.ProfileInstallations.Remove(manifest.ProfileId);
-                    }
-                }
-
-                // Remove from manifest mappings
-                if (index.ManifestInstallations.TryGetValue(manifest.ManifestId, out var manifestKeys))
-                {
-                    manifestKeys.Remove(key);
-                    if (manifestKeys.Count == 0)
-                    {
-                        index.ManifestInstallations.Remove(manifest.ManifestId);
-                    }
-                }
-            }
-
-            await SaveIndexAsync(index, cancellationToken);
+            await UpdateIndexUnlockedAsync(manifest, isAdd, cancellationToken);
         }
         finally
         {
             IndexLock.Release();
         }
+    }
+
+    private async Task UpdateIndexUnlockedAsync(UserDataManifest manifest, bool isAdd, CancellationToken cancellationToken)
+    {
+        var index = await LoadIndexUnlockedAsync(cancellationToken);
+        var key = manifest.InstallationKey;
+
+        if (isAdd)
+        {
+            if (!index.InstallationKeys.Contains(key))
+            {
+                index.InstallationKeys.Add(key);
+            }
+
+            // Update file mappings
+            foreach (var file in manifest.InstalledFiles)
+            {
+                index.FileToInstallationMap[file.AbsolutePath] = key;
+            }
+
+            // Update profile mappings
+            if (!index.ProfileInstallations.TryGetValue(manifest.ProfileId, out var profileKeys))
+            {
+                profileKeys = [];
+                index.ProfileInstallations[manifest.ProfileId] = profileKeys;
+            }
+
+            if (!profileKeys.Contains(key))
+            {
+                profileKeys.Add(key);
+            }
+
+            // Update manifest mappings
+            if (!index.ManifestInstallations.TryGetValue(manifest.ManifestId, out var manifestKeys))
+            {
+                manifestKeys = [];
+                index.ManifestInstallations[manifest.ManifestId] = manifestKeys;
+            }
+
+            if (!manifestKeys.Contains(key))
+            {
+                manifestKeys.Add(key);
+            }
+        }
+        else
+        {
+            index.InstallationKeys.Remove(key);
+
+            // Remove file mappings
+            foreach (var file in manifest.InstalledFiles)
+            {
+                index.FileToInstallationMap.Remove(file.AbsolutePath);
+            }
+
+            // Remove from profile mappings
+            if (index.ProfileInstallations.TryGetValue(manifest.ProfileId, out var profileKeys))
+            {
+                profileKeys.Remove(key);
+                if (profileKeys.Count == 0)
+                {
+                    index.ProfileInstallations.Remove(manifest.ProfileId);
+                }
+            }
+
+            // Remove from manifest mappings
+            if (index.ManifestInstallations.TryGetValue(manifest.ManifestId, out var manifestKeys))
+            {
+                manifestKeys.Remove(key);
+                if (manifestKeys.Count == 0)
+                {
+                    index.ManifestInstallations.Remove(manifest.ManifestId);
+                }
+            }
+        }
+
+        await SaveIndexAsync(index, cancellationToken);
     }
 }

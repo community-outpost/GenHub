@@ -525,7 +525,12 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
     private async Task<ContentManifest?> GetOrSynthesizeManifestForContentAsync(ContentDisplayItem contentItem)
     {
-        var manifestResult = await _manifestPool!.GetManifestAsync(contentItem.ManifestId.Value);
+        if (_manifestPool == null)
+        {
+            return null;
+        }
+
+        var manifestResult = await _manifestPool.GetManifestAsync(contentItem.ManifestId.Value);
         if (manifestResult.Success && manifestResult.Data != null)
         {
             return manifestResult.Data;

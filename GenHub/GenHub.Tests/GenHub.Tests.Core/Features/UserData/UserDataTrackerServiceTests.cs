@@ -24,6 +24,11 @@ namespace GenHub.Tests.Core.Features.UserData;
 /// </summary>
 public sealed class UserDataTrackerServiceTests : IDisposable
 {
+    private const string TestManifestId = "1.1015255.generalsonline.patch.gamedata";
+    private const string TestProfileId = "profile-zh-1";
+    private const string TestVersion = "101525_QFE5";
+    private const string TestManifestName = "GameData Patch";
+
     private readonly string _tempDir;
     private readonly string _appDataDir;
     private readonly string _zeroHourDataDir;
@@ -138,12 +143,12 @@ public sealed class UserDataTrackerServiceTests : IDisposable
 
         // Act
         var result = await _trackerService.InstallUserDataAsync(
-            "1.1015255.generalsonline.patch.gamedata",
-            "profile-zh-1",
+            TestManifestId,
+            TestProfileId,
             GameType.ZeroHour,
             files,
-            "101525_QFE5",
-            "GameData Patch",
+            TestVersion,
+            TestManifestName,
             CancellationToken.None);
 
         // Assert
@@ -181,12 +186,12 @@ public sealed class UserDataTrackerServiceTests : IDisposable
 
         // Act
         var result = await _trackerService.InstallUserDataAsync(
-            "1.1015255.generalsonline.patch.gamedata",
+            TestManifestId,
             "profile-gen-1",
             GameType.Generals,
             files,
-            "101525_QFE5",
-            "GameData Patch",
+            TestVersion,
+            TestManifestName,
             CancellationToken.None);
 
         // Assert
@@ -222,12 +227,12 @@ public sealed class UserDataTrackerServiceTests : IDisposable
 
         // Act 1: Install data patch
         var installResult = await _trackerService.InstallUserDataAsync(
-            "1.1015255.generalsonline.patch.gamedata",
+            TestManifestId,
             "profile-backup-test",
             GameType.ZeroHour,
             files,
-            "101525_QFE5",
-            "GameData Patch",
+            TestVersion,
+            TestManifestName,
             CancellationToken.None);
 
         // Assert 1: File overwritten with patch content, backup recorded
@@ -240,7 +245,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
 
         // Act 2: Uninstall data patch
         var uninstallResult = await _trackerService.UninstallUserDataAsync(
-            "1.1015255.generalsonline.patch.gamedata",
+            TestManifestId,
             "profile-backup-test",
             CancellationToken.None);
 
@@ -270,12 +275,12 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         };
 
         var installResult = await _trackerService.InstallUserDataAsync(
-            "1.1015255.generalsonline.patch.gamedata",
+            TestManifestId,
             "profile-switch-test",
             GameType.ZeroHour,
             files,
-            "101525_QFE5",
-            "GameData Patch",
+            TestVersion,
+            TestManifestName,
             CancellationToken.None);
 
         Assert.True(installResult.Success);
@@ -319,12 +324,12 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         };
 
         await _trackerService.InstallUserDataAsync(
-            "1.1015255.generalsonline.patch.gamedata",
+            TestManifestId,
             "profile-cleanup-test",
             GameType.ZeroHour,
             files,
-            "101525_QFE5",
-            "GameData Patch",
+            TestVersion,
+            TestManifestName,
             CancellationToken.None);
 
         var subDir = Path.Combine(_zeroHourDataDir, "GeneralsOnlineGameData");
@@ -332,7 +337,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
 
         // Act
         var uninstallResult = await _trackerService.UninstallUserDataAsync(
-            "1.1015255.generalsonline.patch.gamedata",
+            TestManifestId,
             "profile-cleanup-test",
             CancellationToken.None);
 
@@ -368,12 +373,12 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         };
 
         var installResult = await _trackerService.InstallUserDataAsync(
-            "1.1015255.generalsonline.patch.gamedata",
+            TestManifestId,
             "profile-user-edit-test",
             GameType.ZeroHour,
             files,
-            "101525_QFE5",
-            "GameData Patch",
+            TestVersion,
+            TestManifestName,
             CancellationToken.None);
 
         Assert.True(installResult.Success);
@@ -430,12 +435,12 @@ public sealed class UserDataTrackerServiceTests : IDisposable
 
         // 1. Install profile
         var installResult = await _trackerService.InstallUserDataAsync(
-            "1.1015255.generalsonline.patch.gamedata",
+            TestManifestId,
             "profile-reactivate-test",
             GameType.ZeroHour,
             files,
-            "101525_QFE5",
-            "GameData Patch",
+            TestVersion,
+            TestManifestName,
             CancellationToken.None);
 
         Assert.True(installResult.Success);
@@ -452,7 +457,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         // Configure hash check: deployed CAS file matches "hash-splash-expected", user file does not
         _fileOperationsMock
             .Setup(f => f.VerifyFileHashAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string path, string hash, CancellationToken _) => File.Exists(path) && File.ReadAllText(path).StartsWith("cas-content", StringComparison.Ordinal));
+            .ReturnsAsync((string path, string hash, CancellationToken _) => File.Exists(path) && File.ReadAllText(path) == "cas-content-" + hash);
 
         // 4. Reactivate profile (should back up newerUserContent and deploy CAS file)
         var reactivateResult = await _trackerService.ActivateProfileUserDataAsync("profile-reactivate-test", CancellationToken.None);
@@ -493,12 +498,12 @@ public sealed class UserDataTrackerServiceTests : IDisposable
 
         // 1. Install & Deactivate
         await _trackerService.InstallUserDataAsync(
-            "1.1015255.generalsonline.patch.gamedata",
+            TestManifestId,
             "profile-fail-materialize-test",
             GameType.ZeroHour,
             files,
-            "101525_QFE5",
-            "GameData Patch",
+            TestVersion,
+            TestManifestName,
             CancellationToken.None);
 
         await _trackerService.DeactivateProfileUserDataAsync("profile-fail-materialize-test", CancellationToken.None);
@@ -550,12 +555,12 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         };
 
         await _trackerService.InstallUserDataAsync(
-            "1.1015255.generalsonline.patch.gamedata",
+            TestManifestId,
             "profile-cancel-activate-test",
             GameType.ZeroHour,
             files,
-            "101525_QFE5",
-            "GameData Patch",
+            TestVersion,
+            TestManifestName,
             CancellationToken.None);
 
         await _trackerService.DeactivateProfileUserDataAsync("profile-cancel-activate-test", CancellationToken.None);
@@ -620,12 +625,12 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         };
 
         await _trackerService.InstallUserDataAsync(
-            "1.1015255.generalsonline.patch.gamedata",
+            TestManifestId,
             "profile-cancel-deactivate-test",
             GameType.ZeroHour,
             files,
-            "101525_QFE5",
-            "GameData Patch",
+            TestVersion,
+            TestManifestName,
             CancellationToken.None);
 
         using var cts = new CancellationTokenSource();
@@ -683,7 +688,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
             "profile-map-test",
             GameType.ZeroHour,
             files,
-            "101525_QFE5",
+            TestVersion,
             "Custom Map",
             CancellationToken.None);
 
@@ -700,7 +705,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
             "profile-other-test",
             GameType.ZeroHour,
             files,
-            "101525_QFE5",
+            TestVersion,
             "Other Map",
             CancellationToken.None);
 
@@ -741,12 +746,55 @@ public sealed class UserDataTrackerServiceTests : IDisposable
             "profile-evil-test",
             GameType.ZeroHour,
             files,
-            "101525_QFE5",
+            TestVersion,
             "Evil Patch",
             CancellationToken.None);
 
         // Assert
         Assert.False(result.Success);
         Assert.False(File.Exists(validFilePath));
+    }
+
+    /// <summary>
+    /// Verifies that when backup creation fails (e.g. file is locked), installation aborts to prevent data loss.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InstallUserDataAsync_WhenBackupFails_AbortsInstallationToPreventDataLoss()
+    {
+        // Arrange
+        var gameDataDir = Path.Combine(_zeroHourDataDir, "GeneralsOnlineGameData");
+        Directory.CreateDirectory(gameDataDir);
+        var existingSplashPath = Path.Combine(gameDataDir, "splash.bmp");
+        var originalUserContent = "original-user-splash-cannot-backup";
+        File.WriteAllText(existingSplashPath, originalUserContent);
+
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "GeneralsOnlineGameData/splash.bmp",
+                Hash = "hash-patch-splash",
+                Size = 100,
+                InstallTarget = ContentInstallTarget.UserDataDirectory,
+            },
+        };
+
+        // Lock file with exclusive access so File.Copy fails inside BackupExistingFileAsync
+        using var lockedStream = new System.IO.FileStream(existingSplashPath, System.IO.FileMode.Open, System.IO.FileAccess.ReadWrite, System.IO.FileShare.None);
+
+        // Act
+        var result = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            TestProfileId,
+            GameType.ZeroHour,
+            files,
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Failed to create safety backup", result.FirstError, StringComparison.OrdinalIgnoreCase);
     }
 }

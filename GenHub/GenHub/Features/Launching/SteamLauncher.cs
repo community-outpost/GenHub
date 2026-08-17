@@ -382,11 +382,11 @@ public class SteamLauncher : ISteamLauncher
         }
     }
 
-    private static async Task<IDisposable> AcquireInstallationMutationLockAsync(
+    private async Task<IDisposable> AcquireInstallationMutationLockAsync(
         string installationPath,
         CancellationToken cancellationToken)
     {
-        var normalizedPath = InstallationPathLockKey.Create(installationPath);
+        var normalizedPath = InstallationPathLockKey.Create(installationPath, _logger);
         var semaphore = _installationMutationLocks.GetOrAdd(
             normalizedPath,
             _ => new SemaphoreSlim(1, 1));
