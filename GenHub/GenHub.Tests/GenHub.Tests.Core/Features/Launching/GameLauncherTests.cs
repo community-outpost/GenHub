@@ -497,8 +497,7 @@ public class GameLauncherTests : IDisposable
         // Arrange
         var testRoot = Path.Combine(
             Path.GetTempPath(),
-            "GenHub-GameLauncherAliasTests",
-            Guid.NewGuid().ToString("N"));
+            $"GenHub-GameLauncherAliasTests-{Guid.NewGuid():N}");
         var physicalInstallationPath = Path.Combine(testRoot, "physical-installation");
         var installationAliasPath = Path.Combine(testRoot, "installation-alias");
         Directory.CreateDirectory(physicalInstallationPath);

@@ -23,7 +23,7 @@ public class GeneralsOnlineDependencyBuilder : BaseDependencyBuilder
     {
         return new ContentDependency
         {
-            Id = ManifestId.Create($"1.104.genhub.gameinstallation.zerohour"),
+            Id = ManifestId.Create("1.104.genhub.gameinstallation.zerohour"),
             Name = GameClientConstants.ZeroHourInstallationDependencyName,
             DependencyType = ContentType.GameInstallation,
 

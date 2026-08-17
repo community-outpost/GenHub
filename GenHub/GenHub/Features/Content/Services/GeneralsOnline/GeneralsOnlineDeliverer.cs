@@ -109,7 +109,7 @@ public class GeneralsOnlineDeliverer(
                 return OperationResult<ContentManifest>.CreateFailure(registrationResult.FirstError ?? "Failed to register variant manifests");
             }
 
-            MoveExtractedFilesToTarget(extractPath);
+            MoveExtractedFilesToTarget(extractPath, cancellationToken);
             DeleteZipSafe(zipPath);
 
             progress?.Report(new ContentAcquisitionProgress
@@ -313,7 +313,7 @@ public class GeneralsOnlineDeliverer(
         return OperationResult.CreateSuccess();
     }
 
-    private void MoveExtractedFilesToTarget(string extractPath)
+    private void MoveExtractedFilesToTarget(string extractPath, CancellationToken cancellationToken = default)
     {
         var parentDir = Directory.GetParent(extractPath)?.FullName;
         if (parentDir == null)
@@ -328,6 +328,7 @@ public class GeneralsOnlineDeliverer(
         {
             foreach (var file in Directory.GetFiles(extractPath, "*", SearchOption.AllDirectories))
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var relativePath = Path.GetRelativePath(extractPath, file);
                 var targetPath = Path.Combine(parentDir, relativePath);
                 var targetDir = Path.GetDirectoryName(targetPath);

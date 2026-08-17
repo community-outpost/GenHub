@@ -28,8 +28,7 @@ public sealed class SteamLauncherTests : IDisposable
     {
         _tempDirectory = Path.Combine(
             Path.GetTempPath(),
-            "GenHub-SteamLauncherTests",
-            Guid.NewGuid().ToString("N"));
+            $"GenHub-SteamLauncherTests-{Guid.NewGuid():N}");
         _gameInstallPath = Path.Combine(_tempDirectory, "game");
         _workspacePath = Path.Combine(_tempDirectory, "workspace");
         _originalExecutablePath = Path.Combine(_gameInstallPath, ExecutableName);

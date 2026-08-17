@@ -19,16 +19,23 @@ public static class GameProcessSelector
     /// <param name="processName">The expected process name, without extension.</param>
     /// <param name="workingDirectory">The directory the game must run from, or <see langword="null"/> to skip the check.</param>
     /// <param name="now">The current time, used to apply the recency window.</param>
+    /// <param name="launcherStartTime">The start time of the launcher process, if known.</param>
     /// <returns>The selected candidate, or <see langword="null"/> when none qualifies.</returns>
     public static GameProcessCandidate? SelectSpawnedGameProcess(
         IEnumerable<GameProcessCandidate> candidates,
         string processName,
         string? workingDirectory,
-        DateTime now)
+        DateTime now,
+        DateTime? launcherStartTime = null)
     {
         var matches = candidates
             .Where(candidate => candidate.ProcessName.Equals(processName, StringComparison.OrdinalIgnoreCase))
             .Where(candidate => (now - candidate.StartTime).TotalSeconds < ProcessConstants.EarlyExitThresholdSeconds);
+
+        if (launcherStartTime.HasValue)
+        {
+            matches = matches.Where(candidate => candidate.StartTime >= launcherStartTime.Value);
+        }
 
         // Residence is required whenever a working directory is known, including for a lone match:
         // a same-named process elsewhere on the machine is somebody else's.

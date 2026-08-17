@@ -116,7 +116,6 @@ public class ContentOrchestrator : IContentOrchestrator
             return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(cachedResults);
         }
 
-        ConcurrentBag<ContentSearchResult> allResults = [];
         ConcurrentBag<string> errors = [];
 
         // Orchestrate search across all enabled providers concurrently
@@ -139,6 +138,7 @@ public class ContentOrchestrator : IContentOrchestrator
         var searchTasksAsync = searchTasks
             .Select(async provider =>
             {
+                var providerResults = new List<ContentSearchResult>();
                 try
                 {
                     _logger.LogDebug("Executing search via provider: {ProviderName}", provider.SourceName);
@@ -154,7 +154,7 @@ public class ContentOrchestrator : IContentOrchestrator
                                 item.ProviderName = provider.SourceName;
                             }
 
-                            allResults.Add(item);
+                            providerResults.Add(item);
                         }
 
                         _logger.LogDebug("Provider {ProviderName} returned {ResultCount} results", provider.SourceName, result.Data.Count());
@@ -176,9 +176,12 @@ public class ContentOrchestrator : IContentOrchestrator
                     _logger.LogError(ex, "Search failed for provider: {ProviderName}", provider.SourceName);
                     errors.Add($"{provider.SourceName}: {ex.Message}");
                 }
+
+                return providerResults;
             });
 
-        await Task.WhenAll(searchTasksAsync);
+        var resultsPerProvider = await Task.WhenAll(searchTasksAsync);
+        var allResults = resultsPerProvider.SelectMany(r => r).ToList();
 
         // A provider that handled cancellation internally reports it as a failed result rather
         // than an exception, which would otherwise surface here as an empty successful search.
@@ -290,14 +293,17 @@ public class ContentOrchestrator : IContentOrchestrator
     {
         ArgumentNullException.ThrowIfNull(provider);
 
-        if (_providers.All(p => p.SourceName != provider.SourceName))
+        lock (_providerLock)
         {
-            _providers.Add(provider);
-            _logger.LogInformation("Registered content provider: {ProviderName}", provider.SourceName);
-        }
-        else
-        {
-            _logger.LogWarning("Attempted to register duplicate provider: {ProviderName}", provider.SourceName);
+            if (_providers.All(p => p.SourceName != provider.SourceName))
+            {
+                _providers.Add(provider);
+                _logger.LogInformation("Registered content provider: {ProviderName}", provider.SourceName);
+            }
+            else
+            {
+                _logger.LogWarning("Attempted to register duplicate provider: {ProviderName}", provider.SourceName);
+            }
         }
     }
 

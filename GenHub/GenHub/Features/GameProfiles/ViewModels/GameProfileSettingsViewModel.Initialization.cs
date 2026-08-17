@@ -29,13 +29,13 @@ public partial class GameProfileSettingsViewModel
             LoadingError = false;
             StatusMessage = "Loading available content...";
 
-            if (!_hasShownFirstLoadNotification)
+            if (!HasShownFirstLoadNotification)
             {
                 _notificationService?.ShowInfo("Loading Resources", "Initializing game content cache for the first time...", 3000);
-                _hasShownFirstLoadNotification = true;
+                HasShownFirstLoadNotification = true;
             }
 
-            _currentProfileId = null;
+            CurrentProfileId = null;
             Name = "New Profile";
             Description = "A new game profile";
             ColorValue = "#1976D2";
@@ -128,13 +128,13 @@ public partial class GameProfileSettingsViewModel
             LoadingError = false;
             StatusMessage = "Loading profile...";
 
-            if (!_hasShownFirstLoadNotification)
+            if (!HasShownFirstLoadNotification)
             {
                 _notificationService?.ShowInfo("Loading Resources", "Initializing game content cache for the first time...", 3000);
-                _hasShownFirstLoadNotification = true;
+                HasShownFirstLoadNotification = true;
             }
 
-            _currentProfileId = profileId;
+            CurrentProfileId = profileId;
             _logger?.LogInformation("InitializeForProfileAsync called with profileId: {ProfileId}", profileId);
 
             var profileResult = await _gameProfileManager!.GetProfileAsync(profileId);
@@ -156,7 +156,7 @@ public partial class GameProfileSettingsViewModel
             var defaultCoverPath = _profileResourceService?.GetDefaultCoverPath(profile.GameClient?.GameType.ToString() ?? "ZeroHour") ?? string.Empty;
             CoverPath = NormalizeResourcePath(profile.CoverPath, defaultCoverPath);
             SelectedWorkspaceStrategy = profile.WorkspaceStrategy ?? GetDefaultWorkspaceStrategy();
-            _originalWorkspaceStrategy = profile.WorkspaceStrategy ?? GetDefaultWorkspaceStrategy();
+            OriginalWorkspaceStrategy = profile.WorkspaceStrategy ?? GetDefaultWorkspaceStrategy();
             CommandLineArguments = profile.CommandLineArguments ?? string.Empty;
 
             LoadAvailableIconsAndCovers(profile.GameClient?.GameType.ToString() ?? "ZeroHour");

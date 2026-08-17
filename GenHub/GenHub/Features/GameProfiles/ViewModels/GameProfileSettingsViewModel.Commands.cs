@@ -57,6 +57,11 @@ public partial class GameProfileSettingsViewModel
         {
             IsLoadingContent = true;
             StatusMessage = "Loading content...";
+            var existingLocks = AvailableContent
+                .Concat(EnabledContent)
+                .GroupBy(x => x.ManifestId.Value)
+                .ToDictionary(g => g.Key, g => (g.First().IsLocked, g.First().CanToggle));
+
             AvailableContent.Clear();
 
             var enabledContentIds = EnabledContent.Select(e => e.ManifestId.Value).ToList();
@@ -100,6 +105,12 @@ public partial class GameProfileSettingsViewModel
                     }
 
                     var viewModelItem = ConvertToViewModelContentDisplayItem(coreItem);
+                    if (existingLocks.TryGetValue(coreItem.ManifestId, out var lockState))
+                    {
+                        viewModelItem.IsLocked = lockState.IsLocked;
+                        viewModelItem.CanToggle = lockState.CanToggle;
+                    }
+
                     AvailableContent.Add(viewModelItem);
                 }
                 catch (ArgumentException argEx)
@@ -378,7 +389,7 @@ public partial class GameProfileSettingsViewModel
                 enabledContentIds.Count,
                 string.Join(", ", enabledContentIds));
 
-            if (string.IsNullOrEmpty(_currentProfileId))
+            if (string.IsNullOrEmpty(CurrentProfileId))
             {
                 var createRequest = new CreateProfileRequest
                 {
@@ -429,7 +440,7 @@ public partial class GameProfileSettingsViewModel
                     ThemeColor = ColorValue,
                     GameInstallationId = SelectedGameInstallation?.SourceId,
 
-                    WorkspaceStrategy = _originalWorkspaceStrategy.HasValue && SelectedWorkspaceStrategy != _originalWorkspaceStrategy.Value
+                    WorkspaceStrategy = OriginalWorkspaceStrategy.HasValue && SelectedWorkspaceStrategy != OriginalWorkspaceStrategy.Value
                         ? SelectedWorkspaceStrategy
                         : null,
                     EnabledContentIds = enabledContentIds,
@@ -440,7 +451,7 @@ public partial class GameProfileSettingsViewModel
 
                 PopulateGameSettings(updateRequest, gameSettings);
 
-                var result = await _gameProfileManager.UpdateProfileAsync(_currentProfileId, updateRequest);
+                var result = await _gameProfileManager.UpdateProfileAsync(CurrentProfileId, updateRequest);
                 if (result.Success && result.Data != null)
                 {
                     if (GameSettingsViewModel.SaveSettingsCommand.CanExecute(null))
@@ -449,7 +460,7 @@ public partial class GameProfileSettingsViewModel
                     }
 
                     StatusMessage = "Profile updated successfully";
-                    _logger?.LogInformation("Updated profile {ProfileId} with {ContentCount} enabled content items", _currentProfileId, enabledContentIds.Count);
+                    _logger?.LogInformation("Updated profile {ProfileId} with {ContentCount} enabled content items", CurrentProfileId, enabledContentIds.Count);
 
                     WeakReferenceMessenger.Default.Send(new ProfileUpdatedMessage(result.Data));
 
@@ -458,7 +469,7 @@ public partial class GameProfileSettingsViewModel
                 else
                 {
                     StatusMessage = $"Failed to update profile: {string.Join(", ", result.Errors)}";
-                    _logger?.LogWarning("Failed to update profile {ProfileId}: {Errors}", _currentProfileId, string.Join(", ", result.Errors));
+                    _logger?.LogWarning("Failed to update profile {ProfileId}: {Errors}", CurrentProfileId, string.Join(", ", result.Errors));
                 }
             }
         }

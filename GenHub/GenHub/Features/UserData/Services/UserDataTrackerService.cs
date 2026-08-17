@@ -110,164 +110,16 @@ public class UserDataTrackerService(
 
                 logger.LogDebug("[UserData] Installing {RelativePath} to {TargetPath}", file.RelativePath, targetPath);
 
-                // Check for conflicts
-                var conflictResult = await CheckFileConflictAsync(targetPath, cancellationToken);
-                if (!conflictResult.Success)
+                var installResult = await InstallSingleUserDataFileAsync(file, targetPath, targetGame, userDataManifest.InstallationKey, cancellationToken);
+                if (!installResult.Success || installResult.Data == null)
                 {
-                    logger.LogError("[UserData] Failed to check file conflict for {Path}: {Error}; aborting installation", targetPath, conflictResult.FirstError);
                     await CleanupInstalledFilesAsync(userDataManifest, CancellationToken.None);
-                    return OperationResult<UserDataManifest>.CreateFailure($"Failed to check file conflict for '{targetPath}': {conflictResult.FirstError}");
+                    return OperationResult<UserDataManifest>.CreateFailure(installResult.FirstError ?? $"Failed to install '{targetPath}'.");
                 }
 
-                if (!string.IsNullOrEmpty(conflictResult.Data) && conflictResult.Data != userDataManifest.InstallationKey)
-                {
-                    logger.LogError("[UserData] File conflict with installation {Key}: {Path}; aborting installation", conflictResult.Data, targetPath);
-                    await CleanupInstalledFilesAsync(userDataManifest, CancellationToken.None);
-                    return OperationResult<UserDataManifest>.CreateFailure($"File '{targetPath}' is already managed by installation '{conflictResult.Data}'. Installation aborted.");
-                }
-
-                var wasOverwritten = false;
-                string? backupPath = null;
-
-                if (File.Exists(targetPath))
-                {
-                    // File exists - back it up if it's not from another installation
-                    if (string.IsNullOrEmpty(conflictResult.Data))
-                    {
-                        // User's own file - back it up
-                        backupPath = await BackupExistingFileAsync(targetPath, targetGame, cancellationToken);
-                        if (string.IsNullOrEmpty(backupPath))
-                        {
-                            logger.LogError("[UserData] Failed to create safety backup for user file {Path}; aborting installation to prevent data loss", targetPath);
-                            await CleanupInstalledFilesAsync(userDataManifest, CancellationToken.None);
-                            return OperationResult<UserDataManifest>.CreateFailure($"Failed to create safety backup for '{targetPath}'. Installation aborted.");
-                        }
-
-                        wasOverwritten = true;
-                        logger.LogInformation("[UserData] Backed up existing user file: {Path} -> {Backup}", targetPath, backupPath);
-                    }
-
-                    // Delete existing to replace
-                    FileOperationsService.DeleteFileIfExists(targetPath);
-                }
-
-                // Ensure target directory exists
-                var targetDir = Path.GetDirectoryName(targetPath);
-                if (!string.IsNullOrEmpty(targetDir))
-                {
-                    Directory.CreateDirectory(targetDir);
-                }
-
-                // Try to create hard link from CAS if possible
-                var isHardLink = false;
-                if (!string.IsNullOrEmpty(file.Hash))
-                {
-                    var materialized = false;
-                    try
-                    {
-                        var linkResult = await fileOperations.LinkFromCasAsync(
-                            file.Hash,
-                            targetPath,
-                            useHardLink: true,
-                            contentType: null,
-                            cancellationToken: cancellationToken);
-
-                        if (linkResult)
-                        {
-                            isHardLink = true;
-                            materialized = true;
-                            logger.LogDebug("[UserData] Created hard link for {Path}", targetPath);
-                        }
-                        else
-                        {
-                            // Fall back to copy
-                            var copyResult = await fileOperations.CopyFromCasAsync(file.Hash, targetPath, contentType: null, cancellationToken: cancellationToken);
-                            if (copyResult)
-                            {
-                                materialized = true;
-                                logger.LogDebug("[UserData] Copied file for {Path} (hard link failed)", targetPath);
-                            }
-                        }
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        if (wasOverwritten && !string.IsNullOrEmpty(backupPath) && File.Exists(backupPath))
-                        {
-                            try
-                            {
-                                File.Copy(backupPath, targetPath, overwrite: true);
-                                File.Delete(backupPath);
-                            }
-                            catch (Exception ex)
-                            {
-                                logger.LogWarning(ex, "[UserData] Failed to restore backup from {BackupPath} to {TargetPath} on canceled install", backupPath, targetPath);
-                            }
-                        }
-
-                        await CleanupInstalledFilesAsync(userDataManifest, CancellationToken.None);
-                        throw;
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogError(ex, "[UserData] Exception while materializing file {Path} from CAS", targetPath);
-                    }
-
-                    if (!materialized)
-                    {
-                        logger.LogError("[UserData] Failed to install file {Path}; aborting installation", targetPath);
-                        if (wasOverwritten && !string.IsNullOrEmpty(backupPath) && File.Exists(backupPath))
-                        {
-                            try
-                            {
-                                File.Copy(backupPath, targetPath, overwrite: true);
-                                File.Delete(backupPath);
-                            }
-                            catch (Exception ex)
-                            {
-                                logger.LogWarning(ex, "[UserData] Failed to restore backup from {BackupPath} to {TargetPath} on aborted install", backupPath, targetPath);
-                            }
-                        }
-
-                        await CleanupInstalledFilesAsync(userDataManifest, CancellationToken.None);
-                        return OperationResult<UserDataManifest>.CreateFailure($"Failed to install file '{targetPath}'. Installation aborted.");
-                    }
-                }
-                else
-                {
-                    logger.LogError("[UserData] File {Path} has no hash; aborting installation", file.RelativePath);
-                    if (wasOverwritten && !string.IsNullOrEmpty(backupPath) && File.Exists(backupPath))
-                    {
-                        try
-                        {
-                            File.Copy(backupPath, targetPath, overwrite: true);
-                            File.Delete(backupPath);
-                        }
-                        catch (Exception ex)
-                        {
-                            logger.LogWarning(ex, "[UserData] Failed to restore backup from {BackupPath} to {TargetPath} on aborted install", backupPath, targetPath);
-                        }
-                    }
-
-                    await CleanupInstalledFilesAsync(userDataManifest, CancellationToken.None);
-                    return OperationResult<UserDataManifest>.CreateFailure($"File '{file.RelativePath}' has no hash. Installation aborted.");
-                }
-
-                var entry = new UserDataFileEntry
-                {
-                    RelativePath = file.RelativePath,
-                    AbsolutePath = targetPath,
-                    SourceHash = file.Hash,
-                    FileSize = file.Size,
-                    InstallTarget = file.InstallTarget,
-                    WasOverwritten = wasOverwritten,
-                    BackupPath = backupPath,
-                    InstalledAt = DateTime.UtcNow,
-                    IsHardLink = isHardLink,
-                    CasHash = file.Hash,
-                };
-
+                var entry = installResult.Data;
                 userDataManifest.InstalledFiles.Add(entry);
-                totalSize += file.Size;
+                totalSize += entry.FileSize;
             }
 
             userDataManifest.TotalSizeBytes = totalSize;
@@ -380,149 +232,10 @@ public class UserDataTrackerService(
                     continue; // Already active
                 }
 
-                var filesActivatedInThisManifest = new List<UserDataFileEntry>();
-                var supersededBackups = new List<string>();
-                var activationFailed = false;
-                string? failureReason = null;
-
-                try
+                var activationResult = await ActivateSingleManifestAsync(manifest, profileId, cancellationToken);
+                if (!activationResult.Success)
                 {
-                    // Re-create hard links for all files
-                    foreach (var file in manifest.InstalledFiles)
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-
-                        if (File.Exists(file.AbsolutePath))
-                        {
-                            if (await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken))
-                            {
-                                continue; // File already exists and matches hash
-                            }
-
-                            // Existing file doesn't match our CAS hash (e.g. user modified it while inactive or restored backup)
-                            // Always create a fresh safety backup of the latest file content on disk before replacing
-                            var oldBackup = file.BackupPath;
-                            var backupPath = await BackupExistingFileAsync(file.AbsolutePath, manifest.TargetGame, cancellationToken);
-                            if (string.IsNullOrEmpty(backupPath))
-                            {
-                                logger.LogError("[UserData] Failed to create safety backup for {Path} during activation", file.AbsolutePath);
-                                failureReason = $"Failed to create safety backup for '{file.AbsolutePath}' during activation";
-                                activationFailed = true;
-                                break;
-                            }
-
-                            if (!string.IsNullOrEmpty(oldBackup) && !string.Equals(oldBackup, backupPath, StringComparison.OrdinalIgnoreCase))
-                            {
-                                supersededBackups.Add(oldBackup);
-                            }
-
-                            file.BackupPath = backupPath;
-                            file.WasOverwritten = true;
-
-                            FileOperationsService.DeleteFileIfExists(file.AbsolutePath);
-                        }
-
-                        filesActivatedInThisManifest.Add(file);
-
-                        if (string.IsNullOrEmpty(file.CasHash))
-                        {
-                            logger.LogError("[UserData] File {Path} has no CAS hash; cannot activate", file.AbsolutePath);
-                            failureReason = $"File '{file.AbsolutePath}' has no CAS hash";
-                            activationFailed = true;
-                            break;
-                        }
-
-                        var targetDir = Path.GetDirectoryName(file.AbsolutePath);
-                        if (!string.IsNullOrEmpty(targetDir))
-                        {
-                            Directory.CreateDirectory(targetDir);
-                        }
-
-                        var fileMaterialized = false;
-                        try
-                        {
-                            var linkResult = await fileOperations.LinkFromCasAsync(
-                                file.CasHash,
-                                file.AbsolutePath,
-                                useHardLink: true,
-                                contentType: null,
-                                cancellationToken: cancellationToken);
-
-                            if (linkResult)
-                            {
-                                fileMaterialized = true;
-                            }
-                            else
-                            {
-                                // Fall back to copy
-                                var copyResult = await fileOperations.CopyFromCasAsync(file.CasHash, file.AbsolutePath, contentType: null, cancellationToken: cancellationToken);
-                                if (copyResult)
-                                {
-                                    fileMaterialized = true;
-                                }
-                            }
-                        }
-                        catch (Exception ex) when (ex is not OperationCanceledException)
-                        {
-                            logger.LogError(ex, "[UserData] Exception while materializing file {Path} during activation", file.AbsolutePath);
-                        }
-
-                        if (!fileMaterialized)
-                        {
-                            logger.LogError("[UserData] Failed to materialize file {Path} during activation", file.AbsolutePath);
-                            failureReason = $"Failed to materialize file '{file.AbsolutePath}' during activation";
-                            activationFailed = true;
-                            break;
-                        }
-                    }
-
-                    if (activationFailed)
-                    {
-                        // Roll back files activated during this attempt and restore backups
-                        var userDataBasePath = GetUserDataBasePath(manifest.TargetGame);
-                        RollbackActivatedFiles(filesActivatedInThisManifest, userDataBasePath);
-
-                        // Save manifest state to preserve any backup mappings created
-                        manifest.IsActive = false;
-                        await SaveUserDataManifestAsync(manifest, CancellationToken.None);
-                        CleanupSupersededBackups(supersededBackups, logger);
-
-                        return OperationResult<bool>.CreateFailure(failureReason ?? "Activation failed");
-                    }
-
-                    // Update manifest state
-                    manifest.IsActive = true;
-                    await SaveUserDataManifestAsync(manifest, cancellationToken);
-                    CleanupSupersededBackups(supersededBackups, logger);
-                }
-                catch (OperationCanceledException)
-                {
-                    var userDataBasePath = GetUserDataBasePath(manifest.TargetGame);
-                    RollbackActivatedFiles(filesActivatedInThisManifest, userDataBasePath);
-
-                    manifest.IsActive = false;
-                    await SaveUserDataManifestAsync(manifest, CancellationToken.None);
-                    CleanupSupersededBackups(supersededBackups, logger);
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "[UserData] Failed during activation of manifest {ManifestId} for profile {ProfileId}; rolling back", manifest.ManifestId, profileId);
-                    var userDataBasePath = GetUserDataBasePath(manifest.TargetGame);
-                    RollbackActivatedFiles(filesActivatedInThisManifest, userDataBasePath);
-
-                    manifest.IsActive = false;
-                    try
-                    {
-                        await SaveUserDataManifestAsync(manifest, CancellationToken.None);
-                    }
-                    catch (Exception saveEx)
-                    {
-                        logger.LogError(saveEx, "[UserData] Failed to persist rolled-back manifest state for {ManifestId}", manifest.ManifestId);
-                    }
-
-                    CleanupSupersededBackups(supersededBackups, logger);
-                    throw;
+                    return activationResult;
                 }
             }
 
@@ -967,8 +680,7 @@ public class UserDataTrackerService(
     }
 
     /// <summary>
-    /// Strips a leading directory name from a path if present.
-    /// Handles both forward and back slashes.
+    /// Strips a leading directory name from a relative path if present.
     /// </summary>
     /// <param name="path">The path to process.</param>
     /// <param name="directoryName">The directory name to strip (without slashes).</param>
@@ -985,6 +697,22 @@ public class UserDataTrackerService(
         }
 
         return path;
+    }
+
+    private static void RestoreBackupQuietly(string? backupPath, string targetPath, bool wasOverwritten)
+    {
+        if (wasOverwritten && !string.IsNullOrEmpty(backupPath) && File.Exists(backupPath))
+        {
+            try
+            {
+                File.Copy(backupPath, targetPath, overwrite: true);
+                File.Delete(backupPath);
+            }
+            catch
+            {
+                // Best-effort safety restore
+            }
+        }
     }
 
     private static void CleanupSupersededBackups(IReadOnlyList<string> supersededBackups, ILogger logger)
@@ -1043,6 +771,273 @@ public class UserDataTrackerService(
         {
             // Ignore cleanup errors
         }
+    }
+
+    private async Task<OperationResult<bool>> ActivateSingleManifestAsync(
+        UserDataManifest manifest,
+        string profileId,
+        CancellationToken cancellationToken)
+    {
+        var filesActivatedInThisManifest = new List<UserDataFileEntry>();
+        var supersededBackups = new List<string>();
+
+        try
+        {
+            foreach (var file in manifest.InstalledFiles)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var fileResult = await ActivateSingleFileAsync(file, manifest, filesActivatedInThisManifest, supersededBackups, cancellationToken);
+                if (!fileResult.Success)
+                {
+                    var userDataBasePath = GetUserDataBasePath(manifest.TargetGame);
+                    RollbackActivatedFiles(filesActivatedInThisManifest, userDataBasePath);
+
+                    manifest.IsActive = false;
+                    await SaveUserDataManifestAsync(manifest, CancellationToken.None);
+                    CleanupSupersededBackups(supersededBackups, logger);
+
+                    return fileResult;
+                }
+            }
+
+            manifest.IsActive = true;
+            await SaveUserDataManifestAsync(manifest, cancellationToken);
+            CleanupSupersededBackups(supersededBackups, logger);
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (OperationCanceledException)
+        {
+            var userDataBasePath = GetUserDataBasePath(manifest.TargetGame);
+            RollbackActivatedFiles(filesActivatedInThisManifest, userDataBasePath);
+
+            manifest.IsActive = false;
+            await SaveUserDataManifestAsync(manifest, CancellationToken.None);
+            CleanupSupersededBackups(supersededBackups, logger);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[UserData] Failed during activation of manifest {ManifestId} for profile {ProfileId}; rolling back", manifest.ManifestId, profileId);
+            var userDataBasePath = GetUserDataBasePath(manifest.TargetGame);
+            RollbackActivatedFiles(filesActivatedInThisManifest, userDataBasePath);
+
+            manifest.IsActive = false;
+            try
+            {
+                await SaveUserDataManifestAsync(manifest, CancellationToken.None);
+            }
+            catch (Exception saveEx)
+            {
+                logger.LogError(saveEx, "[UserData] Failed to persist rolled-back manifest state for {ManifestId}", manifest.ManifestId);
+            }
+
+            CleanupSupersededBackups(supersededBackups, logger);
+            throw;
+        }
+    }
+
+    private async Task<OperationResult<bool>> ActivateSingleFileAsync(
+        UserDataFileEntry file,
+        UserDataManifest manifest,
+        List<UserDataFileEntry> filesActivatedInThisManifest,
+        List<string> supersededBackups,
+        CancellationToken cancellationToken)
+    {
+        if (File.Exists(file.AbsolutePath))
+        {
+            if (await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken))
+            {
+                return OperationResult<bool>.CreateSuccess(true);
+            }
+
+            var oldBackup = file.BackupPath;
+            var backupPath = await BackupExistingFileAsync(file.AbsolutePath, manifest.TargetGame, cancellationToken);
+            if (string.IsNullOrEmpty(backupPath))
+            {
+                logger.LogError("[UserData] Failed to create safety backup for {Path} during activation", file.AbsolutePath);
+                return OperationResult<bool>.CreateFailure($"Failed to create safety backup for '{file.AbsolutePath}' during activation");
+            }
+
+            if (!string.IsNullOrEmpty(oldBackup) && !string.Equals(oldBackup, backupPath, StringComparison.OrdinalIgnoreCase))
+            {
+                supersededBackups.Add(oldBackup);
+            }
+
+            file.BackupPath = backupPath;
+            file.WasOverwritten = true;
+
+            FileOperationsService.DeleteFileIfExists(file.AbsolutePath);
+        }
+
+        filesActivatedInThisManifest.Add(file);
+
+        if (string.IsNullOrEmpty(file.CasHash))
+        {
+            logger.LogError("[UserData] File {Path} has no CAS hash; cannot activate", file.AbsolutePath);
+            return OperationResult<bool>.CreateFailure($"File '{file.AbsolutePath}' has no CAS hash");
+        }
+
+        var targetDir = Path.GetDirectoryName(file.AbsolutePath);
+        if (!string.IsNullOrEmpty(targetDir))
+        {
+            Directory.CreateDirectory(targetDir);
+        }
+
+        var fileMaterialized = false;
+        try
+        {
+            var linkResult = await fileOperations.LinkFromCasAsync(
+                file.CasHash,
+                file.AbsolutePath,
+                useHardLink: true,
+                contentType: null,
+                cancellationToken: cancellationToken);
+
+            if (linkResult)
+            {
+                fileMaterialized = true;
+            }
+            else
+            {
+                var copyResult = await fileOperations.CopyFromCasAsync(file.CasHash, file.AbsolutePath, contentType: null, cancellationToken: cancellationToken);
+                if (copyResult)
+                {
+                    fileMaterialized = true;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "[UserData] Exception while materializing file {Path} during activation", file.AbsolutePath);
+        }
+
+        if (!fileMaterialized)
+        {
+            logger.LogError("[UserData] Failed to materialize file {Path} during activation", file.AbsolutePath);
+            return OperationResult<bool>.CreateFailure($"Failed to materialize file '{file.AbsolutePath}' during activation");
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private async Task<OperationResult<UserDataFileEntry>> InstallSingleUserDataFileAsync(
+        ManifestFile file,
+        string targetPath,
+        GameType targetGame,
+        string installationKey,
+        CancellationToken cancellationToken)
+    {
+        var conflictResult = await CheckFileConflictAsync(targetPath, cancellationToken);
+        if (!conflictResult.Success)
+        {
+            logger.LogError("[UserData] Failed to check file conflict for {Path}: {Error}; aborting installation", targetPath, conflictResult.FirstError);
+            return OperationResult<UserDataFileEntry>.CreateFailure($"Failed to check file conflict for '{targetPath}': {conflictResult.FirstError}");
+        }
+
+        if (!string.IsNullOrEmpty(conflictResult.Data) && conflictResult.Data != installationKey)
+        {
+            logger.LogError("[UserData] File conflict with installation {Key}: {Path}; aborting installation", conflictResult.Data, targetPath);
+            return OperationResult<UserDataFileEntry>.CreateFailure($"File '{targetPath}' is already managed by installation '{conflictResult.Data}'. Installation aborted.");
+        }
+
+        var wasOverwritten = false;
+        string? backupPath = null;
+
+        if (File.Exists(targetPath))
+        {
+            if (string.IsNullOrEmpty(conflictResult.Data))
+            {
+                backupPath = await BackupExistingFileAsync(targetPath, targetGame, cancellationToken);
+                if (string.IsNullOrEmpty(backupPath))
+                {
+                    logger.LogError("[UserData] Failed to create safety backup for user file {Path}; aborting installation to prevent data loss", targetPath);
+                    return OperationResult<UserDataFileEntry>.CreateFailure($"Failed to create safety backup for '{targetPath}'. Installation aborted.");
+                }
+
+                wasOverwritten = true;
+                logger.LogInformation("[UserData] Backed up existing user file: {Path} -> {Backup}", targetPath, backupPath);
+            }
+
+            FileOperationsService.DeleteFileIfExists(targetPath);
+        }
+
+        var targetDir = Path.GetDirectoryName(targetPath);
+        if (!string.IsNullOrEmpty(targetDir))
+        {
+            Directory.CreateDirectory(targetDir);
+        }
+
+        if (string.IsNullOrEmpty(file.Hash))
+        {
+            logger.LogError("[UserData] File {Path} has no hash; aborting installation", file.RelativePath);
+            RestoreBackupQuietly(backupPath, targetPath, wasOverwritten);
+            return OperationResult<UserDataFileEntry>.CreateFailure($"File '{file.RelativePath}' has no hash. Installation aborted.");
+        }
+
+        var (materialized, isHardLink) = await MaterializeFileFromCasAsync(file.Hash, targetPath, backupPath, wasOverwritten, cancellationToken);
+        if (!materialized)
+        {
+            logger.LogError("[UserData] Failed to install file {Path}; aborting installation", targetPath);
+            RestoreBackupQuietly(backupPath, targetPath, wasOverwritten);
+            return OperationResult<UserDataFileEntry>.CreateFailure($"Failed to install file '{targetPath}'. Installation aborted.");
+        }
+
+        return OperationResult<UserDataFileEntry>.CreateSuccess(new UserDataFileEntry
+        {
+            RelativePath = file.RelativePath,
+            AbsolutePath = targetPath,
+            SourceHash = file.Hash,
+            FileSize = file.Size,
+            InstallTarget = file.InstallTarget,
+            WasOverwritten = wasOverwritten,
+            BackupPath = backupPath,
+            InstalledAt = DateTime.UtcNow,
+            IsHardLink = isHardLink,
+            CasHash = file.Hash,
+        });
+    }
+
+    private async Task<(bool Materialized, bool IsHardLink)> MaterializeFileFromCasAsync(
+        string hash,
+        string targetPath,
+        string? backupPath,
+        bool wasOverwritten,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var linkResult = await fileOperations.LinkFromCasAsync(
+                hash,
+                targetPath,
+                useHardLink: true,
+                contentType: null,
+                cancellationToken: cancellationToken);
+
+            if (linkResult)
+            {
+                logger.LogDebug("[UserData] Created hard link for {Path}", targetPath);
+                return (true, true);
+            }
+
+            var copyResult = await fileOperations.CopyFromCasAsync(hash, targetPath, contentType: null, cancellationToken: cancellationToken);
+            if (copyResult)
+            {
+                logger.LogDebug("[UserData] Copied file for {Path} (hard link failed)", targetPath);
+                return (true, false);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            RestoreBackupQuietly(backupPath, targetPath, wasOverwritten);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[UserData] Exception while materializing file {Path} from CAS", targetPath);
+        }
+
+        return (false, false);
     }
 
     private void RollbackActivatedFiles(IReadOnlyList<UserDataFileEntry> filesActivated, string userDataBasePath)

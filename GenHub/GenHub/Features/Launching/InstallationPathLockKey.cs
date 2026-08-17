@@ -46,7 +46,20 @@ internal static class InstallationPathLockKey
                 continue;
             }
 
-            var resolvedTarget = Directory.ResolveLinkTarget(currentPath, returnFinalTarget: true);
+            FileSystemInfo? resolvedTarget = null;
+            try
+            {
+                resolvedTarget = Directory.ResolveLinkTarget(currentPath, returnFinalTarget: true);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Directory permissions prevent inspecting reparse point target
+            }
+            catch (IOException)
+            {
+                // Path or I/O error inspecting reparse point target
+            }
+
             if (resolvedTarget is not null)
             {
                 currentPath = ResolvePathComponents(Path.GetFullPath(resolvedTarget.FullName));

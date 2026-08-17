@@ -182,19 +182,13 @@ public class LaunchRegistry : ILaunchRegistry
         }
         catch (UnauthorizedAccessException uaex)
         {
+            // Do not mark process terminated on inspection error; preserve it as active so safe teardown guards hold
             _logger.LogWarning(uaex, "Access denied checking process status for launch {LaunchId}", launchId);
-            launchInfo.TerminatedAt = DateTime.UtcNow;
-            launchInfo.ProcessInfo.IsRunning = false;
-
-            // NOTE: Workspace is NOT cleaned up on error - it persists
         }
         catch (Exception ex)
         {
+            // Do not mark process terminated on inspection error; preserve it as active so safe teardown guards hold
             _logger.LogWarning(ex, "Failed to check process status for launch {LaunchId}", launchId);
-            launchInfo.TerminatedAt = DateTime.UtcNow;
-            launchInfo.ProcessInfo.IsRunning = false;
-
-            // NOTE: Workspace is NOT cleaned up on error - it persists
         }
     }
 
