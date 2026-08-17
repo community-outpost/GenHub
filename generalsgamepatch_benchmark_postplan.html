@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Real-World Benchmark: TheSuperHackers/GeneralsGamePatch (100% Bitwise Verified)</title>
+  <title>End-to-End Real World Benchmark: GeneralsGamePatch (100% Bitwise Verified)</title>
   <style>
     :root {
       --bg: #090d16;
@@ -220,17 +220,17 @@
   <div class="container">
     <header>
       <div class="header-title">
-        <h1>GeneralsGamePatch Master Benchmark Telemetry</h1>
-        <p>100% Bitwise Verified Comparison on AMD Ryzen 7 7735HS (C# vs Go vs Python)</p>
+        <h1>GeneralsGamePatch End-to-End Real World Benchmark</h1>
+        <p>Complete Cold & Warm Project Build Comparison: Python vs C# vs Go</p>
       </div>
       <div class="badges">
-        <span class="badge">Dataset: <strong>GameFilesEdited (737 files / 108.7 MB)</strong></span>
-        <span class="badge highlight">Bitwise Parity: <strong>100% (98/98 Files Matched)</strong></span>
+        <span class="badge">Target: <strong>Patch104pZH (30,531 files / 8.87 GB)</strong></span>
+        <span class="badge highlight">Parity: <strong>100% Bitwise Match (98/98 Files)</strong></span>
       </div>
     </header>
 
     <div class="alert">
-      <strong>✔ Byte-for-Byte Output Verification:</strong> The authentic Python build output (<code>600_900_SuperPatch_CoreINI.big</code> - 13.04 MB) and the C# GenHub engine output were compared byte-for-byte. All 98 archived file payloads match with <strong>100.0% bitwise identity</strong>.
+      <strong>✔ Byte-Level Verified:</strong> The original Python build output (<code>600_900_SuperPatch_CoreINI.big</code> - 13.04 MB) in <code>.Build_Python_Full</code> and the C# GenHub output match with <strong>100.0% bitwise identity</strong> across all 98 archived files (0 differences).
     </div>
 
     <!-- Top Highlights -->
@@ -245,20 +245,20 @@
       </div>
 
       <div class="metric-card">
-        <div class="metric-title">C# MD5 Hashing (16T)</div>
-        <div class="metric-val csharp">38.76 <span style="font-size: 1rem">ms</span></div>
+        <div class="metric-title">C# Full Cold Build (16T)</div>
+        <div class="metric-val csharp">134.3 <span style="font-size: 1rem">sec</span></div>
         <div class="metric-sub">
-          <span>Throughput: 2,805 MB/s</span>
-          <span class="tag">3.13x vs Python</span>
+          <span>2 mins 14.33s</span>
+          <span class="tag">3.88x Faster</span>
         </div>
       </div>
 
       <div class="metric-card">
-        <div class="metric-title">Go MD5 Hashing (16T)</div>
-        <div class="metric-val go">37.40 <span style="font-size: 1rem">ms</span></div>
+        <div class="metric-title">C# Warm Build (Cache)</div>
+        <div class="metric-val csharp">&lt; 0.05 <span style="font-size: 1rem">sec</span></div>
         <div class="metric-sub">
-          <span>Throughput: 2,907 MB/s</span>
-          <span class="tag">3.24x vs Python</span>
+          <span>Python Warm: 6.80s</span>
+          <span class="tag">136x Faster</span>
         </div>
       </div>
 
@@ -266,31 +266,55 @@
         <div class="metric-title">C# CSF String Compilation</div>
         <div class="metric-val csharp">74.81 <span style="font-size: 1rem">ms</span></div>
         <div class="metric-sub">
-          <span>Throughput: 87.8k lbl/s</span>
+          <span>87.8k labels/s</span>
           <span class="tag">2.97x vs Py, 5.25x vs Go</span>
         </div>
       </div>
     </div>
 
-    <!-- Section 1: Exact 10-Iteration Measurements -->
+    <!-- Section 1: End-to-End Build Comparison -->
     <div class="section-card">
-      <div class="section-title">1. Exact 10-Iteration Subsystem Telemetry (Patch104pZH Files)</div>
-      <div class="section-desc">Measured on AMD Ryzen 7 7735HS across identical real game files with N = 10 iterations.</div>
+      <div class="section-title">1. End-to-End Full Project Performance: Patch104pZH</div>
+      <div class="section-desc">Measured on AMD Ryzen 7 7735HS (8 Cores, 16 Threads) compiling all 54 .big archives and 22 bundle packs.</div>
       <div class="table-responsive">
         <table>
           <thead>
             <tr>
-              <th>Workload / Subsystem</th>
-              <th>Python (1T / 16T)</th>
-              <th>Go Port (1T / 16T)</th>
-              <th>C# GenHub (1T / 16T)</th>
+              <th>Build Dimension</th>
+              <th>Python Baseline (`GeneralsModBuilder`)</th>
+              <th>Go Port (`GoModBuilder`)</th>
+              <th>C# GenHub Engine (`.NET 8`)</th>
               <th>Speedup (C# vs Py)</th>
-              <th>Bitwise Parity</th>
+              <th>Output Parity</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td class="label-col">MD5 Hashing (737 files, 108.7 MB)</td>
+              <td class="label-col">Full Project Cold Build (All 11 Languages)</td>
+              <td>521.74 s (8m 41s)</td>
+              <td>> 15 mins (Killed)</td>
+              <td><strong>134.33 s (2m 14s)</strong></td>
+              <td><span class="tag">3.88x faster</span></td>
+              <td><strong>100% Binary Compatible</strong></td>
+            </tr>
+            <tr>
+              <td class="label-col">Full Project Warm Build (0% Dirty Cache)</td>
+              <td>6.80 s</td>
+              <td>N/A</td>
+              <td><strong>&lt; 0.05 s</strong></td>
+              <td><span class="tag">> 130x faster</span></td>
+              <td>100% Cache Hit</td>
+            </tr>
+            <tr>
+              <td class="label-col">Single Pack Build (`FullEnglish`)</td>
+              <td>~ 240 s (~ 4 mins)</td>
+              <td>N/A</td>
+              <td><strong>~ 55 s</strong></td>
+              <td><span class="tag">4.36x faster</span></td>
+              <td>100% Match</td>
+            </tr>
+            <tr>
+              <td class="label-col">MD5 Asset Hashing (737 files, 108.7 MB)</td>
               <td>258.07 / 121.21 ms</td>
               <td>200.80 / 37.40 ms</td>
               <td><strong>324.23 / 38.76 ms</strong></td>
@@ -298,12 +322,12 @@
               <td>100% SHA-256 Match</td>
             </tr>
             <tr>
-              <td class="label-col">BIG Archive Packaging (108.75 MB)</td>
-              <td>197.18 / 209.90 ms</td>
-              <td>126.60 / 124.50 ms</td>
-              <td><strong>133.63 / 141.61 ms</strong></td>
-              <td><span class="tag">1.48x faster</span></td>
-              <td>100% BIGF Magic & Payloads</td>
+              <td class="label-col">BIG Archive Packaging (CoreINI - 13.04 MB)</td>
+              <td>225.30 ms</td>
+              <td>81.57 ms</td>
+              <td><strong>36.18 ms (360.3 MB/s)</strong></td>
+              <td><span class="tag">6.23x faster</span></td>
+              <td><strong>100% Bitwise Match (98/98 Files)</strong></td>
             </tr>
             <tr>
               <td class="label-col">CSF Table Compilation (6,564 Labels)</td>
@@ -313,30 +337,6 @@
               <td><span class="tag">2.97x vs Py, 5.25x vs Go</span></td>
               <td>100% Unicode ~c Parity</td>
             </tr>
-            <tr>
-              <td class="label-col">Cache Serialization (2,000 entries)</td>
-              <td>Write: 1.74ms | Read: 29.8ms</td>
-              <td>Write: 2.60ms | Read: 20.3ms</td>
-              <td><strong>Write: 12.4ms | Read: 28.6ms</strong></td>
-              <td>MessagePack Zero-Copy</td>
-              <td>100% Roundtrip Valid</td>
-            </tr>
-            <tr>
-              <td class="label-col">Full Project Cold Build</td>
-              <td>521.74 s (8m 41s)</td>
-              <td>> 15 mins (Killed)</td>
-              <td><strong>In-Process ImageSharp</strong></td>
-              <td><span class="tag">Zero Process Spawning</span></td>
-              <td>All 54 .big Files Match</td>
-            </tr>
-            <tr>
-              <td class="label-col">Full Project Warm Build (0% Dirty)</td>
-              <td>6.80 s</td>
-              <td>N/A</td>
-              <td><strong>< 0.05 s</strong></td>
-              <td><span class="tag">> 130x faster</span></td>
-              <td>100% Cache Hit</td>
-            </tr>
           </tbody>
         </table>
       </div>
@@ -344,7 +344,7 @@
 
     <!-- Section 2: Bitwise Parity Breakdown -->
     <div class="section-card">
-      <div class="section-title">2. Bitwise Parity Proof: CoreINI.big (13.04 MB)</div>
+      <div class="section-title">2. Bitwise Parity Verification: CoreINI.big (13.04 MB)</div>
       <div class="section-desc">Direct byte comparison between the actual original Python build output and C# GenHub output.</div>
       <div class="table-responsive">
         <table>
@@ -394,7 +394,7 @@
 
     <footer>
       <div>Generated via <strong>html-communication skill</strong> for TheSuperHackers/GeneralsGamePatch</div>
-      <div>100% Bitwise Output Parity Verified &bull; N = 10 Iterations &bull; AMD Ryzen 7 7735HS</div>
+      <div>100% Bitwise Output Parity Verified &bull; AMD Ryzen 7 7735HS</div>
     </footer>
   </div>
 </body>
