@@ -194,8 +194,10 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
     /// </summary>
     private Image<Rgba32> BuildImageFromPsd(string sourcePath)
     {
-        using var magickImage = new MagickImage(sourcePath);
-        magickImage.Format = MagickFormat.Png;
+        using var magickImage = new MagickImage(sourcePath)
+        {
+            Format = MagickFormat.Png,
+        };
         using var ms = new MemoryStream();
         magickImage.Write(ms);
         ms.Position = 0;

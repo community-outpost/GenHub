@@ -491,6 +491,22 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             return null;
         }
 
+        var configFiles = await DiscoverProjectConfigFilesAsync(projectDir, cancellationToken).ConfigureAwait(false);
+        if (configFiles.Count == 0)
+        {
+            return null;
+        }
+
+        var config = await LoadAndMergeConfigurationsAsync(configFiles, cancellationToken).ConfigureAwait(false);
+        await ApplyModFoldersOverrideAsync(config, projectDir, cancellationToken).ConfigureAwait(false);
+
+        config = await ResolveWildcardsAsync(config, cancellationToken).ConfigureAwait(false);
+        NormalizePaths(config);
+        return config;
+    }
+
+    private async Task<List<string>> DiscoverProjectConfigFilesAsync(string projectDir, CancellationToken cancellationToken)
+    {
         var configFiles = new List<string>();
 
         // 1. Check ModJsonFiles.json master list
@@ -585,57 +601,54 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             }
         }
 
-        if (configFiles.Count == 0)
-        {
-            return null;
-        }
+        return configFiles;
+    }
 
-        var config = await LoadAndMergeConfigurationsAsync(configFiles, cancellationToken).ConfigureAwait(false);
-
-        // 4. Check ModFolders.json override
+    private async Task ApplyModFoldersOverrideAsync(BuildConfiguration config, string projectDir, CancellationToken cancellationToken)
+    {
         var modFoldersPath = Path.Combine(projectDir, "ModFolders.json");
         if (!File.Exists(modFoldersPath))
         {
             modFoldersPath = Path.Combine(projectDir, ModBuilderConstants.ConfigDir, "ModFolders.json");
         }
 
-        if (File.Exists(modFoldersPath))
+        if (!File.Exists(modFoldersPath))
         {
-            try
-            {
-                var jsonContent = await File.ReadAllTextAsync(modFoldersPath, cancellationToken).ConfigureAwait(false);
-                var foldersConfig = JsonSerializer.Deserialize<PythonModFoldersConfig>(jsonContent, _jsonOptions);
-                if (foldersConfig?.Folders != null)
-                {
-                    if (!string.IsNullOrEmpty(foldersConfig.Folders.BuildDir))
-                    {
-                        config.Folders.AbsBuildDir = Path.IsPathRooted(foldersConfig.Folders.BuildDir)
-                            ? foldersConfig.Folders.BuildDir
-                            : Path.Combine(projectDir, foldersConfig.Folders.BuildDir);
-                    }
-
-                    if (!string.IsNullOrEmpty(foldersConfig.Folders.ReleaseDir))
-                    {
-                        config.Folders.AbsReleaseDir = Path.IsPathRooted(foldersConfig.Folders.ReleaseDir)
-                            ? foldersConfig.Folders.ReleaseDir
-                            : Path.Combine(projectDir, foldersConfig.Folders.ReleaseDir);
-                    }
-
-                    if (!string.IsNullOrEmpty(foldersConfig.Folders.GameDir))
-                    {
-                        config.Folders.AbsGameDir = foldersConfig.Folders.GameDir;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to parse ModFolders.json at {Path}", modFoldersPath);
-            }
+            return;
         }
 
-        config = await ResolveWildcardsAsync(config, cancellationToken).ConfigureAwait(false);
-        NormalizePaths(config);
-        return config;
+        try
+        {
+            var jsonContent = await File.ReadAllTextAsync(modFoldersPath, cancellationToken).ConfigureAwait(false);
+            var foldersConfig = JsonSerializer.Deserialize<PythonModFoldersConfig>(jsonContent, _jsonOptions);
+            if (foldersConfig?.Folders == null)
+            {
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(foldersConfig.Folders.BuildDir))
+            {
+                config.Folders.AbsBuildDir = Path.IsPathRooted(foldersConfig.Folders.BuildDir)
+                    ? foldersConfig.Folders.BuildDir
+                    : Path.Combine(projectDir, foldersConfig.Folders.BuildDir);
+            }
+
+            if (!string.IsNullOrEmpty(foldersConfig.Folders.ReleaseDir))
+            {
+                config.Folders.AbsReleaseDir = Path.IsPathRooted(foldersConfig.Folders.ReleaseDir)
+                    ? foldersConfig.Folders.ReleaseDir
+                    : Path.Combine(projectDir, foldersConfig.Folders.ReleaseDir);
+            }
+
+            if (!string.IsNullOrEmpty(foldersConfig.Folders.GameDir))
+            {
+                config.Folders.AbsGameDir = foldersConfig.Folders.GameDir;
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to parse ModFolders.json at {Path}", modFoldersPath);
+        }
     }
 
     /// <summary>
@@ -779,134 +792,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         {
             foreach (var pythonItem in pythonConfig.Items)
             {
-                var item = new BundleItem
-                {
-                    Name = pythonItem.Name,
-                    NamePrefix = string.IsNullOrEmpty(pythonItem.NamePrefix) ? pythonConfig.ItemsPrefix : pythonItem.NamePrefix,
-                    NameSuffix = string.IsNullOrEmpty(pythonItem.NameSuffix) ? pythonConfig.ItemsSuffix : pythonItem.NameSuffix,
-                    IsBig = pythonItem.Big,
-                    BigSuffix = pythonItem.BigSuffix,
-                    SetGameLanguageOnInstall = pythonItem.SetGameLanguageOnInstall,
-                };
-
-                if (pythonItem.Files != null)
-                {
-                    foreach (var fileGroup in pythonItem.Files)
-                    {
-                        var sourceParent = Path.IsPathRooted(fileGroup.SourceParent)
-                            ? fileGroup.SourceParent
-                            : Path.Combine(projectDir, fileGroup.SourceParent);
-
-                        if (fileGroup.SourceTargetList != null)
-                        {
-                            foreach (var pair in fileGroup.SourceTargetList)
-                            {
-                                var bundleFile = new BundleFile
-                                {
-                                    AbsSourceParent = sourceParent,
-                                    AbsSourceFile = pair.Source,
-                                    RelTargetFile = pair.Target,
-                                    Params = fileGroup.Params,
-                                    ExcludeMarkersList = fileGroup.ExcludeMarkersList,
-                                };
-
-                                if (fileGroup.RegistryList is { Count: > 0 })
-                                {
-                                    var registryPaths = fileGroup.RegistryList.Select(r =>
-                                        Path.IsPathRooted(r) ? r : Path.Combine(projectDir, r)).ToList();
-                                    bundleFile.RegistryDef = new BundleRegistryDefinition(registryPaths);
-                                }
-
-                                item.Files.Add(bundleFile);
-                            }
-                        }
-
-                        if (fileGroup.SourceList != null)
-                        {
-                            foreach (var source in fileGroup.SourceList)
-                            {
-                                var bundleFile = new BundleFile
-                                {
-                                    AbsSourceParent = sourceParent,
-                                    AbsSourceFile = source,
-                                    RelTargetFile = source,
-                                    Params = fileGroup.Params,
-                                    ExcludeMarkersList = fileGroup.ExcludeMarkersList,
-                                };
-
-                                if (fileGroup.RegistryList is { Count: > 0 })
-                                {
-                                    var registryPaths = fileGroup.RegistryList.Select(r =>
-                                        Path.IsPathRooted(r) ? r : Path.Combine(projectDir, r)).ToList();
-                                    bundleFile.RegistryDef = new BundleRegistryDefinition(registryPaths);
-                                }
-
-                                item.Files.Add(bundleFile);
-                            }
-                        }
-
-                        if (!string.IsNullOrEmpty(fileGroup.Source) && !string.IsNullOrEmpty(fileGroup.Target))
-                        {
-                            var bundleFile = new BundleFile
-                            {
-                                AbsSourceParent = sourceParent,
-                                AbsSourceFile = fileGroup.Source,
-                                RelTargetFile = fileGroup.Target,
-                                Params = fileGroup.Params,
-                                ExcludeMarkersList = fileGroup.ExcludeMarkersList,
-                            };
-
-                            if (fileGroup.RegistryList is { Count: > 0 })
-                            {
-                                var registryPaths = fileGroup.RegistryList.Select(r =>
-                                    Path.IsPathRooted(r) ? r : Path.Combine(projectDir, r)).ToList();
-                                bundleFile.RegistryDef = new BundleRegistryDefinition(registryPaths);
-                            }
-
-                            item.Files.Add(bundleFile);
-                        }
-                    }
-                }
-
-                if (pythonItem.OnPreBuild != null)
-                {
-                    var scriptPath = Path.IsPathRooted(pythonItem.OnPreBuild.Script)
-                        ? pythonItem.OnPreBuild.Script
-                        : Path.Combine(projectDir, pythonItem.OnPreBuild.Script);
-                    item.Events[BundleEventType.OnPreBuild] = new BundleEvent
-                    {
-                        Type = BundleEventType.OnPreBuild,
-                        AbsScript = scriptPath,
-                        FuncName = "OnEvent"
-                    };
-                }
-
-                if (pythonItem.OnBuild != null)
-                {
-                    var scriptPath = Path.IsPathRooted(pythonItem.OnBuild.Script)
-                        ? pythonItem.OnBuild.Script
-                        : Path.Combine(projectDir, pythonItem.OnBuild.Script);
-                    item.Events[BundleEventType.OnBuild] = new BundleEvent
-                    {
-                        Type = BundleEventType.OnBuild,
-                        AbsScript = scriptPath,
-                        FuncName = "OnEvent"
-                    };
-                }
-
-                if (pythonItem.OnPostBuild != null)
-                {
-                    var scriptPath = Path.IsPathRooted(pythonItem.OnPostBuild.Script)
-                        ? pythonItem.OnPostBuild.Script
-                        : Path.Combine(projectDir, pythonItem.OnPostBuild.Script);
-                    item.Events[BundleEventType.OnPostBuild] = new BundleEvent
-                    {
-                        Type = BundleEventType.OnPostBuild,
-                        AbsScript = scriptPath,
-                        FuncName = "OnEvent"
-                    };
-                }
-
+                var item = ConvertPythonItem(pythonItem, pythonConfig, projectDir);
                 config.Items.Add(item);
                 logger.LogDebug("Converted item '{Name}' with {FileCount} files", item.Name, item.Files.Count);
             }
@@ -932,6 +818,136 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         }
 
         return config;
+    }
+
+    private static BundleItem ConvertPythonItem(PythonBundleItem pythonItem, PythonBundlesConfig pythonConfig, string projectDir)
+    {
+        var item = new BundleItem
+        {
+            Name = pythonItem.Name,
+            NamePrefix = string.IsNullOrEmpty(pythonItem.NamePrefix) ? pythonConfig.ItemsPrefix : pythonItem.NamePrefix,
+            NameSuffix = string.IsNullOrEmpty(pythonItem.NameSuffix) ? pythonConfig.ItemsSuffix : pythonItem.NameSuffix,
+            IsBig = pythonItem.Big,
+            BigSuffix = pythonItem.BigSuffix,
+            SetGameLanguageOnInstall = pythonItem.SetGameLanguageOnInstall,
+        };
+
+        if (pythonItem.Files != null)
+        {
+            foreach (var fileGroup in pythonItem.Files)
+            {
+                var sourceParent = Path.IsPathRooted(fileGroup.SourceParent)
+                    ? fileGroup.SourceParent
+                    : Path.Combine(projectDir, fileGroup.SourceParent);
+
+                ProcessFileGroup(item, fileGroup, sourceParent, projectDir);
+            }
+        }
+
+        AddBundleEvents(item, pythonItem, projectDir);
+        return item;
+    }
+
+    private static void AddBundleFileWithRegistry(BundleItem item, BundleFile bundleFile, List<string>? registryList, string projectDir)
+    {
+        if (registryList is { Count: > 0 })
+        {
+            var registryPaths = registryList.Select(r =>
+                Path.IsPathRooted(r) ? r : Path.Combine(projectDir, r)).ToList();
+            bundleFile.RegistryDef = new BundleRegistryDefinition(registryPaths);
+        }
+
+        item.Files.Add(bundleFile);
+    }
+
+    private static void ProcessFileGroup(BundleItem item, PythonBundleFileGroup fileGroup, string sourceParent, string projectDir)
+    {
+        if (fileGroup.SourceTargetList != null)
+        {
+            foreach (var pair in fileGroup.SourceTargetList)
+            {
+                var bundleFile = new BundleFile
+                {
+                    AbsSourceParent = sourceParent,
+                    AbsSourceFile = pair.Source,
+                    RelTargetFile = pair.Target,
+                    Params = fileGroup.Params,
+                    ExcludeMarkersList = fileGroup.ExcludeMarkersList,
+                };
+                AddBundleFileWithRegistry(item, bundleFile, fileGroup.RegistryList, projectDir);
+            }
+        }
+
+        if (fileGroup.SourceList != null)
+        {
+            foreach (var source in fileGroup.SourceList)
+            {
+                var bundleFile = new BundleFile
+                {
+                    AbsSourceParent = sourceParent,
+                    AbsSourceFile = source,
+                    RelTargetFile = source,
+                    Params = fileGroup.Params,
+                    ExcludeMarkersList = fileGroup.ExcludeMarkersList,
+                };
+                AddBundleFileWithRegistry(item, bundleFile, fileGroup.RegistryList, projectDir);
+            }
+        }
+
+        if (!string.IsNullOrEmpty(fileGroup.Source) && !string.IsNullOrEmpty(fileGroup.Target))
+        {
+            var bundleFile = new BundleFile
+            {
+                AbsSourceParent = sourceParent,
+                AbsSourceFile = fileGroup.Source,
+                RelTargetFile = fileGroup.Target,
+                Params = fileGroup.Params,
+                ExcludeMarkersList = fileGroup.ExcludeMarkersList,
+            };
+            AddBundleFileWithRegistry(item, bundleFile, fileGroup.RegistryList, projectDir);
+        }
+    }
+
+    private static void AddBundleEvents(BundleItem item, PythonBundleItem pythonItem, string projectDir)
+    {
+        if (pythonItem.OnPreBuild != null)
+        {
+            var scriptPath = Path.IsPathRooted(pythonItem.OnPreBuild.Script)
+                ? pythonItem.OnPreBuild.Script
+                : Path.Combine(projectDir, pythonItem.OnPreBuild.Script);
+            item.Events[BundleEventType.OnPreBuild] = new BundleEvent
+            {
+                Type = BundleEventType.OnPreBuild,
+                AbsScript = scriptPath,
+                FuncName = "OnEvent"
+            };
+        }
+
+        if (pythonItem.OnBuild != null)
+        {
+            var scriptPath = Path.IsPathRooted(pythonItem.OnBuild.Script)
+                ? pythonItem.OnBuild.Script
+                : Path.Combine(projectDir, pythonItem.OnBuild.Script);
+            item.Events[BundleEventType.OnBuild] = new BundleEvent
+            {
+                Type = BundleEventType.OnBuild,
+                AbsScript = scriptPath,
+                FuncName = "OnEvent"
+            };
+        }
+
+        if (pythonItem.OnPostBuild != null)
+        {
+            var scriptPath = Path.IsPathRooted(pythonItem.OnPostBuild.Script)
+                ? pythonItem.OnPostBuild.Script
+                : Path.Combine(projectDir, pythonItem.OnPostBuild.Script);
+            item.Events[BundleEventType.OnPostBuild] = new BundleEvent
+            {
+                Type = BundleEventType.OnPostBuild,
+                AbsScript = scriptPath,
+                FuncName = "OnEvent"
+            };
+        }
     }
 
     /// <summary>
