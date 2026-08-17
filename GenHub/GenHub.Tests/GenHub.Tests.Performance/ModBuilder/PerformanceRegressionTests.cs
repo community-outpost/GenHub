@@ -32,7 +32,7 @@ public class PerformanceRegressionTests : IDisposable
     /// </summary>
     public PerformanceRegressionTests()
     {
-        this.testDataPath = Path.Combine(AppContext.BaseDirectory, "TestData", "Performance");
+        this.testDataPath = Path.Combine(AppContext.BaseDirectory, "TestData", "Performance", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(this.testDataPath);
 
         // Load baselines from JSON
@@ -163,7 +163,10 @@ public class PerformanceRegressionTests : IDisposable
             $"Image conversion regressed: {sw.Elapsed.TotalMilliseconds:F2}ms > {maxAllowed.TotalMilliseconds:F2}ms (baseline: {baseline.TotalMilliseconds:F2}ms, max regression: {this.maxRegressionPercent}%)");
 
         // Cleanup
-        File.Delete(sourcePath);
+        if (File.Exists(sourcePath))
+        {
+            File.Delete(sourcePath);
+        }
         if (File.Exists(targetPath))
         {
             File.Delete(targetPath);
@@ -222,7 +225,10 @@ public class PerformanceRegressionTests : IDisposable
             $"Cache serialization regressed: {totalTime.TotalMilliseconds:F2}ms > {maxAllowed.TotalMilliseconds:F2}ms (baseline: {baseline.TotalMilliseconds:F2}ms, max regression: {this.maxRegressionPercent}%)");
 
         // Cleanup
-        File.Delete(cachePath);
+        if (File.Exists(cachePath))
+        {
+            File.Delete(cachePath);
+        }
         var msgpackPath = Path.ChangeExtension(cachePath, ".msgpack");
         if (File.Exists(msgpackPath))
         {
@@ -283,7 +289,10 @@ public class PerformanceRegressionTests : IDisposable
             $"Build cache comparison regressed: {sw.Elapsed.TotalMilliseconds:F2}ms > {maxAllowed.TotalMilliseconds:F2}ms (baseline: {baseline.TotalMilliseconds:F2}ms, max regression: {this.maxRegressionPercent}%)");
 
         // Cleanup
-        File.Delete(cachePath);
+        if (File.Exists(cachePath))
+        {
+            File.Delete(cachePath);
+        }
         var msgpackPath = Path.ChangeExtension(cachePath, ".msgpack");
         if (File.Exists(msgpackPath))
         {
