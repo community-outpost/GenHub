@@ -84,4 +84,9 @@ public static class FileTypes
     /// File extension for user data manifest files.
     /// </summary>
     public const string UserDataManifestExtension = ".userdata.json";
+
+    /// <summary>
+    /// File name of the launch receipt written into a workspace; the latest launch wins.
+    /// </summary>
+    public const string LaunchReceiptFileName = "launch-receipt.json";
 }

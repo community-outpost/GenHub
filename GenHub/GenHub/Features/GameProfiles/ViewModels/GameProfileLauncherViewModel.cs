@@ -60,6 +60,8 @@ public partial class GameProfileLauncherViewModel(
     IRecipient<ProfileUpdatedMessage>,
     IRecipient<ProfileListUpdatedMessage>
 {
+    private const int MaxReceiptDriftNoticeLines = 5;
+
     private readonly SemaphoreSlim _launchSemaphore = new(1, 1);
     private readonly System.Timers.Timer _headerCollapseTimer = new(TimeIntervals.HeaderCollapseDelayMs);
     private readonly System.Timers.Timer _headerExpansionTimer = new(TimeIntervals.HeaderExpansionDelayMs);
@@ -988,6 +990,25 @@ public partial class GameProfileLauncherViewModel(
     }
 
     /// <summary>
+    /// Composes the informational receipt-drift notice: a lead line plus the drifted
+    /// fields, capped so a long list does not flood the notification. Full detail stays
+    /// in the logs.
+    /// </summary>
+    /// <param name="driftWarnings">The drifted fields from the launch result.</param>
+    /// <returns>The notice text.</returns>
+    private string BuildReceiptDriftNotice(IReadOnlyList<string> driftWarnings)
+    {
+        var lines = new List<string> { "Launch configuration changed since the last run:" };
+        lines.AddRange(driftWarnings.Take(MaxReceiptDriftNoticeLines));
+        if (driftWarnings.Count > MaxReceiptDriftNoticeLines)
+        {
+            lines.Add($"...and {driftWarnings.Count - MaxReceiptDriftNoticeLines} more; see the logs for full detail.");
+        }
+
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    /// <summary>
     /// Executes the actual launch operation.
     /// </summary>
     private async Task ExecuteLaunchAsync(GameProfileItemViewModel profile)
@@ -1010,6 +1031,15 @@ public partial class GameProfileLauncherViewModel(
 
             StatusMessage = $"{liveProfile.Name} launched successfully (Process ID: {launchResult.Data.ProcessInfo.ProcessId})";
             notificationService.ShowSuccess("Game Launched", $"{liveProfile.Name} is now running.");
+
+            // Advisory by design: receipt drift never blocks or fails a launch, so it is
+            // surfaced as information beside the success, never through the error channel.
+            if (launchResult.Data.ReceiptDriftWarnings.Count > 0)
+            {
+                notificationService.ShowInfo(
+                    "Launch Configuration Changed",
+                    BuildReceiptDriftNotice(launchResult.Data.ReceiptDriftWarnings));
+            }
         }
         else
         {
