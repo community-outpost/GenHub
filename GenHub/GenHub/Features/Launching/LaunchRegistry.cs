@@ -18,10 +18,12 @@ namespace GenHub.Features.Launching;
 /// </summary>
 public class LaunchRegistry : ILaunchRegistry
 {
+    private const int MaxInspectionFailures = 5;
     private readonly ILogger<LaunchRegistry> _logger;
     private readonly IWorkspaceManager? _workspaceManager;
     private readonly IGameProcessManager? _processManager;
     private readonly ConcurrentDictionary<string, GameLaunchInfo> _activeLaunches = new();
+    private readonly ConcurrentDictionary<string, int> _inspectionFailureCounts = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LaunchRegistry"/> class.
@@ -70,6 +72,7 @@ public class LaunchRegistry : ILaunchRegistry
 
         if (_activeLaunches.TryRemove(launchId, out var launchInfo))
         {
+            _inspectionFailureCounts.TryRemove(launchId, out _);
             launchInfo.TerminatedAt = System.DateTime.UtcNow;
             _logger.LogInformation("Unregistered launch {LaunchId} for profile {ProfileId}", launchId, launchInfo.ProfileId);
         }
@@ -121,6 +124,7 @@ public class LaunchRegistry : ILaunchRegistry
         var launch = _activeLaunches.Values.FirstOrDefault(l => l.ProcessInfo.ProcessId == e.ProcessId);
         if (launch != null)
         {
+            _inspectionFailureCounts.TryRemove(launch.LaunchId, out _);
             _logger.LogInformation("[LaunchRegistry] Updating launch {LaunchId} as terminated", launch.LaunchId);
 
             // e.ExitTime might be non-nullable DateTime
@@ -145,6 +149,7 @@ public class LaunchRegistry : ILaunchRegistry
             if (runningProcess == null)
             {
                 _logger.LogDebug("Process {ProcessId} for launch {LaunchId} no longer exists", launchInfo.ProcessInfo.ProcessId, launchId);
+                _inspectionFailureCounts.TryRemove(launchId, out _);
                 launchInfo.TerminatedAt = DateTime.UtcNow;
                 launchInfo.ProcessInfo.IsRunning = false;
 
@@ -166,21 +171,49 @@ public class LaunchRegistry : ILaunchRegistry
                         launchInfo.TerminatedAt = DateTime.UtcNow;
                     }
 
+                    _inspectionFailureCounts.TryRemove(launchId, out _);
                     launchInfo.ProcessInfo.IsRunning = false;
 
                     // NOTE: Workspace is NOT cleaned up automatically - it persists across launches
+                }
+                else
+                {
+                    // Process is actively running and inspected successfully
+                    _inspectionFailureCounts.TryRemove(launchId, out _);
                 }
             }
         }
         catch (UnauthorizedAccessException uaex)
         {
-            // Do not mark process terminated on inspection error; preserve it as active so safe teardown guards hold
-            _logger.LogWarning(uaex, "Access denied checking process status for launch {LaunchId}", launchId);
+            var failures = _inspectionFailureCounts.AddOrUpdate(launchId, 1, (_, count) => count + 1);
+            if (failures >= MaxInspectionFailures)
+            {
+                _logger.LogWarning(uaex, "[LaunchRegistry] Process inspection failed {Failures} consecutive times for launch {LaunchId}. Marking as terminated.", failures, launchId);
+                launchInfo.TerminatedAt = DateTime.UtcNow;
+                launchInfo.ProcessInfo.IsRunning = false;
+                _inspectionFailureCounts.TryRemove(launchId, out _);
+            }
+            else
+            {
+                // Do not mark process terminated on transient inspection error; preserve it as active so safe teardown guards hold
+                _logger.LogWarning(uaex, "Access denied checking process status for launch {LaunchId} (attempt {Failures}/{MaxFailures})", launchId, failures, MaxInspectionFailures);
+            }
         }
         catch (Exception ex)
         {
-            // Do not mark process terminated on inspection error; preserve it as active so safe teardown guards hold
-            _logger.LogWarning(ex, "Failed to check process status for launch {LaunchId}", launchId);
+            var failures = _inspectionFailureCounts.AddOrUpdate(launchId, 1, (_, count) => count + 1);
+            if (failures >= MaxInspectionFailures)
+            {
+                _logger.LogWarning(ex, "[LaunchRegistry] Process inspection failed {Failures} consecutive times for launch {LaunchId}. Marking as terminated.", failures, launchId);
+                launchInfo.TerminatedAt = DateTime.UtcNow;
+                launchInfo.ProcessInfo.IsRunning = false;
+                _inspectionFailureCounts.TryRemove(launchId, out _);
+            }
+            else
+            {
+                // Do not mark process terminated on transient inspection error; preserve it as active so safe teardown guards hold
+                _logger.LogWarning(ex, "Failed to check process status for launch {LaunchId} (attempt {Failures}/{MaxFailures})", launchId, failures, MaxInspectionFailures);
+            }
         }
     }
 

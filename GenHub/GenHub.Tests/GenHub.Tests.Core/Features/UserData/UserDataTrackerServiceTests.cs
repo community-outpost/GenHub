@@ -693,6 +693,19 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         var conflictResult = await _trackerService.CheckFileConflictAsync(expectedPath);
         Assert.True(conflictResult.Success);
         Assert.Equal("1.1015255.generalsonline.patch.custommap_profile-map-test", conflictResult.Data);
+
+        // Assert that a second installation from a different profile targeting the same path fails with conflict
+        var conflictingResult = await _trackerService.InstallUserDataAsync(
+            "1.1015255.generalsonline.patch.othermap",
+            "profile-other-test",
+            GameType.ZeroHour,
+            files,
+            "101525_QFE5",
+            "Other Map",
+            CancellationToken.None);
+
+        Assert.False(conflictingResult.Success);
+        Assert.Contains("already managed by installation", conflictingResult.FirstError, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

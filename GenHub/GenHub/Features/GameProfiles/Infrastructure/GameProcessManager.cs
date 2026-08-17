@@ -114,24 +114,14 @@ public class GameProcessManager(
 
             RegisterProcessEventHandlers(process);
 
-            int? startedProcessId = null;
-            try
-            {
-                startedProcessId = process.Id;
-            }
-            catch
-            {
-                // Handle uninspectable process handle
-            }
-
             var processInfo = BuildProcessInfo(process, configuration.ExecutablePath);
 
-            logger.LogInformation("Started game process {ProcessId} for executable {ExecutablePath}", startedProcessId?.ToString() ?? "unknown", configuration.ExecutablePath);
+            logger.LogInformation("Started game process {ProcessId} for executable {ExecutablePath}", processInfo.ProcessId, configuration.ExecutablePath);
             return OperationResult<GameProcessInfo>.CreateSuccess(processInfo);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            HandleProcessCancellation(process, configuration?.ExecutablePath ?? "unknown");
+            await HandleProcessCancellationAsync(process, configuration?.ExecutablePath ?? "unknown");
             throw;
         }
         catch (Exception ex)
@@ -652,32 +642,48 @@ public class GameProcessManager(
         }
     }
 
-    private void HandleProcessCancellation(Process? process, string executablePath)
+    private async Task HandleProcessCancellationAsync(Process? process, string executablePath)
     {
         logger.LogInformation("Start of {ExecutablePath} was cancelled", executablePath);
         if (process != null)
         {
             try
             {
-                if (!process.HasExited)
-                {
-                    process.Kill(entireProcessTree: true);
-                }
+                await Task.Run(
+                    () =>
+                    {
+                        try
+                        {
+                            if (!process.HasExited)
+                            {
+                                process.Kill(entireProcessTree: true);
+                            }
+                        }
+                        catch (InvalidOperationException)
+                        {
+                            // Process already exited or was disposed
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogWarning(ex, "Failed to terminate process on cancellation");
+                        }
+                        finally
+                        {
+                            try
+                            {
+                                process.Dispose();
+                            }
+                            catch
+                            {
+                                // Ignore disposal errors
+                            }
+                        }
+                    },
+                    CancellationToken.None);
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Failed to terminate process on cancellation");
-            }
-            finally
-            {
-                try
-                {
-                    process.Dispose();
-                }
-                catch
-                {
-                    // Ignore disposal errors
-                }
+                logger.LogWarning(ex, "Failed to complete process cancellation task");
             }
         }
     }
@@ -1072,7 +1078,7 @@ public class GameProcessManager(
             {
                 ProcessId = processId,
                 ProcessName = GameClientConstants.UnknownVersion,
-                StartTime = DateTime.UtcNow,
+                StartTime = DateTime.Now,
                 ExecutablePath = fallbackExecutablePath,
                 IsRunning = IsStillRunning(process),
             };
@@ -1122,7 +1128,7 @@ public class GameProcessManager(
             }
 
             var selected = GameProcessSelector.SelectSpawnedGameProcess(
-                candidates, executableName, workingDirectory, DateTime.UtcNow, launcherStartTime);
+                candidates, executableName, workingDirectory, DateTime.Now, launcherStartTime);
 
             if (selected == null)
             {

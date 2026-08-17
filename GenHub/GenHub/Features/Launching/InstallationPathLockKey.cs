@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Launching;
 
@@ -19,14 +20,15 @@ internal static class InstallationPathLockKey
     /// Creates a lock key with existing symbolic-link and junction components resolved.
     /// </summary>
     /// <param name="installationPath">The installation directory path.</param>
+    /// <param name="logger">Optional logger for recording resolution failures.</param>
     /// <returns>The canonical installation lock key.</returns>
-    public static string Create(string installationPath)
+    public static string Create(string installationPath, ILogger? logger = null)
     {
         var fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(installationPath));
-        return Path.TrimEndingDirectorySeparator(ResolvePathComponents(fullPath));
+        return Path.TrimEndingDirectorySeparator(ResolvePathComponents(fullPath, logger));
     }
 
-    private static string ResolvePathComponents(string fullPath)
+    private static string ResolvePathComponents(string fullPath, ILogger? logger)
     {
         var root = Path.GetPathRoot(fullPath);
         if (string.IsNullOrEmpty(root))
@@ -51,18 +53,18 @@ internal static class InstallationPathLockKey
             {
                 resolvedTarget = Directory.ResolveLinkTarget(currentPath, returnFinalTarget: true);
             }
-            catch (UnauthorizedAccessException)
+            catch (UnauthorizedAccessException ex)
             {
-                // Directory permissions prevent inspecting reparse point target
+                logger?.LogWarning(ex, "[InstallationPathLockKey] Access denied resolving link target for path segment: {Path}", currentPath);
             }
-            catch (IOException)
+            catch (IOException ex)
             {
-                // Path or I/O error inspecting reparse point target
+                logger?.LogWarning(ex, "[InstallationPathLockKey] I/O error resolving link target for path segment: {Path}", currentPath);
             }
 
             if (resolvedTarget is not null)
             {
-                currentPath = ResolvePathComponents(Path.GetFullPath(resolvedTarget.FullName));
+                currentPath = ResolvePathComponents(Path.GetFullPath(resolvedTarget.FullName), logger);
             }
         }
 

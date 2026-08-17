@@ -296,7 +296,10 @@ public class UserDataTrackerService(
                     {
                         try
                         {
-                            if (await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken))
+                            var isMatch = await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken);
+                            cancellationToken.ThrowIfCancellationRequested();
+
+                            if (isMatch)
                             {
                                 File.Delete(file.AbsolutePath);
                                 CleanupEmptyDirectories(Path.GetDirectoryName(file.AbsolutePath), userDataBasePath);
@@ -306,7 +309,13 @@ public class UserDataTrackerService(
                                 logger.LogWarning("[UserData] File hash mismatch, user may have modified: {Path}; preserving file", file.AbsolutePath);
                             }
                         }
-                        catch (Exception ex) when (ex is not OperationCanceledException)
+                        catch (OperationCanceledException)
+                        {
+                            manifestHasErrors = true;
+                            allSuccess = false;
+                            throw;
+                        }
+                        catch (Exception ex)
                         {
                             logger.LogWarning(ex, "[UserData] Failed to remove active file: {Path}", file.AbsolutePath);
                             manifestHasErrors = true;
@@ -699,7 +708,7 @@ public class UserDataTrackerService(
         return path;
     }
 
-    private static void RestoreBackupQuietly(string? backupPath, string targetPath, bool wasOverwritten)
+    private static void RestoreBackupQuietly(string? backupPath, string targetPath, bool wasOverwritten, ILogger? logger = null)
     {
         if (wasOverwritten && !string.IsNullOrEmpty(backupPath) && File.Exists(backupPath))
         {
@@ -708,9 +717,9 @@ public class UserDataTrackerService(
                 File.Copy(backupPath, targetPath, overwrite: true);
                 File.Delete(backupPath);
             }
-            catch
+            catch (Exception ex)
             {
-                // Best-effort safety restore
+                logger?.LogWarning(ex, "[UserData] Failed to restore safety backup from {BackupPath} to {TargetPath}", backupPath, targetPath);
             }
         }
     }
@@ -971,7 +980,7 @@ public class UserDataTrackerService(
         if (string.IsNullOrEmpty(file.Hash))
         {
             logger.LogError("[UserData] File {Path} has no hash; aborting installation", file.RelativePath);
-            RestoreBackupQuietly(backupPath, targetPath, wasOverwritten);
+            RestoreBackupQuietly(backupPath, targetPath, wasOverwritten, logger);
             return OperationResult<UserDataFileEntry>.CreateFailure($"File '{file.RelativePath}' has no hash. Installation aborted.");
         }
 
@@ -979,7 +988,7 @@ public class UserDataTrackerService(
         if (!materialized)
         {
             logger.LogError("[UserData] Failed to install file {Path}; aborting installation", targetPath);
-            RestoreBackupQuietly(backupPath, targetPath, wasOverwritten);
+            RestoreBackupQuietly(backupPath, targetPath, wasOverwritten, logger);
             return OperationResult<UserDataFileEntry>.CreateFailure($"Failed to install file '{targetPath}'. Installation aborted.");
         }
 
@@ -1029,7 +1038,7 @@ public class UserDataTrackerService(
         }
         catch (OperationCanceledException)
         {
-            RestoreBackupQuietly(backupPath, targetPath, wasOverwritten);
+            RestoreBackupQuietly(backupPath, targetPath, wasOverwritten, logger);
             throw;
         }
         catch (Exception ex)
