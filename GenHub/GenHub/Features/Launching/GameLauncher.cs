@@ -746,15 +746,7 @@ public class GameLauncher(
 
             var (installation, gameClient, actualInstallationPath, dynamicWorkspacePath, isSteamLaunch) = installResult.Data;
 
-            if (isSteamLaunch)
-            {
-                steamInstallationLock = await AcquireSteamInstallationLockAsync(actualInstallationPath, cancellationToken);
-                logger.LogInformation("[GameLauncher] Steam launch detected - workspace will be adjacent to installation in .genhub-workspace directory");
-            }
-
-            logger.LogDebug("[GameLauncher] Using dynamic workspace path: {WorkspacePath} (Installation: {InstallPath})", dynamicWorkspacePath, actualInstallationPath);
-
-            var workspaceResult = await PrepareWorkspaceForLaunchAsync(
+            var workspaceSetupResult = await SetupAndAcquireWorkspaceAsync(
                 profile,
                 manifests,
                 gameClient,
@@ -765,12 +757,13 @@ public class GameLauncher(
                 progress,
                 cancellationToken);
 
-            if (!workspaceResult.Success || workspaceResult.Data == null)
+            if (!workspaceSetupResult.Success || workspaceSetupResult.Data.Workspace == null)
             {
-                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(workspaceResult.FirstError ?? "Workspace preparation failed", launchId, profile.Id);
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(workspaceSetupResult.FirstError ?? "Workspace preparation failed", launchId, profile.Id);
             }
 
-            var workspaceInfo = workspaceResult.Data;
+            var (workspaceInfo, acquiredLock) = workspaceSetupResult.Data;
+            steamInstallationLock = acquiredLock;
 
             progress?.Report(new LaunchProgress { Phase = LaunchPhase.PreparingUserData, PercentComplete = 82 });
             TriggerBackgroundUserDataSwitch(profile, manifests, skipUserDataCleanup, cancellationToken);
@@ -784,46 +777,24 @@ public class GameLauncher(
 
             var finalExecutablePath = executableResult.Data;
 
-            var argsResult = BuildCommandLineArguments(profile);
-            if (!argsResult.Success || argsResult.Data == null)
+            var prepResult = await PrepareLaunchConfigurationAndProxyAsync(
+                profile,
+                installation,
+                manifests,
+                actualInstallationPath,
+                finalExecutablePath,
+                workspaceInfo,
+                isSteamLaunch,
+                cancellationToken);
+
+            if (!prepResult.Success || prepResult.Data.LaunchConfig == null)
             {
-                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(argsResult.FirstError ?? "Invalid command line arguments", launchId, profile.Id);
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(prepResult.FirstError ?? "Launch configuration failed", launchId, profile.Id);
             }
 
-            var arguments = argsResult.Data;
-            SteamLaunchPrepResult? steamPrep = null;
-            string? steamAppId = null;
-
-            if (isSteamLaunch)
-            {
-                var prepResult = await PrepareSteamProxyAsync(
-                    profile,
-                    installation,
-                    manifests,
-                    actualInstallationPath,
-                    finalExecutablePath,
-                    workspaceInfo,
-                    arguments,
-                    cancellationToken);
-                if (!prepResult.Success)
-                {
-                    return LaunchOperationResult<GameLaunchInfo>.CreateFailure(prepResult.FirstError ?? "Steam prep failed", launchId, profile.Id);
-                }
-
-                steamPrep = prepResult.Data.PrepResult;
-                steamAppId = prepResult.Data.SteamAppId;
-            }
-
-            var launchConfig = BuildGameLaunchConfiguration(finalExecutablePath, workspaceInfo, arguments, profile, installation);
-
-            var archiveRootError = ValidateRetailArchiveRoots(launchConfig.EnvironmentVariables, installation, profile.GameClient!.GameType);
-            if (archiveRootError is not null)
-            {
-                logger.LogError("[GameLauncher] Retail archive root validation failed: {Error}", archiveRootError);
-                return LaunchOperationResult<GameLaunchInfo>.CreateFailure(archiveRootError, launchId, profile.Id);
-            }
-
+            var (launchConfig, steamPrep, steamAppId) = prepResult.Data;
             var effectiveStrategy = profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy();
+
             var processResult = await LaunchProcessAsync(
                 isSteamLaunch,
                 manifests,
@@ -875,6 +846,98 @@ public class GameLauncher(
         {
             steamInstallationLock?.Dispose();
         }
+    }
+
+    private async Task<OperationResult<(WorkspaceInfo Workspace, IDisposable? Lock)>> SetupAndAcquireWorkspaceAsync(
+        GameProfile profile,
+        List<ContentManifest> manifests,
+        GenHub.Core.Models.GameClients.GameClient gameClient,
+        string actualInstallationPath,
+        string dynamicWorkspacePath,
+        bool isSteamLaunch,
+        Dictionary<string, string> manifestSourcePaths,
+        IProgress<LaunchProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        IDisposable? steamInstallationLock = null;
+        if (isSteamLaunch)
+        {
+            steamInstallationLock = await AcquireSteamInstallationLockAsync(actualInstallationPath, cancellationToken);
+            logger.LogInformation("[GameLauncher] Steam launch detected - workspace will be adjacent to installation in .genhub-workspace directory");
+        }
+
+        logger.LogDebug("[GameLauncher] Using dynamic workspace path: {WorkspacePath} (Installation: {InstallPath})", dynamicWorkspacePath, actualInstallationPath);
+
+        var workspaceResult = await PrepareWorkspaceForLaunchAsync(
+            profile,
+            manifests,
+            gameClient,
+            actualInstallationPath,
+            dynamicWorkspacePath,
+            isSteamLaunch,
+            manifestSourcePaths,
+            progress,
+            cancellationToken);
+
+        if (!workspaceResult.Success || workspaceResult.Data == null)
+        {
+            steamInstallationLock?.Dispose();
+            return OperationResult<(WorkspaceInfo, IDisposable?)>.CreateFailure(workspaceResult.FirstError ?? "Workspace preparation failed");
+        }
+
+        return OperationResult<(WorkspaceInfo, IDisposable?)>.CreateSuccess((workspaceResult.Data, steamInstallationLock));
+    }
+
+    private async Task<OperationResult<(GameLaunchConfiguration LaunchConfig, SteamLaunchPrepResult? SteamPrep, string? SteamAppId)>> PrepareLaunchConfigurationAndProxyAsync(
+        GameProfile profile,
+        GameInstallation installation,
+        IReadOnlyList<ContentManifest> manifests,
+        string actualInstallationPath,
+        string finalExecutablePath,
+        WorkspaceInfo workspaceInfo,
+        bool isSteamLaunch,
+        CancellationToken cancellationToken)
+    {
+        var argsResult = BuildCommandLineArguments(profile);
+        if (!argsResult.Success || argsResult.Data == null)
+        {
+            return OperationResult<(GameLaunchConfiguration, SteamLaunchPrepResult?, string?)>.CreateFailure(argsResult.FirstError ?? "Invalid command line arguments");
+        }
+
+        var arguments = argsResult.Data;
+        SteamLaunchPrepResult? steamPrep = null;
+        string? steamAppId = null;
+
+        if (isSteamLaunch)
+        {
+            var prepResult = await PrepareSteamProxyAsync(
+                profile,
+                installation,
+                manifests,
+                actualInstallationPath,
+                finalExecutablePath,
+                workspaceInfo,
+                arguments,
+                cancellationToken);
+            if (!prepResult.Success)
+            {
+                return OperationResult<(GameLaunchConfiguration, SteamLaunchPrepResult?, string?)>.CreateFailure(prepResult.FirstError ?? "Steam prep failed");
+            }
+
+            steamPrep = prepResult.Data.PrepResult;
+            steamAppId = prepResult.Data.SteamAppId;
+        }
+
+        var launchConfig = BuildGameLaunchConfiguration(finalExecutablePath, workspaceInfo, arguments, profile, installation);
+
+        var archiveRootError = ValidateRetailArchiveRoots(launchConfig.EnvironmentVariables, installation, profile.GameClient!.GameType);
+        if (archiveRootError is not null)
+        {
+            logger.LogError("[GameLauncher] Retail archive root validation failed: {Error}", archiveRootError);
+            return OperationResult<(GameLaunchConfiguration, SteamLaunchPrepResult?, string?)>.CreateFailure(archiveRootError);
+        }
+
+        return OperationResult<(GameLaunchConfiguration, SteamLaunchPrepResult?, string?)>.CreateSuccess((launchConfig, steamPrep, steamAppId));
     }
 
     private async Task<OperationResult<WorkspaceInfo>> PrepareWorkspaceForLaunchAsync(
