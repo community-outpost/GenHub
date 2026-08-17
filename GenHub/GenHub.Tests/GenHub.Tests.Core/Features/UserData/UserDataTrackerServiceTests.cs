@@ -781,20 +781,21 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         };
 
         // Lock file with exclusive access so File.Copy fails inside BackupExistingFileAsync
-        using var lockedStream = new System.IO.FileStream(existingSplashPath, System.IO.FileMode.Open, System.IO.FileAccess.ReadWrite, System.IO.FileShare.None);
+        using (new System.IO.FileStream(existingSplashPath, System.IO.FileMode.Open, System.IO.FileAccess.ReadWrite, System.IO.FileShare.None))
+        {
+            // Act
+            var result = await _trackerService.InstallUserDataAsync(
+                TestManifestId,
+                TestProfileId,
+                GameType.ZeroHour,
+                files,
+                TestVersion,
+                TestManifestName,
+                CancellationToken.None);
 
-        // Act
-        var result = await _trackerService.InstallUserDataAsync(
-            TestManifestId,
-            TestProfileId,
-            GameType.ZeroHour,
-            files,
-            TestVersion,
-            TestManifestName,
-            CancellationToken.None);
-
-        // Assert
-        Assert.False(result.Success);
-        Assert.Contains("Failed to create safety backup", result.FirstError, StringComparison.OrdinalIgnoreCase);
+            // Assert
+            Assert.False(result.Success);
+            Assert.Contains("Failed to create safety backup", result.FirstError, StringComparison.OrdinalIgnoreCase);
+        }
     }
 }
