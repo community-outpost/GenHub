@@ -69,7 +69,15 @@ public static class GameProcessSelector
         {
             path = Path.GetFullPath(path);
         }
-        catch (Exception)
+        catch (ArgumentException)
+        {
+            // A malformed path compares on its original spelling rather than aborting the scan.
+        }
+        catch (NotSupportedException)
+        {
+            // A malformed path compares on its original spelling rather than aborting the scan.
+        }
+        catch (PathTooLongException)
         {
             // A malformed path compares on its original spelling rather than aborting the scan.
         }

@@ -124,15 +124,7 @@ public class LaunchRegistry : ILaunchRegistry
             _logger.LogInformation("[LaunchRegistry] Updating launch {LaunchId} as terminated", launch.LaunchId);
 
             // e.ExitTime might be non-nullable DateTime
-            if (e.ExitTime != default)
-            {
-                launch.TerminatedAt = e.ExitTime;
-            }
-            else
-            {
-                launch.TerminatedAt = DateTime.UtcNow;
-            }
-
+            launch.TerminatedAt = e.ExitTime != default ? e.ExitTime : DateTime.UtcNow;
             launch.ProcessInfo.IsRunning = false;
         }
     }

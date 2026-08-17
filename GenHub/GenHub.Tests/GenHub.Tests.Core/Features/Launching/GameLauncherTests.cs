@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -387,8 +388,7 @@ public class GameLauncherTests : IDisposable
         var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = @"C:\workspace", IsPrepared = true, ExecutablePath = @"C:\workspace\generals.exe" };
         var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "generals.exe" };
         var manifest = new ContentManifest { Id = "1.0.genhub.mod.test", Name = "Test Content" };
-        var progressReports = new List<LaunchProgress>();
-        var progressLock = new object();
+        var progressReports = new ConcurrentBag<LaunchProgress>();
         var progressComplete = new TaskCompletionSource<bool>();
 
         _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
@@ -421,13 +421,10 @@ public class GameLauncherTests : IDisposable
 
         var progress = new Progress<LaunchProgress>(p =>
         {
-            lock (progressLock)
+            progressReports.Add(p);
+            if (p.Phase == LaunchPhase.Running)
             {
-                progressReports.Add(p);
-                if (p.Phase == LaunchPhase.Running)
-                {
-                    progressComplete.TrySetResult(true);
-                }
+                progressComplete.TrySetResult(true);
             }
         });
 
@@ -439,11 +436,7 @@ public class GameLauncherTests : IDisposable
 
         // Assert
         Assert.True(result.Success);
-        List<LaunchProgress> reports;
-        lock (progressLock)
-        {
-            reports = [.. progressReports]; // Create a copy for safe enumeration
-        }
+        var reports = progressReports.ToList();
 
         Assert.NotEmpty(reports);
 
@@ -481,10 +474,7 @@ public class GameLauncherTests : IDisposable
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
 
         // Act & Assert
-        await Assert.ThrowsAsync<TaskCanceledException>(async () =>
-        {
-            await _gameLauncher.LaunchProfileAsync(profileId, cancellationToken: cts.Token);
-        });
+        await Assert.ThrowsAsync<TaskCanceledException>(() => _gameLauncher.LaunchProfileAsync(profileId, cancellationToken: cts.Token));
     }
 
     /// <summary>
@@ -815,7 +805,7 @@ public class GameLauncherTests : IDisposable
 
         _processManagerMock.Verify(
             x => x.StartProcessAsync(
-                It.Is<GameLaunchConfiguration>(c => c.Arguments != null && c.Arguments.ContainsKey("-win")),
+                It.Is<GameLaunchConfiguration>(c => HasArgument(c, "-win")),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -863,10 +853,7 @@ public class GameLauncherTests : IDisposable
         // Verify that -win argument was added
         _processManagerMock.Verify(
             x => x.StartProcessAsync(
-                It.Is<GameLaunchConfiguration>(c =>
-                    c.Arguments != null &&
-                    c.Arguments.ContainsKey("-win") &&
-                    c.Arguments["-win"] == string.Empty),
+                It.Is<GameLaunchConfiguration>(c => HasArgument(c, "-win", string.Empty)),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -940,6 +927,16 @@ public class GameLauncherTests : IDisposable
             GameClient = new GameClient { Id = "version-1", ExecutablePath = @"C:\Games\generals.exe", GameType = GameType.Generals },
             EnabledContentIds = ["1.0.genhub.mod.test"],
         };
+    }
+
+    private static bool HasArgument(GameLaunchConfiguration? config, string key)
+    {
+        return config?.Arguments is not null && config.Arguments.ContainsKey(key);
+    }
+
+    private static bool HasArgument(GameLaunchConfiguration? config, string key, string expectedValue)
+    {
+        return config?.Arguments is not null && config.Arguments.TryGetValue(key, out var val) && val == expectedValue;
     }
 
     private static void CreateDirectoryAlias(string aliasPath, string targetPath)

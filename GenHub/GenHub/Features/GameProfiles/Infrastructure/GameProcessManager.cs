@@ -51,33 +51,10 @@ public class GameProcessManager(
         Process? process = null;
         try
         {
-            // Validate configuration
-            if (configuration == null)
+            var validationResult = ValidateLaunchConfiguration(configuration);
+            if (!validationResult.Success)
             {
-                logger.LogError("GameLaunchConfiguration is null");
-                return OperationResult<GameProcessInfo>.CreateFailure("Configuration cannot be null");
-            }
-
-            if (string.IsNullOrEmpty(configuration.ExecutablePath))
-            {
-                logger.LogError("ExecutablePath is null or empty in configuration");
-                return OperationResult<GameProcessInfo>.CreateFailure("ExecutablePath cannot be null or empty");
-            }
-
-            if (!File.Exists(configuration.ExecutablePath))
-            {
-                logger.LogError("Executable not found at path: {ExecutablePath}", configuration.ExecutablePath);
-                return OperationResult<GameProcessInfo>.CreateFailure($"Executable not found: {configuration.ExecutablePath}");
-            }
-
-            // Verify, never fix. Setting the bit here could mutate a shared content-store
-            // blob under the hard-link workspace strategy; the workspace build already
-            // applies it to a copy it owns. A failure here means that step did not run.
-            if (!OperatingSystem.IsWindows() && !HasExecutePermission(configuration.ExecutablePath))
-            {
-                logger.LogError("[Process] Executable is not marked executable: {ExecutablePath}", configuration.ExecutablePath);
-                return OperationResult<GameProcessInfo>.CreateFailure(
-                    $"'{configuration.ExecutablePath}' does not have the execute permission set, so it cannot be launched.");
+                return OperationResult<GameProcessInfo>.CreateFailure(validationResult.FirstError ?? "Invalid configuration");
             }
 
             logger.LogInformation("[Process] Starting process for executable: {ExecutablePath}", configuration.ExecutablePath);
@@ -91,9 +68,6 @@ public class GameProcessManager(
             var extension = Path.GetExtension(configuration.ExecutablePath).ToLowerInvariant();
             var isBatchFile = Environment.OSVersion.Platform == PlatformID.Win32NT && (extension == ".bat" || extension == ".cmd");
 
-            // UseShellExecute = false is required for symlinks to CAS blobs (extensionless files).
-            // When UseShellExecute = true, Windows follows the symlink and fails to recognize
-            // the target as executable because it has no extension.
             var processStartInfo = ConfigureProcessStartInfo(configuration, workingDirectory);
 
             logger.LogInformation(
@@ -101,67 +75,25 @@ public class GameProcessManager(
                 processStartInfo.FileName,
                 processStartInfo.WorkingDirectory);
 
-            try
+            var startResult = StartNativeProcess(processStartInfo, configuration.ExecutablePath);
+            if (!startResult.Success || startResult.Data == null)
             {
-                process = Process.Start(processStartInfo);
-            }
-            catch (Win32Exception win32Ex)
-            {
-                logger.LogError(
-                    win32Ex,
-                    "Win32Exception starting process {ExecutablePath}: {ErrorCode} - {Message}",
-                    configuration.ExecutablePath,
-                    win32Ex.NativeErrorCode,
-                    win32Ex.Message);
-                return OperationResult<GameProcessInfo>.CreateFailure($"Failed to start process (Win32 Error {win32Ex.NativeErrorCode}): {win32Ex.Message}");
-            }
-            catch (InvalidOperationException invOpEx)
-            {
-                logger.LogError(
-                    invOpEx,
-                    "InvalidOperationException starting process {ExecutablePath}: {Message}",
-                    configuration.ExecutablePath,
-                    invOpEx.Message);
-                return OperationResult<GameProcessInfo>.CreateFailure($"Failed to start process (Invalid Operation): {invOpEx.Message}");
+                return OperationResult<GameProcessInfo>.CreateFailure(startResult.FirstError ?? "Failed to start process");
             }
 
-            if (process == null)
-            {
-                logger.LogError("[Process] Process.Start returned null for executable: {ExecutablePath}", configuration.ExecutablePath);
-                return OperationResult<GameProcessInfo>.CreateFailure("Failed to start process - Process.Start returned null");
-            }
-
+            process = startResult.Data;
             logger.LogDebug("[Process] Process {ProcessId} started successfully", process.Id);
 
-            // Drained continuously via the event handler rather than read at exit, so a
-            // chatty process cannot fill the pipe buffer and deadlock. Only a bounded tail
-            // is retained.
-            var capturedErrors = new BoundedErrorBuffer();
-            process.ErrorDataReceived += (_, e) => capturedErrors.Append(e.Data);
-            try
-            {
-                process.BeginErrorReadLine();
-            }
-            catch (InvalidOperationException ex)
-            {
-                logger.LogDebug(ex, "[Process] Could not capture stderr for process {ProcessId}", process.Id);
-            }
+            var capturedErrors = SetupErrorRedirection(process);
 
-            // A launcher that hands the session to another binary is tracked through that binary.
-            // Poll for it independently of the launcher's own lifetime: the Easy Anti-Cheat
-            // bootstrapper outlives the game's startup by about a minute, so waiting for it to
-            // exit first never finds the game.
             if (!string.IsNullOrWhiteSpace(configuration.ExpectedChildProcessName))
             {
                 return await AdoptExpectedChildProcessAsync(process, configuration, workingDirectory, capturedErrors, cancellationToken);
             }
 
-            // Check if process exited immediately (launcher pattern)
-            // Only apply delay if we need to detect a spawned process
             if (!isBatchFile)
             {
-                // Quick check to see if process exited immediately (launcher pattern)
-                await Task.Delay(ProcessConstants.LauncherDetectionDelayMs, cancellationToken); // Reduced from 2000ms - only for launcher detection
+                await Task.Delay(ProcessConstants.LauncherDetectionDelayMs, cancellationToken);
 
                 if (process.HasExited)
                 {
@@ -176,22 +108,11 @@ public class GameProcessManager(
                 var timeoutMs = configuration.Timeout.HasValue ? (int)configuration.Timeout.Value.TotalMilliseconds : Timeout.Infinite;
                 if (process.WaitForExit(timeoutMs))
                 {
-                    // Only once the process is known to have exited: the timed overload
-                    // does not wait for the redirected-output handlers, so the capture
-                    // would otherwise be read while lines are still in flight.
                     DrainStandardError(process, capturedErrors);
                 }
             }
 
-            try
-            {
-                process.EnableRaisingEvents = true;
-                process.Exited += OnProcessExited;
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to enable raising events for process {ProcessId}, process cleanup may not work properly", process.Id);
-            }
+            RegisterProcessEventHandlers(process);
 
             int? startedProcessId = null;
             try
@@ -210,40 +131,12 @@ public class GameProcessManager(
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // A cancelled launch is not a start failure. Reporting it as one hides the reason from
-            // the caller and bypasses GameLauncher.LaunchProfileAsync's cancellation handling.
-            logger.LogInformation("Start of {ExecutablePath} was cancelled", configuration.ExecutablePath);
-            if (process != null)
-            {
-                try
-                {
-                    if (!process.HasExited)
-                    {
-                        process.Kill(entireProcessTree: true);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to terminate process on cancellation");
-                }
-                finally
-                {
-                    try
-                    {
-                        process.Dispose();
-                    }
-                    catch
-                    {
-                        // Ignore disposal errors
-                    }
-                }
-            }
-
+            HandleProcessCancellation(process, configuration?.ExecutablePath ?? "unknown");
             throw;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to start process for executable {ExecutablePath}", configuration.ExecutablePath);
+            logger.LogError(ex, "Failed to start process for executable {ExecutablePath}", configuration?.ExecutablePath);
             return OperationResult<GameProcessInfo>.CreateFailure($"Failed to start process: {ex.Message}");
         }
     }
@@ -649,10 +542,143 @@ public class GameProcessManager(
                 || mode.HasFlag(UnixFileMode.GroupExecute)
                 || mode.HasFlag(UnixFileMode.OtherExecute);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        catch (IOException)
         {
             // Unreadable metadata should not block a launch that might otherwise work.
             return true;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Unreadable metadata should not block a launch that might otherwise work.
+            return true;
+        }
+        catch (PlatformNotSupportedException)
+        {
+            // Unreadable metadata should not block a launch that might otherwise work.
+            return true;
+        }
+    }
+
+    private OperationResult<bool> ValidateLaunchConfiguration(GameLaunchConfiguration? configuration)
+    {
+        if (configuration == null)
+        {
+            logger.LogError("GameLaunchConfiguration is null");
+            return OperationResult<bool>.CreateFailure("Configuration cannot be null");
+        }
+
+        if (string.IsNullOrEmpty(configuration.ExecutablePath))
+        {
+            logger.LogError("ExecutablePath is null or empty in configuration");
+            return OperationResult<bool>.CreateFailure("ExecutablePath cannot be null or empty");
+        }
+
+        if (!File.Exists(configuration.ExecutablePath))
+        {
+            logger.LogError("Executable not found at path: {ExecutablePath}", configuration.ExecutablePath);
+            return OperationResult<bool>.CreateFailure($"Executable not found: {configuration.ExecutablePath}");
+        }
+
+        if (!OperatingSystem.IsWindows() && !HasExecutePermission(configuration.ExecutablePath))
+        {
+            logger.LogError("[Process] Executable is not marked executable: {ExecutablePath}", configuration.ExecutablePath);
+            return OperationResult<bool>.CreateFailure(
+                $"'{configuration.ExecutablePath}' does not have the execute permission set, so it cannot be launched.");
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private OperationResult<Process> StartNativeProcess(ProcessStartInfo processStartInfo, string executablePath)
+    {
+        try
+        {
+            var process = Process.Start(processStartInfo);
+            if (process == null)
+            {
+                logger.LogError("[Process] Process.Start returned null for executable: {ExecutablePath}", executablePath);
+                return OperationResult<Process>.CreateFailure("Failed to start process - Process.Start returned null");
+            }
+
+            return OperationResult<Process>.CreateSuccess(process);
+        }
+        catch (Win32Exception win32Ex)
+        {
+            logger.LogError(
+                win32Ex,
+                "Win32Exception starting process {ExecutablePath}: {ErrorCode} - {Message}",
+                executablePath,
+                win32Ex.NativeErrorCode,
+                win32Ex.Message);
+            return OperationResult<Process>.CreateFailure($"Failed to start process (Win32 Error {win32Ex.NativeErrorCode}): {win32Ex.Message}");
+        }
+        catch (InvalidOperationException invOpEx)
+        {
+            logger.LogError(
+                invOpEx,
+                "InvalidOperationException starting process {ExecutablePath}: {Message}",
+                executablePath,
+                invOpEx.Message);
+            return OperationResult<Process>.CreateFailure($"Failed to start process (Invalid Operation): {invOpEx.Message}");
+        }
+    }
+
+    private BoundedErrorBuffer SetupErrorRedirection(Process process)
+    {
+        var capturedErrors = new BoundedErrorBuffer();
+        process.ErrorDataReceived += (_, e) => capturedErrors.Append(e.Data);
+        try
+        {
+            process.BeginErrorReadLine();
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogDebug(ex, "[Process] Could not capture stderr for process {ProcessId}", process.Id);
+        }
+
+        return capturedErrors;
+    }
+
+    private void RegisterProcessEventHandlers(Process process)
+    {
+        try
+        {
+            process.EnableRaisingEvents = true;
+            process.Exited += OnProcessExited;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to enable raising events for process {ProcessId}, process cleanup may not work properly", process.Id);
+        }
+    }
+
+    private void HandleProcessCancellation(Process? process, string executablePath)
+    {
+        logger.LogInformation("Start of {ExecutablePath} was cancelled", executablePath);
+        if (process != null)
+        {
+            try
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to terminate process on cancellation");
+            }
+            finally
+            {
+                try
+                {
+                    process.Dispose();
+                }
+                catch
+                {
+                    // Ignore disposal errors
+                }
+            }
         }
     }
 
