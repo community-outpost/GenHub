@@ -83,7 +83,7 @@ public class GeneralsOnlineProfileReconciler(
             // Determine strategy
             var subscription = settings.GetSubscription(GeneralsOnlineConstants.PublisherType);
             UpdateStrategy strategy = subscription?.PreferredUpdateStrategy ?? settings.PreferredUpdateStrategy ?? UpdateStrategy.ReplaceCurrent;
-            bool autoUpdate = subscription?.AutoUpdateEnabled == true;
+            bool autoUpdate = subscription?.AutoUpdateEnabled ?? false;
 
             // Prompt user if preference is not set (AutoUpdate is null/false or Strategy is null/implied)
             // But we only skip dialog if AutoUpdate is TRUE.
@@ -419,9 +419,9 @@ public class GeneralsOnlineProfileReconciler(
         return [.. manifestsResult.Data
             .Where(m =>
                 !m.Id.Value.Contains(".local.", StringComparison.OrdinalIgnoreCase) && // Exclude local content
-                (m.Publisher?.PublisherType?.Equals(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true ||
+                (string.Equals(m.Publisher?.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
                   m.Id.Value.Contains(".generalsonline.", StringComparison.OrdinalIgnoreCase) ||
-                  (m.Name?.Contains("GeneralsOnline", StringComparison.OrdinalIgnoreCase) == true)))];
+                  (m.Name?.Contains("GeneralsOnline", StringComparison.OrdinalIgnoreCase) ?? false)))];
     }
 
     /// <summary>
@@ -612,7 +612,7 @@ public class GeneralsOnlineProfileReconciler(
         {
             // Check if profile is relevant (uses any Old GeneralsOnline manifest)
             bool isRelevant = (profile.GameClient != null && oldIds.Contains(profile.GameClient.Id)) ||
-                              (profile.EnabledContentIds?.Any(id => oldIds.Contains(id)) == true);
+                              (profile.EnabledContentIds?.Any(id => oldIds.Contains(id)) ?? false);
 
             if (!isRelevant) continue;
 
