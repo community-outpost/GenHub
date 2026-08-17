@@ -366,142 +366,11 @@ public sealed class BuildEngineService(
 
         if (stage == BuildIndex.BigBundleItem)
         {
-            var rawDir = Path.Combine(setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.RawBundleItemsSubdir);
-            var bundlesDir = Path.Combine(setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.BundlesSubdir);
-
-            if (Directory.Exists(rawDir))
-            {
-                if (!Directory.Exists(bundlesDir))
-                {
-                    Directory.CreateDirectory(bundlesDir);
-                }
-
-                if (setup.Bundles?.Items != null)
-                {
-                    foreach (var item in setup.Bundles.Items.Where(i => i.IsBig))
-                    {
-                        var suffix = item.BigSuffix ?? string.Empty;
-                        var bigFileName = suffix.EndsWith(".big", StringComparison.OrdinalIgnoreCase)
-                            ? $"{item.GetFullName()}{suffix}"
-                            : $"{item.GetFullName()}{suffix}.big";
-                        var bigFilePath = Path.Combine(bundlesDir, bigFileName);
-
-                        var itemStagingDir = Path.Combine(setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir, ".staging", item.Name);
-                        if (Directory.Exists(itemStagingDir))
-                        {
-                            Directory.Delete(itemStagingDir, true);
-                        }
-
-                        Directory.CreateDirectory(itemStagingDir);
-
-                        foreach (var file in item.Files)
-                        {
-                            var targetRel = file.RelTargetFile;
-                            if (string.IsNullOrEmpty(targetRel))
-                            {
-                                targetRel = !string.IsNullOrEmpty(file.GetRelSourceFile())
-                                    ? file.GetRelSourceFile()
-                                    : Path.GetFileName(file.AbsSourceFile);
-                            }
-
-                            if (!string.IsNullOrEmpty(targetRel))
-                            {
-                                var srcInRaw = Path.Combine(rawDir, targetRel.TrimStart('/', '\\'));
-                                if (File.Exists(srcInRaw))
-                                {
-                                    var destInStaging = Path.Combine(itemStagingDir, targetRel.TrimStart('/', '\\'));
-                                    var destDir = Path.GetDirectoryName(destInStaging);
-                                    if (!string.IsNullOrEmpty(destDir))
-                                    {
-                                        Directory.CreateDirectory(destDir);
-                                    }
-
-                                    File.Copy(srcInRaw, destInStaging, overwrite: true);
-                                }
-                            }
-                        }
-
-                        var sourceToPack = Directory.Exists(itemStagingDir) && Directory.EnumerateFileSystemEntries(itemStagingDir).Any()
-                            ? itemStagingDir
-                            : rawDir;
-
-                        var archiveResult = await archiveService.CreateBigArchiveAsync(sourceToPack, bigFilePath, null, cancellationToken).ConfigureAwait(false);
-                        if (!archiveResult.Success)
-                        {
-                            logger.LogError("Failed to create BIG archive {Archive}: {Error}", bigFilePath, archiveResult.FirstError);
-                            Interlocked.Increment(ref _filesFailed);
-                        }
-
-                        if (Directory.Exists(itemStagingDir))
-                        {
-                            try
-                            {
-                                Directory.Delete(itemStagingDir, true);
-                            }
-                            catch
-                            {
-                                // Ignore cleanup failure
-                            }
-                        }
-                    }
-                }
-            }
+            await ExecuteBigBundleItemStageAsync(setup, cancellationToken).ConfigureAwait(false);
         }
         else if (stage == BuildIndex.ReleaseBundlePack)
         {
-            var bundlesDir = Path.Combine(setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.BundlesSubdir);
-            var releaseDir = setup.Folders?.AbsReleaseDir ?? ModBuilderConstants.DefaultReleaseDir;
-
-            if (Directory.Exists(bundlesDir) && !string.IsNullOrEmpty(releaseDir))
-            {
-                if (!Directory.Exists(releaseDir))
-                {
-                    Directory.CreateDirectory(releaseDir);
-                }
-
-                if (setup.Bundles?.Packs != null)
-                {
-                    var packsToRelease = setup.SelectedPacks is { Count: > 0 }
-                        ? setup.Bundles.Packs.Where(p => p.AllowBuild && setup.SelectedPacks.Contains(p.Name, StringComparer.OrdinalIgnoreCase))
-                        : setup.Bundles.Packs.Where(p => p.AllowBuild);
-
-                    foreach (var pack in packsToRelease)
-                    {
-                        var zipFileName = $"{pack.GetFullName()}.zip";
-                        var zipFilePath = Path.Combine(releaseDir, zipFileName);
-                        var archiveResult = await archiveService.CreateZipArchiveAsync(bundlesDir, zipFilePath, System.IO.Compression.CompressionLevel.Optimal, null, cancellationToken).ConfigureAwait(false);
-                        if (archiveResult.Success)
-                        {
-                            try
-                            {
-                                if (File.Exists(zipFilePath))
-                                {
-                                    using var fileStream = File.OpenRead(zipFilePath);
-                                    var md5Hash = await System.Security.Cryptography.MD5.HashDataAsync(fileStream, cancellationToken).ConfigureAwait(false);
-                                    fileStream.Position = 0;
-                                    var sha256Hash = await System.Security.Cryptography.SHA256.HashDataAsync(fileStream, cancellationToken).ConfigureAwait(false);
-                                    var md5Hex = Convert.ToHexString(md5Hash).ToLowerInvariant();
-                                    var sha256Hex = Convert.ToHexString(sha256Hash).ToLowerInvariant();
-                                    var sizeBytes = fileStream.Length.ToString(System.Globalization.CultureInfo.InvariantCulture);
-
-                                    await File.WriteAllTextAsync($"{zipFilePath}.md5", md5Hex, cancellationToken).ConfigureAwait(false);
-                                    await File.WriteAllTextAsync($"{zipFilePath}.sha256", sha256Hex, cancellationToken).ConfigureAwait(false);
-                                    await File.WriteAllTextAsync($"{zipFilePath}.size", sizeBytes, cancellationToken).ConfigureAwait(false);
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                logger.LogWarning(ex, "Failed to generate release checksum files for {ZipFile}", zipFilePath);
-                            }
-                        }
-                        else
-                        {
-                            logger.LogError("Failed to create release ZIP archive {Archive}: {Error}", zipFilePath, archiveResult.FirstError);
-                            Interlocked.Increment(ref _filesFailed);
-                        }
-                    }
-                }
-            }
+            await ExecuteReleaseBundlePackStageAsync(setup, cancellationToken).ConfigureAwait(false);
         }
         else if (stage == BuildIndex.RawBundleItem)
         {
@@ -526,6 +395,150 @@ public sealed class BuildEngineService(
 
         var stageFailed = Volatile.Read(ref _filesFailed) > initialFailed;
         return !stageFailed;
+    }
+
+    private async Task ExecuteBigBundleItemStageAsync(BuildSetup setup, CancellationToken cancellationToken)
+    {
+        var rawDir = Path.Combine(setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.RawBundleItemsSubdir);
+        var bundlesDir = Path.Combine(setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.BundlesSubdir);
+
+        if (!Directory.Exists(rawDir))
+        {
+            return;
+        }
+
+        if (!Directory.Exists(bundlesDir))
+        {
+            Directory.CreateDirectory(bundlesDir);
+        }
+
+        if (setup.Bundles?.Items == null)
+        {
+            return;
+        }
+
+        foreach (var item in setup.Bundles.Items.Where(i => i.IsBig))
+        {
+            var suffix = item.BigSuffix ?? string.Empty;
+            var bigFileName = suffix.EndsWith(".big", StringComparison.OrdinalIgnoreCase)
+                ? $"{item.GetFullName()}{suffix}"
+                : $"{item.GetFullName()}{suffix}.big";
+            var bigFilePath = Path.Combine(bundlesDir, bigFileName);
+
+            var itemStagingDir = Path.Combine(setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir, ".staging", item.Name);
+            if (Directory.Exists(itemStagingDir))
+            {
+                Directory.Delete(itemStagingDir, true);
+            }
+
+            Directory.CreateDirectory(itemStagingDir);
+
+            foreach (var file in item.Files)
+            {
+                var targetRel = file.RelTargetFile;
+                if (string.IsNullOrEmpty(targetRel))
+                {
+                    targetRel = !string.IsNullOrEmpty(file.GetRelSourceFile())
+                        ? file.GetRelSourceFile()
+                        : Path.GetFileName(file.AbsSourceFile);
+                }
+
+                if (!string.IsNullOrEmpty(targetRel))
+                {
+                    var srcInRaw = Path.Combine(rawDir, targetRel.TrimStart('/', '\\'));
+                    if (File.Exists(srcInRaw))
+                    {
+                        var destInStaging = Path.Combine(itemStagingDir, targetRel.TrimStart('/', '\\'));
+                        var destDir = Path.GetDirectoryName(destInStaging);
+                        if (!string.IsNullOrEmpty(destDir))
+                        {
+                            Directory.CreateDirectory(destDir);
+                        }
+
+                        File.Copy(srcInRaw, destInStaging, overwrite: true);
+                    }
+                }
+            }
+
+            var sourceToPack = Directory.Exists(itemStagingDir) && Directory.EnumerateFileSystemEntries(itemStagingDir).Any()
+                ? itemStagingDir
+                : rawDir;
+
+            var archiveResult = await archiveService.CreateBigArchiveAsync(sourceToPack, bigFilePath, null, cancellationToken).ConfigureAwait(false);
+            if (!archiveResult.Success)
+            {
+                logger.LogError("Failed to create BIG archive {Archive}: {Error}", bigFilePath, archiveResult.FirstError);
+                Interlocked.Increment(ref _filesFailed);
+            }
+
+            if (Directory.Exists(itemStagingDir))
+            {
+                try
+                {
+                    Directory.Delete(itemStagingDir, true);
+                }
+                catch
+                {
+                    // Ignore cleanup failure
+                }
+            }
+        }
+    }
+
+    private async Task ExecuteReleaseBundlePackStageAsync(BuildSetup setup, CancellationToken cancellationToken)
+    {
+        var bundlesDir = Path.Combine(setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.BundlesSubdir);
+        var releaseDir = setup.Folders?.AbsReleaseDir ?? ModBuilderConstants.DefaultReleaseDir;
+
+        if (!Directory.Exists(bundlesDir) || string.IsNullOrEmpty(releaseDir) || setup.Bundles?.Packs == null)
+        {
+            return;
+        }
+
+        if (!Directory.Exists(releaseDir))
+        {
+            Directory.CreateDirectory(releaseDir);
+        }
+
+        var packsToRelease = setup.SelectedPacks is { Count: > 0 }
+            ? setup.Bundles.Packs.Where(p => p.AllowBuild && setup.SelectedPacks.Contains(p.Name, StringComparer.OrdinalIgnoreCase))
+            : setup.Bundles.Packs.Where(p => p.AllowBuild);
+
+        foreach (var pack in packsToRelease)
+        {
+            var zipFileName = $"{pack.GetFullName()}.zip";
+            var zipFilePath = Path.Combine(releaseDir, zipFileName);
+            var archiveResult = await archiveService.CreateZipArchiveAsync(bundlesDir, zipFilePath, System.IO.Compression.CompressionLevel.Optimal, null, cancellationToken).ConfigureAwait(false);
+            if (archiveResult.Success)
+            {
+                try
+                {
+                    if (File.Exists(zipFilePath))
+                    {
+                        using var fileStream = File.OpenRead(zipFilePath);
+                        var md5Hash = await System.Security.Cryptography.MD5.HashDataAsync(fileStream, cancellationToken).ConfigureAwait(false);
+                        fileStream.Position = 0;
+                        var sha256Hash = await System.Security.Cryptography.SHA256.HashDataAsync(fileStream, cancellationToken).ConfigureAwait(false);
+                        var md5Hex = Convert.ToHexString(md5Hash).ToLowerInvariant();
+                        var sha256Hex = Convert.ToHexString(sha256Hash).ToLowerInvariant();
+                        var sizeBytes = fileStream.Length.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+                        await File.WriteAllTextAsync($"{zipFilePath}.md5", md5Hex, cancellationToken).ConfigureAwait(false);
+                        await File.WriteAllTextAsync($"{zipFilePath}.sha256", sha256Hex, cancellationToken).ConfigureAwait(false);
+                        await File.WriteAllTextAsync($"{zipFilePath}.size", sizeBytes, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to generate release checksum files for {ZipFile}", zipFilePath);
+                }
+            }
+            else
+            {
+                logger.LogError("Failed to create release ZIP archive {Archive}: {Error}", zipFilePath, archiveResult.FirstError);
+                Interlocked.Increment(ref _filesFailed);
+            }
+        }
     }
 
     /// <summary>

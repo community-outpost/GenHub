@@ -8,7 +8,8 @@ namespace GenHub.Core.Models.Tools.ModBuilder.Converters;
 /// <summary>
 /// Handles deserialization of BundlePack lists from both JSON arrays ([]) and objects/dictionaries ({}) format.
 /// </summary>
-public class BundlePackListConverter : JsonConverter<List<BundlePack>>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CS-R1138:Inappropriate ordering of parameters", Justification = "Overridden from System.Text.Json.Serialization.JsonConverter<T>")]
+public sealed class BundlePackListConverter : JsonConverter<List<BundlePack>>
 {
     /// <inheritdoc/>
     public override List<BundlePack>? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
