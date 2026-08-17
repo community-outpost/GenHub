@@ -62,3 +62,10 @@ using System.Diagnostics.CodeAnalysis;
     "StyleCop.CSharp.DocumentationRules",
     "SA1633:File should have header",
     Justification = "Licensing and other information is provided in seperate files.")]
+
+[assembly: SuppressMessage(
+    "Design",
+    "CS-R1138:Inappropriate ordering of parameters",
+    Scope = "type",
+    Target = "~T:GenHub.Core.Models.Tools.ModBuilder.Converters.BundlePackListConverter",
+    Justification = "System.Text.Json requires ref Utf8JsonReader as the first parameter in JsonConverter<T>.Read overrides.")]
