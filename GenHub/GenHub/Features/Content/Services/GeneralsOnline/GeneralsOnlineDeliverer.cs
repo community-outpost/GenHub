@@ -44,9 +44,9 @@ public class GeneralsOnlineDeliverer(
     public bool CanDeliver(ContentManifest manifest)
     {
         // Can deliver if it's a Generals Online manifest with a portable ZIP URL
-        var isPublisher = manifest.Publisher?.PublisherType?.Equals(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true;
+        var isPublisher = string.Equals(manifest.Publisher?.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase);
         return isPublisher &&
-               manifest.Files.Any(f => f.DownloadUrl?.EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase) == true);
+               manifest.Files.Any(f => f.DownloadUrl != null && f.DownloadUrl.EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <inheritdoc />
@@ -65,7 +65,7 @@ public class GeneralsOnlineDeliverer(
             logger.LogInformation("Starting Generals Online content delivery for {Version}", packageManifest.Version);
 
             // Step 1: Download ZIP file
-            var zipFile = packageManifest.Files.FirstOrDefault(f => f.DownloadUrl?.EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase) == true);
+            var zipFile = packageManifest.Files.FirstOrDefault(f => f.DownloadUrl != null && f.DownloadUrl.EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase));
             if (zipFile == null)
             {
                 return OperationResult<ContentManifest>.CreateFailure("No ZIP file found in manifest");

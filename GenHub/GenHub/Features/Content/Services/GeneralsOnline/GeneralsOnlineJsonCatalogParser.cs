@@ -139,7 +139,7 @@ public class GeneralsOnlineJsonCatalogParser(
     /// </summary>
     private static GeneralsOnlineRelease CreateReleaseFromApiResponse(GeneralsOnlineApiResponse apiResponse)
     {
-        var versionDate = ParseVersionDate(apiResponse.Version) ?? DateTime.Now;
+        var versionDate = ParseVersionDate(apiResponse.Version) ?? DateTime.UtcNow;
 
         return new GeneralsOnlineRelease
         {
@@ -158,7 +158,7 @@ public class GeneralsOnlineJsonCatalogParser(
     /// </summary>
     private static GeneralsOnlineRelease CreateReleaseFromVersion(string version, ProviderDefinition provider)
     {
-        var versionDate = ParseVersionDate(version) ?? DateTime.Now;
+        var versionDate = ParseVersionDate(version) ?? DateTime.UtcNow;
         var releasesUrl = provider.Endpoints.GetEndpoint("releasesUrl");
 
         return new GeneralsOnlineRelease

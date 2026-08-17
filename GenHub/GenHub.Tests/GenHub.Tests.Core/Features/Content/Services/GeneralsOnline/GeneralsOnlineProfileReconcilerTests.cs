@@ -81,7 +81,7 @@ public class GeneralsOnlineProfileReconcilerTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CheckAndReconcile_ShouldIgnore_LocalManifests()
+    public async Task CheckAndReconcile_ShouldIgnore_LocalManifestsAsync()
     {
         // Arrange
         string latestVersion = "0.0.99";
@@ -146,7 +146,7 @@ public class GeneralsOnlineProfileReconcilerTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_AcquireCancelled_PropagatesCancellation()
+    public async Task CheckAndReconcileIfNeededAsync_AcquireCancelled_PropagatesCancellationAsync()
     {
         // Arrange
         string latestVersion = "0.0.99";

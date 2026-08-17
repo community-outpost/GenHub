@@ -131,7 +131,7 @@ public class GeneralsOnlineManifestFactory(
     /// <inheritdoc />
     public bool CanHandle(ContentManifest manifest)
     {
-        var publisherMatches = manifest.Publisher?.PublisherType?.Equals(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true;
+        var publisherMatches = string.Equals(manifest.Publisher?.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase);
         var isGameClient = manifest.ContentType == ContentType.GameClient;
         var isMapPack = manifest.ContentType == ContentType.MapPack;
         var isPatch = manifest.ContentType == ContentType.Patch;
@@ -186,8 +186,8 @@ public class GeneralsOnlineManifestFactory(
         var release = new GeneralsOnlineRelease
         {
             Version = GameClientConstants.AutoDetectedVersion,
-            VersionDate = DateTime.Now,
-            ReleaseDate = DateTime.Now,
+            VersionDate = DateTime.UtcNow,
+            ReleaseDate = DateTime.UtcNow,
             PortableUrl = string.Empty,
             PortableSize = 0,
             Changelog = string.Empty,
@@ -412,7 +412,7 @@ public class GeneralsOnlineManifestFactory(
         };
 
         // Create metadata template
-        var releaseDate = originalManifest.Metadata?.ReleaseDate ?? DateTime.Now;
+        var releaseDate = originalManifest.Metadata?.ReleaseDate ?? DateTime.UtcNow;
         var changelogUrl = originalManifest.Metadata?.ChangelogUrl;
 
         // Create 60Hz variant

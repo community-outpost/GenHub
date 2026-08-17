@@ -164,24 +164,11 @@ public class GeneralsOnlineDelivererTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task DeliverContentAsync_WhenManifestRegistrationFails_ReturnsFailure()
+    public async Task DeliverContentAsync_WhenManifestRegistrationFails_ReturnsFailureAsync()
     {
         // Arrange
         var zipPath = Path.Combine(_tempDir, "test.zip");
-        using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
-        {
-            var entry = archive.CreateEntry("generalsonlinezh_60.exe");
-            using (var writer = new StreamWriter(entry.Open()))
-            {
-                writer.Write("fake content");
-            }
-
-            var gameDataEntry = archive.CreateEntry("GeneralsOnlineGameData/500_900_CommunityPatch_CoreINI.big");
-            using (var writer = new StreamWriter(gameDataEntry.Open()))
-            {
-                writer.Write("fake big content");
-            }
-        }
+        CreateTestZip(zipPath);
 
         _downloadServiceMock
             .Setup(d => d.DownloadFileAsync(
@@ -261,24 +248,11 @@ public class GeneralsOnlineDelivererTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task DeliverContentAsync_HappyPath_RegistersAllManifestsAndCleansUp()
+    public async Task DeliverContentAsync_HappyPath_RegistersAllManifestsAndCleansUpAsync()
     {
         // Arrange
         var zipPath = Path.Combine(_tempDir, "happy_test.zip");
-        using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
-        {
-            var entry = archive.CreateEntry("generalsonlinezh_60.exe");
-            using (var writer = new StreamWriter(entry.Open()))
-            {
-                writer.Write("fake content");
-            }
-
-            var gameDataEntry = archive.CreateEntry("GeneralsOnlineGameData/500_900_CommunityPatch_CoreINI.big");
-            using (var writer = new StreamWriter(gameDataEntry.Open()))
-            {
-                writer.Write("fake big content");
-            }
-        }
+        CreateTestZip(zipPath);
 
         _downloadServiceMock
             .Setup(d => d.DownloadFileAsync(
@@ -355,24 +329,11 @@ public class GeneralsOnlineDelivererTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DeliverContentAsync_CheckAcquisitionFails_RollsBackAndReturnsFailure()
+    public async Task DeliverContentAsync_CheckAcquisitionFails_RollsBackAndReturnsFailureAsync()
     {
         // Arrange
         var zipPath = Path.Combine(_tempDir, "check_fail.zip");
-        using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
-        {
-            var exeEntry = archive.CreateEntry("generalsonlinezh_60.exe");
-            using (var writer = new StreamWriter(exeEntry.Open()))
-            {
-                writer.Write("fake exe");
-            }
-
-            var gameDataEntry = archive.CreateEntry("GeneralsOnlineGameData/500_900_CommunityPatch_CoreINI.big");
-            using (var writer = new StreamWriter(gameDataEntry.Open()))
-            {
-                writer.Write("fake big content");
-            }
-        }
+        CreateTestZip(zipPath);
 
         _downloadServiceMock
             .Setup(d => d.DownloadFileAsync(
@@ -449,24 +410,11 @@ public class GeneralsOnlineDelivererTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task DeliverContentAsync_ManifestAlreadyAcquired_SkipsRegistration()
+    public async Task DeliverContentAsync_ManifestAlreadyAcquired_SkipsRegistrationAsync()
     {
         // Arrange
         var zipPath = Path.Combine(_tempDir, "already_acquired.zip");
-        using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
-        {
-            var entry = archive.CreateEntry("generalsonlinezh_60.exe");
-            using (var writer = new StreamWriter(entry.Open()))
-            {
-                writer.Write("fake content");
-            }
-
-            var gameDataEntry = archive.CreateEntry("GeneralsOnlineGameData/500_900_CommunityPatch_CoreINI.big");
-            using (var writer = new StreamWriter(gameDataEntry.Open()))
-            {
-                writer.Write("fake big content");
-            }
-        }
+        CreateTestZip(zipPath);
 
         _downloadServiceMock
             .Setup(d => d.DownloadFileAsync(
@@ -532,24 +480,11 @@ public class GeneralsOnlineDelivererTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task DeliverContentAsync_CancellationDuringRegistration_RollsBackAndRethrows()
+    public async Task DeliverContentAsync_CancellationDuringRegistration_RollsBackAndRethrowsAsync()
     {
         // Arrange
         var zipPath = Path.Combine(_tempDir, "cancel_test.zip");
-        using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
-        {
-            var entry = archive.CreateEntry("generalsonlinezh_60.exe");
-            using (var writer = new StreamWriter(entry.Open()))
-            {
-                writer.Write("fake content");
-            }
-
-            var gameDataEntry = archive.CreateEntry("GeneralsOnlineGameData/500_900_CommunityPatch_CoreINI.big");
-            using (var writer = new StreamWriter(gameDataEntry.Open()))
-            {
-                writer.Write("fake big content");
-            }
-        }
+        CreateTestZip(zipPath);
 
         _downloadServiceMock
             .Setup(d => d.DownloadFileAsync(
@@ -624,5 +559,19 @@ public class GeneralsOnlineDelivererTests : IDisposable
         // Temp artifacts were cleaned up
         Assert.False(File.Exists(Path.Combine(targetDir, "GeneralsOnline.zip")));
         Assert.False(Directory.Exists(Path.Combine(targetDir, "extracted")));
+    }
+
+    private static void CreateTestZip(string zipPath)
+    {
+        using var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create);
+        CreateEntryWithText(archive, "generalsonlinezh_60.exe", "fake content");
+        CreateEntryWithText(archive, "GeneralsOnlineGameData/500_900_CommunityPatch_CoreINI.big", "fake big content");
+    }
+
+    private static void CreateEntryWithText(ZipArchive archive, string entryName, string content)
+    {
+        var entry = archive.CreateEntry(entryName);
+        using var writer = new StreamWriter(entry.Open());
+        writer.Write(content);
     }
 }
