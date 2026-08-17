@@ -64,51 +64,13 @@ public class GeneralsOnlineDeliverer(
         {
             logger.LogInformation("Starting Generals Online content delivery for {Version}", packageManifest.Version);
 
-            // Step 1: Download ZIP file
-            var zipFile = packageManifest.Files.FirstOrDefault(f => f.DownloadUrl is { } url && url.EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase));
-            if (zipFile == null)
-            {
-                return OperationResult<ContentManifest>.CreateFailure("No ZIP file found in manifest");
-            }
-
-            zipPath = Path.Combine(targetDirectory, "GeneralsOnline.zip");
-
-            progress?.Report(new ContentAcquisitionProgress
-            {
-                Phase = ContentAcquisitionPhase.Downloading,
-                ProgressPercentage = 10,
-                CurrentOperation = "Downloading Generals Online ZIP package",
-                CurrentFile = zipFile.RelativePath,
-            });
-
-            logger.LogDebug("Downloading ZIP from {Url} to {Path}", zipFile.DownloadUrl, zipPath);
-            var downloadResult = await downloadService.DownloadFileAsync(
-                new Uri(zipFile.DownloadUrl!),
-                zipPath,
-                expectedHash: null,
-                progress: null,
-                cancellationToken);
-
+            var downloadResult = await DownloadAndExtractPackageAsync(packageManifest, targetDirectory, progress, cancellationToken);
             if (!downloadResult.Success)
             {
-                CleanupTempArtifacts(zipPath, extractPath, logger);
-                return OperationResult<ContentManifest>.CreateFailure(
-                    $"Failed to download ZIP: {downloadResult.FirstError}");
+                return OperationResult<ContentManifest>.CreateFailure(downloadResult.FirstError ?? "Failed to download and extract package");
             }
 
-            // Step 2: Extract ZIP
-            extractPath = Path.Combine(targetDirectory, "extracted");
-            Directory.CreateDirectory(extractPath);
-
-            progress?.Report(new ContentAcquisitionProgress
-            {
-                Phase = ContentAcquisitionPhase.Extracting,
-                ProgressPercentage = 40,
-                CurrentOperation = "Extracting Generals Online files",
-            });
-
-            logger.LogDebug("Extracting ZIP to {Path}", extractPath);
-            ZipFile.ExtractToDirectory(zipPath, extractPath, overwriteFiles: true);
+            (zipPath, extractPath) = downloadResult.Data;
 
             // Step 3: Create variant manifests from extracted files
             progress?.Report(new ContentAcquisitionProgress
@@ -139,157 +101,15 @@ public class GeneralsOnlineDeliverer(
                 CurrentOperation = "Registering all variant manifests to content library",
             });
 
-            foreach (var manifest in manifests)
+            var registrationResult = await RegisterVariantManifestsAsync(manifests, extractPath, newlyRegisteredManifests, cancellationToken);
+            if (!registrationResult.Success)
             {
-                var checkResult = await manifestPool.IsManifestAcquiredAsync(manifest.Id, cancellationToken: cancellationToken);
-                if (!checkResult.Success)
-                {
-                    logger.LogError(
-                        "Failed to check acquisition status for manifest {ManifestId}: {Error}",
-                        manifest.Id,
-                        checkResult.FirstError);
-
-                    var rollbackErrors = await RollbackManifestsAsync(newlyRegisteredManifests);
-                    newlyRegisteredManifests.Clear();
-                    CleanupTempArtifacts(zipPath, extractPath, logger);
-
-                    var errorMessage = $"Failed to check manifest acquisition status for {manifest.Id}: {checkResult.FirstError}";
-                    if (rollbackErrors.Count > 0)
-                    {
-                        errorMessage += $"; Rollback warnings: {string.Join("; ", rollbackErrors)}";
-                    }
-
-                    return OperationResult<ContentManifest>.CreateFailure(errorMessage);
-                }
-
-                if (checkResult.Data)
-                {
-                    logger.LogInformation(
-                        "Manifest {ManifestId} ({Name}) is already acquired in pool; skipping registration",
-                        manifest.Id,
-                        manifest.Name);
-                    continue;
-                }
-
-                var addResult = await manifestPool.AddManifestAsync(manifest, extractPath, cancellationToken: cancellationToken);
-                if (!addResult.Success)
-                {
-                    logger.LogError(
-                        "Failed to register manifest {ManifestId} ({Name}): {Error}",
-                        manifest.Id,
-                        manifest.Name,
-                        addResult.FirstError);
-
-                    var rollbackErrors = await RollbackManifestsAsync(newlyRegisteredManifests);
-                    newlyRegisteredManifests.Clear();
-                    CleanupTempArtifacts(zipPath, extractPath, logger);
-
-                    var errorMessage = $"Failed to register manifest {manifest.Id} ({manifest.Name}): {addResult.FirstError}";
-                    if (rollbackErrors.Count > 0)
-                    {
-                        errorMessage += $"; Rollback warnings: {string.Join("; ", rollbackErrors)}";
-                    }
-
-                    return OperationResult<ContentManifest>.CreateFailure(errorMessage);
-                }
-
-                newlyRegisteredManifests.Add(manifest);
-                logger.LogInformation("Successfully registered manifest: {ManifestId} ({Name})", manifest.Id, manifest.Name);
+                CleanupTempArtifacts(zipPath, extractPath, logger);
+                return OperationResult<ContentManifest>.CreateFailure(registrationResult.FirstError ?? "Failed to register variant manifests");
             }
 
-            var movedFiles = new List<(string TargetPath, string? BackupPath)>();
-            var parentDir = Directory.GetParent(extractPath)?.FullName;
-            if (parentDir != null)
-            {
-                logger.LogInformation("Moving extracted files from {ExtractPath} to parent {ParentDir}", extractPath, parentDir);
-                try
-                {
-                    foreach (var file in Directory.GetFiles(extractPath, "*", SearchOption.AllDirectories))
-                    {
-                        var relativePath = Path.GetRelativePath(extractPath, file);
-                        var targetPath = Path.Combine(parentDir, relativePath);
-                        var targetDir = Path.GetDirectoryName(targetPath);
-                        if (!string.IsNullOrEmpty(targetDir))
-                        {
-                            Directory.CreateDirectory(targetDir);
-                        }
-
-                        string? backupPath = null;
-                        if (File.Exists(targetPath))
-                        {
-                            backupPath = targetPath + ".gh_bak_" + Guid.NewGuid().ToString("N");
-                            File.Move(targetPath, backupPath);
-                            movedFiles.Add((targetPath, backupPath));
-                        }
-
-                        File.Move(file, targetPath, overwrite: true);
-                        if (backupPath == null)
-                        {
-                            movedFiles.Add((targetPath, null));
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to move extracted files from {ExtractPath} to parent {ParentDir}; rolling back moved files", extractPath, parentDir);
-
-                    // Roll back moved files
-                    foreach (var (targetPath, backupPath) in movedFiles)
-                    {
-                        try
-                        {
-                            if (backupPath != null && File.Exists(backupPath))
-                            {
-                                File.Move(backupPath, targetPath, overwrite: true);
-                            }
-                            else if (File.Exists(targetPath))
-                            {
-                                File.Delete(targetPath);
-                            }
-                        }
-                        catch (Exception restoreEx)
-                        {
-                            logger.LogWarning(restoreEx, "Failed to restore target file {TargetPath} during rollback", targetPath);
-                        }
-                    }
-
-                    throw;
-                }
-
-                // Clean up backup files on success
-                foreach (var (_, backupPath) in movedFiles)
-                {
-                    if (backupPath != null && File.Exists(backupPath))
-                    {
-                        try
-                        {
-                            File.Delete(backupPath);
-                        }
-                        catch (Exception delEx)
-                        {
-                            logger.LogWarning(delEx, "Failed to delete backup file {BackupPath}", backupPath);
-                        }
-                    }
-                }
-
-                try
-                {
-                    Directory.Delete(extractPath, recursive: true);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to delete extracted directory {ExtractPath}", extractPath);
-                }
-            }
-
-            try
-            {
-                File.Delete(zipPath);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to delete ZIP file {ZipPath}", zipPath);
-            }
+            MoveExtractedFilesToTarget(extractPath);
+            DeleteZipSafe(zipPath);
 
             progress?.Report(new ContentAcquisitionProgress
             {
@@ -381,6 +201,224 @@ public class GeneralsOnlineDeliverer(
             {
                 logger.LogWarning(ex, "Failed to clean up ZIP file {ZipPath}", zipPath);
             }
+        }
+    }
+
+    private async Task<OperationResult<(string ZipPath, string ExtractPath)>> DownloadAndExtractPackageAsync(
+        ContentManifest packageManifest,
+        string targetDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var zipFile = packageManifest.Files.FirstOrDefault(f => f.DownloadUrl is { } url && url.EndsWith(GeneralsOnlineConstants.PortableExtension, StringComparison.OrdinalIgnoreCase));
+        if (zipFile == null)
+        {
+            return OperationResult<(string, string)>.CreateFailure("No ZIP file found in manifest");
+        }
+
+        var zipPath = Path.Combine(targetDirectory, "GeneralsOnline.zip");
+        progress?.Report(new ContentAcquisitionProgress
+        {
+            Phase = ContentAcquisitionPhase.Downloading,
+            ProgressPercentage = 10,
+            CurrentOperation = "Downloading Generals Online ZIP package",
+            CurrentFile = zipFile.RelativePath,
+        });
+
+        logger.LogDebug("Downloading ZIP from {Url} to {Path}", zipFile.DownloadUrl, zipPath);
+        var downloadResult = await downloadService.DownloadFileAsync(
+            new Uri(zipFile.DownloadUrl!),
+            zipPath,
+            expectedHash: null,
+            progress: null,
+            cancellationToken);
+
+        if (!downloadResult.Success)
+        {
+            CleanupTempArtifacts(zipPath, null, logger);
+            return OperationResult<(string, string)>.CreateFailure($"Failed to download ZIP: {downloadResult.FirstError}");
+        }
+
+        var extractPath = Path.Combine(targetDirectory, "extracted");
+        Directory.CreateDirectory(extractPath);
+
+        progress?.Report(new ContentAcquisitionProgress
+        {
+            Phase = ContentAcquisitionPhase.Extracting,
+            ProgressPercentage = 40,
+            CurrentOperation = "Extracting Generals Online files",
+        });
+
+        logger.LogDebug("Extracting ZIP to {Path}", extractPath);
+        ZipFile.ExtractToDirectory(zipPath, extractPath, overwriteFiles: true);
+
+        return OperationResult<(string, string)>.CreateSuccess((zipPath, extractPath));
+    }
+
+    private async Task<OperationResult> RegisterVariantManifestsAsync(
+        IReadOnlyList<ContentManifest> manifests,
+        string extractPath,
+        List<ContentManifest> newlyRegisteredManifests,
+        CancellationToken cancellationToken)
+    {
+        foreach (var manifest in manifests)
+        {
+            var checkResult = await manifestPool.IsManifestAcquiredAsync(manifest.Id, cancellationToken: cancellationToken);
+            if (!checkResult.Success)
+            {
+                logger.LogError("Failed to check acquisition status for manifest {ManifestId}: {Error}", manifest.Id, checkResult.FirstError);
+                var rollbackErrors = await RollbackManifestsAsync(newlyRegisteredManifests);
+                newlyRegisteredManifests.Clear();
+
+                var errorMessage = $"Failed to check manifest acquisition status for {manifest.Id}: {checkResult.FirstError}";
+                if (rollbackErrors.Count > 0)
+                {
+                    errorMessage += $"; Rollback warnings: {string.Join("; ", rollbackErrors)}";
+                }
+
+                return OperationResult.CreateFailure(errorMessage);
+            }
+
+            if (checkResult.Data)
+            {
+                logger.LogInformation("Manifest {ManifestId} ({Name}) is already acquired in pool; skipping registration", manifest.Id, manifest.Name);
+                continue;
+            }
+
+            var addResult = await manifestPool.AddManifestAsync(manifest, extractPath, cancellationToken: cancellationToken);
+            if (!addResult.Success)
+            {
+                logger.LogError("Failed to register manifest {ManifestId} ({Name}): {Error}", manifest.Id, manifest.Name, addResult.FirstError);
+                var rollbackErrors = await RollbackManifestsAsync(newlyRegisteredManifests);
+                newlyRegisteredManifests.Clear();
+
+                var errorMessage = $"Failed to register manifest {manifest.Id} ({manifest.Name}): {addResult.FirstError}";
+                if (rollbackErrors.Count > 0)
+                {
+                    errorMessage += $"; Rollback warnings: {string.Join("; ", rollbackErrors)}";
+                }
+
+                return OperationResult.CreateFailure(errorMessage);
+            }
+
+            newlyRegisteredManifests.Add(manifest);
+            logger.LogInformation("Successfully registered manifest: {ManifestId} ({Name})", manifest.Id, manifest.Name);
+        }
+
+        return OperationResult.CreateSuccess();
+    }
+
+    private void MoveExtractedFilesToTarget(string extractPath)
+    {
+        var parentDir = Directory.GetParent(extractPath)?.FullName;
+        if (parentDir == null)
+        {
+            return;
+        }
+
+        logger.LogInformation("Moving extracted files from {ExtractPath} to parent {ParentDir}", extractPath, parentDir);
+        var movedFiles = new List<(string TargetPath, string? BackupPath)>();
+
+        try
+        {
+            foreach (var file in Directory.GetFiles(extractPath, "*", SearchOption.AllDirectories))
+            {
+                var relativePath = Path.GetRelativePath(extractPath, file);
+                var targetPath = Path.Combine(parentDir, relativePath);
+                var targetDir = Path.GetDirectoryName(targetPath);
+                if (!string.IsNullOrEmpty(targetDir))
+                {
+                    Directory.CreateDirectory(targetDir);
+                }
+
+                string? backupPath = null;
+                if (File.Exists(targetPath))
+                {
+                    backupPath = targetPath + ".gh_bak_" + Guid.NewGuid().ToString("N");
+                    File.Move(targetPath, backupPath);
+                    movedFiles.Add((targetPath, backupPath));
+                }
+
+                File.Move(file, targetPath, overwrite: true);
+                if (backupPath == null)
+                {
+                    movedFiles.Add((targetPath, null));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to move extracted files from {ExtractPath} to parent {ParentDir}; rolling back moved files", extractPath, parentDir);
+            RollbackMovedFiles(movedFiles);
+            throw;
+        }
+
+        CleanupBackupFiles(movedFiles);
+
+        try
+        {
+            Directory.Delete(extractPath, recursive: true);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to delete extracted directory {ExtractPath}", extractPath);
+        }
+    }
+
+    private void RollbackMovedFiles(List<(string TargetPath, string? BackupPath)> movedFiles)
+    {
+        foreach (var (targetPath, backupPath) in movedFiles)
+        {
+            try
+            {
+                if (backupPath != null && File.Exists(backupPath))
+                {
+                    File.Move(backupPath, targetPath, overwrite: true);
+                }
+                else if (File.Exists(targetPath))
+                {
+                    File.Delete(targetPath);
+                }
+            }
+            catch (Exception restoreEx)
+            {
+                logger.LogWarning(restoreEx, "Failed to restore target file {TargetPath} during rollback", targetPath);
+            }
+        }
+    }
+
+    private void CleanupBackupFiles(List<(string TargetPath, string? BackupPath)> movedFiles)
+    {
+        foreach (var (_, backupPath) in movedFiles)
+        {
+            if (backupPath != null && File.Exists(backupPath))
+            {
+                try
+                {
+                    File.Delete(backupPath);
+                }
+                catch (Exception delEx)
+                {
+                    logger.LogWarning(delEx, "Failed to delete backup file {BackupPath}", backupPath);
+                }
+            }
+        }
+    }
+
+    private void DeleteZipSafe(string? zipPath)
+    {
+        if (string.IsNullOrEmpty(zipPath) || !File.Exists(zipPath))
+        {
+            return;
+        }
+
+        try
+        {
+            File.Delete(zipPath);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to delete ZIP file {ZipPath}", zipPath);
         }
     }
 

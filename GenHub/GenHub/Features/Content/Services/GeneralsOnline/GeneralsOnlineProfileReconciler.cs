@@ -52,88 +52,23 @@ public class GeneralsOnlineProfileReconciler(
                 "[GO Reconciler] Checking for GeneralsOnline updates (triggered by profile: {ProfileId})",
                 triggeringProfileId);
 
-            // Step 1: Check for updates
-            var updateResult = await updateService.CheckForUpdatesAsync(cancellationToken);
-
-            if (!updateResult.Success)
+            var checkResult = await CheckUpdateAvailabilityAndStrategyAsync(cancellationToken);
+            if (!checkResult.Success)
             {
-                logger.LogWarning(
-                    "[GO Reconciler] Update check failed: {Error}",
-                    updateResult.FirstError);
-                return OperationResult<bool>.CreateFailure(
-                    $"Failed to check for GeneralsOnline updates: {updateResult.FirstError}");
+                return OperationResult<bool>.CreateFailure(checkResult.FirstError ?? "Failed to check update availability");
             }
 
-            if (!updateResult.IsUpdateAvailable)
+            var (proceed, updateResult, strategy, subscription) = checkResult.Data;
+            if (!proceed || updateResult == null)
             {
-                logger.LogInformation(
-                    "[GO Reconciler] No update available. Current version: {Version}",
-                    updateResult.CurrentVersion);
                 return OperationResult<bool>.CreateSuccess(false);
             }
 
-            // Check if this specific version is skipped
-            var settings = userSettingsService.Get();
-            if (settings.IsVersionSkipped(GeneralsOnlineConstants.PublisherType, updateResult.LatestVersion ?? string.Empty))
-            {
-                logger.LogInformation("[GO Reconciler] User opted to skip version {Version}. Skipping.", updateResult.LatestVersion);
-                return OperationResult<bool>.CreateSuccess(false);
-            }
-
-            // Determine strategy
-            var subscription = settings.GetSubscription(GeneralsOnlineConstants.PublisherType);
-            UpdateStrategy strategy = subscription?.PreferredUpdateStrategy ?? settings.PreferredUpdateStrategy ?? UpdateStrategy.ReplaceCurrent;
-            bool autoUpdate = subscription is { AutoUpdateEnabled: true };
-
-            // Prompt user if preference is not set (AutoUpdate is null/false or Strategy is null/implied)
-            // But we only skip dialog if AutoUpdate is TRUE.
-            if (!autoUpdate)
-            {
-                var dialogResult = await dialogService.ShowUpdateOptionDialogAsync(
-                    "Generals Online Update Available",
-                    $"A new version of **Generals Online** is available ({updateResult.LatestVersion}).\n\nHow do you want to apply this update?");
-
-                if (dialogResult == null) return OperationResult<bool>.CreateSuccess(false);
-
-                if (dialogResult.Action == "Skip")
-                {
-                    logger.LogInformation("[GO Reconciler] User skipped version {Version}.", updateResult.LatestVersion);
-
-                    // Only permanently skip if user checked "Do not ask again"
-                    if (dialogResult.IsDoNotAskAgain)
-                    {
-                        await userSettingsService.TryUpdateAndSaveAsync(s =>
-                        {
-                            s.SkipVersion(GeneralsOnlineConstants.PublisherType, updateResult.LatestVersion ?? string.Empty);
-                            return true;
-                        });
-                    }
-
-                    return OperationResult<bool>.CreateSuccess(false);
-                }
-
-                strategy = dialogResult.Strategy;
-
-                if (dialogResult.IsDoNotAskAgain)
-                {
-                    logger.LogInformation("[GO Reconciler] Saving user preference for GeneralsOnline updates");
-                    await userSettingsService.TryUpdateAndSaveAsync(s =>
-                    {
-                        var sub = s.GetOrCreateSubscription(GeneralsOnlineConstants.PublisherType, isSubscribed: true);
-                        sub.AutoUpdateEnabled = true;
-                        sub.PreferredUpdateStrategy = strategy;
-                        return true;
-                    });
-                }
-            }
-
-            // Step 2: Notify user that update is being installed
             notificationService.ShowInfo(
                 "GeneralsOnline Update Found",
                 $"Installing GeneralsOnline {updateResult.LatestVersion}. Please wait...",
                 NotificationDurations.VeryLong);
 
-            // Step 3: Find all GeneralsOnline manifests currently installed
             var oldManifests = await FindGeneralsOnlineManifestsAsync(cancellationToken);
             if (oldManifests.Count == 0)
             {
@@ -144,7 +79,6 @@ public class GeneralsOnlineProfileReconciler(
                 "[GO Reconciler] Found {Count} existing GeneralsOnline manifests to replace",
                 oldManifests.Count);
 
-            // Step 4: Download and acquire new content
             var acquireResult = await AcquireLatestVersionAsync(oldManifests, cancellationToken);
             if (!acquireResult.Success)
             {
@@ -158,60 +92,16 @@ public class GeneralsOnlineProfileReconciler(
             }
 
             var newManifests = acquireResult.Data!;
-            logger.LogInformation(
-                "[GO Reconciler] Successfully acquired {Count} new manifests",
-                newManifests.Count);
+            logger.LogInformation("[GO Reconciler] Successfully acquired {Count} new manifests", newManifests.Count);
 
-            // Step 5: Update affected profiles based on strategy
-            int profilesUpdated = 0;
-            bool anyFailure = false;
-
-            // CRITICAL: If strategy is CreateNewProfile, we MUST keep old versions because existing profiles still use them.
-            // If strategy is ReplaceCurrent, we delete if the subscription/user settings allow it.
-            bool shouldDeleteOldVersions = (strategy != UpdateStrategy.CreateNewProfile) && (subscription?.DeleteOldVersions ?? true);
-
-            Dictionary<string, string>? manifestMapping = null;
-
-            if (strategy == UpdateStrategy.CreateNewProfile)
+            var updateResultData = await ApplyUpdateStrategyAsync(strategy, oldManifests, newManifests, updateResult.LatestVersion ?? "Unknown", cancellationToken);
+            if (!updateResultData.Success)
             {
-                var createResult = await CreateNewProfilesForUpdateAsync(oldManifests, newManifests, updateResult.LatestVersion ?? "Unknown", cancellationToken);
-                if (createResult.Success) profilesUpdated = createResult.Data;
-                else notificationService.ShowWarning("GeneralsOnline Update Partial", $"Failed to create some new profiles: {createResult.FirstError}", NotificationDurations.VeryLong);
-            }
-            else
-            {
-                // ReplaceCurrent
-                manifestMapping = BuildManifestMapping(oldManifests, newManifests, versionComparer.GetScheme(GeneralsOnlineConstants.PublisherType));
-
-                // CRITICAL: Pass removeOld = false to prevent premature deletion
-                // We'll handle deletion after MapPack enforcement succeeds
-                var bulkUpdateResult = await reconciliationService.OrchestrateBulkUpdateAsync(
-                    manifestMapping,
-                    removeOld: false,
-                    cancellationToken);
-
-                if (bulkUpdateResult.Success)
-                {
-                    profilesUpdated = bulkUpdateResult.Data?.ProfilesUpdated ?? 0;
-                    var failedCount = bulkUpdateResult.Data?.FailedProfilesCount ?? 0;
-                    if (failedCount > 0)
-                    {
-                        anyFailure = true;
-                        notificationService.ShowWarning("Generals Online Update Partial", $"{failedCount} profiles could not be updated.", NotificationDurations.VeryLong);
-                    }
-                }
-                else
-                {
-                    anyFailure = true;
-                    notificationService.ShowWarning("GeneralsOnline Update Partial", $"Some profiles could not be updated: {bulkUpdateResult.FirstError}", NotificationDurations.VeryLong);
-                    return OperationResult<bool>.CreateFailure($"Bulk update failed: {bulkUpdateResult.FirstError}");
-                }
+                return OperationResult<bool>.CreateFailure(updateResultData.FirstError ?? "Failed to apply update strategy");
             }
 
-            // Step 5.5: Enforce MapPack dependency (add MapPack to profile if missing)
-            // This applies to BOTH strategies (New profiles need it too, and existing ones need it)
-            // But CreateNewProfilesForUpdateAsync handles it internally for new profiles.
-            // Better to run it broadly just in case.
+            var (profilesUpdated, anyFailure, manifestMapping) = updateResultData.Data;
+
             var enforceResult = await EnforceMapPackDependencyAsync(newManifests, cancellationToken);
             if (!enforceResult.Success)
             {
@@ -220,42 +110,9 @@ public class GeneralsOnlineProfileReconciler(
                 logger.LogWarning("[GO Reconciler] MapPack enforcement failed: {Error}. Skipping old manifest deletion.", enforceResult.FirstError);
             }
 
-            // Step 6: Delete old manifests only if enforcement succeeded and deletion is enabled
-            if (shouldDeleteOldVersions && !anyFailure && manifestMapping != null)
-            {
-                logger.LogInformation("[GO Reconciler] Deleting old manifests that have mapped successors");
-                var oldManifestIds = oldManifests
-                    .Where(m => manifestMapping.ContainsKey(m.Id.Value))
-                    .Select(m => m.Id)
-                    .ToList();
+            bool shouldDeleteOldVersions = (strategy != UpdateStrategy.CreateNewProfile) && (subscription?.DeleteOldVersions ?? true);
+            await HandleOldManifestsAndCleanupAsync(shouldDeleteOldVersions, anyFailure, manifestMapping, oldManifests, cancellationToken);
 
-                if (oldManifestIds.Count > 0)
-                {
-                    var removalResult = await reconciliationService.OrchestrateBulkRemovalAsync(oldManifestIds, cancellationToken);
-                    if (!removalResult.Success)
-                    {
-                        logger.LogWarning("[GO Reconciler] Failed to remove old manifests: {Error}", removalResult.FirstError);
-                        anyFailure = true;
-                    }
-                }
-            }
-            else if (shouldDeleteOldVersions && anyFailure)
-            {
-                logger.LogWarning("[GO Reconciler] Skipping old manifest deletion due to previous failures to preserve content integrity.");
-            }
-
-            // Step 7: Run garbage collection (only if old versions were deleted AND no failures occurred)
-            // If some profiles failed, GC could delete files they still rely on.
-            if (shouldDeleteOldVersions && !anyFailure)
-            {
-                await reconciliationService.ScheduleGarbageCollectionAsync(false, cancellationToken);
-            }
-            else if (shouldDeleteOldVersions && anyFailure)
-            {
-                logger.LogWarning("[GO Reconciler] Skipping scheduled GC due to partial update failure to avoid deleting referenced content.");
-            }
-
-            // Step 8: Show success notification
             notificationService.ShowSuccess(
                 "GeneralsOnline Updated",
                 $"Successfully updated to version {updateResult.LatestVersion}. {profilesUpdated} profiles {(strategy == UpdateStrategy.CreateNewProfile ? "created" : "updated")}.",
@@ -278,9 +135,11 @@ public class GeneralsOnlineProfileReconciler(
             logger.LogError(ex, "[GO Reconciler] Reconciliation failed unexpectedly");
             notificationService.ShowError(
                 "GeneralsOnline Update Error",
-                $"An error occurred during update: {ex.Message}",
+                $"An error occurred while reconciling GeneralsOnline updates: {ex.Message}",
                 NotificationDurations.Critical);
-            return OperationResult<bool>.CreateFailure($"Reconciliation failed: {ex.Message}");
+
+            return OperationResult<bool>.CreateFailure(
+                $"GeneralsOnline update reconciliation failed: {ex.Message}");
         }
     }
 
@@ -402,6 +261,148 @@ public class GeneralsOnlineProfileReconciler(
 
         // Fallback to ID-based detection for legacy manifests
         return ExtractVariant(manifest.Id.Value);
+    }
+
+    private async Task<OperationResult<(bool Proceed, ContentUpdateCheckResult? UpdateResult, UpdateStrategy Strategy, PublisherSubscription? Subscription)>>
+        CheckUpdateAvailabilityAndStrategyAsync(CancellationToken cancellationToken)
+    {
+        var updateResult = await updateService.CheckForUpdatesAsync(cancellationToken);
+        if (!updateResult.Success)
+        {
+            logger.LogWarning("[GO Reconciler] Update check failed: {Error}", updateResult.FirstError);
+            return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?)>.CreateFailure(
+                $"Failed to check for GeneralsOnline updates: {updateResult.FirstError}");
+        }
+
+        if (!updateResult.IsUpdateAvailable)
+        {
+            logger.LogInformation("[GO Reconciler] No update available. Current version: {Version}", updateResult.CurrentVersion);
+            return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?)>.CreateSuccess((false, null, UpdateStrategy.ReplaceCurrent, null));
+        }
+
+        var settings = userSettingsService.Get();
+        if (settings.IsVersionSkipped(GeneralsOnlineConstants.PublisherType, updateResult.LatestVersion ?? string.Empty))
+        {
+            logger.LogInformation("[GO Reconciler] User opted to skip version {Version}. Skipping.", updateResult.LatestVersion);
+            return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?)>.CreateSuccess((false, null, UpdateStrategy.ReplaceCurrent, null));
+        }
+
+        var subscription = settings.GetSubscription(GeneralsOnlineConstants.PublisherType);
+        UpdateStrategy strategy = subscription?.PreferredUpdateStrategy ?? settings.PreferredUpdateStrategy ?? UpdateStrategy.ReplaceCurrent;
+        bool autoUpdate = subscription is { AutoUpdateEnabled: true };
+
+        if (!autoUpdate)
+        {
+            var dialogResult = await dialogService.ShowUpdateOptionDialogAsync(
+                "Generals Online Update Available",
+                $"A new version of **Generals Online** is available ({updateResult.LatestVersion}).\n\nHow do you want to apply this update?");
+
+            if (dialogResult == null)
+            {
+                return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?)>.CreateSuccess((false, null, strategy, subscription));
+            }
+
+            if (dialogResult.Action == "Skip")
+            {
+                logger.LogInformation("[GO Reconciler] User skipped version {Version}.", updateResult.LatestVersion);
+                if (dialogResult.IsDoNotAskAgain)
+                {
+                    await userSettingsService.TryUpdateAndSaveAsync(s =>
+                    {
+                        s.SkipVersion(GeneralsOnlineConstants.PublisherType, updateResult.LatestVersion ?? string.Empty);
+                        return true;
+                    });
+                }
+
+                return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?)>.CreateSuccess((false, null, strategy, subscription));
+            }
+
+            strategy = dialogResult.Strategy;
+            if (dialogResult.IsDoNotAskAgain)
+            {
+                logger.LogInformation("[GO Reconciler] Saving user preference for GeneralsOnline updates");
+                await userSettingsService.TryUpdateAndSaveAsync(s =>
+                {
+                    var sub = s.GetOrCreateSubscription(GeneralsOnlineConstants.PublisherType, isSubscribed: true);
+                    sub.AutoUpdateEnabled = true;
+                    sub.PreferredUpdateStrategy = strategy;
+                    return true;
+                });
+            }
+        }
+
+        return OperationResult<(bool, ContentUpdateCheckResult?, UpdateStrategy, PublisherSubscription?)>.CreateSuccess((true, updateResult, strategy, subscription));
+    }
+
+    private async Task<OperationResult<(int ProfilesUpdated, bool AnyFailure, Dictionary<string, string>? ManifestMapping)>>
+        ApplyUpdateStrategyAsync(
+            UpdateStrategy strategy,
+            List<ContentManifest> oldManifests,
+            List<ContentManifest> newManifests,
+            string newVersion,
+            CancellationToken cancellationToken)
+    {
+        if (strategy == UpdateStrategy.CreateNewProfile)
+        {
+            var createResult = await CreateNewProfilesForUpdateAsync(oldManifests, newManifests, newVersion, cancellationToken);
+            if (createResult.Success)
+            {
+                return OperationResult<(int, bool, Dictionary<string, string>?)>.CreateSuccess((createResult.Data, false, null));
+            }
+
+            notificationService.ShowWarning("GeneralsOnline Update Partial", $"Failed to create some new profiles: {createResult.FirstError}", NotificationDurations.VeryLong);
+            return OperationResult<(int, bool, Dictionary<string, string>?)>.CreateSuccess((0, true, null));
+        }
+
+        var manifestMapping = BuildManifestMapping(oldManifests, newManifests, versionComparer.GetScheme(GeneralsOnlineConstants.PublisherType));
+        var bulkUpdateResult = await reconciliationService.OrchestrateBulkUpdateAsync(manifestMapping, removeOld: false, cancellationToken);
+
+        if (!bulkUpdateResult.Success)
+        {
+            notificationService.ShowWarning("GeneralsOnline Update Partial", $"Some profiles could not be updated: {bulkUpdateResult.FirstError}", NotificationDurations.VeryLong);
+            return OperationResult<(int, bool, Dictionary<string, string>?)>.CreateFailure($"Bulk update failed: {bulkUpdateResult.FirstError}");
+        }
+
+        int profilesUpdated = bulkUpdateResult.Data?.ProfilesUpdated ?? 0;
+        bool anyFailure = (bulkUpdateResult.Data?.FailedProfilesCount ?? 0) > 0;
+        if (anyFailure)
+        {
+            notificationService.ShowWarning("Generals Online Update Partial", $"{bulkUpdateResult.Data?.FailedProfilesCount} profiles could not be updated.", NotificationDurations.VeryLong);
+        }
+
+        return OperationResult<(int, bool, Dictionary<string, string>?)>.CreateSuccess((profilesUpdated, anyFailure, manifestMapping));
+    }
+
+    private async Task HandleOldManifestsAndCleanupAsync(
+        bool shouldDeleteOldVersions,
+        bool anyFailure,
+        Dictionary<string, string>? manifestMapping,
+        List<ContentManifest> oldManifests,
+        CancellationToken cancellationToken)
+    {
+        if (shouldDeleteOldVersions && !anyFailure && manifestMapping != null)
+        {
+            logger.LogInformation("[GO Reconciler] Deleting old manifests that have mapped successors");
+            var oldManifestIds = oldManifests
+                .Where(m => manifestMapping.ContainsKey(m.Id.Value))
+                .Select(m => m.Id)
+                .ToList();
+
+            if (oldManifestIds.Count > 0)
+            {
+                var removalResult = await reconciliationService.OrchestrateBulkRemovalAsync(oldManifestIds, cancellationToken);
+                if (!removalResult.Success)
+                {
+                    logger.LogWarning("[GO Reconciler] Failed to remove old manifests: {Error}", removalResult.FirstError);
+                }
+            }
+
+            await reconciliationService.ScheduleGarbageCollectionAsync(false, cancellationToken);
+        }
+        else if (shouldDeleteOldVersions && anyFailure)
+        {
+            logger.LogWarning("[GO Reconciler] Skipping old manifest deletion and scheduled GC due to previous failures to preserve content integrity.");
+        }
     }
 
     /// <summary>

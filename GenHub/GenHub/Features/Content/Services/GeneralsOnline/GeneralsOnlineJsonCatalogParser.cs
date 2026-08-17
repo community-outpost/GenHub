@@ -194,11 +194,15 @@ public class GeneralsOnlineJsonCatalogParser(
                 return null;
             }
 
-            var month = int.Parse(datePart[..2]);
-            var day = int.Parse(datePart.Substring(2, 2));
-            var year = 2000 + int.Parse(datePart[4..]);
+            if (!int.TryParse(datePart[..2], out var month) ||
+                !int.TryParse(datePart.Substring(2, 2), out var day) ||
+                !int.TryParse(datePart[4..], out var yearSuffix))
+            {
+                return null;
+            }
 
-            return new DateTime(year, month, day);
+            var year = 2000 + yearSuffix;
+            return new DateTime(year, month, day, 0, 0, 0, DateTimeKind.Utc);
         }
         catch
         {
