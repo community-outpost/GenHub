@@ -181,7 +181,7 @@ public class ModBuilderBenchmarks
     /// Tests the performance improvement from buffer size optimization.
     /// </summary>
     [Benchmark]
-    public async Task Md5Hashing_OptimizedBuffer_10Files()
+    public async Task Md5Hashing_OptimizedBuffer_10FilesAsync()
     {
         var files = Directory.GetFiles(_smallProjectDir);
         foreach (var file in files)
@@ -195,7 +195,7 @@ public class ModBuilderBenchmarks
     /// Tests the 8x performance improvement from parallel processing.
     /// </summary>
     [Benchmark]
-    public async Task Md5Hashing_Parallel_100Files()
+    public async Task Md5Hashing_Parallel_100FilesAsync()
     {
         var files = Directory.GetFiles(_mediumProjectDir);
 
@@ -206,10 +206,7 @@ public class ModBuilderBenchmarks
                 MaxDegreeOfParallelism = Environment.ProcessorCount,
                 CancellationToken = CancellationToken.None
             },
-            async (file, ct) =>
-            {
-                await _md5HashProvider.ComputeFileHashAsync(file, ct);
-            });
+            (file, ct) => _md5HashProvider.ComputeFileHashAsync(file, ct));
     }
 
     #endregion
@@ -221,7 +218,7 @@ public class ModBuilderBenchmarks
     /// Tests the 50x performance improvement from DangerousTryGetSinglePixelMemory.
     /// </summary>
     [Benchmark]
-    public async Task ImageConversion_RGBA_ChannelSplit_2048x2048()
+    public async Task ImageConversion_RGBA_ChannelSplit_2048x2048Async()
     {
         var outputPath = Path.Combine(_tempDirectory, "output_rgba.png");
 
@@ -247,7 +244,7 @@ public class ModBuilderBenchmarks
     /// Tests the performance of alpha channel detection for DXT format selection.
     /// </summary>
     [Benchmark]
-    public async Task ImageConversion_AlphaDetection()
+    public async Task ImageConversion_AlphaDetectionAsync()
     {
         await _imageConversionService.HasAlphaChannelAsync(_testImagePath, CancellationToken.None);
     }
@@ -257,7 +254,7 @@ public class ModBuilderBenchmarks
     /// Tests the performance of DDS encoding with auto-format detection.
     /// </summary>
     [Benchmark]
-    public async Task ImageConversion_ToDDS_WithMipMaps()
+    public async Task ImageConversion_ToDDS_WithMipMapsAsync()
     {
         var outputPath = Path.Combine(_tempDirectory, "output.dds");
 
@@ -281,7 +278,7 @@ public class ModBuilderBenchmarks
     /// Tests the 10x performance improvement over JSON serialization.
     /// </summary>
     [Benchmark]
-    public async Task CacheSerialization_MessagePack_Write()
+    public async Task CacheSerialization_MessagePack_WriteAsync()
     {
         var outputPath = Path.Combine(_tempDirectory, "cache_write.msgpack");
 
@@ -298,7 +295,7 @@ public class ModBuilderBenchmarks
     /// Tests the 10x performance improvement over JSON deserialization.
     /// </summary>
     [Benchmark]
-    public async Task CacheSerialization_MessagePack_Read()
+    public async Task CacheSerialization_MessagePack_ReadAsync()
     {
         // First write the cache
         var cachePath = Path.Combine(_tempDirectory, "cache_read.msgpack");
@@ -325,7 +322,7 @@ public class ModBuilderBenchmarks
     /// Tests the complete cache workflow including MD5 reuse optimization.
     /// </summary>
     [Benchmark]
-    public async Task BuildCache_ChangeDetection_100Files()
+    public async Task BuildCache_ChangeDetection_100FilesAsync()
     {
         var cachePath = Path.Combine(_tempDirectory, "build_cache.msgpack");
 
@@ -336,7 +333,7 @@ public class ModBuilderBenchmarks
         foreach (var file in files)
         {
             var md5 = await _buildCacheService.ComputeOrReuseMd5Async(file, CancellationToken.None);
-            var status = _buildCacheService.DetermineFileStatus(file, md5);
+            _ = _buildCacheService.DetermineFileStatus(file, md5);
             _buildCacheService.AddFile(file, DateTimeOffset.UtcNow.ToUnixTimeSeconds(), md5);
         }
 
@@ -349,7 +346,7 @@ public class ModBuilderBenchmarks
         foreach (var file in files)
         {
             var md5 = await _buildCacheService.ComputeOrReuseMd5Async(file, CancellationToken.None);
-            var status = _buildCacheService.DetermineFileStatus(file, md5);
+            _ = _buildCacheService.DetermineFileStatus(file, md5);
             _buildCacheService.AddFile(file, DateTimeOffset.UtcNow.ToUnixTimeSeconds(), md5);
         }
 
@@ -367,11 +364,11 @@ public class ModBuilderBenchmarks
     /// Tests the performance improvement from parallel I/O operations.
     /// </summary>
     [Benchmark]
-    public async Task ArchiveCreation_ZIP_100Files()
+    public async Task ArchiveCreation_ZIP_100FilesAsync()
     {
         var outputPath = Path.Combine(this._tempDirectory, "archive.zip");
 
-        var result = await this._archiveService.CreateZipArchiveAsync(
+        await this._archiveService.CreateZipArchiveAsync(
             this._mediumProjectDir,
             outputPath,
             System.IO.Compression.CompressionLevel.Optimal,
@@ -390,11 +387,11 @@ public class ModBuilderBenchmarks
     /// Tests the performance improvement from parallel I/O operations.
     /// </summary>
     [Benchmark]
-    public async Task ArchiveCreation_TAR_100Files()
+    public async Task ArchiveCreation_TAR_100FilesAsync()
     {
         var outputPath = Path.Combine(this._tempDirectory, "archive.tar");
 
-        var result = await this._archiveService.CreateTarArchiveAsync(
+        await this._archiveService.CreateTarArchiveAsync(
             this._mediumProjectDir,
             outputPath,
             progress: null,
@@ -412,11 +409,11 @@ public class ModBuilderBenchmarks
     /// Tests the performance improvement from parallel I/O operations.
     /// </summary>
     [Benchmark]
-    public async Task ArchiveCreation_TARGZ_100Files()
+    public async Task ArchiveCreation_TARGZ_100FilesAsync()
     {
         var outputPath = Path.Combine(this._tempDirectory, "archive.tar.gz");
 
-        var result = await this._archiveService.CreateTarGzArchiveAsync(
+        await this._archiveService.CreateTarGzArchiveAsync(
             this._mediumProjectDir,
             outputPath,
             progress: null,
@@ -438,7 +435,7 @@ public class ModBuilderBenchmarks
     /// Simulates a complete build cycle with change detection and file processing.
     /// </summary>
     [Benchmark]
-    public async Task SmallProject_Build_10Files_5MB()
+    public async Task SmallProject_Build_10Files_5MBAsync()
     {
         var cachePath = Path.Combine(_tempDirectory, "small_project_cache.msgpack");
         var outputDir = Path.Combine(_tempDirectory, "small_project_output");
@@ -451,7 +448,7 @@ public class ModBuilderBenchmarks
         foreach (var file in files)
         {
             var md5 = await _buildCacheService.ComputeOrReuseMd5Async(file, CancellationToken.None);
-            var status = _buildCacheService.DetermineFileStatus(file, md5);
+            _ = _buildCacheService.DetermineFileStatus(file, md5);
 
             // Copy file to output (simulating build step)
             var outputPath = Path.Combine(outputDir, Path.GetFileName(file));
@@ -474,7 +471,7 @@ public class ModBuilderBenchmarks
     /// Simulates a complete build cycle with parallel processing.
     /// </summary>
     [Benchmark]
-    public async Task MediumProject_Build_100Files_50MB()
+    public async Task MediumProject_Build_100Files_50MBAsync()
     {
         var cachePath = Path.Combine(_tempDirectory, "medium_project_cache.msgpack");
         var outputDir = Path.Combine(_tempDirectory, "medium_project_output");
@@ -494,7 +491,7 @@ public class ModBuilderBenchmarks
             async (file, ct) =>
             {
                 var md5 = await _buildCacheService.ComputeOrReuseMd5Async(file, ct);
-                var status = _buildCacheService.DetermineFileStatus(file, md5);
+                _ = _buildCacheService.DetermineFileStatus(file, md5);
 
                 // Copy file to output (simulating build step)
                 var outputPath = Path.Combine(outputDir, Path.GetFileName(file));
