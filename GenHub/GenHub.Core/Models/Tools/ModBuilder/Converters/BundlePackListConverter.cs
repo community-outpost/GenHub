@@ -12,6 +12,9 @@ namespace GenHub.Core.Models.Tools.ModBuilder.Converters;
 public sealed class BundlePackListConverter : JsonConverter<List<BundlePack>>
 {
     /// <inheritdoc/>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CS-R1138:Inappropriate ordering of parameters", Justification = "Overridden from System.Text.Json.Serialization.JsonConverter<T>")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "CS-R1138", Justification = "Overridden from framework")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CS-R1138", Justification = "Overridden from framework")]
     public override List<BundlePack>? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType == JsonTokenType.Null)
