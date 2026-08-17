@@ -13,13 +13,10 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 )
-
-// Single-thread constraint
-func init() {
-	runtime.GOMAXPROCS(1)
-}
 
 type FileHashResult struct {
 	Path string `json:"path"`
@@ -52,6 +49,54 @@ func BenchmarkMD5Files(files []string, bufferSize int) (time.Duration, int64, []
 			Size: size,
 		})
 	}
+	elapsed := time.Since(start)
+	return elapsed, totalBytes, results
+}
+
+func BenchmarkMD5FilesParallel(files []string, bufferSize int, workers int) (time.Duration, int64, []FileHashResult) {
+	if workers <= 1 {
+		return BenchmarkMD5Files(files, bufferSize)
+	}
+
+	results := make([]FileHashResult, len(files))
+	var totalBytes int64 = 0
+	var wg sync.WaitGroup
+
+	ch := make(chan int, len(files))
+	for i := range files {
+		ch <- i
+	}
+	close(ch)
+
+	start := time.Now()
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			buf := make([]byte, bufferSize)
+			for idx := range ch {
+				path := files[idx]
+				f, err := os.Open(path)
+				if err != nil {
+					continue
+				}
+				stat, _ := f.Stat()
+				size := stat.Size()
+				atomic.AddInt64(&totalBytes, size)
+
+				h := md5.New()
+				_, _ = io.CopyBuffer(h, f, buf)
+				f.Close()
+
+				results[idx] = FileHashResult{
+					Path: path,
+					MD5:  hex.EncodeToString(h.Sum(nil)),
+					Size: size,
+				}
+			}
+		}()
+	}
+	wg.Wait()
 	elapsed := time.Since(start)
 	return elapsed, totalBytes, results
 }
@@ -93,7 +138,6 @@ func BenchmarkCreateBIG(outputBigPath string, sourceFiles []string, baseDir stri
 	}
 
 	// 2. Calculate header size
-	// Header: 16 bytes. Each entry: 4 (offset) + 4 (size) + len(RelPath) + 1 (null byte)
 	var headerTableSize uint32 = 16
 	for _, entry := range entries {
 		headerTableSize += 4 + 4 + uint32(len(entry.RelPath)) + 1
@@ -220,9 +264,11 @@ func main() {
 	benchType := flag.String("bench", "all", "Benchmark type: md5, big, csf, cache, e2e, all")
 	dataDir := flag.String("data-dir", "/tmp/modbuilder_test_dataset", "Input dataset directory")
 	outDir := flag.String("out-dir", "/tmp/modbuilder_go_bench_out", "Output directory")
+	threads := flag.Int("threads", 1, "Number of worker threads (GOMAXPROCS)")
 	iterations := flag.Int("n", 10, "Number of iterations")
 	flag.Parse()
 
+	runtime.GOMAXPROCS(*threads)
 	os.MkdirAll(*outDir, 0755)
 
 	// Discover files
@@ -234,7 +280,8 @@ func main() {
 		return nil
 	})
 
-	fmt.Printf("=== Go ModBuilder Single-Thread Benchmark Suite (GOMAXPROCS=1) ===\n")
+	modeStr := fmt.Sprintf("GOMAXPROCS=%d, Threads=%d", *threads, *threads)
+	fmt.Printf("=== Go ModBuilder Benchmark Suite (%s) ===\n", modeStr)
 	fmt.Printf("Dataset: %s (%d files)\n", *dataDir, len(files))
 	fmt.Printf("Iterations: %d\n\n", *iterations)
 
@@ -243,7 +290,7 @@ func main() {
 		var totalElapsed time.Duration
 		var totalBytes int64
 		for i := 0; i < *iterations; i++ {
-			el, b, _ := BenchmarkMD5Files(files, 64*1024)
+			el, b, _ := BenchmarkMD5FilesParallel(files, 64*1024, *threads)
 			totalElapsed += el
 			totalBytes = b
 		}

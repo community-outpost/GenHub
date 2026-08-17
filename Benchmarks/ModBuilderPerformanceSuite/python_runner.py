@@ -13,31 +13,39 @@ import hashlib
 import pickle
 import argparse
 from typing import List, Dict, Tuple
+from concurrent.futures import ThreadPoolExecutor
 from PIL import Image
 
-def benchmark_md5_files(files: List[str], buffer_size: int = 64 * 1024) -> Tuple[float, int, List[dict]]:
-    """Single-threaded MD5 hashing matching GeneralsModBuilder util.py:GetFileHash."""
+def _hash_single_file(path: str, buffer_size: int = 64 * 1024) -> Tuple[str, int, str]:
+    if not os.path.isfile(path):
+        return path, 0, ""
+    size = os.path.getsize(path)
+    md5_hash = hashlib.md5()
+    with open(path, "rb") as f:
+        while chunk := f.read(buffer_size):
+            md5_hash.update(chunk)
+    return path, size, md5_hash.hexdigest()
+
+def benchmark_md5_files(files: List[str], buffer_size: int = 64 * 1024, workers: int = 1) -> Tuple[float, int, List[dict]]:
+    """MD5 hashing matching GeneralsModBuilder util.py:GetFileHash with optional multi-threading."""
+    t_start = time.perf_counter()
     results = []
     total_bytes = 0
-    t_start = time.perf_counter()
     
-    for path in files:
-        if not os.path.isfile(path):
-            continue
-        size = os.path.getsize(path)
-        total_bytes += size
-        
-        md5_hash = hashlib.md5()
-        with open(path, "rb") as f:
-            while chunk := f.read(buffer_size):
-                md5_hash.update(chunk)
+    if workers <= 1:
+        for path in files:
+            p, sz, h = _hash_single_file(path, buffer_size)
+            if sz > 0:
+                total_bytes += sz
+                results.append({"path": p, "md5": h, "size": sz})
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            fut_results = list(executor.map(lambda p: _hash_single_file(p, buffer_size), files))
+        for p, sz, h in fut_results:
+            if sz > 0:
+                total_bytes += sz
+                results.append({"path": p, "md5": h, "size": sz})
                 
-        results.append({
-            "path": path,
-            "md5": md5_hash.hexdigest(),
-            "size": size
-        })
-        
     t_end = time.perf_counter()
     return (t_end - t_start) * 1000.0, total_bytes, results
 
@@ -165,10 +173,11 @@ def benchmark_cache_serialization(cache_path: str, count: int = 2000) -> Tuple[f
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Python ModBuilder Single-Thread Benchmark Runner")
+    parser = argparse.ArgumentParser(description="Python ModBuilder Benchmark Runner")
     parser.add_argument("--bench", default="all", choices=["md5", "big", "csf", "image", "cache", "all"])
     parser.add_argument("--data-dir", default="/tmp/modbuilder_test_dataset")
     parser.add_argument("--out-dir", default="/tmp/modbuilder_py_bench_out")
+    parser.add_argument("--threads", type=int, default=1)
     parser.add_argument("-n", "--iterations", type=int, default=10)
     args = parser.parse_args()
     
@@ -184,7 +193,8 @@ def main():
             if fn.endswith(".tga"):
                 tga_files.append(p)
                 
-    print(f"=== Python ModBuilder Single-Thread Benchmark Suite (CPython 3.10) ===")
+    mode_str = f"Threads={args.threads}"
+    print(f"=== Python ModBuilder Benchmark Suite ({mode_str}) ===")
     print(f"Dataset: {args.data_dir} ({len(files)} files)")
     print(f"Iterations: {args.iterations}\n")
     
@@ -193,14 +203,14 @@ def main():
         times = []
         total_bytes = 0
         for _ in range(args.iterations):
-            ms, tb, _ = benchmark_md5_files(files, 64 * 1024)
+            ms, tb, _ = benchmark_md5_files(files, 64 * 1024, workers=args.threads)
             times.append(ms)
             total_bytes = tb
         avg_ms = sum(times) / len(times)
         mb_proc = total_bytes / (1024 * 1024)
         th_mb_s = mb_proc / (avg_ms / 1000.0)
         th_files_s = len(files) / (avg_ms / 1000.0)
-        print(f"[Python Micro] MD5 Hashing (64KB Buffer): Mean = {avg_ms:.2f} ms | Throughput = {th_mb_s:.2f} MB/s ({th_files_s:.1f} files/s)")
+        print(f"[Python Micro] MD5 Hashing (64KB Buffer, {args.threads} Threads): Mean = {avg_ms:.2f} ms | Throughput = {th_mb_s:.2f} MB/s ({th_files_s:.1f} files/s)")
         
     # 2. BIG Archive Creation
     if args.bench in ("all", "big"):

@@ -206,7 +206,7 @@ public class ModBuilderBenchmarks
                 MaxDegreeOfParallelism = Environment.ProcessorCount,
                 CancellationToken = CancellationToken.None
             },
-            (file, ct) => _md5HashProvider.ComputeFileHashAsync(file, ct));
+            async (file, ct) => await _md5HashProvider.ComputeFileHashAsync(file, ct));
     }
 
     #endregion
@@ -366,10 +366,10 @@ public class ModBuilderBenchmarks
     [Benchmark]
     public async Task ArchiveCreation_ZIP_100FilesAsync()
     {
-        var outputPath = Path.Combine(this._tempDirectory, "archive.zip");
+        var outputPath = Path.Combine(_tempDirectory, "archive.zip");
 
-        await this._archiveService.CreateZipArchiveAsync(
-            this._mediumProjectDir,
+        await _archiveService.CreateZipArchiveAsync(
+            _mediumProjectDir,
             outputPath,
             System.IO.Compression.CompressionLevel.Optimal,
             progress: null,
@@ -389,10 +389,10 @@ public class ModBuilderBenchmarks
     [Benchmark]
     public async Task ArchiveCreation_TAR_100FilesAsync()
     {
-        var outputPath = Path.Combine(this._tempDirectory, "archive.tar");
+        var outputPath = Path.Combine(_tempDirectory, "archive.tar");
 
-        await this._archiveService.CreateTarArchiveAsync(
-            this._mediumProjectDir,
+        await _archiveService.CreateTarArchiveAsync(
+            _mediumProjectDir,
             outputPath,
             progress: null,
             cancellationToken: CancellationToken.None);
@@ -411,10 +411,10 @@ public class ModBuilderBenchmarks
     [Benchmark]
     public async Task ArchiveCreation_TARGZ_100FilesAsync()
     {
-        var outputPath = Path.Combine(this._tempDirectory, "archive.tar.gz");
+        var outputPath = Path.Combine(_tempDirectory, "archive.tar.gz");
 
-        await this._archiveService.CreateTarGzArchiveAsync(
-            this._mediumProjectDir,
+        await _archiveService.CreateTarGzArchiveAsync(
+            _mediumProjectDir,
             outputPath,
             progress: null,
             cancellationToken: CancellationToken.None);
