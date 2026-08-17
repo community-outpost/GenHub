@@ -36,7 +36,6 @@ public static class LoggingModule
         services.AddLogging(builder =>
         {
             builder.ClearProviders();
-            builder.AddConsole();
             builder.AddDebug();
 
             var logger = new LoggerConfiguration()
@@ -73,7 +72,6 @@ public static class LoggingModule
 
         return LoggerFactory.Create(builder =>
         {
-            builder.AddConsole();
             builder.AddDebug();
 
             var logger = new LoggerConfiguration()
