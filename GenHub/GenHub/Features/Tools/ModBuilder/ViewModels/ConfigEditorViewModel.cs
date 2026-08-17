@@ -26,6 +26,8 @@ public partial class ConfigEditorViewModel(
     INotificationService notificationService,
     ILogger<ConfigEditorViewModel> logger) : ObservableObject
 {
+    private readonly IConfigurationLoaderService _configurationLoaderService = configurationLoaderService;
+
     /// <summary>
     /// Gets or sets the current project.
     /// </summary>

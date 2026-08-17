@@ -80,6 +80,11 @@ public sealed class ArchiveService(
             progress?.Report(1.0);
             return OperationResult<bool>.CreateSuccess(true);
         }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation("BIG archive creation cancelled: {Target}", targetBigPath);
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error creating BIG archive: {Source} -> {Target}", sourceDirectory, targetBigPath);
@@ -114,95 +119,40 @@ public sealed class ArchiveService(
             }
 
             var tempZipPath = targetZipPath + "." + Guid.NewGuid().ToString("N")[..8] + ".tmp";
+            var targetFullPath = Path.GetFullPath(targetZipPath);
 
             progress?.Report(0.0);
 
-            var files = Directory.GetFiles(sourceDirectory, "*", SearchOption.AllDirectories);
+            var files = Directory.GetFiles(sourceDirectory, "*", SearchOption.AllDirectories)
+                .Where(file => !string.Equals(Path.GetFullPath(file), targetFullPath, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+
             var totalFiles = files.Length;
             var processedFiles = 0;
 
-            // separate files by size for optimal processing
-            var fileInfos = files.Select(f => new FileInfo(f)).ToArray();
-            var smallFiles = fileInfos.Where(f => f.Length <= ModBuilderConstants.DefaultStreamingThresholdBytes).ToArray();
-            var largeFiles = fileInfos.Where(f => f.Length > ModBuilderConstants.DefaultStreamingThresholdBytes).ToArray();
-
-            if (largeFiles.Length > 0)
-            {
-                logger.LogInformation("Processing {SmallCount} small files (<10MB) and {LargeCount} large files (>10MB) with streaming",
-                    smallFiles.Length, largeFiles.Length);
-            }
-
-            // pre-read small files in parallel for better i/o performance
-            var fileDataCache = new Dictionary<string, byte[]>();
-
-            if (smallFiles.Length > 0)
-            {
-                await Parallel.ForEachAsync(
-                    smallFiles,
-                    new ParallelOptions
-                    {
-                        MaxDegreeOfParallelism = Environment.ProcessorCount,
-                        CancellationToken = cancellationToken
-                    },
-                    async (fileInfo, ct) =>
-                    {
-                        await using var fileStream = new FileStream(
-                            fileInfo.FullName,
-                            FileMode.Open,
-                            FileAccess.Read,
-                            FileShare.Read,
-                            IoConstants.DefaultFileBufferSize,
-                            useAsync: true);
-
-                        var buffer = new byte[fileStream.Length];
-                        await fileStream.ReadAsync(buffer, ct).ConfigureAwait(false);
-
-                        lock (fileDataCache)
-                        {
-                            fileDataCache[fileInfo.FullName] = buffer;
-                        }
-                    })
-                    .ConfigureAwait(false);
-            }
-
             try
             {
-                // create archive with pre-loaded data and streaming for large files
                 using (var archive = ZipFile.Open(tempZipPath, ZipArchiveMode.Create))
                 {
-                    // process small files from cache
-                    foreach (var fileInfo in smallFiles)
+                    foreach (var filePath in files)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
 
+                        var fileInfo = new FileInfo(filePath);
                         var relativePath = Path.GetRelativePath(sourceDirectory, fileInfo.FullName).Replace('\\', '/');
-                        var entry = archive.CreateEntry(relativePath, compressionLevel);
-                        await using var entryStream = entry.Open();
-                        await entryStream.WriteAsync(fileDataCache[fileInfo.FullName], cancellationToken).ConfigureAwait(false);
-
-                        processedFiles++;
-                        progress?.Report((double)processedFiles / totalFiles);
-                    }
-
-                    // stream large files directly
-                    foreach (var fileInfo in largeFiles)
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-
-                        var relativePath = Path.GetRelativePath(sourceDirectory, fileInfo.FullName).Replace('\\', '/');
-                        logger.LogDebug("Streaming large file: {Path} ({Size:N0} bytes)", relativePath, fileInfo.Length);
 
                         var entry = archive.CreateEntry(relativePath, compressionLevel);
-                        await using var entryStream = entry.Open();
-                        await using var fileStream = new FileStream(
+                        await using (var entryStream = entry.Open())
+                        await using (var fileStream = new FileStream(
                             fileInfo.FullName,
                             FileMode.Open,
                             FileAccess.Read,
                             FileShare.Read,
                             IoConstants.DefaultFileBufferSize,
-                            useAsync: true);
-
-                        await fileStream.CopyToAsync(entryStream, cancellationToken).ConfigureAwait(false);
+                            useAsync: true))
+                        {
+                            await fileStream.CopyToAsync(entryStream, cancellationToken).ConfigureAwait(false);
+                        }
 
                         processedFiles++;
                         progress?.Report((double)processedFiles / totalFiles);
@@ -272,114 +222,75 @@ public sealed class ArchiveService(
                 Directory.CreateDirectory(targetDir);
             }
 
-            // delete existing file if it exists
-            if (File.Exists(targetTarPath))
-            {
-                File.Delete(targetTarPath);
-            }
+            var tempTarPath = targetTarPath + "." + Guid.NewGuid().ToString("N")[..8] + ".tmp";
+            var targetFullPath = Path.GetFullPath(targetTarPath);
 
-            var files = Directory.GetFiles(sourceDirectory, "*", SearchOption.AllDirectories);
+            var files = Directory.GetFiles(sourceDirectory, "*", SearchOption.AllDirectories)
+                .Where(file => !string.Equals(Path.GetFullPath(file), targetFullPath, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+
             var totalFiles = files.Length;
             var processedFiles = 0;
 
-            // separate files by size for optimal processing
-            var fileInfos = files.Select(f => new FileInfo(f)).ToArray();
-            var smallFiles = fileInfos.Where(f => f.Length <= ModBuilderConstants.DefaultStreamingThresholdBytes).ToArray();
-            var largeFiles = fileInfos.Where(f => f.Length > ModBuilderConstants.DefaultStreamingThresholdBytes).ToArray();
-
-            if (largeFiles.Length > 0)
+            try
             {
-                logger.LogInformation("Processing {SmallCount} small files (<10MB) and {LargeCount} large files (>10MB) with streaming",
-                    smallFiles.Length, largeFiles.Length);
-            }
+                await using (var stream = new FileStream(
+                    tempTarPath,
+                    FileMode.Create,
+                    FileAccess.Write,
+                    FileShare.None,
+                    IoConstants.DefaultFileBufferSize,
+                    useAsync: true))
+                {
+                    using var writer = new TarWriter(stream, new TarWriterOptions(CompressionType.None, true));
 
-            // pre-read small files in parallel for better i/o performance
-            var fileDataCache = new Dictionary<string, byte[]>();
+                    foreach (var filePath in files)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
 
-            if (smallFiles.Length > 0)
-            {
-                await Parallel.ForEachAsync(
-                    smallFiles,
-                    new ParallelOptions
-                    {
-                        MaxDegreeOfParallelism = Environment.ProcessorCount,
-                        CancellationToken = cancellationToken
-                    },
-                    async (fileInfo, ct) =>
-                    {
-                        await using var fileStream = new FileStream(
+                        var fileInfo = new FileInfo(filePath);
+                        var relativePath = Path.GetRelativePath(sourceDirectory, fileInfo.FullName).Replace('\\', '/');
+
+                        await using (var sourceStream = new FileStream(
                             fileInfo.FullName,
                             FileMode.Open,
                             FileAccess.Read,
                             FileShare.Read,
                             IoConstants.DefaultFileBufferSize,
-                            useAsync: true);
-
-                        var buffer = new byte[fileStream.Length];
-                        await fileStream.ReadAsync(buffer, ct).ConfigureAwait(false);
-
-                        lock (fileDataCache)
+                            useAsync: true))
                         {
-                            fileDataCache[fileInfo.FullName] = buffer;
+                            writer.Write(relativePath, sourceStream, fileInfo.LastWriteTimeUtc);
                         }
-                    })
-                    .ConfigureAwait(false);
-            }
 
-            // create archive with direct stream writing without temp file disk churn
-            await using (var stream = new FileStream(
-                targetTarPath,
-                FileMode.Create,
-                FileAccess.Write,
-                FileShare.None,
-                IoConstants.DefaultFileBufferSize,
-                useAsync: true))
-            {
-                using var writer = new TarWriter(stream, new TarWriterOptions(CompressionType.None, true));
-
-                // process small files directly from memory stream
-                foreach (var fileInfo in smallFiles)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    var relativePath = Path.GetRelativePath(sourceDirectory, fileInfo.FullName).Replace('\\', '/');
-                    using var memoryStream = new MemoryStream(fileDataCache[fileInfo.FullName]);
-                    writer.Write(relativePath, memoryStream, fileInfo.LastWriteTimeUtc);
-
-                    processedFiles++;
-                    progress?.Report((double)processedFiles / totalFiles);
-                }
-
-                // stream large files directly from source file stream
-                foreach (var fileInfo in largeFiles)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    var relativePath = Path.GetRelativePath(sourceDirectory, fileInfo.FullName).Replace('\\', '/');
-                    logger.LogDebug("Streaming large file: {Path} ({Size:N0} bytes)", relativePath, fileInfo.Length);
-
-                    await using (var sourceStream = new FileStream(
-                        fileInfo.FullName,
-                        FileMode.Open,
-                        FileAccess.Read,
-                        FileShare.Read,
-                        IoConstants.DefaultFileBufferSize,
-                        useAsync: true))
-                    {
-                        writer.Write(relativePath, sourceStream, fileInfo.LastWriteTimeUtc);
+                        processedFiles++;
+                        progress?.Report((double)processedFiles / totalFiles);
                     }
+                }
 
-                    processedFiles++;
-                    progress?.Report((double)processedFiles / totalFiles);
+                if (!File.Exists(tempTarPath))
+                {
+                    logger.LogError("TAR archive creation completed but temporary file was not created: {Path}", tempTarPath);
+                    return OperationResult<bool>.CreateFailure("TAR archive creation failed: temporary file was not created");
+                }
+
+                File.Move(tempTarPath, targetTarPath, overwrite: true);
+            }
+            finally
+            {
+                if (File.Exists(tempTarPath))
+                {
+                    try
+                    {
+                        File.Delete(tempTarPath);
+                    }
+                    catch
+                    {
+                        // Ignore cleanup errors
+                    }
                 }
             }
 
-            if (!File.Exists(targetTarPath))
-            {
-                logger.LogError("TAR archive creation completed but file was not created: {Path}", targetTarPath);
-                return OperationResult<bool>.CreateFailure("TAR archive creation failed: target file was not created");
-            }
-
+            progress?.Report(1.0);
             logger.LogInformation("Successfully created TAR archive: {Target}", targetTarPath);
             return OperationResult<bool>.CreateSuccess(true);
         }
@@ -419,114 +330,75 @@ public sealed class ArchiveService(
                 Directory.CreateDirectory(targetDir);
             }
 
-            // delete existing file if it exists
-            if (File.Exists(targetTarGzPath))
-            {
-                File.Delete(targetTarGzPath);
-            }
+            var tempTarGzPath = targetTarGzPath + "." + Guid.NewGuid().ToString("N")[..8] + ".tmp";
+            var targetFullPath = Path.GetFullPath(targetTarGzPath);
 
-            var files = Directory.GetFiles(sourceDirectory, "*", SearchOption.AllDirectories);
+            var files = Directory.GetFiles(sourceDirectory, "*", SearchOption.AllDirectories)
+                .Where(file => !string.Equals(Path.GetFullPath(file), targetFullPath, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+
             var totalFiles = files.Length;
             var processedFiles = 0;
 
-            // separate files by size for optimal processing
-            var fileInfos = files.Select(f => new FileInfo(f)).ToArray();
-            var smallFiles = fileInfos.Where(f => f.Length <= ModBuilderConstants.DefaultStreamingThresholdBytes).ToArray();
-            var largeFiles = fileInfos.Where(f => f.Length > ModBuilderConstants.DefaultStreamingThresholdBytes).ToArray();
-
-            if (largeFiles.Length > 0)
+            try
             {
-                logger.LogInformation("Processing {SmallCount} small files (<10MB) and {LargeCount} large files (>10MB) with streaming",
-                    smallFiles.Length, largeFiles.Length);
-            }
+                await using (var stream = new FileStream(
+                    tempTarGzPath,
+                    FileMode.Create,
+                    FileAccess.Write,
+                    FileShare.None,
+                    IoConstants.DefaultFileBufferSize,
+                    useAsync: true))
+                {
+                    using var writer = new TarWriter(stream, new TarWriterOptions(CompressionType.GZip, true));
 
-            // pre-read small files in parallel for better i/o performance
-            var fileDataCache = new Dictionary<string, byte[]>();
+                    foreach (var filePath in files)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
 
-            if (smallFiles.Length > 0)
-            {
-                await Parallel.ForEachAsync(
-                    smallFiles,
-                    new ParallelOptions
-                    {
-                        MaxDegreeOfParallelism = Environment.ProcessorCount,
-                        CancellationToken = cancellationToken
-                    },
-                    async (fileInfo, ct) =>
-                    {
-                        await using var fileStream = new FileStream(
+                        var fileInfo = new FileInfo(filePath);
+                        var relativePath = Path.GetRelativePath(sourceDirectory, fileInfo.FullName).Replace('\\', '/');
+
+                        await using (var sourceStream = new FileStream(
                             fileInfo.FullName,
                             FileMode.Open,
                             FileAccess.Read,
                             FileShare.Read,
                             IoConstants.DefaultFileBufferSize,
-                            useAsync: true);
-
-                        var buffer = new byte[fileStream.Length];
-                        await fileStream.ReadAsync(buffer, ct).ConfigureAwait(false);
-
-                        lock (fileDataCache)
+                            useAsync: true))
                         {
-                            fileDataCache[fileInfo.FullName] = buffer;
+                            writer.Write(relativePath, sourceStream, fileInfo.LastWriteTimeUtc);
                         }
-                    })
-                    .ConfigureAwait(false);
-            }
 
-            // create archive with direct stream writing without temp file disk churn
-            await using (var stream = new FileStream(
-                targetTarGzPath,
-                FileMode.Create,
-                FileAccess.Write,
-                FileShare.None,
-                IoConstants.DefaultFileBufferSize,
-                useAsync: true))
-            {
-                using var writer = new TarWriter(stream, new TarWriterOptions(CompressionType.GZip, true));
-
-                // process small files directly from memory stream
-                foreach (var fileInfo in smallFiles)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    var relativePath = Path.GetRelativePath(sourceDirectory, fileInfo.FullName).Replace('\\', '/');
-                    using var memoryStream = new MemoryStream(fileDataCache[fileInfo.FullName]);
-                    writer.Write(relativePath, memoryStream, fileInfo.LastWriteTimeUtc);
-
-                    processedFiles++;
-                    progress?.Report((double)processedFiles / totalFiles);
-                }
-
-                // stream large files directly from source file stream
-                foreach (var fileInfo in largeFiles)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    var relativePath = Path.GetRelativePath(sourceDirectory, fileInfo.FullName).Replace('\\', '/');
-                    logger.LogDebug("Streaming large file: {Path} ({Size:N0} bytes)", relativePath, fileInfo.Length);
-
-                    await using (var sourceStream = new FileStream(
-                        fileInfo.FullName,
-                        FileMode.Open,
-                        FileAccess.Read,
-                        FileShare.Read,
-                        IoConstants.DefaultFileBufferSize,
-                        useAsync: true))
-                    {
-                        writer.Write(relativePath, sourceStream, fileInfo.LastWriteTimeUtc);
+                        processedFiles++;
+                        progress?.Report((double)processedFiles / totalFiles);
                     }
+                }
 
-                    processedFiles++;
-                    progress?.Report((double)processedFiles / totalFiles);
+                if (!File.Exists(tempTarGzPath))
+                {
+                    logger.LogError("TAR.GZ archive creation completed but temporary file was not created: {Path}", tempTarGzPath);
+                    return OperationResult<bool>.CreateFailure("TAR.GZ archive creation failed: temporary file was not created");
+                }
+
+                File.Move(tempTarGzPath, targetTarGzPath, overwrite: true);
+            }
+            finally
+            {
+                if (File.Exists(tempTarGzPath))
+                {
+                    try
+                    {
+                        File.Delete(tempTarGzPath);
+                    }
+                    catch
+                    {
+                        // Ignore cleanup errors
+                    }
                 }
             }
 
-            if (!File.Exists(targetTarGzPath))
-            {
-                logger.LogError("TAR.GZ archive creation completed but file was not created: {Path}", targetTarGzPath);
-                return OperationResult<bool>.CreateFailure("TAR.GZ archive creation failed: target file was not created");
-            }
-
+            progress?.Report(1.0);
             logger.LogInformation("Successfully created TAR.GZ archive: {Target}", targetTarGzPath);
             return OperationResult<bool>.CreateSuccess(true);
         }

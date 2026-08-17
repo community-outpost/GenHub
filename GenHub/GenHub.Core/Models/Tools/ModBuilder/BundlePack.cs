@@ -25,10 +25,10 @@ public class BundlePack
     [JsonPropertyName("items")]
     public List<string>? Items
     {
-        get => ItemNames;
+        private get => ItemNames;
         set
         {
-            if (value != null && value.Count > 0 && ItemNames.Count == 0)
+            if (value != null)
             {
                 ItemNames = value;
             }
