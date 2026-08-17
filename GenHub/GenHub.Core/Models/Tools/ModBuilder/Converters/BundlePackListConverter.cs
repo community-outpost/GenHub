@@ -12,6 +12,7 @@ namespace GenHub.Core.Models.Tools.ModBuilder.Converters;
 public sealed class BundlePackListConverter : JsonConverter<List<BundlePack>>
 {
     /// <inheritdoc/>
+    // skipcq: CS-R1138
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CS-R1138:Inappropriate ordering of parameters", Justification = "Overridden from System.Text.Json.Serialization.JsonConverter<T>")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Maintainability", "CS-R1138", Justification = "Overridden from framework")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CS-R1138", Justification = "Overridden from framework")]
