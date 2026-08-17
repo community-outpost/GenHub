@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
@@ -89,4 +91,56 @@ public static class ModBuilderConstants
     /// Default streaming threshold size in bytes (10MB).
     /// </summary>
     public const long DefaultStreamingThresholdBytes = 10 * 1024 * 1024;
+
+    /// <summary>
+    /// Name of the primary crunch tool executable.
+    /// </summary>
+    public const string CrunchExecutable = "crunch_x64.exe";
+
+    /// <summary>
+    /// Secondary fallback name of the crunch tool executable.
+    /// </summary>
+    public const string CrunchFallbackExecutable = "crunch.exe";
+
+    /// <summary>
+    /// Candidate search paths for the crunch tool executable.
+    /// </summary>
+    public static readonly IReadOnlyList<string> CrunchExecutableCandidates =
+    [
+        @"Z:\GeneralsGamePatch\Patch104pZH\Scripts\Windows\.tools\crunch_x64.exe",
+        @"Z:\GeneralsGamePatch\Patch104pZH\internal\bin\crunch_x64.exe",
+        @".tools\crunch_x64.exe",
+        @"tools\crunch_x64.exe",
+    ];
+
+    /// <summary>
+    /// Supported texture format flags for crunch.
+    /// </summary>
+    public static readonly IReadOnlyList<string> CrunchTextureFormatFlags =
+    [
+        "-DXT1",
+        "-DXT2",
+        "-DXT3",
+        "-DXT4",
+        "-DXT5",
+        "-3DC",
+        "-DXN",
+        "-DXT5A",
+        "-DXT5_CCxY",
+        "-DXT5_xGxR",
+        "-DXT5_xGBR",
+        "-DXT5_AGBR",
+        "-DXT1A",
+        "-ETC1",
+        "-ETC2",
+        "-ETC2A",
+        "-ETC1S",
+        "-ETC2AS",
+        "-R8G8B8",
+        "-L8",
+        "-A8",
+        "-A8L8",
+        "-A8R8G8B8"
+    ];
 }
+
