@@ -107,15 +107,14 @@ public sealed class ArchiveServiceTests : IDisposable
         await File.WriteAllTextAsync(Path.Combine(sourceDir, "file.txt"), "content");
 
         var targetZip = Path.Combine(_tempDirectory, "output.zip");
-        var progressReported = false;
-        var progress = new Progress<double>(p => progressReported = true);
+        var progressMock = new Mock<IProgress<double>>();
 
         // Act
-        var result = await _service.CreateZipArchiveAsync(sourceDir, targetZip, progress: progress);
+        var result = await _service.CreateZipArchiveAsync(sourceDir, targetZip, progress: progressMock.Object);
 
         // Assert
         result.Success.Should().BeTrue();
-        progressReported.Should().BeTrue();
+        progressMock.Verify(p => p.Report(It.IsAny<double>()), Times.AtLeastOnce());
     }
 
     [Fact]

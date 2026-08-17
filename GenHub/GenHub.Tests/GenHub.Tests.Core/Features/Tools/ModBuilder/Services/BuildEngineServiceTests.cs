@@ -145,15 +145,14 @@ public sealed class BuildEngineServiceTests : IDisposable
         };
 
         var selectedPacks = new List<string>();
-        var progressReported = false;
-        var progress = new Progress<string>(p => progressReported = true);
+        var progressMock = new Mock<IProgress<string>>();
 
         // Act
-        var result = await _service.ExecuteBuildAsync(project, configuration, selectedPacks, BuildStep.Build, progress);
+        var result = await _service.ExecuteBuildAsync(project, configuration, selectedPacks, BuildStep.Build, progressMock.Object);
 
         // Assert
         result.Success.Should().BeTrue();
-        progressReported.Should().BeTrue();
+        progressMock.Verify(p => p.Report(It.IsAny<string>()), Times.AtLeastOnce());
     }
 
     [Fact]
