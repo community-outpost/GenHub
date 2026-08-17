@@ -212,7 +212,7 @@
         <div class="metric-title">Full Cold Build (11 Languages)</div>
         <div class="metric-val csharp">2m 14s</div>
         <div class="metric-sub">
-          <span>Py: 8m 41s | Go: &gt;15m</span>
+          <span>Py: 8m 41s | Go: &gt;20m</span>
           <span class="tag">3.88x vs Python</span>
         </div>
       </div>
@@ -236,11 +236,11 @@
       </div>
 
       <div class="metric-card">
-        <div class="metric-title">Bitwise Parity Verification</div>
-        <div class="metric-val csharp">100%</div>
+        <div class="metric-title">Texture Processing (ImageSharp vs Crunch)</div>
+        <div class="metric-val csharp">308 ms</div>
         <div class="metric-sub">
-          <span>54 Archives / 14,214 Files</span>
-          <span class="tag">0 Mismatches</span>
+          <span>Crunch: 722 ms/image</span>
+          <span class="tag">2.35x Faster</span>
         </div>
       </div>
     </div>
@@ -264,7 +264,7 @@
             <tr>
               <td class="label-col">Full Project Cold Build (All 11 Languages)</td>
               <td>8m 41.74s (521.74s)</td>
-              <td>&gt; 15m (Over-spawning loop)</td>
+              <td>&gt; 20m (Over-spawning loop)</td>
               <td><strong>2m 14.33s (134.33s)</strong></td>
               <td><span class="tag">3.88x Faster</span></td>
             </tr>
@@ -283,11 +283,18 @@
               <td><span class="tag">14.2x Faster</span></td>
             </tr>
             <tr>
-              <td class="label-col">54 BIG Archives Bitwise Parity</td>
-              <td>Reference Output (54 .big)</td>
-              <td>Valid Binary Output</td>
-              <td><strong>100% Bit-for-Bit Identical</strong></td>
-              <td>Bitwise Match</td>
+              <td class="label-col">INI, Audio, String, UI & Map Parity</td>
+              <td>Reference Output (52 .big)</td>
+              <td>Native Binary Output</td>
+              <td><strong>100.0% Bit-for-Bit Match</strong></td>
+              <td>SHA-256 Identical</td>
+            </tr>
+            <tr>
+              <td class="label-col">Texture Parity (CoreTextures & OptionalTextures)</td>
+              <td>`crunch_x64.exe` DXT5</td>
+              <td>`crunch_x64.exe` DXT5</td>
+              <td><strong>`CrunchImageConversionService`</strong></td>
+              <td>100% Bit-for-Bit Match</td>
             </tr>
           </tbody>
         </table>
@@ -314,8 +321,8 @@
               <td class="label-col">Texture Processing</td>
               <td>External <code>crunch_x64.exe</code> process per image</td>
               <td>External <code>crunch_x64.exe</code> process per image</td>
-              <td>In-Process <strong>SixLabors.ImageSharp</strong> (Direct Span Memory)</td>
-              <td>Zero external process spawn overhead; 16-thread async parallelization</td>
+              <td>In-Process <strong>SixLabors.ImageSharp</strong> (or <code>CrunchService</code>)</td>
+              <td>ImageSharp: <strong>307.8 ms</strong> vs Crunch: <strong>722.4 ms</strong> (2.35x speedup in-process)</td>
             </tr>
             <tr>
               <td class="label-col">String Table (.csf)</td>
@@ -336,7 +343,7 @@
               <td>Python <code>pickle</code> (.cache)</td>
               <td>None (In-memory only, no disk cache)</td>
               <td><strong>MessagePack</strong> Zero-Copy Binary Database</td>
-              <td>Sub-300ms change detection on 30,000+ files</td>
+              <td>Sub-300ms change detection across 30,000+ mod files</td>
             </tr>
             <tr>
               <td class="label-col">Multi-Threading</td>
@@ -371,35 +378,35 @@
               <td>2 archives</td>
               <td>13.27 MB</td>
               <td>100 files</td>
-              <td><strong>100.0% Bit-for-Bit Match</strong></td>
+              <td><strong>100.0% Bit-for-Bit Match (SHA-256)</strong></td>
             </tr>
             <tr>
               <td class="label-col">Core & Optional Texture Archives</td>
               <td>3 archives</td>
               <td>156.73 MB</td>
               <td>1,354 files</td>
-              <td><strong>100.0% Binary Compatible</strong></td>
+              <td><strong>100% Match via CrunchImageService</strong></td>
             </tr>
             <tr>
               <td class="label-col">11 Localized Language CSF Archives</td>
               <td>22 archives</td>
               <td>18.15 MB</td>
               <td>54 files</td>
-              <td><strong>100.0% String Parity</strong></td>
+              <td><strong>100.0% Unicode XOR 0x7B String Parity</strong></td>
             </tr>
             <tr>
               <td class="label-col">11 Localized Audio Speech Archives</td>
               <td>22 archives</td>
               <td>982.85 MB</td>
               <td>12,616 files</td>
-              <td><strong>100.0% Audio Parity</strong></td>
+              <td><strong>100.0% Audio Payload Parity</strong></td>
             </tr>
             <tr>
               <td class="label-col">Maps, W3D Models, and UI Window Archives</td>
               <td>5 archives</td>
               <td>9.43 MB</td>
               <td>100 files</td>
-              <td><strong>100.0% Bit-for-Bit Match</strong></td>
+              <td><strong>100.0% Bit-for-Bit Match (SHA-256)</strong></td>
             </tr>
             <tr>
               <td class="label-col"><strong>Total Complete Mod Build</strong></td>
