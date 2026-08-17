@@ -35,7 +35,7 @@ public class StderrCaptureRaceTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task StartProcessAsync_WithImmediateFailure_CapturesBothEndsOfStderr()
+    public async Task StartProcessAsync_WithImmediateFailure_CapturesBothEndsOfStderrAsync()
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
@@ -51,26 +51,19 @@ public class StderrCaptureRaceTests
             $"echo {TailLine} >&2; " +
             "exit 3";
 
-        var manager = new GameProcessManager(Mock.Of<ILogger<GameProcessManager>>());
-        try
+        using var manager = new GameProcessManager(Mock.Of<ILogger<GameProcessManager>>());
+        var result = await manager.StartProcessAsync(new GameLaunchConfiguration
         {
-            var result = await manager.StartProcessAsync(new GameLaunchConfiguration
-            {
-                ExecutablePath = "/bin/sh",
-                Arguments = new Dictionary<string, string> { ["-c"] = script },
-                WorkingDirectory = Path.GetTempPath(),
-            });
+            ExecutablePath = "/bin/sh",
+            Arguments = new Dictionary<string, string> { ["-c"] = script },
+            WorkingDirectory = Path.GetTempPath(),
+        });
 
-            var reported = string.Join(" ", result.Errors);
+        var reported = string.Join(" ", result.Errors);
 
-            Assert.Contains("3", reported);
-            Assert.Contains(HeadLine, reported);
-            Assert.Contains(TailLine, reported);
-            Assert.DoesNotContain("noise-25", reported);
-        }
-        finally
-        {
-            manager.Dispose();
-        }
+        Assert.Contains("3", reported);
+        Assert.Contains(HeadLine, reported);
+        Assert.Contains(TailLine, reported);
+        Assert.DoesNotContain("noise-25", reported);
     }
 }

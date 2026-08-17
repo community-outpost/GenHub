@@ -83,7 +83,7 @@ public class GeneralsOnlineProfileReconciler(
             // Determine strategy
             var subscription = settings.GetSubscription(GeneralsOnlineConstants.PublisherType);
             UpdateStrategy strategy = subscription?.PreferredUpdateStrategy ?? settings.PreferredUpdateStrategy ?? UpdateStrategy.ReplaceCurrent;
-            bool autoUpdate = subscription?.AutoUpdateEnabled ?? false;
+            bool autoUpdate = subscription is { AutoUpdateEnabled: true };
 
             // Prompt user if preference is not set (AutoUpdate is null/false or Strategy is null/implied)
             // But we only skip dialog if AutoUpdate is TRUE.
@@ -421,7 +421,7 @@ public class GeneralsOnlineProfileReconciler(
                 !m.Id.Value.Contains(".local.", StringComparison.OrdinalIgnoreCase) && // Exclude local content
                 (string.Equals(m.Publisher?.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) ||
                   m.Id.Value.Contains(".generalsonline.", StringComparison.OrdinalIgnoreCase) ||
-                  (m.Name?.Contains("GeneralsOnline", StringComparison.OrdinalIgnoreCase) ?? false)))];
+                  (m.Name is { } name && name.Contains("GeneralsOnline", StringComparison.OrdinalIgnoreCase))))];
     }
 
     /// <summary>
@@ -555,7 +555,8 @@ public class GeneralsOnlineProfileReconciler(
                                     newGameClientIds.Contains(profile.GameClient.Id);
 
             // Check if profile already has the new MapPack
-            bool hasMapPack = profile.EnabledContentIds?.Contains(newMapPackId, StringComparer.OrdinalIgnoreCase) ?? false;
+            bool hasMapPack = profile.EnabledContentIds is { } contentIds &&
+                              contentIds.Contains(newMapPackId, StringComparer.OrdinalIgnoreCase);
 
             if (isGeneralsOnline && !hasMapPack)
             {
@@ -612,7 +613,7 @@ public class GeneralsOnlineProfileReconciler(
         {
             // Check if profile is relevant (uses any Old GeneralsOnline manifest)
             bool isRelevant = (profile.GameClient != null && oldIds.Contains(profile.GameClient.Id)) ||
-                              (profile.EnabledContentIds?.Any(id => oldIds.Contains(id)) ?? false);
+                              (profile.EnabledContentIds is { } enabledIds && enabledIds.Any(oldIds.Contains));
 
             if (!isRelevant) continue;
 
