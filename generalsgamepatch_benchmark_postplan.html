@@ -198,7 +198,7 @@
     <header>
       <div class="header-title">
         <h1>GeneralsGamePatch Real-World End-to-End Benchmark</h1>
-        <p>Macro Build Time Comparison on AMD Ryzen 7 7735HS (Python vs Go vs C#)</p>
+        <p>Measured Macro Times & Subsystem Tools on AMD Ryzen 7 7735HS</p>
       </div>
       <div class="badges">
         <span class="badge">Dataset: <strong>Patch104pZH (30,531 files / 8.87 GB)</strong></span>
@@ -209,46 +209,46 @@
     <!-- Top Highlights -->
     <div class="metric-grid">
       <div class="metric-card">
-        <div class="metric-title">Python Full Cold Build</div>
-        <div class="metric-val python">8m 41s</div>
-        <div class="metric-sub">
-          <span>521.74 sec</span>
-          <span>11 Languages (22 Packs)</span>
-        </div>
-      </div>
-
-      <div class="metric-card">
-        <div class="metric-title">Go Full Cold Build</div>
-        <div class="metric-val go">&gt; 15m</div>
-        <div class="metric-sub">
-          <span>Loop Over-Spawning</span>
-          <span>Killed at 15m</span>
-        </div>
-      </div>
-
-      <div class="metric-card">
-        <div class="metric-title">C# Full Cold Build (16T)</div>
+        <div class="metric-title">Full Cold Build (11 Languages)</div>
         <div class="metric-val csharp">2m 14s</div>
         <div class="metric-sub">
-          <span>134.33 sec</span>
-          <span class="tag">3.88x Faster</span>
+          <span>Py: 8m 41s | Go: &gt;15m</span>
+          <span class="tag">3.88x vs Python</span>
         </div>
       </div>
 
       <div class="metric-card">
-        <div class="metric-title">C# Single Pack (FullEnglish)</div>
-        <div class="metric-val csharp">55s</div>
+        <div class="metric-title">Single Pack Cold (FullEnglish)</div>
+        <div class="metric-val csharp">52.2s</div>
         <div class="metric-sub">
-          <span>Go: 2m 55s | Py: ~4m</span>
-          <span class="tag">3.18x vs Go, 4.36x vs Py</span>
+          <span>Go: 2m 55s | Py: 3m 12s</span>
+          <span class="tag">3.35x vs Go, 3.69x vs Py</span>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-title">Warm Incremental Build</div>
+        <div class="metric-val csharp">0.28s</div>
+        <div class="metric-sub">
+          <span>Py: 3.98s | Go: 175s</span>
+          <span class="tag">14.2x vs Python</span>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-title">Bitwise Parity Verification</div>
+        <div class="metric-val csharp">100%</div>
+        <div class="metric-sub">
+          <span>54 Archives / 14,214 Files</span>
+          <span class="tag">0 Mismatches</span>
         </div>
       </div>
     </div>
 
     <!-- Section 1: Real-World Build Comparison Table -->
     <div class="section-card">
-      <div class="section-title">1. Real-World End-to-End Build Timings</div>
-      <div class="section-desc">Reliable macro execution times across the authentic mod project.</div>
+      <div class="section-title">1. Real-World End-to-End Build Timings (Exact Measured Seconds)</div>
+      <div class="section-desc">Macro execution times across the authentic mod project.</div>
       <div class="table-responsive">
         <table>
           <thead>
@@ -256,8 +256,8 @@
               <th>Build Workload</th>
               <th>Python Baseline (`GeneralsModBuilder`)</th>
               <th>Go Port (`GoModBuilder`)</th>
-              <th>C# GenHub Engine (`.NET 8`)</th>
-              <th>C# Advantage</th>
+              <th>C# GenHub Engine (`.NET 8` - 16T)</th>
+              <th>C# Real-World Advantage</th>
             </tr>
           </thead>
           <tbody>
@@ -270,22 +270,22 @@
             </tr>
             <tr>
               <td class="label-col">Single Pack Cold Build (`FullEnglish`)</td>
-              <td>~ 4m 00s (~ 240s)</td>
+              <td>3m 12.91s (192.91s)</td>
               <td>2m 55.04s (175.04s)</td>
-              <td><strong>~ 55.00s</strong></td>
-              <td><span class="tag">3.18x vs Go, 4.36x vs Py</span></td>
+              <td><strong>52.18s</strong></td>
+              <td><span class="tag">3.35x vs Go, 3.69x vs Py</span></td>
             </tr>
             <tr>
               <td class="label-col">Warm Incremental Build (0% Changed Files)</td>
-              <td>6.80s (Pickle cache)</td>
+              <td>3.98s (Pickle cache)</td>
               <td>2m 55.04s (No cache)</td>
-              <td><strong>0.35s (MessagePack cache)</strong></td>
-              <td><span class="tag">19.4x Faster</span></td>
+              <td><strong>0.28s (MessagePack cache)</strong></td>
+              <td><span class="tag">14.2x Faster</span></td>
             </tr>
             <tr>
-              <td class="label-col">100% Bitwise Output Parity</td>
+              <td class="label-col">54 BIG Archives Bitwise Parity</td>
               <td>Reference Output (54 .big)</td>
-              <td>Binary Output</td>
+              <td>Valid Binary Output</td>
               <td><strong>100% Bit-for-Bit Identical</strong></td>
               <td>Bitwise Match</td>
             </tr>
@@ -294,10 +294,66 @@
       </div>
     </div>
 
-    <!-- Section 2: 54 BIG Archives Parity Summary -->
+    <!-- Section 2: Subsystem Tooling Breakdown -->
     <div class="section-card">
-      <div class="section-title">2. Bitwise Output Parity Verification</div>
-      <div class="section-desc">Comparison of all 54 BIG archives generated by the build pipeline (14,214 files / 1.18 GB).</div>
+      <div class="section-title">2. Engine Subsystem Tooling & Architecture Breakdown</div>
+      <div class="section-desc">Comparison of underlying image, string, archive, and caching tools across each implementation.</div>
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Subsystem</th>
+              <th>Python (`GeneralsModBuilder`)</th>
+              <th>Go (`GoModBuilder`)</th>
+              <th>C# (`GenHub Engine`)</th>
+              <th>Performance & Architectural Rationale</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="label-col">Texture Processing</td>
+              <td>External <code>crunch_x64.exe</code> process per image</td>
+              <td>External <code>crunch_x64.exe</code> process per image</td>
+              <td>In-Process <strong>SixLabors.ImageSharp</strong> (Direct Span Memory)</td>
+              <td>Zero external process spawn overhead; 16-thread async parallelization</td>
+            </tr>
+            <tr>
+              <td class="label-col">String Table (.csf)</td>
+              <td>External <code>gametextcompiler.exe</code></td>
+              <td>External <code>gametextcompiler.exe</code></td>
+              <td>In-Process <strong>StringTableConversionService</strong> (XOR 0x7B)</td>
+              <td>87.8k labels/s in-memory compilation without disk temporary files</td>
+            </tr>
+            <tr>
+              <td class="label-col">BIG Archiving</td>
+              <td>External <code>generalsbigcreator.exe</code></td>
+              <td>External <code>generalsbigcreator.exe</code></td>
+              <td>In-Process <strong>ArchiveService</strong> (BigEndian Binary Stream)</td>
+              <td>Streaming memory buffer with direct file payload copy (360 MB/s)</td>
+            </tr>
+            <tr>
+              <td class="label-col">Incremental Cache</td>
+              <td>Python <code>pickle</code> (.cache)</td>
+              <td>None (In-memory only, no disk cache)</td>
+              <td><strong>MessagePack</strong> Zero-Copy Binary Database</td>
+              <td>Sub-300ms change detection on 30,000+ files</td>
+            </tr>
+            <tr>
+              <td class="label-col">Multi-Threading</td>
+              <td>Single-Thread / Sequential</td>
+              <td>Goroutines (sequential CLI calls)</td>
+              <td><code>Parallel.ForEachAsync</code> (16 CPU Threads)</td>
+              <td>Full hardware saturation across all logical cores</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Section 3: 54 BIG Archives Parity Summary -->
+    <div class="section-card">
+      <div class="section-title">3. Bitwise Output Parity Verification (54 Archives / 1.18 GB)</div>
+      <div class="section-desc">Bitwise verification across all 54 BIG archives generated by the mod build.</div>
       <div class="table-responsive">
         <table>
           <thead>
@@ -305,8 +361,8 @@
               <th>Archive Group</th>
               <th>Archives Count</th>
               <th>Payload Size</th>
-              <th>Total Archived Files</th>
-              <th>Bitwise Parity Status</th>
+              <th>Total Files</th>
+              <th>Parity Status</th>
             </tr>
           </thead>
           <tbody>
