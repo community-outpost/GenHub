@@ -57,6 +57,12 @@ public sealed class BuildEngineService(
 
         var sw = Stopwatch.StartNew();
 
+        if (!await _buildLock.WaitAsync(0, cancellationToken).ConfigureAwait(false))
+        {
+            logger.LogWarning("Build already in progress");
+            return BuildOperationResult.CreateFailure("Build already in progress", 0, 0, 0, sw.Elapsed);
+        }
+
         try
         {
             logger.LogInformation("ExecuteBuildAsync called for project: {ProjectName} with steps: {Steps}", project.Name, buildSteps);
@@ -96,6 +102,10 @@ public sealed class BuildEngineService(
             logger.LogError(ex, "ExecuteBuildAsync failed");
             sw.Stop();
             return BuildOperationResult.CreateFailure($"Build failed: {ex.Message}", _filesProcessed, _filesSkipped, _filesFailed, sw.Elapsed);
+        }
+        finally
+        {
+            _buildLock.Release();
         }
     }
 
@@ -139,13 +149,6 @@ public sealed class BuildEngineService(
         IProgress<BuildProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        // ensure only one build runs at a time
-        if (!await _buildLock.WaitAsync(0, cancellationToken).ConfigureAwait(false))
-        {
-            logger.LogWarning("Build already in progress");
-            return false;
-        }
-
         try
         {
             _isRunning = true;
@@ -240,7 +243,6 @@ public sealed class BuildEngineService(
             _isRunning = false;
             _abortTokenSource?.Dispose();
             _abortTokenSource = null;
-            _buildLock.Release();
         }
     }
 
@@ -383,11 +385,58 @@ public sealed class BuildEngineService(
                             ? $"{item.GetFullName()}{suffix}"
                             : $"{item.GetFullName()}{suffix}.big";
                         var bigFilePath = Path.Combine(bundlesDir, bigFileName);
-                        var archiveResult = await archiveService.CreateBigArchiveAsync(rawDir, bigFilePath, null, cancellationToken).ConfigureAwait(false);
+
+                        var itemStagingDir = Path.Combine(setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir, ".staging", item.Name);
+                        if (Directory.Exists(itemStagingDir))
+                        {
+                            Directory.Delete(itemStagingDir, true);
+                        }
+
+                        Directory.CreateDirectory(itemStagingDir);
+
+                        foreach (var file in item.Files)
+                        {
+                            var targetRel = !string.IsNullOrEmpty(file.RelTargetFile)
+                                ? file.RelTargetFile
+                                : (!string.IsNullOrEmpty(file.GetRelSourceFile()) ? file.GetRelSourceFile() : Path.GetFileName(file.AbsSourceFile));
+                            if (!string.IsNullOrEmpty(targetRel))
+                            {
+                                var srcInRaw = Path.Combine(rawDir, targetRel.TrimStart('/', '\\'));
+                                if (File.Exists(srcInRaw))
+                                {
+                                    var destInStaging = Path.Combine(itemStagingDir, targetRel.TrimStart('/', '\\'));
+                                    var destDir = Path.GetDirectoryName(destInStaging);
+                                    if (!string.IsNullOrEmpty(destDir))
+                                    {
+                                        Directory.CreateDirectory(destDir);
+                                    }
+
+                                    File.Copy(srcInRaw, destInStaging, overwrite: true);
+                                }
+                            }
+                        }
+
+                        var sourceToPack = Directory.Exists(itemStagingDir) && Directory.EnumerateFileSystemEntries(itemStagingDir).Any()
+                            ? itemStagingDir
+                            : rawDir;
+
+                        var archiveResult = await archiveService.CreateBigArchiveAsync(sourceToPack, bigFilePath, null, cancellationToken).ConfigureAwait(false);
                         if (!archiveResult.Success)
                         {
                             logger.LogError("Failed to create BIG archive {Archive}: {Error}", bigFilePath, archiveResult.FirstError);
                             Interlocked.Increment(ref _filesFailed);
+                        }
+
+                        if (Directory.Exists(itemStagingDir))
+                        {
+                            try
+                            {
+                                Directory.Delete(itemStagingDir, true);
+                            }
+                            catch
+                            {
+                                // Ignore cleanup failure
+                            }
                         }
                     }
                 }
@@ -589,9 +638,32 @@ public sealed class BuildEngineService(
         var buildDir = setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir;
         var fileName = Path.GetFileName(sourcePath);
 
+        if (stage == BuildIndex.RawBundleItem)
+        {
+            if (setup.Bundles?.Items != null)
+            {
+                foreach (var item in setup.Bundles.Items)
+                {
+                    var matchingFile = item.Files.FirstOrDefault(f => string.Equals(f.AbsSourceFile, sourcePath, StringComparison.OrdinalIgnoreCase));
+                    if (matchingFile != null)
+                    {
+                        var relPath = !string.IsNullOrEmpty(matchingFile.RelTargetFile)
+                            ? matchingFile.RelTargetFile
+                            : matchingFile.GetRelSourceFile();
+
+                        if (!string.IsNullOrEmpty(relPath))
+                        {
+                            return Path.Combine(buildDir, ModBuilderConstants.RawBundleItemsSubdir, relPath.TrimStart('/', '\\'));
+                        }
+                    }
+                }
+            }
+
+            return Path.Combine(buildDir, ModBuilderConstants.RawBundleItemsSubdir, fileName);
+        }
+
         return stage switch
         {
-            BuildIndex.RawBundleItem => Path.Combine(buildDir, ModBuilderConstants.RawBundleItemsSubdir, fileName),
             BuildIndex.BigBundleItem => Path.Combine(buildDir, ModBuilderConstants.BundlesSubdir, fileName),
             BuildIndex.RawBundlePack => Path.Combine(buildDir, ModBuilderConstants.BundlePacksSubdir, fileName),
             BuildIndex.ReleaseBundlePack => Path.Combine(setup.Folders?.AbsReleaseDir ?? ModBuilderConstants.DefaultReleaseDir, fileName),
@@ -879,6 +951,9 @@ public sealed class BuildEngineService(
             return true;
         }
 
+        var successfullyRemoved = new List<string>();
+        var hasErrors = false;
+
         foreach (var (targetPath, backupPath) in _installedFiles)
         {
             try
@@ -895,6 +970,8 @@ public sealed class BuildEngineService(
                     logger.LogInformation("Restored: {File}", targetPath);
                 }
 
+                successfullyRemoved.Add(targetPath);
+
                 var fileName = Path.GetFileName(targetPath);
                 progress?.Report(new BuildProgress
                 {
@@ -904,20 +981,33 @@ public sealed class BuildEngineService(
             }
             catch (Exception ex)
             {
+                hasErrors = true;
                 logger.LogWarning(ex, "Failed to uninstall {File}: {Message}", targetPath, ex.Message);
             }
         }
 
+        foreach (var path in successfullyRemoved)
+        {
+            _installedFiles.Remove(path);
+        }
+
         var manifestPath = Path.Combine(gameDir, ModBuilderConstants.InstallManifestFileName);
+
+        if (hasErrors)
+        {
+            await SaveInstallManifestAsync(gameDir, cancellationToken).ConfigureAwait(false);
+            logger.LogWarning("Uninstall finished with errors; preserving manifest for remaining {Count} files", _installedFiles.Count);
+            return false;
+        }
+
         if (File.Exists(manifestPath))
         {
             File.Delete(manifestPath);
             logger.LogDebug("Deleted install manifest: {Path}", manifestPath);
         }
 
-        logger.LogInformation("Uninstalled {Count} files", _installedFiles.Count);
+        logger.LogInformation("Uninstalled {Count} files", successfullyRemoved.Count);
         _installedFiles.Clear();
-
         return true;
     }
 

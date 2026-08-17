@@ -57,6 +57,12 @@ public sealed class BuildCacheService(
         }
         catch (Exception ex)
         {
+            lock (_cacheLock)
+            {
+                _oldCache.Clear();
+                _newCache.Clear();
+            }
+
             logger.LogWarning(ex, "Failed to load build cache from {CachePath}", cachePath);
             return false;
         }

@@ -843,19 +843,16 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return;
         }
 
-        // TODO: Prompt to save if there are unsaved changes
-        await InvokeOnUIThreadAsync(() =>
-        {
-            CurrentProject = null;
-            ProjectPath = string.Empty;
-            ProjectName = string.Empty;
-            IsProjectLoaded = false;
-            Bundles.Clear();
-            BuildLog.Clear();
-            StatusMessage = "Ready";
-        });
+        CurrentProject = null;
+        ProjectPath = string.Empty;
+        ProjectName = string.Empty;
+        IsProjectLoaded = false;
+        Bundles.Clear();
+        BuildLog.Clear();
+        StatusMessage = "Ready";
 
         _logger.LogInformation("Project closed");
+        await Task.CompletedTask;
     }
 
     private bool CanCloseProject() => IsProjectLoaded && !IsBuildRunning;
