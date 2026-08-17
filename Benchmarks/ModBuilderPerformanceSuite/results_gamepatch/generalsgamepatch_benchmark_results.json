@@ -1,0 +1,133 @@
+{
+  "metadata": {
+    "timestamp": "2026-08-17T08:33:47Z",
+    "project": "TheSuperHackers/GeneralsGamePatch (Patch104pZH)",
+    "cpu": "AMD Ryzen 7 7735HS (8 Cores, 16 Threads)",
+    "total_mod_files": 3132,
+    "total_mod_mb": 649.77,
+    "real_cold_build_python_sec": 521.74,
+    "real_warm_build_python_sec": 6.8
+  },
+  "metrics": {
+    "md5_py_1t": {
+      "mean_ms": 616.01,
+      "median_ms": 470.06,
+      "std_dev_ms": 327.09,
+      "cv_percent": 53.1,
+      "ci95_lower": 209.94,
+      "ci95_upper": 1022.08,
+      "throughput_mb_s": 1218.19,
+      "throughput_items_s": 5871.85
+    },
+    "md5_py_16t": {
+      "mean_ms": 301.95,
+      "median_ms": 302.38,
+      "std_dev_ms": 2.12,
+      "cv_percent": 0.7,
+      "ci95_lower": 299.33,
+      "ci95_upper": 304.58,
+      "throughput_mb_s": 2151.97,
+      "throughput_items_s": 10372.85
+    },
+    "md5_go_1t": {
+      "mean_ms": 287.97,
+      "median_ms": 249.05,
+      "std_dev_ms": 80.47,
+      "cv_percent": 27.94,
+      "ci95_lower": 188.07,
+      "ci95_upper": 387.88,
+      "throughput_mb_s": 2368.02,
+      "throughput_items_s": 11414.26
+    },
+    "md5_go_16t": {
+      "mean_ms": 83.67,
+      "median_ms": 81.62,
+      "std_dev_ms": 5.75,
+      "cv_percent": 6.87,
+      "ci95_lower": 76.54,
+      "ci95_upper": 90.81,
+      "throughput_mb_s": 7793.31,
+      "throughput_items_s": 37565.04
+    },
+    "md5_cs_1t": {
+      "mean_ms": 463.66,
+      "median_ms": 466.99,
+      "std_dev_ms": 7.93,
+      "cv_percent": 1.71,
+      "ci95_lower": 453.82,
+      "ci95_upper": 473.5,
+      "throughput_mb_s": 1401.71,
+      "throughput_items_s": 6756.49
+    },
+    "md5_cs_16t": {
+      "mean_ms": 233.52,
+      "median_ms": 172.73,
+      "std_dev_ms": 92.16,
+      "cv_percent": 39.47,
+      "ci95_lower": 119.1,
+      "ci95_upper": 347.94,
+      "throughput_mb_s": 3113.84,
+      "throughput_items_s": 15009.22
+    },
+    "csf_py": {
+      "mean_ms": 222.02,
+      "median_ms": 199.88,
+      "std_dev_ms": 54.56,
+      "cv_percent": 24.57,
+      "ci95_lower": 154.29,
+      "ci95_upper": 289.75,
+      "throughput_mb_s": 0.0,
+      "throughput_items_s": 30703.17
+    },
+    "csf_go": {
+      "mean_ms": 392.53,
+      "median_ms": 357.01,
+      "std_dev_ms": 83.76,
+      "cv_percent": 21.34,
+      "ci95_lower": 288.54,
+      "ci95_upper": 496.51,
+      "throughput_mb_s": 0.0,
+      "throughput_items_s": 17237.33
+    },
+    "csf_cs": {
+      "mean_ms": 74.81,
+      "median_ms": 74.09,
+      "std_dev_ms": 1.4,
+      "cv_percent": 1.88,
+      "ci95_lower": 73.07,
+      "ci95_upper": 76.55,
+      "throughput_mb_s": 0.0,
+      "throughput_items_s": 87767.71
+    },
+    "big_py": {
+      "mean_ms": 225.3,
+      "median_ms": 212.61,
+      "std_dev_ms": 29.42,
+      "cv_percent": 13.06,
+      "ci95_lower": 188.78,
+      "ci95_upper": 261.82,
+      "throughput_mb_s": 0.0,
+      "throughput_items_s": 449.18
+    },
+    "big_go": {
+      "mean_ms": 81.57,
+      "median_ms": 62.16,
+      "std_dev_ms": 43.86,
+      "cv_percent": 53.77,
+      "ci95_lower": 27.12,
+      "ci95_upper": 136.03,
+      "throughput_mb_s": 0.0,
+      "throughput_items_s": 1417.43
+    },
+    "big_cs": {
+      "mean_ms": 147.87,
+      "median_ms": 139.64,
+      "std_dev_ms": 15.14,
+      "cv_percent": 10.24,
+      "ci95_lower": 129.07,
+      "ci95_upper": 166.67,
+      "throughput_mb_s": 0.0,
+      "throughput_items_s": 681.44
+    }
+  }
+}
