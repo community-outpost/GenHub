@@ -272,8 +272,6 @@ public partial class DownloadsViewModel(
             var card = PublisherCards.FirstOrDefault(c => c.PublisherId == PublisherTypeConstants.TheSuperHackers);
             if (card == null) return;
 
-            // Query for all configured GitHub releases
-            var query = new ContentSearchQuery();
             if (serviceProvider.GetService(typeof(GitHubReleasesDiscoverer)) is not GitHubReleasesDiscoverer gitHubDiscoverer)
             {
                 logger.LogWarning("GitHubReleasesDiscoverer not available for SuperHackers card");

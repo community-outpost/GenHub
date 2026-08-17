@@ -106,22 +106,16 @@ public partial class FileTreeNode : ObservableObject
     /// <summary>
     /// Gets the status text description with size comparison.
     /// </summary>
-    public string StatusText
+    public string StatusText => Status switch
     {
-        get
-        {
-            return Status switch
-            {
-                FileStatus.New => "New file (not in game)",
-                FileStatus.Modified when GameSizeBytes > 0 =>
-                    $"Modified | Project: {FormatFileSize(Size)} | Game: {FormatFileSize(GameSizeBytes)}",
-                FileStatus.Modified => "Modified (different from game)",
-                FileStatus.Unchanged => "Unchanged (same as game)",
-                FileStatus.Missing => "Missing from project",
-                _ => string.Empty
-            };
-        }
-    }
+        FileStatus.New => "New file (not in game)",
+        FileStatus.Modified when GameSizeBytes > 0 =>
+            $"Modified | Project: {FormatFileSize(Size)} | Game: {FormatFileSize(GameSizeBytes)}",
+        FileStatus.Modified => "Modified (different from game)",
+        FileStatus.Unchanged => "Unchanged (same as game)",
+        FileStatus.Missing => "Missing from project",
+        _ => string.Empty
+    };
 
     /// <summary>
     /// Gets a value indicating whether this node has a visible status indicator.

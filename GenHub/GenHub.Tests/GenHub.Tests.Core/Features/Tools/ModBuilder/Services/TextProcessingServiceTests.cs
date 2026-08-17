@@ -34,7 +34,7 @@ public sealed class TextProcessingServiceTests
     }
 
     [Fact]
-    public async Task ProcessTextAsync_WithNoOptions_ReturnsUnchanged()
+    public async Task ProcessTextAsync_WithNoOptions_ReturnsUnchangedAsync()
     {
         // Arrange
         var content = "Line 1\nLine 2\nLine 3";
@@ -48,7 +48,7 @@ public sealed class TextProcessingServiceTests
     }
 
     [Fact]
-    public async Task ProcessTextAsync_WithDeleteComments_RemovesComments()
+    public async Task ProcessTextAsync_WithDeleteComments_RemovesCommentsAsync()
     {
         // Arrange
         var content = "; Comment\nLine 1\n; Another comment\nLine 2";
@@ -69,7 +69,7 @@ public sealed class TextProcessingServiceTests
     }
 
     [Fact]
-    public async Task ProcessTextAsync_WithForceEOL_NormalizesLineEndings()
+    public async Task ProcessTextAsync_WithForceEOL_NormalizesLineEndingsAsync()
     {
         // Arrange
         var content = "Line 1\r\nLine 2\rLine 3\nLine 4";
@@ -88,7 +88,7 @@ public sealed class TextProcessingServiceTests
     }
 
     [Fact]
-    public async Task ProcessTextAsync_WithDeleteWhitespace_RemovesWhitespace()
+    public async Task ProcessTextAsync_WithDeleteWhitespace_RemovesWhitespaceAsync()
     {
         // Arrange
         var content = "  Line 1  \n  Line 2  \n  Line 3  ";
@@ -107,7 +107,7 @@ public sealed class TextProcessingServiceTests
     }
 
     [Fact]
-    public async Task NormalizeLineEndingsAsync_ToCRLF_ConvertsCorrectly()
+    public async Task NormalizeLineEndingsAsync_ToCRLF_ConvertsCorrectlyAsync()
     {
         // Arrange
         var content = "Line 1\nLine 2\rLine 3\r\nLine 4";
@@ -122,7 +122,7 @@ public sealed class TextProcessingServiceTests
     }
 
     [Fact]
-    public async Task NormalizeLineEndingsAsync_ToLF_ConvertsCorrectly()
+    public async Task NormalizeLineEndingsAsync_ToLF_ConvertsCorrectlyAsync()
     {
         // Arrange
         var content = "Line 1\r\nLine 2\rLine 3\nLine 4";
@@ -137,7 +137,7 @@ public sealed class TextProcessingServiceTests
     }
 
     [Fact]
-    public async Task NormalizeLineEndingsAsync_ToCR_ConvertsCorrectly()
+    public async Task NormalizeLineEndingsAsync_ToCR_ConvertsCorrectlyAsync()
     {
         // Arrange
         var content = "Line 1\r\nLine 2\nLine 3\rLine 4";
@@ -152,7 +152,7 @@ public sealed class TextProcessingServiceTests
     }
 
     [Fact]
-    public async Task RemoveCommentsAsync_WithIniStyle_RemovesIniComments()
+    public async Task RemoveCommentsAsync_WithIniStyle_RemovesIniCommentsAsync()
     {
         // Arrange
         var content = "; Comment line\nData=Value ; inline comment\nMoreData=Value";
@@ -167,7 +167,7 @@ public sealed class TextProcessingServiceTests
     }
 
     [Fact]
-    public async Task RemoveCommentsAsync_WithCStyle_RemovesCStyleComments()
+    public async Task RemoveCommentsAsync_WithCStyle_RemovesCStyleCommentsAsync()
     {
         // Arrange
         var content = "// Comment line\nint x = 5; // inline comment\nint y = 10;";
@@ -182,7 +182,7 @@ public sealed class TextProcessingServiceTests
     }
 
     [Fact]
-    public async Task RemoveCommentsAsync_WithScriptStyle_RemovesScriptComments()
+    public async Task RemoveCommentsAsync_WithScriptStyle_RemovesScriptCommentsAsync()
     {
         // Arrange
         var content = "# Comment line\necho 'Hello' # inline comment\necho 'World'";
@@ -197,7 +197,7 @@ public sealed class TextProcessingServiceTests
     }
 
     [Fact]
-    public async Task RemoveWhitespaceAsync_WithTrimMode_TrimsLines()
+    public async Task RemoveWhitespaceAsync_WithTrimMode_TrimsLinesAsync()
     {
         // Arrange
         var content = "  Line 1  \n  Line 2  \n  Line 3  ";
@@ -212,7 +212,7 @@ public sealed class TextProcessingServiceTests
     }
 
     [Fact]
-    public async Task RemoveWhitespaceAsync_WithCollapseMode_CollapsesWhitespace()
+    public async Task RemoveWhitespaceAsync_WithCollapseMode_CollapsesWhitespaceAsync()
     {
         // Arrange
         var content = "Line   with    multiple    spaces";
@@ -226,7 +226,7 @@ public sealed class TextProcessingServiceTests
     }
 
     [Fact]
-    public async Task ProcessTextAsync_WithAllOptions_AppliesAllTransformations()
+    public async Task ProcessTextAsync_WithAllOptions_AppliesAllTransformationsAsync()
     {
         // Arrange
         var content = "; Comment\r\n  Line 1  \r\n; Another comment\r\n  Line 2  ";
@@ -250,7 +250,7 @@ public sealed class TextProcessingServiceTests
     }
 
     [Fact]
-    public async Task ProcessTextAsync_WithCancellation_ThrowsOperationCanceledException()
+    public async Task ProcessTextAsync_WithCancellation_ThrowsOperationCanceledExceptionAsync()
     {
         // Arrange
         var content = "Line 1\nLine 2";
@@ -264,7 +264,7 @@ public sealed class TextProcessingServiceTests
     }
 
     [Fact]
-    public async Task RemoveCommentsAsync_WithEmptyContent_ReturnsEmpty()
+    public async Task RemoveCommentsAsync_WithEmptyContent_ReturnsEmptyAsync()
     {
         // Arrange
         var content = string.Empty;
@@ -277,7 +277,7 @@ public sealed class TextProcessingServiceTests
     }
 
     [Fact]
-    public async Task NormalizeLineEndingsAsync_WithEmptyContent_ReturnsEmpty()
+    public async Task NormalizeLineEndingsAsync_WithEmptyContent_ReturnsEmptyAsync()
     {
         // Arrange
         var content = string.Empty;

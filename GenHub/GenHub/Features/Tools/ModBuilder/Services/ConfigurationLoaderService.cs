@@ -711,11 +711,11 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                 return relativeNormalized;
             }
 
-            if (targetNormalized.Contains("*"))
+            if (targetNormalized.Contains('*'))
             {
                 var targetFileName = Path.GetFileName(targetNormalized);
 
-                if (targetFileName.Contains("*"))
+                if (targetFileName.Contains('*'))
                 {
                     var sourceExt = Path.GetExtension(sourceFile);
                     var targetExt = Path.GetExtension(targetNormalized);
@@ -810,7 +810,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                                     ExcludeMarkersList = fileGroup.ExcludeMarkersList,
                                 };
 
-                                if (fileGroup.RegistryList != null && fileGroup.RegistryList.Count > 0)
+                                if (fileGroup.RegistryList is { Count: > 0 })
                                 {
                                     var registryPaths = fileGroup.RegistryList.Select(r =>
                                         Path.IsPathRooted(r) ? r : Path.Combine(projectDir, r)).ToList();
@@ -834,7 +834,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                                     ExcludeMarkersList = fileGroup.ExcludeMarkersList,
                                 };
 
-                                if (fileGroup.RegistryList != null && fileGroup.RegistryList.Count > 0)
+                                if (fileGroup.RegistryList is { Count: > 0 })
                                 {
                                     var registryPaths = fileGroup.RegistryList.Select(r =>
                                         Path.IsPathRooted(r) ? r : Path.Combine(projectDir, r)).ToList();
@@ -856,7 +856,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                                 ExcludeMarkersList = fileGroup.ExcludeMarkersList,
                             };
 
-                            if (fileGroup.RegistryList != null && fileGroup.RegistryList.Count > 0)
+                            if (fileGroup.RegistryList is { Count: > 0 })
                             {
                                 var registryPaths = fileGroup.RegistryList.Select(r =>
                                     Path.IsPathRooted(r) ? r : Path.Combine(projectDir, r)).ToList();

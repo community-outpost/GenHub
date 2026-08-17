@@ -25,7 +25,7 @@ public sealed class TextProcessingService(
         var result = content;
 
         // Apply transformations in order
-        if (options.ExcludeMarkersList != null && options.ExcludeMarkersList.Count > 0)
+        if (options.ExcludeMarkersList is { Count: > 0 })
         {
             result = await RemoveMarkersAsync(result, options.ExcludeMarkersList, cancellationToken)
                 .ConfigureAwait(false);

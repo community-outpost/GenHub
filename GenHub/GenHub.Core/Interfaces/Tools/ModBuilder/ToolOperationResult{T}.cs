@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using GenHub.Core.Models.Results;
 
 namespace GenHub.Core.Interfaces.Tools.ModBuilder;
 
@@ -7,12 +8,13 @@ namespace GenHub.Core.Interfaces.Tools.ModBuilder;
 /// Result of a tool operation with data.
 /// </summary>
 /// <typeparam name="T">The type of data returned by the operation.</typeparam>
-public class ToolOperationResult<T> : ToolOperationResult
+public class ToolOperationResult<T> : ResultBase
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="ToolOperationResult{T}"/> class.
     /// </summary>
     public ToolOperationResult()
+        : base(true, (IEnumerable<string>?)null, default)
     {
     }
 
@@ -25,10 +27,16 @@ public class ToolOperationResult<T> : ToolOperationResult
     /// <param name="exitCode">The exit code of the tool process.</param>
     /// <param name="elapsed">The elapsed duration of the operation.</param>
     public ToolOperationResult(bool success, T? data = default, IEnumerable<string>? errors = null, int exitCode = 0, TimeSpan elapsed = default)
-        : base(success, errors, exitCode, elapsed)
+        : base(success, errors, elapsed)
     {
         Data = data;
+        ExitCode = exitCode;
     }
+
+    /// <summary>
+    /// Gets the tool exit code.
+    /// </summary>
+    public int ExitCode { get; init; }
 
     /// <summary>
     /// Gets the result data.
@@ -52,7 +60,7 @@ public class ToolOperationResult<T> : ToolOperationResult
     /// <param name="exitCode">The process exit code.</param>
     /// <param name="elapsed">The elapsed execution time.</param>
     /// <returns>A new failed <see cref="ToolOperationResult{T}"/> instance.</returns>
-    public static new ToolOperationResult<T> CreateFailure(string error, int exitCode = -1, TimeSpan elapsed = default) =>
+    public static ToolOperationResult<T> CreateFailure(string error, int exitCode = -1, TimeSpan elapsed = default) =>
         new(false, default, [error], exitCode, elapsed);
 
     /// <summary>
@@ -62,6 +70,6 @@ public class ToolOperationResult<T> : ToolOperationResult
     /// <param name="exitCode">The process exit code.</param>
     /// <param name="elapsed">The elapsed execution time.</param>
     /// <returns>A new failed <see cref="ToolOperationResult{T}"/> instance.</returns>
-    public static new ToolOperationResult<T> CreateFailure(IEnumerable<string> errors, int exitCode = -1, TimeSpan elapsed = default) =>
+    public static ToolOperationResult<T> CreateFailure(IEnumerable<string> errors, int exitCode = -1, TimeSpan elapsed = default) =>
         new(false, default, errors, exitCode, elapsed);
 }

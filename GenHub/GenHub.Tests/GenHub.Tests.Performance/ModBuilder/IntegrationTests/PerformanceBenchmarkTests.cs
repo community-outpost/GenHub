@@ -143,7 +143,7 @@ public sealed class PerformanceBenchmarkTests : IAsyncLifetime
         var speedupFactor = PythonSmallProjectMs / averageMs;
         var speedupPercent = (speedupFactor - 1) * 100;
 
-        _output.WriteLine($"=== Small Project Benchmark (10 files, ~5MB) ===");
+        _output.WriteLine("=== Small Project Benchmark (10 files, ~5MB) ===");
         _output.WriteLine($"Python baseline: {PythonSmallProjectMs}ms");
         _output.WriteLine($"C# average: {averageMs:F0}ms");
         _output.WriteLine($"Speedup: {speedupFactor:F2}x ({speedupPercent:F1}% faster)");
@@ -193,7 +193,7 @@ public sealed class PerformanceBenchmarkTests : IAsyncLifetime
         var speedupFactor = PythonMediumProjectMs / averageMs;
         var speedupPercent = (speedupFactor - 1) * 100;
 
-        _output.WriteLine($"=== Medium Project Benchmark (100 files, ~50MB) ===");
+        _output.WriteLine("=== Medium Project Benchmark (100 files, ~50MB) ===");
         _output.WriteLine($"Python baseline: {PythonMediumProjectMs}ms");
         _output.WriteLine($"C# average: {averageMs:F0}ms");
         _output.WriteLine($"Speedup: {speedupFactor:F2}x ({speedupPercent:F1}% faster)");
@@ -228,7 +228,7 @@ public sealed class PerformanceBenchmarkTests : IAsyncLifetime
         var speedupFactor = PythonLargeProjectMs / (double)stopwatch.ElapsedMilliseconds;
         var speedupPercent = (speedupFactor - 1) * 100;
 
-        _output.WriteLine($"=== Large Project Benchmark (1000 files, ~500MB) ===");
+        _output.WriteLine("=== Large Project Benchmark (1000 files, ~500MB) ===");
         _output.WriteLine($"Python baseline: {PythonLargeProjectMs}ms ({PythonLargeProjectMs / 60000.0:F1} minutes)");
         _output.WriteLine($"C# time: {stopwatch.ElapsedMilliseconds}ms ({stopwatch.ElapsedMilliseconds / 60000.0:F1} minutes)");
         _output.WriteLine($"Speedup: {speedupFactor:F2}x ({speedupPercent:F1}% faster)");
@@ -266,7 +266,7 @@ public sealed class PerformanceBenchmarkTests : IAsyncLifetime
         stopwatch.ElapsedMilliseconds.Should().BeLessThan(targetMaxMs,
             "Incremental build should be near-instant");
 
-        _output.WriteLine($"=== Incremental Build Benchmark ===");
+        _output.WriteLine("=== Incremental Build Benchmark ===");
         _output.WriteLine($"Time: {stopwatch.ElapsedMilliseconds}ms (target: <{targetMaxMs}ms)");
         _output.WriteLine($"Files processed: {result.FilesProcessed}");
         _output.WriteLine($"Files skipped: {result.FilesSkipped}");
@@ -303,7 +303,7 @@ public sealed class PerformanceBenchmarkTests : IAsyncLifetime
         parallelEfficiency.Should().BeGreaterThan(minExpectedSpeedup,
             $"Parallel processing should scale with CPU cores ({coreCount} cores)");
 
-        _output.WriteLine($"=== Parallel Processing Benchmark ===");
+        _output.WriteLine("=== Parallel Processing Benchmark ===");
         _output.WriteLine($"CPU cores: {coreCount}");
         _output.WriteLine($"Files processed: {result.FilesProcessed}");
         _output.WriteLine($"Actual time: {stopwatch.ElapsedMilliseconds}ms");
