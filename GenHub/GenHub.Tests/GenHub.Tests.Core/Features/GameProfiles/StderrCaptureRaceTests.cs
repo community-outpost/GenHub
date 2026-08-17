@@ -66,6 +66,7 @@ public class StderrCaptureRaceTests
             Assert.Contains("3", reported);
             Assert.Contains(HeadLine, reported);
             Assert.Contains(TailLine, reported);
+            Assert.DoesNotContain("noise-25", reported);
         }
         finally
         {

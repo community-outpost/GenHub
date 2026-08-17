@@ -187,7 +187,7 @@ public class GeneralsOnlineProfileReconcilerTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_WithGameDataPatchManifest_MapsAndReconcilesGameDataPatch()
+    public async Task CheckAndReconcileIfNeededAsync_WithGameDataPatchManifest_MapsAndReconcilesGameDataPatchAsync()
     {
         // Arrange
         const string oldVersion = "101524";
@@ -198,6 +198,7 @@ public class GeneralsOnlineProfileReconcilerTests
 
         var settings = new UserSettings();
         settings.SetAutoUpdatePreference(GeneralsOnlineConstants.PublisherType, true);
+        settings.GetOrCreateSubscription(GeneralsOnlineConstants.PublisherType).DeleteOldVersions = true;
         _userSettingsServiceMock.Setup(x => x.Get())
             .Returns(settings);
 
@@ -255,10 +256,7 @@ public class GeneralsOnlineProfileReconcilerTests
                 It.IsAny<IReadOnlyDictionary<string, string>>(),
                 It.IsAny<bool>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<IReadOnlyDictionary<string, string>, bool, CancellationToken>((mapping, createNew, token) =>
-            {
-                capturedMapping = mapping;
-            })
+            .Callback<IReadOnlyDictionary<string, string>, bool, CancellationToken>((mapping, createNew, token) => capturedMapping = mapping)
             .ReturnsAsync(OperationResult<ReconciliationResult>.CreateSuccess(new ReconciliationResult(1, 0)));
 
         // Act

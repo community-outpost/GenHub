@@ -540,7 +540,7 @@ public class GeneralsOnlineManifestFactory(
             var isGameData = relativePath.StartsWith(GeneralsOnlineConstants.GameDataSubdirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
                              relativePath.StartsWith(GeneralsOnlineConstants.GameDataSubdirectory + "/", StringComparison.OrdinalIgnoreCase);
 
-            string hash;
+            var hash = string.Empty;
             using (var stream = File.OpenRead(filePath))
             {
                 var hashBytes = await SHA256.HashDataAsync(stream, cancellationToken);

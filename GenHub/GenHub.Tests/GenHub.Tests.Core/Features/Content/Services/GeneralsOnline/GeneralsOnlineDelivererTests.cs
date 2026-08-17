@@ -134,6 +134,32 @@ public class GeneralsOnlineDelivererTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies CanDeliver returns false for GeneralsOnline manifests without a ZIP download URL.
+    /// </summary>
+    [Fact]
+    public void CanDeliver_ManifestWithoutZipFile_ReturnsFalse()
+    {
+        var manifest = new ContentManifest
+        {
+            Publisher = new PublisherInfo
+            {
+                Name = GeneralsOnlineConstants.PublisherName,
+                PublisherType = PublisherTypeConstants.GeneralsOnline,
+            },
+            Files =
+            [
+                new ManifestFile
+                {
+                    DownloadUrl = "https://example.com/GeneralsOnline.exe",
+                    SourceType = ContentSourceType.RemoteDownload,
+                },
+            ],
+        };
+
+        Assert.False(_deliverer.CanDeliver(manifest));
+    }
+
+    /// <summary>
     /// Verifies DeliverContentAsync fails when any manifest registration in pool fails.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
@@ -164,10 +190,7 @@ public class GeneralsOnlineDelivererTests : IDisposable
                 It.IsAny<string?>(),
                 It.IsAny<IProgress<DownloadProgress>?>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<Uri, string, string?, IProgress<DownloadProgress>?, CancellationToken>((url, path, hash, prog, token) =>
-            {
-                File.Copy(zipPath, path, true);
-            })
+            .Callback<Uri, string, string?, IProgress<DownloadProgress>?, CancellationToken>((url, path, hash, prog, token) => File.Copy(zipPath, path, true))
             .ReturnsAsync(DownloadResult.CreateSuccess(zipPath, 100, TimeSpan.FromSeconds(1)));
 
         var manifest = new ContentManifest
@@ -222,10 +245,14 @@ public class GeneralsOnlineDelivererTests : IDisposable
         // Verifies that earlier successfully registered manifest was rolled back
         _manifestPoolMock.Verify(
             p => p.RemoveManifestAsync(
-                It.IsAny<ManifestId>(),
+                It.Is<ManifestId>(id => id.Value == manifest.Id.Value),
                 false,
                 It.IsAny<CancellationToken>()),
             Times.Once);
+
+        // Temp artifacts should be cleaned up on failure
+        Assert.False(File.Exists(Path.Combine(targetDir, "GeneralsOnline.zip")));
+        Assert.False(Directory.Exists(Path.Combine(targetDir, "extracted")));
     }
 
     /// <summary>
@@ -260,10 +287,7 @@ public class GeneralsOnlineDelivererTests : IDisposable
                 It.IsAny<string?>(),
                 It.IsAny<IProgress<DownloadProgress>?>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<Uri, string, string?, IProgress<DownloadProgress>?, CancellationToken>((url, path, hash, prog, token) =>
-            {
-                File.Copy(zipPath, path, true);
-            })
+            .Callback<Uri, string, string?, IProgress<DownloadProgress>?, CancellationToken>((url, path, hash, prog, token) => File.Copy(zipPath, path, true))
             .ReturnsAsync(DownloadResult.CreateSuccess(zipPath, 100, TimeSpan.FromSeconds(1)));
 
         var manifest = new ContentManifest
@@ -321,7 +345,8 @@ public class GeneralsOnlineDelivererTests : IDisposable
         Assert.True(File.Exists(Path.Combine(targetDir, "generalsonlinezh_60.exe")));
         Assert.True(File.Exists(Path.Combine(targetDir, "GeneralsOnlineGameData", "500_900_CommunityPatch_CoreINI.big")));
 
-        // Temporary extracted directory was cleaned up
+        // Downloaded ZIP and temporary extracted directory were cleaned up
+        Assert.False(File.Exists(Path.Combine(targetDir, "GeneralsOnline.zip")));
         Assert.False(Directory.Exists(Path.Combine(targetDir, "extracted")));
     }
 
@@ -356,10 +381,7 @@ public class GeneralsOnlineDelivererTests : IDisposable
                 It.IsAny<string?>(),
                 It.IsAny<IProgress<DownloadProgress>?>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<Uri, string, string?, IProgress<DownloadProgress>?, CancellationToken>((url, path, hash, prog, token) =>
-            {
-                File.Copy(zipPath, path, true);
-            })
+            .Callback<Uri, string, string?, IProgress<DownloadProgress>?, CancellationToken>((url, path, hash, prog, token) => File.Copy(zipPath, path, true))
             .ReturnsAsync(DownloadResult.CreateSuccess(zipPath, 100, TimeSpan.FromSeconds(1)));
 
         var manifest = new ContentManifest
@@ -412,9 +434,195 @@ public class GeneralsOnlineDelivererTests : IDisposable
         // First manifest was rolled back
         _manifestPoolMock.Verify(
             p => p.RemoveManifestAsync(
-                It.IsAny<ManifestId>(),
-                It.IsAny<bool>(),
+                It.Is<ManifestId>(id => id.Value == manifest.Id.Value),
+                false,
                 It.IsAny<CancellationToken>()),
             Times.Once);
+
+        // Temp artifacts should be cleaned up on failure
+        Assert.False(File.Exists(Path.Combine(targetDir, "GeneralsOnline.zip")));
+        Assert.False(Directory.Exists(Path.Combine(targetDir, "extracted")));
+    }
+
+    /// <summary>
+    /// Verifies that already-acquired manifests are skipped during registration.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_ManifestAlreadyAcquired_SkipsRegistration()
+    {
+        // Arrange
+        var zipPath = Path.Combine(_tempDir, "already_acquired.zip");
+        using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            var entry = archive.CreateEntry("generalsonlinezh_60.exe");
+            using (var writer = new StreamWriter(entry.Open()))
+            {
+                writer.Write("fake content");
+            }
+
+            var gameDataEntry = archive.CreateEntry("GeneralsOnlineGameData/500_900_CommunityPatch_CoreINI.big");
+            using (var writer = new StreamWriter(gameDataEntry.Open()))
+            {
+                writer.Write("fake big content");
+            }
+        }
+
+        _downloadServiceMock
+            .Setup(d => d.DownloadFileAsync(
+                It.IsAny<Uri>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<DownloadProgress>?>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<Uri, string, string?, IProgress<DownloadProgress>?, CancellationToken>((url, path, hash, prog, token) => File.Copy(zipPath, path, true))
+            .ReturnsAsync(DownloadResult.CreateSuccess(zipPath, 100, TimeSpan.FromSeconds(1)));
+
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.1015255.generalsonline.gameclient.60hz"),
+            Name = GameClientConstants.GeneralsOnline60HzDisplayName,
+            Version = "101525_QFE5",
+            ContentType = ContentType.GameClient,
+            Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GeneralsOnline },
+            Files =
+            [
+                new ManifestFile
+                {
+                    DownloadUrl = "https://example.com/GeneralsOnline_101525_QFE5.zip",
+                    SourceType = ContentSourceType.RemoteDownload,
+                },
+            ],
+        };
+
+        // First manifest is already acquired, second is not
+        _manifestPoolMock
+            .SetupSequence(p => p.IsManifestAcquiredAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        _manifestPoolMock
+            .Setup(p => p.AddManifestAsync(
+                It.IsAny<ContentManifest>(),
+                It.IsAny<string>(),
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        var targetDir = Path.Combine(_tempDir, "already_acquired_delivery");
+        Directory.CreateDirectory(targetDir);
+        var result = await _deliverer.DeliverContentAsync(manifest, targetDir, null, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.Success);
+
+        // AddManifestAsync called only once (for the unacquired Patch manifest, skipping GameClient)
+        _manifestPoolMock.Verify(
+            p => p.AddManifestAsync(
+                It.IsAny<ContentManifest>(),
+                It.IsAny<string>(),
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that cancellation during manifest registration triggers rollback, cleans temp artifacts, and rethrows OperationCanceledException.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_CancellationDuringRegistration_RollsBackAndRethrows()
+    {
+        // Arrange
+        var zipPath = Path.Combine(_tempDir, "cancel_test.zip");
+        using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+        {
+            var entry = archive.CreateEntry("generalsonlinezh_60.exe");
+            using (var writer = new StreamWriter(entry.Open()))
+            {
+                writer.Write("fake content");
+            }
+
+            var gameDataEntry = archive.CreateEntry("GeneralsOnlineGameData/500_900_CommunityPatch_CoreINI.big");
+            using (var writer = new StreamWriter(gameDataEntry.Open()))
+            {
+                writer.Write("fake big content");
+            }
+        }
+
+        _downloadServiceMock
+            .Setup(d => d.DownloadFileAsync(
+                It.IsAny<Uri>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<DownloadProgress>?>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<Uri, string, string?, IProgress<DownloadProgress>?, CancellationToken>((url, path, hash, prog, token) => File.Copy(zipPath, path, true))
+            .ReturnsAsync(DownloadResult.CreateSuccess(zipPath, 100, TimeSpan.FromSeconds(1)));
+
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.1015255.generalsonline.gameclient.60hz"),
+            Name = GameClientConstants.GeneralsOnline60HzDisplayName,
+            Version = "101525_QFE5",
+            ContentType = ContentType.GameClient,
+            Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GeneralsOnline },
+            Files =
+            [
+                new ManifestFile
+                {
+                    DownloadUrl = "https://example.com/GeneralsOnline_101525_QFE5.zip",
+                    SourceType = ContentSourceType.RemoteDownload,
+                },
+            ],
+        };
+
+        using var cts = new CancellationTokenSource();
+
+        var callCount = 0;
+        _manifestPoolMock
+            .Setup(p => p.AddManifestAsync(
+                It.IsAny<ContentManifest>(),
+                It.IsAny<string>(),
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                callCount++;
+                if (callCount == 1)
+                {
+                    return OperationResult<bool>.CreateSuccess(true);
+                }
+
+                cts.Cancel();
+                throw new OperationCanceledException(cts.Token);
+            });
+
+        _manifestPoolMock
+            .Setup(p => p.RemoveManifestAsync(
+                It.IsAny<ManifestId>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act & Assert
+        var targetDir = Path.Combine(_tempDir, "cancel_delivery");
+        Directory.CreateDirectory(targetDir);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => _deliverer.DeliverContentAsync(manifest, targetDir, null, cts.Token));
+
+        // Rollback was invoked for the earlier registered manifest
+        _manifestPoolMock.Verify(
+            p => p.RemoveManifestAsync(
+                It.Is<ManifestId>(id => id.Value == manifest.Id.Value),
+                false,
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+
+        // Temp artifacts were cleaned up
+        Assert.False(File.Exists(Path.Combine(targetDir, "GeneralsOnline.zip")));
+        Assert.False(Directory.Exists(Path.Combine(targetDir, "extracted")));
     }
 }

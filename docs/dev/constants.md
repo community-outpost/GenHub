@@ -1402,13 +1402,22 @@ Constants related to the Community Outpost (GenPatcher) catalog and metadata.
 
 Constants for Generals Online content discovery and manifest creation.
 
-- `PublisherPrefix`: Publisher prefix string (`"generalsonline"`)
-- `PublisherId`: Publisher identifier (`"generals-online"`)
-- `PublisherDisplayName`: Display name for the publisher (`"Generals Online"`)
-- `QfeMarkerPrefix`: Prefix used for QFE (Quick Fix Engineering) versions (`"qfe-"`)
+- `PublisherName`: Display name for the publisher (`"Generals Online Team"`)
+- `PublisherType`: Publisher type identifier (`"generalsonline"`)
+- `PublisherId`: Publisher identifier (`"generalsonline"`)
+- `QfeMarkerPrefix`: Prefix for QFE markers in version strings (`"QFE"`)
+- `Variant60HzSuffix`: Manifest name suffix for 60Hz variant (`"60hz"`)
+- `QuickMatchMapPackSuffix`: Manifest name suffix for QuickMatch MapPack (`"quickmatch-maps"`)
+- `GameDataPatchSuffix`: Manifest name suffix for GeneralsOnlineGameData data patch (`"gamedata"`)
+- `QuickMatchMapPackDisplayName`: Display name for QuickMatch MapPack (`"GeneralsOnline QuickMatch Maps"`)
+- `GameDataDisplayName`: Display name for GeneralsOnlineGameData data patch (`"GeneralsOnline Game Data"`)
+- `GameDataDescription`: Description for GeneralsOnlineGameData data patch (`"Game data patch for GeneralsOnline containing community balance and core INI configuration."`)
+- `MapsSubdirectory`: Subdirectory within the portable ZIP containing maps (`"Maps"`)
+- `GameDataSubdirectory`: Subdirectory within the portable ZIP containing GeneralsOnline game data (`"GeneralsOnlineGameData"`)
 - `MapPackTags`: Default tags for MapPack manifests (`["mappack", "generalsonline"]`)
+- `GameDataTags`: Default tags for GameData patch manifests (`["gamedata", "patch", "generalsonline"]`)
+- `CoverSource`: Path for cover images (`"/Assets/Covers/usa-cover.png"`)
 - `UnknownVersion`: Default version string when unknown (`"unknown"`)
-- `CoverSource`: Default path for cover images (`"/Assets/Covers/zerohour-cover.png"`)
 
 ### CNCLabsConstants Class
 
@@ -1502,61 +1511,6 @@ Constants specifically for the Map Manager feature.
 | `ToolId`                       | `"map-manager"`                            | Unique identifier for Map Manager                                                     |
 | `ToolName`                     | `"Map Manager"`                            | Display name for Map Manager                                                          |
 | `ToolDescription`              | `"Manage, import, and share custom maps. Create MapPacks for easy profile switching."` | Description of the tool |
-
-## Content Publisher Constants
-
-Constants for various community content publishers and manifest generation.
-
-### CommunityOutpostCatalogConstants Class
-
-Constants related to the Community Outpost (GenPatcher) catalog and metadata.
-
-- `CatalogFilename`: Default filename for the GenPatcher catalog (`"GenPatcher.dat"`)
-- `VersionKey`: Metadata key for version information (`"Version"`)
-- `DescriptionKey`: Metadata key for description information (`"Description"`)
-- `DownloadUrlKey`: Metadata key for download URLs (`"DownloadUrl"`)
-
-### GeneralsOnlineConstants Class
-
-Constants for Generals Online content discovery and manifest creation.
-
-- `PublisherPrefix`: Publisher prefix string (`"generalsonline"`)
-- `PublisherId`: Publisher identifier (`"generals-online"`)
-- `PublisherDisplayName`: Display name for the publisher (`"Generals Online"`)
-- `QfeMarkerPrefix`: Prefix used for QFE (Quick Fix Engineering) versions (`"qfe-"`)
-- `MapPackTags`: Default tags for MapPack manifests (`["mappack", "generalsonline"]`)
-- `UnknownVersion`: Default version string when unknown (`"unknown"`)
-- `CoverSource`: Default path for cover images (`"/Assets/Covers/zerohour-cover.png"`)
-
-### CNCLabsConstants Class
-
-Constants for CNC Labs (CNC Maps) content discovery and manifest creation.
-
-- `PublisherPrefix`: Publisher prefix string (`"cnclabs"`)
-- `PublisherId`: Publisher identifier (`"cnc-labs"`)
-- `PublisherName`: Display name for the publisher (`"CNC Labs"`)
-- `PublisherWebsite`: Main website URL (`"https://www.cnclabs.com"`)
-- `DefaultTags`: Default tags for CNC Labs manifests (`["cnclabs"]`)
-- `DefaultDownloadFilename`: Default filename for downloads when parsing fails (`"download.zip"`)
-
-### ModDBConstants Class
-
-Constants for ModDB content discovery and manifest creation.
-
-- `PublisherPrefix`: Publisher prefix string (`"moddb"`)
-- `PublisherDisplayName`: Display name for the publisher (`"ModDB"`)
-- `PublisherWebsite`: Main website URL (`"https://www.moddb.com"`)
-- `ReleaseDateFormat`: Date format used in ModDB metadata (`"MMMM dd, yyyy"`)
-- `PublisherNameFormat`: Format string for including the author with the publisher name (`"ModDB ({0})"`)
-- `DefaultDownloadFilename`: Default filename for downloads when parsing fails (`"download.zip"`)
-
-### SuperHackersConstants Class
-
-Constants for The Super Hackers content discovery and manifest creation.
-
-- `PublisherPrefix`: Publisher prefix string (`"thesuperhackers"`)
-- `PublisherDisplayName`: Display name for the publisher (`"The Super Hackers"`)
-- `VersionDelimiter`: Character used to separate components in version strings (`':'`)
 
 ---
 
