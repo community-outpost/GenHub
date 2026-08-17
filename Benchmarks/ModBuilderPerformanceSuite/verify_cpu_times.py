@@ -52,18 +52,20 @@ def run_isolated_verification():
     print("--- [1] MD5 STREAMING HASHING ---")
     N = 10
     
-    # Python MD5
+    # Add GeneralsModBuilder to sys.path
+    py_mb_path = os.path.join(WORKSPACE_ROOT, "GeneralsModBuilder", "ModBuilder")
+    if py_mb_path not in sys.path:
+        sys.path.insert(0, py_mb_path)
+    from generalsmodbuilder import util as py_util
+    
+    # 1. Actual Python ModBuilder GetFileHash
     py_cpu_times = []
     py_wall_times = []
     for _ in range(N):
         r0 = resource.getrusage(resource.RUSAGE_SELF)
         t0 = time.perf_counter_ns()
-        buf = bytearray(64 * 1024)
         for p in files:
-            h = hashlib.md5()
-            with open(p, "rb") as f:
-                while n := f.readinto(buf):
-                    h.update(memoryview(buf)[:n])
+            py_util.GetFileHash(p, hashlib.md5, log=False)
         t1 = time.perf_counter_ns()
         r1 = resource.getrusage(resource.RUSAGE_SELF)
         
