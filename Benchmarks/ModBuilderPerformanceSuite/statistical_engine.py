@@ -9,11 +9,23 @@ import os
 import sys
 import time
 import math
-import resource
 import struct
 import hashlib
 from typing import List, Dict, Any, Tuple, Optional
 from dataclasses import dataclass, field, asdict
+
+try:
+    import psutil
+    HAS_PSUTIL = True
+except ImportError:
+    HAS_PSUTIL = False
+
+try:
+    import resource
+    HAS_RESOURCE = True
+except ImportError:
+    HAS_RESOURCE = False
+
 
 @dataclass
 class ProcessMetrics:
@@ -61,7 +73,7 @@ class TelemetryCollector:
     
     @staticmethod
     def _read_proc_io(pid: int) -> Tuple[int, int, int, int]:
-        """Reads read_bytes, write_bytes, syscr, syscw from /proc/[pid]/io."""
+        """Reads read_bytes, write_bytes, syscr, syscw from /proc/[pid]/io if available."""
         rbytes, wbytes, syscr, syscw = 0, 0, 0, 0
         io_path = f"/proc/{pid}/io"
         if os.path.exists(io_path):
@@ -82,70 +94,131 @@ class TelemetryCollector:
 
     @classmethod
     def measure_callable(cls, fn, *args, items: int = 0, data_bytes: int = 0, **kwargs) -> Tuple[Any, ProcessMetrics]:
-        """Executes a callable, measuring exact wall-clock and rusage telemetry."""
-        pid = os.getpid()
-        rbytes_start, wbytes_start, syscr_start, syscw_start = cls._read_proc_io(pid)
-        
-        usage_self_start = resource.getrusage(resource.RUSAGE_SELF)
-        usage_children_start = resource.getrusage(resource.RUSAGE_CHILDREN)
-        
-        t_start = time.perf_counter_ns()
-        result = fn(*args, **kwargs)
-        t_end = time.perf_counter_ns()
-        
-        usage_self_end = resource.getrusage(resource.RUSAGE_SELF)
-        usage_children_end = resource.getrusage(resource.RUSAGE_CHILDREN)
-        rbytes_end, wbytes_end, syscr_end, syscw_end = cls._read_proc_io(pid)
-        
-        wall_sec = (t_end - t_start) / 1e9
-        wall_ms = wall_sec * 1000.0
-        
-        user_sec = (
-            (usage_self_end.ru_utime - usage_self_start.ru_utime) +
-            (usage_children_end.ru_utime - usage_children_start.ru_utime)
-        )
-        sys_sec = (
-            (usage_self_end.ru_stime - usage_self_start.ru_stime) +
-            (usage_children_end.ru_stime - usage_children_start.ru_stime)
-        )
-        total_cpu_sec = user_sec + sys_sec
-        cpu_util = (total_cpu_sec / wall_sec * 100.0) if wall_sec > 0 else 0.0
-        
-        # On Linux, ru_maxrss is in Kilobytes
-        peak_rss_mb = max(usage_self_end.ru_maxrss, usage_children_end.ru_maxrss) / 1024.0
-        
-        minor_flt = (
-            (usage_self_end.ru_minflt - usage_self_start.ru_minflt) +
-            (usage_children_end.ru_minflt - usage_children_start.ru_minflt)
-        )
-        major_flt = (
-            (usage_self_end.ru_majflt - usage_self_start.ru_majflt) +
-            (usage_children_end.ru_majflt - usage_children_start.ru_majflt)
-        )
-        
-        th_mb_s = (data_bytes / (1024.0 * 1024.0)) / wall_sec if wall_sec > 0 else 0.0
-        th_items_s = items / wall_sec if wall_sec > 0 else 0.0
-        
-        metrics = ProcessMetrics(
-            wall_time_ms=wall_ms,
-            user_cpu_time_ms=user_sec * 1000.0,
-            sys_cpu_time_ms=sys_sec * 1000.0,
-            total_cpu_time_ms=total_cpu_sec * 1000.0,
-            cpu_utilization_percent=cpu_util,
-            peak_rss_mb=peak_rss_mb,
-            minor_page_faults=minor_flt,
-            major_page_faults=major_flt,
-            read_bytes=max(0, rbytes_end - rbytes_start),
-            write_bytes=max(0, wbytes_end - wbytes_start),
-            read_syscalls=max(0, syscr_end - syscr_start),
-            write_syscalls=max(0, syscw_end - syscw_start),
-            items_processed=items,
-            bytes_processed=data_bytes,
-            throughput_mb_s=th_mb_s,
-            throughput_items_s=th_items_s
-        )
-        
-        return result, metrics
+        """Executes a callable, measuring exact wall-clock, CPU, and memory telemetry."""
+        if HAS_PSUTIL:
+            proc = psutil.Process()
+            cpu_start = proc.cpu_times()
+            mem_start = proc.memory_info().rss
+            t_start = time.perf_counter_ns()
+            result = fn(*args, **kwargs)
+            t_end = time.perf_counter_ns()
+            cpu_end = proc.cpu_times()
+            mem_end = proc.memory_info().rss
+
+            wall_sec = (t_end - t_start) / 1e9
+            wall_ms = wall_sec * 1000.0
+
+            user_sec = max(0.0, cpu_end.user - cpu_start.user)
+            sys_sec = max(0.0, cpu_end.system - cpu_start.system)
+            if hasattr(cpu_end, 'children_user') and hasattr(cpu_start, 'children_user'):
+                user_sec += max(0.0, cpu_end.children_user - cpu_start.children_user)
+                sys_sec += max(0.0, cpu_end.children_system - cpu_start.children_system)
+
+            total_cpu_sec = user_sec + sys_sec
+            cpu_util = (total_cpu_sec / wall_sec * 100.0) if wall_sec > 0 else 0.0
+            peak_rss_mb = max(mem_start, mem_end) / (1024.0 * 1024.0)
+
+            th_mb_s = (data_bytes / (1024.0 * 1024.0)) / wall_sec if wall_sec > 0 else 0.0
+            th_items_s = items / wall_sec if wall_sec > 0 else 0.0
+
+            metrics = ProcessMetrics(
+                wall_time_ms=wall_ms,
+                user_cpu_time_ms=user_sec * 1000.0,
+                sys_cpu_time_ms=sys_sec * 1000.0,
+                total_cpu_time_ms=total_cpu_sec * 1000.0,
+                cpu_utilization_percent=cpu_util,
+                peak_rss_mb=peak_rss_mb,
+                minor_page_faults=0,
+                major_page_faults=0,
+                read_bytes=0,
+                write_bytes=0,
+                read_syscalls=0,
+                write_syscalls=0,
+                items_processed=items,
+                bytes_processed=data_bytes,
+                throughput_mb_s=th_mb_s,
+                throughput_items_s=th_items_s
+            )
+            return result, metrics
+
+        elif HAS_RESOURCE:
+            pid = os.getpid()
+            rbytes_start, wbytes_start, syscr_start, syscw_start = cls._read_proc_io(pid)
+            usage_self_start = resource.getrusage(resource.RUSAGE_SELF)
+            usage_children_start = resource.getrusage(resource.RUSAGE_CHILDREN)
+            
+            t_start = time.perf_counter_ns()
+            result = fn(*args, **kwargs)
+            t_end = time.perf_counter_ns()
+            
+            usage_self_end = resource.getrusage(resource.RUSAGE_SELF)
+            usage_children_end = resource.getrusage(resource.RUSAGE_CHILDREN)
+            rbytes_end, wbytes_end, syscr_end, syscw_end = cls._read_proc_io(pid)
+            
+            wall_sec = (t_end - t_start) / 1e9
+            wall_ms = wall_sec * 1000.0
+            
+            user_sec = (
+                (usage_self_end.ru_utime - usage_self_start.ru_utime) +
+                (usage_children_end.ru_utime - usage_children_start.ru_utime)
+            )
+            sys_sec = (
+                (usage_self_end.ru_stime - usage_self_start.ru_stime) +
+                (usage_children_end.ru_stime - usage_children_start.ru_stime)
+            )
+            total_cpu_sec = user_sec + sys_sec
+            cpu_util = (total_cpu_sec / wall_sec * 100.0) if wall_sec > 0 else 0.0
+            peak_rss_mb = max(usage_self_end.ru_maxrss, usage_children_end.ru_maxrss) / 1024.0
+            
+            th_mb_s = (data_bytes / (1024.0 * 1024.0)) / wall_sec if wall_sec > 0 else 0.0
+            th_items_s = items / wall_sec if wall_sec > 0 else 0.0
+            
+            metrics = ProcessMetrics(
+                wall_time_ms=wall_ms,
+                user_cpu_time_ms=user_sec * 1000.0,
+                sys_cpu_time_ms=sys_sec * 1000.0,
+                total_cpu_time_ms=total_cpu_sec * 1000.0,
+                cpu_utilization_percent=cpu_util,
+                peak_rss_mb=peak_rss_mb,
+                minor_page_faults=0,
+                major_page_faults=0,
+                read_bytes=max(0, rbytes_end - rbytes_start),
+                write_bytes=max(0, wbytes_end - wbytes_start),
+                read_syscalls=max(0, syscr_end - syscr_start),
+                write_syscalls=max(0, syscw_end - syscw_start),
+                items_processed=items,
+                bytes_processed=data_bytes,
+                throughput_mb_s=th_mb_s,
+                throughput_items_s=th_items_s
+            )
+            return result, metrics
+        else:
+            t_start = time.perf_counter_ns()
+            result = fn(*args, **kwargs)
+            t_end = time.perf_counter_ns()
+            wall_sec = (t_end - t_start) / 1e9
+            wall_ms = wall_sec * 1000.0
+            th_mb_s = (data_bytes / (1024.0 * 1024.0)) / wall_sec if wall_sec > 0 else 0.0
+            th_items_s = items / wall_sec if wall_sec > 0 else 0.0
+            metrics = ProcessMetrics(
+                wall_time_ms=wall_ms,
+                user_cpu_time_ms=0.0,
+                sys_cpu_time_ms=0.0,
+                total_cpu_time_ms=0.0,
+                cpu_utilization_percent=0.0,
+                peak_rss_mb=0.0,
+                minor_page_faults=0,
+                major_page_faults=0,
+                read_bytes=0,
+                write_bytes=0,
+                read_syscalls=0,
+                write_syscalls=0,
+                items_processed=items,
+                bytes_processed=data_bytes,
+                throughput_mb_s=th_mb_s,
+                throughput_items_s=th_items_s
+            )
+            return result, metrics
 
 
 class StatisticalEngine:
