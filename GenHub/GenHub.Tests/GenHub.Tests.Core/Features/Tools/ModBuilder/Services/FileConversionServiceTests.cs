@@ -187,14 +187,13 @@ public sealed class FileConversionServiceTests : IDisposable
         var destPath = Path.Combine(_tempDirectory, "output.txt");
         await File.WriteAllTextAsync(sourcePath, "content");
 
-        var progressReported = false;
-        var progress = new Progress<double>(p => progressReported = true);
+        var progressMock = new Mock<IProgress<double>>();
 
         // Act
-        await _service.ConvertFileAsync(sourcePath, destPath, null, progress: progress);
+        await _service.ConvertFileAsync(sourcePath, destPath, null, progress: progressMock.Object);
 
         // Assert
-        progressReported.Should().BeTrue();
+        progressMock.Verify(p => p.Report(It.IsAny<double>()), Times.AtLeastOnce());
     }
 
     [Fact]
