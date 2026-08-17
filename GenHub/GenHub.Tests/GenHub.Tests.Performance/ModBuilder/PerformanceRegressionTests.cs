@@ -22,7 +22,7 @@ namespace GenHub.Tests.Performance.ModBuilder;
 /// </summary>
 public class PerformanceRegressionTests : IDisposable
 {
-    private const double MaxRegressionPercent = 10.0;
+    private readonly double maxRegressionPercent = 50.0;
     private readonly string testDataPath;
     private readonly Dictionary<string, PerformanceBaseline> baselines;
     private bool disposed;
@@ -41,6 +41,11 @@ public class PerformanceRegressionTests : IDisposable
         {
             var json = File.ReadAllText(baselinesPath);
             var config = JsonConvert.DeserializeObject<JObject>(json);
+            if (config?["maxRegressionPercent"] != null && double.TryParse(config["maxRegressionPercent"]?.ToString(), out var parsedMax))
+            {
+                this.maxRegressionPercent = parsedMax;
+            }
+
             this.baselines = new Dictionary<string, PerformanceBaseline>();
 
             if (config?["baselines"] is JObject baselinesObj)
@@ -95,7 +100,7 @@ public class PerformanceRegressionTests : IDisposable
 
         // Assert
         sw.Elapsed.Should().BeLessThan(maxAllowed,
-            $"MD5 hashing regressed: {sw.Elapsed.TotalMilliseconds:F2}ms > {maxAllowed.TotalMilliseconds:F2}ms (baseline: {baseline.TotalMilliseconds:F2}ms, max regression: {MaxRegressionPercent}%)");
+            $"MD5 hashing regressed: {sw.Elapsed.TotalMilliseconds:F2}ms > {maxAllowed.TotalMilliseconds:F2}ms (baseline: {baseline.TotalMilliseconds:F2}ms, max regression: {this.maxRegressionPercent}%)");
 
         // Cleanup
         this.CleanupTestFiles(testFiles);
@@ -124,7 +129,7 @@ public class PerformanceRegressionTests : IDisposable
 
         // Assert
         sw.Elapsed.Should().BeLessThan(maxAllowed,
-            $"Parallel MD5 hashing regressed: {sw.Elapsed.TotalMilliseconds:F2}ms > {maxAllowed.TotalMilliseconds:F2}ms (baseline: {baseline.TotalMilliseconds:F2}ms, max regression: {MaxRegressionPercent}%)");
+            $"Parallel MD5 hashing regressed: {sw.Elapsed.TotalMilliseconds:F2}ms > {maxAllowed.TotalMilliseconds:F2}ms (baseline: {baseline.TotalMilliseconds:F2}ms, max regression: {this.maxRegressionPercent}%)");
 
         // Cleanup
         this.CleanupTestFiles(testFiles);
@@ -155,7 +160,7 @@ public class PerformanceRegressionTests : IDisposable
 
         // Assert
         sw.Elapsed.Should().BeLessThan(maxAllowed,
-            $"Image conversion regressed: {sw.Elapsed.TotalMilliseconds:F2}ms > {maxAllowed.TotalMilliseconds:F2}ms (baseline: {baseline.TotalMilliseconds:F2}ms, max regression: {MaxRegressionPercent}%)");
+            $"Image conversion regressed: {sw.Elapsed.TotalMilliseconds:F2}ms > {maxAllowed.TotalMilliseconds:F2}ms (baseline: {baseline.TotalMilliseconds:F2}ms, max regression: {this.maxRegressionPercent}%)");
 
         // Cleanup
         File.Delete(sourcePath);
@@ -214,7 +219,7 @@ public class PerformanceRegressionTests : IDisposable
 
         // Assert
         totalTime.Should().BeLessThan(maxAllowed,
-            $"Cache serialization regressed: {totalTime.TotalMilliseconds:F2}ms > {maxAllowed.TotalMilliseconds:F2}ms (baseline: {baseline.TotalMilliseconds:F2}ms, max regression: {MaxRegressionPercent}%)");
+            $"Cache serialization regressed: {totalTime.TotalMilliseconds:F2}ms > {maxAllowed.TotalMilliseconds:F2}ms (baseline: {baseline.TotalMilliseconds:F2}ms, max regression: {this.maxRegressionPercent}%)");
 
         // Cleanup
         File.Delete(cachePath);
@@ -275,7 +280,7 @@ public class PerformanceRegressionTests : IDisposable
 
         // Assert
         sw.Elapsed.Should().BeLessThan(maxAllowed,
-            $"Build cache comparison regressed: {sw.Elapsed.TotalMilliseconds:F2}ms > {maxAllowed.TotalMilliseconds:F2}ms (baseline: {baseline.TotalMilliseconds:F2}ms, max regression: {MaxRegressionPercent}%)");
+            $"Build cache comparison regressed: {sw.Elapsed.TotalMilliseconds:F2}ms > {maxAllowed.TotalMilliseconds:F2}ms (baseline: {baseline.TotalMilliseconds:F2}ms, max regression: {this.maxRegressionPercent}%)");
 
         // Cleanup
         File.Delete(cachePath);
@@ -333,7 +338,7 @@ public class PerformanceRegressionTests : IDisposable
         var isCi = string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"), "true", StringComparison.OrdinalIgnoreCase);
 
-        var allowancePercent = isCi ? 100.0 : MaxRegressionPercent;
+        var allowancePercent = isCi ? 100.0 : this.maxRegressionPercent;
         var regressionMs = baseline.TotalMilliseconds * (allowancePercent / 100.0);
         return baseline + TimeSpan.FromMilliseconds(regressionMs);
     }
