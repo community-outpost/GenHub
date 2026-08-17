@@ -576,7 +576,7 @@ public class GeneralsOnlineManifestFactory(
             }
             else if (isPatchManifest)
             {
-                // Data patch manifest: only include GeneralsOnlineGameData files with Workspace install target
+                // Data patch manifest: only include GeneralsOnlineGameData files with UserDataDirectory install target
                 foreach (var (relativePath, fileInfo, hash, isMap, isGameData) in filesWithHashes)
                 {
                     if (!isGameData)

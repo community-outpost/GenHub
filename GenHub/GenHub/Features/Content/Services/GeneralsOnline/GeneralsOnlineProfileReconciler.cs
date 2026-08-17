@@ -173,7 +173,7 @@ public class GeneralsOnlineProfileReconciler(
     }
 
     /// <summary>
-    /// Checks if two manifests refer to the same variant (30hz, 60hz, or quickmatch-maps).
+    /// Checks if two manifests refer to the same variant (30hz, 60hz, quickmatch-maps, or gamedata).
     /// </summary>
     private static bool MatchesByVariant(ContentManifest oldManifest, ContentManifest newManifest)
     {

@@ -585,10 +585,8 @@ public sealed class UserDataTrackerServiceTests : IDisposable
             .ThrowsAsync(new OperationCanceledException(cts.Token));
 
         // Act & Assert
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
-        {
-            await _trackerService.ActivateProfileUserDataAsync("profile-cancel-activate-test", cts.Token);
-        });
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => _trackerService.ActivateProfileUserDataAsync("profile-cancel-activate-test", cts.Token));
 
         // Rollback restores user backup
         Assert.True(File.Exists(splashPath));
@@ -650,10 +648,8 @@ public sealed class UserDataTrackerServiceTests : IDisposable
             });
 
         // Act & Assert
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
-        {
-            await _trackerService.DeactivateProfileUserDataAsync("profile-cancel-deactivate-test", cts.Token);
-        });
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => _trackerService.DeactivateProfileUserDataAsync("profile-cancel-deactivate-test", cts.Token));
 
         // Manifest remains active on disk to allow retry
         var profileData = await _trackerService.GetProfileUserDataAsync("profile-cancel-deactivate-test", CancellationToken.None);

@@ -90,18 +90,16 @@ public class UserDataTrackerService(
             foreach (var file in userDataFiles)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                string targetPath;
                 try
                 {
-                    targetPath = ResolveUserDataTargetPath(file.InstallTarget, file.RelativePath, userDataBasePath);
+                    var targetPath = ResolveUserDataTargetPath(file.InstallTarget, file.RelativePath, userDataBasePath);
+                    resolvedFiles.Add((file, targetPath));
                 }
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "[UserData] Invalid file path in manifest: {Path}", file.RelativePath);
                     return OperationResult<UserDataManifest>.CreateFailure($"Invalid file path in manifest: {file.RelativePath}");
                 }
-
-                resolvedFiles.Add((file, targetPath));
             }
 
             long totalSize = 0;
@@ -114,13 +112,27 @@ public class UserDataTrackerService(
 
                 // Check for conflicts
                 var conflictResult = await CheckFileConflictAsync(targetPath, cancellationToken);
+                if (!conflictResult.Success)
+                {
+                    logger.LogError("[UserData] Failed to check file conflict for {Path}: {Error}; aborting installation", targetPath, conflictResult.FirstError);
+                    await CleanupInstalledFilesAsync(userDataManifest, CancellationToken.None);
+                    return OperationResult<UserDataManifest>.CreateFailure($"Failed to check file conflict for '{targetPath}': {conflictResult.FirstError}");
+                }
+
+                if (!string.IsNullOrEmpty(conflictResult.Data) && conflictResult.Data != userDataManifest.InstallationKey)
+                {
+                    logger.LogError("[UserData] File conflict with installation {Key}: {Path}; aborting installation", conflictResult.Data, targetPath);
+                    await CleanupInstalledFilesAsync(userDataManifest, CancellationToken.None);
+                    return OperationResult<UserDataManifest>.CreateFailure($"File '{targetPath}' is already managed by installation '{conflictResult.Data}'. Installation aborted.");
+                }
+
                 var wasOverwritten = false;
                 string? backupPath = null;
 
                 if (File.Exists(targetPath))
                 {
                     // File exists - back it up if it's not from another installation
-                    if (conflictResult.Success && string.IsNullOrEmpty(conflictResult.Data))
+                    if (string.IsNullOrEmpty(conflictResult.Data))
                     {
                         // User's own file - back it up
                         backupPath = await BackupExistingFileAsync(targetPath, targetGame, cancellationToken);
@@ -133,11 +145,6 @@ public class UserDataTrackerService(
 
                         wasOverwritten = true;
                         logger.LogInformation("[UserData] Backed up existing user file: {Path} -> {Backup}", targetPath, backupPath);
-                    }
-                    else if (conflictResult.Data != userDataManifest.InstallationKey)
-                    {
-                        // Another installation owns this file - skip or handle conflict
-                        logger.LogWarning("[UserData] File conflict with installation {Key}: {Path}", conflictResult.Data, targetPath);
                     }
 
                     // Delete existing to replace
@@ -265,11 +272,25 @@ public class UserDataTrackerService(
 
             userDataManifest.TotalSizeBytes = totalSize;
 
-            // Save the manifest
-            await SaveUserDataManifestAsync(userDataManifest, cancellationToken);
+            try
+            {
+                // Save the manifest
+                await SaveUserDataManifestAsync(userDataManifest, cancellationToken);
 
-            // Update the index
-            await UpdateIndexAsync(userDataManifest, isAdd: true, cancellationToken);
+                // Update the index
+                await UpdateIndexAsync(userDataManifest, isAdd: true, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                await CleanupInstalledFilesAsync(userDataManifest, CancellationToken.None);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "[UserData] Failed to persist manifest or update index for {ManifestId}; cleaning up installed files", manifestId);
+                await CleanupInstalledFilesAsync(userDataManifest, CancellationToken.None);
+                throw;
+            }
 
             logger.LogInformation(
                 "[UserData] Successfully installed {Count} files ({Size} bytes) for manifest {ManifestId}",
@@ -540,6 +561,9 @@ public class UserDataTrackerService(
                 return OperationResult<bool>.CreateSuccess(true); // No user data to deactivate
             }
 
+            var allSuccess = true;
+            var deactivatedCount = 0;
+
             foreach (var manifest in manifestsResult.Data)
             {
                 if (!manifest.IsActive)
@@ -547,6 +571,7 @@ public class UserDataTrackerService(
                     continue; // Already inactive
                 }
 
+                var manifestHasErrors = false;
                 var userDataBasePath = GetUserDataBasePath(manifest.TargetGame);
 
                 // Remove hard links and copied files but keep tracking
@@ -571,6 +596,8 @@ public class UserDataTrackerService(
                         catch (Exception ex) when (ex is not OperationCanceledException)
                         {
                             logger.LogWarning(ex, "[UserData] Failed to remove active file: {Path}", file.AbsolutePath);
+                            manifestHasErrors = true;
+                            allSuccess = false;
                         }
                     }
 
@@ -591,16 +618,31 @@ public class UserDataTrackerService(
                         catch (Exception ex) when (ex is not OperationCanceledException)
                         {
                             logger.LogWarning(ex, "[UserData] Failed to restore backup during deactivation: {Path}", file.AbsolutePath);
+                            manifestHasErrors = true;
+                            allSuccess = false;
                         }
                     }
                 }
 
-                // Update manifest state only after all files in this manifest are processed
-                manifest.IsActive = false;
-                await SaveUserDataManifestAsync(manifest, CancellationToken.None);
+                // Update manifest state only after all files in this manifest are processed without errors
+                if (!manifestHasErrors)
+                {
+                    manifest.IsActive = false;
+                    await SaveUserDataManifestAsync(manifest, CancellationToken.None);
+                    deactivatedCount++;
+                }
+                else
+                {
+                    logger.LogWarning("[UserData] Deactivation had errors for manifest {ManifestId}; keeping IsActive unchanged for retry", manifest.ManifestId);
+                }
             }
 
-            logger.LogInformation("[UserData] Deactivated {Count} manifests for profile {ProfileId}", manifestsResult.Data.Count, profileId);
+            if (!allSuccess)
+            {
+                return OperationResult<bool>.CreateFailure("One or more files failed during deactivation; active state preserved for retry");
+            }
+
+            logger.LogInformation("[UserData] Deactivated {Count} manifests for profile {ProfileId}", deactivatedCount, profileId);
             return OperationResult<bool>.CreateSuccess(true);
         }
         catch (OperationCanceledException)
@@ -665,7 +707,7 @@ public class UserDataTrackerService(
             foreach (var file in manifestFiles)
             {
                 var manifest = await LoadUserDataManifestFromFileAsync(file, cancellationToken);
-                if (manifest != null && manifest.TargetGame == targetGame)
+                if (manifest is { TargetGame: var manifestGame } && manifestGame == targetGame)
                 {
                     manifests.Add(manifest);
                 }
@@ -725,14 +767,11 @@ public class UserDataTrackerService(
                     continue;
                 }
 
-                if (!file.IsHardLink)
+                if (!file.IsHardLink &&
+                    !await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken))
                 {
-                    // Verify hash for copied files
-                    if (!await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken))
-                    {
-                        logger.LogWarning("[UserData] File hash mismatch: {Path}", file.AbsolutePath);
-                        allValid = false;
-                    }
+                    logger.LogWarning("[UserData] File hash mismatch: {Path}", file.AbsolutePath);
+                    allValid = false;
                 }
             }
 
@@ -1128,9 +1167,17 @@ public class UserDataTrackerService(
         EnsureDirectoriesExist();
         var filePath = GetManifestFilePath(manifest.InstallationKey);
         var tempPath = $"{filePath}.{Guid.NewGuid():N}.tmp";
-        var json = JsonSerializer.Serialize(manifest, _jsonOptions);
-        await File.WriteAllTextAsync(tempPath, json, cancellationToken);
-        File.Move(tempPath, filePath, overwrite: true);
+        try
+        {
+            var json = JsonSerializer.Serialize(manifest, _jsonOptions);
+            await File.WriteAllTextAsync(tempPath, json, cancellationToken);
+            File.Move(tempPath, filePath, overwrite: true);
+        }
+        catch
+        {
+            FileOperationsService.DeleteFileIfExists(tempPath);
+            throw;
+        }
     }
 
     private async Task DeleteUserDataManifestAsync(string manifestId, string profileId, CancellationToken cancellationToken)

@@ -1414,8 +1414,8 @@ Constants for Generals Online content discovery and manifest creation.
 - `GameDataDescription`: Description for GeneralsOnlineGameData data patch (`"Game data patch for GeneralsOnline containing community balance and core INI configuration."`)
 - `MapsSubdirectory`: Subdirectory within the portable ZIP containing maps (`"Maps"`)
 - `GameDataSubdirectory`: Subdirectory within the portable ZIP containing GeneralsOnline game data (`"GeneralsOnlineGameData"`)
-- `MapPackTags`: Default tags for MapPack manifests (`["mappack", "generalsonline"]`)
-- `GameDataTags`: Default tags for GameData patch manifests (`["gamedata", "patch", "generalsonline"]`)
+- `MapPackTags`: Default tags for MapPack manifests (`["mappack", "generalsonline", "quickmatch", "competitive"]`)
+- `GameDataTags`: Default tags for GameData patch manifests (`["patch", "generalsonline"]`)
 - `CoverSource`: Path for cover images (`"/Assets/Covers/usa-cover.png"`)
 - `UnknownVersion`: Default version string when unknown (`"unknown"`)
 

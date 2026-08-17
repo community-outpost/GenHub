@@ -919,6 +919,7 @@ public class GameProcessManager(
                             "[Process] Launcher {LauncherId} exited cleanly without starting {ExpectedName}",
                             launcher.Id,
                             expectedName);
+
                         // The launcher has provably exited here, so the drain is safe and this
                         // message carries the complete stderr rather than a partial snapshot.
                         return OperationResult<GameProcessInfo>.CreateFailure(
