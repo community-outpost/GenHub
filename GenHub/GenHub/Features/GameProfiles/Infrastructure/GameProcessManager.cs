@@ -1066,7 +1066,7 @@ public class GameProcessManager(
             {
                 ProcessId = processId,
                 ProcessName = process.ProcessName,
-                StartTime = process.StartTime,
+                StartTime = process.StartTime.ToUniversalTime(),
                 ExecutablePath = string.IsNullOrEmpty(inspectedPath) ? fallbackExecutablePath : inspectedPath,
                 IsRunning = IsStillRunning(process),
             };
@@ -1078,7 +1078,7 @@ public class GameProcessManager(
             {
                 ProcessId = processId,
                 ProcessName = GameClientConstants.UnknownVersion,
-                StartTime = DateTime.Now,
+                StartTime = DateTime.UtcNow,
                 ExecutablePath = fallbackExecutablePath,
                 IsRunning = IsStillRunning(process),
             };
@@ -1117,7 +1117,7 @@ public class GameProcessManager(
                     candidates.Add(new GameProcessCandidate(
                         process.Id,
                         process.ProcessName,
-                        process.StartTime,
+                        process.StartTime.ToUniversalTime(),
                         string.IsNullOrEmpty(executablePath) ? null : executablePath));
                 }
                 catch (Exception ex)
@@ -1128,7 +1128,7 @@ public class GameProcessManager(
             }
 
             var selected = GameProcessSelector.SelectSpawnedGameProcess(
-                candidates, executableName, workingDirectory, DateTime.Now, launcherStartTime);
+                candidates, executableName, workingDirectory, DateTime.UtcNow, launcherStartTime?.ToUniversalTime());
 
             if (selected == null)
             {
