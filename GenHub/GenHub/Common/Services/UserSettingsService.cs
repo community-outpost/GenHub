@@ -82,6 +82,29 @@ public class UserSettingsService : IUserSettingsService
         }
     }
 
+    /// <summary>
+    /// What reading a settings file produced, so the caller can tell the absence of a settings file
+    /// apart from a settings file it could not read.
+    /// </summary>
+    private enum SettingsLoadOutcome
+    {
+        /// <summary>
+        /// No settings were there to read, so starting from defaults loses nothing.
+        /// </summary>
+        Absent,
+
+        /// <summary>
+        /// The settings were read from the file.
+        /// </summary>
+        Loaded,
+
+        /// <summary>
+        /// Settings exist but could not be read, so the defaults returned alongside this outcome
+        /// must never be persisted over them.
+        /// </summary>
+        Failed,
+    }
+
     /// <inheritdoc/>
     public UserSettings Get()
     {
@@ -175,7 +198,7 @@ public class UserSettingsService : IUserSettingsService
         if (!settingsLoaded)
         {
             _logger.LogError(
-                "Refusing to save settings to {Path}: initialization failed, so the in-memory settings are defaults rather than the user's values",
+                "Refusing to save settings to {Path}: the existing settings could not be read, so the in-memory settings are defaults rather than the user's values",
                 pathToSave);
             throw new InvalidOperationException(
                 "User settings were never loaded successfully; saving would overwrite the existing settings file with defaults.");
@@ -220,8 +243,8 @@ public class UserSettingsService : IUserSettingsService
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path, nameof(path));
         _settingsFilePath = path;
-        _settings = LoadSettings(path);
-        _settingsLoaded = true;
+        _settings = LoadSettings(path, out var outcome);
+        _settingsLoaded = outcome != SettingsLoadOutcome.Failed;
     }
 
     private static void NormalizeAndValidateLocked(UserSettings s, IAppConfiguration appConfig)
@@ -303,13 +326,27 @@ public class UserSettingsService : IUserSettingsService
         };
     }
 
-    private UserSettings LoadSettings(string path)
+    /// <summary>
+    /// Reads the settings at <paramref name="path"/>, falling back to defaults on any failure.
+    /// </summary>
+    /// <param name="path">The settings file to read.</param>
+    /// <param name="outcome">
+    /// Receives what the read produced. A missing or empty file is reported as
+    /// <see cref="SettingsLoadOutcome.Absent"/> because it holds nothing a save could destroy;
+    /// anything else that stops the file from being turned into settings is reported as
+    /// <see cref="SettingsLoadOutcome.Failed"/>.
+    /// </param>
+    /// <returns>The settings that were read, or defaults when they could not be.</returns>
+    private UserSettings LoadSettings(string path, out SettingsLoadOutcome outcome)
     {
+        outcome = SettingsLoadOutcome.Failed;
+
         try
         {
             if (!File.Exists(path))
             {
                 _logger.LogInformation("Settings file not found at {Path}, using defaults", path);
+                outcome = SettingsLoadOutcome.Absent;
                 return new UserSettings();
             }
 
@@ -317,6 +354,7 @@ public class UserSettingsService : IUserSettingsService
             if (string.IsNullOrWhiteSpace(json))
             {
                 _logger.LogWarning("Settings file is empty at {Path}, using defaults", path);
+                outcome = SettingsLoadOutcome.Absent;
                 return new UserSettings();
             }
 
@@ -331,6 +369,7 @@ public class UserSettingsService : IUserSettingsService
             MarkExplicitlySetPropertiesFromJson(settings, json);
 
             _logger.LogInformation("Settings loaded successfully from {Path}", path);
+            outcome = SettingsLoadOutcome.Loaded;
             return settings;
         }
         catch (IOException ex)
@@ -408,6 +447,10 @@ public class UserSettingsService : IUserSettingsService
     /// <remarks>
     /// A failure here leaves <see cref="_settingsLoaded"/> false, which blocks <see cref="SaveAsync"/>
     /// rather than letting the session persist defaults over a settings file that was never read.
+    /// That covers both the exceptions that escape to the outer catch and the ones
+    /// <see cref="LoadSettings"/> swallows, which is why the source it read has to report whether it
+    /// was absent, read, or unreadable: only an unreadable source has values a save could destroy,
+    /// and that holds for the pre-upgrade source just as much as for the current one.
     /// Normalization is applied separately: clamping to an inconsistent configured range is no reason
     /// to discard settings that loaded fine.
     /// </remarks>
@@ -416,14 +459,14 @@ public class UserSettingsService : IUserSettingsService
         try
         {
             var defaultPath = GetDefaultSettingsFilePath();
-            var initialSettings = LoadSettings(ResolveSettingsSourcePath(defaultPath));
+            var initialSettings = LoadSettings(ResolveSettingsSourcePath(defaultPath), out var outcome);
 
             // If the user has a custom path, reload from there; otherwise keep what the default path gave us.
             if (!string.IsNullOrWhiteSpace(initialSettings.SettingsFilePath) &&
                 !PathHelper.AreSamePath(initialSettings.SettingsFilePath, defaultPath))
             {
                 _settingsFilePath = initialSettings.SettingsFilePath;
-                _settings = LoadSettings(_settingsFilePath);
+                _settings = LoadSettings(_settingsFilePath, out outcome);
             }
             else
             {
@@ -431,7 +474,7 @@ public class UserSettingsService : IUserSettingsService
                 _settings = initialSettings;
             }
 
-            _settingsLoaded = true;
+            _settingsLoaded = outcome != SettingsLoadOutcome.Failed;
         }
         catch (Exception ex)
         {

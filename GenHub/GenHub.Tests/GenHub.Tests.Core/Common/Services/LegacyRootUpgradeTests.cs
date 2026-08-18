@@ -231,6 +231,86 @@ public class LegacyRootUpgradeTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that a settings file the loader could not parse blocks the save that would replace
+    /// it with defaults. The failure is swallowed inside the load, so nothing reaches the outer
+    /// catch and the file looks like a clean load unless the load reports what it produced.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task Save_WithCorruptSettingsFile_RefusesToOverwriteAsync()
+    {
+        var settingsPath = Path.Combine(_newRoot, FileTypes.SettingsFileName);
+        var corruptJson = "{ invalid json }";
+        File.WriteAllText(settingsPath, corruptJson);
+
+        var service = CreateSettingsService();
+        Assert.Equal(AppConstants.DefaultThemeName, service.Get().Theme);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.SaveAsync());
+        Assert.Equal(corruptJson, File.ReadAllText(settingsPath));
+    }
+
+    /// <summary>
+    /// Verifies that a corrupt pre-upgrade settings file blocks saving as well, rather than starting
+    /// the session from defaults and writing them into the current root as if the upgrade had found
+    /// nothing to carry over.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task Save_WithCorruptLegacySettingsFile_RefusesToOverwriteAsync()
+    {
+        var corruptJson = "{ invalid json }";
+        WriteLegacySettings(corruptJson);
+
+        var service = CreateSettingsService();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.SaveAsync());
+        Assert.Equal(corruptJson, File.ReadAllText(Path.Combine(_legacyRoot, FileTypes.SettingsFileName)));
+        Assert.False(File.Exists(Path.Combine(_newRoot, FileTypes.SettingsFileName)));
+    }
+
+    /// <summary>
+    /// Verifies that a settings file which could not be opened, the case of a file locked by another
+    /// process or denied by permissions, blocks saving and therefore survives the session.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task Save_WithUnreadableSettingsFile_RefusesToOverwriteAsync()
+    {
+        var settingsPath = Path.Combine(_newRoot, FileTypes.SettingsFileName);
+        var existingJson = """
+        { "theme": "Light" }
+        """;
+        File.WriteAllText(settingsPath, existingJson);
+
+        UserSettingsService service;
+        using (File.Open(settingsPath, System.IO.FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            service = CreateSettingsService();
+        }
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.SaveAsync());
+        Assert.Equal(existingJson, File.ReadAllText(settingsPath));
+    }
+
+    /// <summary>
+    /// Verifies that the absence of any settings file is still a legitimate first run, so blocking
+    /// saves after a failed load cannot leave a fresh install unable to persist anything.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task Save_OnFirstRunWithoutAnySettingsFile_PersistsTheSettingsAsync()
+    {
+        Directory.Delete(_legacyRoot);
+
+        var service = CreateSettingsService();
+        service.Update(settings => settings.Theme = "Light");
+        await service.SaveAsync();
+
+        Assert.Contains("Light", File.ReadAllText(Path.Combine(_newRoot, FileTypes.SettingsFileName)));
+    }
+
+    /// <summary>
     /// Verifies that a settings file already present in the current root wins over the legacy copy.
     /// </summary>
     [Fact]
