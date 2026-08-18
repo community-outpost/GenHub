@@ -10,6 +10,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.AppUpdate;
@@ -455,24 +456,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// </summary>
     private static int ExtractRunNumber(string version)
     {
-        // Try to extract the run number before the PR suffix
-        var match = System.Text.RegularExpressions.Regex.Match(version, @"(\d+)(?:-pr\d+|-\w+)?$");
-        if (match.Success && int.TryParse(match.Groups[1].Value, out var runNumber))
-        {
-            return runNumber;
-        }
-
-        // Fallback: try to parse the entire version as a number
-        var parts = version.Split('.', '-', '+');
-        foreach (var part in parts.Reverse())
-        {
-            if (int.TryParse(part, out var number))
-            {
-                return number;
-            }
-        }
-
-        return 0;
+        return AppUpdateVersionHelper.ExtractRunNumber(version);
     }
 
     /// <summary>
@@ -586,7 +570,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                     var currentVersionBase = CurrentAppVersion.Split('+')[0];
                     var artifactVersionBase = branchArtifact.Version.Split('+')[0];
 
-                    if (!string.Equals(artifactVersionBase, currentVersionBase, StringComparison.OrdinalIgnoreCase))
+                    if (AppUpdateVersionHelper.IsArtifactVersionNewer(artifactVersionBase, currentVersionBase))
                     {
                         var settings = _userSettingsService.Get();
                         if (!string.Equals(artifactVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
@@ -598,13 +582,14 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                             _logger.LogInformation("Branch '{Branch}' has new build: {Version}", SubscribedBranch, LatestVersion);
                             return;
                         }
-                    }
-                    else
-                    {
-                        IsUpdateAvailable = false;
-                        StatusMessage = $"You are on the latest build for {SubscribedBranch}";
+
+                        StatusMessage = $"You dismissed the update for branch '{SubscribedBranch}'";
                         return;
                     }
+
+                    IsUpdateAvailable = false;
+                    StatusMessage = $"You are on the latest build for {SubscribedBranch}";
+                    return;
                 }
 
                 // If subscribed to branch but no artifact found, don't fall through to main release
@@ -1089,7 +1074,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                foreach (var pr in prs)
+                foreach (var pr in prs.OrderByDescending(p => p.UpdatedAt ?? DateTimeOffset.MinValue))
                 {
                     AvailablePullRequests.Add(pr);
                 }

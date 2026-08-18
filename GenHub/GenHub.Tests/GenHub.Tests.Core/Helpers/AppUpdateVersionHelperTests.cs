@@ -1,0 +1,82 @@
+using GenHub.Core.Helpers;
+
+namespace GenHub.Tests.Core.Helpers;
+
+/// <summary>
+/// Unit tests for <see cref="AppUpdateVersionHelper"/>.
+/// </summary>
+public class AppUpdateVersionHelperTests
+{
+    /// <summary>
+    /// Tests that ExtractRunNumber extracts expected run numbers.
+    /// </summary>
+    [Theory]
+    [InlineData("0.0.1282-pr265", 1282)]
+    [InlineData("0.0.1287-pr265", 1287)]
+    [InlineData("0.0.1287-main", 1287)]
+    [InlineData("0.0.1287-development", 1287)]
+    [InlineData("0.0.1287", 1287)]
+    [InlineData("0.0.0-ci.500", 500)]
+    [InlineData("1.0.42", 42)]
+    [InlineData("", 0)]
+    [InlineData("   ", 0)]
+    [InlineData(null, 0)]
+    [InlineData("abc", 0)]
+    public void ExtractRunNumber_WithVariousFormats_ShouldReturnExpectedNumber(string? version, int expectedRun)
+    {
+        var result = AppUpdateVersionHelper.ExtractRunNumber(version);
+        Assert.Equal(expectedRun, result);
+    }
+
+    /// <summary>
+    /// Tests that IsArtifactVersionNewer returns true when new run is greater.
+    /// </summary>
+    [Fact]
+    public void IsArtifactVersionNewer_WhenNewerRun_ShouldReturnTrue()
+    {
+        var result = AppUpdateVersionHelper.IsArtifactVersionNewer("0.0.1287-pr265", "0.0.1282-pr265");
+        Assert.True(result);
+    }
+
+    /// <summary>
+    /// Tests that IsArtifactVersionNewer returns false when same run.
+    /// </summary>
+    [Fact]
+    public void IsArtifactVersionNewer_WhenSameRun_ShouldReturnFalse()
+    {
+        var result = AppUpdateVersionHelper.IsArtifactVersionNewer("0.0.1282-pr265", "0.0.1282-pr265");
+        Assert.False(result);
+    }
+
+    /// <summary>
+    /// Tests that IsArtifactVersionNewer returns false when older run.
+    /// </summary>
+    [Fact]
+    public void IsArtifactVersionNewer_WhenOlderRun_ShouldReturnFalse()
+    {
+        var result = AppUpdateVersionHelper.IsArtifactVersionNewer("0.0.1280-pr265", "0.0.1282-pr265");
+        Assert.False(result);
+    }
+
+    /// <summary>
+    /// Tests that IsArtifactVersionNewer works for branch versions.
+    /// </summary>
+    [Fact]
+    public void IsArtifactVersionNewer_BranchVersions_ShouldCompareCorrectly()
+    {
+        Assert.True(AppUpdateVersionHelper.IsArtifactVersionNewer("0.0.1287-main", "0.0.1282-main"));
+        Assert.False(AppUpdateVersionHelper.IsArtifactVersionNewer("0.0.1282-main", "0.0.1282-main"));
+    }
+
+    /// <summary>
+    /// Tests that IsArtifactVersionNewer handles null or empty inputs.
+    /// </summary>
+    [Fact]
+    public void IsArtifactVersionNewer_WithNullOrEmpty_ShouldHandleGracefully()
+    {
+        Assert.False(AppUpdateVersionHelper.IsArtifactVersionNewer(null, "0.0.1282-pr265"));
+        Assert.False(AppUpdateVersionHelper.IsArtifactVersionNewer(string.Empty, "0.0.1282-pr265"));
+        Assert.True(AppUpdateVersionHelper.IsArtifactVersionNewer("0.0.1282-pr265", null));
+        Assert.True(AppUpdateVersionHelper.IsArtifactVersionNewer("0.0.1282-pr265", string.Empty));
+    }
+}

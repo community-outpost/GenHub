@@ -13,6 +13,7 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Common.ViewModels.Dialogs;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Messages;
@@ -237,61 +238,135 @@ public partial class MainViewModel(
         {
             var settings = userSettingsService.Get();
 
-            // Push settings to update manager (important context for other components)
+            // 1. check for subscribed pr artifacts
             if (settings.SubscribedPrNumber.HasValue)
             {
-                velopackUpdateManager.SubscribedPrNumber = settings.SubscribedPrNumber;
+                var prNumber = settings.SubscribedPrNumber.Value;
+                logger?.LogDebug("User subscribed to PR #{PrNumber}, checking for artifact updates", prNumber);
+                velopackUpdateManager.SubscribedPrNumber = prNumber;
+                velopackUpdateManager.SubscribedBranch = null;
+
+                var artifactUpdate = await velopackUpdateManager.CheckForArtifactUpdatesAsync(cancellationToken);
+                if (artifactUpdate != null)
+                {
+                    var currentVersionBase = AppConstants.AppVersion.Split('+')[0];
+                    var artifactVersionBase = artifactUpdate.Version.Split('+')[0];
+
+                    if (AppUpdateVersionHelper.IsArtifactVersionNewer(artifactVersionBase, currentVersionBase) &&
+                        !string.Equals(artifactVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
+                    {
+                        logger?.LogInformation("PR #{PrNumber} update available: {Version}", prNumber, artifactUpdate.DisplayVersion);
+                        await Dispatcher.UIThread.InvokeAsync(() => notificationService.Show(new NotificationMessage(
+                            NotificationType.Info,
+                            AppUpdateConstants.PrUpdateAvailableNotificationTitle,
+                            string.Format(AppUpdateConstants.PrUpdateNotificationFormat, artifactUpdate.DisplayVersion, prNumber),
+                            autoDismissMilliseconds: null,
+                            actions:
+                            [
+                                new NotificationAction(
+                                    AppUpdateConstants.ViewUpdatesAction,
+                                    () => SettingsViewModel.OpenUpdateWindowCommand.Execute(null),
+                                    NotificationActionStyle.Primary,
+                                    dismissOnExecute: true),
+                            ],
+                            isPersistent: true,
+                            showInBadge: true)));
+                    }
+                }
+
+                return;
             }
 
-            // 1. Check for standard GitHub releases (Default)
-            if (string.IsNullOrEmpty(settings.SubscribedBranch))
+            // 2. check for subscribed branch artifacts
+            if (!string.IsNullOrWhiteSpace(settings.SubscribedBranch))
             {
-                var updateInfo = await velopackUpdateManager.CheckForUpdatesAsync(cancellationToken);
-                if (updateInfo != null)
+                var branch = settings.SubscribedBranch;
+                logger?.LogDebug("User subscribed to branch '{Branch}', checking for artifact updates", branch);
+                velopackUpdateManager.SubscribedBranch = branch;
+                velopackUpdateManager.SubscribedPrNumber = null;
+
+                var artifactUpdate = await velopackUpdateManager.CheckForArtifactUpdatesAsync(cancellationToken);
+                if (artifactUpdate != null)
                 {
-                    logger?.LogInformation("GitHub release update available: {Version}", updateInfo.TargetFullRelease.Version);
+                    var currentVersionBase = AppConstants.AppVersion.Split('+')[0];
+                    var artifactVersionBase = artifactUpdate.Version.Split('+')[0];
+
+                    if (AppUpdateVersionHelper.IsArtifactVersionNewer(artifactVersionBase, currentVersionBase) &&
+                        !string.Equals(artifactVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
+                    {
+                        logger?.LogInformation("Branch '{Branch}' update available: {Version}", branch, artifactUpdate.DisplayVersion);
+                        await Dispatcher.UIThread.InvokeAsync(() => notificationService.Show(new NotificationMessage(
+                            NotificationType.Info,
+                            AppUpdateConstants.BranchUpdateAvailableNotificationTitle,
+                            string.Format(AppUpdateConstants.BranchUpdateNotificationFormat, artifactUpdate.DisplayVersion, branch),
+                            autoDismissMilliseconds: null,
+                            actions:
+                            [
+                                new NotificationAction(
+                                    AppUpdateConstants.ViewUpdatesAction,
+                                    () => SettingsViewModel.OpenUpdateWindowCommand.Execute(null),
+                                    NotificationActionStyle.Primary,
+                                    dismissOnExecute: true),
+                            ],
+                            isPersistent: true,
+                            showInBadge: true)));
+                    }
+                }
+
+                return;
+            }
+
+            // 3. check for standard github releases
+            velopackUpdateManager.SubscribedPrNumber = null;
+            velopackUpdateManager.SubscribedBranch = null;
+
+            var updateInfo = await velopackUpdateManager.CheckForUpdatesAsync(cancellationToken);
+            if (updateInfo != null)
+            {
+                var version = updateInfo.TargetFullRelease.Version.ToString();
+                if (!string.Equals(version, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger?.LogInformation("GitHub release update available: {Version}", version);
                     await Dispatcher.UIThread.InvokeAsync(() => notificationService.Show(new NotificationMessage(
                         NotificationType.Info,
-                        "Update Available",
-                        $"A new version ({updateInfo.TargetFullRelease.Version}) is available.",
-                        null, // Persistent
+                        AppUpdateConstants.UpdateAvailableNotificationTitle,
+                        string.Format(AppUpdateConstants.ReleaseUpdateNotificationFormat, version),
+                        autoDismissMilliseconds: null,
                         actions:
                         [
                             new NotificationAction(
-                                "View Updates",
+                                AppUpdateConstants.ViewUpdatesAction,
                                 () => SettingsViewModel.OpenUpdateWindowCommand.Execute(null),
                                 NotificationActionStyle.Primary,
                                 dismissOnExecute: true),
-                        ])));
+                        ],
+                        isPersistent: true,
+                        showInBadge: true)));
                     return;
                 }
             }
-            else
+            else if (velopackUpdateManager.HasUpdateAvailableFromGitHub)
             {
-                // 2. Check for Subscribed Branch Artifacts
-                logger?.LogDebug("User subscribed to branch '{Branch}', checking for artifact updates", settings.SubscribedBranch);
-                velopackUpdateManager.SubscribedBranch = settings.SubscribedBranch;
-                velopackUpdateManager.SubscribedPrNumber = null; // Clear PR to avoid ambiguity
-
-                var artifactUpdate = await velopackUpdateManager.CheckForArtifactUpdatesAsync(cancellationToken);
-
-                if (artifactUpdate != null)
+                var githubVersion = velopackUpdateManager.LatestVersionFromGitHub;
+                if (!string.IsNullOrWhiteSpace(githubVersion) &&
+                    !string.Equals(githubVersion, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
                 {
-                    var newVersionBase = artifactUpdate.Version.Split('+')[0];
-
+                    logger?.LogInformation("GitHub API release update available: {Version}", githubVersion);
                     await Dispatcher.UIThread.InvokeAsync(() => notificationService.Show(new NotificationMessage(
                         NotificationType.Info,
-                        "Branch Update Available",
-                        $"A new build ({newVersionBase}) is available on branch '{settings.SubscribedBranch}'.",
-                        null, // Persistent
+                        AppUpdateConstants.UpdateAvailableNotificationTitle,
+                        string.Format(AppUpdateConstants.ReleaseUpdateNotificationFormat, githubVersion),
+                        autoDismissMilliseconds: null,
                         actions:
                         [
                             new NotificationAction(
-                                "View Updates",
+                                AppUpdateConstants.ViewUpdatesAction,
                                 () => SettingsViewModel.OpenUpdateWindowCommand.Execute(null),
                                 NotificationActionStyle.Primary,
                                 dismissOnExecute: true),
-                        ])));
+                        ],
+                        isPersistent: true,
+                        showInBadge: true)));
                 }
             }
         }

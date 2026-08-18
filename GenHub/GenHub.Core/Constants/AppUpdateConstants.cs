@@ -154,6 +154,41 @@ public static class AppUpdateConstants
         "Update available: v{1}";
 
     /// <summary>
+    /// Update available notification title for release channel.
+    /// </summary>
+    public const string UpdateAvailableNotificationTitle = "Update Available";
+
+    /// <summary>
+    /// Update available notification title for branch subscriptions.
+    /// </summary>
+    public const string BranchUpdateAvailableNotificationTitle = "Branch Update Available";
+
+    /// <summary>
+    /// Update available notification title for PR subscriptions.
+    /// </summary>
+    public const string PrUpdateAvailableNotificationTitle = "PR Update Available";
+
+    /// <summary>
+    /// View updates action button text.
+    /// </summary>
+    public const string ViewUpdatesAction = "View Updates";
+
+    /// <summary>
+    /// Release update notification body format string ({0}: version).
+    /// </summary>
+    public const string ReleaseUpdateNotificationFormat = "A new version ({0}) is available.";
+
+    /// <summary>
+    /// Branch update notification body format string ({0}: version, {1}: branch name).
+    /// </summary>
+    public const string BranchUpdateNotificationFormat = "A new build ({0}) is available on branch '{1}'.";
+
+    /// <summary>
+    /// PR update notification body format string ({0}: version, {1}: PR number).
+    /// </summary>
+    public const string PrUpdateNotificationFormat = "A new build ({0}) is available for PR #{1}.";
+
+    /// <summary>
     /// Delay before exit after applying update (5 seconds).
     /// </summary>
     public static readonly TimeSpan PostUpdateExitDelay = TimeSpan.FromSeconds(5);

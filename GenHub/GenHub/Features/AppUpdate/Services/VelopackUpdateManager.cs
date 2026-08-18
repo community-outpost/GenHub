@@ -519,7 +519,10 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             }
 
             var prInfos = await Task.WhenAll(prTasks);
-            results.AddRange(prInfos);
+            var sortedPrs = prInfos
+                .OrderByDescending(p => p.UpdatedAt ?? DateTimeOffset.MinValue)
+                .ToList();
+            results.AddRange(sortedPrs);
 
             // Check if subscribed PR is still open
             subscribedPrFound = results.Any(p => p.Number == SubscribedPrNumber);
@@ -1555,11 +1558,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         var shortHash = headSha.Length >= AppConstants.GitShortHashLength ? headSha[..AppConstants.GitShortHashLength] : headSha;
         var actualBranch = run.TryGetProperty("head_branch", out var b) ? b.GetString() : branch ?? "unknown";
 
-        if (!string.Equals(eventType, "push", StringComparison.OrdinalIgnoreCase))
-        {
-            _logger.LogDebug("Skipping run {RunId} ({EventType}) - only 'push' events are valid for branch subscriptions", runId, eventType);
-            return null;
-        }
+        _logger.LogDebug("Checking run {RunId} ({EventType}) on branch {ActualBranch}", runId, eventType, actualBranch);
 
         if (!string.IsNullOrEmpty(branch) && !string.Equals(actualBranch, branch, StringComparison.OrdinalIgnoreCase))
         {

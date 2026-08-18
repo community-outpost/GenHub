@@ -14,6 +14,7 @@ using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Interfaces.UserData;
 using GenHub.Core.Interfaces.Workspace;
+using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Notifications;
@@ -158,6 +159,98 @@ public class MainViewModelTests
             logger: mockLogger.Object);
         await vm.InitializeAsync(); // Should not throw
         Assert.True(true);
+    }
+
+    /// <summary>
+    /// Tests that background update check queries artifact updates when subscribed to a PR.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeAsync_WhenSubscribedToPr_ChecksArtifactUpdatesAsync()
+    {
+        // Arrange
+        var (settingsVm, userSettingsMock) = CreateSettingsVm();
+        userSettingsMock.Setup(x => x.Get()).Returns(new UserSettings { SubscribedPrNumber = 265 });
+        var toolsVm = CreateToolsVm();
+        var configProvider = CreateConfigProviderMock();
+        var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
+        mockVelopackUpdateManager.Setup(x => x.CheckForArtifactUpdatesAsync(It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync((ArtifactUpdateInfo?)null);
+        var mockLogger = new Mock<ILogger<MainViewModel>>();
+        var mockNotificationService = CreateNotificationServiceMock();
+        var mockNotificationManager = new Mock<NotificationManagerViewModel>(
+            mockNotificationService.Object,
+            Mock.Of<ILogger<NotificationManagerViewModel>>(),
+            Mock.Of<ILogger<NotificationItemViewModel>>());
+        var notificationFeedVm = CreateNotificationFeedViewModel(mockNotificationService.Object);
+
+        var vm = new MainViewModel(
+            gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
+            downloadsViewModel: CreateDownloadsViewModel(configProvider),
+            toolsViewModel: toolsVm,
+            settingsViewModel: settingsVm,
+            notificationManager: mockNotificationManager.Object,
+            configurationProvider: configProvider,
+            userSettingsService: userSettingsMock.Object,
+            velopackUpdateManager: mockVelopackUpdateManager.Object,
+            notificationService: mockNotificationService.Object,
+            dialogService: new Mock<IDialogService>().Object,
+            notificationFeedViewModel: notificationFeedVm,
+            infoViewModel: CreateInfoViewModel(),
+            logger: mockLogger.Object);
+
+        await vm.InitializeAsync();
+
+        // Allow background task to execute
+        await Task.Delay(100);
+
+        mockVelopackUpdateManager.Verify(x => x.CheckForArtifactUpdatesAsync(It.IsAny<System.Threading.CancellationToken>()), Times.AtLeastOnce);
+    }
+
+    /// <summary>
+    /// Tests that background update check queries artifact updates when subscribed to a branch.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeAsync_WhenSubscribedToBranch_ChecksArtifactUpdatesAsync()
+    {
+        // Arrange
+        var (settingsVm, userSettingsMock) = CreateSettingsVm();
+        userSettingsMock.Setup(x => x.Get()).Returns(new UserSettings { SubscribedBranch = "main" });
+        var toolsVm = CreateToolsVm();
+        var configProvider = CreateConfigProviderMock();
+        var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
+        mockVelopackUpdateManager.Setup(x => x.CheckForArtifactUpdatesAsync(It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync((ArtifactUpdateInfo?)null);
+        var mockLogger = new Mock<ILogger<MainViewModel>>();
+        var mockNotificationService = CreateNotificationServiceMock();
+        var mockNotificationManager = new Mock<NotificationManagerViewModel>(
+            mockNotificationService.Object,
+            Mock.Of<ILogger<NotificationManagerViewModel>>(),
+            Mock.Of<ILogger<NotificationItemViewModel>>());
+        var notificationFeedVm = CreateNotificationFeedViewModel(mockNotificationService.Object);
+
+        var vm = new MainViewModel(
+            gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
+            downloadsViewModel: CreateDownloadsViewModel(configProvider),
+            toolsViewModel: toolsVm,
+            settingsViewModel: settingsVm,
+            notificationManager: mockNotificationManager.Object,
+            configurationProvider: configProvider,
+            userSettingsService: userSettingsMock.Object,
+            velopackUpdateManager: mockVelopackUpdateManager.Object,
+            notificationService: mockNotificationService.Object,
+            dialogService: new Mock<IDialogService>().Object,
+            notificationFeedViewModel: notificationFeedVm,
+            infoViewModel: CreateInfoViewModel(),
+            logger: mockLogger.Object);
+
+        await vm.InitializeAsync();
+
+        // Allow background task to execute
+        await Task.Delay(100);
+
+        mockVelopackUpdateManager.Verify(x => x.CheckForArtifactUpdatesAsync(It.IsAny<System.Threading.CancellationToken>()), Times.AtLeastOnce);
     }
 
     /// <summary>

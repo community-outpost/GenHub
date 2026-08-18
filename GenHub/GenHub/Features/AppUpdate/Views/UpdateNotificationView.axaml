@@ -131,11 +131,16 @@
                                             <Border Background="#10FFFFFF" CornerRadius="6" Padding="12" Margin="0,0,0,8">
                                                 <Grid ColumnDefinitions="*,Auto">
                                                     <StackPanel Spacing="4">
-                                                        <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis"/>
+                                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                                            <TextBlock Text="{Binding Number, StringFormat='#{0}'}" FontWeight="Bold" Foreground="{DynamicResource SystemAccentColor}"/>
+                                                            <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis"/>
+                                                        </StackPanel>
                                                         <StackPanel Orientation="Horizontal" Spacing="6" Opacity="0.6">
                                                             <TextBlock Text="{Binding Author, StringFormat='by {0}'}" FontSize="12"/>
                                                             <TextBlock Text="•" FontSize="12"/>
                                                             <TextBlock Text="{Binding BranchName}" FontSize="12"/>
+                                                            <TextBlock Text="•" FontSize="12" IsVisible="{Binding UpdatedAt, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                                                            <TextBlock Text="{Binding UpdatedAt, StringFormat='Updated: {0:g}'}" FontSize="12" IsVisible="{Binding UpdatedAt, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                                                         </StackPanel>
                                                     </StackPanel>
                                                     <Button Grid.Column="1"

@@ -72,4 +72,23 @@ public class UpdateNotificationViewModelTests
 
         Assert.True(vm.IsCheckButtonEnabled);
     }
+
+    /// <summary>
+    /// Verifies that pull request display title formats properly with PR number and title.
+    /// </summary>
+    [Fact]
+    public void PullRequestInfo_DisplayTitle_ShouldIncludePrNumberAndTitle()
+    {
+        var prInfo = new GenHub.Core.Models.AppUpdate.PullRequestInfo
+        {
+            Number = 265,
+            Title = "feat: UI Downloads",
+            BranchName = "feat/ui-downloads",
+            Author = "developer",
+            State = "open",
+            UpdatedAt = DateTimeOffset.UtcNow,
+        };
+
+        Assert.Equal("#265 - feat: UI Downloads", prInfo.DisplayTitle);
+    }
 }
