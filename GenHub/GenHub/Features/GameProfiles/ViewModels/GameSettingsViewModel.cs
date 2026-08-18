@@ -1256,6 +1256,8 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
 
     private void ApplyGeneralsOnlineSettings(GeneralsOnlineSettings settings)
     {
+        settings.EnsureNestedSectionsInitialized();
+
         GoShowFps = settings.ShowFps;
         GoShowPing = settings.ShowPing;
         GoShowPlayerRanks = settings.ShowPlayerRanks;
@@ -1299,6 +1301,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         // GeneralsOnline client's settings.json and the loaded instance is the only thing
         // holding the keys this model does not declare.
         var settings = _currentGeneralsOnlineSettings ?? new GeneralsOnlineSettings();
+        settings.EnsureNestedSectionsInitialized();
 
         settings.ShowFps = GoShowFps;
         settings.ShowPing = GoShowPing;

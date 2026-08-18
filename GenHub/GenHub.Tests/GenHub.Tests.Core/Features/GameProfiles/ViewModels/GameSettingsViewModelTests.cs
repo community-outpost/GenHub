@@ -459,6 +459,40 @@ public class GameSettingsViewModelTests
     }
 
     /// <summary>
+    /// Should save a settings.json that spells a nested section as an explicit null, which is
+    /// valid JSON and leaves the section null once deserialized.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_HandleNullGeneralsOnlineSectionsAsync()
+    {
+        // Arrange
+        var existing = new GeneralsOnlineSettings { Camera = null!, Chat = null!, Debug = null!, Render = null!, Social = null! };
+
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(existing));
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        GeneralsOnlineSettings? saved = null;
+        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
+            .Callback<GeneralsOnlineSettings>(s => saved = s)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var profile = CreateGeneralsOnlineProfile();
+        profile.GoCameraMinHeight = 200.0f;
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("go-profile", profile);
+        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(saved);
+        Assert.Equal(200.0f, saved.Camera.MinHeight);
+        Assert.Contains("saved successfully", _viewModel.StatusMessage);
+    }
+
+    /// <summary>
     /// Should read settings.json before rewriting it, including when the first read failed.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>

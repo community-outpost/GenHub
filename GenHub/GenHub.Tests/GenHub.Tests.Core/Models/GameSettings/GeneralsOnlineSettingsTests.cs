@@ -124,4 +124,28 @@ public class GeneralsOnlineSettingsTests
         Assert.False(reloaded.AdditionalSettings["unmodelled_toggle"].GetBoolean());
         Assert.Equal(7, reloaded.Camera.AdditionalSettings["unmodelled_zoom_step"].GetInt32());
     }
+
+    /// <summary>
+    /// Verifies that a section spelled as an explicit null, which is valid JSON and overwrites the
+    /// property initializer, is restored so that merging into the loaded settings cannot throw.
+    /// </summary>
+    [Fact]
+    public void EnsureNestedSectionsInitialized_Should_ReplaceSectionsDeserializedAsNull()
+    {
+        // Arrange
+        var json = @"{ ""camera"": null, ""chat"": null, ""debug"": null, ""render"": null, ""social"": null }";
+        var settings = JsonSerializer.Deserialize<GeneralsOnlineSettings>(json, _options);
+        Assert.NotNull(settings);
+        Assert.Null(settings.Camera);
+
+        // Act
+        settings.EnsureNestedSectionsInitialized();
+
+        // Assert
+        Assert.NotNull(settings.Camera);
+        Assert.NotNull(settings.Chat);
+        Assert.NotNull(settings.Debug);
+        Assert.NotNull(settings.Render);
+        Assert.NotNull(settings.Social);
+    }
 }

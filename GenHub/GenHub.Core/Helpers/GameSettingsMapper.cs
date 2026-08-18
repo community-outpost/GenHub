@@ -98,6 +98,8 @@ public static class GameSettingsMapper
     /// <param name="settings">The GeneralsOnlineSettings to populate.</param>
     public static void ApplyToGeneralsOnlineSettings(GameProfile profile, GeneralsOnlineSettings settings)
     {
+        settings.EnsureNestedSectionsInitialized();
+
         ApplyGoGeneralSettings(profile, settings);
         ApplyGoCameraAndChatSettings(profile, settings);
         ApplyGoRenderAndDebugSettings(profile, settings);

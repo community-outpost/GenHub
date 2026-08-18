@@ -975,6 +975,38 @@ public class GameLauncherTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that a settings.json spelling a nested section as an explicit null, which is valid
+    /// JSON, does not break the merge the launch performs.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithNullGeneralsOnlineSection_ShouldStillWriteSettingsAsync()
+    {
+        // Arrange
+        var existing = new GeneralsOnlineSettings { Camera = null! };
+
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(existing));
+
+        var profile = CreateZeroHourProfile(PublisherTypeConstants.GeneralsOnline, "GeneralsOnline");
+        profile.GoCameraMinHeight = 200.0f;
+        ArrangeSuccessfulLaunch(profile);
+
+        GeneralsOnlineSettings? saved = null;
+        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
+            .Callback<GeneralsOnlineSettings>(s => saved = s)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
+
+        // Assert
+        Assert.True(result.Success, result.FirstError);
+        Assert.NotNull(saved);
+        Assert.Equal(200.0f, saved.Camera.MinHeight);
+    }
+
+    /// <summary>
     /// Tests that the values a user configured inside the GeneralsOnline client survive a launch
     /// of a profile that says nothing about them.
     /// </summary>

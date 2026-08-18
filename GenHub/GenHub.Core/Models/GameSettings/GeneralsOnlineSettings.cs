@@ -55,6 +55,19 @@ public class GeneralsOnlineSettings : TheSuperHackersSettings
     [JsonExtensionData]
     public Dictionary<string, JsonElement> AdditionalSettings { get; set; } = [];
 
+    /// <summary>
+    /// Replaces nested sections that a settings.json spelled as an explicit null, which is valid
+    /// JSON and overwrites the initializers, so that merging into this instance cannot throw.
+    /// </summary>
+    public void EnsureNestedSectionsInitialized()
+    {
+        Camera ??= new CameraSettings();
+        Chat ??= new ChatSettings();
+        Debug ??= new DebugSettings();
+        Render ??= new RenderSettings();
+        Social ??= new SocialSettings();
+    }
+
     /// <summary>Nested camera settings.</summary>
     public class CameraSettings
     {

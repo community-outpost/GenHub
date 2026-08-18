@@ -229,6 +229,8 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 return OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings());
             }
 
+            settings.EnsureNestedSectionsInitialized();
+
             _logger.LogInformation("Loaded GeneralsOnline settings from {SettingsPath}", settingsPath);
             return OperationResult<GeneralsOnlineSettings>.CreateSuccess(settings);
         }
