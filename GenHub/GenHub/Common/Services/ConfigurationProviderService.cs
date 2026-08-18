@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
@@ -411,7 +412,7 @@ public class ConfigurationProviderService(
             {
                 MigrateDirectory(Path.Combine(legacyRoot, name), Path.Combine(newRoot, name));
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
             {
                 _logger.LogError(ex, "Failed to migrate legacy directory {Name} from {LegacyRoot}", name, legacyRoot);
             }
@@ -423,7 +424,7 @@ public class ConfigurationProviderService(
             {
                 MigrateFile(Path.Combine(legacyRoot, name), Path.Combine(newRoot, name));
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
             {
                 _logger.LogError(ex, "Failed to migrate legacy file {Name} from {LegacyRoot}", name, legacyRoot);
             }
@@ -439,7 +440,7 @@ public class ConfigurationProviderService(
                 Path.TrimEndingDirectorySeparator(Path.GetFullPath(second)),
                 PathHelper.PathComparison);
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
         {
             return string.Equals(first, second, PathHelper.PathComparison);
         }
@@ -451,7 +452,7 @@ public class ConfigurationProviderService(
         {
             MigrateLegacyDataRoot(_appConfig.GetLegacyConfiguredDataPath(), _appConfig.GetConfiguredDataPath());
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
         {
             _logger.LogError(ex, "Failed to migrate legacy data root");
         }
