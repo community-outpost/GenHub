@@ -494,6 +494,61 @@ public sealed partial class UserDataTrackerServiceSafetyTests : IDisposable
     }
 
     /// <summary>
+    /// Cancellation that lands on the manifest read itself must abort the delete-all too. Treating
+    /// the cancelled read as an unreadable manifest turns an abort into a retention decision and
+    /// carries on into the step that removes the tracking data.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task DeleteAllUserDataAsync_WhenCancelledLoadingManifest_KeepsTrackingMetadataAsync()
+    {
+        // Arrange
+        const string secondHash = "hash-splash-safety-second";
+        const string secondRelativePath = "GeneralsOnlineGameData/loading.bmp";
+        File.WriteAllText(Path.Combine(_casDir, secondHash), CasContent);
+
+        var deployedPath = Path.Combine(_zeroHourDataDir, "GeneralsOnlineGameData", "splash.bmp");
+        Directory.CreateDirectory(Path.GetDirectoryName(deployedPath)!);
+        File.WriteAllText(deployedPath, "the-user-original-file");
+
+        Assert.True((await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            TestProfileId,
+            GameType.ZeroHour,
+            BuildFiles(),
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None)).Success);
+
+        Assert.True((await _trackerService.InstallUserDataAsync(
+            TestManifestId + ".loading",
+            TestProfileId,
+            GameType.ZeroHour,
+            BuildFiles(secondRelativePath, secondHash),
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None)).Success);
+
+        // Cancel while the first installation is being cleaned up, so the cancellation is first
+        // observed by the read of the second installation's manifest.
+        using var cts = new CancellationTokenSource();
+        _fileOperationsMock
+            .Setup(f => f.CheckFileHashAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                cts.Cancel();
+                return FileHashVerification.Match;
+            });
+
+        // Act
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _trackerService.DeleteAllUserDataAsync(cts.Token));
+
+        // Assert
+        Assert.True(File.Exists(Path.Combine(_appDataDir, "UserData", "index.json")));
+        Assert.NotEmpty(Directory.GetFiles(Path.Combine(_appDataDir, "UserData", "manifests"), "*", SearchOption.AllDirectories));
+    }
+
+    /// <summary>
     /// An index key whose manifest is already gone has nothing left to restore, so it must not put
     /// delete-all into the retention path forever: "Delete All Application Data" would then never be
     /// able to finish on an installation with one stale entry.
@@ -574,12 +629,14 @@ public sealed partial class UserDataTrackerServiceSafetyTests : IDisposable
     [LibraryImport("libc", EntryPoint = "link", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
     private static partial int LinkUnix(string existingPath, string newPath);
 
-    private static List<ManifestFile> BuildFiles() =>
+    private static List<ManifestFile> BuildFiles() => BuildFiles(TestRelativePath, TestHash);
+
+    private static List<ManifestFile> BuildFiles(string relativePath, string hash) =>
     [
         new()
         {
-            RelativePath = TestRelativePath,
-            Hash = TestHash,
+            RelativePath = relativePath,
+            Hash = hash,
             Size = CasContent.Length,
             InstallTarget = ContentInstallTarget.UserDataDirectory,
         },

@@ -473,6 +473,10 @@ public class UserDataTrackerService(
 
             return OperationResult<IReadOnlyList<UserDataManifest>>.CreateSuccess(manifests);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "[UserData] Failed to get game user data for {Game}", targetGame);
@@ -491,6 +495,11 @@ public class UserDataTrackerService(
             var key = $"{manifestId}_{profileId}";
             var manifest = await LoadUserDataManifestByKeyAsync(key, cancellationToken);
             return OperationResult<UserDataManifest?>.CreateSuccess(manifest);
+        }
+        catch (OperationCanceledException)
+        {
+            // A cancelled read must not reach the uninstall path as "no manifest, nothing to do".
+            throw;
         }
         catch (Exception ex)
         {
@@ -1525,8 +1534,10 @@ public class UserDataTrackerService(
             var json = await File.ReadAllTextAsync(filePath, cancellationToken);
             return JsonSerializer.Deserialize<UserDataManifest>(json);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
+            // Cancellation must escape: a caller that reads a null manifest as "unreadable, its
+            // backups can no longer be put back" would turn an abort into a retention decision.
             logger.LogWarning(ex, "[UserData] Failed to load manifest from {Path}", filePath);
             return null;
         }
