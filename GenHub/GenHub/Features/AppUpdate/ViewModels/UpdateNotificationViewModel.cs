@@ -1187,9 +1187,15 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     private void SubscribeToPr(int prNumber)
     {
         _velopackUpdateManager.SubscribedPrNumber = prNumber;
-        _subscribedBranch = null;
-        OnPropertyChanged(nameof(SubscribedBranch));
-        SubscribedPr = AvailablePullRequests.FirstOrDefault(p => p.Number == prNumber) ?? new PullRequestInfo { Number = prNumber, Title = $"PR #{prNumber}" };
+        SubscribedBranch = null;
+        SubscribedPr = AvailablePullRequests.FirstOrDefault(p => p.Number == prNumber) ?? new PullRequestInfo
+        {
+            Number = prNumber,
+            Title = $"PR #{prNumber}",
+            BranchName = "unknown",
+            Author = "unknown",
+            State = "open",
+        };
         ShowPrMergedWarning = false;
 
         // clear artifact cache to force fresh check
@@ -1212,8 +1218,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         if (string.IsNullOrEmpty(branchName)) return;
 
         _velopackUpdateManager.SubscribedPrNumber = null;
-        _subscribedPr = null;
-        OnPropertyChanged(nameof(SubscribedPr));
+        SubscribedPr = null;
         SubscribedBranch = branchName;
         ShowPrMergedWarning = false;
 
@@ -1252,18 +1257,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     private void Unsubscribe()
     {
         _velopackUpdateManager.SubscribedPrNumber = null;
-        _subscribedPr = null;
-        _subscribedBranch = null;
-        OnPropertyChanged(nameof(SubscribedPr));
-        OnPropertyChanged(nameof(SubscribedBranch));
-        OnPropertyChanged(nameof(IsSubscribedToAny));
-        OnPropertyChanged(nameof(SubscribedPrNumberDisplay));
-        OnPropertyChanged(nameof(SubscribedPrTitleDisplay));
-        OnPropertyChanged(nameof(SubscribedPrLatestVersionDisplay));
-        UpdateCommandStates();
-
-        _ = LoadArtifactsForSubscribedItemAsync();
-
+        SubscribedPr = null;
+        SubscribedBranch = null;
         ShowPrMergedWarning = false;
         StatusMessage = "Switched to MAIN branch updates";
 

@@ -10,13 +10,6 @@ namespace GenHub.Core.Helpers;
 public static partial class AppUpdateVersionHelper
 {
     /// <summary>
-    /// Regex for extracting workflow run number from a version string.
-    /// Matches patterns like "0.0.1282-pr265", "0.0.1282-main", "0.0.1282".
-    /// </summary>
-    [GeneratedRegex(@"(\d+)(?:-pr\d+|-\w+)?$", RegexOptions.IgnoreCase)]
-    private static partial Regex RunNumberRegex();
-
-    /// <summary>
     /// Extracts the workflow run number from a version string (e.g., "0.0.641-pr241" -> 641).
     /// </summary>
     /// <param name="version">The version string to extract the run number from.</param>
@@ -94,4 +87,11 @@ public static partial class AppUpdateVersionHelper
 
         return false;
     }
+
+    /// <summary>
+    /// Regex for extracting workflow run number from a version string.
+    /// Matches patterns like "0.0.1282-pr265", "0.0.1282-main", "0.0.1282".
+    /// </summary>
+    [GeneratedRegex(@"(\d+)(?:-pr\d+|-\w+)?$", RegexOptions.IgnoreCase)]
+    private static partial Regex RunNumberRegex();
 }
