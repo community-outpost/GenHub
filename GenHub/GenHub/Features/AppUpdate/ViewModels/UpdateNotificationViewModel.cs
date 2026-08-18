@@ -26,13 +26,6 @@ namespace GenHub.Features.AppUpdate.ViewModels;
 /// </summary>
 public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 {
-    private readonly IVelopackUpdateManager _velopackUpdateManager;
-    private readonly ILogger<UpdateNotificationViewModel> _logger;
-    private readonly IUserSettingsService _userSettingsService;
-    private readonly CancellationTokenSource _cancellationTokenSource;
-    private CancellationTokenSource? _loadArtifactsCts;
-    private UpdateInfo? _currentUpdateInfo;
-
     private static readonly Lazy<string> CachedCurrentAppVersion = new(() =>
     {
         try
@@ -53,6 +46,13 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// Gets the current application version.
     /// </summary>
     public static string CurrentAppVersion => CachedCurrentAppVersion.Value;
+
+    private readonly IVelopackUpdateManager _velopackUpdateManager;
+    private readonly ILogger<UpdateNotificationViewModel> _logger;
+    private readonly IUserSettingsService _userSettingsService;
+    private readonly CancellationTokenSource _cancellationTokenSource;
+    private CancellationTokenSource? _loadArtifactsCts;
+    private UpdateInfo? _currentUpdateInfo;
 
     /// <summary>
     /// Gets or sets the status message.
