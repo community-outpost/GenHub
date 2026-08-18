@@ -396,6 +396,44 @@ public sealed partial class UserDataTrackerServiceSafetyTests : IDisposable
     }
 
     /// <summary>
+    /// An index key whose manifest is already gone has nothing left to restore, so it must not put
+    /// delete-all into the retention path forever: "Delete All Application Data" would then never be
+    /// able to finish on an installation with one stale entry.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task DeleteAllUserDataAsync_WithStaleIndexEntry_StillClearsEverythingAsync()
+    {
+        // Arrange
+        var deployedPath = Path.Combine(_zeroHourDataDir, "GeneralsOnlineGameData", "splash.bmp");
+        Directory.CreateDirectory(Path.GetDirectoryName(deployedPath)!);
+        File.WriteAllText(deployedPath, "the-user-original-file");
+
+        var installResult = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            TestProfileId,
+            GameType.ZeroHour,
+            BuildFiles(),
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+        Assert.True(installResult.Success);
+
+        var userDataPath = Path.Combine(_appDataDir, "UserData");
+        foreach (var manifestFile in Directory.GetFiles(Path.Combine(userDataPath, "manifests"), "*", SearchOption.AllDirectories))
+        {
+            File.Delete(manifestFile);
+        }
+
+        // Act
+        var deleteResult = await _trackerService.DeleteAllUserDataAsync(CancellationToken.None);
+
+        // Assert
+        Assert.True(deleteResult.Success);
+        Assert.Empty(Directory.GetFiles(userDataPath, "*", SearchOption.AllDirectories));
+    }
+
+    /// <summary>
     /// Verifies that a clean delete-all still restores the originals and clears the backups, so the
     /// retention path does not become the permanent behaviour.
     /// </summary>

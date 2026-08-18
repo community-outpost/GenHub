@@ -650,8 +650,20 @@ public class UserDataTrackerService(
                                 var manifest = await LoadUserDataManifestByKeyAsync(key, cancellationToken);
                                 if (manifest == null)
                                 {
-                                    logger.LogWarning("[UserData] No manifest found for installation key {Key}; its backups cannot be restored", key);
-                                    allBackupsRestored = false;
+                                    // A key whose manifest file is simply gone is a stale index entry
+                                    // with nothing left to restore, and must not block the cleanup
+                                    // forever. Only a manifest that exists but cannot be read leaves
+                                    // backups we can no longer put back.
+                                    if (File.Exists(GetManifestFilePath(key)))
+                                    {
+                                        logger.LogError("[UserData] Manifest for installation key {Key} could not be read; its backups cannot be restored", key);
+                                        allBackupsRestored = false;
+                                    }
+                                    else
+                                    {
+                                        logger.LogWarning("[UserData] Index entry {Key} has no manifest; nothing to restore for it", key);
+                                    }
+
                                     continue;
                                 }
 
