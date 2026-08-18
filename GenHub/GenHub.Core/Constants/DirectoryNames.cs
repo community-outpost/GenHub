@@ -51,9 +51,33 @@ public static class DirectoryNames
     public const string Profiles = "Profiles";
 
     /// <summary>
+    /// Directory that releases up to v0.0.3 nested the manifests, tracked user data and workspace
+    /// metadata under. Current releases keep those entries directly in the data root.
+    /// </summary>
+    public const string LegacyContent = "Content";
+
+    /// <summary>
     /// Directory for storing tracked user data.
     /// </summary>
     public const string UserData = "UserData";
+
+    /// <summary>
+    /// Directory holding the manifests of tracked user data, nested inside <see cref="UserData"/>.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately lower-case and separate from <see cref="FileTypes.ManifestsDirectory"/>: this is
+    /// the exact name written to disk, and matching case matters on case-sensitive filesystems.
+    /// </remarks>
+    public const string UserDataManifests = "manifests";
+
+    /// <summary>
+    /// Directory holding backups of replaced user data files, nested inside <see cref="UserData"/>.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately lower-case and separate from <see cref="Backups"/>: this is the exact name
+    /// written to disk, and matching case matters on case-sensitive filesystems.
+    /// </remarks>
+    public const string UserDataBackups = "backups";
 
     /// <summary>
     /// Directory for storing workspaces.
