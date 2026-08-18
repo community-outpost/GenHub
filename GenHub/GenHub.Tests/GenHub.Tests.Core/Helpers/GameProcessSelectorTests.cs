@@ -14,12 +14,12 @@ public class GameProcessSelectorTests
 
     private static readonly DateTime Now = new(2026, 7, 31, 12, 0, 0, DateTimeKind.Utc);
 
+    /// <summary>The name a Unix kernel reports for <see cref="LongClientName"/>.</summary>
+    private static readonly string TruncatedClientName = LongClientName[..ProcessConstants.UnixProcessNameMaxLength];
+
     // Native separators on both platforms: a real workspace path never mixes them, and comparing
     // like-for-like is what the non-separator tests are meant to exercise.
     private static readonly string Workspace = Path.Combine(Path.GetTempPath(), "genhub-workspace", "generalsonline");
-
-    /// <summary>The name a Unix kernel reports for <see cref="LongClientName"/>.</summary>
-    private static readonly string TruncatedClientName = LongClientName[..ProcessConstants.UnixProcessNameMaxLength];
 
     /// <summary>
     /// The spawned game is identified by the name the caller expects, not by the launcher's name.
@@ -269,6 +269,99 @@ public class GameProcessSelectorTests
         Assert.Equal("generalszh", GameProcessSelector.GetDiscoveryName("generalszh"));
     }
 
+    /// <summary>
+    /// The operating system reports a fully symlink-resolved image path while a configured working
+    /// directory keeps whatever spelling it was given, so residence has to be decided against the
+    /// real directory rather than the two spellings of it.
+    /// </summary>
+    [Fact]
+    public void SelectSpawnedGameProcess_MatchesAWorkingDirectoryReachedThroughASymlink()
+    {
+        var root = CreateTempRoot();
+        try
+        {
+            var real = Path.Combine(root, "real", "workspace");
+            Directory.CreateDirectory(real);
+
+            var link = Path.Combine(root, "link");
+            if (!TryCreateDirectorySymbolicLink(link, Path.Combine(root, "real")))
+            {
+                // The platform will not let this account create links, so there is nothing to test.
+                return;
+            }
+
+            var candidates = new[]
+            {
+                new GameProcessCandidate(1, LongClientName, Now, Path.Combine(real, LongClientName)),
+            };
+
+            var selected = GameProcessSelector.SelectSpawnedGameProcess(
+                candidates, LongClientName, Path.Combine(link, "workspace"), Now);
+
+            Assert.NotNull(selected);
+            Assert.Equal(1, selected.ProcessId);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Residence follows the volume rather than a fixed string rule: a case-insensitive volume —
+    /// the macOS and Windows default — must not reject a differently cased spelling of the very
+    /// directory the game runs from, and a case-sensitive one must keep two such directories apart.
+    /// </summary>
+    [Fact]
+    public void SelectSpawnedGameProcess_FollowsTheVolumeCaseRulesWhenComparingResidence()
+    {
+        var root = CreateTempRoot();
+        try
+        {
+            var onDisk = Path.Combine(root, "Workspace");
+            Directory.CreateDirectory(onDisk);
+
+            var lowerCased = Path.Combine(root, "workspace");
+            var candidates = new[]
+            {
+                new GameProcessCandidate(1, LongClientName, Now, Path.Combine(onDisk, LongClientName)),
+            };
+
+            var selected = GameProcessSelector.SelectSpawnedGameProcess(
+                candidates, LongClientName, lowerCased, Now);
+
+            Assert.Equal(Directory.Exists(lowerCased), selected is not null);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static GameProcessCandidate Candidate(int id, string name, DateTime startTime, string directory) =>
         new(id, name, startTime, Path.Combine(directory, name + ".exe"));
+
+    private static string CreateTempRoot()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "genhub-selector-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        return root;
+    }
+
+    private static bool TryCreateDirectorySymbolicLink(string path, string target)
+    {
+        try
+        {
+            Directory.CreateSymbolicLink(path, target);
+            return true;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
 }
