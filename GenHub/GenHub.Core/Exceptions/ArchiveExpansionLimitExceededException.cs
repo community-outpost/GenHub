@@ -41,7 +41,12 @@ public class ArchiveExpansionLimitExceededException : Exception
     /// <param name="entryName">The archive-relative name of the offending entry.</param>
     /// <param name="limitBytes">The number of bytes the entry was allowed to expand to.</param>
     public ArchiveExpansionLimitExceededException(string entryName, long limitBytes)
-        : base($"Archive entry '{entryName}' expanded past the allowed {limitBytes} bytes (potential zip bomb).")
+        : this($"Archive entry '{entryName}' expanded past the allowed {limitBytes} bytes (potential zip bomb).", entryName, limitBytes)
+    {
+    }
+
+    private ArchiveExpansionLimitExceededException(string message, string entryName, long limitBytes)
+        : base(message)
     {
         EntryName = entryName;
         LimitBytes = limitBytes;
@@ -56,4 +61,16 @@ public class ArchiveExpansionLimitExceededException : Exception
     /// Gets the number of bytes the entry was allowed to expand to.
     /// </summary>
     public long LimitBytes { get; }
+
+    /// <summary>
+    /// Creates an exception for an entry refused because the archive-wide expansion budget was
+    /// already spent, so no byte of it was ever read.
+    /// </summary>
+    /// <param name="entryName">The archive-relative name of the refused entry.</param>
+    /// <returns>An exception describing the spent budget.</returns>
+    public static ArchiveExpansionLimitExceededException ForSpentBudget(string entryName) =>
+        new(
+            $"Archive entry '{entryName}' was refused because the archive-wide expansion budget was already spent (potential zip bomb).",
+            entryName,
+            0);
 }

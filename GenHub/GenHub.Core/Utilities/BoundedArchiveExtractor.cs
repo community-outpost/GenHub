@@ -43,15 +43,13 @@ public static class BoundedArchiveExtractor
         var limit = Math.Min(maxEntryBytes, remainingAggregateBytes);
         if (limit <= 0)
         {
-            throw new ArchiveExpansionLimitExceededException(entryName, limit);
+            throw ArchiveExpansionLimitExceededException.ForSpentBudget(entryName);
         }
 
         var buffer = new byte[IoConstants.DefaultFileBufferSize];
         long written = 0;
 
-        var writePath = overwrite
-            ? $"{destinationPath}{IoConstants.StagingFileSuffix}{Guid.NewGuid():N}"
-            : destinationPath;
+        var writePath = overwrite ? BuildStagingPath(destinationPath) : destinationPath;
         var destination = new FileStream(writePath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
 
         try
@@ -77,12 +75,36 @@ public static class BoundedArchiveExtractor
         }
         catch
         {
-            await destination.DisposeAsync();
+            await DisposeQuietlyAsync(destination);
             DeletePartialOutput(writePath);
             throw;
         }
 
         return written;
+    }
+
+    private static string BuildStagingPath(string destinationPath)
+    {
+        var directory = Path.GetDirectoryName(destinationPath);
+        var stagingName = Path.GetRandomFileName() + IoConstants.StagingFileSuffix;
+
+        return string.IsNullOrEmpty(directory) ? stagingName : Path.Combine(directory, stagingName);
+    }
+
+    private static async Task DisposeQuietlyAsync(FileStream destination)
+    {
+        try
+        {
+            await destination.DisposeAsync();
+        }
+        catch (IOException)
+        {
+            // The failure being handled is the one worth surfacing, not a flush that fails after it.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // The failure being handled is the one worth surfacing, not a flush that fails after it.
+        }
     }
 
     private static void DeletePartialOutput(string writePath)

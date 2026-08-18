@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Text;
+using GenHub.Core.Constants;
 using GenHub.Core.Exceptions;
 using GenHub.Core.Utilities;
 using GenHub.Tests.Core.Infrastructure;
@@ -198,6 +199,110 @@ public sealed class BoundedArchiveExtractorTests : IDisposable
     }
 
     /// <summary>
+    /// Shrinks the archive-wide budget across the entries of one archive the way its callers do, so
+    /// an entry that fits its own cap comfortably is still refused once earlier entries have spent
+    /// what the archive was allowed. Only the surviving entries are left on disk.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CopyEntryToFileAsync_ShrinksTheAggregateBudgetAcrossEntriesAsync()
+    {
+        const long aggregateBudget = 4096;
+        const long entryCap = 4096;
+        int[] entrySizes = [3000, 1000, 200];
+        long expandedBytes = 0;
+
+        for (var index = 0; index < entrySizes.Length - 1; index++)
+        {
+            using var source = new MemoryStream(new byte[entrySizes[index]]);
+            expandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(
+                source,
+                Path.Combine(_workingDirectory, $"entry{index}.dat"),
+                $"entry{index}.dat",
+                entryCap,
+                aggregateBudget - expandedBytes);
+        }
+
+        Assert.Equal(4000, expandedBytes);
+
+        using var lastSource = new MemoryStream(new byte[entrySizes[^1]]);
+        var lastDestination = Path.Combine(_workingDirectory, "entry2.dat");
+
+        var failure = await Assert.ThrowsAsync<ArchiveExpansionLimitExceededException>(() =>
+            BoundedArchiveExtractor.CopyEntryToFileAsync(
+                lastSource,
+                lastDestination,
+                "entry2.dat",
+                entryCap,
+                aggregateBudget - expandedBytes));
+
+        Assert.Equal(aggregateBudget - expandedBytes, failure.LimitBytes);
+        Assert.False(File.Exists(lastDestination));
+        Assert.Equal(2, Directory.GetFiles(_workingDirectory).Length);
+    }
+
+    /// <summary>
+    /// Names the exhausted budget rather than the entry when the archive had nothing left to spend,
+    /// so a diagnostic does not report an entry as expanding past a limit of zero bytes.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CopyEntryToFileAsync_ReportsASpentBudgetSeparatelyFromAnOversizedEntryAsync()
+    {
+        using var spent = new MemoryStream(new byte[16]);
+        using var oversized = new MemoryStream(new byte[64 * 1024]);
+
+        var spentFailure = await Assert.ThrowsAsync<ArchiveExpansionLimitExceededException>(() =>
+            BoundedArchiveExtractor.CopyEntryToFileAsync(
+                spent,
+                Path.Combine(_workingDirectory, "spent.dat"),
+                "spent.dat",
+                maxEntryBytes: 1024,
+                remainingAggregateBytes: 0));
+
+        var oversizedFailure = await Assert.ThrowsAsync<ArchiveExpansionLimitExceededException>(() =>
+            BoundedArchiveExtractor.CopyEntryToFileAsync(
+                oversized,
+                Path.Combine(_workingDirectory, "oversized.dat"),
+                "oversized.dat",
+                maxEntryBytes: 1024,
+                remainingAggregateBytes: long.MaxValue));
+
+        Assert.Contains("budget was already spent", spentFailure.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("expanded past", spentFailure.Message, StringComparison.Ordinal);
+        Assert.Contains("expanded past the allowed 1024 bytes", oversizedFailure.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Stages an overwriting write under a name of its own rather than one built from the
+    /// destination, so a destination close to the Windows path limit is not pushed past it by the
+    /// staging name alone.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CopyEntryToFileAsync_StagesUnderANameThatDoesNotGrowWithTheDestinationAsync()
+    {
+        var destination = Path.Combine(_workingDirectory, new string('n', 120) + ".dat");
+        await File.WriteAllTextAsync(destination, "original");
+        using var source = new DirectoryObservingStream(_workingDirectory, 64 * 1024);
+
+        await Assert.ThrowsAsync<ArchiveExpansionLimitExceededException>(() =>
+            BoundedArchiveExtractor.CopyEntryToFileAsync(
+                source,
+                destination,
+                "long.dat",
+                maxEntryBytes: 1024,
+                remainingAggregateBytes: long.MaxValue,
+                overwrite: true));
+
+        var staged = Assert.Single(source.ObservedFiles.Where(file => file != destination).Distinct());
+        Assert.EndsWith(IoConstants.StagingFileSuffix, staged, StringComparison.Ordinal);
+        Assert.True(
+            staged.Length < destination.Length,
+            $"the staging path '{staged}' is longer than the destination it replaces");
+    }
+
+    /// <summary>
     /// Rejects an archive entry whose central-directory header understates its real size. The
     /// archive claims four kilobytes and inflates to twelve megabytes, which is only visible while
     /// decompressing, so the copy must abort mid-stream and leave no partial output behind.
@@ -230,5 +335,18 @@ public sealed class BoundedArchiveExtractorTests : IDisposable
 
         Assert.Equal(entryCap, failure.LimitBytes);
         Assert.False(File.Exists(destination));
+    }
+
+    private sealed class DirectoryObservingStream(string directory, int length)
+        : MemoryStream(new byte[length])
+    {
+        public List<string> ObservedFiles { get; } = [];
+
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            ObservedFiles.AddRange(Directory.GetFiles(directory));
+
+            return base.ReadAsync(buffer, cancellationToken);
+        }
     }
 }

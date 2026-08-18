@@ -17,8 +17,9 @@ public static class IoConstants
     public const int MaxSymbolicLinkResolutionDepth = 8;
 
     /// <summary>
-    /// Suffix appended to a destination path to stage a write beside its final location so the
-    /// existing file is only replaced once the write has completed.
+    /// Suffix that marks a staging file written beside its final location so the existing file is
+    /// only replaced once the write has completed. The name it is appended to is random rather than
+    /// the destination name, which keeps a staged write from outgrowing the Windows path limit.
     /// </summary>
     public const string StagingFileSuffix = ".genhub-staging";
 }

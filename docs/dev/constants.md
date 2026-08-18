@@ -831,6 +831,7 @@ public static string FromInstallationType(GameInstallationType installationType)
 ## IoConstants Class
 
 - `DefaultFileBufferSize`: 4096
+- `StagingFileSuffix`: ".genhub-staging"
 
 ---
 
