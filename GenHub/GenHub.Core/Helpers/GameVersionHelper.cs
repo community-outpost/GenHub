@@ -22,34 +22,29 @@ public static partial class GameVersionHelper
             return 0;
         }
 
+        // Try extracting an 8-digit date pattern first (e.g., "2025-11-07", "weekly-2025-11-21", "1.20260116")
+        var dateMatch = Regex.Match(version, @"\b(\d{4})[-_.]?(\d{2})[-_.]?(\d{2})\b", RegexOptions.None, TimeSpan.FromSeconds(1));
+        if (dateMatch.Success && int.TryParse($"{dateMatch.Groups[1].Value}{dateMatch.Groups[2].Value}{dateMatch.Groups[3].Value}", NumberStyles.Integer, CultureInfo.InvariantCulture, out var dateVal))
+        {
+            return dateVal;
+        }
+
         // Extract all digits from the version string
         var digits = NonDigitRegex().Replace(version, string.Empty);
-
-        // If it looks like a long date (YYYYMMDD) preceded by a segment (e.g. "1.20260116"),
-        // we might want the latter part if it's the date.
-        // But for now, let's just avoid the 8-digit truncation if it causes mangling
-        // and only truncate IF it would actually overflow int.
-        if (digits.Length > 9 && digits.StartsWith('0'))
+        if (string.IsNullOrEmpty(digits))
         {
-            digits = digits.TrimStart('0');
+            return 0;
         }
 
-        if (digits.Length > 10)
+        digits = digits.TrimStart('0');
+        if (digits.Length == 0)
         {
-             // int.MaxValue is ~2.1 billion (10 digits)
-            digits = digits[..10];
+            return 0;
         }
 
-        if (long.TryParse(digits, out var longResult))
+        if (int.TryParse(digits, NumberStyles.Integer, CultureInfo.InvariantCulture, out var intResult))
         {
-            if (longResult > int.MaxValue)
-            {
-                // If it's still too large for int, cap at int.MaxValue to prevent incorrect comparisons
-                // Most callers expect int.
-                return int.MaxValue;
-            }
-
-            return (int)longResult;
+            return intResult;
         }
 
         return 0;

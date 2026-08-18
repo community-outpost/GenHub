@@ -73,9 +73,17 @@ public partial class AddLocalContentWindow : Window
         }
     }
 
-    private async void OnAdminDrop(string[] files)
+    private void OnAdminDrop(string[] files)
     {
-        if (DataContext is not AddLocalContentViewModel vm) return;
+        _ = ProcessAdminDropAsync(files);
+    }
+
+    private async Task ProcessAdminDropAsync(string[] files)
+    {
+        if (DataContext is not AddLocalContentViewModel vm)
+        {
+            return;
+        }
 
         try
         {
