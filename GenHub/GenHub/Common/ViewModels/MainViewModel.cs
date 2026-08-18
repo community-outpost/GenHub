@@ -114,7 +114,7 @@ public partial class MainViewModel(
     /// <summary>
     /// Gets the available navigation tabs.
     /// </summary>
-    public NavigationTab[] AvailableTabs { get; } =
+    public IReadOnlyList<NavigationTab> AvailableTabs { get; } =
     [
         NavigationTab.GameProfiles,
         NavigationTab.Downloads,

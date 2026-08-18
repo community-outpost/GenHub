@@ -346,8 +346,8 @@ public class ContentManifestPool(
         if (string.IsNullOrEmpty(manifest.Version))
             errors.Add("Manifest version is required");
 
-        var hasFiles = manifest.Files != null && manifest.Files.Count > 0;
-        var hasDirs = manifest.RequiredDirectories != null && manifest.RequiredDirectories.Count > 0;
+        var hasFiles = manifest.Files is { Count: > 0 };
+        var hasDirs = manifest.RequiredDirectories is { Count: > 0 };
         var isBase = manifest.ContentType == ContentType.GameInstallation || manifest.ContentType == ContentType.GameClient;
 
         if (!hasFiles && !hasDirs && !isBase)

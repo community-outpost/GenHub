@@ -105,7 +105,7 @@ public sealed class FullCopyStrategy(
             Logger.LogDebug("Processing {TotalFiles} files in parallel", totalFiles);
             ReportProgress(progress, 0, totalFiles, "Initializing", string.Empty);
 
-            int degreeOfParallelism;
+            int degreeOfParallelism = Environment.ProcessorCount * 2;
             try
             {
                 var driveInfo = new DriveInfo(Path.GetPathRoot(workspacePath) ?? "C:\\");
