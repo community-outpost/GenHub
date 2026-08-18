@@ -528,14 +528,27 @@ public sealed partial class UserDataTrackerServiceSafetyTests : IDisposable
         // Windows, and a directory the process may not write to does it everywhere else.
         FileStream? openBackupHandle = null;
         UnixFileMode? originalDirectoryMode = null;
+        string? probePath = null;
         if (OperatingSystem.IsWindows())
         {
             openBackupHandle = new FileStream(backupPath, System.IO.FileMode.Open, FileAccess.Read, FileShare.Read);
         }
         else
         {
+            probePath = Path.Combine(backupDir, "delete-permission-probe");
+            File.WriteAllText(probePath, string.Empty);
+
             originalDirectoryMode = File.GetUnixFileMode(backupDir);
             File.SetUnixFileMode(backupDir, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+
+            if (DeleteSucceeds(probePath))
+            {
+                // The mode is advisory for this process: root, and anything else holding
+                // CAP_DAC_OVERRIDE, deletes regardless. There is no failing delete left to set up,
+                // so the scenario cannot be reached here rather than the product being wrong.
+                File.SetUnixFileMode(backupDir, originalDirectoryMode.Value);
+                return;
+            }
         }
 
         try
@@ -555,6 +568,11 @@ public sealed partial class UserDataTrackerServiceSafetyTests : IDisposable
             if (!OperatingSystem.IsWindows() && originalDirectoryMode.HasValue)
             {
                 File.SetUnixFileMode(backupDir, originalDirectoryMode.Value);
+            }
+
+            if (probePath is not null)
+            {
+                File.Delete(probePath);
             }
         }
     }
@@ -765,6 +783,27 @@ public sealed partial class UserDataTrackerServiceSafetyTests : IDisposable
                 : LinkUnix(existingPath, linkPath) == 0;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or EntryPointNotFoundException or DllNotFoundException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Reports whether a delete inside a directory whose mode was just tightened still goes through.
+    /// A process holding CAP_DAC_OVERRIDE - root in a dev container or a privileged CI image - is
+    /// not bound by the mode, so a test that assumed the delete would fail would instead report the
+    /// product as broken.
+    /// </summary>
+    /// <param name="path">The probe file the tightened directory is meant to protect.</param>
+    /// <returns><c>true</c> when the delete succeeded despite the directory mode.</returns>
+    private static bool DeleteSucceeds(string path)
+    {
+        try
+        {
+            File.Delete(path);
+            return !File.Exists(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return false;
         }
