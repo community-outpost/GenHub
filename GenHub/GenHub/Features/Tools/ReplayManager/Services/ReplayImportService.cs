@@ -303,10 +303,7 @@ public sealed class ReplayImportService(
             }
 
             var buffer = new byte[4];
-            if (stream.Read(buffer, 0, 4) < 4)
-            {
-                return false;
-            }
+            stream.ReadExactly(buffer);
 
             // Check for ZIP magic bytes: 50 4B 03 04 (local file header) or 50 4B 05 06 (end of central directory)
             return (buffer[0] == 0x50 && buffer[1] == 0x4B && buffer[2] == 0x03 && buffer[3] == 0x04) ||
