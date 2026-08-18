@@ -429,9 +429,29 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
             executablePath = resolved;
             return true;
         }
-        catch (Exception)
+        catch (ArgumentException)
         {
             // An entry point that cannot even be resolved is treated as escaping.
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            return false;
+        }
+        catch (PathTooLongException)
+        {
+            return false;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (SecurityException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
             return false;
         }
     }
@@ -514,7 +534,15 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
             var principal = new WindowsPrincipal(identity);
             return principal.IsInRole(WindowsBuiltInRole.Administrator);
         }
-        catch (Exception)
+        catch (SecurityException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
         {
             return false;
         }

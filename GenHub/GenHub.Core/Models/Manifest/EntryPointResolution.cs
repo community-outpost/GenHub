@@ -57,10 +57,18 @@ public sealed class EntryPointResolution
     /// Builds a log-ready description including the candidates considered.
     /// </summary>
     /// <returns>A diagnostic string.</returns>
-    public override string ToString() =>
-        Success
-            ? $"{RelativePath} ({Reason})"
-            : Candidates.Count == 0
-                ? Reason
-                : $"{Reason} Candidates: {string.Join(", ", Candidates)}";
+    public override string ToString()
+    {
+        if (Success)
+        {
+            return $"{RelativePath} ({Reason})";
+        }
+
+        if (Candidates.Count == 0)
+        {
+            return Reason;
+        }
+
+        return $"{Reason} Candidates: {string.Join(", ", Candidates)}";
+    }
 }

@@ -889,6 +889,15 @@ public class GameProcessManager(
         ProcessExited?.Invoke(this, args);
 
         logger.LogInformation("Process {ProcessId} exited with code {ExitCode}", processId, exitCode);
+
+        try
+        {
+            process.Dispose();
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to dispose process {ProcessId}", processId);
+        }
     }
 
     /// <summary>

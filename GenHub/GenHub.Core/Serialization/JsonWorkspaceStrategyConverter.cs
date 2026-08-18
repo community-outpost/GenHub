@@ -12,6 +12,7 @@ namespace GenHub.Core.Serialization;
 public class JsonWorkspaceStrategyConverter : JsonConverter<WorkspaceStrategy>
 {
     /// <inheritdoc />
+    [SuppressMessage("Maintainability", "CS-R1138:Inappropriate ordering of parameters", Justification = "Signature is defined by System.Text.Json.Serialization.JsonConverter<T>.Read")]
     public override WorkspaceStrategy Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType == JsonTokenType.Number)

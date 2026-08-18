@@ -183,10 +183,8 @@ public class TgaImageParser(ILogger<TgaImageParser> logger)
             var colorMapType = reader.ReadByte();
             var imageType = reader.ReadByte();
 
-            reader.ReadBytes(5);
+            reader.ReadBytes(9); // 5 bytes color map spec + 4 bytes origin coordinates
 
-            var xOrigin = reader.ReadUInt16();
-            var yOrigin = reader.ReadUInt16();
             var width = reader.ReadUInt16();
             var height = reader.ReadUInt16();
             var bitsPerPixel = reader.ReadByte();
@@ -217,16 +215,9 @@ public class TgaImageParser(ILogger<TgaImageParser> logger)
 
             var bytesPerPixel = bitsPerPixel / 8;
             var imageDataSize = width * height * bytesPerPixel;
-            byte[] imageData;
-
-            if (imageType == 2)
-            {
-                imageData = reader.ReadBytes(imageDataSize);
-            }
-            else
-            {
-                imageData = DecompressRle(reader, width, height, bytesPerPixel);
-            }
+            var imageData = imageType == 2
+                ? reader.ReadBytes(imageDataSize)
+                : DecompressRle(reader, width, height, bytesPerPixel);
 
             var rgbaData = ConvertToRgba(imageData, width, height, bytesPerPixel);
 

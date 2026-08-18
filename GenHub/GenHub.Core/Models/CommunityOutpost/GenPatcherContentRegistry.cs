@@ -471,7 +471,7 @@ public static class GenPatcherContentRegistry
         }
 
         // Try to parse the version (positions 1-2)
-        var versionPart = code.Substring(1, 2);
+        var versionPart = code[1..3];
         if (!int.TryParse(versionPart, out var versionNumber))
         {
             return null;

@@ -29,6 +29,13 @@ public sealed class ZipValidationService(ILogger<ZipValidationService> logger) :
                 return (false, "ZIP archive is empty.");
             }
 
+            if (archive.Entries.Count > ReplayManagerConstants.MaxZipEntries)
+            {
+                return (false, $"ZIP contains too many entries ({archive.Entries.Count} > {ReplayManagerConstants.MaxZipEntries}).");
+            }
+
+            long totalUncompressedBytes = 0;
+
             foreach (var entry in archive.Entries)
             {
                 // Check for directories (Name is empty for directory entries)
@@ -51,10 +58,23 @@ public sealed class ZipValidationService(ILogger<ZipValidationService> logger) :
                     return (false, $"ZIP contains non-replay file: {entry.Name}. Only .rep files are allowed.");
                 }
 
-                // Check size
+                // Check single entry size
                 if (entry.Length > ReplayManagerConstants.MaxReplaySizeBytes)
                 {
                     return (false, $"File {entry.Name} in ZIP exceeds 1 MB limit.");
+                }
+
+                // Check compression ratio
+                if (entry.CompressedLength > 0 &&
+                    ((double)entry.Length / entry.CompressedLength) > ReplayManagerConstants.MaxCompressionRatio)
+                {
+                    return (false, $"File {entry.Name} exceeds maximum compression ratio (potential zip bomb).");
+                }
+
+                totalUncompressedBytes += entry.Length;
+                if (totalUncompressedBytes > ReplayManagerConstants.MaxAggregateUncompressedBytes)
+                {
+                    return (false, $"ZIP aggregate uncompressed size exceeds maximum allowed limit ({totalUncompressedBytes} > {ReplayManagerConstants.MaxAggregateUncompressedBytes} bytes).");
                 }
             }
 

@@ -72,14 +72,17 @@ public partial class AddLocalContentWindow : Window
         }
     }
 
-    private async void OnAdminDrop(string[] files)
+    private void OnAdminDrop(string[] files)
     {
         if (DataContext is not AddLocalContentViewModel vm) return;
 
-        foreach (var file in files)
+        _ = Task.Run(async () =>
         {
-            await vm.ImportContentAsync(file);
-        }
+            foreach (var file in files)
+            {
+                await vm.ImportContentAsync(file);
+            }
+        });
     }
 
     private void InitializeComponent()
@@ -90,14 +93,7 @@ public partial class AddLocalContentWindow : Window
     // Drag & Drop handlers
     private void OnDragOver(object? sender, DragEventArgs e)
     {
-        if (e.Data.Contains(DataFormats.Files))
-        {
-            e.DragEffects = DragDropEffects.Copy;
-        }
-        else
-        {
-            e.DragEffects = DragDropEffects.None;
-        }
+        e.DragEffects = e.Data.Contains(DataFormats.Files) ? DragDropEffects.Copy : DragDropEffects.None;
     }
 
     private async void OnDrop(object? sender, DragEventArgs e)

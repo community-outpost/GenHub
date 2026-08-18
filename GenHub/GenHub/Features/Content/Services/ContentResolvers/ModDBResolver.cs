@@ -55,13 +55,9 @@ public class ModDBResolver(
 
         // Try finding "Added:" or "Posted:" labels
         var addedText = ExtractMetadataValue(document, "Added:", "Posted:", "Released:");
-        if (!string.IsNullOrEmpty(addedText))
+        if (!string.IsNullOrEmpty(addedText) && DateTime.TryParse(addedText, out var dt))
         {
-            // Try to parse various date formats
-            if (DateTime.TryParse(addedText, out var dt))
-            {
-                return dt;
-            }
+            return dt;
         }
 
         // Fallback: use current date

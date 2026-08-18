@@ -23,7 +23,7 @@ public class CasGarbageCollectionDisabledTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task CasService_RunGarbageCollectionAsync_IsDisabledWithoutStorageAccess(bool force)
+    public async Task CasService_RunGarbageCollectionAsync_IsDisabledWithoutStorageAccessAsync(bool force)
     {
         var storage = new Mock<ICasStorage>(MockBehavior.Strict);
         var referenceTracker = new Mock<ICasReferenceTracker>(MockBehavior.Strict);
@@ -51,7 +51,7 @@ public class CasGarbageCollectionDisabledTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task CasLifecycleManager_RunGarbageCollectionAsync_ReportsDisabled()
+    public async Task CasLifecycleManager_RunGarbageCollectionAsync_ReportsDisabledAsync()
     {
         var casService = new Mock<ICasService>();
         casService

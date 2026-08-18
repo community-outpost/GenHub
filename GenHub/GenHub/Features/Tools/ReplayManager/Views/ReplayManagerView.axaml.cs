@@ -92,12 +92,12 @@ public partial class ReplayManagerView : UserControl
         if (e.Data.Contains(DataFormats.Files))
         {
             var files = e.Data.GetFiles();
-            bool hasValidFiles = files != null && files.Any(f =>
+            bool hasValidFiles = files?.Any(f =>
             {
                 var path = f.Path.LocalPath;
                 return path.EndsWith(".rep", StringComparison.OrdinalIgnoreCase) ||
                        path.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
-            });
+            }) == true;
 
             if (hasValidFiles)
             {

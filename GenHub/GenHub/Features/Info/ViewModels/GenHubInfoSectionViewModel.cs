@@ -83,7 +83,7 @@ public partial class GenHubInfoSectionViewModel(
     /// <summary>
     /// Gets the FAQ cards for the right column.
     /// </summary>
-    public IEnumerable<InfoCardViewModel> FaqCardsRight => SelectedSection?.Cards.Where((_, i) => i % 2 == 1) ?? [];
+    public IEnumerable<InfoCardViewModel> FaqCardsRight => SelectedSection?.Cards.Where((_, i) => i % 2 != 0) ?? [];
 
     // Tools section expandable state
     [ObservableProperty]
@@ -214,19 +214,9 @@ public partial class GenHubInfoSectionViewModel(
     {
         Sections.Clear();
 
-        IEnumerable<InfoSectionViewModel> filtered;
-
-        if (_currentModule == GeneralsHubModule.GeneralsOnline)
-        {
-            // For GeneralsOnline, show FAQ and Changelog (and any others tagged for it)
-            // Assuming IDs: "faq", "go-changelog" (from DefaultInfoContentProvider)
-            filtered = _allSections.Where(s => s.Id == "faq" || s.Id == "go-changelog");
-        }
-        else
-        {
-            // For Guide, show everything ELSE
-            filtered = _allSections.Where(s => s.Id != "faq" && s.Id != "go-changelog");
-        }
+        var filtered = _currentModule == GeneralsHubModule.GeneralsOnline
+            ? _allSections.Where(s => s.Id == "faq" || s.Id == "go-changelog")
+            : _allSections.Where(s => s.Id != "faq" && s.Id != "go-changelog");
 
         foreach (var section in filtered)
         {

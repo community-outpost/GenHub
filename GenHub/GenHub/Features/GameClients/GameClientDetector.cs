@@ -211,7 +211,11 @@ public class GameClientDetector(
             return ResolveGeneralsOnlineEntryPoint(
                 Directory.EnumerateFiles(directory).Select(Path.GetFileName).OfType<string>());
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
         {
             return null;
         }
@@ -472,16 +476,43 @@ public class GameClientDetector(
     /// <returns>A tuple containing the detected version string and the actual executable path found, or (GameClientConstants.UnknownVersion, original path) if not recognized.</returns>
     private async Task<(string Version, string ExecutablePath)> DetectVersionFromInstallationAsync(string installationPath, GameType gameType, CancellationToken cancellationToken)
     {
-        // Use the possible executable names from the registry
+        var hashResult = await DetectVersionFromHashAsync(installationPath, gameType, cancellationToken);
+        if (hashResult.HasValue)
+        {
+            return hashResult.Value;
+        }
+
+        var defaultExecutableName = gameType == GameType.Generals
+            ? GameClientConstants.GeneralsExecutable
+            : GameClientConstants.ZeroHourExecutable;
+        var defaultPath = Path.Combine(installationPath, defaultExecutableName);
+
+        var fallbackVersion = DetectVersionFromFileVersionInfo(defaultPath, defaultExecutableName, gameType);
+        fallbackVersion = NormalizeGenericVersion(fallbackVersion, gameType);
+
+        logger.LogInformation(
+            "Using {ExecutableName} with version {Version} for {GameType}",
+            defaultExecutableName,
+            fallbackVersion,
+            gameType);
+        return (fallbackVersion, defaultPath);
+    }
+
+    private async Task<(string Version, string ExecutablePath)?> DetectVersionFromHashAsync(
+        string installationPath,
+        GameType gameType,
+        CancellationToken cancellationToken)
+    {
         foreach (var executableName in hashRegistry.PossibleExecutableNames)
         {
             var executablePath = Path.Combine(installationPath, executableName);
             if (!File.Exists(executablePath))
+            {
                 continue;
+            }
 
             try
             {
-                // Get the actual filename with correct casing from the filesystem
                 var actualFileName = Path.GetFileName(new FileInfo(executablePath).FullName);
                 var actualExecutablePath = Path.Combine(installationPath, actualFileName);
 
@@ -493,7 +524,6 @@ public class GameClientDetector(
                 }
 
                 var version = hashRegistry.GetVersionFromHash(hash, gameType);
-
                 if (!string.Equals(version, GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase))
                 {
                     logger.LogInformation(
@@ -504,14 +534,12 @@ public class GameClientDetector(
                         hash);
                     return (version, actualExecutablePath);
                 }
-                else
-                {
-                    logger.LogDebug(
-                        "Unknown hash for {GameType} in {ExecutableName}: {Hash}",
-                        gameType,
-                        actualFileName,
-                        hash);
-                }
+
+                logger.LogDebug(
+                    "Unknown hash for {GameType} in {ExecutableName}: {Hash}",
+                    gameType,
+                    actualFileName,
+                    hash);
             }
             catch (Exception ex)
             {
@@ -519,54 +547,57 @@ public class GameClientDetector(
             }
         }
 
-        // Fallback: try to detect version from the default executable's file info
-        var defaultExecutableName = gameType == GameType.Generals
-            ? GameClientConstants.GeneralsExecutable
-            : GameClientConstants.ZeroHourExecutable;
-        var defaultPath = Path.Combine(installationPath, defaultExecutableName);
+        return null;
+    }
 
-        var fallbackVersion = GameClientConstants.UnknownVersion;
-
-        if (File.Exists(defaultPath))
+    private string DetectVersionFromFileVersionInfo(string defaultPath, string defaultExecutableName, GameType gameType)
+    {
+        if (!File.Exists(defaultPath))
         {
-            try
-            {
-                var versionInfo = System.Diagnostics.FileVersionInfo.GetVersionInfo(defaultPath);
-                var rawVersion = versionInfo.ProductVersion ?? versionInfo.FileVersion;
-
-                if (!string.IsNullOrWhiteSpace(rawVersion))
-                {
-                    var cleanVersion = rawVersion.Split('+')[0].Split('-')[0].Trim();
-                    cleanVersion = cleanVersion.Replace(", ", ".").Replace(",", ".");
-                    var components = cleanVersion.Split('.');
-
-                    if (components.Length > 2)
-                    {
-                        if (components.Length >= 3 && components[0] == "1" && components[1] == "0" && components[2] != "0")
-                        {
-                            cleanVersion = $"1.0{components[2]}"; // 1.0.4 -> 1.04
-                        }
-                        else if (components.Length >= 2)
-                        {
-                            cleanVersion = $"{components[0]}.{components[1]}"; // 1.0.0.0 -> 1.0
-                        }
-                    }
-
-                    fallbackVersion = cleanVersion;
-                    logger.LogInformation(
-                        "Detected {GameType} version {Version} from FileVersionInfo for {ExecutableName}",
-                        gameType,
-                        cleanVersion,
-                        defaultExecutableName);
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to read FileVersionInfo from {ExecutablePath}", defaultPath);
-            }
+            return GameClientConstants.UnknownVersion;
         }
 
-        // Apply smart defaults for generic/unknown versions
+        try
+        {
+            var versionInfo = System.Diagnostics.FileVersionInfo.GetVersionInfo(defaultPath);
+            var rawVersion = versionInfo.ProductVersion ?? versionInfo.FileVersion;
+
+            if (!string.IsNullOrWhiteSpace(rawVersion))
+            {
+                var cleanVersion = rawVersion.Split('+')[0].Split('-')[0].Trim();
+                cleanVersion = cleanVersion.Replace(", ", ".").Replace(",", ".");
+                var components = cleanVersion.Split('.');
+
+                if (components.Length > 2)
+                {
+                    if (components.Length >= 3 && components[0] == "1" && components[1] == "0" && components[2] != "0")
+                    {
+                        cleanVersion = $"1.0{components[2]}"; // 1.0.4 -> 1.04
+                    }
+                    else if (components.Length >= 2)
+                    {
+                        cleanVersion = $"{components[0]}.{components[1]}"; // 1.0.0.0 -> 1.0
+                    }
+                }
+
+                logger.LogInformation(
+                    "Detected {GameType} version {Version} from FileVersionInfo for {ExecutableName}",
+                    gameType,
+                    cleanVersion,
+                    defaultExecutableName);
+                return cleanVersion;
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to read FileVersionInfo from {ExecutablePath}", defaultPath);
+        }
+
+        return GameClientConstants.UnknownVersion;
+    }
+
+    private string NormalizeGenericVersion(string fallbackVersion, GameType gameType)
+    {
         if (fallbackVersion == GameClientConstants.UnknownVersion || fallbackVersion == "1.0" || fallbackVersion == "1.00" || fallbackVersion == "0.0" || fallbackVersion == "0.0.0.0")
         {
             var oldVersion = fallbackVersion;
@@ -582,12 +613,7 @@ public class GameClientDetector(
             }
         }
 
-        logger.LogInformation(
-            "Using {ExecutableName} with version {Version} for {GameType}",
-            defaultExecutableName,
-            fallbackVersion,
-            gameType);
-        return (fallbackVersion, defaultPath);
+        return fallbackVersion;
     }
 
     /// <returns>A list of detected publisher game clients.</returns>

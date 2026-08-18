@@ -40,7 +40,7 @@ public class GameClientDetectionOrchestratorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task DetectAllClientsAsync_OrchestratesDetection_Successfully()
+    public async Task DetectAllClientsAsync_OrchestratesDetection_SuccessfullyAsync()
     {
         // Arrange
         var installation = new GameInstallation("C:\\Test", GameInstallationType.Retail);
@@ -77,7 +77,7 @@ public class GameClientDetectionOrchestratorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task DetectAllClientsAsync_ReturnsFailure_WhenInstallationDetectionFails()
+    public async Task DetectAllClientsAsync_ReturnsFailure_WhenInstallationDetectionFailsAsync()
     {
         // Arrange
         _installationOrchestratorMock.Setup(i => i.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))

@@ -160,11 +160,13 @@ public sealed class InstallationCasPoolService(
 
     private static string? GetDerivedPoolPath(GameInstallation installation)
     {
-        var installationPath = !string.IsNullOrWhiteSpace(installation.InstallationPath)
-            ? installation.InstallationPath
-            : !string.IsNullOrWhiteSpace(installation.ZeroHourPath)
+        var installationPath = installation.InstallationPath;
+        if (string.IsNullOrWhiteSpace(installationPath))
+        {
+            installationPath = !string.IsNullOrWhiteSpace(installation.ZeroHourPath)
                 ? installation.ZeroHourPath
                 : installation.GeneralsPath;
+        }
 
         return string.IsNullOrWhiteSpace(installationPath)
             ? null
@@ -241,7 +243,19 @@ public sealed class InstallationCasPoolService(
         {
             return Path.GetFullPath(path);
         }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or IOException or SecurityException)
+        catch (ArgumentException)
+        {
+            return string.Empty;
+        }
+        catch (NotSupportedException)
+        {
+            return string.Empty;
+        }
+        catch (IOException)
+        {
+            return string.Empty;
+        }
+        catch (SecurityException)
         {
             return string.Empty;
         }

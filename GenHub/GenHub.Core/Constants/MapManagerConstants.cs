@@ -11,6 +11,26 @@ public static class MapManagerConstants
     public const long MaxMapSizeBytes = 10 * 1024 * 1024;
 
     /// <summary>
+    /// Maximum allowed entries in a map ZIP archive.
+    /// </summary>
+    public const int MaxZipEntries = 500;
+
+    /// <summary>
+    /// Maximum aggregate uncompressed bytes for a map ZIP archive (200 MB).
+    /// </summary>
+    public const long MaxAggregateUncompressedBytes = 200 * 1024 * 1024;
+
+    /// <summary>
+    /// Maximum file size for individual map assets in bytes (10 MB).
+    /// </summary>
+    public const long MaxAssetSizeBytes = 10 * 1024 * 1024;
+
+    /// <summary>
+    /// Maximum compression ratio allowed for ZIP archives.
+    /// </summary>
+    public const double MaxCompressionRatio = 100.0;
+
+    /// <summary>
     /// Number of days for rate limit reset period.
     /// </summary>
     public const int RateLimitDays = 3;

@@ -210,7 +210,7 @@ public sealed class MapPackService : IMapPackService
                 {
                     var json = File.ReadAllText(file);
                     var mapPack = JsonSerializer.Deserialize<MapPack>(json, _jsonOptions);
-                    if (mapPack != null && !mapPacks.Any(p => p.Id == mapPack.Id))
+                    if (mapPack != null && mapPacks.All(p => p.Id != mapPack.Id))
                     {
                         mapPacks.Add(mapPack);
                     }

@@ -27,7 +27,7 @@ public partial class GameProfileContentEditorView : UserControl
 
     // Animation state
     private DispatcherTimer? _animationTimer;
-    private Stopwatch _animationStopwatch = new();
+    private readonly Stopwatch _animationStopwatch = new();
     private double _animStartOffset;
     private double _animTargetOffset;
 

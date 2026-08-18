@@ -66,58 +66,46 @@ public class ProviderEndpoints
     public string? GetEndpoint(string name)
     {
         // Check standard endpoints first
-        if (string.Equals(name, ProviderEndpointConstants.CatalogUrl, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(name, ProviderEndpointConstants.Catalog, StringComparison.OrdinalIgnoreCase))
+        if ((string.Equals(name, ProviderEndpointConstants.CatalogUrl, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(name, ProviderEndpointConstants.Catalog, StringComparison.OrdinalIgnoreCase)) &&
+            !string.IsNullOrEmpty(CatalogUrl))
         {
-            if (!string.IsNullOrEmpty(CatalogUrl))
-            {
-                return CatalogUrl;
-            }
+            return CatalogUrl;
         }
 
-        if (string.Equals(name, ProviderEndpointConstants.DownloadBaseUrl, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(name, ProviderEndpointConstants.DownloadBase, StringComparison.OrdinalIgnoreCase))
+        if ((string.Equals(name, ProviderEndpointConstants.DownloadBaseUrl, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(name, ProviderEndpointConstants.DownloadBase, StringComparison.OrdinalIgnoreCase)) &&
+            !string.IsNullOrEmpty(DownloadBaseUrl))
         {
-            if (!string.IsNullOrEmpty(DownloadBaseUrl))
-            {
-                return DownloadBaseUrl;
-            }
+            return DownloadBaseUrl;
         }
 
-        if (string.Equals(name, ProviderEndpointConstants.WebsiteUrl, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(name, ProviderEndpointConstants.Website, StringComparison.OrdinalIgnoreCase))
+        if ((string.Equals(name, ProviderEndpointConstants.WebsiteUrl, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(name, ProviderEndpointConstants.Website, StringComparison.OrdinalIgnoreCase)) &&
+            !string.IsNullOrEmpty(WebsiteUrl))
         {
-            if (!string.IsNullOrEmpty(WebsiteUrl))
-            {
-                return WebsiteUrl;
-            }
+            return WebsiteUrl;
         }
 
-        if (string.Equals(name, ProviderEndpointConstants.SupportUrl, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(name, ProviderEndpointConstants.Support, StringComparison.OrdinalIgnoreCase))
+        if ((string.Equals(name, ProviderEndpointConstants.SupportUrl, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(name, ProviderEndpointConstants.Support, StringComparison.OrdinalIgnoreCase)) &&
+            !string.IsNullOrEmpty(SupportUrl))
         {
-            if (!string.IsNullOrEmpty(SupportUrl))
-            {
-                return SupportUrl;
-            }
+            return SupportUrl;
         }
 
-        if (string.Equals(name, ProviderEndpointConstants.LatestVersionUrl, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(name, ProviderEndpointConstants.LatestVersion, StringComparison.OrdinalIgnoreCase))
+        if ((string.Equals(name, ProviderEndpointConstants.LatestVersionUrl, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(name, ProviderEndpointConstants.LatestVersion, StringComparison.OrdinalIgnoreCase)) &&
+            !string.IsNullOrEmpty(LatestVersionUrl))
         {
-            if (!string.IsNullOrEmpty(LatestVersionUrl))
-            {
-                return LatestVersionUrl;
-            }
+            return LatestVersionUrl;
         }
 
-        if (string.Equals(name, ProviderEndpointConstants.ManifestApiUrl, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(name, ProviderEndpointConstants.ManifestApi, StringComparison.OrdinalIgnoreCase))
+        if ((string.Equals(name, ProviderEndpointConstants.ManifestApiUrl, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(name, ProviderEndpointConstants.ManifestApi, StringComparison.OrdinalIgnoreCase)) &&
+            !string.IsNullOrEmpty(ManifestApiUrl))
         {
-            if (!string.IsNullOrEmpty(ManifestApiUrl))
-            {
-                return ManifestApiUrl;
-            }
+            return ManifestApiUrl;
         }
 
         // Check custom endpoints

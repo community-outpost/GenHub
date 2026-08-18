@@ -245,6 +245,7 @@ public static class CompositionRootAssertions
                 ValidateOnBuild = true,
                 ValidateScopes = true,
             });
+            _ = provider;
         }
         catch (AggregateException aggregate)
         {

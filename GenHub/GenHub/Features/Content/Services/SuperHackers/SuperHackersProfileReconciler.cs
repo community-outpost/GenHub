@@ -82,53 +82,14 @@ public class SuperHackersProfileReconciler(
             }
 
             // Determine strategy
-            var subscription = settings.GetSubscription(PublisherTypeConstants.TheSuperHackers);
-            UpdateStrategy strategy = subscription?.PreferredUpdateStrategy ?? settings.PreferredUpdateStrategy ?? UpdateStrategy.ReplaceCurrent;
-            bool autoUpdate = subscription?.AutoUpdateEnabled == true;
-            bool shouldDeleteOldVersions = subscription?.DeleteOldVersions ?? true;
-
-            if (!autoUpdate)
+            var promptResult = await PromptUserForUpdateStrategyAsync(settings, updateResult);
+            if (!promptResult.ShouldProceed)
             {
-                var dialogResult = await dialogService.ShowUpdateOptionDialogAsync(
-                    "SuperHackers Update Available",
-                    $"A new version of **The Super Hackers** is available ({updateResult.LatestVersion}).\n\nHow do you want to apply this update?");
-
-                if (dialogResult == null) return OperationResult<bool>.CreateSuccess(false);
-
-                if (dialogResult.Action == "Skip")
-                {
-                    logger.LogInformation("[SH Reconciler] User skipped version {Version}.", updateResult.LatestVersion);
-
-                    if (dialogResult.IsDoNotAskAgain)
-                    {
-                         await userSettingsService.TryUpdateAndSaveAsync(s =>
-                         {
-                             s.SkipVersion(PublisherTypeConstants.TheSuperHackers, updateResult.LatestVersion ?? string.Empty);
-                             return true;
-                         });
-                    }
-
-                    return OperationResult<bool>.CreateSuccess(false);
-                }
-
-                strategy = dialogResult.Strategy;
-
-                if (dialogResult.IsDoNotAskAgain)
-                {
-                    logger.LogInformation("[SH Reconciler] Saving user preference for SuperHackers updates");
-                    await userSettingsService.TryUpdateAndSaveAsync(s =>
-                    {
-                        s.SetAutoUpdatePreference(PublisherTypeConstants.TheSuperHackers, true);
-                        var sub = s.GetSubscription(PublisherTypeConstants.TheSuperHackers);
-                        if (sub != null)
-                        {
-                            sub.PreferredUpdateStrategy = strategy;
-                        }
-
-                        return true;
-                    });
-                }
+                return OperationResult<bool>.CreateSuccess(false);
             }
+
+            var strategy = promptResult.Strategy;
+            var shouldDeleteOldVersions = promptResult.ShouldDeleteOldVersions;
 
             // Notify user that update is being installed
             notificationService.ShowInfo(
@@ -159,52 +120,24 @@ public class SuperHackersProfileReconciler(
             var newManifests = acquireResult.Data!;
 
             // Update profiles based on strategy
-            int profilesUpdated = 0;
-            bool anyFailure = false;
+            var updateOutcome = await ApplyUpdateStrategyAsync(
+                strategy,
+                oldManifests,
+                newManifests,
+                updateResult.LatestVersion ?? "Unknown",
+                shouldDeleteOldVersions,
+                cancellationToken);
 
-            if (strategy == UpdateStrategy.CreateNewProfile)
+            if (!updateOutcome.Success)
             {
-                // keep old versions when creating new profiles
-                shouldDeleteOldVersions = false;
-
-                var createResult = await CreateNewProfilesForUpdateAsync(oldManifests, newManifests, updateResult.LatestVersion ?? "Unknown", cancellationToken);
-                if (createResult.Success)
-                {
-                    profilesUpdated = createResult.Data;
-                }
-                else
-                {
-                    anyFailure = true;
-                    notificationService.ShowWarning("SuperHackers Update Partial", $"Failed to create some new profiles: {createResult.FirstError}");
-                }
+                return OperationResult<bool>.CreateFailure(updateOutcome.FirstError ?? "Update strategy execution failed");
             }
-            else
-            {
-                var manifestMapping = BuildManifestMapping(oldManifests, newManifests);
-                var bulkUpdateResult = await reconciliationService.OrchestrateBulkUpdateAsync(
-                    manifestMapping,
-                    shouldDeleteOldVersions,
-                    cancellationToken);
 
-                if (bulkUpdateResult.Success)
-                {
-                    profilesUpdated = bulkUpdateResult.Data.ProfilesUpdated;
-                    if (bulkUpdateResult.Data.FailedProfilesCount > 0)
-                    {
-                        anyFailure = true;
-                        notificationService.ShowWarning("SuperHackers Update Partial", $"{bulkUpdateResult.Data.FailedProfilesCount} profiles could not be updated.", NotificationDurations.VeryLong);
-                    }
-                }
-                else
-                {
-                    anyFailure = true;
-                    notificationService.ShowWarning("SuperHackers Update Partial", $"Some profiles could not be updated: {bulkUpdateResult.FirstError}", NotificationDurations.VeryLong);
-                    return OperationResult<bool>.CreateFailure($"Bulk update failed: {bulkUpdateResult.FirstError}");
-                }
-            }
+            var profilesUpdated = updateOutcome.ProfilesUpdated;
+            var anyFailure = updateOutcome.AnyFailure;
+            shouldDeleteOldVersions = updateOutcome.ShouldDeleteOldVersions;
 
             // Run garbage collection only if old versions were deleted AND no failures occurred
-            // If some profiles failed, GC could delete files they still rely on.
             if (shouldDeleteOldVersions && !anyFailure)
             {
                 await reconciliationService.ScheduleGarbageCollectionAsync(false, cancellationToken);
@@ -471,5 +404,118 @@ public class SuperHackersProfileReconciler(
         }
 
         return OperationResult<int>.CreateSuccess(createdCount);
+    }
+
+    private async Task<(bool ShouldProceed, UpdateStrategy Strategy, bool ShouldDeleteOldVersions)> PromptUserForUpdateStrategyAsync(
+        UserSettings settings,
+        UpdateCheckResult updateResult)
+    {
+        var subscription = settings.GetSubscription(PublisherTypeConstants.TheSuperHackers);
+        var strategy = subscription?.PreferredUpdateStrategy ?? settings.PreferredUpdateStrategy ?? UpdateStrategy.ReplaceCurrent;
+        var autoUpdate = subscription?.AutoUpdateEnabled == true;
+        var shouldDeleteOldVersions = subscription?.DeleteOldVersions ?? true;
+
+        if (autoUpdate)
+        {
+            return (true, strategy, shouldDeleteOldVersions);
+        }
+
+        var dialogResult = await dialogService.ShowUpdateOptionDialogAsync(
+            "SuperHackers Update Available",
+            $"A new version of **The Super Hackers** is available ({updateResult.LatestVersion}).\n\nHow do you want to apply this update?");
+
+        if (dialogResult == null)
+        {
+            return (false, strategy, shouldDeleteOldVersions);
+        }
+
+        if (dialogResult.Action == "Skip")
+        {
+            logger.LogInformation("[SH Reconciler] User skipped version {Version}.", updateResult.LatestVersion);
+
+            if (dialogResult.IsDoNotAskAgain)
+            {
+                await userSettingsService.TryUpdateAndSaveAsync(s =>
+                {
+                    s.SkipVersion(PublisherTypeConstants.TheSuperHackers, updateResult.LatestVersion ?? string.Empty);
+                    return true;
+                });
+            }
+
+            return (false, strategy, shouldDeleteOldVersions);
+        }
+
+        strategy = dialogResult.Strategy;
+
+        if (dialogResult.IsDoNotAskAgain)
+        {
+            logger.LogInformation("[SH Reconciler] Saving user preference for SuperHackers updates");
+            await userSettingsService.TryUpdateAndSaveAsync(s =>
+            {
+                s.SetAutoUpdatePreference(PublisherTypeConstants.TheSuperHackers, true);
+                var sub = s.GetSubscription(PublisherTypeConstants.TheSuperHackers);
+                if (sub != null)
+                {
+                    sub.PreferredUpdateStrategy = strategy;
+                }
+
+                return true;
+            });
+        }
+
+        return (true, strategy, shouldDeleteOldVersions);
+    }
+
+    private async Task<(bool Success, string? FirstError, int ProfilesUpdated, bool AnyFailure, bool ShouldDeleteOldVersions)> ApplyUpdateStrategyAsync(
+        UpdateStrategy strategy,
+        IReadOnlyList<ContentManifest> oldManifests,
+        IReadOnlyList<ContentManifest> newManifests,
+        string latestVersion,
+        bool shouldDeleteOldVersions,
+        CancellationToken cancellationToken)
+    {
+        int profilesUpdated = 0;
+        bool anyFailure = false;
+
+        if (strategy == UpdateStrategy.CreateNewProfile)
+        {
+            // keep old versions when creating new profiles
+            shouldDeleteOldVersions = false;
+
+            var createResult = await CreateNewProfilesForUpdateAsync(oldManifests, newManifests, latestVersion, cancellationToken);
+            if (createResult.Success)
+            {
+                profilesUpdated = createResult.Data;
+            }
+            else
+            {
+                anyFailure = true;
+                notificationService.ShowWarning("SuperHackers Update Partial", $"Failed to create some new profiles: {createResult.FirstError}");
+            }
+
+            return (true, null, profilesUpdated, anyFailure, shouldDeleteOldVersions);
+        }
+
+        var manifestMapping = BuildManifestMapping(oldManifests, newManifests);
+        var bulkUpdateResult = await reconciliationService.OrchestrateBulkUpdateAsync(
+            manifestMapping,
+            shouldDeleteOldVersions,
+            cancellationToken);
+
+        if (bulkUpdateResult.Success)
+        {
+            profilesUpdated = bulkUpdateResult.Data.ProfilesUpdated;
+            if (bulkUpdateResult.Data.FailedProfilesCount > 0)
+            {
+                anyFailure = true;
+                notificationService.ShowWarning("SuperHackers Update Partial", $"{bulkUpdateResult.Data.FailedProfilesCount} profiles could not be updated.", NotificationDurations.VeryLong);
+            }
+
+            return (true, null, profilesUpdated, anyFailure, shouldDeleteOldVersions);
+        }
+
+        anyFailure = true;
+        notificationService.ShowWarning("SuperHackers Update Partial", $"Some profiles could not be updated: {bulkUpdateResult.FirstError}", NotificationDurations.VeryLong);
+        return (false, $"Bulk update failed: {bulkUpdateResult.FirstError}", profilesUpdated, anyFailure, shouldDeleteOldVersions);
     }
 }

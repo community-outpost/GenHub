@@ -306,7 +306,11 @@ public class ManifestDiscoveryServiceTests : IDisposable
                 Directory.Delete(_tempDirectory, true);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Best-effort cleanup should not fail an otherwise successful test.
+        }
+        catch (UnauthorizedAccessException)
         {
             // Best-effort cleanup should not fail an otherwise successful test.
         }

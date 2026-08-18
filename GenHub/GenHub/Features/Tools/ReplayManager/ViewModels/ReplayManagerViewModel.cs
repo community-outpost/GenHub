@@ -124,8 +124,10 @@ public partial class ReplayManagerViewModel(
             // Verify file existence for each item asynchronously
             _ = Task.Run(async () =>
             {
-                using var httpClient = new System.Net.Http.HttpClient();
-                httpClient.Timeout = TimeSpan.FromSeconds(5);
+                using var httpClient = new System.Net.Http.HttpClient
+                {
+                    Timeout = TimeSpan.FromSeconds(5),
+                };
 
                 foreach (var viewModel in UploadHistory)
                 {

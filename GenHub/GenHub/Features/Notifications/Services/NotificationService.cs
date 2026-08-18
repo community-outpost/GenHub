@@ -141,8 +141,8 @@ public class NotificationService : INotificationService, IDisposable
 
         ArgumentNullException.ThrowIfNull(notification);
 
-        bool muted;
-        NotificationMuteState state;
+        bool muted = false;
+        NotificationMuteState state = NotificationMuteState.None;
         lock (_muteLock)
         {
             state = _muteState;

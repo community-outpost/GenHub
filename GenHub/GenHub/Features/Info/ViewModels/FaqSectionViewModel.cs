@@ -60,7 +60,7 @@ public partial class FaqSectionViewModel(IFaqService faqService, ILogger<FaqSect
     ];
 
     [ObservableProperty]
-    private LanguageOption _selectedLanguageOption = new LanguageOption("English", "en", "avares://GenHub/Assets/Images/Flags/en.png"); // Default, updated in constructor logic if needed but simpler to just init here or OnActivated
+    private LanguageOption _selectedLanguageOption = new("English", "en", "avares://GenHub/Assets/Images/Flags/en.png"); // Default, updated in constructor logic if needed but simpler to just init here or OnActivated
 
     [ObservableProperty]
     private FaqCategoryViewModel? _selectedCategory;
@@ -87,9 +87,9 @@ public partial class FaqSectionViewModel(IFaqService faqService, ILogger<FaqSect
         }
     }
 
-    async partial void OnSelectedLanguageOptionChanged(LanguageOption value)
+    partial void OnSelectedLanguageOptionChanged(LanguageOption value)
     {
-        await LoadFaqAsync();
+        _ = LoadFaqAsync();
     }
 
     [RelayCommand]

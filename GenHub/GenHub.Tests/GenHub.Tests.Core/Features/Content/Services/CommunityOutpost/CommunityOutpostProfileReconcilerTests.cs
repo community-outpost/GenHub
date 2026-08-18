@@ -76,7 +76,7 @@ public class CommunityOutpostProfileReconcilerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_NoUpdateAvailable_ReturnsFalse()
+    public async Task CheckAndReconcileIfNeededAsync_NoUpdateAvailable_ReturnsFalseAsync()
     {
         _updateServiceMock
             .Setup(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()))
@@ -93,7 +93,7 @@ public class CommunityOutpostProfileReconcilerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_UpdateCheckFails_ReturnsFailure()
+    public async Task CheckAndReconcileIfNeededAsync_UpdateCheckFails_ReturnsFailureAsync()
     {
         _updateServiceMock
             .Setup(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()))
@@ -109,7 +109,7 @@ public class CommunityOutpostProfileReconcilerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_VersionSkipped_ReturnsFalse()
+    public async Task CheckAndReconcileIfNeededAsync_VersionSkipped_ReturnsFalseAsync()
     {
         const string latestVersion = "2.0.0";
 
@@ -135,7 +135,7 @@ public class CommunityOutpostProfileReconcilerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_UserSkipsDialog_ReturnsFalse()
+    public async Task CheckAndReconcileIfNeededAsync_UserSkipsDialog_ReturnsFalseAsync()
     {
         _updateServiceMock
             .Setup(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()))
@@ -166,7 +166,7 @@ public class CommunityOutpostProfileReconcilerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_AcquireFails_ReturnsFailure()
+    public async Task CheckAndReconcileIfNeededAsync_AcquireFails_ReturnsFailureAsync()
     {
         const string latestVersion = "2.0.0";
 
@@ -204,7 +204,7 @@ public class CommunityOutpostProfileReconcilerTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckAndReconcileIfNeededAsync_AcquireCancelled_PropagatesCancellation()
+    public async Task CheckAndReconcileIfNeededAsync_AcquireCancelled_PropagatesCancellationAsync()
     {
         const string latestVersion = "2.0.0";
 

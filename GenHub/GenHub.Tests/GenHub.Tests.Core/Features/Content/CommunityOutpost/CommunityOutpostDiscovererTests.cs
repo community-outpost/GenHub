@@ -86,7 +86,7 @@ public class CommunityOutpostDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_GeneratesCorrectIdForCommunityPatch()
+    public async Task DiscoverAsync_GeneratesCorrectIdForCommunityPatchAsync()
     {
         // Arrange
         var mockHttp = new Mock<IHttpClientFactory>();
@@ -100,9 +100,9 @@ public class CommunityOutpostDiscovererTests
             PublisherType = "communityoutpost",
             DisplayName = "Community Outpost",
         };
-        provider.Endpoints.CatalogUrl = "http://example.com/dl.dat";
+        provider.Endpoints.CatalogUrl = "https://example.com/dl.dat";
         provider.Endpoints.Mirrors.Add(new MirrorEndpoint { Name = "Main", Priority = 1 });
-        provider.Endpoints.Custom["patchPageUrl"] = "http://example.com/patch";
+        provider.Endpoints.Custom["patchPageUrl"] = "https://example.com/patch";
 
         var htmlContent = @"<a href=""https://legi.cc/patch/generalszh-2026-01-28.zip"">Download Latest</a>";
         var handler = new Mock<HttpMessageHandler>();

@@ -139,7 +139,7 @@ public class GitHubContentDeliverer(
 
             // Check if this is content with archive files (ZIP, 7z, tar.gz, etc.)
             var archiveFiles = downloadedFiles
-                .Where(f => IsArchiveFile(f))
+                .Where(IsArchiveFile)
                 .ToList();
 
             if (archiveFiles.Count > 0)
@@ -370,52 +370,50 @@ public class GitHubContentDeliverer(
         await Task.Run(
             () =>
             {
-                using (var archive = ArchiveFactory.Open(archiveFile))
+                using var archive = ArchiveFactory.Open(archiveFile);
+                int totalEntries = archive.Entries.Count(e => !e.IsDirectory);
+                int currentEntry = 0;
+
+                foreach (var entry in archive.Entries.Where(e => !e.IsDirectory))
                 {
-                    int totalEntries = archive.Entries.Count(e => !e.IsDirectory);
-                    int currentEntry = 0;
-
-                    foreach (var entry in archive.Entries.Where(e => !e.IsDirectory))
+                    if (cancellationToken.IsCancellationRequested)
                     {
-                        if (cancellationToken.IsCancellationRequested)
-                        {
-                            break;
-                        }
-
-                        var destinationPath = Path.Combine(targetDirectory, entry.Key ?? string.Empty);
-                        var destinationDir = Path.GetDirectoryName(destinationPath);
-                        if (!string.IsNullOrEmpty(destinationDir))
-                        {
-                            Directory.CreateDirectory(destinationDir);
-                        }
-
-                        entry.WriteToFile(
-                            destinationPath,
-                            new ExtractionOptions
-                            {
-                                ExtractFullPath = true,
-                                Overwrite = true,
-                            });
-
-                        currentEntry++;
-
-                        // Map extraction progress from ProgressStepValidatingFiles to ProgressStepExtracting
-                        double extractStart = ContentConstants.ProgressStepValidatingFiles;
-                        double extractEnd = ContentConstants.ProgressStepExtracting;
-                        double progressRange = extractEnd - extractStart;
-                        double currentPercentage = extractStart + ((double)currentEntry / totalEntries * progressRange);
-
-                        progress?.Report(
-                            new ContentAcquisitionProgress
-                            {
-                                Phase = ContentAcquisitionPhase.Extracting,
-                                ProgressPercentage = currentPercentage,
-                                CurrentOperation = $"{Path.GetFileName(entry.Key)} ({currentEntry}/{totalEntries})",
-                                FilesProcessed = currentEntry,
-                                TotalFiles = totalEntries,
-                                CurrentFile = Path.GetFileName(entry.Key) ?? string.Empty,
-                            });
+                        break;
                     }
+
+                    var destinationPath = Path.Combine(targetDirectory, entry.Key ?? string.Empty);
+                    var destinationDir = Path.GetDirectoryName(destinationPath);
+                    if (!string.IsNullOrEmpty(destinationDir))
+                    {
+                        Directory.CreateDirectory(destinationDir);
+                    }
+
+                    entry.WriteToFile(
+                        destinationPath,
+                        new ExtractionOptions
+                        {
+                            ExtractFullPath = true,
+                            Overwrite = true,
+                        });
+
+                    currentEntry++;
+
+                    // Map extraction progress from ProgressStepValidatingFiles to ProgressStepExtracting
+                    double extractStart = ContentConstants.ProgressStepValidatingFiles;
+                    double extractEnd = ContentConstants.ProgressStepExtracting;
+                    double progressRange = extractEnd - extractStart;
+                    double currentPercentage = extractStart + ((double)currentEntry / totalEntries * progressRange);
+
+                    progress?.Report(
+                        new ContentAcquisitionProgress
+                        {
+                            Phase = ContentAcquisitionPhase.Extracting,
+                            ProgressPercentage = currentPercentage,
+                            CurrentOperation = $"{Path.GetFileName(entry.Key)} ({currentEntry}/{totalEntries})",
+                            FilesProcessed = currentEntry,
+                            TotalFiles = totalEntries,
+                            CurrentFile = Path.GetFileName(entry.Key) ?? string.Empty,
+                        });
                 }
             },
             cancellationToken);

@@ -171,7 +171,7 @@ public class PublisherCardViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task RefreshInstallationStatus_GeneralsOnlineAcrossYearBoundary_ShowsUpdate()
+    public async Task RefreshInstallationStatus_GeneralsOnlineAcrossYearBoundary_ShowsUpdateAsync()
     {
         var vm = CreateSystem();
         vm.PublisherId = PublisherTypeConstants.GeneralsOnline;
@@ -184,7 +184,7 @@ public class PublisherCardViewModelTests
             ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
             ProviderName = PublisherTypeConstants.GeneralsOnline,
             AuthorName = "Generals Online Team",
-            LastUpdated = DateTime.Now,
+            LastUpdated = DateTime.UtcNow,
         });
 
         vm.ContentTypes.Add(new ContentTypeGroup

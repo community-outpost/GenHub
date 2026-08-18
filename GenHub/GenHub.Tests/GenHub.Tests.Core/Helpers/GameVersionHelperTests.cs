@@ -69,7 +69,7 @@ public class GameVersionHelperTests
     [Theory]
     [InlineData("101525_QFE-1", 1015251)]
     [InlineData("101525_QFEQFE-2", 1015252)]
-    [InlineData("101525_QFE2147483647", 1015252147)]
+    [InlineData("101525_QFE2147483647", 1_015_252_147)]
     public void GetGeneralsOnlineManifestIdComponent_FallsBackForInvalidQfe(string version, int expected)
     {
         Assert.Equal(expected, GameVersionHelper.GetGeneralsOnlineManifestIdComponent(version));

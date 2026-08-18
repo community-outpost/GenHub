@@ -33,7 +33,7 @@ public sealed class WindowsSymlinkCapabilityProvider : ISymlinkCapabilityProvide
             File.CreateSymbolicLink(linkPath, targetPath);
             return new FileInfo(linkPath).LinkTarget is not null;
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return false;
         }
@@ -50,7 +50,7 @@ public sealed class WindowsSymlinkCapabilityProvider : ISymlinkCapabilityProvide
         {
             File.Delete(path);
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Best-effort cleanup of a uniquely named temporary probe.
         }

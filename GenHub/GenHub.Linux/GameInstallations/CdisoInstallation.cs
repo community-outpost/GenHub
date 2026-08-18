@@ -357,10 +357,8 @@ public class CdisoInstallation(ILogger<CdisoInstallation>? logger = null) : IGam
                                             logger?.LogInformation("CD/ISO path found in Wine registry using value '{ValueName}': {InstallPath}", valueName, installPath);
                                             return true;
                                         }
-                                        else
-                                        {
-                                            logger?.LogDebug("Found registry value '{ValueName}' but path does not exist: {InstallPath}", valueName, installPath);
-                                        }
+
+                                        logger?.LogDebug("Found registry value '{ValueName}' but path does not exist: {InstallPath}", valueName, installPath);
                                     }
                                 }
                             }

@@ -101,7 +101,7 @@ public sealed class ReplayImportService(
                     return await ImportFromZipAsync(tempPath, targetVersion, progress, ct);
                 }
 
-                var importedFileName = GetFileNameFromUrl(directUrl);
+                var importedFileName = GetFileNameFromUrl(new Uri(directUrl));
                 using var stream = File.OpenRead(tempPath);
                 return await ImportFromStreamAsync(stream, importedFileName, targetVersion, ct);
             }
@@ -303,7 +303,10 @@ public sealed class ReplayImportService(
             }
 
             var buffer = new byte[4];
-            stream.Read(buffer, 0, 4);
+            if (stream.Read(buffer, 0, 4) < 4)
+            {
+                return false;
+            }
 
             // Check for ZIP magic bytes: 50 4B 03 04 (local file header) or 50 4B 05 06 (end of central directory)
             return (buffer[0] == 0x50 && buffer[1] == 0x4B && buffer[2] == 0x03 && buffer[3] == 0x04) ||
@@ -336,11 +339,10 @@ public sealed class ReplayImportService(
         return path;
     }
 
-    private static string GetFileNameFromUrl(string url)
+    private static string GetFileNameFromUrl(Uri uri)
     {
         try
         {
-            var uri = new Uri(url);
             var fileName = Path.GetFileName(uri.LocalPath);
             return string.IsNullOrEmpty(fileName) ? ReplayManagerConstants.DefaultImportedReplayFileName : fileName;
         }

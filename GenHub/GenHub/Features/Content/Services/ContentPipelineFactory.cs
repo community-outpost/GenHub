@@ -11,37 +11,19 @@ namespace GenHub.Features.Content.Services;
 /// Factory for obtaining content pipeline components by provider ID.
 /// Matches the providerId from JSON configuration to registered components.
 /// </summary>
-public class ContentPipelineFactory : IContentPipelineFactory
+/// <param name="discoverers">All registered content discoverers.</param>
+/// <param name="resolvers">All registered content resolvers.</param>
+/// <param name="deliverers">All registered content deliverers.</param>
+/// <param name="logger">Logger instance.</param>
+public class ContentPipelineFactory(
+    IEnumerable<IContentDiscoverer> discoverers,
+    IEnumerable<IContentResolver> resolvers,
+    IEnumerable<IContentDeliverer> deliverers,
+    ILogger<ContentPipelineFactory> logger) : IContentPipelineFactory
 {
-    private readonly IEnumerable<IContentDiscoverer> _discoverers;
-    private readonly IEnumerable<IContentResolver> _resolvers;
-    private readonly IEnumerable<IContentDeliverer> _deliverers;
-    private readonly ILogger<ContentPipelineFactory> _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ContentPipelineFactory"/> class.
-    /// </summary>
-    /// <param name="discoverers">All registered content discoverers.</param>
-    /// <param name="resolvers">All registered content resolvers.</param>
-    /// <param name="deliverers">All registered content deliverers.</param>
-    /// <param name="logger">Logger instance.</param>
-    public ContentPipelineFactory(
-        IEnumerable<IContentDiscoverer> discoverers,
-        IEnumerable<IContentResolver> resolvers,
-        IEnumerable<IContentDeliverer> deliverers,
-        ILogger<ContentPipelineFactory> logger)
-    {
-        _discoverers = discoverers;
-        _resolvers = resolvers;
-        _deliverers = deliverers;
-        _logger = logger;
-
-        _logger.LogDebug(
-            "ContentPipelineFactory initialized with {DiscovererCount} discoverers, {ResolverCount} resolvers, {DelivererCount} deliverers",
-            _discoverers.Count(),
-            _resolvers.Count(),
-            _deliverers.Count());
-    }
+    private readonly IReadOnlyList<IContentDiscoverer> _discoverers = discoverers.ToList();
+    private readonly IReadOnlyList<IContentResolver> _resolvers = resolvers.ToList();
+    private readonly IReadOnlyList<IContentDeliverer> _deliverers = deliverers.ToList();
 
     /// <inheritdoc/>
     public IContentDiscoverer? GetDiscoverer(string providerId)
@@ -51,13 +33,14 @@ public class ContentPipelineFactory : IContentPipelineFactory
             return null;
         }
 
-        // Match by SourceName (case-insensitive)
+        var normalized = providerId.Replace("-", string.Empty);
         var discoverer = _discoverers.FirstOrDefault(d =>
-            d.SourceName.Equals(providerId, StringComparison.OrdinalIgnoreCase));
+            d.SourceName.Equals(providerId, StringComparison.OrdinalIgnoreCase) ||
+            d.SourceName.Equals(normalized, StringComparison.OrdinalIgnoreCase));
 
         if (discoverer == null)
         {
-            _logger.LogDebug("No discoverer found for provider ID '{ProviderId}'", providerId);
+            logger.LogDebug("No discoverer found for provider ID '{ProviderId}'", providerId);
         }
 
         return discoverer;
@@ -71,13 +54,14 @@ public class ContentPipelineFactory : IContentPipelineFactory
             return null;
         }
 
-        // Match by ResolverId (case-insensitive)
+        var normalized = providerId.Replace("-", string.Empty);
         var resolver = _resolvers.FirstOrDefault(r =>
-            r.ResolverId.Equals(providerId, StringComparison.OrdinalIgnoreCase));
+            r.ResolverId.Equals(providerId, StringComparison.OrdinalIgnoreCase) ||
+            r.ResolverId.Equals(normalized, StringComparison.OrdinalIgnoreCase));
 
         if (resolver == null)
         {
-            _logger.LogDebug("No resolver found for provider ID '{ProviderId}'", providerId);
+            logger.LogDebug("No resolver found for provider ID '{ProviderId}'", providerId);
         }
 
         return resolver;
@@ -91,13 +75,14 @@ public class ContentPipelineFactory : IContentPipelineFactory
             return null;
         }
 
-        // Match by SourceName (case-insensitive)
+        var normalized = providerId.Replace("-", string.Empty);
         var deliverer = _deliverers.FirstOrDefault(d =>
-            d.SourceName.Equals(providerId, StringComparison.OrdinalIgnoreCase));
+            d.SourceName.Equals(providerId, StringComparison.OrdinalIgnoreCase) ||
+            d.SourceName.Equals(normalized, StringComparison.OrdinalIgnoreCase));
 
         if (deliverer == null)
         {
-            _logger.LogDebug("No deliverer found for provider ID '{ProviderId}'", providerId);
+            logger.LogDebug("No deliverer found for provider ID '{ProviderId}'", providerId);
         }
 
         return deliverer;
@@ -120,13 +105,13 @@ public class ContentPipelineFactory : IContentPipelineFactory
 
         var providerId = provider.ProviderId;
 
-        _logger.LogDebug("Getting pipeline for provider '{ProviderId}'", providerId);
+        logger.LogDebug("Getting pipeline for provider '{ProviderId}'", providerId);
 
         var discoverer = GetDiscoverer(providerId);
         var resolver = GetResolver(providerId);
         var deliverer = GetDeliverer(providerId);
 
-        _logger.LogDebug(
+        logger.LogDebug(
             "Pipeline for '{ProviderId}': Discoverer={HasDiscoverer}, Resolver={HasResolver}, Deliverer={HasDeliverer}",
             providerId,
             discoverer != null,

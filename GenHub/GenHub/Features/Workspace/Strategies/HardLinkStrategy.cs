@@ -130,108 +130,35 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
 
                 try
                 {
-                    // Handle different source types
                     if (file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
                     {
-                        // Use CAS content
-                        await CreateCasLinkAsync(file.Hash, destinationPath, manifest.ContentType, cancellationToken);
-                        if (sameVolume)
+                        var (hardLinked, bytes) = await ProcessCasFileAsync(file, manifest, destinationPath, sameVolume, cancellationToken);
+                        if (hardLinked)
                         {
                             hardLinkedFiles++;
-                            totalBytesProcessed += LinkOverheadBytes;
                         }
                         else
                         {
                             copiedFiles++;
-                            totalBytesProcessed += file.Size;
                         }
+
+                        totalBytesProcessed += bytes;
                     }
                     else
                     {
-                        // Resolve source path supporting multi-source installations
-                        var sourcePath = ResolveSourcePath(file, manifest, configuration);
-                        Logger.LogDebug(
-                            "[HardLink] File: {RelativePath}, Manifest: {ManifestId} ({ContentType}), Resolved source: {SourcePath}",
-                            file.RelativePath,
-                            manifest.Id.Value,
-                            manifest.ContentType,
-                            sourcePath);
-
-                        if (!ValidateSourceFile(sourcePath, file.RelativePath))
+                        var processResult = await ProcessStandardFileAsync(file, manifest, destinationPath, configuration, sameVolume, cancellationToken);
+                        if (!processResult.Skipped)
                         {
-                            continue;
-                        }
-
-                        var verifyHash = !sameVolume; // For different volumes, always copy, so verify
-                        if (sameVolume)
-                        {
-                            try
+                            if (processResult.HardLinked)
                             {
-                                await FileOperations.CreateHardLinkAsync(destinationPath, sourcePath, cancellationToken);
                                 hardLinkedFiles++;
-                                totalBytesProcessed += LinkOverheadBytes; // Minimal overhead for hard links
                             }
-                            catch (IOException ioEx)
+                            else
                             {
-                                // Check if it's a missing file error - skip it gracefully
-                                if (ioEx.Message.Contains("NOT_FOUND", StringComparison.OrdinalIgnoreCase) ||
-                                    ioEx.Message.Contains("does not exist", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    Logger.LogWarning("Skipping missing file: {RelativePath} (source: {SourcePath})", file.RelativePath, sourcePath);
-                                    continue;
-                                }
-
-                                Logger.LogDebug(ioEx, "Hard link creation failed for {RelativePath}, falling back to copy", file.RelativePath);
-
-                                // Fall back to copy - but first verify source exists
-                                if (!File.Exists(sourcePath))
-                                {
-                                    Logger.LogWarning("Skipping missing file during fallback: {RelativePath}", file.RelativePath);
-                                    continue;
-                                }
-
-                                try
-                                {
-                                    await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
-                                    copiedFiles++;
-                                    totalBytesProcessed += file.Size;
-                                    verifyHash = true;
-                                }
-                                catch (IOException copyEx)
-                                {
-                                    Logger.LogWarning(copyEx, "Failed to copy file, skipping: {RelativePath}", file.RelativePath);
-                                    continue;
-                                }
-                            }
-                            catch (Exception hardLinkEx)
-                            {
-                                Logger.LogWarning(hardLinkEx, "Unexpected error processing file, skipping: {RelativePath}", file.RelativePath);
-                                continue;
-                            }
-                        }
-                        else
-                        {
-                            // Different volumes, must copy - but first verify source exists
-                            if (!File.Exists(sourcePath))
-                            {
-                                Logger.LogWarning("Skipping missing file for copy: {RelativePath}", file.RelativePath);
-                                continue;
+                                copiedFiles++;
                             }
 
-                            await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
-                            copiedFiles++;
-                            totalBytesProcessed += file.Size;
-                            verifyHash = true; // Copied, verify
-                        }
-
-                        // Verify file integrity if hash is provided and file was copied
-                        if (verifyHash && !string.IsNullOrEmpty(file.Hash))
-                        {
-                            var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
-                            if (!hashValid)
-                            {
-                                Logger.LogWarning("Hash verification failed for file: {RelativePath}", file.RelativePath);
-                            }
+                            totalBytesProcessed += processResult.BytesProcessed;
                         }
                     }
                 }
@@ -358,5 +285,145 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         // We need to find the manifest that contains this file
         var manifest = configuration.Manifests.FirstOrDefault(m => m.Files.Contains(file)) ?? throw new InvalidOperationException($"Could not find manifest containing file {file.RelativePath}");
         await ProcessLocalFileAsync(file, manifest, targetPath, configuration, cancellationToken);
+    }
+
+    private async Task<(bool HardLinked, long BytesProcessed)> ProcessCasFileAsync(
+        ManifestFile file,
+        ContentManifest manifest,
+        string destinationPath,
+        bool sameVolume,
+        CancellationToken cancellationToken)
+    {
+        await CreateCasLinkAsync(file.Hash!, destinationPath, manifest.ContentType, cancellationToken);
+        if (sameVolume)
+        {
+            return (true, LinkOverheadBytes);
+        }
+
+        return (false, file.Size);
+    }
+
+    private async Task<(bool Skipped, bool HardLinked, long BytesProcessed)> ProcessStandardFileAsync(
+        ManifestFile file,
+        ContentManifest manifest,
+        string destinationPath,
+        WorkspaceConfiguration configuration,
+        bool sameVolume,
+        CancellationToken cancellationToken)
+    {
+        var sourcePath = ResolveSourcePath(file, manifest, configuration);
+        Logger.LogDebug(
+            "[HardLink] File: {RelativePath}, Manifest: {ManifestId} ({ContentType}), Resolved source: {SourcePath}",
+            file.RelativePath,
+            manifest.Id.Value,
+            manifest.ContentType,
+            sourcePath);
+
+        if (!ValidateSourceFile(sourcePath, file.RelativePath))
+        {
+            return (true, false, 0);
+        }
+
+        bool verifyHash;
+        bool hardLinked;
+        long bytesProcessed;
+
+        if (sameVolume)
+        {
+            var result = await ProcessSameVolumeFileAsync(file, sourcePath, destinationPath, cancellationToken);
+            if (result.Skipped)
+            {
+                return (true, false, 0);
+            }
+
+            verifyHash = result.VerifyHash;
+            hardLinked = result.HardLinked;
+            bytesProcessed = result.BytesProcessed;
+        }
+        else
+        {
+            var result = await ProcessDifferentVolumeFileAsync(file, sourcePath, destinationPath, cancellationToken);
+            if (result.Skipped)
+            {
+                return (true, false, 0);
+            }
+
+            verifyHash = result.VerifyHash;
+            hardLinked = result.HardLinked;
+            bytesProcessed = result.BytesProcessed;
+        }
+
+        if (verifyHash && !string.IsNullOrEmpty(file.Hash))
+        {
+            var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
+            if (!hashValid)
+            {
+                Logger.LogWarning("Hash verification failed for file: {RelativePath}", file.RelativePath);
+            }
+        }
+
+        return (false, hardLinked, bytesProcessed);
+    }
+
+    private async Task<(bool Skipped, bool HardLinked, long BytesProcessed, bool VerifyHash)> ProcessSameVolumeFileAsync(
+        ManifestFile file,
+        string sourcePath,
+        string destinationPath,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await FileOperations.CreateHardLinkAsync(destinationPath, sourcePath, cancellationToken);
+            return (false, true, LinkOverheadBytes, false);
+        }
+        catch (IOException ioEx)
+        {
+            if (ioEx.Message.Contains("NOT_FOUND", StringComparison.OrdinalIgnoreCase) ||
+                ioEx.Message.Contains("does not exist", StringComparison.OrdinalIgnoreCase))
+            {
+                Logger.LogWarning("Skipping missing file: {RelativePath} (source: {SourcePath})", file.RelativePath, sourcePath);
+                return (true, false, 0, false);
+            }
+
+            Logger.LogDebug(ioEx, "Hard link creation failed for {RelativePath}, falling back to copy", file.RelativePath);
+
+            if (!File.Exists(sourcePath))
+            {
+                Logger.LogWarning("Skipping missing file during fallback: {RelativePath}", file.RelativePath);
+                return (true, false, 0, false);
+            }
+
+            try
+            {
+                await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
+                return (false, false, file.Size, true);
+            }
+            catch (IOException copyEx)
+            {
+                Logger.LogWarning(copyEx, "Failed to copy file, skipping: {RelativePath}", file.RelativePath);
+                return (true, false, 0, false);
+            }
+        }
+        catch (Exception hardLinkEx)
+        {
+            Logger.LogWarning(hardLinkEx, "Unexpected error processing file, skipping: {RelativePath}", file.RelativePath);
+            return (true, false, 0, false);
+        }
+    }
+
+    private async Task<(bool Skipped, bool HardLinked, long BytesProcessed, bool VerifyHash)> ProcessDifferentVolumeFileAsync(
+        ManifestFile file,
+        string sourcePath,
+        string destinationPath,
+        CancellationToken cancellationToken)
+    {
+        if (!File.Exists(sourcePath))
+        {
+            Logger.LogWarning("Skipping missing file for copy: {RelativePath}", file.RelativePath);
+            return (true, false, 0, false);
+        }
+
+        await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
+        return (false, false, file.Size, true);
     }
 }

@@ -23,7 +23,7 @@ public static class ProviderEndpointsExtensions
         // Check mirror preference from endpoints mirrors priority
         // NOTE: ProviderDefinition has MirrorPreference list, but ProviderEndpoints has Mirrors (list of EndpointMirror).
         // This extension simplifies access.
-        if (endpoints.Mirrors != null && endpoints.Mirrors.Count > 0)
+        if (endpoints.Mirrors is { Count: > 0 })
         {
             var orderedMirrors = endpoints.Mirrors.OrderBy(m => m.Priority).ToList();
             foreach (var mirrorEndpoint in orderedMirrors)

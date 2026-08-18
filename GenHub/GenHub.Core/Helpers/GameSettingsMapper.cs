@@ -19,7 +19,13 @@ public static class GameSettingsMapper
     /// <param name="profile">The GameProfile to populate.</param>
     public static void ApplyFromOptions(IniOptions options, GameProfile profile)
     {
-        // Video settings
+        ApplyVideoFromOptions(options, profile);
+        ApplyAudioFromOptions(options, profile);
+        ApplyNetworkFromOptions(options, profile);
+    }
+
+    private static void ApplyVideoFromOptions(IniOptions options, GameProfile profile)
+    {
         profile.VideoResolutionWidth = options.Video.ResolutionWidth;
         profile.VideoResolutionHeight = options.Video.ResolutionHeight;
         profile.VideoWindowed = options.Video.Windowed;
@@ -57,7 +63,12 @@ public static class GameSettingsMapper
 
         profile.VideoAntiAliasing ??= options.Video.AntiAliasing;
 
-        // TSH settings from root (Flat format support)
+        ApplyTshFlatSettingsFromOptions(options, profile);
+        ApplyTshHierarchicalSettingsFromOptions(options, profile);
+    }
+
+    private static void ApplyTshFlatSettingsFromOptions(IniOptions options, GameProfile profile)
+    {
         if (options.Video.AdditionalProperties.TryGetValue("UseDoubleClickAttackMove", out var doubleClick))
             profile.VideoUseDoubleClickAttackMove = ParseBool(doubleClick);
         else if (options.Video.AdditionalProperties.TryGetValue("UseDoubleClick", out var dbl))
@@ -71,8 +82,10 @@ public static class GameSettingsMapper
             profile.VideoDynamicLOD = ParseBool(dynLOD);
         if (options.Video.AdditionalProperties.TryGetValue("MaxParticleCount", out var particles) && int.TryParse(particles, out var particleVal))
             profile.VideoMaxParticleCount = particleVal;
+    }
 
-        // TSH-specific settings from the [TheSuperHackers] section (Hierarchical format support)
+    private static void ApplyTshHierarchicalSettingsFromOptions(IniOptions options, GameProfile profile)
+    {
         if (options.AdditionalSections.TryGetValue("TheSuperHackers", out var tsh))
         {
             if (tsh.TryGetValue("UseDoubleClickAttackMove", out var doubleClickTsh))
@@ -86,16 +99,20 @@ public static class GameSettingsMapper
             if (tsh.TryGetValue("MaxParticleCount", out var particlesTsh) && int.TryParse(particlesTsh, out var particlesTshVal))
                 profile.VideoMaxParticleCount = particlesTshVal;
         }
+    }
 
-        // Audio settings
+    private static void ApplyAudioFromOptions(IniOptions options, GameProfile profile)
+    {
         profile.AudioSoundVolume = options.Audio.SFXVolume;
         profile.AudioThreeDSoundVolume = options.Audio.SFX3DVolume;
         profile.AudioSpeechVolume = options.Audio.VoiceVolume;
         profile.AudioMusicVolume = options.Audio.MusicVolume;
         profile.AudioEnabled = options.Audio.AudioEnabled;
         profile.AudioNumSounds = options.Audio.NumSounds;
+    }
 
-        // Network settings
+    private static void ApplyNetworkFromOptions(IniOptions options, GameProfile profile)
+    {
         profile.GameSpyIPAddress = options.Network.GameSpyIPAddress;
     }
 
@@ -168,8 +185,15 @@ public static class GameSettingsMapper
     /// <param name="settings">The GeneralsOnlineSettings to populate.</param>
     public static void ApplyToGeneralsOnlineSettings(GameProfile profile, GeneralsOnlineSettings settings)
     {
-        // GeneralsOnline settings - use null-coalescing with model defaults
-        // This ensures predictable behavior: always set a value, never rely on constructor defaults
+        ApplyGoGeneralSettings(profile, settings);
+        ApplyGoCameraAndChatSettings(profile, settings);
+        ApplyGoRenderAndDebugSettings(profile, settings);
+        ApplyGoSocialSettings(profile, settings);
+        ApplyGoTshSettings(profile, settings);
+    }
+
+    private static void ApplyGoGeneralSettings(GameProfile profile, GeneralsOnlineSettings settings)
+    {
         settings.ShowFps = profile.GoShowFps ?? false;
         settings.ShowPing = profile.GoShowPing ?? true;
         settings.ShowPlayerRanks = profile.GoShowPlayerRanks ?? true;
@@ -178,24 +202,26 @@ public static class GameSettingsMapper
         settings.EnableNotifications = profile.GoEnableNotifications ?? true;
         settings.EnableSoundNotifications = profile.GoEnableSoundNotifications ?? true;
         settings.ChatFontSize = profile.GoChatFontSize ?? 12;
+    }
 
-        // Camera settings
+    private static void ApplyGoCameraAndChatSettings(GameProfile profile, GeneralsOnlineSettings settings)
+    {
         settings.Camera.MaxHeightOnlyWhenLobbyHost = profile.GoCameraMaxHeightOnlyWhenLobbyHost ?? 310.0f;
         settings.Camera.MinHeight = profile.GoCameraMinHeight ?? 310.0f;
         settings.Camera.MoveSpeedRatio = profile.GoCameraMoveSpeedRatio ?? 1.5f;
-
-        // Chat settings
         settings.Chat.DurationSecondsUntilFadeOut = profile.GoChatDurationSecondsUntilFadeOut ?? 30;
+    }
 
-        // Debug settings
+    private static void ApplyGoRenderAndDebugSettings(GameProfile profile, GeneralsOnlineSettings settings)
+    {
         settings.Debug.VerboseLogging = profile.GoDebugVerboseLogging ?? false;
-
-        // Render settings
         settings.Render.FpsLimit = profile.GoRenderFpsLimit ?? 144;
         settings.Render.LimitFramerate = profile.GoRenderLimitFramerate ?? true;
         settings.Render.StatsOverlay = profile.GoRenderStatsOverlay ?? true;
+    }
 
-        // Social notification settings
+    private static void ApplyGoSocialSettings(GameProfile profile, GeneralsOnlineSettings settings)
+    {
         settings.Social.NotificationFriendComesOnlineGameplay = profile.GoSocialNotificationFriendComesOnlineGameplay ?? true;
         settings.Social.NotificationFriendComesOnlineMenus = profile.GoSocialNotificationFriendComesOnlineMenus ?? true;
         settings.Social.NotificationFriendGoesOfflineGameplay = profile.GoSocialNotificationFriendGoesOfflineGameplay ?? true;
@@ -204,8 +230,10 @@ public static class GameSettingsMapper
         settings.Social.NotificationPlayerAcceptsRequestMenus = profile.GoSocialNotificationPlayerAcceptsRequestMenus ?? true;
         settings.Social.NotificationPlayerSendsRequestGameplay = profile.GoSocialNotificationPlayerSendsRequestGameplay ?? true;
         settings.Social.NotificationPlayerSendsRequestMenus = profile.GoSocialNotificationPlayerSendsRequestMenus ?? true;
+    }
 
-        // TSH settings (that exist in settings.json) - use null-coalescing with defaults
+    private static void ApplyGoTshSettings(GameProfile profile, GeneralsOnlineSettings settings)
+    {
         settings.ArchiveReplays = profile.TshArchiveReplays ?? false;
         settings.MoneyTransactionVolume = profile.TshMoneyTransactionVolume ?? 50;
         settings.ShowMoneyPerMinute = profile.TshShowMoneyPerMinute ?? false;
@@ -230,7 +258,14 @@ public static class GameSettingsMapper
     /// <param name="logger">Optional logger for validation warnings.</param>
     public static void ApplyToOptions(GameProfile profile, IniOptions options, ILogger? logger = null)
     {
-        // Video settings with validation
+        ApplyVideoResolutionAndQualityToOptions(profile, options, logger);
+        ApplyVideoAdditionalToOptions(profile, options, logger);
+        ApplyAudioToOptions(profile, options, logger);
+        ApplyTshToOptions(profile, options);
+    }
+
+    private static void ApplyVideoResolutionAndQualityToOptions(GameProfile profile, IniOptions options, ILogger? logger)
+    {
         if (profile.VideoResolutionWidth.HasValue)
         {
             if (profile.VideoResolutionWidth.Value >= GameSettingsConstants.Resolution.MinWidth &&
@@ -274,8 +309,6 @@ public static class GameSettingsMapper
 
         if (profile.VideoTextureQuality.HasValue)
         {
-            // Engine Value (TextureReduction): 2=Low, 1=Medium, 0=High/Max
-            // Clamp anything higher than 'High' to Max Quality to prevent invalid values
             options.Video.TextureReduction = profile.VideoTextureQuality.Value switch
             {
                 TextureQuality.Low => GameSettingsConstants.TextureQuality.TextureReductionLow,
@@ -296,7 +329,10 @@ public static class GameSettingsMapper
         {
             options.Video.ExtraAnimations = profile.VideoExtraAnimations.Value;
         }
+    }
 
+    private static void ApplyVideoAdditionalToOptions(GameProfile profile, IniOptions options, ILogger? logger)
+    {
         if (profile.VideoGamma.HasValue)
         {
             if (profile.VideoGamma.Value >= GameSettingsConstants.Gamma.Min &&
@@ -318,6 +354,7 @@ public static class GameSettingsMapper
         if (profile.VideoAlternateMouseSetup.HasValue)
         {
             options.Video.AlternateMouseSetup = profile.VideoAlternateMouseSetup.Value;
+            options.Video.AdditionalProperties["UseAlternateMouse"] = profile.VideoAlternateMouseSetup.Value ? "yes" : "no";
         }
 
         if (profile.VideoHeatEffects.HasValue)
@@ -325,7 +362,6 @@ public static class GameSettingsMapper
             options.Video.HeatEffects = profile.VideoHeatEffects.Value;
         }
 
-        // Additional video settings to AdditionalProperties (Standard root)
         if (profile.VideoStaticGameLOD != null)
             options.Video.AdditionalProperties["StaticGameLOD"] = profile.VideoStaticGameLOD;
         if (profile.VideoIdealStaticGameLOD != null)
@@ -333,7 +369,6 @@ public static class GameSettingsMapper
         if (profile.VideoAntiAliasing.HasValue)
             options.Video.AntiAliasing = profile.VideoAntiAliasing.Value;
 
-        // TSH settings (writing to root for maximum compatibility as some clients prefer flat Options.ini)
         if (profile.VideoUseDoubleClickAttackMove.HasValue)
         {
             options.Video.AdditionalProperties["UseDoubleClickAttackMove"] = profile.VideoUseDoubleClickAttackMove.Value ? "yes" : "no";
@@ -350,12 +385,10 @@ public static class GameSettingsMapper
             options.Video.AdditionalProperties["MaxParticleCount"] = profile.VideoMaxParticleCount.Value.ToString();
         if (profile.VideoSkipEALogo.HasValue)
             options.Video.AdditionalProperties["SkipEALogo"] = profile.VideoSkipEALogo.Value ? "yes" : "no";
+    }
 
-        // Mirror Alternate Mouse
-        if (profile.VideoAlternateMouseSetup.HasValue)
-            options.Video.AdditionalProperties["UseAlternateMouse"] = profile.VideoAlternateMouseSetup.Value ? "yes" : "no";
-
-        // Audio settings with validation
+    private static void ApplyAudioToOptions(GameProfile profile, IniOptions options, ILogger? logger)
+    {
         if (profile.AudioSoundVolume.HasValue)
         {
             if (profile.AudioSoundVolume.Value >= GameSettingsConstants.Volume.Min &&
@@ -450,8 +483,10 @@ public static class GameSettingsMapper
                     GameSettingsConstants.Audio.MaxNumSounds);
             }
         }
+    }
 
-        // TheSuperHackers settings
+    private static void ApplyTshToOptions(GameProfile profile, IniOptions options)
+    {
         var tshDict = new Dictionary<string, string>();
         if (profile.TshArchiveReplays.HasValue) tshDict["ArchiveReplays"] = BoolToString(profile.TshArchiveReplays.Value);
         if (profile.TshShowMoneyPerMinute.HasValue) tshDict["ShowMoneyPerMinute"] = BoolToString(profile.TshShowMoneyPerMinute.Value);
@@ -659,6 +694,17 @@ public static class GameSettingsMapper
     /// <param name="request">The request containing potentially partial settings.</param>
     public static void PatchGameProfile(GameProfile profile, CreateProfileRequest request)
     {
+        PatchVideoSettings(profile, request);
+        PatchAudioSettings(profile, request);
+        PatchTshSettings(profile, request);
+        PatchGeneralsOnlineSettings(profile, request);
+
+        profile.GameSpyIPAddress = request.GameSpyIPAddress ?? profile.GameSpyIPAddress;
+        profile.VideoSkipEALogo = request.VideoSkipEALogo ?? profile.VideoSkipEALogo;
+    }
+
+    private static void PatchVideoSettings(GameProfile profile, CreateProfileRequest request)
+    {
         profile.VideoResolutionWidth = request.VideoResolutionWidth ?? profile.VideoResolutionWidth;
         profile.VideoResolutionHeight = request.VideoResolutionHeight ?? profile.VideoResolutionHeight;
         profile.VideoWindowed = request.VideoWindowed ?? profile.VideoWindowed;
@@ -670,14 +716,20 @@ public static class GameSettingsMapper
         profile.VideoGamma = request.VideoGamma ?? profile.VideoGamma;
         profile.VideoAlternateMouseSetup = request.VideoAlternateMouseSetup ?? profile.VideoAlternateMouseSetup;
         profile.VideoHeatEffects = request.VideoHeatEffects ?? profile.VideoHeatEffects;
+    }
 
+    private static void PatchAudioSettings(GameProfile profile, CreateProfileRequest request)
+    {
         profile.AudioSoundVolume = request.AudioSoundVolume ?? profile.AudioSoundVolume;
         profile.AudioThreeDSoundVolume = request.AudioThreeDSoundVolume ?? profile.AudioThreeDSoundVolume;
         profile.AudioSpeechVolume = request.AudioSpeechVolume ?? profile.AudioSpeechVolume;
         profile.AudioMusicVolume = request.AudioMusicVolume ?? profile.AudioMusicVolume;
         profile.AudioEnabled = request.AudioEnabled ?? profile.AudioEnabled;
         profile.AudioNumSounds = request.AudioNumSounds ?? profile.AudioNumSounds;
+    }
 
+    private static void PatchTshSettings(GameProfile profile, CreateProfileRequest request)
+    {
         profile.TshArchiveReplays = request.TshArchiveReplays ?? profile.TshArchiveReplays;
         profile.TshShowMoneyPerMinute = request.TshShowMoneyPerMinute ?? profile.TshShowMoneyPerMinute;
         profile.TshPlayerObserverEnabled = request.TshPlayerObserverEnabled ?? profile.TshPlayerObserverEnabled;
@@ -692,7 +744,10 @@ public static class GameSettingsMapper
         profile.TshScreenEdgeScrollEnabledInFullscreenApp = request.TshScreenEdgeScrollEnabledInFullscreenApp ?? profile.TshScreenEdgeScrollEnabledInFullscreenApp;
         profile.TshScreenEdgeScrollEnabledInWindowedApp = request.TshScreenEdgeScrollEnabledInWindowedApp ?? profile.TshScreenEdgeScrollEnabledInWindowedApp;
         profile.TshMoneyTransactionVolume = request.TshMoneyTransactionVolume ?? profile.TshMoneyTransactionVolume;
+    }
 
+    private static void PatchGeneralsOnlineSettings(GameProfile profile, CreateProfileRequest request)
+    {
         profile.GoShowFps = request.GoShowFps ?? profile.GoShowFps;
         profile.GoShowPing = request.GoShowPing ?? profile.GoShowPing;
         profile.GoShowPlayerRanks = request.GoShowPlayerRanks ?? profile.GoShowPlayerRanks;
@@ -705,9 +760,7 @@ public static class GameSettingsMapper
         profile.GoCameraMaxHeightOnlyWhenLobbyHost = request.GoCameraMaxHeightOnlyWhenLobbyHost ?? profile.GoCameraMaxHeightOnlyWhenLobbyHost;
         profile.GoCameraMinHeight = request.GoCameraMinHeight ?? profile.GoCameraMinHeight;
         profile.GoCameraMoveSpeedRatio = request.GoCameraMoveSpeedRatio ?? profile.GoCameraMoveSpeedRatio;
-
         profile.GoChatDurationSecondsUntilFadeOut = request.GoChatDurationSecondsUntilFadeOut ?? profile.GoChatDurationSecondsUntilFadeOut;
-
         profile.GoDebugVerboseLogging = request.GoDebugVerboseLogging ?? profile.GoDebugVerboseLogging;
 
         profile.GoRenderFpsLimit = request.GoRenderFpsLimit ?? profile.GoRenderFpsLimit;
@@ -722,9 +775,6 @@ public static class GameSettingsMapper
         profile.GoSocialNotificationPlayerAcceptsRequestMenus = request.GoSocialNotificationPlayerAcceptsRequestMenus ?? profile.GoSocialNotificationPlayerAcceptsRequestMenus;
         profile.GoSocialNotificationPlayerSendsRequestGameplay = request.GoSocialNotificationPlayerSendsRequestGameplay ?? profile.GoSocialNotificationPlayerSendsRequestGameplay;
         profile.GoSocialNotificationPlayerSendsRequestMenus = request.GoSocialNotificationPlayerSendsRequestMenus ?? profile.GoSocialNotificationPlayerSendsRequestMenus;
-
-        profile.GameSpyIPAddress = request.GameSpyIPAddress ?? profile.GameSpyIPAddress;
-        profile.VideoSkipEALogo = request.VideoSkipEALogo ?? profile.VideoSkipEALogo;
     }
 
     /// <summary>
@@ -733,6 +783,20 @@ public static class GameSettingsMapper
     /// <param name="profile">The GameProfile to patch.</param>
     /// <param name="request">The request containing potentially partial settings.</param>
     public static void UpdateFromRequest(GameProfile profile, UpdateProfileRequest request)
+    {
+        UpdateVideoFromRequest(profile, request);
+        UpdateAudioFromRequest(profile, request);
+        UpdateTshFromRequest(profile, request);
+        UpdateGeneralsOnlineFromRequest(profile, request);
+
+        if (request.UseSteamLaunch.HasValue)
+            profile.UseSteamLaunch = request.UseSteamLaunch.Value;
+
+        profile.GameSpyIPAddress = request.GameSpyIPAddress ?? profile.GameSpyIPAddress;
+        profile.VideoSkipEALogo = request.VideoSkipEALogo ?? profile.VideoSkipEALogo;
+    }
+
+    private static void UpdateVideoFromRequest(GameProfile profile, UpdateProfileRequest request)
     {
         profile.VideoResolutionWidth = request.VideoResolutionWidth ?? profile.VideoResolutionWidth;
         profile.VideoResolutionHeight = request.VideoResolutionHeight ?? profile.VideoResolutionHeight;
@@ -753,14 +817,20 @@ public static class GameSettingsMapper
         profile.VideoDynamicLOD = request.VideoDynamicLOD ?? profile.VideoDynamicLOD;
         profile.VideoMaxParticleCount = request.VideoMaxParticleCount ?? profile.VideoMaxParticleCount;
         profile.VideoAntiAliasing = request.VideoAntiAliasing ?? profile.VideoAntiAliasing;
+    }
 
+    private static void UpdateAudioFromRequest(GameProfile profile, UpdateProfileRequest request)
+    {
         profile.AudioSoundVolume = request.AudioSoundVolume ?? profile.AudioSoundVolume;
         profile.AudioThreeDSoundVolume = request.AudioThreeDSoundVolume ?? profile.AudioThreeDSoundVolume;
         profile.AudioSpeechVolume = request.AudioSpeechVolume ?? profile.AudioSpeechVolume;
         profile.AudioMusicVolume = request.AudioMusicVolume ?? profile.AudioMusicVolume;
         profile.AudioEnabled = request.AudioEnabled ?? profile.AudioEnabled;
         profile.AudioNumSounds = request.AudioNumSounds ?? profile.AudioNumSounds;
+    }
 
+    private static void UpdateTshFromRequest(GameProfile profile, UpdateProfileRequest request)
+    {
         profile.TshArchiveReplays = request.TshArchiveReplays ?? profile.TshArchiveReplays;
         profile.TshShowMoneyPerMinute = request.TshShowMoneyPerMinute ?? profile.TshShowMoneyPerMinute;
         profile.TshPlayerObserverEnabled = request.TshPlayerObserverEnabled ?? profile.TshPlayerObserverEnabled;
@@ -775,7 +845,10 @@ public static class GameSettingsMapper
         profile.TshScreenEdgeScrollEnabledInFullscreenApp = request.TshScreenEdgeScrollEnabledInFullscreenApp ?? profile.TshScreenEdgeScrollEnabledInFullscreenApp;
         profile.TshScreenEdgeScrollEnabledInWindowedApp = request.TshScreenEdgeScrollEnabledInWindowedApp ?? profile.TshScreenEdgeScrollEnabledInWindowedApp;
         profile.TshMoneyTransactionVolume = request.TshMoneyTransactionVolume ?? profile.TshMoneyTransactionVolume;
+    }
 
+    private static void UpdateGeneralsOnlineFromRequest(GameProfile profile, UpdateProfileRequest request)
+    {
         profile.GoShowFps = request.GoShowFps ?? profile.GoShowFps;
         profile.GoShowPing = request.GoShowPing ?? profile.GoShowPing;
         profile.GoShowPlayerRanks = request.GoShowPlayerRanks ?? profile.GoShowPlayerRanks;
@@ -788,9 +861,7 @@ public static class GameSettingsMapper
         profile.GoCameraMaxHeightOnlyWhenLobbyHost = request.GoCameraMaxHeightOnlyWhenLobbyHost ?? profile.GoCameraMaxHeightOnlyWhenLobbyHost;
         profile.GoCameraMinHeight = request.GoCameraMinHeight ?? profile.GoCameraMinHeight;
         profile.GoCameraMoveSpeedRatio = request.GoCameraMoveSpeedRatio ?? profile.GoCameraMoveSpeedRatio;
-
         profile.GoChatDurationSecondsUntilFadeOut = request.GoChatDurationSecondsUntilFadeOut ?? profile.GoChatDurationSecondsUntilFadeOut;
-
         profile.GoDebugVerboseLogging = request.GoDebugVerboseLogging ?? profile.GoDebugVerboseLogging;
 
         profile.GoRenderFpsLimit = request.GoRenderFpsLimit ?? profile.GoRenderFpsLimit;
@@ -805,12 +876,6 @@ public static class GameSettingsMapper
         profile.GoSocialNotificationPlayerAcceptsRequestMenus = request.GoSocialNotificationPlayerAcceptsRequestMenus ?? profile.GoSocialNotificationPlayerAcceptsRequestMenus;
         profile.GoSocialNotificationPlayerSendsRequestGameplay = request.GoSocialNotificationPlayerSendsRequestGameplay ?? profile.GoSocialNotificationPlayerSendsRequestGameplay;
         profile.GoSocialNotificationPlayerSendsRequestMenus = request.GoSocialNotificationPlayerSendsRequestMenus ?? profile.GoSocialNotificationPlayerSendsRequestMenus;
-
-        if (request.UseSteamLaunch.HasValue)
-            profile.UseSteamLaunch = request.UseSteamLaunch.Value;
-
-        profile.GameSpyIPAddress = request.GameSpyIPAddress ?? profile.GameSpyIPAddress;
-        profile.VideoSkipEALogo = request.VideoSkipEALogo ?? profile.VideoSkipEALogo;
     }
 
     /// <summary>

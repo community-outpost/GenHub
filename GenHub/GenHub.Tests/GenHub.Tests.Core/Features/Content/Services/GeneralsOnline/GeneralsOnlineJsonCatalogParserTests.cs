@@ -44,7 +44,7 @@ public class GeneralsOnlineJsonCatalogParserTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task ParseAsync_WithPascalCaseJson_ParsesCorrectly()
+    public async Task ParseAsync_WithPascalCaseJson_ParsesCorrectlyAsync()
     {
         // Arrange
         var json = @"{
@@ -70,7 +70,7 @@ public class GeneralsOnlineJsonCatalogParserTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task ParseAsync_WithCamelCaseJson_ParsesCorrectly()
+    public async Task ParseAsync_WithCamelCaseJson_ParsesCorrectlyAsync()
     {
         // Arrange
         // Standard lowercase/camelCase that matches exact property names if attributes weren't there

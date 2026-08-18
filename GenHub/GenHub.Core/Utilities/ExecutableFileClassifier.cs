@@ -266,8 +266,22 @@ public static class ExecutableFileClassifier
             read = stream.ReadAtLeast(header, MagicHeaderLength, throwOnEndOfStream: false);
             return true;
         }
-        catch (Exception ex) when (
-            ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        catch (IOException)
+        {
+            read = 0;
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            read = 0;
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            read = 0;
+            return false;
+        }
+        catch (NotSupportedException)
         {
             read = 0;
             return false;

@@ -81,7 +81,7 @@ public class ColorToShadowConverter : IValueConverter
     /// <returns>Nothing, throws NotImplementedException.</returns>
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        throw new NotImplementedException();
+        throw new NotSupportedException();
     }
 
     private static double ToLuminance(Color color)

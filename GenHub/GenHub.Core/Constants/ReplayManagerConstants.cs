@@ -11,6 +11,21 @@ public static class ReplayManagerConstants
     public const long MaxReplaySizeBytes = 1024 * 1024;
 
     /// <summary>
+    /// Maximum allowed entries in a replay ZIP archive.
+    /// </summary>
+    public const int MaxZipEntries = 100;
+
+    /// <summary>
+    /// Maximum aggregate uncompressed bytes for a replay ZIP archive (50 MB).
+    /// </summary>
+    public const long MaxAggregateUncompressedBytes = 50 * 1024 * 1024;
+
+    /// <summary>
+    /// Maximum compression ratio allowed for replay ZIP archives.
+    /// </summary>
+    public const double MaxCompressionRatio = 50.0;
+
+    /// <summary>
     /// Maximum upload bytes per period (10 MB).
     /// </summary>
     public const long MaxUploadBytesPerPeriod = 10 * 1024 * 1024;

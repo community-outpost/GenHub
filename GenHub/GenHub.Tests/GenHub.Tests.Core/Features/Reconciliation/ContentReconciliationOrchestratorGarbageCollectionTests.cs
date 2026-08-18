@@ -22,7 +22,7 @@ public class ContentReconciliationOrchestratorGarbageCollectionTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task ExecuteContentReplacementAsync_WhenGcDisabled_ReturnsWarning()
+    public async Task ExecuteContentReplacementAsync_WhenGcDisabled_ReturnsWarningAsync()
     {
         var reconciliationService = new Mock<IContentReconciliationService>();
         reconciliationService
@@ -64,7 +64,7 @@ public class ContentReconciliationOrchestratorGarbageCollectionTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task ExecuteContentRemovalAsync_WhenGcDisabled_ReturnsWarning()
+    public async Task ExecuteContentRemovalAsync_WhenGcDisabled_ReturnsWarningAsync()
     {
         var reconciliationService = new Mock<IContentReconciliationService>();
         var lifecycleManager = CreateDisabledLifecycleManager();

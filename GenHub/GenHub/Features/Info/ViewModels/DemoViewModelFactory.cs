@@ -198,7 +198,7 @@ public static class DemoViewModelFactory
 
             return vm;
         }
-        catch (Exception)
+        catch (InvalidOperationException)
         {
             // Fallback
             var mockService = new MockGameSettingsService();

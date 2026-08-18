@@ -84,13 +84,9 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
         try
         {
             var initResult = await TryInitializeCacheAsync(cancellationToken);
-            if (!initResult.Success)
+            if (!initResult.Success && _cachedInstallations == null)
             {
-                // If TryInitializeCacheAsync failed and cache is null, return failure
-                if (_cachedInstallations == null)
-                {
-                    return OperationResult<IReadOnlyList<GameInstallation>>.CreateFailure(initResult.Errors[0]);
-                }
+                return OperationResult<IReadOnlyList<GameInstallation>>.CreateFailure(initResult.Errors[0]);
             }
 
             if (_cachedInstallations == null)
@@ -748,7 +744,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
             var detectionResult = await detectionOrchestrator.DetectAllInstallationsAsync(cancellationToken);
 
             // Start with auto-detected installations if successful, otherwise empty list
-            List<GameInstallation> installations;
+            List<GameInstallation> installations = [];
             bool detectionHadError = !detectionResult.Success;
             if (detectionResult.Success)
             {

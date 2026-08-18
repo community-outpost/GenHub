@@ -54,9 +54,11 @@ public class UserSettingsTests
 
         // Act
         settings.SkippedVersion = "2.0.0";
+        var firstCount = settings.SkippedVersions.Count;
         settings.SkippedVersion = "2.0.0";
 
         // Assert
+        Assert.Equal(1, firstCount);
         Assert.Single(settings.SkippedVersions);
         Assert.Equal("2.0.0", settings.SkippedVersion);
     }

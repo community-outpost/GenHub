@@ -399,7 +399,7 @@ public class GameProfileManagerTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task UpdateProfileAsync_Should_ClearWorkspace_When_ContentChanges()
+    public async Task UpdateProfileAsync_Should_ClearWorkspace_When_ContentChangesAsync()
     {
         // Arrange
         var profileId = Guid.NewGuid().ToString();
@@ -435,7 +435,7 @@ public class GameProfileManagerTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task UpdateProfileAsync_Should_ClearWorkspace_When_GameClientChanges()
+    public async Task UpdateProfileAsync_Should_ClearWorkspace_When_GameClientChangesAsync()
     {
         // Arrange
         var profileId = Guid.NewGuid().ToString();
@@ -472,7 +472,7 @@ public class GameProfileManagerTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task UpdateProfileAsync_Should_KeepWorkspace_When_ContentUnchanged()
+    public async Task UpdateProfileAsync_Should_KeepWorkspace_When_ContentUnchangedAsync()
     {
         // Arrange
         var profileId = Guid.NewGuid().ToString();
@@ -508,7 +508,7 @@ public class GameProfileManagerTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task UpdateProfileAsync_Should_KeepWorkspace_When_ContentUpdateRequestIsNull()
+    public async Task UpdateProfileAsync_Should_KeepWorkspace_When_ContentUpdateRequestIsNullAsync()
     {
         // Arrange
         var profileId = Guid.NewGuid().ToString();
@@ -544,7 +544,7 @@ public class GameProfileManagerTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task UpdateProfileAsync_Should_SendProfileUpdatedMessage_OnSuccess()
+    public async Task UpdateProfileAsync_Should_SendProfileUpdatedMessage_OnSuccessAsync()
     {
         // Arrange
         var profileId = Guid.NewGuid().ToString();
@@ -578,10 +578,7 @@ public class GameProfileManagerTests
 
         ProfileUpdatedMessage? receivedMessage = null;
 
-        WeakReferenceMessenger.Default.Register<ProfileUpdatedMessage>(this, (r, m) =>
-        {
-            receivedMessage = m;
-        });
+        WeakReferenceMessenger.Default.Register<ProfileUpdatedMessage>(this, (_, m) => receivedMessage = m);
 
         // Act
         var result = await _profileManager.UpdateProfileAsync(profileId, request);

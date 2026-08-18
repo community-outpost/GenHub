@@ -17,7 +17,7 @@ public class UploadThingServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task UploadFileAsync_WhenCredentialsAreUnavailable_ReturnsNull()
+    public async Task UploadFileAsync_WhenCredentialsAreUnavailable_ReturnsNullAsync()
     {
         var result = await _service.UploadFileAsync("unused.zip");
 
@@ -29,7 +29,7 @@ public class UploadThingServiceTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DeleteFileAsync_WhenCredentialsAreUnavailable_ReturnsFalse()
+    public async Task DeleteFileAsync_WhenCredentialsAreUnavailable_ReturnsFalseAsync()
     {
         var result = await _service.DeleteFileAsync("unused-key");
 

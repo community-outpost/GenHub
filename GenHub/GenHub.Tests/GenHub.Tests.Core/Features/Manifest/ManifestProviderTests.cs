@@ -91,7 +91,7 @@ public class ManifestProviderTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetManifestAsync_WithCachedVariantManifest_ThrowsValidationException()
+    public async Task GetManifestAsync_WithCachedVariantManifest_ThrowsValidationExceptionAsync()
     {
         var gameClient = new GameClient { Id = "1.0.genhub.mod.variant" };
         var manifest = new ContentManifest
@@ -147,7 +147,7 @@ public class ManifestProviderTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetManifestAsync_WithInstallationCachedVariantManifest_ThrowsValidationException()
+    public async Task GetManifestAsync_WithInstallationCachedVariantManifest_ThrowsValidationExceptionAsync()
     {
         var installation = new GameInstallation(
             installationPath: @"C:\TestPath",

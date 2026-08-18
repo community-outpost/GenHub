@@ -179,6 +179,8 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
                 list.Add(new ContentDisplayItem { DisplayName = "WNDEditor", ContentType = ContentType.ModdingTool, GameType = Core.Models.Enums.GameType.ZeroHour, Publisher = "Community", Version = "0.4", ManifestId = ManifestId.Create("0.4.community.tool.wndeditor"), InstallationType = GameInstallationType.Unknown });
                 list.Add(new ContentDisplayItem { DisplayName = "FinalBig", ContentType = ContentType.ModdingTool, GameType = Core.Models.Enums.GameType.ZeroHour, Publisher = "Community", Version = "0.4", ManifestId = ManifestId.Create("0.4.community.tool.finalbig"), InstallationType = GameInstallationType.Unknown });
                 break;
+            default:
+                break;
         }
 
         AvailableContent = list;
@@ -259,7 +261,7 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
     public new bool IsAddLocalContentDialogOpen
     {
         get => false; // Always return false in demo mode
-        set { } // Ignore all attempts to set this property
+        set { _ = value; } // Ignore all attempts to set this property
     }
 
     /// <summary>

@@ -42,7 +42,7 @@ public class NativeClientLaunchIntegrationTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task RealNativeClient_LaunchesThroughGameProcessManager()
+    public async Task RealNativeClient_LaunchesThroughGameProcessManagerAsync()
     {
         var installDirectory = NativeClientFixture.Directory;
         if (installDirectory is null)
@@ -94,7 +94,7 @@ public class NativeClientLaunchIntegrationTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task RealNativeClient_RequiresItsInstallDirectoryAsWorkingDirectory()
+    public async Task RealNativeClient_RequiresItsInstallDirectoryAsWorkingDirectoryAsync()
     {
         var installDirectory = NativeClientFixture.Directory;
         if (installDirectory is null)

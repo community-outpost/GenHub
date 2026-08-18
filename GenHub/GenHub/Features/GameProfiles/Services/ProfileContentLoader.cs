@@ -106,8 +106,6 @@ public class ProfileContentLoader(
                 return result;
             }
 
-            var includedManifestIds = new HashSet<string>();
-
             await AddCasStoredGameClientsAsync(result, []);
 
             logger.LogInformation("Loaded {Count} game client options", result.Count);

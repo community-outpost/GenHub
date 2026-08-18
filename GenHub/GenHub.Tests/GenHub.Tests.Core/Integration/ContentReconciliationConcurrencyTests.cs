@@ -30,6 +30,7 @@ public class ContentReconciliationConcurrencyTests
     private readonly Mock<ICasLifecycleManager> _casServiceMock;
     private readonly Mock<ILogger<ContentReconciliationService>> _loggerMock;
     private readonly Mock<ICasReferenceTracker> _casReferenceTrackerMock;
+    private readonly object _syncLock = new();
     private readonly ContentReconciliationService _service;
 
     /// <summary>
@@ -74,27 +75,28 @@ public class ContentReconciliationConcurrencyTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ReconcileBulkManifestReplacementAsync_ShouldSerializeConcurrentCalls()
+    public async Task ReconcileBulkManifestReplacementAsync_ShouldSerializeConcurrentCallsAsync()
     {
         // Arrange
         var callCounter = 0;
         var maxConcurrent = 0;
-        var lockObj = new object();
 
         _profileManagerMock.Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
             .Returns(async () =>
             {
-                int current;
-                lock (lockObj)
+                lock (_syncLock)
                 {
                     callCounter++;
-                    current = callCounter;
-                    if (current > maxConcurrent) maxConcurrent = current;
+                    var current = callCounter;
+                    if (current > maxConcurrent)
+                    {
+                        maxConcurrent = current;
+                    }
                 }
 
                 await Task.Delay(100);
 
-                lock (lockObj)
+                lock (_syncLock)
                 {
                     callCounter--;
                 }

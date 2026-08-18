@@ -84,53 +84,14 @@ public class CommunityOutpostProfileReconciler(
             }
 
             // Determine strategy
-            var subscription = settings.GetSubscription(CommunityOutpostConstants.PublisherType);
-            UpdateStrategy strategy = subscription?.PreferredUpdateStrategy ?? settings.PreferredUpdateStrategy ?? UpdateStrategy.ReplaceCurrent;
-            bool autoUpdate = subscription?.AutoUpdateEnabled == true;
-            bool shouldDeleteOldVersions = subscription?.DeleteOldVersions ?? true;
-
-            if (!autoUpdate)
+            var promptResult = await PromptUserForUpdateStrategyAsync(settings, updateResult);
+            if (!promptResult.ShouldProceed)
             {
-                var dialogResult = await dialogService.ShowUpdateOptionDialogAsync(
-                    "Community Patch Update Available",
-                    $"A new version of **Community Patch** is available (v{updateResult.LatestVersion}).\n\nHow do you want to apply this update?");
-
-                if (dialogResult == null) return OperationResult<bool>.CreateSuccess(false);
-
-                if (dialogResult.Action == "Skip")
-                {
-                    logger.LogInformation("[CO Reconciler] User skipped version {Version}.", updateResult.LatestVersion);
-
-                    if (dialogResult.IsDoNotAskAgain)
-                    {
-                        await userSettingsService.TryUpdateAndSaveAsync(s =>
-                        {
-                            s.SkipVersion(CommunityOutpostConstants.PublisherType, updateResult.LatestVersion ?? string.Empty);
-                            return true;
-                        });
-                    }
-
-                    return OperationResult<bool>.CreateSuccess(false);
-                }
-
-                strategy = dialogResult.Strategy;
-
-                if (dialogResult.IsDoNotAskAgain)
-                {
-                    logger.LogInformation("[CO Reconciler] Saving user preference for Community Patch updates");
-                    await userSettingsService.TryUpdateAndSaveAsync(s =>
-                    {
-                        s.SetAutoUpdatePreference(CommunityOutpostConstants.PublisherType, true);
-                        var sub = s.GetSubscription(CommunityOutpostConstants.PublisherType);
-                        if (sub != null)
-                        {
-                            sub.PreferredUpdateStrategy = strategy;
-                        }
-
-                        return true;
-                    });
-                }
+                return OperationResult<bool>.CreateSuccess(false);
             }
+
+            var strategy = promptResult.Strategy;
+            var shouldDeleteOldVersions = promptResult.ShouldDeleteOldVersions;
 
             // Step 2: Notify user that update is being installed
             notificationService.ShowInfo(
@@ -168,53 +129,24 @@ public class CommunityOutpostProfileReconciler(
                 newManifests.Count);
 
             // Step 5: Update affected profiles based on strategy
-            int profilesUpdated = 0;
-            bool anyFailure = false;
+            var updateOutcome = await ApplyUpdateStrategyAsync(
+                strategy,
+                oldManifests,
+                newManifests,
+                updateResult.LatestVersion ?? "Unknown",
+                shouldDeleteOldVersions,
+                cancellationToken);
 
-            if (strategy == UpdateStrategy.CreateNewProfile)
+            if (!updateOutcome.Success)
             {
-                // Force keep old versions if creating new profiles
-                shouldDeleteOldVersions = false;
-
-                var createResult = await CreateNewProfilesForUpdateAsync(oldManifests, newManifests, updateResult.LatestVersion ?? "Unknown", cancellationToken);
-                if (createResult.Success)
-                {
-                    profilesUpdated = createResult.Data;
-                }
-                else
-                {
-                    anyFailure = true;
-                    notificationService.ShowWarning("Community Patch Update Partial", $"Failed to create some new profiles: {createResult.FirstError}");
-                }
+                return OperationResult<bool>.CreateFailure(updateOutcome.FirstError ?? "Update strategy execution failed");
             }
-            else
-            {
-                // ReplaceCurrent
-                var manifestMapping = BuildManifestMapping(oldManifests, newManifests);
-                var bulkUpdateResult = await reconciliationService.OrchestrateBulkUpdateAsync(
-                    manifestMapping,
-                    shouldDeleteOldVersions,
-                    cancellationToken);
 
-                if (bulkUpdateResult.Success)
-                {
-                    profilesUpdated = bulkUpdateResult.Data.ProfilesUpdated;
-                    if (bulkUpdateResult.Data.FailedProfilesCount > 0)
-                    {
-                        anyFailure = true;
-                        notificationService.ShowWarning("Community Patch Update Partial", $"{bulkUpdateResult.Data.FailedProfilesCount} profiles could not be updated. Check logs for details.");
-                    }
-                }
-                else
-                {
-                    anyFailure = true;
-                    notificationService.ShowWarning("Community Patch Update Partial", $"Some profiles could not be updated: {bulkUpdateResult.FirstError}");
-                    return OperationResult<bool>.CreateFailure($"Bulk update failed: {bulkUpdateResult.FirstError}");
-                }
-            }
+            var profilesUpdated = updateOutcome.ProfilesUpdated;
+            var anyFailure = updateOutcome.AnyFailure;
+            shouldDeleteOldVersions = updateOutcome.ShouldDeleteOldVersions;
 
             // Step 6: Run garbage collection (only if old versions were deleted AND no failures occurred)
-            // If some profiles failed, GC could delete files they still rely on.
             if (shouldDeleteOldVersions && !anyFailure)
             {
                 await reconciliationService.ScheduleGarbageCollectionAsync(false, cancellationToken);
@@ -439,5 +371,119 @@ public class CommunityOutpostProfileReconciler(
         }
 
         return OperationResult<int>.CreateSuccess(createdCount);
+    }
+
+    private async Task<(bool ShouldProceed, UpdateStrategy Strategy, bool ShouldDeleteOldVersions)> PromptUserForUpdateStrategyAsync(
+        UserSettings settings,
+        UpdateCheckResult updateResult)
+    {
+        var subscription = settings.GetSubscription(CommunityOutpostConstants.PublisherType);
+        var strategy = subscription?.PreferredUpdateStrategy ?? settings.PreferredUpdateStrategy ?? UpdateStrategy.ReplaceCurrent;
+        var autoUpdate = subscription?.AutoUpdateEnabled == true;
+        var shouldDeleteOldVersions = subscription?.DeleteOldVersions ?? true;
+
+        if (autoUpdate)
+        {
+            return (true, strategy, shouldDeleteOldVersions);
+        }
+
+        var dialogResult = await dialogService.ShowUpdateOptionDialogAsync(
+            "Community Patch Update Available",
+            $"A new version of **Community Patch** is available (v{updateResult.LatestVersion}).\n\nHow do you want to apply this update?");
+
+        if (dialogResult == null)
+        {
+            return (false, strategy, shouldDeleteOldVersions);
+        }
+
+        if (dialogResult.Action == "Skip")
+        {
+            logger.LogInformation("[CO Reconciler] User skipped version {Version}.", updateResult.LatestVersion);
+
+            if (dialogResult.IsDoNotAskAgain)
+            {
+                await userSettingsService.TryUpdateAndSaveAsync(s =>
+                {
+                    s.SkipVersion(CommunityOutpostConstants.PublisherType, updateResult.LatestVersion ?? string.Empty);
+                    return true;
+                });
+            }
+
+            return (false, strategy, shouldDeleteOldVersions);
+        }
+
+        strategy = dialogResult.Strategy;
+
+        if (dialogResult.IsDoNotAskAgain)
+        {
+            logger.LogInformation("[CO Reconciler] Saving user preference for Community Patch updates");
+            await userSettingsService.TryUpdateAndSaveAsync(s =>
+            {
+                s.SetAutoUpdatePreference(CommunityOutpostConstants.PublisherType, true);
+                var sub = s.GetSubscription(CommunityOutpostConstants.PublisherType);
+                if (sub != null)
+                {
+                    sub.PreferredUpdateStrategy = strategy;
+                }
+
+                return true;
+            });
+        }
+
+        return (true, strategy, shouldDeleteOldVersions);
+    }
+
+    private async Task<(bool Success, string? FirstError, int ProfilesUpdated, bool AnyFailure, bool ShouldDeleteOldVersions)> ApplyUpdateStrategyAsync(
+        UpdateStrategy strategy,
+        IReadOnlyList<ContentManifest> oldManifests,
+        IReadOnlyList<ContentManifest> newManifests,
+        string latestVersion,
+        bool shouldDeleteOldVersions,
+        CancellationToken cancellationToken)
+    {
+        int profilesUpdated = 0;
+        bool anyFailure = false;
+
+        if (strategy == UpdateStrategy.CreateNewProfile)
+        {
+            // Force keep old versions if creating new profiles
+            shouldDeleteOldVersions = false;
+
+            var createResult = await CreateNewProfilesForUpdateAsync(oldManifests, newManifests, latestVersion, cancellationToken);
+            if (createResult.Success)
+            {
+                profilesUpdated = createResult.Data;
+            }
+            else
+            {
+                anyFailure = true;
+                notificationService.ShowWarning("Community Patch Update Partial", $"Failed to create some new profiles: {createResult.FirstError}");
+            }
+
+            return (true, null, profilesUpdated, anyFailure, shouldDeleteOldVersions);
+        }
+
+        // ReplaceCurrent
+        var manifestMapping = BuildManifestMapping(oldManifests, newManifests);
+        var bulkUpdateResult = await reconciliationService.OrchestrateBulkUpdateAsync(
+            manifestMapping,
+            shouldDeleteOldVersions,
+            cancellationToken);
+
+        if (bulkUpdateResult.Success)
+        {
+            profilesUpdated = bulkUpdateResult.Data.ProfilesUpdated;
+            if (bulkUpdateResult.Data.FailedProfilesCount > 0)
+            {
+                anyFailure = true;
+                notificationService.ShowWarning("Community Patch Update Partial", $"{bulkUpdateResult.Data.FailedProfilesCount} profiles could not be updated. Check logs for details.");
+            }
+
+            return (true, null, profilesUpdated, anyFailure, shouldDeleteOldVersions);
+        }
+
+        anyFailure = true;
+        notificationService.ShowWarning("Community Patch Update Partial", $"Some profiles could not be updated: {bulkUpdateResult.FirstError}");
+        return (false, $"Bulk update failed: {bulkUpdateResult.FirstError}", profilesUpdated, anyFailure, shouldDeleteOldVersions);
     }
 }

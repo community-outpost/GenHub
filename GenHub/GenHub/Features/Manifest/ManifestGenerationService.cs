@@ -390,10 +390,12 @@ public class ManifestGenerationService(
             }
             else
             {
-                // Legacy/Fallback detection
-                var publisherName = clientName.Contains("steam", StringComparison.InvariantCultureIgnoreCase) ? PublisherInfoConstants.Steam.Name :
-                                    clientName.Contains("ea", StringComparison.InvariantCultureIgnoreCase) ? PublisherInfoConstants.EaApp.Name :
-                                    PublisherInfoConstants.Retail.Name;
+                var publisherName = clientName switch
+                {
+                    _ when clientName.Contains("steam", StringComparison.InvariantCultureIgnoreCase) => PublisherInfoConstants.Steam.Name,
+                    _ when clientName.Contains("ea", StringComparison.InvariantCultureIgnoreCase) => PublisherInfoConstants.EaApp.Name,
+                    _ => PublisherInfoConstants.Retail.Name,
+                };
                 publisher = new PublisherInfo { Name = publisherName };
             }
 
@@ -571,7 +573,7 @@ public class ManifestGenerationService(
 
             // Add all subdirectories except known non-game directories
             // PRIORITY: Use CSV-based manifest generation if available
-            var csvAdded = await AddFilesFromCsvAsync(builder, installationPath, gameType);
+            await AddFilesFromCsvAsync(builder, installationPath, gameType);
 
             logger.LogInformation("Completed manifest generation for {GameType}: {TotalFiles} files added", gameType, _fileCount);
             logger.LogDebug("Added game files to manifest for {GameType} at {InstallationPath}", gameType, installationPath);

@@ -197,7 +197,7 @@ public class CompressedImageToTgaConverter(ILogger<CompressedImageToTgaConverter
                     }
                 }
 
-                Image image;
+                Image? image = null;
                 try
                 {
                     using var inputStream = File.OpenRead(sourcePath);

@@ -148,30 +148,31 @@ public partial class NotificationFeedItemViewModel : ViewModelBase, IDisposable
     /// <returns>The formatted time string.</returns>
     private static string FormatTimestamp(DateTime timestamp)
     {
-        var now = DateTime.Now;
-        var localTimestamp = timestamp.ToLocalTime();
-        var diff = now - localTimestamp;
+        var now = DateTime.UtcNow;
+        var utcTimestamp = timestamp.ToUniversalTime();
+        var diff = now - utcTimestamp;
 
         if (diff.TotalMinutes < 1)
         {
             return "Just now";
         }
-        else if (diff.TotalMinutes < 60)
+
+        if (diff.TotalMinutes < 60)
         {
             return $"{diff.Minutes}m ago";
         }
-        else if (diff.TotalHours < 24)
+
+        if (diff.TotalHours < 24)
         {
             return $"{diff.Hours}h ago";
         }
-        else if (diff.TotalDays < 7)
+
+        if (diff.TotalDays < 7)
         {
             return $"{diff.Days}d ago";
         }
-        else
-        {
-            return localTimestamp.ToString("MMM dd");
-        }
+
+        return timestamp.ToLocalTime().ToString("MMM dd");
     }
 
     /// <summary>

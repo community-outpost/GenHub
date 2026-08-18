@@ -42,7 +42,7 @@ public class NativeClientManifestLaunchTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ManifestResolvedEntryPoint_LaunchesTheRealEngine()
+    public async Task ManifestResolvedEntryPoint_LaunchesTheRealEngineAsync()
     {
         var installDirectory = NativeClientFixture.Directory;
         if (installDirectory is null)

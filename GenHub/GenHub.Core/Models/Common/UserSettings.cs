@@ -267,7 +267,7 @@ public class UserSettings : ICloneable
     /// <returns>True if subscribed; otherwise, false.</returns>
     public bool IsSubscribedTo(string publisherId)
     {
-        return GetSubscription(publisherId)?.IsActive ?? false; // Default to not subscribed for safety
+        return GetSubscription(publisherId)?.IsActive == true; // Default to not subscribed for safety
     }
 
     /// <summary>
@@ -296,7 +296,7 @@ public class UserSettings : ICloneable
     {
         // Check new subscription system
         var subscription = GetSubscription(publisherId);
-        if (subscription != null && subscription.ShouldSkipVersion(version))
+        if (subscription?.ShouldSkipVersion(version) == true)
         {
             return true;
         }

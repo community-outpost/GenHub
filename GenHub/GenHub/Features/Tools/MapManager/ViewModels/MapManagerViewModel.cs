@@ -139,8 +139,8 @@ public partial class MapManagerViewModel : ObservableObject
         var source = SelectedTab == GameType.Generals ? GeneralsMaps : ZeroHourMaps;
         var filtered = string.IsNullOrWhiteSpace(SearchText)
             ? (IEnumerable<MapFile>)source
-            : source.Where(m => (m.DisplayName?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                                (m.DirectoryName?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ?? false));
+            : source.Where(m => m.DisplayName?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) == true ||
+                                m.DirectoryName?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) == true);
 
         // Replace the collection to avoid multiple notifications
         CurrentMaps = new ObservableCollection<MapFile>(filtered);
@@ -1008,8 +1008,10 @@ public partial class MapManagerViewModel : ObservableObject
             // Verify file existence
             _ = Task.Run(async () =>
             {
-                using var httpClient = new System.Net.Http.HttpClient();
-                httpClient.Timeout = TimeSpan.FromSeconds(5);
+                using var httpClient = new System.Net.Http.HttpClient
+                {
+                    Timeout = TimeSpan.FromSeconds(5),
+                };
 
                 foreach (var viewModel in UploadHistory)
                 {

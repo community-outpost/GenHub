@@ -339,7 +339,7 @@ public class SettingsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DeleteCasStorageCommand_ReportsGarbageCollectionIsDisabled()
+    public async Task DeleteCasStorageCommand_ReportsGarbageCollectionIsDisabledAsync()
     {
         // Arrange
         // Setup stats to return valid data so update method works

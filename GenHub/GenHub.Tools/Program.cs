@@ -11,8 +11,8 @@ internal static class Program
     /// Main entry point for the CSV Generation Utility.
     /// </summary>
     /// <param name="args">Command line arguments.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    private static async Task Main(string[] args)
+    /// <returns>A task representing the asynchronous operation with exit code.</returns>
+    private static async Task<int> Main(string[] args)
     {
         using var loggerFactory = LoggerFactory.Create(builder =>
         {
@@ -29,7 +29,7 @@ internal static class Program
                 logger.LogInformation("Usage: GenHub.Tools --installDir <path> --gameType <Generals|ZeroHour> --version <v> --output <file> [--language <code>]");
                 logger.LogInformation("  Default for --language: EN");
                 logger.LogInformation("Example: GenHub.Tools --installDir C:\\Games\\Generals --gameType Generals --version 1.08 --output docs/GameInstallationFilesRegistry/Generals-1.08.csv --language EN");
-                return;
+                return 0;
             }
 
             var arguments = ParseArguments(args);
@@ -47,11 +47,12 @@ internal static class Program
             await generator.GenerateCsvFileAsync();
 
             logger.LogInformation("CSV Generation Utility completed successfully");
+            return 0;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "CSV Generation Utility failed");
-            Environment.Exit(1);
+            return 1;
         }
     }
 
@@ -80,16 +81,9 @@ internal static class Program
             }
         }
 
-        if (!arguments.ContainsKey("language"))
-        {
-            arguments["language"] = "EN";
-        }
-
-        // make sure language code is uppercase
-        else
-        {
-            arguments["language"] = arguments["language"].ToUpperInvariant();
-        }
+        arguments["language"] = arguments.TryGetValue("language", out var lang)
+            ? lang.ToUpperInvariant()
+            : "EN";
 
         return arguments;
     }

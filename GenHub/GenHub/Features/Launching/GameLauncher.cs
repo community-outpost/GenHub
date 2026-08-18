@@ -771,7 +771,7 @@ public class GameLauncher(
                 progress,
                 cancellationToken);
 
-            if (!workspaceSetupResult.Success || workspaceSetupResult.Data.Workspace == null)
+            if (!workspaceSetupResult.Success)
             {
                 await launchRegistry.UnregisterLaunchAsync(launchId);
                 return LaunchOperationResult<GameLaunchInfo>.CreateFailure(workspaceSetupResult.FirstError ?? "Workspace preparation failed", launchId, profile.Id);
@@ -779,6 +779,14 @@ public class GameLauncher(
 
             var (workspaceInfo, acquiredLock) = workspaceSetupResult.Data;
             steamInstallationLock = acquiredLock;
+
+            if (workspaceInfo == null)
+            {
+                steamInstallationLock?.Dispose();
+                steamInstallationLock = null;
+                await launchRegistry.UnregisterLaunchAsync(launchId);
+                return LaunchOperationResult<GameLaunchInfo>.CreateFailure("Workspace preparation returned null workspace info", launchId, profile.Id);
+            }
 
             progress?.Report(new LaunchProgress { Phase = LaunchPhase.PreparingUserData, PercentComplete = 82 });
             TriggerBackgroundUserDataSwitch(profile, manifests, skipUserDataCleanup);
@@ -866,7 +874,7 @@ public class GameLauncher(
         }
     }
 
-    private async Task<OperationResult<(WorkspaceInfo Workspace, IDisposable? Lock)>> SetupAndAcquireWorkspaceAsync(
+    private async Task<OperationResult<(WorkspaceInfo, IDisposable?)>> SetupAndAcquireWorkspaceAsync(
         GameProfile profile,
         List<ContentManifest> manifests,
         GenHub.Core.Models.GameClients.GameClient gameClient,
@@ -878,32 +886,43 @@ public class GameLauncher(
         CancellationToken cancellationToken)
     {
         IDisposable? steamInstallationLock = null;
-        if (isSteamLaunch)
+        try
         {
-            steamInstallationLock = await AcquireSteamInstallationLockAsync(actualInstallationPath, cancellationToken);
-            logger.LogInformation("[GameLauncher] Steam launch detected - workspace will be adjacent to installation in .genhub-workspace directory");
+            if (isSteamLaunch)
+            {
+                steamInstallationLock = await AcquireSteamInstallationLockAsync(actualInstallationPath, cancellationToken);
+                logger.LogInformation("[GameLauncher] Steam launch detected - workspace will be adjacent to installation in .genhub-workspace directory");
+            }
+
+            logger.LogDebug("[GameLauncher] Using dynamic workspace path: {WorkspacePath} (Installation: {InstallPath})", dynamicWorkspacePath, actualInstallationPath);
+
+            var workspaceResult = await PrepareWorkspaceForLaunchAsync(
+                profile,
+                manifests,
+                gameClient,
+                actualInstallationPath,
+                dynamicWorkspacePath,
+                isSteamLaunch,
+                manifestSourcePaths,
+                progress,
+                cancellationToken);
+
+            if (!workspaceResult.Success || workspaceResult.Data == null)
+            {
+                steamInstallationLock?.Dispose();
+                steamInstallationLock = null;
+                return OperationResult<(WorkspaceInfo, IDisposable?)>.CreateFailure(workspaceResult.FirstError ?? "Workspace preparation failed");
+            }
+
+            var lockToReturn = steamInstallationLock;
+            steamInstallationLock = null; // ownership transferred to caller
+            return OperationResult<(WorkspaceInfo, IDisposable?)>.CreateSuccess((workspaceResult.Data, lockToReturn));
         }
-
-        logger.LogDebug("[GameLauncher] Using dynamic workspace path: {WorkspacePath} (Installation: {InstallPath})", dynamicWorkspacePath, actualInstallationPath);
-
-        var workspaceResult = await PrepareWorkspaceForLaunchAsync(
-            profile,
-            manifests,
-            gameClient,
-            actualInstallationPath,
-            dynamicWorkspacePath,
-            isSteamLaunch,
-            manifestSourcePaths,
-            progress,
-            cancellationToken);
-
-        if (!workspaceResult.Success || workspaceResult.Data == null)
+        catch (Exception)
         {
             steamInstallationLock?.Dispose();
-            return OperationResult<(WorkspaceInfo, IDisposable?)>.CreateFailure(workspaceResult.FirstError ?? "Workspace preparation failed");
+            throw;
         }
-
-        return OperationResult<(WorkspaceInfo, IDisposable?)>.CreateSuccess((workspaceResult.Data, steamInstallationLock));
     }
 
     private async Task<OperationResult<(GameLaunchConfiguration LaunchConfig, SteamLaunchPrepResult? SteamPrep, string? SteamAppId)>> PrepareLaunchConfigurationAndProxyAsync(

@@ -14,6 +14,15 @@ public static class GameProfileExtensions
     /// <returns>True if the profile has custom settings, false otherwise.</returns>
     public static bool HasCustomSettings(this GameProfile profile)
     {
+        return HasCustomVideoSettings(profile) ||
+               HasCustomAudioSettings(profile) ||
+               HasCustomTshSettings(profile) ||
+               HasCustomGeneralsOnlineSettings(profile) ||
+               HasCustomNetworkSettings(profile);
+    }
+
+    private static bool HasCustomVideoSettings(GameProfile profile)
+    {
         return profile.VideoResolutionWidth.HasValue ||
                profile.VideoResolutionHeight.HasValue ||
                profile.VideoWindowed.HasValue ||
@@ -31,14 +40,22 @@ public static class GameProfileExtensions
                profile.VideoRetaliation.HasValue ||
                profile.VideoDynamicLOD.HasValue ||
                profile.VideoMaxParticleCount.HasValue ||
-               profile.VideoAntiAliasing.HasValue ||
-               profile.AudioSoundVolume.HasValue ||
+               profile.VideoAntiAliasing.HasValue;
+    }
+
+    private static bool HasCustomAudioSettings(GameProfile profile)
+    {
+        return profile.AudioSoundVolume.HasValue ||
                profile.AudioThreeDSoundVolume.HasValue ||
                profile.AudioSpeechVolume.HasValue ||
                profile.AudioMusicVolume.HasValue ||
                profile.AudioEnabled.HasValue ||
-               profile.AudioNumSounds.HasValue ||
-               profile.TshArchiveReplays.HasValue ||
+               profile.AudioNumSounds.HasValue;
+    }
+
+    private static bool HasCustomTshSettings(GameProfile profile)
+    {
+        return profile.TshArchiveReplays.HasValue ||
                profile.TshShowMoneyPerMinute.HasValue ||
                profile.TshPlayerObserverEnabled.HasValue ||
                profile.TshSystemTimeFontSize.HasValue ||
@@ -51,8 +68,12 @@ public static class GameProfileExtensions
                profile.TshCursorCaptureEnabledInWindowedMenu.HasValue ||
                profile.TshScreenEdgeScrollEnabledInFullscreenApp.HasValue ||
                profile.TshScreenEdgeScrollEnabledInWindowedApp.HasValue ||
-               profile.TshMoneyTransactionVolume.HasValue ||
-               profile.GoShowFps.HasValue ||
+               profile.TshMoneyTransactionVolume.HasValue;
+    }
+
+    private static bool HasCustomGeneralsOnlineSettings(GameProfile profile)
+    {
+        return profile.GoShowFps.HasValue ||
                profile.GoShowPing.HasValue ||
                profile.GoAutoLogin.HasValue ||
                profile.GoRememberUsername.HasValue ||
@@ -75,7 +96,11 @@ public static class GameProfileExtensions
                profile.GoSocialNotificationPlayerAcceptsRequestGameplay.HasValue ||
                profile.GoSocialNotificationPlayerAcceptsRequestMenus.HasValue ||
                profile.GoSocialNotificationPlayerSendsRequestGameplay.HasValue ||
-               profile.GoSocialNotificationPlayerSendsRequestMenus.HasValue ||
-               !string.IsNullOrEmpty(profile.GameSpyIPAddress);
+               profile.GoSocialNotificationPlayerSendsRequestMenus.HasValue;
+    }
+
+    private static bool HasCustomNetworkSettings(GameProfile profile)
+    {
+        return !string.IsNullOrEmpty(profile.GameSpyIPAddress);
     }
 }

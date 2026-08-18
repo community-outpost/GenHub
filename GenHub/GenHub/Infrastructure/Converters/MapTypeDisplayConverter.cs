@@ -66,6 +66,6 @@ public class MapTypeDisplayConverter : IValueConverter
     /// <returns>Throws NotImplementedException.</returns>
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        throw new NotImplementedException();
+        throw new NotSupportedException();
     }
 }

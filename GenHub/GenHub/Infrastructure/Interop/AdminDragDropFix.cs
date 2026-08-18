@@ -73,9 +73,11 @@ public static partial class AdminDragDropFix
     private static IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong)
     {
         if (IntPtr.Size == 8)
+        {
             return SetWindowLongPtr64(hWnd, nIndex, dwNewLong);
-        else
-            return new IntPtr(SetWindowLong32(hWnd, nIndex, dwNewLong.ToInt32()));
+        }
+
+        return new IntPtr(SetWindowLong32(hWnd, nIndex, dwNewLong.ToInt32()));
     }
 
     private delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
@@ -119,14 +121,12 @@ public static partial class AdminDragDropFix
         private IntPtr WndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
         {
             // Log all drag-and-drop related messages for diagnostics
-            if (DiagnosticsEnabled)
+            if (DiagnosticsEnabled &&
+                (msg == WM_DROPFILES || msg == WM_COPYDATA || msg == WM_COPYGLOBALDATA ||
+                 msg == WM_GETOBJECT || msg == WM_DRAWCLIPBOARD || msg == WM_CHANGECBCHAIN ||
+                 (msg >= WM_DDE_FIRST && msg <= WM_DDE_LAST)))
             {
-                if (msg == WM_DROPFILES || msg == WM_COPYDATA || msg == WM_COPYGLOBALDATA ||
-                    msg == WM_GETOBJECT || msg == WM_DRAWCLIPBOARD || msg == WM_CHANGECBCHAIN ||
-                    (msg >= WM_DDE_FIRST && msg <= WM_DDE_LAST))
-                {
-                    Debug.WriteLine($"[AdminDragDropFix] Received message: 0x{msg:X4} ({GetMessageName(msg)})");
-                }
+                Debug.WriteLine($"[AdminDragDropFix] Received message: 0x{msg:X4} ({GetMessageName(msg)})");
             }
 
             if (msg == WM_DROPFILES)
@@ -299,17 +299,14 @@ public static partial class AdminDragDropFix
         }
 
         // Install WndProc hook if callback provided
-        if (onDrop != null)
+        if (onDrop != null && !_hooks.TryGetValue(window, out _))
         {
-            if (!_hooks.TryGetValue(window, out _))
-            {
-                var hook = new DragDropHook(hwnd, onDrop);
-                _hooks.Add(window, hook);
+            var hook = new DragDropHook(hwnd, onDrop);
+            _hooks.Add(window, hook);
 
-                if (DiagnosticsEnabled)
-                {
-                    Debug.WriteLine("[AdminDragDropFix] WndProc hook registered");
-                }
+            if (DiagnosticsEnabled)
+            {
+                Debug.WriteLine("[AdminDragDropFix] WndProc hook registered");
             }
         }
 

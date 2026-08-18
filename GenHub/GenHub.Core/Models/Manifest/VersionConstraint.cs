@@ -10,8 +10,8 @@ namespace GenHub.Core.Models.Manifest;
 /// </summary>
 public partial class VersionConstraint
 {
-    private static readonly string[] OrSeparators = new[] { "||" };
-    private static readonly char[] SpaceSeparators = new[] { ' ' };
+    private static readonly string[] OrSeparators = ["||"];
+    private static readonly char[] SpaceSeparators = [' '];
 
     /// <summary>
     /// Gets or sets the minimum version required (inclusive by default).

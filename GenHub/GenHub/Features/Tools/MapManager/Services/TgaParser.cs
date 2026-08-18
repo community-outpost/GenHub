@@ -271,18 +271,9 @@ public class TgaParser(ILogger<TgaParser> logger)
         // Origin flag (bit 5 of image descriptor): 0 = bottom-left, 1 = top-left
         bool topToBottom = (imageDescriptor & 0x20) != 0;
 
-        byte[]? pixelData;
-
-        if (imageType == 2)
-        {
-            // Uncompressed
-            pixelData = DecodeUncompressed(data, headerEnd, width, height, bytesPerPixel);
-        }
-        else
-        {
-            // RLE compressed
-            pixelData = DecodeRle(data, headerEnd, width, height, bytesPerPixel);
-        }
+        var pixelData = imageType == 2
+            ? DecodeUncompressed(data, headerEnd, width, height, bytesPerPixel)
+            : DecodeRle(data, headerEnd, width, height, bytesPerPixel);
 
         if (pixelData == null)
         {

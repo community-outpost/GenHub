@@ -162,22 +162,18 @@ public static partial class GameVersionHelper
             || qfeDigits.Length == 0
             || !qfeDigits.All(character => character is >= '0' and <= '9')
             || !int.TryParse(qfeDigits, NumberStyles.None, CultureInfo.InvariantCulture, out var qfe)
-            || !int.TryParse(datePart[0..2], NumberStyles.None, CultureInfo.InvariantCulture, out var month)
-            || !int.TryParse(datePart[2..4], NumberStyles.None, CultureInfo.InvariantCulture, out var day)
-            || !int.TryParse(datePart[4..6], NumberStyles.None, CultureInfo.InvariantCulture, out var twoDigitYear))
+            || !DateOnly.TryParseExact(datePart, "MMddyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
         {
             return ExtractVersionFromVersionString(version);
         }
 
         try
         {
-            _ = new DateTime(2000 + twoDigitYear, month, day);
+            var month = date.Month;
+            var day = date.Day;
+            var twoDigitYear = date.Year % 100;
             var mmddyy = (month * 10000) + (day * 100) + twoDigitYear;
             return checked((mmddyy * 10) + qfe);
-        }
-        catch (ArgumentOutOfRangeException)
-        {
-            return ExtractVersionFromVersionString(version);
         }
         catch (OverflowException)
         {

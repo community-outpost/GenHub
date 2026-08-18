@@ -718,6 +718,29 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
 
         _logger.LogInformation("Loading settings from profile {ProfileId}", _currentProfileId);
 
+        LoadVideoAudioSettingsFromProfile(profile);
+        LoadTshSettingsFromProfile(profile);
+        LoadGeneralsOnlineSettingsFromProfile(profile);
+
+        if (profile.GameSpyIPAddress != null) GameSpyIPAddress = profile.GameSpyIPAddress;
+
+        // Update selected preset if it matches
+        var currentRes = $"{ResolutionWidth}x{ResolutionHeight}";
+        SelectedResolutionPreset = ResolutionPresets.Contains(currentRes) ? currentRes : null;
+
+        var gameType = profile.GameClient?.GameType;
+        StatusMessage = gameType != null
+            ? $"Loaded profile settings for {gameType}"
+            : "Loaded profile settings (no game client configured)";
+        _logger.LogInformation(
+            "Loaded profile settings - Windowed={Windowed}, Resolution={Width}x{Height}",
+            Windowed,
+            ResolutionWidth,
+            ResolutionHeight);
+    }
+
+    private void LoadVideoAudioSettingsFromProfile(Core.Models.GameProfile.GameProfile profile)
+    {
         if (profile.VideoResolutionWidth.HasValue) ResolutionWidth = profile.VideoResolutionWidth.Value;
         if (profile.VideoResolutionHeight.HasValue) ResolutionHeight = profile.VideoResolutionHeight.Value;
         if (profile.VideoWindowed.HasValue) Windowed = profile.VideoWindowed.Value;
@@ -757,8 +780,10 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         if (profile.AudioMusicVolume.HasValue) MusicVolume = profile.AudioMusicVolume.Value;
         if (profile.AudioEnabled.HasValue) AudioEnabled = profile.AudioEnabled.Value;
         if (profile.AudioNumSounds.HasValue) NumSounds = profile.AudioNumSounds.Value;
+    }
 
-        // TheSuperHackers settings
+    private void LoadTshSettingsFromProfile(Core.Models.GameProfile.GameProfile profile)
+    {
         if (profile.TshArchiveReplays.HasValue) TshArchiveReplays = profile.TshArchiveReplays.Value;
         if (profile.TshShowMoneyPerMinute.HasValue) TshShowMoneyPerMinute = profile.TshShowMoneyPerMinute.Value;
         if (profile.TshPlayerObserverEnabled.HasValue) TshPlayerObserverEnabled = profile.TshPlayerObserverEnabled.Value;
@@ -773,8 +798,10 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         if (profile.TshScreenEdgeScrollEnabledInFullscreenApp.HasValue) TshScreenEdgeScrollEnabledInFullscreenApp = profile.TshScreenEdgeScrollEnabledInFullscreenApp.Value;
         if (profile.TshScreenEdgeScrollEnabledInWindowedApp.HasValue) TshScreenEdgeScrollEnabledInWindowedApp = profile.TshScreenEdgeScrollEnabledInWindowedApp.Value;
         if (profile.TshMoneyTransactionVolume.HasValue) TshMoneyTransactionVolume = profile.TshMoneyTransactionVolume.Value;
+    }
 
-        // GeneralsOnline settings
+    private void LoadGeneralsOnlineSettingsFromProfile(Core.Models.GameProfile.GameProfile profile)
+    {
         if (profile.GoShowFps.HasValue) GoShowFps = profile.GoShowFps.Value;
         if (profile.GoShowPing.HasValue) GoShowPing = profile.GoShowPing.Value;
         if (profile.GoShowPlayerRanks.HasValue) GoShowPlayerRanks = profile.GoShowPlayerRanks.Value;
@@ -809,22 +836,6 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         if (profile.GoSocialNotificationPlayerAcceptsRequestMenus.HasValue) GoSocialNotificationPlayerAcceptsRequestMenus = profile.GoSocialNotificationPlayerAcceptsRequestMenus.Value;
         if (profile.GoSocialNotificationPlayerSendsRequestGameplay.HasValue) GoSocialNotificationPlayerSendsRequestGameplay = profile.GoSocialNotificationPlayerSendsRequestGameplay.Value;
         if (profile.GoSocialNotificationPlayerSendsRequestMenus.HasValue) GoSocialNotificationPlayerSendsRequestMenus = profile.GoSocialNotificationPlayerSendsRequestMenus.Value;
-
-        if (profile.GameSpyIPAddress != null) GameSpyIPAddress = profile.GameSpyIPAddress;
-
-        // Update selected preset if it matches
-        var currentRes = $"{ResolutionWidth}x{ResolutionHeight}";
-        SelectedResolutionPreset = ResolutionPresets.Contains(currentRes) ? currentRes : null;
-
-        var gameType = profile.GameClient?.GameType;
-        StatusMessage = gameType != null
-            ? $"Loaded profile settings for {gameType}"
-            : "Loaded profile settings (no game client configured)";
-        _logger.LogInformation(
-            "Loaded profile settings - Windowed={Windowed}, Resolution={Width}x{Height}",
-            Windowed,
-            ResolutionWidth,
-            ResolutionHeight);
     }
 
     /// <summary>
@@ -975,63 +986,9 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         BuildingOcclusion = options.Video.BuildingOcclusion;
         ShowProps = options.Video.ShowProps;
 
-        // Load GenHub custom properties
-        if (options.Video.AdditionalProperties.TryGetValue("GenHubParticleEffects", out var particleEffects))
-            ParticleEffects = ParseBool(particleEffects);
-        if (options.Video.AdditionalProperties.TryGetValue("GenHubBuildingAnimations", out var buildingAnimations))
-            BuildingAnimations = ParseBool(buildingAnimations);
-
-        // Load additional video settings
-        if (options.Video.AdditionalProperties.TryGetValue("StaticGameLOD", out var staticLOD))
-            StaticGameLOD = staticLOD;
-        if (options.Video.AdditionalProperties.TryGetValue("IdealStaticGameLOD", out var idealLOD))
-            IdealStaticGameLOD = idealLOD;
-
-        // Graphics Settings
-        if (options.Video.AdditionalProperties.TryGetValue("ShowSoftWaterEdge", out var swe)) ShowSoftWaterEdge = ParseBool(swe);
-        if (options.Video.AdditionalProperties.TryGetValue("ShowTrees", out var st)) ShowTrees = ParseBool(st);
-        if (options.Video.AdditionalProperties.TryGetValue("UseCloudMap", out var ucm)) UseCloudMap = ParseBool(ucm);
-        if (options.Video.AdditionalProperties.TryGetValue("UseLightMap", out var ulm)) UseLightMap = ParseBool(ulm);
-
-        // Control/Misc Settings
-        if (options.Video.AdditionalProperties.TryGetValue("DrawScrollAnchor", out var draws)) DrawScrollAnchor = ParseBool(draws);
-        if (options.Video.AdditionalProperties.TryGetValue("MoveScrollAnchor", out var moves)) MoveScrollAnchor = ParseBool(moves);
-        if (options.Video.AdditionalProperties.TryGetValue("GameTimeFontSize", out var gtfs) && int.TryParse(gtfs, out var gtfsVal)) GameTimeFontSize = gtfsVal;
-        if (options.Video.AdditionalProperties.TryGetValue("LanguageFilter", out var lf)) LanguageFilter = ParseBool(lf);
-        if (options.Video.AdditionalProperties.TryGetValue("SendDelay", out var sd)) SendDelay = ParseBool(sd);
-        if (options.Video.AdditionalProperties.TryGetValue("SkipEALogo", out var sel)) SkipEALogo = ParseBool(sel);
-
+        ApplyVideoAdditionalProperties(options);
         AntiAliasing = options.Video.AntiAliasing;
-
-        // Load TSH-specific settings from the [TheSuperHackers] section
-        if (options.AdditionalSections.TryGetValue("TheSuperHackers", out var tsh))
-        {
-            if (tsh.TryGetValue("UseDoubleClickAttackMove", out var doubleClick))
-                UseDoubleClickAttackMove = ParseBool(doubleClick);
-            if (tsh.TryGetValue("ScrollFactor", out var scroll) && int.TryParse(scroll, out var scrollVal))
-                ScrollFactor = scrollVal;
-            if (tsh.TryGetValue("Retaliation", out var retaliation))
-                Retaliation = ParseBool(retaliation);
-            if (tsh.TryGetValue("DynamicLOD", out var dynLOD))
-                DynamicLOD = ParseBool(dynLOD);
-            if (tsh.TryGetValue("MaxParticleCount", out var particles) && int.TryParse(particles, out var particleVal))
-                MaxParticleCount = particleVal;
-
-            if (tsh.TryGetValue("ArchiveReplays", out var ar)) TshArchiveReplays = ParseBool(ar);
-            if (tsh.TryGetValue("ShowMoneyPerMinute", out var smpm)) TshShowMoneyPerMinute = ParseBool(smpm);
-            if (tsh.TryGetValue("PlayerObserverEnabled", out var poe)) TshPlayerObserverEnabled = ParseBool(poe);
-            if (tsh.TryGetValue("SystemTimeFontSize", out var stfs) && int.TryParse(stfs, out var stfsVal)) TshSystemTimeFontSize = stfsVal;
-            if (tsh.TryGetValue("NetworkLatencyFontSize", out var nlfs) && int.TryParse(nlfs, out var nlfsVal)) TshNetworkLatencyFontSize = nlfsVal;
-            if (tsh.TryGetValue("RenderFpsFontSize", out var rffs) && int.TryParse(rffs, out var rffsVal)) TshRenderFpsFontSize = rffsVal;
-            if (tsh.TryGetValue("ResolutionFontAdjustment", out var rfa) && int.TryParse(rfa, out var rfaVal)) TshResolutionFontAdjustment = rfaVal;
-            if (tsh.TryGetValue("CursorCaptureEnabledInFullscreenGame", out var ccefg)) TshCursorCaptureEnabledInFullscreenGame = ParseBool(ccefg);
-            if (tsh.TryGetValue("CursorCaptureEnabledInFullscreenMenu", out var ccefm)) TshCursorCaptureEnabledInFullscreenMenu = ParseBool(ccefm);
-            if (tsh.TryGetValue("CursorCaptureEnabledInWindowedGame", out var ccewg)) TshCursorCaptureEnabledInWindowedGame = ParseBool(ccewg);
-            if (tsh.TryGetValue("CursorCaptureEnabledInWindowedMenu", out var ccewm)) TshCursorCaptureEnabledInWindowedMenu = ParseBool(ccewm);
-            if (tsh.TryGetValue("ScreenEdgeScrollEnabledInFullscreenApp", out var sesefa)) TshScreenEdgeScrollEnabledInFullscreenApp = ParseBool(sesefa);
-            if (tsh.TryGetValue("ScreenEdgeScrollEnabledInWindowedApp", out var sesewa)) TshScreenEdgeScrollEnabledInWindowedApp = ParseBool(sesewa);
-            if (tsh.TryGetValue("MoneyTransactionVolume", out var mtv) && int.TryParse(mtv, out var mtvVal)) TshMoneyTransactionVolume = mtvVal;
-        }
+        ApplyTshAdditionalProperties(options);
 
         ExtraAnimations = options.Video.ExtraAnimations;
         Gamma = options.Video.Gamma;
@@ -1043,6 +1000,65 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         // Update selected preset if it matches
         var currentRes = $"{ResolutionWidth}x{ResolutionHeight}";
         SelectedResolutionPreset = ResolutionPresets.Contains(currentRes) ? currentRes : null;
+    }
+
+    private void ApplyVideoAdditionalProperties(IniOptions options)
+    {
+        if (options.Video.AdditionalProperties.TryGetValue("GenHubParticleEffects", out var particleEffects))
+            ParticleEffects = ParseBool(particleEffects);
+        if (options.Video.AdditionalProperties.TryGetValue("GenHubBuildingAnimations", out var buildingAnimations))
+            BuildingAnimations = ParseBool(buildingAnimations);
+
+        if (options.Video.AdditionalProperties.TryGetValue("StaticGameLOD", out var staticLOD))
+            StaticGameLOD = staticLOD;
+        if (options.Video.AdditionalProperties.TryGetValue("IdealStaticGameLOD", out var idealLOD))
+            IdealStaticGameLOD = idealLOD;
+
+        if (options.Video.AdditionalProperties.TryGetValue("ShowSoftWaterEdge", out var swe)) ShowSoftWaterEdge = ParseBool(swe);
+        if (options.Video.AdditionalProperties.TryGetValue("ShowTrees", out var st)) ShowTrees = ParseBool(st);
+        if (options.Video.AdditionalProperties.TryGetValue("UseCloudMap", out var ucm)) UseCloudMap = ParseBool(ucm);
+        if (options.Video.AdditionalProperties.TryGetValue("UseLightMap", out var ulm)) UseLightMap = ParseBool(ulm);
+
+        if (options.Video.AdditionalProperties.TryGetValue("DrawScrollAnchor", out var draws)) DrawScrollAnchor = ParseBool(draws);
+        if (options.Video.AdditionalProperties.TryGetValue("MoveScrollAnchor", out var moves)) MoveScrollAnchor = ParseBool(moves);
+        if (options.Video.AdditionalProperties.TryGetValue("GameTimeFontSize", out var gtfs) && int.TryParse(gtfs, out var gtfsVal)) GameTimeFontSize = gtfsVal;
+        if (options.Video.AdditionalProperties.TryGetValue("LanguageFilter", out var lf)) LanguageFilter = ParseBool(lf);
+        if (options.Video.AdditionalProperties.TryGetValue("SendDelay", out var sd)) SendDelay = ParseBool(sd);
+        if (options.Video.AdditionalProperties.TryGetValue("SkipEALogo", out var sel)) SkipEALogo = ParseBool(sel);
+    }
+
+    private void ApplyTshAdditionalProperties(IniOptions options)
+    {
+        if (!options.AdditionalSections.TryGetValue("TheSuperHackers", out var tsh))
+        {
+            return;
+        }
+
+        if (tsh.TryGetValue("UseDoubleClickAttackMove", out var doubleClick))
+            UseDoubleClickAttackMove = ParseBool(doubleClick);
+        if (tsh.TryGetValue("ScrollFactor", out var scroll) && int.TryParse(scroll, out var scrollVal))
+            ScrollFactor = scrollVal;
+        if (tsh.TryGetValue("Retaliation", out var retaliation))
+            Retaliation = ParseBool(retaliation);
+        if (tsh.TryGetValue("DynamicLOD", out var dynLOD))
+            DynamicLOD = ParseBool(dynLOD);
+        if (tsh.TryGetValue("MaxParticleCount", out var particles) && int.TryParse(particles, out var particleVal))
+            MaxParticleCount = particleVal;
+
+        if (tsh.TryGetValue("ArchiveReplays", out var ar)) TshArchiveReplays = ParseBool(ar);
+        if (tsh.TryGetValue("ShowMoneyPerMinute", out var smpm)) TshShowMoneyPerMinute = ParseBool(smpm);
+        if (tsh.TryGetValue("PlayerObserverEnabled", out var poe)) TshPlayerObserverEnabled = ParseBool(poe);
+        if (tsh.TryGetValue("SystemTimeFontSize", out var stfs) && int.TryParse(stfs, out var stfsVal)) TshSystemTimeFontSize = stfsVal;
+        if (tsh.TryGetValue("NetworkLatencyFontSize", out var nlfs) && int.TryParse(nlfs, out var nlfsVal)) TshNetworkLatencyFontSize = nlfsVal;
+        if (tsh.TryGetValue("RenderFpsFontSize", out var rffs) && int.TryParse(rffs, out var rffsVal)) TshRenderFpsFontSize = rffsVal;
+        if (tsh.TryGetValue("ResolutionFontAdjustment", out var rfa) && int.TryParse(rfa, out var rfaVal)) TshResolutionFontAdjustment = rfaVal;
+        if (tsh.TryGetValue("CursorCaptureEnabledInFullscreenGame", out var ccefg)) TshCursorCaptureEnabledInFullscreenGame = ParseBool(ccefg);
+        if (tsh.TryGetValue("CursorCaptureEnabledInFullscreenMenu", out var ccefm)) TshCursorCaptureEnabledInFullscreenMenu = ParseBool(ccefm);
+        if (tsh.TryGetValue("CursorCaptureEnabledInWindowedGame", out var ccewg)) TshCursorCaptureEnabledInWindowedGame = ParseBool(ccewg);
+        if (tsh.TryGetValue("CursorCaptureEnabledInWindowedMenu", out var ccewm)) TshCursorCaptureEnabledInWindowedMenu = ParseBool(ccewm);
+        if (tsh.TryGetValue("ScreenEdgeScrollEnabledInFullscreenApp", out var sesefa)) TshScreenEdgeScrollEnabledInFullscreenApp = ParseBool(sesefa);
+        if (tsh.TryGetValue("ScreenEdgeScrollEnabledInWindowedApp", out var sesewa)) TshScreenEdgeScrollEnabledInWindowedApp = ParseBool(sesewa);
+        if (tsh.TryGetValue("MoneyTransactionVolume", out var mtv) && int.TryParse(mtv, out var mtvVal)) TshMoneyTransactionVolume = mtvVal;
     }
 
     private IniOptions CreateOptionsFromViewModel()

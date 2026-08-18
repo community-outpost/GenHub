@@ -79,7 +79,7 @@ public class WorkspaceSyncTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task PrepareWorkspace_SwitchingContent_ShouldSyncCorrectly()
+    public async Task PrepareWorkspace_SwitchingContent_ShouldSyncCorrectlyAsync()
     {
         // Arrange
         var profileId = "profile-1";

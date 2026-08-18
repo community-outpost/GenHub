@@ -37,6 +37,6 @@ public class BoolToExpandTextConverter : IValueConverter
     /// <returns>The converted value.</returns>
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        throw new NotImplementedException();
+        throw new NotSupportedException();
     }
 }

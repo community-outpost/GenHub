@@ -48,13 +48,10 @@ public class GeneralsOnlinePatchNotesService(IHttpClientFactory httpClientFactor
                 patchNote.Summary = summaryElement?.TextContent.Trim() ?? string.Empty;
                 patchNote.DetailsUrl = titleElement?.GetAttribute("href") ?? string.Empty;
 
-                if (!string.IsNullOrEmpty(patchNote.DetailsUrl))
+                if (!string.IsNullOrEmpty(patchNote.DetailsUrl) && !patchNote.DetailsUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!patchNote.DetailsUrl.StartsWith("http"))
-                    {
-                        patchNote.Id = patchNote.DetailsUrl.Split('/').LastOrDefault() ?? string.Empty;
-                        patchNote.DetailsUrl = BaseUrl + patchNote.DetailsUrl;
-                    }
+                    patchNote.Id = patchNote.DetailsUrl.Split('/').LastOrDefault() ?? string.Empty;
+                    patchNote.DetailsUrl = BaseUrl + patchNote.DetailsUrl;
                 }
 
                 patchNotes.Add(patchNote);

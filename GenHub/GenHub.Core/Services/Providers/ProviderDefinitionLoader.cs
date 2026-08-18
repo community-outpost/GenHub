@@ -141,7 +141,18 @@ public class ProviderDefinitionLoader : IProviderDefinitionLoader
             this.EnsureProvidersLoaded();
         }
 
-        return this.providers.TryGetValue(providerId, out var provider) ? provider : null;
+        if (this.providers.TryGetValue(providerId, out var provider))
+        {
+            return provider;
+        }
+
+        var normalized = providerId.Replace("-", string.Empty);
+        if (this.providers.TryGetValue(normalized, out provider))
+        {
+            return provider;
+        }
+
+        return null;
     }
 
     /// <inheritdoc/>

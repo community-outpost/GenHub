@@ -198,7 +198,7 @@ public class InstallationPathResolver(
             installation.InstallationType);
 
         return OperationResult<string>.CreateFailure(
-            $"Installation not found in common locations");
+            "Installation not found in common locations");
     }
 
     private static List<string> GetSearchPaths(GameInstallationType installationType)

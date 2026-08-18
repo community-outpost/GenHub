@@ -363,10 +363,15 @@ public class CasReferenceTracker(
         {
             throw;
         }
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+        {
+            _logger.LogDebug(ex, "Reference file {RefFile} was deleted concurrently during scan", refFile);
+            return references;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to read references from {RefFile}", refFile);
-            throw; // Fail closed: if we can't read refs, we shouldn't assume empty and risk GCing live data
+            throw; // Fail closed: if we can't read refs due to corruption, we shouldn't assume empty and risk GCing live data
         }
 
         return references;

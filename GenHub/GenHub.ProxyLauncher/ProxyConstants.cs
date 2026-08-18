@@ -16,9 +16,9 @@ internal static class ProxyConstants
     public const string LogFileName = "genhub_proxy.log";
 
     /// <summary>
-    /// The name of the mutex used to ensure a single instance.
+    /// Prefix for the per-installation mutex.
     /// </summary>
-    public const string SingleInstanceMutexName = "GenHubProxyLauncher_SingleInstance";
+    public const string MutexPrefix = "GenHubProxyLauncher_";
 
     /// <summary>
     /// Delay in milliseconds to wait for the launcher to spawn the game process.

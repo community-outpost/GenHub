@@ -149,24 +149,22 @@ public class MarkdownTextBlock : UserControl
 
                     linkText.PointerPressed += (s, e) =>
                     {
-                        if (!string.IsNullOrEmpty(link.Url))
+                        // Only allow http/https URLs for security
+                        if (!string.IsNullOrEmpty(link.Url) &&
+                            Uri.TryCreate(link.Url, UriKind.Absolute, out var uri) &&
+                            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
                         {
-                            // Only allow http/https URLs for security
-                            if (Uri.TryCreate(link.Url, UriKind.Absolute, out var uri) &&
-                                (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+                            try
                             {
-                                try
+                                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
                                 {
-                                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                                    {
-                                        FileName = link.Url,
-                                        UseShellExecute = true,
-                                    });
-                                }
-                                catch
-                                {
-                                    // Silently fail if link can't be opened
-                                }
+                                    FileName = link.Url,
+                                    UseShellExecute = true,
+                                });
+                            }
+                            catch
+                            {
+                                // Silently fail if link can't be opened
                             }
                         }
                     };

@@ -115,8 +115,8 @@ public class GeneralsOnlineDiscoverer(
             if (!string.IsNullOrWhiteSpace(query.SearchTerm))
             {
                 results = results.Where(r =>
-                    (r.Version?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                    (r.Name?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) ?? false));
+                    r.Version?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) == true ||
+                    r.Name?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) == true);
             }
 
             var list = results.ToList();

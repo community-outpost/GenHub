@@ -240,7 +240,7 @@ public class ManifestDiscoveryService(
             cancellationToken.ThrowIfCancellationRequested();
             var currentDirectory = pendingDirectories.Pop();
 
-            string[] files;
+            string[] files = [];
             try
             {
                 files = _enumerateFiles(currentDirectory, searchPattern).ToArray();
@@ -260,7 +260,7 @@ public class ManifestDiscoveryService(
                 yield return file;
             }
 
-            string[] childDirectories;
+            string[] childDirectories = [];
             try
             {
                 childDirectories = _enumerateDirectories(currentDirectory).ToArray();

@@ -200,53 +200,8 @@ public class GameProfileManager(
                 profile.Name = request.Name;
             }
 
-            profile.Description = request.Description ?? profile.Description;
-            profile.EnabledContentIds = request.EnabledContentIds ?? profile.EnabledContentIds ?? [];
-            profile.GameClient = request.GameClient ?? profile.GameClient;
-            profile.WorkspaceStrategy = request.WorkspaceStrategy ?? profile.WorkspaceStrategy;
-            profile.LaunchOptions = request.LaunchArguments ?? profile.LaunchOptions ?? [];
-            profile.CustomExecutablePath = request.CustomExecutablePath ?? profile.CustomExecutablePath;
-            profile.WorkingDirectory = request.WorkingDirectory ?? profile.WorkingDirectory;
-            profile.IconPath = request.IconPath ?? profile.IconPath;
-            profile.CoverPath = request.CoverPath ?? profile.CoverPath;
-            profile.ThemeColor = request.ThemeColor ?? profile.ThemeColor;
-            profile.GameInstallationId = request.GameInstallationId ?? profile.GameInstallationId;
-            profile.ToolContentId = request.ToolContentId ?? profile.ToolContentId;
-            profile.CommandLineArguments = request.CommandLineArguments ?? profile.CommandLineArguments;
-
-            // Detect if content changed and invalidate workspace if needed
-            bool contentChanged = false;
-            if (request.EnabledContentIds != null)
-            {
-                var newContentIds = request.EnabledContentIds.ToList();
-                contentChanged = !previousEnabledContentIds.SequenceEqual(newContentIds, StringComparer.OrdinalIgnoreCase);
-            }
-
-            if (request.GameClient != null)
-            {
-                var newGameClientId = request.GameClient.Id;
-                contentChanged = contentChanged || !string.Equals(previousGameClientId, newGameClientId, StringComparison.OrdinalIgnoreCase);
-            }
-
-            // If content changed, clear the ActiveWorkspaceId to force workspace rebuild on next launch
-            // This is critical - without this, the workspace will continue using the old content
-            if (contentChanged && !string.IsNullOrEmpty(profile.ActiveWorkspaceId))
-            {
-                logger.LogDebug(
-                    "Profile '{ProfileName}' content changed - clearing ActiveWorkspaceId '{WorkspaceId}' to force workspace rebuild on next launch",
-                    profile.Name,
-                    profile.ActiveWorkspaceId);
-                profile.ActiveWorkspaceId = string.Empty;
-            }
-
-            // Only update ActiveWorkspaceId if explicitly provided (not null)
-            // We allow empty strings because that's how we clear the active workspace to force a rebuild
-            if (request.ActiveWorkspaceId != null)
-            {
-                profile.ActiveWorkspaceId = request.ActiveWorkspaceId;
-            }
-
-            // Update game settings
+            ApplyUpdateRequestToProfile(profile, request);
+            CheckAndHandleContentChanges(profile, request, previousEnabledContentIds, previousGameClientId);
             GameSettingsMapper.UpdateFromRequest(profile, request);
 
             var saveResult = await profileRepository.SaveProfileAsync(profile, cancellationToken);
@@ -417,6 +372,57 @@ public class GameProfileManager(
         {
             // Don't fail profile creation if settings loading fails
             logger.LogWarning(ex, "Failed to load existing Options.ini for profile {ProfileName}, using defaults", profile.Name);
+        }
+    }
+
+    private static void ApplyUpdateRequestToProfile(GameProfile profile, UpdateProfileRequest request)
+    {
+        profile.Description = request.Description ?? profile.Description;
+        profile.EnabledContentIds = request.EnabledContentIds ?? profile.EnabledContentIds ?? [];
+        profile.GameClient = request.GameClient ?? profile.GameClient;
+        profile.WorkspaceStrategy = request.WorkspaceStrategy ?? profile.WorkspaceStrategy;
+        profile.LaunchOptions = request.LaunchArguments ?? profile.LaunchOptions ?? [];
+        profile.CustomExecutablePath = request.CustomExecutablePath ?? profile.CustomExecutablePath;
+        profile.WorkingDirectory = request.WorkingDirectory ?? profile.WorkingDirectory;
+        profile.IconPath = request.IconPath ?? profile.IconPath;
+        profile.CoverPath = request.CoverPath ?? profile.CoverPath;
+        profile.ThemeColor = request.ThemeColor ?? profile.ThemeColor;
+        profile.GameInstallationId = request.GameInstallationId ?? profile.GameInstallationId;
+        profile.ToolContentId = request.ToolContentId ?? profile.ToolContentId;
+        profile.CommandLineArguments = request.CommandLineArguments ?? profile.CommandLineArguments;
+
+        if (request.ActiveWorkspaceId != null)
+        {
+            profile.ActiveWorkspaceId = request.ActiveWorkspaceId;
+        }
+    }
+
+    private void CheckAndHandleContentChanges(
+        GameProfile profile,
+        UpdateProfileRequest request,
+        List<string> previousEnabledContentIds,
+        string? previousGameClientId)
+    {
+        bool contentChanged = false;
+        if (request.EnabledContentIds != null)
+        {
+            var newContentIds = request.EnabledContentIds.ToList();
+            contentChanged = !previousEnabledContentIds.SequenceEqual(newContentIds, StringComparer.OrdinalIgnoreCase);
+        }
+
+        if (request.GameClient != null)
+        {
+            var newGameClientId = request.GameClient.Id;
+            contentChanged = contentChanged || !string.Equals(previousGameClientId, newGameClientId, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (contentChanged && !string.IsNullOrEmpty(profile.ActiveWorkspaceId))
+        {
+            logger.LogDebug(
+                "Profile '{ProfileName}' content changed - clearing ActiveWorkspaceId '{WorkspaceId}' to force workspace rebuild on next launch",
+                profile.Name,
+                profile.ActiveWorkspaceId);
+            profile.ActiveWorkspaceId = string.Empty;
         }
     }
 }

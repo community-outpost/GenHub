@@ -42,17 +42,10 @@ public partial class InfoViewModel : ViewModelBase, IDisposable, IRecipient<Open
     /// <param name="sectionId">The ID of the section to open.</param>
     public void OpenSection(string sectionId)
     {
-        // 1. Check if it's a known GeneralsOnline section
-        if (sectionId.Equals("faq", StringComparison.OrdinalIgnoreCase) ||
-            sectionId.Equals("go-changelog", StringComparison.OrdinalIgnoreCase))
-        {
-            SelectedModule = "GeneralsOnline";
-        }
-        else
-        {
-            // Default to Guide for everything else
-            SelectedModule = "GenHub Guide";
-        }
+        SelectedModule = (sectionId.Equals("faq", StringComparison.OrdinalIgnoreCase) ||
+                          sectionId.Equals("go-changelog", StringComparison.OrdinalIgnoreCase))
+            ? "GeneralsOnline"
+            : "GenHub Guide";
 
         // 2. Force update sections context to ensure the list is populated for the target module
         // (SelectedModule setter calls UpdateSidebarItems, but we need to be sure before searching)
@@ -217,12 +210,9 @@ public partial class InfoViewModel : ViewModelBase, IDisposable, IRecipient<Open
 
     private void OnFaqSectionPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(FaqSectionViewModel.SelectedCategory))
+        if (e.PropertyName == nameof(FaqSectionViewModel.SelectedCategory) && sender is FaqSectionViewModel faqSection)
         {
-            if (sender is FaqSectionViewModel faqSection)
-            {
-                SelectedSidebarItem = faqSection.SelectedCategory;
-            }
+            SelectedSidebarItem = faqSection.SelectedCategory;
         }
     }
 

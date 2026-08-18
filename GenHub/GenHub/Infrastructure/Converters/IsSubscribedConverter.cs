@@ -29,7 +29,8 @@ public class IsSubscribedConverter : IMultiValueConverter
         {
             return subscribedPr?.Number == pr.Number;
         }
-        else if (item is string branchName)
+
+        if (item is string branchName)
         {
             return string.Equals(subscribedBranch, branchName, StringComparison.OrdinalIgnoreCase);
         }

@@ -38,11 +38,10 @@ public class Program
         // Create lockfile to guarantee that only one instance is running on linux
         var lockFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".genhub", "lock");
         Directory.CreateDirectory(Path.GetDirectoryName(lockFilePath)!);
+        FileStream? lockFile = null;
         try
         {
-            using var lockFile = new FileStream(lockFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
-
-            // If we get here, we have the lock
+            lockFile = new FileStream(lockFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
         }
         catch (IOException)
         {
@@ -50,7 +49,8 @@ public class Program
             return;
         }
 
-        using var bootstrapLoggerFactory = LoggingModule.CreateBootstrapLoggerFactory();
+        using (lockFile)
+        using (var bootstrapLoggerFactory = LoggingModule.CreateBootstrapLoggerFactory())
         var bootstrapLogger = bootstrapLoggerFactory.CreateLogger<Program>();
         try
         {

@@ -75,7 +75,7 @@ public class GitHubContentDelivererTests
     [InlineData(GenHub.Core.Models.Enums.ContentType.ModdingTool, true)]
     [InlineData(GenHub.Core.Models.Enums.ContentType.Executable, true)]
     [InlineData(GenHub.Core.Models.Enums.ContentType.MapPack, false)]
-    public Task DeliverContentAsync_ShouldExtractZip_ForMatchingContentTypes(GenHub.Core.Models.Enums.ContentType contentType, bool shouldExtract)
+    public Task DeliverContentAsync_ShouldExtractZip_ForMatchingContentTypesAsync(GenHub.Core.Models.Enums.ContentType contentType, bool shouldExtract)
     {
         // Dummy usage to satisfy xUnit analysis
         Assert.True(Enum.IsDefined(typeof(GenHub.Core.Models.Enums.ContentType), contentType));

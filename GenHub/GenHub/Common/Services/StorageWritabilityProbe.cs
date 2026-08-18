@@ -25,7 +25,7 @@ public class StorageWritabilityProbe(ILogger<StorageWritabilityProbe> logger) : 
             return false;
         }
 
-        string fullStoragePath;
+        string fullStoragePath = string.Empty;
 
         try
         {

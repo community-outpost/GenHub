@@ -122,7 +122,7 @@ public class MockUploadHistoryService : IUploadHistoryService
     public Task<UsageInfo> GetUsageInfoAsync()
     {
         // UsageInfo is a record struct with (UsedBytes, LimitBytes, ResetDate)
-        return Task.FromResult(new UsageInfo(1024 * 1024 * 5, 1024 * 1024 * 50, DateTime.Now.AddDays(1)));
+        return Task.FromResult(new UsageInfo(1024 * 1024 * 5, 1024 * 1024 * 50, DateTime.UtcNow.AddDays(1)));
     }
 
     /// <inheritdoc/>
@@ -179,7 +179,7 @@ public class MockReplayDirectoryService : IReplayDirectoryService
                 FileName = "Demo Replay 1.rep",
                 FullPath = "C:\\Mock\\Demo1.rep",
                 SizeInBytes = 1024 * 500,
-                LastModified = DateTime.Now.AddDays(-1),
+                LastModified = DateTime.UtcNow.AddDays(-1),
                 GameVersion = gameType, // Use requested type so it appears valid
             },
             new()
@@ -187,7 +187,7 @@ public class MockReplayDirectoryService : IReplayDirectoryService
                 FileName = "Pro Match vs AI.rep",
                 FullPath = "C:\\Mock\\Demo2.rep",
                 SizeInBytes = 1024 * 1200,
-                LastModified = DateTime.Now.AddHours(-5),
+                LastModified = DateTime.UtcNow.AddHours(-5),
                 GameVersion = gameType, // Use requested type so it appears valid
             },
         };
@@ -292,7 +292,7 @@ public class MockMapDirectoryService : IMapDirectoryService
                 GameType = GameType.ZeroHour,
                 IsDirectory = true,
                 SizeBytes = 250000,
-                LastModified = DateTime.Now,
+                LastModified = DateTime.UtcNow,
                 DirectoryName = "Tournament Desert",
                 AssetFiles = ["map.ini", "map.str", "map.tga"],
             },
@@ -304,7 +304,7 @@ public class MockMapDirectoryService : IMapDirectoryService
                 GameType = GameType.ZeroHour,
                 IsDirectory = false,
                 SizeBytes = 150000,
-                LastModified = DateTime.Now.AddDays(-10),
+                LastModified = DateTime.UtcNow.AddDays(-10),
                 DirectoryName = "Twilight Flame",
                 AssetFiles = ["map.ini", "map.str", "map.tga"],
             },
@@ -316,7 +316,7 @@ public class MockMapDirectoryService : IMapDirectoryService
                 GameType = GameType.Generals,
                 IsDirectory = true,
                 SizeBytes = 180000,
-                LastModified = DateTime.Now.AddDays(-5),
+                LastModified = DateTime.UtcNow.AddDays(-5),
                 DirectoryName = "Alpine Assault",
                 AssetFiles = ["map.ini", "map.str", "map.tga"],
             },
@@ -328,7 +328,7 @@ public class MockMapDirectoryService : IMapDirectoryService
                 GameType = GameType.Generals,
                 IsDirectory = false,
                 SizeBytes = 120000,
-                LastModified = DateTime.Now.AddDays(-20),
+                LastModified = DateTime.UtcNow.AddDays(-20),
                 DirectoryName = "Flash Fire",
                 AssetFiles = ["map.ini", "map.str", "map.tga"],
             },
@@ -729,6 +729,9 @@ public class MockProfileContentLoader : IProfileContentLoader
             case ContentType.ModdingTool:
                 list.Add(new ContentDisplayItem { Id = "wb", DisplayName = "World Builder", ContentType = ContentType.ModdingTool, GameType = GameType.ZeroHour, Publisher = "EA", Version = "1.0", ManifestId = ManifestId.Create("wb"), InstallationType = GameInstallationType.Unknown });
                 list.Add(new ContentDisplayItem { Id = "finalbig", DisplayName = "FinalBig", ContentType = ContentType.ModdingTool, GameType = GameType.ZeroHour, Publisher = "Community", Version = "0.4", ManifestId = ManifestId.Create("finalbig"), InstallationType = GameInstallationType.Unknown });
+                break;
+
+            default:
                 break;
         }
 

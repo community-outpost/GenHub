@@ -322,7 +322,7 @@ public class GameProfileSettingsViewModelDependencyTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task EnableContent_AutoSwitches_GameInstallation_When_Dependency_Requires_Different_Type()
+    public async Task EnableContent_AutoSwitches_GameInstallation_When_Dependency_Requires_Different_TypeAsync()
     {
         // Arrange
         var modManifestId = new ManifestId("1.0.0.mod.generalsonline");
@@ -405,7 +405,7 @@ public class GameProfileSettingsViewModelDependencyTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task EnableContent_AutoSwitches_Installation_For_Standard_GameClient_Missing_Manifest()
+    public async Task EnableContent_AutoSwitches_Installation_For_Standard_GameClient_Missing_ManifestAsync()
     {
         // Arrange
         var standardClientId = new ManifestId("1.04.eaapp.gameclient.zerohour");
@@ -475,7 +475,7 @@ public class GameProfileSettingsViewModelDependencyTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task EnableContent_AutoEnables_DependentContent()
+    public async Task EnableContent_AutoEnables_DependentContentAsync()
     {
         // Arrange
         var clientManifestId = new ManifestId("1.0.0.gameclient.generalsonline");

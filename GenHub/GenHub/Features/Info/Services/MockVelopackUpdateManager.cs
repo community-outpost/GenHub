@@ -97,8 +97,8 @@ public class MockVelopackUpdateManager(INotificationService? notificationService
     {
         var artifacts = new List<ArtifactUpdateInfo>
         {
-            new("1.2.0", "abcdefg", null, 123456, "https://github.com", 7890, $"GenHub-win-x64-{branchName}", DateTime.Now.AddDays(-1), "https://github.com/download", 50 * 1024 * 1024),
-            new("1.1.9", "7654321", null, 123455, "https://github.com", 7889, $"GenHub-win-x64-{branchName}", DateTime.Now.AddDays(-3), "https://github.com/download", 50 * 1024 * 1024),
+            new("1.2.0", "abcdefg", null, 123456, "https://github.com", 7890, $"GenHub-win-x64-{branchName}", DateTime.UtcNow.AddDays(-1), "https://github.com/download", 50 * 1024 * 1024),
+            new("1.1.9", "7654321", null, 123455, "https://github.com", 7889, $"GenHub-win-x64-{branchName}", DateTime.UtcNow.AddDays(-3), "https://github.com/download", 50 * 1024 * 1024),
         };
         return Task.FromResult<IReadOnlyList<ArtifactUpdateInfo>>(artifacts);
     }
@@ -108,8 +108,8 @@ public class MockVelopackUpdateManager(INotificationService? notificationService
     {
         var artifacts = new List<ArtifactUpdateInfo>
         {
-            new("1.2.0", "abc1234", prNumber, 112233, "https://github.com", 4455, $"GenHub-win-x64-PR{prNumber}", DateTime.Now.AddHours(-2), "https://github.com/download", 52 * 1024 * 1024),
-            new("1.2.0", "def5678", prNumber, 112232, "https://github.com", 4454, $"GenHub-win-x64-PR{prNumber}", DateTime.Now.AddDays(-1), "https://github.com/download", 51 * 1024 * 1024),
+            new("1.2.0", "abc1234", prNumber, 112233, "https://github.com", 4455, $"GenHub-win-x64-PR{prNumber}", DateTime.UtcNow.AddHours(-2), "https://github.com/download", 52 * 1024 * 1024),
+            new("1.2.0", "def5678", prNumber, 112232, "https://github.com", 4454, $"GenHub-win-x64-PR{prNumber}", DateTime.UtcNow.AddDays(-1), "https://github.com/download", 51 * 1024 * 1024),
         };
         return Task.FromResult<IReadOnlyList<ArtifactUpdateInfo>>(artifacts);
     }

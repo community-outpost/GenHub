@@ -47,7 +47,7 @@ public class ContentStorageService : IContentStorageService
                 try
                 {
                     var fullPath = Path.GetFullPath(Path.Combine(baseDirectory, file.RelativePath));
-                    if (!fullPath.StartsWith(normalizedBase, StringComparison.OrdinalIgnoreCase))
+                    if (!IsPathWithinDirectory(normalizedBase, fullPath))
                     {
                         return OperationResult<bool>.CreateFailure($"File {file.RelativePath} attempts path traversal outside base directory");
                     }
@@ -68,17 +68,11 @@ public class ContentStorageService : IContentStorageService
                     {
                         // If SourcePath is absolute, we strictly enforce it must be within baseDirectory
                         // If it is relative, we combine and check traversal
-                        string fullSource;
-                        if (Path.IsPathRooted(file.SourcePath))
-                        {
-                            fullSource = Path.GetFullPath(file.SourcePath);
-                        }
-                        else
-                        {
-                            fullSource = Path.GetFullPath(Path.Combine(baseDirectory, file.SourcePath));
-                        }
+                        var fullSource = Path.IsPathRooted(file.SourcePath)
+                            ? Path.GetFullPath(file.SourcePath)
+                            : Path.GetFullPath(Path.Combine(baseDirectory, file.SourcePath));
 
-                        if (!fullSource.StartsWith(normalizedBase, StringComparison.OrdinalIgnoreCase))
+                        if (!IsPathWithinDirectory(normalizedBase, fullSource))
                         {
                             return OperationResult<bool>.CreateFailure($"File {file.RelativePath} specifies SourcePath {file.SourcePath} which traverses outside base directory");
                         }
@@ -92,6 +86,15 @@ public class ContentStorageService : IContentStorageService
         }
 
         return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static bool IsPathWithinDirectory(string normalizedBase, string fullPath)
+    {
+        var relative = Path.GetRelativePath(normalizedBase, fullPath);
+        return !relative.Equals("..", StringComparison.Ordinal) &&
+               !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) &&
+               !relative.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal) &&
+               !Path.IsPathRooted(relative);
     }
 
     private static async Task<string> CalculateFileHashAsync(string filePath, CancellationToken cancellationToken)

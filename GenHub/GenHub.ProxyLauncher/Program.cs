@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 
 namespace GenHub.ProxyLauncher;
@@ -18,259 +20,269 @@ internal class Program
     /// <returns>The exit code of the process.</returns>
     private static async Task<int> Main(string[] args)
     {
-        // Prevent multiple instances from running simultaneously
-        // This can happen when Steam triggers the proxy again while it's already running
-        const string mutexName = ProxyConstants.SingleInstanceMutexName;
+        var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+        var mutexName = GetScopedMutexName(baseDir);
+
         using var mutex = new Mutex(true, mutexName, out bool createdNew);
         if (!createdNew)
         {
-            // Another instance is already running - silently exit
-            // No logging here since we don't want to spam the log
-            return 0;
+            LogError($"Another instance of proxy launcher is already running for directory: {baseDir}");
+            return 1;
         }
-
-        int finalExitCode = 0;
 
         try
         {
-            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
             var configPath = Path.Combine(baseDir, ConfigFileName);
-
             if (!File.Exists(configPath))
             {
-                // Fallback: If no config, try to launch the original game if it exists as .bak
-                // This is a safety measure if someone runs the proxy manually without GenHub setup
                 return await TryLaunchBackupAsync(baseDir, args);
             }
 
-            var configJson = await File.ReadAllTextAsync(configPath);
-            var config = JsonSerializer.Deserialize<ProxyConfig>(configJson);
-
+            var config = await LoadConfigAsync(configPath);
             if (config == null || string.IsNullOrWhiteSpace(config.TargetExecutable))
             {
                 LogError("Invalid configuration: TargetExecutable is missing.");
                 return 1;
             }
 
-            // Log configuration for debugging
-            LogInfo($"Proxy Launcher started at {DateTime.Now}");
-            LogInfo($"Configuration loaded from: {configPath}");
-            LogInfo($"Target Executable: {config.TargetExecutable}");
-            LogInfo($"Working Directory: {config.WorkingDirectory ?? Path.GetDirectoryName(config.TargetExecutable)}");
-            LogInfo($"Arguments: {(config.Arguments != null ? string.Join(" ", config.Arguments) : "(none)")}");
-
-            // Validate target executable exists
-            if (!File.Exists(config.TargetExecutable))
-            {
-                var errorMsg = $"Target executable not found: {config.TargetExecutable}";
-                LogError(errorMsg);
-                return 1;
-            }
-
-            // Validate working directory exists
             var workingDir = config.WorkingDirectory ?? Path.GetDirectoryName(config.TargetExecutable);
-            if (!Directory.Exists(workingDir))
+            if (!ValidatePaths(config.TargetExecutable, workingDir))
             {
-                var errorMsg = $"Working directory not found: {workingDir}";
-                LogError(errorMsg);
                 return 1;
             }
 
-            // Prepare process start info
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = config.TargetExecutable,
-                WorkingDirectory = workingDir,
-                UseShellExecute = false,
-                CreateNoWindow = false, // Allow the game window to appear
-            };
+            LogLaunchDetails(configPath, config, workingDir);
 
-            // Detect whether Steam launched us. Some titles do not set the common env flags even when launched by Steam.
-            var steamContext = IsSteamLaunched();
-            if (!steamContext && !string.IsNullOrWhiteSpace(config.SteamAppId))
-            {
-                // Previously we exited after asking Steam to relaunch via steam:// which left the target unstarted and
-                // resulted in "invalid license". Now we continue and inject Steam env + steam_appid.txt ourselves.
-                LogInfo("Steam context not detected from environment; continuing with injected Steam env instead of exiting.");
-            }
+            var (startInfo, tempExePath) = PrepareProcessStartInfo(config, workingDir!, args);
+            var (exitCode, spawnedFound) = await ExecuteAndMonitorProcessAsync(config, startInfo);
 
-            // Propagate Steam identifiers so overlay/playtime work even when launched outside Steam.
-            if (!string.IsNullOrWhiteSpace(config.SteamAppId))
-            {
-                // Ensure steam_appid.txt exists both where the proxy runs (working dir) and where the target exe resides.
-                EnsureSteamAppId(config.SteamAppId, workingDir);
-                var targetDir = Path.GetDirectoryName(config.TargetExecutable) ?? workingDir;
-                if (!string.Equals(targetDir, workingDir, StringComparison.OrdinalIgnoreCase))
-                {
-                    EnsureSteamAppId(config.SteamAppId, targetDir);
-                }
-
-                // Inject common Steam env vars so SteamAPI sees the app even if Steam didn't set them for the proxy.
-                startInfo.Environment["SteamAppId"] = config.SteamAppId;
-                startInfo.Environment["SteamGameId"] = config.SteamAppId;
-                startInfo.Environment["SteamClientLaunch"] = "1";
-                startInfo.Environment["SteamEnv"] = "1";
-                startInfo.Environment["SteamOverlayGameId"] = config.SteamAppId;
-            }
-
-            // Pass through arguments from the config first, then any command line args passed to this proxy
-            // Steam might pass args like -quickstart etc.
-            // BUT: Steam's %command% might pass the original exe path - filter those out
-            var arguments = new List<string>();
-
-            var dedupe = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            if (config.Arguments != null)
-            {
-                foreach (var arg in config.Arguments)
-                {
-                    if (string.IsNullOrWhiteSpace(arg))
-                    {
-                        continue;
-                    }
-
-                    if (dedupe.Add(arg))
-                    {
-                        arguments.Add(arg);
-                    }
-                }
-            }
-
-            if (args.Length > 0)
-            {
-                // Filter out exe paths that Steam passes via %command%
-                // These are typically the original game executable paths
-                foreach (var arg in args)
-                {
-                    // Skip arguments that match the current executable (the proxy itself)
-                    // This handles Steam's %command% expansion which passes the full path to this executable
-                    var cleanArg = arg.Trim('"');
-                    if (string.Equals(cleanArg, Environment.ProcessPath, StringComparison.OrdinalIgnoreCase))
-                    {
-                        LogInfo($"Filtering out Steam %command% executable arg (matches ProcessPath): {arg}");
-                        continue;
-                    }
-
-                    if (string.IsNullOrWhiteSpace(arg))
-                    {
-                        continue;
-                    }
-
-                    // Avoid double-applying flags like -win when Steam passes them via %command%
-                    if (dedupe.Add(arg))
-                    {
-                        arguments.Add(arg);
-                    }
-                }
-            }
-
-            startInfo.Arguments = string.Join(" ", arguments);
-
-            // Some game launchers (like Community Patch) check their own executable path location.
-            // If the target exe is NOT in the working directory, we need to copy it there temporarily.
-            string? tempExePath = null;
-            var targetExeDir = Path.GetDirectoryName(config.TargetExecutable) ?? string.Empty;
-            if (!string.Equals(targetExeDir, workingDir, StringComparison.OrdinalIgnoreCase))
-            {
-                // Copy the target exe to a temp file in the working directory
-                var exeName = Path.GetFileNameWithoutExtension(config.TargetExecutable);
-                var tempExeName = $"{exeName}_genhub_temp_{Guid.NewGuid():N}.exe";
-                tempExePath = Path.Combine(workingDir!, tempExeName);
-
-                LogInfo($"Target exe not in working directory - creating temp copy at: {tempExePath}");
-                try
-                {
-                    File.Copy(config.TargetExecutable, tempExePath, overwrite: true);
-                    startInfo.FileName = tempExePath;
-                    LogInfo($"Temp copy created successfully");
-                }
-                catch (Exception ex)
-                {
-                    LogError($"Failed to create temp copy: {ex.Message}");
-
-                    // Fall back to original path
-                    tempExePath = null;
-                }
-            }
-
-            // Log the full command line being executed
-            LogInfo($"Launching: \"{startInfo.FileName}\" {startInfo.Arguments}");
-            LogInfo($"Working Directory: {startInfo.WorkingDirectory}");
-
-            // Launch the target game
-            var sw = Stopwatch.StartNew();
-            var launchStartUtc = DateTime.UtcNow;
-            using var process = Process.Start(startInfo);
-            if (process == null)
-            {
-                var errorMsg = $"Failed to start target process: {config.TargetExecutable}";
-                LogError(errorMsg);
-                return 1;
-            }
-
-            LogInfo($"Process started successfully. PID: {process.Id}");
-
-            // Important for Steam: We must wait for the game to exit.
-            // Steam watches THIS process. If we exit, Steam thinks the game stopped.
-            await process.WaitForExitAsync();
-            sw.Stop();
-
-            finalExitCode = process.ExitCode;
-            LogInfo($"Process exited. Exit Code: {finalExitCode}, Duration: {(int)sw.Elapsed.TotalSeconds}s");
-
-            // Some launchers spawn the real game and then exit quickly.
-            // If that happens, keep THIS proxy alive by waiting on the spawned child process.
-            // Steam tracks the process it started (the proxy). If we exit, playtime/overlay stop.
-            if (sw.Elapsed.TotalSeconds < 30)
-            {
-                var baseName = Path.GetFileNameWithoutExtension(startInfo.FileName);
-                var spawned = TryFindSpawnedProcess(baseName, startInfo.WorkingDirectory, launchStartUtc, process.Id);
-                if (spawned != null)
-                {
-                    LogInfo($"Detected spawned process {spawned.Id} for {baseName}; waiting for it to exit to preserve Steam tracking.");
-                    try
-                    {
-                        // Restart stopwatch to track total session time
-                        sw.Restart();
-                        await spawned.WaitForExitAsync();
-                        sw.Stop();
-                        finalExitCode = spawned.ExitCode;
-                        LogInfo($"Spawned process exited. Exit Code: {finalExitCode}, Total Session Duration: {(int)sw.Elapsed.TotalSeconds}s");
-                    }
-                    catch (Exception ex)
-                    {
-                        LogError($"Error waiting for spawned process: {ex.Message}");
-                    }
-                }
-            }
-
-            // Log information about problematic exits, but do not show a message box.
-            // Note: C&C games often exit with non-zero codes (e.g. 0xc0000005) on normal shutdown.
-            // We only log an error if it happened quickly, suggesting it didn't even start.
-            // Ensure we just log completion and exit
-            LogInfo($"Process completed. Final Exit Code: {finalExitCode}");
-
-            // Cleanup: Delete temp exe copy if we created one
-            if (tempExePath != null && File.Exists(tempExePath))
-            {
-                try
-                {
-                    File.Delete(tempExePath);
-                    LogInfo($"Cleaned up temp exe: {tempExePath}");
-                }
-                catch (Exception ex)
-                {
-                    LogError($"Failed to cleanup temp exe: {ex.Message}");
-                }
-            }
+            CleanupTempExecutable(tempExePath);
+            LogInfo($"Process completed. Final Exit Code: {exitCode}");
+            return exitCode;
         }
         catch (Exception ex)
         {
             LogError($"Critical error in proxy launcher: {ex.Message}");
-            finalExitCode = 1;
+            return 1;
+        }
+    }
+
+    private static string GetScopedMutexName(string baseDir)
+    {
+        var normalizedDir = Path.GetFullPath(baseDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).ToUpperInvariant();
+        var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(normalizedDir));
+        return $"{ProxyConstants.MutexPrefix}{Convert.ToHexString(hashBytes)[..16]}";
+    }
+
+    private static async Task<ProxyConfig?> LoadConfigAsync(string configPath)
+    {
+        var configJson = await File.ReadAllTextAsync(configPath);
+        return JsonSerializer.Deserialize<ProxyConfig>(configJson);
+    }
+
+    private static bool ValidatePaths(string targetExecutable, string? workingDir)
+    {
+        if (!File.Exists(targetExecutable))
+        {
+            LogError($"Target executable not found: {targetExecutable}");
+            return false;
         }
 
-        return finalExitCode;
+        if (string.IsNullOrWhiteSpace(workingDir) || !Directory.Exists(workingDir))
+        {
+            LogError($"Working directory not found: {workingDir}");
+            return false;
+        }
+
+        return true;
+    }
+
+    private static void LogLaunchDetails(string configPath, ProxyConfig config, string? workingDir)
+    {
+        LogInfo($"Proxy Launcher started at {DateTime.UtcNow:O}");
+        LogInfo($"Configuration loaded from: {configPath}");
+        LogInfo($"Target Executable: {config.TargetExecutable}");
+        LogInfo($"Working Directory: {workingDir}");
+        LogInfo($"Arguments: {(config.Arguments != null ? string.Join(" ", config.Arguments) : "(none)")}");
+    }
+
+    private static (ProcessStartInfo StartInfo, string? TempExePath) PrepareProcessStartInfo(
+        ProxyConfig config,
+        string workingDir,
+        string[] args)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = config.TargetExecutable!,
+            WorkingDirectory = workingDir,
+            UseShellExecute = false,
+            CreateNoWindow = false,
+        };
+
+        ConfigureSteamEnvironment(startInfo, config, workingDir);
+        startInfo.Arguments = BuildArgumentString(config, args);
+
+        var tempExePath = PrepareTemporaryExecutable(config, workingDir, startInfo);
+        return (startInfo, tempExePath);
+    }
+
+    private static void ConfigureSteamEnvironment(ProcessStartInfo startInfo, ProxyConfig config, string workingDir)
+    {
+        var steamContext = IsSteamLaunched();
+        if (!steamContext && !string.IsNullOrWhiteSpace(config.SteamAppId))
+        {
+            LogInfo("Steam context not detected from environment; continuing with injected Steam env instead of exiting.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(config.SteamAppId))
+        {
+            EnsureSteamAppId(config.SteamAppId, workingDir);
+            var targetDir = Path.GetDirectoryName(config.TargetExecutable) ?? workingDir;
+            if (!string.Equals(targetDir, workingDir, StringComparison.OrdinalIgnoreCase))
+            {
+                EnsureSteamAppId(config.SteamAppId, targetDir);
+            }
+
+            startInfo.Environment["SteamAppId"] = config.SteamAppId;
+            startInfo.Environment["SteamGameId"] = config.SteamAppId;
+            startInfo.Environment["SteamClientLaunch"] = "1";
+            startInfo.Environment["SteamEnv"] = "1";
+            startInfo.Environment["SteamOverlayGameId"] = config.SteamAppId;
+        }
+    }
+
+    private static string BuildArgumentString(ProxyConfig config, string[] args)
+    {
+        var arguments = new List<string>();
+        var dedupe = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (config.Arguments != null)
+        {
+            foreach (var arg in config.Arguments)
+            {
+                if (!string.IsNullOrWhiteSpace(arg) && dedupe.Add(arg))
+                {
+                    arguments.Add(arg);
+                }
+            }
+        }
+
+        if (args.Length > 0)
+        {
+            foreach (var arg in args)
+            {
+                var cleanArg = arg.Trim('"');
+                if (string.Equals(cleanArg, Environment.ProcessPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    LogInfo($"Filtering out Steam %command% executable arg (matches ProcessPath): {arg}");
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(arg) && dedupe.Add(arg))
+                {
+                    arguments.Add(arg);
+                }
+            }
+        }
+
+        return string.Join(" ", arguments);
+    }
+
+    private static string? PrepareTemporaryExecutable(ProxyConfig config, string workingDir, ProcessStartInfo startInfo)
+    {
+        var targetExeDir = Path.GetDirectoryName(config.TargetExecutable) ?? string.Empty;
+        if (string.Equals(targetExeDir, workingDir, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var exeName = Path.GetFileNameWithoutExtension(config.TargetExecutable);
+        var tempExeName = $"{exeName}_genhub_temp_{Guid.NewGuid():N}.exe";
+        var tempExePath = Path.Combine(workingDir, tempExeName);
+
+        LogInfo($"Target exe not in working directory - creating temp copy at: {tempExePath}");
+        try
+        {
+            File.Copy(config.TargetExecutable!, tempExePath, overwrite: true);
+            startInfo.FileName = tempExePath;
+            LogInfo("Temp copy created successfully");
+            return tempExePath;
+        }
+        catch (Exception ex)
+        {
+            LogError($"Failed to create temp copy: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static async Task<(int ExitCode, bool SpawnedFound)> ExecuteAndMonitorProcessAsync(
+        ProxyConfig config,
+        ProcessStartInfo startInfo)
+    {
+        LogInfo($"Launching: \"{startInfo.FileName}\" {startInfo.Arguments}");
+        LogInfo($"Working Directory: {startInfo.WorkingDirectory}");
+
+        var sw = Stopwatch.StartNew();
+        var launchStartUtc = DateTime.UtcNow;
+        using var process = Process.Start(startInfo);
+        if (process == null)
+        {
+            LogError($"Failed to start target process: {config.TargetExecutable}");
+            return (1, false);
+        }
+
+        LogInfo($"Process started successfully. PID: {process.Id}");
+        await process.WaitForExitAsync();
+        sw.Stop();
+
+        var finalExitCode = process.ExitCode;
+        LogInfo($"Process exited. Exit Code: {finalExitCode}, Duration: {(int)sw.Elapsed.TotalSeconds}s");
+
+        var spawnedFound = false;
+        if (sw.Elapsed.TotalSeconds < 30)
+        {
+            var baseName = Path.GetFileNameWithoutExtension(config.TargetExecutable);
+            var spawned = TryFindSpawnedProcess(baseName, startInfo.WorkingDirectory, launchStartUtc, process.Id);
+            if (spawned != null)
+            {
+                spawnedFound = true;
+                LogInfo($"Detected spawned process {spawned.Id} for {baseName}; waiting for it to exit to preserve Steam tracking.");
+                try
+                {
+                    sw.Restart();
+                    await spawned.WaitForExitAsync();
+                    sw.Stop();
+                    finalExitCode = spawned.ExitCode;
+                    LogInfo($"Spawned process exited. Exit Code: {finalExitCode}, Total Session Duration: {(int)sw.Elapsed.TotalSeconds}s");
+                }
+                catch (Exception ex)
+                {
+                    LogError($"Error waiting for spawned process: {ex.Message}");
+                }
+                finally
+                {
+                    spawned.Dispose();
+                }
+            }
+        }
+
+        return (finalExitCode, spawnedFound);
+    }
+
+    private static void CleanupTempExecutable(string? tempExePath)
+    {
+        if (tempExePath != null && File.Exists(tempExePath))
+        {
+            try
+            {
+                File.Delete(tempExePath);
+                LogInfo($"Cleaned up temp exe: {tempExePath}");
+            }
+            catch (Exception ex)
+            {
+                LogError($"Failed to cleanup temp exe: {ex.Message}");
+            }
+        }
     }
 
     /// <summary>
@@ -318,8 +330,6 @@ internal class Program
     /// <returns>True if Steam environment variables are detected.</returns>
     private static bool IsSteamLaunched()
     {
-        // Steam typically sets one or more of these when launching a game.
-        // We use a relaxed check to avoid tight coupling to a single flag.
         return !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("SteamClientLaunch"))
             || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("SteamEnv"))
             || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("SteamTenfoot"))
@@ -334,7 +344,7 @@ internal class Program
     /// <param name="launchStartUtc">The time when the launch started.</param>
     /// <param name="excludedPid">The PID of the launcher itself to exclude.</param>
     /// <returns>The found process, or null if not found.</returns>
-    private static Process? TryFindSpawnedProcess(string baseName, string? workingDir, DateTime launchStartUtc, int excludedPid)
+    private static Process? TryFindSpawnedProcess(string? baseName, string? workingDir, DateTime launchStartUtc, int excludedPid)
     {
         try
         {
@@ -343,7 +353,6 @@ internal class Program
                 return null;
             }
 
-            // Give the launcher a moment to spawn the real game.
             Thread.Sleep(ProxyConstants.LauncherToGameSpawnDelayMs);
 
             var candidates = Process.GetProcessesByName(baseName);
@@ -356,7 +365,6 @@ internal class Program
                         continue;
                     }
 
-                    // StartTime is local time; compare with a small grace window.
                     var startUtc = p.StartTime.ToUniversalTime();
                     if (startUtc < launchStartUtc.AddSeconds(-2))
                     {
@@ -401,8 +409,6 @@ internal class Program
     /// <returns>The exit code of the launched process, or 1 if not found.</returns>
     private static async Task<int> TryLaunchBackupAsync(string baseDir, string[] args)
     {
-        // Try to find generals.exe.ghbak or similar (using standardized extension)
-        // This is a naive heuristic, mainly for safety
         var exeName = Path.GetFileName(Environment.ProcessPath);
         var backupPath = Path.Combine(baseDir, exeName + global::GenHub.Core.Constants.SteamConstants.BackupExtension);
 
@@ -427,21 +433,6 @@ internal class Program
         return 1;
     }
 
-    // Simple helper to show error since we might not have console
-    // In a real scenario, we might want to log to a file
-
-    /// <summary>
-    /// Displays a message box with the specified message and title.
-    /// </summary>
-    /// <param name="message">The message to display.</param>
-    /// <param name="title">The title of the message box.</param>
-    private static void MessageBox(string message, string title)
-    {
-        // User explicitly requested to remove all message boxes
-        // Just log the error
-        LogError($"{title}: {message}");
-    }
-
     /// <summary>
     /// Logs an informational message to the proxy log file.
     /// </summary>
@@ -451,7 +442,7 @@ internal class Program
         try
         {
             var logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ProxyConstants.LogFileName);
-            File.AppendAllText(logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] INFO: {message}{Environment.NewLine}");
+            File.AppendAllText(logPath, $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}] INFO: {message}{Environment.NewLine}");
         }
         catch
         {
@@ -468,7 +459,7 @@ internal class Program
         try
         {
             var logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ProxyConstants.LogFileName);
-            File.AppendAllText(logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ERROR: {message}{Environment.NewLine}");
+            File.AppendAllText(logPath, $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}] ERROR: {message}{Environment.NewLine}");
         }
         catch
         {

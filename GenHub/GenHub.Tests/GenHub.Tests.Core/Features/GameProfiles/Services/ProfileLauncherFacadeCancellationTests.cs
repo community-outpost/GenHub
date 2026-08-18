@@ -30,7 +30,7 @@ public class ProfileLauncherFacadeCancellationTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task LaunchProfileAsync_WhenCancelled_PropagatesCancellation()
+    public async Task LaunchProfileAsync_WhenCancelled_PropagatesCancellationAsync()
     {
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync();
@@ -51,7 +51,7 @@ public class ProfileLauncherFacadeCancellationTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task LaunchProfileAsync_WhenDependencyTimesOut_ReturnsFailure()
+    public async Task LaunchProfileAsync_WhenDependencyTimesOut_ReturnsFailureAsync()
     {
         _profileManagerMock
             .Setup(manager => manager.GetProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))

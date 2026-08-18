@@ -84,7 +84,7 @@ public static partial class CNCLabsHelper
                   .Append(query.NumberOfPlayers.Value.ToString(CultureInfo.InvariantCulture));
             }
 
-            if (query.CNCLabsMapTags != null && query.CNCLabsMapTags.Count > 0)
+            if (query.CNCLabsMapTags is { Count: > 0 })
             {
                 sb.Append('&')
                   .Append(CNCLabsConstants.TagsQueryParam)

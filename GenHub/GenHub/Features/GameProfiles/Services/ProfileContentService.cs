@@ -85,26 +85,7 @@ public sealed class ProfileContentService(
 
             // Build new enabled content list
             List<string> enabledContentIds = [.. profile.EnabledContentIds ?? []];
-            string? swappedContentId = null;
-            string? swappedContentName = null;
-            ContentType swappedContentType = ContentType.UnknownContentType;
-
-            if (conflictInfo.HasConflict && conflictInfo.CanAutoResolve)
-            {
-                // Remove the conflicting content
-                if (!string.IsNullOrEmpty(conflictInfo.ConflictingContentId))
-                {
-                    enabledContentIds.Remove(conflictInfo.ConflictingContentId);
-                    swappedContentId = conflictInfo.ConflictingContentId;
-                    swappedContentName = conflictInfo.ConflictingContentName;
-                    swappedContentType = conflictInfo.ConflictingContentType;
-
-                    logger.LogInformation(
-                        "Swapping content: removing {OldContent} to add {NewContent}",
-                        swappedContentId,
-                        manifestId);
-                }
-            }
+            var swapResult = HandleContentConflictSwap(conflictInfo, manifestId, enabledContentIds);
 
             // Add the new content if not already present
             if (!enabledContentIds.Contains(manifestId, StringComparer.OrdinalIgnoreCase))
@@ -113,72 +94,11 @@ public sealed class ProfileContentService(
             }
 
             // Resolve dependencies
-            var previousIds = new HashSet<string>(enabledContentIds, StringComparer.OrdinalIgnoreCase);
-            try
-            {
-                var resolvedIds = await dependencyResolver.ResolveDependenciesAsync(enabledContentIds, cancellationToken);
-                enabledContentIds = [.. resolvedIds];
-
-                // Ensure the target manifest is included (may have been added by resolution)
-                if (!enabledContentIds.Contains(manifestId, StringComparer.OrdinalIgnoreCase))
-                {
-                    enabledContentIds.Add(manifestId);
-                }
-
-                // Notify user if dependencies were auto-installed
-                var newlyAdded = enabledContentIds
-                    .Where(id => !previousIds.Contains(id))
-                    .ToList();
-
-                if (newlyAdded.Count > 0)
-                {
-                    var dependencyNames = new List<string>();
-                    foreach (var id in newlyAdded)
-                    {
-                        try
-                        {
-                            // Auto-acquire missing dependencies when possible
-                            if (!await TryAcquireDependencyAsync(id, cancellationToken))
-                            {
-                                logger.LogWarning("Dependency {DependencyId} could not be auto-acquired", id);
-                            }
-
-                            var depManifest = await manifestPool.GetManifestAsync(
-                                Core.Models.Manifest.ManifestId.Create(id),
-                                cancellationToken);
-
-                            if (depManifest.Success && depManifest.Data != null)
-                            {
-                                dependencyNames.Add(depManifest.Data.Name ?? "Required dependency");
-                            }
-                            else if (TryParseCommunityOutpostContentCode(id, out var contentCode))
-                            {
-                                var metadata = Core.Models.CommunityOutpost.GenPatcherContentRegistry.GetMetadata(contentCode);
-                                dependencyNames.Add(!string.IsNullOrEmpty(metadata.DisplayName)
-                                    ? metadata.DisplayName
-                                    : "Required dependency");
-                            }
-                            else
-                            {
-                                dependencyNames.Add("Required dependency");
-                            }
-                        }
-                        catch
-                        {
-                            dependencyNames.Add("Required dependency");
-                        }
-                    }
-
-                    logger.LogInformation("Auto-installed {Count} dependencies for {ManifestId}", newlyAdded.Count, manifestId);
-                    notificationService.ShowInfo(
-                        "Dependencies Added",
-                        $"Added required dependencies for '{contentName}': {string.Join(", ", dependencyNames)}");
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to resolve dependencies, proceeding with original list");
-            }
+            enabledContentIds = await ResolveAndAcquireDependenciesAsync(
+                enabledContentIds,
+                manifestId,
+                contentName,
+                cancellationToken);
 
             // Update the profile
             var updateRequest = new UpdateProfileRequest
@@ -195,24 +115,24 @@ public sealed class ProfileContentService(
             }
 
             // Show notification for swap
-            if (!string.IsNullOrEmpty(swappedContentId))
+            if (!string.IsNullOrEmpty(swapResult.SwappedContentId))
             {
                 notificationService.ShowInfo(
                     "Content Replaced",
-                    $"Replaced '{swappedContentName ?? swappedContentId}' with '{contentName}'");
+                    $"Replaced '{swapResult.SwappedContentName ?? swapResult.SwappedContentId}' with '{contentName}'");
 
                 logger.LogInformation(
                     "Content swap complete: {OldContent} → {NewContent} in profile {ProfileId}",
-                    swappedContentId,
+                    swapResult.SwappedContentId,
                     manifestId,
                     profileId);
 
                 return AddToProfileResult.CreateSuccessWithSwap(
                     manifestId,
                     contentName,
-                    swappedContentId,
-                    swappedContentName,
-                    swappedContentType,
+                    swapResult.SwappedContentId,
+                    swapResult.SwappedContentName,
+                    swapResult.SwappedContentType,
                     sw.Elapsed);
             }
 
@@ -707,5 +627,109 @@ public sealed class ProfileContentService(
             logger.LogWarning(ex, "Failed to auto-acquire dependency {ManifestId}", manifestId);
             return false;
         }
+    }
+
+    private (string? SwappedContentId, string? SwappedContentName, ContentType SwappedContentType) HandleContentConflictSwap(
+        ContentConflictInfo conflictInfo,
+        string manifestId,
+        List<string> enabledContentIds)
+    {
+        string? swappedContentId = null;
+        string? swappedContentName = null;
+        ContentType swappedContentType = ContentType.UnknownContentType;
+
+        if (conflictInfo.HasConflict && conflictInfo.CanAutoResolve && !string.IsNullOrEmpty(conflictInfo.ConflictingContentId))
+        {
+            enabledContentIds.Remove(conflictInfo.ConflictingContentId);
+            swappedContentId = conflictInfo.ConflictingContentId;
+            swappedContentName = conflictInfo.ConflictingContentName;
+            swappedContentType = conflictInfo.ConflictingContentType;
+
+            logger.LogInformation(
+                "Swapping content: removing {OldContent} to add {NewContent}",
+                swappedContentId,
+                manifestId);
+        }
+
+        return (swappedContentId, swappedContentName, swappedContentType);
+    }
+
+    private async Task<List<string>> ResolveAndAcquireDependenciesAsync(
+        List<string> enabledContentIds,
+        string manifestId,
+        string contentName,
+        CancellationToken cancellationToken)
+    {
+        var previousIds = new HashSet<string>(enabledContentIds, StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            var resolvedIds = await dependencyResolver.ResolveDependenciesAsync(enabledContentIds, cancellationToken);
+            enabledContentIds = [.. resolvedIds];
+
+            if (!enabledContentIds.Contains(manifestId, StringComparer.OrdinalIgnoreCase))
+            {
+                enabledContentIds.Add(manifestId);
+            }
+
+            var newlyAdded = enabledContentIds
+                .Where(id => !previousIds.Contains(id))
+                .ToList();
+
+            if (newlyAdded.Count > 0)
+            {
+                var dependencyNames = new List<string>();
+                foreach (var id in newlyAdded)
+                {
+                    var depName = await ResolveDependencyDisplayNameAsync(id, cancellationToken);
+                    dependencyNames.Add(depName);
+                }
+
+                logger.LogInformation("Auto-installed {Count} dependencies for {ManifestId}", newlyAdded.Count, manifestId);
+                notificationService.ShowInfo(
+                    "Dependencies Added",
+                    $"Added required dependencies for '{contentName}': {string.Join(", ", dependencyNames)}");
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to resolve dependencies, proceeding with original list");
+        }
+
+        return enabledContentIds;
+    }
+
+    private async Task<string> ResolveDependencyDisplayNameAsync(string id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await TryAcquireDependencyAsync(id, cancellationToken))
+            {
+                logger.LogWarning("Dependency {DependencyId} could not be auto-acquired", id);
+            }
+
+            var depManifest = await manifestPool.GetManifestAsync(
+                Core.Models.Manifest.ManifestId.Create(id),
+                cancellationToken);
+
+            if (depManifest.Success && depManifest.Data != null)
+            {
+                return depManifest.Data.Name ?? "Required dependency";
+            }
+
+            if (TryParseCommunityOutpostContentCode(id, out var contentCode))
+            {
+                var metadata = Core.Models.CommunityOutpost.GenPatcherContentRegistry.GetMetadata(contentCode);
+                return !string.IsNullOrEmpty(metadata.DisplayName)
+                    ? metadata.DisplayName
+                    : "Required dependency";
+            }
+        }
+        catch
+        {
+            // Ignore error and return fallback
+        }
+
+        return "Required dependency";
     }
 }

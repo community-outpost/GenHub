@@ -53,141 +53,10 @@ public class WorkspaceManager(
         // Check if workspace already exists and is current (unless ForceRecreate is true)
         if (!configuration.ForceRecreate)
         {
-            logger.LogDebug("[Workspace] Checking for existing workspace");
-            var existingWorkspacesResult = await GetAllWorkspacesAsync(cancellationToken);
-            if (existingWorkspacesResult.Success && existingWorkspacesResult.Data != null)
+            var reuseResult = await TryReuseExistingWorkspaceAsync(configuration, cancellationToken);
+            if (reuseResult != null)
             {
-                var workspace = existingWorkspacesResult.Data.FirstOrDefault(w => w.Id == configuration.Id);
-
-                if (workspace != null && Directory.Exists(workspace.WorkspacePath))
-                {
-                    logger.LogDebug(
-                        "Found existing workspace {Id} at {Path}, checking if it's current...",
-                        configuration.Id,
-                        workspace.WorkspacePath);
-
-                    var existingWorkspacePath = Path.GetFullPath(workspace.WorkspacePath);
-
-                    // Without a configured root there is nothing to compare against, and resolving
-                    // a blank root would produce a working-directory-relative path that always differs.
-                    var expectedWorkspacePath = string.IsNullOrWhiteSpace(configuration.WorkspaceRootPath)
-                        ? existingWorkspacePath
-                        : Path.GetFullPath(Path.Combine(configuration.WorkspaceRootPath, configuration.Id));
-                    if (!string.Equals(expectedWorkspacePath, existingWorkspacePath, PathHelper.PathComparison))
-                    {
-                        logger.LogInformation(
-                            "[Workspace] Storage root changed for workspace {Id} from {ExistingPath} to {ExpectedPath}; workspace will be recreated.",
-                            configuration.Id,
-                            existingWorkspacePath,
-                            expectedWorkspacePath);
-                        configuration.ForceRecreate = true;
-                    }
-                    else if (workspace.Strategy != configuration.Strategy)
-                    {
-                        logger.LogWarning(
-                            "[Workspace] Strategy mismatch detected - existing: {ExistingStrategy}, requested: {RequestedStrategy}. Workspace will be recreated.",
-                            workspace.Strategy,
-                            configuration.Strategy);
-                        configuration.ForceRecreate = true;
-                    }
-                    else
-                    {
-                        // Strategy matches, proceed with normal reuse validation
-                        logger.LogDebug(
-                            "[Workspace] Strategy matches ({Strategy}), checking manifests and file counts...",
-                            workspace.Strategy);
-
-                        // Check if manifest IDs or versions have changed
-                        var currentManifests = (configuration.Manifests ?? [])
-                            .Select(m => new { m.Id, Version = m.Version ?? string.Empty })
-                            .OrderBy(m => m.Id.Value, StringComparer.OrdinalIgnoreCase)
-                            .ToList();
-
-                        var currentManifestIds = currentManifests.Select(m => m.Id.Value).ToList();
-                        var cachedManifestIds = (workspace.ManifestIds ?? [])
-                            .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
-                            .ToList();
-
-                        var manifestsChanged = !currentManifestIds.SequenceEqual(cachedManifestIds, StringComparer.OrdinalIgnoreCase);
-
-                        // If IDs match, check versions (crucial for local content where ID is static)
-                        if (!manifestsChanged)
-                        {
-                            var currentVersions = currentManifests
-                                .GroupBy(m => m.Id.Value, StringComparer.OrdinalIgnoreCase)
-                                .ToDictionary(g => g.Key, g => g.First().Version, StringComparer.OrdinalIgnoreCase);
-
-                            var cachedVersions = (workspace.ManifestVersions ?? [])
-                                .GroupBy(k => k.Key, StringComparer.OrdinalIgnoreCase)
-                                .ToDictionary(g => g.Key, g => g.First().Value, StringComparer.OrdinalIgnoreCase);
-
-                            foreach (var (id, version) in currentVersions)
-                            {
-                                if (!cachedVersions.TryGetValue(id, out var cachedVersion) || cachedVersion != version)
-                                {
-                                    manifestsChanged = true;
-                                    logger.LogInformation(
-                                        "[Workspace] Manifest version changed for {Id} - cached: '{Cached}', current: '{Current}'. Workspace will be recreated.",
-                                        id,
-                                        cachedVersion ?? "(none)",
-                                        version);
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (manifestsChanged)
-                        {
-                            // Force recreation to ensure any orphaned files from the previous version are removed
-                            configuration.ForceRecreate = true;
-                            logger.LogInformation("[Workspace] Configuration change detected, workspace will be recreated.");
-                        }
-                        else
-                        {
-                            // Quick check to avoid expensive validation on every launch
-                            if (!ValidateWorkspaceBasics(workspace))
-                            {
-                                logger.LogWarning(
-                                    "[Workspace] Workspace {Id} validation failed, will recreate",
-                                    configuration.Id);
-                                configuration.ForceRecreate = true;
-                            }
-                            else if (!configuration.ForceRecreate && (workspace.FileCount > 0 || Directory.Exists(workspace.WorkspacePath)))
-                            {
-                                // Reuse skips materialisation entirely, so this is the only
-                                // moment a workspace bricked by a lost execute bit can be
-                                // repaired before launch.
-                                var entryPointResult = await workspaceValidator.EnsureEntryPointExecutableAsync(workspace, cancellationToken);
-                                if (entryPointResult.Success)
-                                {
-                                    logger.LogInformation(
-                                        "[Workspace] Reusing existing workspace {Id} for fast launch",
-                                        configuration.Id);
-                                    return OperationResult<WorkspaceInfo>.CreateSuccess(workspace);
-                                }
-
-                                logger.LogWarning(
-                                    "[Workspace] Entry point check failed for workspace {Id}: {Error}. Workspace will be recreated.",
-                                    configuration.Id,
-                                    entryPointResult.FirstError);
-                                configuration.ForceRecreate = true;
-                            }
-                            else
-                            {
-                                logger.LogWarning("[Workspace] Workspace directory missing or empty, will recreate");
-                                configuration.ForceRecreate = true;
-                            }
-                        }
-                    }
-                }
-                else if (workspace != null)
-                {
-                    logger.LogWarning(
-                        "Existing workspace {Id} directory not found at {Path}, will recreate",
-                        configuration.Id,
-                        workspace.WorkspacePath);
-                    configuration.ForceRecreate = true;
-                }
+                return reuseResult;
             }
         }
 
@@ -575,5 +444,156 @@ public class WorkspaceManager(
                 workspace.Id);
             return false;
         }
+    }
+
+    private async Task<OperationResult<WorkspaceInfo>?> TryReuseExistingWorkspaceAsync(
+        WorkspaceConfiguration configuration,
+        CancellationToken cancellationToken)
+    {
+        logger.LogDebug("[Workspace] Checking for existing workspace");
+        var existingWorkspacesResult = await GetAllWorkspacesAsync(cancellationToken);
+        if (!existingWorkspacesResult.Success || existingWorkspacesResult.Data == null)
+        {
+            return null;
+        }
+
+        var workspace = existingWorkspacesResult.Data.FirstOrDefault(w => w.Id == configuration.Id);
+        if (workspace == null)
+        {
+            return null;
+        }
+
+        if (!Directory.Exists(workspace.WorkspacePath))
+        {
+            logger.LogWarning(
+                "Existing workspace {Id} directory not found at {Path}, will recreate",
+                configuration.Id,
+                workspace.WorkspacePath);
+            configuration.ForceRecreate = true;
+            return null;
+        }
+
+        logger.LogDebug(
+            "Found existing workspace {Id} at {Path}, checking if it's current...",
+            configuration.Id,
+            workspace.WorkspacePath);
+
+        var existingWorkspacePath = Path.GetFullPath(workspace.WorkspacePath);
+        var expectedWorkspacePath = string.IsNullOrWhiteSpace(configuration.WorkspaceRootPath)
+            ? existingWorkspacePath
+            : Path.GetFullPath(Path.Combine(configuration.WorkspaceRootPath, configuration.Id));
+
+        if (!string.Equals(expectedWorkspacePath, existingWorkspacePath, PathHelper.PathComparison))
+        {
+            logger.LogInformation(
+                "[Workspace] Storage root changed for workspace {Id} from {ExistingPath} to {ExpectedPath}; workspace will be recreated.",
+                configuration.Id,
+                existingWorkspacePath,
+                expectedWorkspacePath);
+            configuration.ForceRecreate = true;
+            return null;
+        }
+
+        if (workspace.Strategy != configuration.Strategy)
+        {
+            logger.LogWarning(
+                "[Workspace] Strategy mismatch detected - existing: {ExistingStrategy}, requested: {RequestedStrategy}. Workspace will be recreated.",
+                workspace.Strategy,
+                configuration.Strategy);
+            configuration.ForceRecreate = true;
+            return null;
+        }
+
+        return await ValidateAndReuseWorkspaceAsync(workspace, configuration, cancellationToken);
+    }
+
+    private async Task<OperationResult<WorkspaceInfo>?> ValidateAndReuseWorkspaceAsync(
+        WorkspaceInfo workspace,
+        WorkspaceConfiguration configuration,
+        CancellationToken cancellationToken)
+    {
+        logger.LogDebug(
+            "[Workspace] Strategy matches ({Strategy}), checking manifests and file counts...",
+            workspace.Strategy);
+
+        if (CheckManifestsChanged(workspace, configuration))
+        {
+            configuration.ForceRecreate = true;
+            logger.LogInformation("[Workspace] Configuration change detected, workspace will be recreated.");
+            return null;
+        }
+
+        if (!ValidateWorkspaceBasics(workspace))
+        {
+            logger.LogWarning(
+                "[Workspace] Workspace {Id} validation failed, will recreate",
+                configuration.Id);
+            configuration.ForceRecreate = true;
+            return null;
+        }
+
+        if (!configuration.ForceRecreate && (workspace.FileCount > 0 || Directory.Exists(workspace.WorkspacePath)))
+        {
+            var entryPointResult = await workspaceValidator.EnsureEntryPointExecutableAsync(workspace, cancellationToken);
+            if (entryPointResult.Success)
+            {
+                logger.LogInformation(
+                    "[Workspace] Reusing existing workspace {Id} for fast launch",
+                    configuration.Id);
+                return OperationResult<WorkspaceInfo>.CreateSuccess(workspace);
+            }
+
+            logger.LogWarning(
+                "[Workspace] Entry point check failed for workspace {Id}: {Error}. Workspace will be recreated.",
+                configuration.Id,
+                entryPointResult.FirstError);
+            configuration.ForceRecreate = true;
+            return null;
+        }
+
+        logger.LogWarning("[Workspace] Workspace directory missing or empty, will recreate");
+        configuration.ForceRecreate = true;
+        return null;
+    }
+
+    private bool CheckManifestsChanged(WorkspaceInfo workspace, WorkspaceConfiguration configuration)
+    {
+        var currentManifests = (configuration.Manifests ?? [])
+            .Select(m => new { m.Id, Version = m.Version ?? string.Empty })
+            .OrderBy(m => m.Id.Value, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var currentManifestIds = currentManifests.Select(m => m.Id.Value).ToList();
+        var cachedManifestIds = (workspace.ManifestIds ?? [])
+            .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (!currentManifestIds.SequenceEqual(cachedManifestIds, StringComparer.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var currentVersions = currentManifests
+            .GroupBy(m => m.Id.Value, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().Version, StringComparer.OrdinalIgnoreCase);
+
+        var cachedVersions = (workspace.ManifestVersions ?? [])
+            .GroupBy(k => k.Key, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().Value, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (id, version) in currentVersions)
+        {
+            if (!cachedVersions.TryGetValue(id, out var cachedVersion) || cachedVersion != version)
+            {
+                logger.LogInformation(
+                    "[Workspace] Manifest version changed for {Id} - cached: '{Cached}', current: '{Current}'. Workspace will be recreated.",
+                    id,
+                    cachedVersion ?? "(none)",
+                    version);
+                return true;
+            }
+        }
+
+        return false;
     }
 }

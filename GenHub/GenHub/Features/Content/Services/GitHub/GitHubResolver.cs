@@ -335,10 +335,6 @@ public partial class GitHubResolver(
             // Extract variant from asset name (e.g., "English" from "0_ImprovedMenusEnglish.big")
             var variant = ExtractAssetVariant(asset.Name);
 
-            // Generate manifest ID matching the discoverer format
-            // Publisher = owner
-            var publisherId = owner;
-
             // Extract version from tag (Restored)
             var userVersion = ExtractVersionFromReleaseTag(tag);
 

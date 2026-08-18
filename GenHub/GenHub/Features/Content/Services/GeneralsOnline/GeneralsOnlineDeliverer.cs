@@ -221,7 +221,7 @@ public class GeneralsOnlineDeliverer(
             return OperationResult<(string, string)>.CreateFailure("No ZIP file found in manifest");
         }
 
-        var zipPath = Path.Combine(targetDirectory, "GeneralsOnline.zip");
+        var zipPath = Path.Combine(targetDirectory, $"GeneralsOnline_{Guid.NewGuid():N}.zip");
         progress?.Report(new ContentAcquisitionProgress
         {
             Phase = ContentAcquisitionPhase.Downloading,
@@ -244,7 +244,7 @@ public class GeneralsOnlineDeliverer(
             return OperationResult<(string, string)>.CreateFailure($"Failed to download ZIP: {downloadResult.FirstError}");
         }
 
-        var extractPath = Path.Combine(targetDirectory, "extracted");
+        var extractPath = Path.Combine(targetDirectory, $"extracted_{Guid.NewGuid():N}");
         Directory.CreateDirectory(extractPath);
 
         progress?.Report(new ContentAcquisitionProgress

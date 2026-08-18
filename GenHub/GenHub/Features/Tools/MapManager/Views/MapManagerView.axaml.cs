@@ -46,13 +46,13 @@ public partial class MapManagerView : UserControl
         if (e.Data.Contains(DataFormats.Files))
         {
             var files = e.Data.GetFiles();
-            bool hasValidFiles = files != null && files.Any(f =>
+            bool hasValidFiles = files?.Any(f =>
             {
                 var path = f.Path.LocalPath;
                 return Directory.Exists(path) ||
                        path.EndsWith(".map", StringComparison.OrdinalIgnoreCase) ||
                        path.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
-            });
+            }) == true;
 
             if (hasValidFiles)
             {

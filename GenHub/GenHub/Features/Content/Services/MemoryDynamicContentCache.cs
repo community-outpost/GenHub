@@ -59,7 +59,7 @@ public class MemoryDynamicContentCache(IMemoryCache memoryCache) : IDynamicConte
 
         lock (_keys)
         {
-            keysToRemove = [.._keys.Where(k => regex.IsMatch(k))];
+            keysToRemove = [.._keys.Where(regex.IsMatch)];
         }
 
         foreach (var key in keysToRemove)

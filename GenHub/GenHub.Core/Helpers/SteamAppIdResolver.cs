@@ -45,7 +45,7 @@ public static partial class SteamAppIdResolver
             return false;
         }
 
-        IEnumerable<string> manifests;
+        IEnumerable<string> manifests = [];
         try
         {
             manifests = Directory.EnumerateFiles(steamAppsDir.FullName, "appmanifest_*.acf", SearchOption.TopDirectoryOnly);
@@ -57,7 +57,7 @@ public static partial class SteamAppIdResolver
 
         foreach (var manifestPath in manifests)
         {
-            string raw;
+            string raw = string.Empty;
             try
             {
                 raw = File.ReadAllText(manifestPath);

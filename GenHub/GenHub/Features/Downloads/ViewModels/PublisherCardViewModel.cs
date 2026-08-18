@@ -543,13 +543,30 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
 
         if (progress.TotalFiles > 0)
         {
-            var phasePercent = progress.TotalFiles > 0
-                ? (int)((double)progress.FilesProcessed / progress.TotalFiles * 100)
-                : 0;
+            var phasePercent = (int)((double)progress.FilesProcessed / progress.TotalFiles * 100);
             return $"{phaseName}: {progress.FilesProcessed}/{progress.TotalFiles} files ({phasePercent}%)";
         }
 
         return !string.IsNullOrEmpty(percentText) ? $"{phaseName}... {percentText}" : $"{phaseName}...";
+    }
+
+    /// <summary>
+    /// Extracts numeric date from version strings like "weekly-2025-11-21" or "20251121".
+    /// </summary>
+    private static string ExtractDateFromVersion(string version)
+    {
+        if (string.IsNullOrEmpty(version))
+        {
+            return string.Empty;
+        }
+
+        var match = System.Text.RegularExpressions.Regex.Match(version, @"\d{4}-?\d{2}-?\d{2}|\d{8}");
+        if (match.Success)
+        {
+            return match.Value.Replace("-", string.Empty);
+        }
+
+        return string.Empty;
     }
 
     /// <summary>
@@ -568,100 +585,85 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
 
         foreach (var manifest in allManifests)
         {
-            // SKIP MAP PACKS if the item is a GameClient
-            // We want to associate MapPacks with GameClients only via dependencies,
-            // not as "variants" of the GameClient itself in this context,
-            // UNLESS the item itself IS a MapPack.
-            if (item.Model.ContentType != manifest.ContentType)
-            {
-                continue;
-            }
-
-            // SKIP detected local game clients (userVersion 0)
-            // Detected clients have ID like: 1.0.generalsonline.gameclient.zerohour30hz
-            // Downloaded content has ID like: 1.1215251.generalsonline.gameclient.30hz
-            // We only want downloaded content as variants for the add-to-profile dropdown
-            var manifestIdParts = manifest.Id.Value.Split('.');
-            if (manifestIdParts.Length >= 2 && manifestIdParts[1] == "0" && manifest.ContentType == ContentType.GameClient)
-            {
-                continue;
-            }
-
-            // Direct ID match
-            if (!string.IsNullOrEmpty(itemId) &&
-                manifest.Id.Value.Equals(itemId, StringComparison.OrdinalIgnoreCase))
-            {
-                variants.Add(manifest);
-                continue;
-            }
-
-            // Publisher Check
-            var hasPublisherInId = manifestIdParts.Length > 2 &&
-                manifestIdParts[2].Equals(publisherId, StringComparison.OrdinalIgnoreCase);
-            var publisherMatch = hasPublisherInId ||
-                (manifest.Publisher?.PublisherType?.Equals(publisherId, StringComparison.OrdinalIgnoreCase) == true);
-
-            if (!publisherMatch)
-            {
-                continue;
-            }
-
-            // Name Match check
-            // For variants, the name often contains the variant suffix (e.g. "Generals", "Zero Hour", "30Hz").
-            // But strict name matching might filter out variants if their names differ too much.
-            // For SuperHackers: Item="weekly-2025-12-12", Manifest="TheSuperHackers-GeneralsGameCode - Generals"
-            //   -> Names don't match, but they are the same release (same publisher + version).
-            // So we check names, but if names don't match, we still proceed to version check.
-            // If publisher matches AND version matches, that's sufficient for variant detection.
-            var itemName = item.Name?.ToLowerInvariant() ?? string.Empty;
-            var manifestName = manifest.Name?.ToLowerInvariant() ?? string.Empty;
-
-            var nameMatch = false;
-            if (!string.IsNullOrEmpty(itemName) && !string.IsNullOrEmpty(manifestName))
-            {
-                var normalizedItemName = itemName.Replace(" ", string.Empty).Replace("-", string.Empty);
-                var normalizedManifestName = manifestName.Replace(" ", string.Empty).Replace("-", string.Empty);
-
-                if (normalizedManifestName.Contains(normalizedItemName, StringComparison.OrdinalIgnoreCase) ||
-                    normalizedItemName.Contains(normalizedManifestName, StringComparison.OrdinalIgnoreCase))
-                {
-                    nameMatch = true;
-                }
-            }
-
-            // Version Match check
-            var manifestVersion = manifest.Version ?? string.Empty;
-            var manifestDatePart = ExtractDateFromVersion(manifestVersion);
-
-            var versionMatch = false;
-
-            // Direct version match
-            if (manifestVersion.Equals(itemVersion, StringComparison.OrdinalIgnoreCase))
-            {
-                versionMatch = true;
-            }
-
-            // Date part match (e.g., "weekly-2025-12-12" vs "20251212")
-            else if (!string.IsNullOrEmpty(itemDatePart) &&
-                !string.IsNullOrEmpty(manifestDatePart) &&
-                itemDatePart.Equals(manifestDatePart, StringComparison.OrdinalIgnoreCase))
-            {
-                versionMatch = true;
-            }
-
-            // If publisher matches AND (names match OR versions match), it's a variant
-            // RESTRICTION: strict version matching without name matching is ONLY allowed for GameClient content.
-            // This prevents "Addon A v1.0" being identified as a variant of "Addon B v1.0".
-            var isGameClient = item.Model.ContentType == ContentType.GameClient;
-
-            if (nameMatch || (versionMatch && isGameClient))
+            if (IsManifestVariantMatch(item, manifest, publisherId, itemId, itemVersion, itemDatePart))
             {
                 variants.Add(manifest);
             }
         }
 
-        // Sort variants by name for consistent UI display
         return [.. variants.OrderBy(v => v.Name)];
+    }
+
+    private static bool IsManifestVariantMatch(
+        ContentItemViewModel item,
+        Core.Models.Manifest.ContentManifest manifest,
+        string publisherId,
+        string itemId,
+        string itemVersion,
+        string itemDatePart)
+    {
+        if (item.Model.ContentType != manifest.ContentType)
+        {
+            return false;
+        }
+
+        var manifestIdParts = manifest.Id.Value.Split('.');
+        if (manifestIdParts.Length >= 2 && manifestIdParts[1] == "0" && manifest.ContentType == ContentType.GameClient)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(itemId) && manifest.Id.Value.Equals(itemId, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var hasPublisherInId = manifestIdParts.Length > 2 &&
+            manifestIdParts[2].Equals(publisherId, StringComparison.OrdinalIgnoreCase);
+        var publisherMatch = hasPublisherInId ||
+            (manifest.Publisher?.PublisherType?.Equals(publisherId, StringComparison.OrdinalIgnoreCase) == true);
+
+        if (!publisherMatch)
+        {
+            return false;
+        }
+
+        var nameMatch = IsNameMatch(item.Name, manifest.Name);
+        var manifestVersion = manifest.Version ?? string.Empty;
+        var manifestDatePart = ExtractDateFromVersion(manifestVersion);
+        var versionMatch = IsVersionMatch(itemVersion, manifestVersion, itemDatePart, manifestDatePart);
+
+        var isGameClient = item.Model.ContentType == ContentType.GameClient;
+        return nameMatch || (versionMatch && isGameClient);
+    }
+
+    private static bool IsNameMatch(string? itemName, string? manifestName)
+    {
+        var itemStr = itemName?.ToLowerInvariant() ?? string.Empty;
+        var manifestStr = manifestName?.ToLowerInvariant() ?? string.Empty;
+
+        if (string.IsNullOrEmpty(itemStr) || string.IsNullOrEmpty(manifestStr))
+        {
+            return false;
+        }
+
+        var normalizedItemName = itemStr.Replace(" ", string.Empty).Replace("-", string.Empty);
+        var normalizedManifestName = manifestStr.Replace(" ", string.Empty).Replace("-", string.Empty);
+
+        return normalizedManifestName.Contains(normalizedItemName, StringComparison.OrdinalIgnoreCase) ||
+               normalizedItemName.Contains(normalizedManifestName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsVersionMatch(string itemVersion, string manifestVersion, string itemDatePart, string manifestDatePart)
+    {
+        if (manifestVersion.Equals(itemVersion, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return !string.IsNullOrEmpty(itemDatePart) &&
+               !string.IsNullOrEmpty(manifestDatePart) &&
+               itemDatePart.Equals(manifestDatePart, StringComparison.OrdinalIgnoreCase);
     }
 
     [RelayCommand]

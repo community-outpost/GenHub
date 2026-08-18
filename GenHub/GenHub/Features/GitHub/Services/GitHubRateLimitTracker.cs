@@ -122,13 +122,12 @@ public class GitHubRateLimitTracker(ILogger<GitHubRateLimitTracker> logger)
         {
             return $"{span.Minutes}m";
         }
-        else if (span.TotalHours < 24)
+
+        if (span.TotalHours < 24)
         {
             return $"{span.Hours}h {span.Minutes}m";
         }
-        else
-        {
-            return $"{span.Days}d {span.Hours}h";
-        }
+
+        return $"{span.Days}d {span.Hours}h";
     }
 }

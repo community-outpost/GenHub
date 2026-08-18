@@ -86,11 +86,9 @@ public class SetupWizardService(
                     // Everything is perfect. Skip wizard, no action.
                     return (true, GameClientConstants.WizardActionTypes.Decline);
                 }
-                else
-                {
-                    // Content is there, just needs a profile. Skip wizard, auto-accept.
-                    return (true, GameClientConstants.WizardActionTypes.CreateProfile);
-                }
+
+                // Content is there, just needs a profile. Skip wizard, auto-accept.
+                return (true, GameClientConstants.WizardActionTypes.CreateProfile);
             }
 
             // If we reach here, we don't have a managed up-to-date client.
@@ -104,7 +102,6 @@ public class SetupWizardService(
                 }
             }
 
-            var detectedVersion = componentGlobal.Select(x => x.Client?.Version).FirstOrDefault() ?? GameClientConstants.UnknownVersion;
             var isDetected = componentGlobal.Count > 0;
 
             // Construct Wizard Item

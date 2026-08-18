@@ -20,12 +20,9 @@ public class StringToColorConverter : IValueConverter
     /// <returns>A converted Color.</returns>
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (value is string colorString && !string.IsNullOrWhiteSpace(colorString))
+        if (value is string colorString && !string.IsNullOrWhiteSpace(colorString) && Color.TryParse(colorString, out var color))
         {
-            if (Color.TryParse(colorString, out var color))
-            {
-                return color;
-            }
+            return color;
         }
 
         // Fallback or if value is already a Color

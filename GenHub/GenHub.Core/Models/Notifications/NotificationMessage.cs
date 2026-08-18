@@ -46,7 +46,7 @@ public record NotificationMessage
     /// <summary>
     /// Gets a value indicating whether this notification has any actionable buttons.
     /// </summary>
-    public bool IsActionable => Actions != null && Actions.Count > 0;
+    public bool IsActionable => Actions?.Count > 0;
 
     /// <summary>
     /// Gets a value indicating whether this notification should persist in the feed
@@ -116,7 +116,7 @@ public record NotificationMessage
         IsDismissed = false;
 
         // Support both old single-action and new multi-action patterns
-        if (actions != null && actions.Count > 0)
+        if (actions is { Count: > 0 })
         {
             Actions = actions;
         }

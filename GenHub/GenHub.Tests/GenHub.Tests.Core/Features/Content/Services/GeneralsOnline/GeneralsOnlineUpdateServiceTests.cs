@@ -23,7 +23,7 @@ public class GeneralsOnlineUpdateServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task CheckForUpdatesAsync_MultipleInstalledVersions_UsesNewestVersion()
+    public async Task CheckForUpdatesAsync_MultipleInstalledVersions_UsesNewestVersionAsync()
     {
         var manifestPool = new Mock<IContentManifestPool>();
         manifestPool

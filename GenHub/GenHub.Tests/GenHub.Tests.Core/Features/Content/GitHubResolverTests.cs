@@ -144,7 +144,7 @@ public class GitHubResolverTests : IDisposable
         {
             TagName = tag,
             PublishedAt = DateTimeOffset.Now,
-            Assets = [new GitHubReleaseAsset { Name = "test.zip", BrowserDownloadUrl = "http://test.com" },],
+            Assets = [new GitHubReleaseAsset { Name = "test.zip", BrowserDownloadUrl = "https://test.com" },],
         };
     }
 

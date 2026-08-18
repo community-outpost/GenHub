@@ -222,12 +222,12 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
 
         foreach (var container in bottleContainers)
         {
-            string[] bottles;
+            string[] bottles = [];
             try
             {
                 bottles = Directory.Exists(container) ? Directory.GetDirectories(container) : [];
             }
-            catch (Exception)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // An unreadable bottle container is not a detection failure.
                 continue;

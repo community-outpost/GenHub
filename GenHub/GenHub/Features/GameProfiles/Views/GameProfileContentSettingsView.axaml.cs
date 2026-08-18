@@ -33,15 +33,6 @@ public partial class GameProfileContentSettingsView : UserControl
         _scrollViewer = this.FindControl<ScrollViewer>("ContentSettingsScrollViewer");
     }
 
-    /// <summary>
-    /// Handles the unloaded event to clean up subscriptions.
-    /// </summary>
-    /// <param name="e">The event args.</param>
-    protected override void OnUnloaded(RoutedEventArgs e)
-    {
-        base.OnUnloaded(e);
-    }
-
     private void MapSection(string name)
     {
         var control = this.FindControl<Control>(name);
