@@ -881,7 +881,7 @@ public partial class GameProfileLauncherViewModel(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error creating profile for {InstallationType} {GameClientName}", installation.InstallationType, gameClient?.Name ?? "Unknown");
+            logger.LogError(ex, "Error creating profile for {InstallationType} {GameClientName}", installation.InstallationType, gameClient?.Name ?? GameClientConstants.UnknownVersion);
             return false;
         }
     }

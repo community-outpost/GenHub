@@ -143,7 +143,19 @@ public class NahimicFix(ILogger<NahimicFix> logger) : BaseActionSet(logger)
             processes = Process.GetProcessesByName("NahimicService");
             return processes.Length > 0;
         }
-        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or PlatformNotSupportedException or UnauthorizedAccessException)
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            return false;
+        }
+        catch (PlatformNotSupportedException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
         {
             return false;
         }

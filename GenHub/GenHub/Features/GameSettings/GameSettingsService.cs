@@ -551,6 +551,9 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                 case "NumSounds" when int.TryParse(kvp.Value, out var ns):
                     audio.NumSounds = ns;
                     break;
+                default:
+                    // Ignore unhandled or invalid known keys
+                    break;
             }
         }
     }
@@ -618,6 +621,9 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
                     break;
                 case "ShowProps":
                     video.ShowProps = ParseBool(kvp.Value);
+                    break;
+                default:
+                    // Ignore unhandled or invalid known keys
                     break;
             }
         }

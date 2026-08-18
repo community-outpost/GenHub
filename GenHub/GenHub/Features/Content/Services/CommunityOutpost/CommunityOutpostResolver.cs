@@ -85,7 +85,7 @@ public class CommunityOutpostResolver(
                 "SourceUrl cannot be null for Community Outpost content");
 
             var filename = Uri.TryCreate(downloadUrl, UriKind.Absolute, out var parsedUri)
-                ? GetFilenameFromUri(parsedUri, contentCode)
+                ? ExtractFileName(parsedUri, contentCode)
                 : $"{contentCode}{CommunityOutpostConstants.DatFileExtension}";
 
             // Get all mirror URLs for fallback support
@@ -362,7 +362,7 @@ public class CommunityOutpostResolver(
     /// <param name="uri">The download URI.</param>
     /// <param name="contentCode">The content code.</param>
     /// <returns>The extracted or generated filename.</returns>
-    private static string GetFilenameFromUri(Uri uri, string contentCode)
+    private static string ExtractFileName(Uri uri, string contentCode)
     {
         try
         {
