@@ -631,6 +631,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     }
 
     private IniOptions? _currentOptions;
+    private GeneralsOnlineSettings? _currentGeneralsOnlineSettings;
     private string? _currentProfileId;
     private int _initializationDepth;
     private bool _isLoadingFromOptions;
@@ -688,6 +689,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             var goResult = await _gameSettingsService.LoadGeneralsOnlineSettingsAsync();
             if (goResult?.Success == true && goResult.Data != null)
             {
+                _currentGeneralsOnlineSettings = goResult.Data;
                 ApplyGeneralsOnlineSettings(goResult.Data);
                 _logger.LogInformation("Loaded GeneralsOnline settings");
             }
@@ -872,13 +874,24 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             var options = CreateOptionsFromViewModel();
             var result = await _gameSettingsService.SaveOptionsAsync(SelectedGameType, options);
 
-            // Save GeneralsOnline settings
+            // Save GeneralsOnline settings. A profile-initialized view model never reads
+            // settings.json, so it is read here before being rewritten.
+            if (_currentGeneralsOnlineSettings == null)
+            {
+                var goLoadResult = await _gameSettingsService.LoadGeneralsOnlineSettingsAsync();
+                if (goLoadResult?.Success == true && goLoadResult.Data != null)
+                {
+                    _currentGeneralsOnlineSettings = goLoadResult.Data;
+                }
+            }
+
             var goSettings = CreateGeneralsOnlineSettings();
             var goResult = await _gameSettingsService.SaveGeneralsOnlineSettingsAsync(goSettings);
 
             if (result?.Success == true && goResult?.Success == true)
             {
                 _currentOptions = options;
+                _currentGeneralsOnlineSettings = goSettings;
                 OptionsFileExists = true;
                 StatusMessage = $"{SelectedGameType} settings saved successfully";
                 _logger.LogInformation("Saved settings for {GameType}", SelectedGameType);
@@ -1201,18 +1214,19 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
 
     private GeneralsOnlineSettings CreateGeneralsOnlineSettings()
     {
-        var settings = new GeneralsOnlineSettings
-        {
-            ShowFps = GoShowFps,
-            ShowPing = GoShowPing,
-            ShowPlayerRanks = GoShowPlayerRanks,
-            AutoLogin = GoAutoLogin,
-            RememberUsername = GoRememberUsername,
-            EnableNotifications = GoEnableNotifications,
-            EnableSoundNotifications = GoEnableSoundNotifications,
-            ChatFontSize = GoChatFontSize,
-        };
+        // Built on top of what was loaded, because saving is a wholesale rewrite of the
+        // GeneralsOnline client's settings.json and the loaded instance is the only thing
+        // holding the keys this model does not declare.
+        var settings = _currentGeneralsOnlineSettings ?? new GeneralsOnlineSettings();
 
+        settings.ShowFps = GoShowFps;
+        settings.ShowPing = GoShowPing;
+        settings.ShowPlayerRanks = GoShowPlayerRanks;
+        settings.AutoLogin = GoAutoLogin;
+        settings.RememberUsername = GoRememberUsername;
+        settings.EnableNotifications = GoEnableNotifications;
+        settings.EnableSoundNotifications = GoEnableSoundNotifications;
+        settings.ChatFontSize = GoChatFontSize;
         settings.Camera.MaxHeightOnlyWhenLobbyHost = GoCameraMaxHeightOnlyWhenLobbyHost;
         settings.Camera.MinHeight = GoCameraMinHeight;
         settings.Camera.MoveSpeedRatio = GoCameraMoveSpeedRatio;

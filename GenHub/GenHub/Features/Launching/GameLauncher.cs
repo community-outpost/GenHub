@@ -1606,11 +1606,16 @@ public class GameLauncher(
     /// <summary>
     /// Applies GeneralsOnline-specific settings to the settings.json file.
     /// </summary>
+    /// <remarks>
+    /// settings.json is a single global file owned by the GeneralsOnline client, not a
+    /// per-profile one. Only a GeneralsOnline profile may rewrite it: a retail, TheSuperHackers
+    /// or CommunityOutpost Zero Hour profile has nothing to say about that client's settings,
+    /// and writing anyway replaced whatever the user had configured inside the client itself.
+    /// </remarks>
     /// <param name="profile">The game profile containing the settings.</param>
     private async Task ApplyGeneralsOnlineSettingsAsync(GameProfile profile)
     {
-        // Only apply if it's Zero Hour (as GO settings only apply there currently)
-        if (profile.GameClient?.GameType != GameType.ZeroHour)
+        if (profile.GameClient?.GameType != GameType.ZeroHour || !profile.IsGeneralsOnlineProfile())
         {
             return;
         }
@@ -1619,10 +1624,13 @@ public class GameLauncher(
         {
             logger.LogInformation("[GameLauncher] Applying GeneralsOnline settings to settings.json for profile {ProfileId}", profile.Id);
 
-            // Clean Launch Strategy: Create fresh settings object to ensure isolation and prevent pollution
-            var settings = new GeneralsOnlineSettings();
+            // Loaded first so the settings the client owns and the profile says nothing about
+            // survive the rewrite; the mapper then overwrites only what the profile declares.
+            var loadResult = await gameSettingsService.LoadGeneralsOnlineSettingsAsync();
+            var settings = loadResult.Success && loadResult.Data != null
+                ? loadResult.Data
+                : new GeneralsOnlineSettings();
 
-            // Map GO settings from profile using the centralized mapper
             GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
 
             var saveResult = await gameSettingsService.SaveGeneralsOnlineSettingsAsync(settings);

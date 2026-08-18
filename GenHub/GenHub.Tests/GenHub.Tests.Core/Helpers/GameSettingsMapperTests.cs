@@ -61,56 +61,62 @@ public class GameSettingsMapperTests
     }
 
     /// <summary>
-    /// Verifies that a profile with no TheSuperHackers font sizes set falls back to the declared defaults.
+    /// Verifies that font sizes the profile leaves unset keep the values already in settings.json,
+    /// which is where the values a user configured inside the client itself live.
     /// </summary>
     [Fact]
-    public void ApplyToGeneralsOnlineSettings_UnsetFontSizes_UsesDeclaredDefaults()
+    public void ApplyToGeneralsOnlineSettings_UnsetFontSizes_PreservesExistingValues()
     {
-        // Arrange - seed with values the mapper must overwrite, so a missing assignment fails
+        // Arrange - seed with values no GenHub default would produce
         var profile = new GameProfile();
         var settings = new GeneralsOnlineSettings
         {
             SystemTimeFontSize = 99,
-            NetworkLatencyFontSize = 99,
-            RenderFpsFontSize = 99,
-            ResolutionFontAdjustment = 99,
+            NetworkLatencyFontSize = 98,
+            RenderFpsFontSize = 97,
+            ResolutionFontAdjustment = 96,
         };
 
         // Act
         GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
 
         // Assert
-        Assert.Equal(GameSettingsTheSuperHackersConstants.DefaultSystemTimeFontSize, settings.SystemTimeFontSize);
-        Assert.Equal(GameSettingsTheSuperHackersConstants.DefaultNetworkLatencyFontSize, settings.NetworkLatencyFontSize);
-        Assert.Equal(GameSettingsTheSuperHackersConstants.DefaultRenderFpsFontSize, settings.RenderFpsFontSize);
-        Assert.Equal(GameSettingsTheSuperHackersConstants.DefaultResolutionFontAdjustment, settings.ResolutionFontAdjustment);
+        Assert.Equal(99, settings.SystemTimeFontSize);
+        Assert.Equal(98, settings.NetworkLatencyFontSize);
+        Assert.Equal(97, settings.RenderFpsFontSize);
+        Assert.Equal(96, settings.ResolutionFontAdjustment);
     }
 
     /// <summary>
-    /// Verifies that the fallback defaults match the values declared on the settings model itself.
+    /// Verifies that GeneralsOnline options the profile leaves unset keep the values already in
+    /// settings.json rather than being reset to GenHub's defaults.
     /// </summary>
     [Fact]
-    public void ApplyToGeneralsOnlineSettings_UnsetFontSizes_MatchesModelDefaults()
+    public void ApplyToGeneralsOnlineSettings_UnsetGeneralsOnlineOptions_PreservesExistingValues()
     {
-        // Arrange - seed with values the mapper must overwrite, so a missing assignment fails
-        var profile = new GameProfile();
-        var expected = new GeneralsOnlineSettings();
+        // Arrange - the profile declares one option; everything else is the client's own
+        var profile = new GameProfile { GoShowFps = true };
         var settings = new GeneralsOnlineSettings
         {
-            SystemTimeFontSize = 99,
-            NetworkLatencyFontSize = 99,
-            RenderFpsFontSize = 99,
-            ResolutionFontAdjustment = 99,
+            ShowPing = false,
+            RememberUsername = false,
+            ChatFontSize = 24,
         };
+        settings.Camera.MinHeight = 42.0f;
+        settings.Render.FpsLimit = 60;
+        settings.Social.NotificationFriendComesOnlineMenus = false;
 
         // Act
         GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
 
         // Assert
-        Assert.Equal(expected.SystemTimeFontSize, settings.SystemTimeFontSize);
-        Assert.Equal(expected.NetworkLatencyFontSize, settings.NetworkLatencyFontSize);
-        Assert.Equal(expected.RenderFpsFontSize, settings.RenderFpsFontSize);
-        Assert.Equal(expected.ResolutionFontAdjustment, settings.ResolutionFontAdjustment);
+        Assert.True(settings.ShowFps);
+        Assert.False(settings.ShowPing);
+        Assert.False(settings.RememberUsername);
+        Assert.Equal(24, settings.ChatFontSize);
+        Assert.Equal(42.0f, settings.Camera.MinHeight);
+        Assert.Equal(60, settings.Render.FpsLimit);
+        Assert.False(settings.Social.NotificationFriendComesOnlineMenus);
     }
 
     /// <summary>
@@ -140,13 +146,13 @@ public class GameSettingsMapperTests
     }
 
     /// <summary>
-    /// Verifies that a profile with no cursor capture, edge scroll or observer toggles set
-    /// falls back to the declared defaults.
+    /// Verifies that cursor capture, edge scroll and observer toggles the profile leaves unset
+    /// keep the values already in settings.json.
     /// </summary>
     [Fact]
-    public void ApplyToGeneralsOnlineSettings_UnsetToggles_UsesDeclaredDefaults()
+    public void ApplyToGeneralsOnlineSettings_UnsetToggles_PreservesExistingValues()
     {
-        // Arrange - seed each toggle inverted, so a missing assignment fails
+        // Arrange - seed each toggle inverted relative to its GenHub default
         var profile = new GameProfile();
         var settings = new GeneralsOnlineSettings
         {
@@ -163,46 +169,13 @@ public class GameSettingsMapperTests
         GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
 
         // Assert
-        Assert.Equal(GameSettingsTheSuperHackersConstants.DefaultPlayerObserverEnabled, settings.PlayerObserverEnabled);
-        Assert.Equal(GameSettingsTheSuperHackersConstants.DefaultCursorCaptureEnabledInFullscreenGame, settings.CursorCaptureEnabledInFullscreenGame);
-        Assert.Equal(GameSettingsTheSuperHackersConstants.DefaultCursorCaptureEnabledInFullscreenMenu, settings.CursorCaptureEnabledInFullscreenMenu);
-        Assert.Equal(GameSettingsTheSuperHackersConstants.DefaultCursorCaptureEnabledInWindowedGame, settings.CursorCaptureEnabledInWindowedGame);
-        Assert.Equal(GameSettingsTheSuperHackersConstants.DefaultCursorCaptureEnabledInWindowedMenu, settings.CursorCaptureEnabledInWindowedMenu);
-        Assert.Equal(GameSettingsTheSuperHackersConstants.DefaultScreenEdgeScrollEnabledInFullscreenApp, settings.ScreenEdgeScrollEnabledInFullscreenApp);
-        Assert.Equal(GameSettingsTheSuperHackersConstants.DefaultScreenEdgeScrollEnabledInWindowedApp, settings.ScreenEdgeScrollEnabledInWindowedApp);
-    }
-
-    /// <summary>
-    /// Verifies that the toggle fallbacks match the values declared on the settings model itself.
-    /// </summary>
-    [Fact]
-    public void ApplyToGeneralsOnlineSettings_UnsetToggles_MatchesModelDefaults()
-    {
-        // Arrange - seed each toggle inverted, so a missing assignment fails
-        var profile = new GameProfile();
-        var expected = new GeneralsOnlineSettings();
-        var settings = new GeneralsOnlineSettings
-        {
-            PlayerObserverEnabled = false,
-            CursorCaptureEnabledInFullscreenGame = false,
-            CursorCaptureEnabledInFullscreenMenu = false,
-            CursorCaptureEnabledInWindowedGame = false,
-            CursorCaptureEnabledInWindowedMenu = true,
-            ScreenEdgeScrollEnabledInFullscreenApp = false,
-            ScreenEdgeScrollEnabledInWindowedApp = true,
-        };
-
-        // Act
-        GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
-
-        // Assert
-        Assert.Equal(expected.PlayerObserverEnabled, settings.PlayerObserverEnabled);
-        Assert.Equal(expected.CursorCaptureEnabledInFullscreenGame, settings.CursorCaptureEnabledInFullscreenGame);
-        Assert.Equal(expected.CursorCaptureEnabledInFullscreenMenu, settings.CursorCaptureEnabledInFullscreenMenu);
-        Assert.Equal(expected.CursorCaptureEnabledInWindowedGame, settings.CursorCaptureEnabledInWindowedGame);
-        Assert.Equal(expected.CursorCaptureEnabledInWindowedMenu, settings.CursorCaptureEnabledInWindowedMenu);
-        Assert.Equal(expected.ScreenEdgeScrollEnabledInFullscreenApp, settings.ScreenEdgeScrollEnabledInFullscreenApp);
-        Assert.Equal(expected.ScreenEdgeScrollEnabledInWindowedApp, settings.ScreenEdgeScrollEnabledInWindowedApp);
+        Assert.False(settings.PlayerObserverEnabled);
+        Assert.False(settings.CursorCaptureEnabledInFullscreenGame);
+        Assert.False(settings.CursorCaptureEnabledInFullscreenMenu);
+        Assert.False(settings.CursorCaptureEnabledInWindowedGame);
+        Assert.True(settings.CursorCaptureEnabledInWindowedMenu);
+        Assert.False(settings.ScreenEdgeScrollEnabledInFullscreenApp);
+        Assert.True(settings.ScreenEdgeScrollEnabledInWindowedApp);
     }
 
     /// <summary>

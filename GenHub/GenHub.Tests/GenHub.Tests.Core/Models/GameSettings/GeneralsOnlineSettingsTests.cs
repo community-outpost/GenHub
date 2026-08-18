@@ -89,4 +89,39 @@ public class GeneralsOnlineSettingsTests
         Assert.Contains("\"fps_limit\": 144", json);
         Assert.Contains("\"verbose_logging\": true", json);
     }
+
+    /// <summary>
+    /// Verifies that settings.json keys this model does not declare survive a load-modify-save
+    /// round trip, because saving replaces the GeneralsOnline client's file wholesale.
+    /// </summary>
+    [Fact]
+    public void RoundTrip_Should_PreserveUnknownKeys()
+    {
+        // Arrange
+        var json = @"
+{
+ ""show_ping"": true,
+ ""auth_token"": ""secret"",
+ ""unmodelled_toggle"": false,
+ ""camera"": {
+  ""min_height"": 100.0,
+  ""unmodelled_zoom_step"": 7
+ }
+}";
+
+        // Act
+        var settings = JsonSerializer.Deserialize<GeneralsOnlineSettings>(json, _options);
+        Assert.NotNull(settings);
+        settings.ShowPing = false;
+        var rewritten = JsonSerializer.Serialize(settings, _options);
+        var reloaded = JsonSerializer.Deserialize<GeneralsOnlineSettings>(rewritten, _options);
+
+        // Assert
+        Assert.NotNull(reloaded);
+        Assert.False(reloaded.ShowPing);
+        Assert.Equal(100.0f, reloaded.Camera.MinHeight);
+        Assert.Equal("secret", reloaded.AdditionalSettings["auth_token"].GetString());
+        Assert.False(reloaded.AdditionalSettings["unmodelled_toggle"].GetBoolean());
+        Assert.Equal(7, reloaded.Camera.AdditionalSettings["unmodelled_zoom_step"].GetInt32());
+    }
 }

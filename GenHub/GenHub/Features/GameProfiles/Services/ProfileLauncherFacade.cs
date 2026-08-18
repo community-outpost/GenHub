@@ -816,7 +816,7 @@ public class ProfileLauncherFacade(
         }
         else
         {
-            if (IsGeneralsOnlineProfile(profile))
+            if (profile.IsGeneralsOnlineProfile())
             {
                 publisherType = PublisherTypeConstants.GeneralsOnline;
                 reconciler = reconcilerRegistry.GetReconciler(publisherType);
@@ -1167,36 +1167,6 @@ public class ProfileLauncherFacade(
         }
 
         return parts.Count > 0 ? $"({string.Join(" and ", parts)})" : string.Empty;
-    }
-
-    /// <summary>
-    /// Checks if a profile uses a GeneralsOnline game client.
-    /// </summary>
-    /// <param name="profile">The profile to check.</param>
-    /// <returns>True if the profile uses GeneralsOnline, false otherwise.</returns>
-    private bool IsGeneralsOnlineProfile(GameProfile profile)
-    {
-        // Check PublisherType first
-        if (profile.GameClient?.PublisherType?.Equals(
-            PublisherTypeConstants.GeneralsOnline,
-            StringComparison.OrdinalIgnoreCase) == true)
-        {
-            return true;
-        }
-
-        // Check if Name contains "GeneralsOnline" (for legacy or incomplete profiles)
-        if (profile.GameClient?.Name?.Contains("GeneralsOnline", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            return true;
-        }
-
-        // Final fallback: Check enabled content for GeneralsOnline manifests
-        if (profile.EnabledContentIds?.Any(id => id.Contains("generalsonline", StringComparison.OrdinalIgnoreCase)) == true)
-        {
-            return true;
-        }
-
-        return false;
     }
 
     /// <summary>

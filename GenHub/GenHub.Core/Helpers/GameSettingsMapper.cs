@@ -89,6 +89,11 @@ public static class GameSettingsMapper
     /// Applies settings from a GameProfile to a GeneralsOnlineSettings object.
     /// Used by GameLauncher to prepare settings.json for launch.
     /// </summary>
+    /// <remarks>
+    /// Only the fields the profile declares are written, as <see cref="ApplyToOptions"/> does for
+    /// Options.ini. The caller passes the settings already on disk, and anything the profile leaves
+    /// unset is the GeneralsOnline client's own configuration, which a launch must not overwrite.
+    /// </remarks>
     /// <param name="profile">The GameProfile source.</param>
     /// <param name="settings">The GeneralsOnlineSettings to populate.</param>
     public static void ApplyToGeneralsOnlineSettings(GameProfile profile, GeneralsOnlineSettings settings)
@@ -607,60 +612,60 @@ public static class GameSettingsMapper
 
     private static void ApplyGoGeneralSettings(GameProfile profile, GeneralsOnlineSettings settings)
     {
-        settings.ShowFps = profile.GoShowFps ?? false;
-        settings.ShowPing = profile.GoShowPing ?? true;
-        settings.ShowPlayerRanks = profile.GoShowPlayerRanks ?? true;
-        settings.AutoLogin = profile.GoAutoLogin ?? false;
-        settings.RememberUsername = profile.GoRememberUsername ?? true;
-        settings.EnableNotifications = profile.GoEnableNotifications ?? true;
-        settings.EnableSoundNotifications = profile.GoEnableSoundNotifications ?? true;
-        settings.ChatFontSize = profile.GoChatFontSize ?? 12;
+        if (profile.GoShowFps.HasValue) settings.ShowFps = profile.GoShowFps.Value;
+        if (profile.GoShowPing.HasValue) settings.ShowPing = profile.GoShowPing.Value;
+        if (profile.GoShowPlayerRanks.HasValue) settings.ShowPlayerRanks = profile.GoShowPlayerRanks.Value;
+        if (profile.GoAutoLogin.HasValue) settings.AutoLogin = profile.GoAutoLogin.Value;
+        if (profile.GoRememberUsername.HasValue) settings.RememberUsername = profile.GoRememberUsername.Value;
+        if (profile.GoEnableNotifications.HasValue) settings.EnableNotifications = profile.GoEnableNotifications.Value;
+        if (profile.GoEnableSoundNotifications.HasValue) settings.EnableSoundNotifications = profile.GoEnableSoundNotifications.Value;
+        if (profile.GoChatFontSize.HasValue) settings.ChatFontSize = profile.GoChatFontSize.Value;
     }
 
     private static void ApplyGoCameraAndChatSettings(GameProfile profile, GeneralsOnlineSettings settings)
     {
-        settings.Camera.MaxHeightOnlyWhenLobbyHost = profile.GoCameraMaxHeightOnlyWhenLobbyHost ?? 310.0f;
-        settings.Camera.MinHeight = profile.GoCameraMinHeight ?? 310.0f;
-        settings.Camera.MoveSpeedRatio = profile.GoCameraMoveSpeedRatio ?? 1.5f;
-        settings.Chat.DurationSecondsUntilFadeOut = profile.GoChatDurationSecondsUntilFadeOut ?? 30;
+        if (profile.GoCameraMaxHeightOnlyWhenLobbyHost.HasValue) settings.Camera.MaxHeightOnlyWhenLobbyHost = profile.GoCameraMaxHeightOnlyWhenLobbyHost.Value;
+        if (profile.GoCameraMinHeight.HasValue) settings.Camera.MinHeight = profile.GoCameraMinHeight.Value;
+        if (profile.GoCameraMoveSpeedRatio.HasValue) settings.Camera.MoveSpeedRatio = profile.GoCameraMoveSpeedRatio.Value;
+        if (profile.GoChatDurationSecondsUntilFadeOut.HasValue) settings.Chat.DurationSecondsUntilFadeOut = profile.GoChatDurationSecondsUntilFadeOut.Value;
     }
 
     private static void ApplyGoRenderAndDebugSettings(GameProfile profile, GeneralsOnlineSettings settings)
     {
-        settings.Debug.VerboseLogging = profile.GoDebugVerboseLogging ?? false;
-        settings.Render.FpsLimit = profile.GoRenderFpsLimit ?? 144;
-        settings.Render.LimitFramerate = profile.GoRenderLimitFramerate ?? true;
-        settings.Render.StatsOverlay = profile.GoRenderStatsOverlay ?? true;
+        if (profile.GoDebugVerboseLogging.HasValue) settings.Debug.VerboseLogging = profile.GoDebugVerboseLogging.Value;
+        if (profile.GoRenderFpsLimit.HasValue) settings.Render.FpsLimit = profile.GoRenderFpsLimit.Value;
+        if (profile.GoRenderLimitFramerate.HasValue) settings.Render.LimitFramerate = profile.GoRenderLimitFramerate.Value;
+        if (profile.GoRenderStatsOverlay.HasValue) settings.Render.StatsOverlay = profile.GoRenderStatsOverlay.Value;
     }
 
     private static void ApplyGoSocialSettings(GameProfile profile, GeneralsOnlineSettings settings)
     {
-        settings.Social.NotificationFriendComesOnlineGameplay = profile.GoSocialNotificationFriendComesOnlineGameplay ?? true;
-        settings.Social.NotificationFriendComesOnlineMenus = profile.GoSocialNotificationFriendComesOnlineMenus ?? true;
-        settings.Social.NotificationFriendGoesOfflineGameplay = profile.GoSocialNotificationFriendGoesOfflineGameplay ?? true;
-        settings.Social.NotificationFriendGoesOfflineMenus = profile.GoSocialNotificationFriendGoesOfflineMenus ?? true;
-        settings.Social.NotificationPlayerAcceptsRequestGameplay = profile.GoSocialNotificationPlayerAcceptsRequestGameplay ?? true;
-        settings.Social.NotificationPlayerAcceptsRequestMenus = profile.GoSocialNotificationPlayerAcceptsRequestMenus ?? true;
-        settings.Social.NotificationPlayerSendsRequestGameplay = profile.GoSocialNotificationPlayerSendsRequestGameplay ?? true;
-        settings.Social.NotificationPlayerSendsRequestMenus = profile.GoSocialNotificationPlayerSendsRequestMenus ?? true;
+        if (profile.GoSocialNotificationFriendComesOnlineGameplay.HasValue) settings.Social.NotificationFriendComesOnlineGameplay = profile.GoSocialNotificationFriendComesOnlineGameplay.Value;
+        if (profile.GoSocialNotificationFriendComesOnlineMenus.HasValue) settings.Social.NotificationFriendComesOnlineMenus = profile.GoSocialNotificationFriendComesOnlineMenus.Value;
+        if (profile.GoSocialNotificationFriendGoesOfflineGameplay.HasValue) settings.Social.NotificationFriendGoesOfflineGameplay = profile.GoSocialNotificationFriendGoesOfflineGameplay.Value;
+        if (profile.GoSocialNotificationFriendGoesOfflineMenus.HasValue) settings.Social.NotificationFriendGoesOfflineMenus = profile.GoSocialNotificationFriendGoesOfflineMenus.Value;
+        if (profile.GoSocialNotificationPlayerAcceptsRequestGameplay.HasValue) settings.Social.NotificationPlayerAcceptsRequestGameplay = profile.GoSocialNotificationPlayerAcceptsRequestGameplay.Value;
+        if (profile.GoSocialNotificationPlayerAcceptsRequestMenus.HasValue) settings.Social.NotificationPlayerAcceptsRequestMenus = profile.GoSocialNotificationPlayerAcceptsRequestMenus.Value;
+        if (profile.GoSocialNotificationPlayerSendsRequestGameplay.HasValue) settings.Social.NotificationPlayerSendsRequestGameplay = profile.GoSocialNotificationPlayerSendsRequestGameplay.Value;
+        if (profile.GoSocialNotificationPlayerSendsRequestMenus.HasValue) settings.Social.NotificationPlayerSendsRequestMenus = profile.GoSocialNotificationPlayerSendsRequestMenus.Value;
     }
 
     private static void ApplyGoTshSettings(GameProfile profile, GeneralsOnlineSettings settings)
     {
-        settings.ArchiveReplays = profile.TshArchiveReplays ?? false;
-        settings.MoneyTransactionVolume = profile.TshMoneyTransactionVolume ?? 50;
-        settings.ShowMoneyPerMinute = profile.TshShowMoneyPerMinute ?? false;
-        settings.PlayerObserverEnabled = profile.TshPlayerObserverEnabled ?? GameSettingsTheSuperHackersConstants.DefaultPlayerObserverEnabled;
-        settings.SystemTimeFontSize = profile.TshSystemTimeFontSize ?? GameSettingsTheSuperHackersConstants.DefaultSystemTimeFontSize;
-        settings.NetworkLatencyFontSize = profile.TshNetworkLatencyFontSize ?? GameSettingsTheSuperHackersConstants.DefaultNetworkLatencyFontSize;
-        settings.RenderFpsFontSize = profile.TshRenderFpsFontSize ?? GameSettingsTheSuperHackersConstants.DefaultRenderFpsFontSize;
-        settings.ResolutionFontAdjustment = profile.TshResolutionFontAdjustment ?? GameSettingsTheSuperHackersConstants.DefaultResolutionFontAdjustment;
-        settings.CursorCaptureEnabledInFullscreenGame = profile.TshCursorCaptureEnabledInFullscreenGame ?? GameSettingsTheSuperHackersConstants.DefaultCursorCaptureEnabledInFullscreenGame;
-        settings.CursorCaptureEnabledInFullscreenMenu = profile.TshCursorCaptureEnabledInFullscreenMenu ?? GameSettingsTheSuperHackersConstants.DefaultCursorCaptureEnabledInFullscreenMenu;
-        settings.CursorCaptureEnabledInWindowedGame = profile.TshCursorCaptureEnabledInWindowedGame ?? GameSettingsTheSuperHackersConstants.DefaultCursorCaptureEnabledInWindowedGame;
-        settings.CursorCaptureEnabledInWindowedMenu = profile.TshCursorCaptureEnabledInWindowedMenu ?? GameSettingsTheSuperHackersConstants.DefaultCursorCaptureEnabledInWindowedMenu;
-        settings.ScreenEdgeScrollEnabledInFullscreenApp = profile.TshScreenEdgeScrollEnabledInFullscreenApp ?? GameSettingsTheSuperHackersConstants.DefaultScreenEdgeScrollEnabledInFullscreenApp;
-        settings.ScreenEdgeScrollEnabledInWindowedApp = profile.TshScreenEdgeScrollEnabledInWindowedApp ?? GameSettingsTheSuperHackersConstants.DefaultScreenEdgeScrollEnabledInWindowedApp;
+        if (profile.TshArchiveReplays.HasValue) settings.ArchiveReplays = profile.TshArchiveReplays.Value;
+        if (profile.TshMoneyTransactionVolume.HasValue) settings.MoneyTransactionVolume = profile.TshMoneyTransactionVolume.Value;
+        if (profile.TshShowMoneyPerMinute.HasValue) settings.ShowMoneyPerMinute = profile.TshShowMoneyPerMinute.Value;
+        if (profile.TshPlayerObserverEnabled.HasValue) settings.PlayerObserverEnabled = profile.TshPlayerObserverEnabled.Value;
+        if (profile.TshSystemTimeFontSize.HasValue) settings.SystemTimeFontSize = profile.TshSystemTimeFontSize.Value;
+        if (profile.TshNetworkLatencyFontSize.HasValue) settings.NetworkLatencyFontSize = profile.TshNetworkLatencyFontSize.Value;
+        if (profile.TshRenderFpsFontSize.HasValue) settings.RenderFpsFontSize = profile.TshRenderFpsFontSize.Value;
+        if (profile.TshResolutionFontAdjustment.HasValue) settings.ResolutionFontAdjustment = profile.TshResolutionFontAdjustment.Value;
+        if (profile.TshCursorCaptureEnabledInFullscreenGame.HasValue) settings.CursorCaptureEnabledInFullscreenGame = profile.TshCursorCaptureEnabledInFullscreenGame.Value;
+        if (profile.TshCursorCaptureEnabledInFullscreenMenu.HasValue) settings.CursorCaptureEnabledInFullscreenMenu = profile.TshCursorCaptureEnabledInFullscreenMenu.Value;
+        if (profile.TshCursorCaptureEnabledInWindowedGame.HasValue) settings.CursorCaptureEnabledInWindowedGame = profile.TshCursorCaptureEnabledInWindowedGame.Value;
+        if (profile.TshCursorCaptureEnabledInWindowedMenu.HasValue) settings.CursorCaptureEnabledInWindowedMenu = profile.TshCursorCaptureEnabledInWindowedMenu.Value;
+        if (profile.TshScreenEdgeScrollEnabledInFullscreenApp.HasValue) settings.ScreenEdgeScrollEnabledInFullscreenApp = profile.TshScreenEdgeScrollEnabledInFullscreenApp.Value;
+        if (profile.TshScreenEdgeScrollEnabledInWindowedApp.HasValue) settings.ScreenEdgeScrollEnabledInWindowedApp = profile.TshScreenEdgeScrollEnabledInWindowedApp.Value;
     }
 
     private static void ApplyVideoResolutionAndQualityToOptions(GameProfile profile, IniOptions options, ILogger? logger)

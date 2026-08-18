@@ -1,3 +1,7 @@
+using System.Collections.Generic;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
 namespace GenHub.Core.Models.GameSettings;
 
 /// <summary>GeneralsOnline game client settings (inherits TheSuperHackers settings plus GeneralsOnline-specific options).</summary>
@@ -42,6 +46,14 @@ public class GeneralsOnlineSettings : TheSuperHackersSettings
     /// <summary>Gets or sets the social notification settings.</summary>
     public SocialSettings Social { get; set; } = new();
 
+    /// <summary>
+    /// Gets or sets the settings.json keys this model does not declare. GenHub rewrites the
+    /// GeneralsOnline client's own settings.json wholesale, so without this the client would
+    /// lose every option GenHub has no property for.
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement> AdditionalSettings { get; set; } = [];
+
     /// <summary>Nested camera settings.</summary>
     public class CameraSettings
     {
@@ -53,6 +65,10 @@ public class GeneralsOnlineSettings : TheSuperHackersSettings
 
         /// <summary>Gets or sets the camera move speed ratio.</summary>
         public float MoveSpeedRatio { get; set; } = 1.5f;
+
+        /// <summary>Gets or sets the camera keys this model does not declare, so they survive a rewrite.</summary>
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement> AdditionalSettings { get; set; } = [];
     }
 
     /// <summary>Nested chat settings.</summary>
@@ -60,6 +76,10 @@ public class GeneralsOnlineSettings : TheSuperHackersSettings
     {
         /// <summary>Gets or sets the chat duration in seconds until fade out.</summary>
         public int DurationSecondsUntilFadeOut { get; set; } = 30;
+
+        /// <summary>Gets or sets the chat keys this model does not declare, so they survive a rewrite.</summary>
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement> AdditionalSettings { get; set; } = [];
     }
 
     /// <summary>Nested debug settings.</summary>
@@ -67,6 +87,10 @@ public class GeneralsOnlineSettings : TheSuperHackersSettings
     {
         /// <summary>Gets or sets a value indicating whether debug verbose logging is enabled.</summary>
         public bool VerboseLogging { get; set; }
+
+        /// <summary>Gets or sets the debug keys this model does not declare, so they survive a rewrite.</summary>
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement> AdditionalSettings { get; set; } = [];
     }
 
     /// <summary>Nested render settings.</summary>
@@ -80,6 +104,10 @@ public class GeneralsOnlineSettings : TheSuperHackersSettings
 
         /// <summary>Gets or sets a value indicating whether to render stats overlay.</summary>
         public bool StatsOverlay { get; set; } = true;
+
+        /// <summary>Gets or sets the render keys this model does not declare, so they survive a rewrite.</summary>
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement> AdditionalSettings { get; set; } = [];
     }
 
     /// <summary>Nested social settings.</summary>
@@ -108,5 +136,9 @@ public class GeneralsOnlineSettings : TheSuperHackersSettings
 
         /// <summary>Gets or sets a value indicating whether to show notification when player sends request in menus.</summary>
         public bool NotificationPlayerSendsRequestMenus { get; set; } = true;
+
+        /// <summary>Gets or sets the social keys this model does not declare, so they survive a rewrite.</summary>
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement> AdditionalSettings { get; set; } = [];
     }
 }

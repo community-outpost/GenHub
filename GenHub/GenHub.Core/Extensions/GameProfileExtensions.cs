@@ -1,3 +1,6 @@
+using System;
+using System.Linq;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.GameProfile;
 
 namespace GenHub.Core.Extensions;
@@ -19,6 +22,32 @@ public static class GameProfileExtensions
                HasCustomTshSettings(profile) ||
                HasCustomGeneralsOnlineSettings(profile) ||
                HasCustomNetworkSettings(profile);
+    }
+
+    /// <summary>
+    /// Checks if a profile runs the GeneralsOnline client.
+    /// </summary>
+    /// <remarks>
+    /// The publisher type is the authoritative marker, but profiles created before it was
+    /// recorded carry it only in the client name or the enabled content ids, so both are
+    /// consulted as fallbacks.
+    /// </remarks>
+    /// <param name="profile">The game profile.</param>
+    /// <returns>True if the profile runs GeneralsOnline, false otherwise.</returns>
+    public static bool IsGeneralsOnlineProfile(this GameProfile profile)
+    {
+        if (string.Equals(profile.GameClient?.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (profile.GameClient?.Name?.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return true;
+        }
+
+        return profile.EnabledContentIds?
+            .Any(id => id.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase)) == true;
     }
 
     private static bool HasCustomVideoSettings(GameProfile profile)
