@@ -124,8 +124,13 @@ public class UserDataTrackerService(
                 var installResult = await InstallSingleUserDataFileAsync(file, targetPath, targetGame, userDataManifest.InstallationKey, priorEntry, cancellationToken);
                 if (!installResult.Success || installResult.Data == null)
                 {
-                    _ = await CleanupInstalledFilesAsync(userDataManifest, CancellationToken.None);
-                    return OperationResult<UserDataManifest>.CreateFailure(installResult.FirstError ?? $"Failed to install '{targetPath}'.");
+                    var error = installResult.FirstError ?? $"Failed to install '{targetPath}'.";
+                    if (!await CleanupFailedInstallAsync(userDataManifest, manifestId))
+                    {
+                        error += $" Some of your original files could not be put back and were kept at '{_backupsPath}'.";
+                    }
+
+                    return OperationResult<UserDataManifest>.CreateFailure(error);
                 }
 
                 var entry = installResult.Data;
@@ -145,13 +150,13 @@ public class UserDataTrackerService(
             }
             catch (OperationCanceledException)
             {
-                _ = await CleanupInstalledFilesAsync(userDataManifest, CancellationToken.None);
+                _ = await CleanupFailedInstallAsync(userDataManifest, manifestId);
                 throw;
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "[UserData] Failed to persist manifest or update index for {ManifestId}; cleaning up installed files", manifestId);
-                _ = await CleanupInstalledFilesAsync(userDataManifest, CancellationToken.None);
+                _ = await CleanupFailedInstallAsync(userDataManifest, manifestId);
                 throw;
             }
 
@@ -1274,6 +1279,28 @@ public class UserDataTrackerService(
     }
 
     private string GetUserDataBasePath(GameType gameType) => pathProvider.GetOptionsDirectory(gameType);
+
+    /// <summary>
+    /// Rolls a failed installation back. The manifest has not been persisted at this point, so a
+    /// backup that cannot be put back is referenced by nothing at all; say so loudly rather than
+    /// leaving the user to identify a machine-named file in the backups tree.
+    /// </summary>
+    /// <param name="manifest">The partially installed manifest to roll back.</param>
+    /// <param name="manifestId">The manifest identifier, for logging.</param>
+    /// <returns><c>true</c> when every backup was restored; otherwise, <c>false</c>.</returns>
+    private async Task<bool> CleanupFailedInstallAsync(UserDataManifest manifest, string manifestId)
+    {
+        if (await CleanupInstalledFilesAsync(manifest, CancellationToken.None))
+        {
+            return true;
+        }
+
+        logger.LogError(
+            "[UserData] Rolling back the failed install of {ManifestId} left one or more originals unrestored; they are kept at {BackupsPath} but no manifest records where they belong",
+            manifestId,
+            _backupsPath);
+        return false;
+    }
 
     /// <summary>
     /// Removes the deployed files for a manifest and restores the pristine originals GenHub backed up.
