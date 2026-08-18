@@ -117,7 +117,7 @@ public class GameSettingsServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task LoadOptionsAsync_Should_ParseValidIniFile()
+    public async Task LoadOptionsAsync_Should_ParseValidIniFileAsync()
     {
         // Arrange
         var iniContent = @"[AUDIO]
@@ -186,7 +186,7 @@ Gamma=60
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task LoadOptionsAsync_Should_ReturnSuccessWithDefaults_WhenFileDoesNotExist()
+    public async Task LoadOptionsAsync_Should_ReturnSuccessWithDefaults_WhenFileDoesNotExistAsync()
     {
         // Arrange
         var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
@@ -209,7 +209,7 @@ Gamma=60
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task LoadOptionsAsync_Should_HandleMalformedIniFile()
+    public async Task LoadOptionsAsync_Should_HandleMalformedIniFileAsync()
     {
         // Arrange
         var iniContent = @"[AUDIO]
@@ -248,7 +248,7 @@ MissingBracket
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task SaveOptionsAsync_Should_SaveOptionsToFile()
+    public async Task SaveOptionsAsync_Should_SaveOptionsToFileAsync()
     {
         // Arrange
         var tempFile = Path.GetTempFileName();
@@ -310,7 +310,7 @@ MissingBracket
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task BoolToString_Should_SerializeCorrectly(bool value)
+    public async Task BoolToString_Should_SerializeCorrectlyAsync(bool value)
     {
         // This is testing the private BoolToString method indirectly through SaveOptionsAsync
         var options = new IniOptions
@@ -350,7 +350,7 @@ MissingBracket
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task SaveOptionsAsync_Should_PreserveUnknownSections()
+    public async Task SaveOptionsAsync_Should_PreserveUnknownSectionsAsync()
     {
         // Arrange
         var originalContent = @"[AUDIO]

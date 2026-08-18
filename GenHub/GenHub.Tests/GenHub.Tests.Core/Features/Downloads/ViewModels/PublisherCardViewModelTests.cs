@@ -50,7 +50,7 @@ public class PublisherCardViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task RefreshInstallationStatus_DifferentAddonsSameVersion_DoNotCollide()
+    public async Task RefreshInstallationStatus_DifferentAddonsSameVersion_DoNotCollideAsync()
     {
         // Arrange
         var vm = CreateSystem();
@@ -65,7 +65,7 @@ public class PublisherCardViewModelTests
             ContentType = GenHub.Core.Models.Enums.ContentType.Addon,
             ProviderName = "testprovider",
             AuthorName = "Test Author",
-            LastUpdated = DateTime.Now,
+            LastUpdated = DateTime.UtcNow,
         });
 
         // Item 2: HUD Mod v1.0
@@ -77,7 +77,7 @@ public class PublisherCardViewModelTests
             ContentType = GenHub.Core.Models.Enums.ContentType.Addon,
             ProviderName = "testprovider",
             AuthorName = "Test Author",
-            LastUpdated = DateTime.Now,
+            LastUpdated = DateTime.UtcNow,
         });
 
         vm.ContentTypes.Add(new ContentTypeGroup
@@ -119,7 +119,7 @@ public class PublisherCardViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task RefreshInstallationStatus_GameClient_AllowsVersionMatch()
+    public async Task RefreshInstallationStatus_GameClient_AllowsVersionMatchAsync()
     {
         // Arrange
         var vm = CreateSystem();
@@ -134,7 +134,7 @@ public class PublisherCardViewModelTests
             ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
             ProviderName = "testprovider",
             AuthorName = "Test Author",
-            LastUpdated = DateTime.Now,
+            LastUpdated = DateTime.UtcNow,
         });
 
         vm.ContentTypes.Add(new ContentTypeGroup

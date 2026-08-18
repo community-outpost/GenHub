@@ -56,7 +56,7 @@ public class WorkspaceManagerTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task PrepareWorkspaceAsync_InvalidStrategy_ThrowsInvalidOperationException()
+    public async Task PrepareWorkspaceAsync_InvalidStrategy_ThrowsInvalidOperationExceptionAsync()
     {
         var config = new WorkspaceConfiguration
         {

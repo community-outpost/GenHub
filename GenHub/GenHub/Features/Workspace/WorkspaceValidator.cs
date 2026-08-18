@@ -132,18 +132,15 @@ public class WorkspaceValidator(ILogger<WorkspaceValidator> logger) : IWorkspace
         if (strategy != null)
         {
             // Use properties directly from the interface
-            if (strategy.RequiresAdminRights)
+            if (strategy.RequiresAdminRights && !IsRunningAsAdministrator())
             {
-                if (!IsRunningAsAdministrator())
+                issues.Add(new ValidationIssue
                 {
-                    issues.Add(new ValidationIssue
-                    {
-                        IssueType = ValidationIssueType.AccessDenied,
-                        Severity = ValidationSeverity.Error,
-                        Message = $"Strategy '{strategy.Name}' requires administrator privileges",
-                        Path = "System",
-                    });
-                }
+                    IssueType = ValidationIssueType.AccessDenied,
+                    Severity = ValidationSeverity.Error,
+                    Message = $"Strategy '{strategy.Name}' requires administrator privileges",
+                    Path = "System",
+                });
             }
 
             if (strategy.RequiresSameVolume)

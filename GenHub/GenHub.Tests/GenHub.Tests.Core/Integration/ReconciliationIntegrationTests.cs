@@ -103,7 +103,7 @@ public class ReconciliationIntegrationTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CommunityOutpost_UpdateAvailable_ShouldUpdateProfile()
+    public async Task CommunityOutpost_UpdateAvailable_ShouldUpdateProfileAsync()
     {
         // Arrange
         var oldManifestId = "1.10.communityoutpost.patch.communitypatch";
@@ -184,7 +184,7 @@ public class ReconciliationIntegrationTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GeneralsOnline_UpdateWithMapPack_ShouldEnforceDependency()
+    public async Task GeneralsOnline_UpdateWithMapPack_ShouldEnforceDependencyAsync()
     {
         // Arrange
         var updateServiceMock = new Mock<IGeneralsOnlineUpdateService>();
@@ -314,7 +314,7 @@ public class ReconciliationIntegrationTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task SuperHackers_UpdateVariants_ShouldPreserveGameType()
+    public async Task SuperHackers_UpdateVariants_ShouldPreserveGameTypeAsync()
     {
         // Arrange
         var updateServiceMock = new Mock<ISuperHackersUpdateService>();

@@ -77,7 +77,7 @@ public class WorkspaceManagerReuseTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task PrepareWorkspaceAsync_WhenManifestVersionChanges_ShouldRecreateWorkspace()
+    public async Task PrepareWorkspaceAsync_WhenManifestVersionChanges_ShouldRecreateWorkspaceAsync()
     {
         // Arrange
         var workspaceId = "test-workspace";
@@ -137,7 +137,7 @@ public class WorkspaceManagerReuseTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task PrepareWorkspaceAsync_WhenManifestVersionSame_ShouldReuseWorkspace()
+    public async Task PrepareWorkspaceAsync_WhenManifestVersionSame_ShouldReuseWorkspaceAsync()
     {
         // Arrange
         var workspaceId = "test-workspace";
@@ -200,7 +200,7 @@ public class WorkspaceManagerReuseTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task PrepareWorkspaceAsync_WhenEntryPointCannotBeRepaired_ShouldRecreateWorkspace()
+    public async Task PrepareWorkspaceAsync_WhenEntryPointCannotBeRepaired_ShouldRecreateWorkspaceAsync()
     {
         // Arrange
         var workspaceId = "test-workspace";
@@ -256,7 +256,7 @@ public class WorkspaceManagerReuseTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task PrepareWorkspaceAsync_WhenEntryPointBricked_RepairsAndReusesWorkspace()
+    public async Task PrepareWorkspaceAsync_WhenEntryPointBricked_RepairsAndReusesWorkspaceAsync()
     {
         if (OperatingSystem.IsWindows())
         {
@@ -322,7 +322,7 @@ public class WorkspaceManagerReuseTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task PrepareWorkspaceAsync_WhenWorkspaceRootIsBlank_ShouldReuseWorkspace()
+    public async Task PrepareWorkspaceAsync_WhenWorkspaceRootIsBlank_ShouldReuseWorkspaceAsync()
     {
         var workspaceId = "test-workspace";
         var manifestId = "1.0.local.mod.testmanifest";
@@ -381,7 +381,7 @@ public class WorkspaceManagerReuseTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task PrepareWorkspaceAsync_WhenStorageRootChanges_ShouldRecreateWorkspace()
+    public async Task PrepareWorkspaceAsync_WhenStorageRootChanges_ShouldRecreateWorkspaceAsync()
     {
         var workspaceId = "test-workspace";
         var manifestId = "1.0.local.mod.testmanifest";

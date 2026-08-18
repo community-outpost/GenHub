@@ -39,7 +39,7 @@ public class SuperHackersProvider(
             d.SourceName?.Equals(ContentSourceNames.GitHubDeliverer, StringComparison.OrdinalIgnoreCase) == true)
         ?? throw new InvalidOperationException("No GitHub deliverer found for SuperHackers");
 
-    private ProviderDefinition? _cachedProviderDefinition;
+    private readonly ProviderDefinition? _cachedProviderDefinition = providerDefinitionLoader.GetProvider(SuperHackersConstants.PublisherId);
 
     /// <inheritdoc/>
     public override string SourceName => PublisherTypeConstants.TheSuperHackers;
@@ -87,38 +87,37 @@ public class SuperHackersProvider(
                  SuperHackersConstants.GeneralsGameCodeRepo.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase)))
             {
                 // Generate manifest ID
-                    var manifestId = ManifestIdGenerator.GenerateGitHubContentId(
-                        SuperHackersConstants.GeneralsGameCodeOwner,
-                        SuperHackersConstants.GeneralsGameCodeRepo,
-                        ContentType.GameClient,
-                        latestRelease.TagName);
+                var manifestId = ManifestIdGenerator.GenerateGitHubContentId(
+                    SuperHackersConstants.GeneralsGameCodeOwner,
+                    SuperHackersConstants.GeneralsGameCodeRepo,
+                    ContentType.GameClient,
+                    latestRelease.TagName);
 
-                    var result = new ContentSearchResult
+                var result = new ContentSearchResult
+                {
+                    Id = manifestId,
+                    Name = latestRelease.Name ?? $"{SuperHackersConstants.PublisherName} {latestRelease.TagName}",
+                    Description = latestRelease.Body ?? "SuperHackers release - details available after resolution",
+                    Version = latestRelease.TagName ?? "latest",
+                    AuthorName = SuperHackersConstants.GeneralsGameCodeOwner,
+                    ContentType = ContentType.GameClient,
+                    TargetGame = GameType.Generals, // Simplification, could infer
+                    IsInferred = false,
+                    ProviderName = SourceName,
+                    RequiresResolution = true,
+                    ResolverId = SuperHackersConstants.ResolverId,
+                    SourceUrl = latestRelease.HtmlUrl,
+                    LastUpdated = latestRelease.PublishedAt?.DateTime ?? latestRelease.CreatedAt.DateTime,
+                    ResolverMetadata =
                     {
-                        Id = manifestId,
-                        Name = latestRelease.Name ?? $"{SuperHackersConstants.PublisherName} {latestRelease.TagName}",
-                        Description = latestRelease.Body ?? "SuperHackers release - details available after resolution",
-                        Version = latestRelease.TagName ?? "latest",
-                        AuthorName = SuperHackersConstants.GeneralsGameCodeOwner,
-                        ContentType = ContentType.GameClient,
-                        TargetGame = GameType.Generals, // Simplification, could infer
-                        IsInferred = false,
-                        ProviderName = SourceName,
-                        RequiresResolution = true,
-                        ResolverId = SuperHackersConstants.ResolverId,
-                        SourceUrl = latestRelease.HtmlUrl,
-                        LastUpdated = latestRelease.PublishedAt?.DateTime ?? latestRelease.CreatedAt.DateTime,
-                        ResolverMetadata =
-                        {
-                            [GitHubConstants.OwnerMetadataKey] = SuperHackersConstants.GeneralsGameCodeOwner,
-                            [GitHubConstants.RepoMetadataKey] = SuperHackersConstants.GeneralsGameCodeRepo,
-                            [GitHubConstants.TagMetadataKey] = latestRelease.TagName ?? "latest",
-                        },
-                    };
+                        [GitHubConstants.OwnerMetadataKey] = SuperHackersConstants.GeneralsGameCodeOwner,
+                        [GitHubConstants.RepoMetadataKey] = SuperHackersConstants.GeneralsGameCodeRepo,
+                        [GitHubConstants.TagMetadataKey] = latestRelease.TagName ?? "latest",
+                    },
+                };
 
-                    result.SetData(latestRelease);
-                    results.Add(result);
-                }
+                result.SetData(latestRelease);
+                results.Add(result);
             }
 
             return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results);
@@ -175,15 +174,6 @@ public class SuperHackersProvider(
     /// </remarks>
     protected override ProviderDefinition? GetProviderDefinition()
     {
-        // Use cached definition if available
-        if (_cachedProviderDefinition != null)
-        {
-            return _cachedProviderDefinition;
-        }
-
-        // Try to get from the loader (it should already be loaded at startup)
-        _cachedProviderDefinition = providerDefinitionLoader.GetProvider(SuperHackersConstants.PublisherId);
-
         if (_cachedProviderDefinition == null)
         {
             Logger.LogWarning(

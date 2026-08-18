@@ -41,7 +41,7 @@ public class RetailArchiveRootTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EngineOnlyWorkspace_ReachesRetailArchivesThroughEnvironment()
+    public async Task EngineOnlyWorkspace_ReachesRetailArchivesThroughEnvironmentAsync()
     {
         var installDirectory = NativeClientFixture.Directory;
         if (installDirectory is null)
@@ -91,7 +91,7 @@ public class RetailArchiveRootTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EngineOnlyWorkspace_WithoutArchiveRoots_DoesNotSurvive()
+    public async Task EngineOnlyWorkspace_WithoutArchiveRoots_DoesNotSurviveAsync()
     {
         var installDirectory = NativeClientFixture.Directory;
         if (installDirectory is null)

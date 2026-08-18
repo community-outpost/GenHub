@@ -42,7 +42,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task AnalyzeWorkspaceDelta_ModVsGameInstallation_ModWins()
+    public async Task AnalyzeWorkspaceDelta_ModVsGameInstallation_ModWinsAsync()
     {
         // Arrange
         var testFile = "Data\\Art\\Textures\\test.dds";
@@ -73,7 +73,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task AnalyzeWorkspaceDelta_PatchVsGameClient_PatchWins()
+    public async Task AnalyzeWorkspaceDelta_PatchVsGameClient_PatchWinsAsync()
     {
         // Arrange
         var testFile = "generals.exe";
@@ -104,7 +104,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task AnalyzeWorkspaceDelta_GameClientVsGameInstallation_GameClientWins()
+    public async Task AnalyzeWorkspaceDelta_GameClientVsGameInstallation_GameClientWinsAsync()
     {
         // Arrange
         var testFile = "options.ini";
@@ -135,7 +135,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task AnalyzeWorkspaceDelta_ThreeWayConflict_HighestPriorityWins()
+    public async Task AnalyzeWorkspaceDelta_ThreeWayConflict_HighestPriorityWinsAsync()
     {
         // Arrange
         var testFile = "Data\\INI\\GameData.ini";
@@ -168,7 +168,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task AnalyzeWorkspaceDelta_NoConflict_FileAddedNormally()
+    public async Task AnalyzeWorkspaceDelta_NoConflict_FileAddedNormallyAsync()
     {
         // Arrange
         var testFile = "unique.dat";
@@ -195,7 +195,7 @@ public class WorkspaceReconcilerConflictTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task AnalyzeWorkspaceDelta_ConflictOccurs_LogsWarning()
+    public async Task AnalyzeWorkspaceDelta_ConflictOccurs_LogsWarningAsync()
     {
         // Arrange
         var testFile = "conflict.txt";

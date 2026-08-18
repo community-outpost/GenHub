@@ -61,7 +61,7 @@ public class GitHubContentProviderTests
     /// A task representing the asynchronous operation.
     /// </returns>
     [Fact]
-    public async Task SearchAsync_OrchestratesDiscoveryAndResolution_Successfully()
+    public async Task SearchAsync_OrchestratesDiscoveryAndResolution_SuccessfullyAsync()
     {
         // Arrange
         var query = new ContentSearchQuery { SearchTerm = "Test" };
@@ -105,7 +105,7 @@ public class GitHubContentProviderTests
     /// A task representing the asynchronous operation.
     /// </returns>
     [Fact]
-    public async Task PrepareContentAsync_CallsDelivererAndValidator_Successfully()
+    public async Task PrepareContentAsync_CallsDelivererAndValidator_SuccessfullyAsync()
     {
         // Arrange
         var manifest = new ContentManifest { Id = "1.0.genhub.mod.ghtestmod", Files = [] };

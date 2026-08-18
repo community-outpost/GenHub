@@ -150,7 +150,7 @@ public class GameLauncherTests : IDisposable
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
-    public async Task LaunchProfileAsync_WithValidProfile_ShouldSucceed()
+    public async Task LaunchProfileAsync_WithValidProfile_ShouldSucceedAsync()
     {
         // Arrange
         var profile = CreateTestProfile();
@@ -200,7 +200,7 @@ public class GameLauncherTests : IDisposable
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
-    public async Task LaunchProfileAsync_WithProfileNotFound_ShouldFail()
+    public async Task LaunchProfileAsync_WithProfileNotFound_ShouldFailAsync()
     {
         // Arrange
         var profileId = Guid.NewGuid().ToString();
@@ -220,7 +220,7 @@ public class GameLauncherTests : IDisposable
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
-    public async Task LaunchProfileAsync_WithManifestNotFound_ShouldFail()
+    public async Task LaunchProfileAsync_WithManifestNotFound_ShouldFailAsync()
     {
         // Arrange
         var profile = CreateTestProfile();
@@ -246,7 +246,7 @@ public class GameLauncherTests : IDisposable
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
-    public async Task LaunchProfileAsync_WithNullManifest_ShouldFail()
+    public async Task LaunchProfileAsync_WithNullManifest_ShouldFailAsync()
     {
         // Arrange
         var profile = CreateTestProfile();
@@ -272,7 +272,7 @@ public class GameLauncherTests : IDisposable
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
-    public async Task LaunchProfileAsync_WithWorkspaceFailure_ShouldFail()
+    public async Task LaunchProfileAsync_WithWorkspaceFailure_ShouldFailAsync()
     {
         // Arrange
         var profile = CreateTestProfile();
@@ -297,7 +297,7 @@ public class GameLauncherTests : IDisposable
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
-    public async Task LaunchProfileAsync_WithProcessStartFailure_ShouldFail()
+    public async Task LaunchProfileAsync_WithProcessStartFailure_ShouldFailAsync()
     {
         // Arrange
         var profile = CreateTestProfile();
@@ -332,7 +332,7 @@ public class GameLauncherTests : IDisposable
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
-    public async Task TerminateGameAsync_WithValidLaunchId_ShouldSucceed()
+    public async Task TerminateGameAsync_WithValidLaunchId_ShouldSucceedAsync()
     {
         // Arrange
         var launchId = Guid.NewGuid().ToString();
@@ -362,7 +362,7 @@ public class GameLauncherTests : IDisposable
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
-    public async Task TerminateGameAsync_WithInvalidLaunchId_ShouldFail()
+    public async Task TerminateGameAsync_WithInvalidLaunchId_ShouldFailAsync()
     {
         // Arrange
         var launchId = Guid.NewGuid().ToString();
@@ -381,7 +381,7 @@ public class GameLauncherTests : IDisposable
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
-    public async Task LaunchProfileAsync_WithProgressTracking_ShouldReportProgress()
+    public async Task LaunchProfileAsync_WithProgressTracking_ShouldReportProgressAsync()
     {
         // Arrange
         var profile = CreateTestProfile();
@@ -460,7 +460,7 @@ public class GameLauncherTests : IDisposable
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
-    public async Task LaunchProfileAsync_WithCancellation_ShouldRespectCancellation()
+    public async Task LaunchProfileAsync_WithCancellation_ShouldRespectCancellationAsync()
     {
         // Arrange
         var profileId = "test-profile";
@@ -482,7 +482,7 @@ public class GameLauncherTests : IDisposable
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
-    public async Task LaunchProfileAsync_ConcurrentSteamProfilesSharingInstallation_SerializesSetup()
+    public async Task LaunchProfileAsync_ConcurrentSteamProfilesSharingInstallation_SerializesSetupAsync()
     {
         // Arrange
         var testRoot = Path.Combine(
@@ -583,7 +583,7 @@ public class GameLauncherTests : IDisposable
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
-    public async Task LaunchProfileAsync_WithEmptyEnabledContent_ShouldSucceed()
+    public async Task LaunchProfileAsync_WithEmptyEnabledContent_ShouldSucceedAsync()
     {
         // Arrange
         var profile = CreateTestProfile();
@@ -613,7 +613,7 @@ public class GameLauncherTests : IDisposable
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
-    public async Task TerminateGameAsync_WithProcessTerminationFailure_ShouldNotUnregister()
+    public async Task TerminateGameAsync_WithProcessTerminationFailure_ShouldNotUnregisterAsync()
     {
         // Arrange
         var launchId = Guid.NewGuid().ToString();
@@ -644,7 +644,7 @@ public class GameLauncherTests : IDisposable
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
-    public async Task GetActiveGamesAsync_ShouldReturnActiveProcesses()
+    public async Task GetActiveGamesAsync_ShouldReturnActiveProcessesAsync()
     {
         // Arrange
         var activeProcesses = new List<GameProcessInfo>
@@ -671,7 +671,7 @@ public class GameLauncherTests : IDisposable
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
-    public async Task LaunchRegistry_ShouldTrackActiveLaunches()
+    public async Task LaunchRegistry_ShouldTrackActiveLaunchesAsync()
     {
         // Arrange
         var activeLaunches = new List<GameLaunchInfo>
@@ -705,7 +705,7 @@ public class GameLauncherTests : IDisposable
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
-    public async Task LaunchProfileAsync_WithMultipleContentManifests_ShouldResolveAll()
+    public async Task LaunchProfileAsync_WithMultipleContentManifests_ShouldResolveAllAsync()
     {
         // Arrange
         var profile = CreateTestProfile();
@@ -752,7 +752,7 @@ public class GameLauncherTests : IDisposable
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
-    public async Task LaunchProfileAsync_WithProfileSettings_ShouldWriteIniOptionsBeforeLaunch()
+    public async Task LaunchProfileAsync_WithProfileSettings_ShouldWriteIniOptionsBeforeLaunchAsync()
     {
         // Arrange
         var profile = CreateTestProfile();
@@ -815,7 +815,7 @@ public class GameLauncherTests : IDisposable
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
-    public async Task LaunchProfileAsync_WithWindowedMode_ShouldAddWinArgument()
+    public async Task LaunchProfileAsync_WithWindowedMode_ShouldAddWinArgumentAsync()
     {
         // Arrange
         var profile = CreateTestProfile();
@@ -864,7 +864,7 @@ public class GameLauncherTests : IDisposable
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
-    public async Task LaunchProfileAsync_WithoutProfileSettings_ShouldStillSaveOptionsIni()
+    public async Task LaunchProfileAsync_WithoutProfileSettings_ShouldStillSaveOptionsIniAsync()
     {
         // Arrange
         var profile = CreateTestProfile();

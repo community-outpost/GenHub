@@ -36,7 +36,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task LoadProvidersAsync_LoadsValidProviders_Successfully()
+    public async Task LoadProvidersAsync_LoadsValidProviders_SuccessfullyAsync()
     {
         // Arrange
         var provider1Json = @"{
@@ -79,7 +79,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task GetProvider_ReturnsCorrectProvider_AfterLoading()
+    public async Task GetProvider_ReturnsCorrectProvider_AfterLoadingAsync()
     {
         // Arrange
         var providerJson = @"{
@@ -118,7 +118,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task GetProvider_AutoLoadsProviders_WhenNotInitialized()
+    public async Task GetProvider_AutoLoadsProviders_WhenNotInitializedAsync()
     {
         // Arrange
         var providerJson = @"{
@@ -147,7 +147,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task GetProvider_ReturnsNull_ForNonExistentProvider()
+    public async Task GetProvider_ReturnsNull_ForNonExistentProviderAsync()
     {
         // Arrange
         var loader = new ProviderDefinitionLoader(_loggerMock.Object, _testProvidersDirectory);
@@ -165,7 +165,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task GetProvider_IsCaseInsensitive()
+    public async Task GetProvider_IsCaseInsensitiveAsync()
     {
         // Arrange
         var providerJson = @"{
@@ -193,7 +193,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task LoadProvidersAsync_HandlesInvalidJson_Gracefully()
+    public async Task LoadProvidersAsync_HandlesInvalidJson_GracefullyAsync()
     {
         // Arrange
         var validJson = @"{
@@ -230,7 +230,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task LoadProvidersAsync_HandlesMissingProviderId_Gracefully()
+    public async Task LoadProvidersAsync_HandlesMissingProviderId_GracefullyAsync()
     {
         // Arrange
         var validJson = @"{
@@ -271,7 +271,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task ReloadProvidersAsync_ClearsAndReloads_Successfully()
+    public async Task ReloadProvidersAsync_ClearsAndReloads_SuccessfullyAsync()
     {
         // Arrange
         var initialJson = @"{
@@ -316,7 +316,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task AddCustomProvider_AddsProvider_Successfully()
+    public async Task AddCustomProvider_AddsProvider_SuccessfullyAsync()
     {
         // Arrange
         var loader = new ProviderDefinitionLoader(_loggerMock.Object, _testProvidersDirectory);
@@ -345,7 +345,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task RemoveCustomProvider_RemovesProvider_Successfully()
+    public async Task RemoveCustomProvider_RemovesProvider_SuccessfullyAsync()
     {
         // Arrange
         var loader = new ProviderDefinitionLoader(_loggerMock.Object, _testProvidersDirectory);
@@ -375,7 +375,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task GetAllProviders_ReturnsOnlyEnabledProviders()
+    public async Task GetAllProviders_ReturnsOnlyEnabledProvidersAsync()
     {
         // Arrange
         var enabledJson = @"{
@@ -416,7 +416,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task GetProvidersByType_ReturnsCorrectlyFilteredProviders()
+    public async Task GetProvidersByType_ReturnsCorrectlyFilteredProvidersAsync()
     {
         // Arrange
         var staticJson = @"{
@@ -463,7 +463,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task LoadProvidersAsync_ParsesCustomEndpoints_Correctly()
+    public async Task LoadProvidersAsync_ParsesCustomEndpoints_CorrectlyAsync()
     {
         // Arrange
         var providerJson = @"{
@@ -504,7 +504,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task LoadProvidersAsync_HandlesEmptyDirectory_Gracefully()
+    public async Task LoadProvidersAsync_HandlesEmptyDirectory_GracefullyAsync()
     {
         // Arrange - directory is already empty
         var loader = new ProviderDefinitionLoader(_loggerMock.Object, _testProvidersDirectory);
@@ -523,7 +523,7 @@ public class ProviderDefinitionLoaderTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task LoadProvidersAsync_HandlesNonExistentDirectory_Gracefully()
+    public async Task LoadProvidersAsync_HandlesNonExistentDirectory_GracefullyAsync()
     {
         // Arrange
         var nonExistentPath = Path.Combine(Path.GetTempPath(), "GenHub.Tests", "NonExistent", Guid.NewGuid().ToString());

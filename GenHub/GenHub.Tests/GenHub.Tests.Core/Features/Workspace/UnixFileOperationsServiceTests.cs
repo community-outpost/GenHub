@@ -56,7 +56,7 @@ public class UnixFileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task CreateHardLinkAsync_ProducesRealLinkNotCopy()
+    public async Task CreateHardLinkAsync_ProducesRealLinkNotCopyAsync()
     {
         if (!OnUnix)
         {
@@ -93,7 +93,7 @@ public class UnixFileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task CreateHardLinkAsync_MissingTarget_ThrowsFileNotFound()
+    public async Task CreateHardLinkAsync_MissingTarget_ThrowsFileNotFoundAsync()
     {
         if (!OnUnix)
         {
@@ -114,7 +114,7 @@ public class UnixFileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task CreateHardLinkAsync_ExistingDestination_IsReplaced()
+    public async Task CreateHardLinkAsync_ExistingDestination_IsReplacedAsync()
     {
         if (!OnUnix)
         {
@@ -137,7 +137,7 @@ public class UnixFileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task CopyFromCasAsync_ProducesIndependentCopy()
+    public async Task CopyFromCasAsync_ProducesIndependentCopyAsync()
     {
         var casBlob = Path.Combine(_tempDir, "cas-copy-source.dat");
         var copy = Path.Combine(_tempDir, "cas-copy-destination.dat");
@@ -161,7 +161,7 @@ public class UnixFileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task BaseService_CreateHardLinkAsync_ThrowsRatherThanCopying()
+    public async Task BaseService_CreateHardLinkAsync_ThrowsRatherThanCopyingAsync()
     {
         var baseService = new FileOperationsService(
             NullLogger<FileOperationsService>.Instance,

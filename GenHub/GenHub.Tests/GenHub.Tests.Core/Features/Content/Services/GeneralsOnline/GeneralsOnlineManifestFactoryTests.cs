@@ -183,7 +183,7 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the test execution.</returns>
     [Fact]
-    public async Task CreateManifestsFromExtractedContentAsync_SeparatesFilesCorrectly()
+    public async Task CreateManifestsFromExtractedContentAsync_SeparatesFilesCorrectlyAsync()
     {
         // Arrange: Create simulated extracted directory structure
         var exePath = Path.Combine(_tempDir, GameClientConstants.GeneralsOnline60HzExecutable);
@@ -254,7 +254,7 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CreateManifestsFromExtractedContentAsync_SiblingDirectories_AreNotMisclassified()
+    public async Task CreateManifestsFromExtractedContentAsync_SiblingDirectories_AreNotMisclassifiedAsync()
     {
         // Arrange
         var siblingMapDir = Path.Combine(_tempDir, "Maps_backup");
@@ -296,7 +296,7 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CreateManifestsFromExtractedContentAsync_PreCancelledToken_ThrowsOperationCanceledException()
+    public async Task CreateManifestsFromExtractedContentAsync_PreCancelledToken_ThrowsOperationCanceledExceptionAsync()
     {
         // Arrange
         var originalManifest = new ContentManifest
@@ -349,7 +349,7 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CreateManifestsFromExtractedContentAsync_EmptyGameClient_ThrowsInvalidDataException()
+    public async Task CreateManifestsFromExtractedContentAsync_EmptyGameClient_ThrowsInvalidDataExceptionAsync()
     {
         // Arrange: Only create map files, no GameClient files
         var mapsDir = Path.Combine(_tempDir, GeneralsOnlineConstants.MapsSubdirectory, "TestMap");

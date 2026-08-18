@@ -47,7 +47,7 @@ public class ContentOrchestratorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task SearchAsync_AggregatesResultsFromMultipleProviders_Successfully()
+    public async Task SearchAsync_AggregatesResultsFromMultipleProviders_SuccessfullyAsync()
     {
         // Arrange
         var provider1Mock = new Mock<IContentProvider>();
@@ -92,7 +92,7 @@ public class ContentOrchestratorTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task AcquireContentAsync_ValidatesAndStoresContent_Successfully()
+    public async Task AcquireContentAsync_ValidatesAndStoresContent_SuccessfullyAsync()
     {
         // Arrange
         var searchResult = new ContentSearchResult

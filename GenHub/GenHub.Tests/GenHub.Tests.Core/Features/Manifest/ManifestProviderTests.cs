@@ -59,7 +59,7 @@ public class ManifestProviderTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetManifestAsync_WithGameClient_ReturnsFromCache_WhenAvailable()
+    public async Task GetManifestAsync_WithGameClient_ReturnsFromCache_WhenAvailableAsync()
     {
         // Arrange
         var gameClient = new GameClient
@@ -113,7 +113,7 @@ public class ManifestProviderTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetManifestAsync_WithGameInstallation_BuildsCorrectManifestId()
+    public async Task GetManifestAsync_WithGameInstallation_BuildsCorrectManifestIdAsync()
     {
         // Arrange
         var installation = new GameInstallation(
@@ -174,7 +174,7 @@ public class ManifestProviderTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetManifestAsync_WithZeroHourInstallation_UsesZeroHourId()
+    public async Task GetManifestAsync_WithZeroHourInstallation_UsesZeroHourIdAsync()
     {
         // Arrange
         var tempZeroHourPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
@@ -223,7 +223,7 @@ public class ManifestProviderTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetManifestAsync_ReturnsNull_WhenManifestNotFoundInCacheAndResources()
+    public async Task GetManifestAsync_ReturnsNull_WhenManifestNotFoundInCacheAndResourcesAsync()
     {
         // Arrange
         var gameClient = new GameClient { Id = "1.0.genhub.nonexistent" };
@@ -242,7 +242,7 @@ public class ManifestProviderTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task GetManifestAsync_ThrowsValidationException_WhenManifestIdMismatch()
+    public async Task GetManifestAsync_ThrowsValidationException_WhenManifestIdMismatchAsync()
     {
         // Arrange
         var gameClient = new GameClient

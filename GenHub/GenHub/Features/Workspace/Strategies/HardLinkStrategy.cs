@@ -324,9 +324,9 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             return (true, false, 0);
         }
 
-        bool verifyHash;
-        bool hardLinked;
-        long bytesProcessed;
+        bool verifyHash = false;
+        bool hardLinked = false;
+        long bytesProcessed = 0;
 
         if (sameVolume)
         {

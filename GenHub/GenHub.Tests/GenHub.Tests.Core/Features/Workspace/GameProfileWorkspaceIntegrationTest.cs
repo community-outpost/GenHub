@@ -109,7 +109,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task PrepareWorkspace_FullCopyStrategy_CopiesGameInstallationAndClientFiles()
+    public async Task PrepareWorkspace_FullCopyStrategy_CopiesGameInstallationAndClientFilesAsync()
     {
         // Arrange
         var manifests = CreateTestManifests();
@@ -161,7 +161,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task PrepareWorkspace_SymlinkStrategy_LinksGameInstallationAndClientFiles()
+    public async Task PrepareWorkspace_SymlinkStrategy_LinksGameInstallationAndClientFilesAsync()
     {
         // Skip on systems that don't support symlinks
         bool isWindows = OperatingSystem.IsWindows();
@@ -220,7 +220,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task PrepareWorkspace_MixedContentTypes_HandlesGameInstallationAndGameClientCorrectly()
+    public async Task PrepareWorkspace_MixedContentTypes_HandlesGameInstallationAndGameClientCorrectlyAsync()
     {
         bool isWindows = OperatingSystem.IsWindows();
         bool isAdmin = isWindows &&
@@ -326,7 +326,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
     [InlineData(WorkspaceStrategy.SymlinkOnly)]
     [InlineData(WorkspaceStrategy.HybridCopySymlink)]
     [InlineData(WorkspaceStrategy.HardLink)]
-    public async Task PrepareWorkspace_AllStrategies_HandleGameInstallationFiles(WorkspaceStrategy strategy)
+    public async Task PrepareWorkspace_AllStrategies_HandleGameInstallationFilesAsync(WorkspaceStrategy strategy)
     {
         bool isWindows = OperatingSystem.IsWindows();
         bool isAdmin = isWindows &&
@@ -394,7 +394,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CleanupWorkspace_RemovesAllFiles()
+    public async Task CleanupWorkspace_RemovesAllFilesAsync()
     {
         // Arrange
         var manifests = CreateTestManifests();
@@ -432,7 +432,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task PrepareWorkspace_EmptyManifests_CreatesEmptyWorkspace()
+    public async Task PrepareWorkspace_EmptyManifests_CreatesEmptyWorkspaceAsync()
     {
         // Arrange
         var workspaceConfig = new WorkspaceConfiguration
@@ -465,7 +465,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task PrepareWorkspace_ForceRecreate_RemovesExistingWorkspace()
+    public async Task PrepareWorkspace_ForceRecreate_RemovesExistingWorkspaceAsync()
     {
         // Arrange
         var manifests = CreateTestManifests();
@@ -506,7 +506,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task PrepareWorkspace_NestedDirectories_PreservesStructure()
+    public async Task PrepareWorkspace_NestedDirectories_PreservesStructureAsync()
     {
         // Arrange
         var manifests = CreateTestManifests();
@@ -542,7 +542,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task PrepareWorkspace_LargeFiles_CopiesSuccessfully()
+    public async Task PrepareWorkspace_LargeFiles_CopiesSuccessfullyAsync()
     {
         // Arrange - Create a larger test file
         var largeFilePath = Path.Combine(_tempGameInstall, "large.dat");
@@ -596,7 +596,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task PrepareWorkspace_OverlappingManifests_HandlesCorrectly()
+    public async Task PrepareWorkspace_OverlappingManifests_HandlesCorrectlyAsync()
     {
         // Arrange
         var manifest1 = new ContentManifest

@@ -455,7 +455,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             }
 
             // If profile has settings, load them
-            if (profile != null && profile.HasCustomSettings())
+            if (profile?.HasCustomSettings() == true)
             {
                 LoadSettingsFromProfile(profile);
             }
@@ -741,6 +741,13 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
 
     private void LoadVideoAudioSettingsFromProfile(Core.Models.GameProfile.GameProfile profile)
     {
+        LoadVideoBasicSettingsFromProfile(profile);
+        LoadVideoAdvancedSettingsFromProfile(profile);
+        LoadAudioSettingsFromProfile(profile);
+    }
+
+    private void LoadVideoBasicSettingsFromProfile(Core.Models.GameProfile.GameProfile profile)
+    {
         if (profile.VideoResolutionWidth.HasValue) ResolutionWidth = profile.VideoResolutionWidth.Value;
         if (profile.VideoResolutionHeight.HasValue) ResolutionHeight = profile.VideoResolutionHeight.Value;
         if (profile.VideoWindowed.HasValue) Windowed = profile.VideoWindowed.Value;
@@ -755,6 +762,10 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         if (profile.VideoUseShadowDecals.HasValue) UseShadowDecals = profile.VideoUseShadowDecals.Value;
         if (profile.VideoBuildingOcclusion.HasValue) BuildingOcclusion = profile.VideoBuildingOcclusion.Value;
         if (profile.VideoShowProps.HasValue) ShowProps = profile.VideoShowProps.Value;
+    }
+
+    private void LoadVideoAdvancedSettingsFromProfile(Core.Models.GameProfile.GameProfile profile)
+    {
         if (profile.VideoStaticGameLOD != null) StaticGameLOD = profile.VideoStaticGameLOD;
         if (profile.VideoIdealStaticGameLOD != null) IdealStaticGameLOD = profile.VideoIdealStaticGameLOD;
         if (profile.VideoUseDoubleClickAttackMove.HasValue) UseDoubleClickAttackMove = profile.VideoUseDoubleClickAttackMove.Value;
@@ -773,7 +784,10 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         if (profile.VideoUseCloudMap.HasValue) UseCloudMap = profile.VideoUseCloudMap.Value;
         if (profile.VideoUseLightMap.HasValue) UseLightMap = profile.VideoUseLightMap.Value;
         if (profile.VideoSkipEALogo.HasValue) SkipEALogo = profile.VideoSkipEALogo.Value;
+    }
 
+    private void LoadAudioSettingsFromProfile(Core.Models.GameProfile.GameProfile profile)
+    {
         if (profile.AudioSoundVolume.HasValue) SoundVolume = profile.AudioSoundVolume.Value;
         if (profile.AudioThreeDSoundVolume.HasValue) ThreeDSoundVolume = profile.AudioThreeDSoundVolume.Value;
         if (profile.AudioSpeechVolume.HasValue) SpeechVolume = profile.AudioSpeechVolume.Value;
@@ -1034,6 +1048,12 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             return;
         }
 
+        ApplyTshGameplayProperties(tsh);
+        ApplyTshUiCursorProperties(tsh);
+    }
+
+    private void ApplyTshGameplayProperties(Dictionary<string, string> tsh)
+    {
         if (tsh.TryGetValue("UseDoubleClickAttackMove", out var doubleClick))
             UseDoubleClickAttackMove = ParseBool(doubleClick);
         if (tsh.TryGetValue("ScrollFactor", out var scroll) && int.TryParse(scroll, out var scrollVal))
@@ -1044,10 +1064,14 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             DynamicLOD = ParseBool(dynLOD);
         if (tsh.TryGetValue("MaxParticleCount", out var particles) && int.TryParse(particles, out var particleVal))
             MaxParticleCount = particleVal;
-
         if (tsh.TryGetValue("ArchiveReplays", out var ar)) TshArchiveReplays = ParseBool(ar);
         if (tsh.TryGetValue("ShowMoneyPerMinute", out var smpm)) TshShowMoneyPerMinute = ParseBool(smpm);
         if (tsh.TryGetValue("PlayerObserverEnabled", out var poe)) TshPlayerObserverEnabled = ParseBool(poe);
+        if (tsh.TryGetValue("MoneyTransactionVolume", out var mtv) && int.TryParse(mtv, out var mtvVal)) TshMoneyTransactionVolume = mtvVal;
+    }
+
+    private void ApplyTshUiCursorProperties(Dictionary<string, string> tsh)
+    {
         if (tsh.TryGetValue("SystemTimeFontSize", out var stfs) && int.TryParse(stfs, out var stfsVal)) TshSystemTimeFontSize = stfsVal;
         if (tsh.TryGetValue("NetworkLatencyFontSize", out var nlfs) && int.TryParse(nlfs, out var nlfsVal)) TshNetworkLatencyFontSize = nlfsVal;
         if (tsh.TryGetValue("RenderFpsFontSize", out var rffs) && int.TryParse(rffs, out var rffsVal)) TshRenderFpsFontSize = rffsVal;
@@ -1058,7 +1082,6 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         if (tsh.TryGetValue("CursorCaptureEnabledInWindowedMenu", out var ccewm)) TshCursorCaptureEnabledInWindowedMenu = ParseBool(ccewm);
         if (tsh.TryGetValue("ScreenEdgeScrollEnabledInFullscreenApp", out var sesefa)) TshScreenEdgeScrollEnabledInFullscreenApp = ParseBool(sesefa);
         if (tsh.TryGetValue("ScreenEdgeScrollEnabledInWindowedApp", out var sesewa)) TshScreenEdgeScrollEnabledInWindowedApp = ParseBool(sesewa);
-        if (tsh.TryGetValue("MoneyTransactionVolume", out var mtv) && int.TryParse(mtv, out var mtvVal)) TshMoneyTransactionVolume = mtvVal;
     }
 
     private IniOptions CreateOptionsFromViewModel()

@@ -389,10 +389,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                     if (variants.Count == 1)
                     {
                         var variant = variants[0];
-                        if (item.Model.Id != variant.Id.Value)
-                        {
-                            item.Model.Id = variant.Id.Value;
-                        }
+                        item.Model.Id = variant.Id.Value;
 
                         // Populate resolution variants from the manifest metadata
                         if (variant.Metadata?.Variants != null && variant.Metadata.Variants.Count > 0)
@@ -843,8 +840,8 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
             return;
         }
 
-        string contentId;
-        string contentName;
+        string contentId = string.Empty;
+        string contentName = string.Empty;
         bool isDownloading = false;
 
         if (parameters[0] is ContentItemViewModel item)
@@ -986,8 +983,8 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
             return;
         }
 
-        string contentId;
-        string contentName;
+        string contentId = string.Empty;
+        string contentName = string.Empty;
         ContentItemViewModel? itemForStatus = null;
 
         if (parameter is ContentItemViewModel item)

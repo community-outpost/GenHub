@@ -108,7 +108,7 @@ public class ManifestDiscoveryServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverManifestsAsync_DiscoversNestedJsonManifest_AndIgnoresNonJsonFile()
+    public async Task DiscoverManifestsAsync_DiscoversNestedJsonManifest_AndIgnoresNonJsonFileAsync()
     {
         // Arrange
         const string nestedManifestId = "1.0.genhub.mod.nested";
@@ -136,7 +136,7 @@ public class ManifestDiscoveryServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverManifestsAsync_WithMalformedJson_ContinuesDiscoveringNestedManifest()
+    public async Task DiscoverManifestsAsync_WithMalformedJson_ContinuesDiscoveringNestedManifestAsync()
     {
         // Arrange
         const string nestedManifestId = "1.0.genhub.mod.valid";
@@ -160,7 +160,7 @@ public class ManifestDiscoveryServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverManifestsAsync_WithUnavailableDescendants_ContinuesDiscoveringAccessibleManifests()
+    public async Task DiscoverManifestsAsync_WithUnavailableDescendants_ContinuesDiscoveringAccessibleManifestsAsync()
     {
         // Arrange
         const string accessibleManifestId = "1.0.genhub.mod.accessible";

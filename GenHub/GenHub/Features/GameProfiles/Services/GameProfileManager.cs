@@ -243,11 +243,9 @@ public class GameProfileManager(
                 logger.LogInformation("Successfully deleted game profile with ID: {ProfileId}", profileId);
                 return OperationResult<bool>.CreateSuccess(true);
             }
-            else
-            {
-                logger.LogError("Failed to delete game profile with ID: {ProfileId}", profileId);
-                return OperationResult<bool>.CreateFailure(deleteResult.Errors);
-            }
+
+            logger.LogError("Failed to delete game profile with ID: {ProfileId}", profileId);
+            return OperationResult<bool>.CreateFailure(deleteResult.Errors);
         }
         catch (Exception ex)
         {

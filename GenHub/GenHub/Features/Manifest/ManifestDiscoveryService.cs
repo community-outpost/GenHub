@@ -321,7 +321,7 @@ public class ManifestDiscoveryService(
     private async Task DiscoverEmbeddedManifestsAsync(CancellationToken cancellationToken)
     {
         logger.LogInformation("Scanning for embedded manifests...");
-        var assembly = Assembly.GetExecutingAssembly();
+        var assembly = typeof(ManifestDiscoveryService).Assembly;
         var manifestResourceNames = assembly.GetManifestResourceNames()
             .Where(r => r.StartsWith("GenHub.Manifests.") && r.EndsWith(FileTypes.JsonFileExtension));
 

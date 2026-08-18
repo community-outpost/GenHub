@@ -337,15 +337,14 @@ public sealed class MapDirectoryService(
                     var newFilePath = Path.Combine(directory, newFileName);
 
                     if (File.Exists(newFilePath))
-                        {
-                            logger.LogWarning("Target file already exists: {Path}", newFilePath);
-                            return false;
-                        }
-
-                        File.Move(map.FullPath, newFilePath);
-                        logger.LogInformation("Renamed map from {OldName} to {NewName}", map.FileName, newFileName);
-                        return true;
+                    {
+                        logger.LogWarning("Target file already exists: {Path}", newFilePath);
+                        return false;
                     }
+
+                    File.Move(map.FullPath, newFilePath);
+                    logger.LogInformation("Renamed map from {OldName} to {NewName}", map.FileName, newFileName);
+                    return true;
                 }
                 catch (Exception ex)
                 {

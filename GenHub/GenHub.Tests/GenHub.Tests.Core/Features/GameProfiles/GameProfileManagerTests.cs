@@ -46,7 +46,7 @@ public class GameProfileManagerTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CreateProfileAsync_Should_ReturnSuccess_When_InstallationAndClientExist()
+    public async Task CreateProfileAsync_Should_ReturnSuccess_When_InstallationAndClientExistAsync()
     {
         // Arrange
         var clientId = Guid.NewGuid().ToString();
@@ -78,7 +78,7 @@ public class GameProfileManagerTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CreateProfileAsync_Should_ReturnFailure_When_InstallationNotFound()
+    public async Task CreateProfileAsync_Should_ReturnFailure_When_InstallationNotFoundAsync()
     {
         // Arrange
         var request = new CreateProfileRequest { Name = "New Profile", GameInstallationId = "bad-id", GameClientId = "v1" };
@@ -98,7 +98,7 @@ public class GameProfileManagerTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CreateProfileAsync_Should_ReturnFailure_When_ClientNotFoundInInstallation()
+    public async Task CreateProfileAsync_Should_ReturnFailure_When_ClientNotFoundInInstallationAsync()
     {
         // Arrange
         var installation = CreateTestInstallation("client-1");
@@ -125,7 +125,7 @@ public class GameProfileManagerTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CreateProfileAsync_Should_ReturnFailure_When_RepositorySaveFails()
+    public async Task CreateProfileAsync_Should_ReturnFailure_When_RepositorySaveFailsAsync()
     {
         // Arrange
         var clientId = Guid.NewGuid().ToString();
@@ -155,7 +155,7 @@ public class GameProfileManagerTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task UpdateProfileAsync_Should_ReturnSuccess_When_ProfileExists()
+    public async Task UpdateProfileAsync_Should_ReturnSuccess_When_ProfileExistsAsync()
     {
         // Arrange
         var profileId = Guid.NewGuid().ToString();
@@ -186,7 +186,7 @@ public class GameProfileManagerTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task UpdateProfileAsync_Should_ReturnFailure_When_ProfileNotFound()
+    public async Task UpdateProfileAsync_Should_ReturnFailure_When_ProfileNotFoundAsync()
     {
         // Arrange
         var profileId = Guid.NewGuid().ToString();
@@ -208,7 +208,7 @@ public class GameProfileManagerTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task DeleteProfileAsync_Should_ReturnSuccess_When_ProfileExists()
+    public async Task DeleteProfileAsync_Should_ReturnSuccess_When_ProfileExistsAsync()
     {
         // Arrange
         var profileId = Guid.NewGuid().ToString();
@@ -238,7 +238,7 @@ public class GameProfileManagerTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetAvailableContentAsync_Should_ReturnFilteredManifests()
+    public async Task GetAvailableContentAsync_Should_ReturnFilteredManifestsAsync()
     {
         // Arrange
         var gameClient = new GameClient { GameType = GameType.Generals };
@@ -265,7 +265,7 @@ public class GameProfileManagerTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetAvailableContentAsync_Should_ReturnFailure_When_ManifestPoolFails()
+    public async Task GetAvailableContentAsync_Should_ReturnFailure_When_ManifestPoolFailsAsync()
     {
         // Arrange
         var gameClient = new GameClient { GameType = GameType.Generals };
@@ -285,7 +285,7 @@ public class GameProfileManagerTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetAvailableContentAsync_Should_ReturnEmptyList_When_NoCompatibleContent()
+    public async Task GetAvailableContentAsync_Should_ReturnEmptyList_When_NoCompatibleContentAsync()
     {
         // Arrange
         var gameClient = new GameClient { GameType = GameType.Generals };
@@ -310,7 +310,7 @@ public class GameProfileManagerTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetAllProfilesAsync_Should_ReturnAllProfiles()
+    public async Task GetAllProfilesAsync_Should_ReturnAllProfilesAsync()
     {
         // Arrange
         var profiles = new List<GameProfile>
@@ -336,7 +336,7 @@ public class GameProfileManagerTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CreateProfileAsync_Should_ValidateProfile_BeforeCreation()
+    public async Task CreateProfileAsync_Should_ValidateProfile_BeforeCreationAsync()
     {
         // Arrange
         var clientId = Guid.NewGuid().ToString();
@@ -364,7 +364,7 @@ public class GameProfileManagerTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task UpdateProfileAsync_Should_UpdateEnabledContent_Successfully()
+    public async Task UpdateProfileAsync_Should_UpdateEnabledContent_SuccessfullyAsync()
     {
         // Arrange
         var profileId = Guid.NewGuid().ToString();

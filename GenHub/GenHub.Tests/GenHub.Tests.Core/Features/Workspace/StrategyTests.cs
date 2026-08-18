@@ -221,7 +221,7 @@ public class StrategyTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task AllStrategies_PrepareAsync_HandlesCancellation()
+    public async Task AllStrategies_PrepareAsync_HandlesCancellationAsync()
     {
         // Arrange
         var logger = new Mock<ILogger<FullCopyStrategy>>();
@@ -241,7 +241,7 @@ public class StrategyTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task AllStrategies_PrepareAsync_ValidatesNullConfiguration()
+    public async Task AllStrategies_PrepareAsync_ValidatesNullConfigurationAsync()
     {
         // Arrange
         var logger = new Mock<ILogger<FullCopyStrategy>>();
@@ -257,7 +257,7 @@ public class StrategyTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task HardLinkStrategy_WhenVolumesDiffer_FallsBackToCopy()
+    public async Task HardLinkStrategy_WhenVolumesDiffer_FallsBackToCopyAsync()
     {
         const string Hash = "test-hash";
         var strategy = new HardLinkStrategy(_fileOps.Object, new Mock<ILogger<HardLinkStrategy>>().Object);
@@ -326,7 +326,7 @@ public class StrategyTests : IDisposable
     [InlineData(WorkspaceStrategy.SymlinkOnly)]
     [InlineData(WorkspaceStrategy.HybridCopySymlink)]
     [InlineData(WorkspaceStrategy.HardLink)]
-    public async Task AllStrategies_NonWorkspaceTarget_ExcludesFromFileOperations(WorkspaceStrategy strategyType)
+    public async Task AllStrategies_NonWorkspaceTarget_ExcludesFromFileOperationsAsync(WorkspaceStrategy strategyType)
     {
         // Arrange
         var strategy = CreateStrategy(strategyType);

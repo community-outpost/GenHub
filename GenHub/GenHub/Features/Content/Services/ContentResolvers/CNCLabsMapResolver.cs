@@ -207,8 +207,6 @@ public class CNCLabsMapResolver(
         var fileSizeText = ExtractMetadataValue(document, "File Size:");
         var fileSize = FileSizeFormatter.ParseToBytes(fileSizeText);
 
-        var maxPlayersText = ExtractMetadataValue(document, "Max Players:");
-        var maxPlayers = int.TryParse(maxPlayersText?.Trim(), out var p) ? p : 0;
 
         var submittedText = ExtractMetadataValue(document, "Submitted:");
         var submissionDate = DateTime.TryParse(submittedText, out var sd) ? sd : DateTime.MinValue;

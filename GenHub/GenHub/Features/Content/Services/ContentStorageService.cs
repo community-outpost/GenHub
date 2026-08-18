@@ -707,8 +707,8 @@ public class ContentStorageService : IContentStorageService
                 });
 
                 // Store file based on its SourceType
-                string hash;
-                long fileSize;
+                string hash = string.Empty;
+                long fileSize = 0;
 
                 if (manifestFile.SourceType == ContentSourceType.ContentAddressable)
                 {

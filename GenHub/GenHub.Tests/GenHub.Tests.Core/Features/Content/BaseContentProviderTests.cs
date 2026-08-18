@@ -19,7 +19,7 @@ public class BaseContentProviderTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task PrepareContentAsync_ValidatesManifestBeforePreparation()
+    public async Task PrepareContentAsync_ValidatesManifestBeforePreparationAsync()
     {
         // Arrange
         var validatorMock = new Mock<IContentValidator>();
@@ -56,7 +56,7 @@ public class BaseContentProviderTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task PrepareContentAsync_FailsWhenManifestValidationHasErrors()
+    public async Task PrepareContentAsync_FailsWhenManifestValidationHasErrorsAsync()
     {
         // Arrange
         var validatorMock = new Mock<IContentValidator>();

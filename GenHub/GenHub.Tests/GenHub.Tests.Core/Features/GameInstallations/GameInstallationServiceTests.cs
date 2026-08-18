@@ -81,7 +81,7 @@ public class GameInstallationServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetInstallationAsync_WithValidId_ShouldReturnInstallation()
+    public async Task GetInstallationAsync_WithValidId_ShouldReturnInstallationAsync()
     {
         // Arrange
         var installation = new GameInstallation(Path.GetTempPath(), GameInstallationType.Steam, new Mock<ILogger<GameInstallation>>().Object);
@@ -104,7 +104,7 @@ public class GameInstallationServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetInstallationAsync_WithInvalidId_ShouldReturnFailure()
+    public async Task GetInstallationAsync_WithInvalidId_ShouldReturnFailureAsync()
     {
         // Arrange
         var detectionResult = DetectionResult<GameInstallation>.CreateSuccess([], TimeSpan.Zero);
@@ -124,7 +124,7 @@ public class GameInstallationServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetInstallationAsync_WithDetectionFailure_ShouldReturnFailure()
+    public async Task GetInstallationAsync_WithDetectionFailure_ShouldReturnFailureAsync()
     {
         // Arrange
         var detectionResult = DetectionResult<GameInstallation>.CreateFailure("Detection failed");
@@ -144,7 +144,7 @@ public class GameInstallationServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetInstallationAsync_WithNullId_ShouldReturnFailure()
+    public async Task GetInstallationAsync_WithNullId_ShouldReturnFailureAsync()
     {
         // Act
         var result = await _service.GetInstallationAsync(null!);
@@ -159,7 +159,7 @@ public class GameInstallationServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetInstallationAsync_WithEmptyId_ShouldReturnFailure()
+    public async Task GetInstallationAsync_WithEmptyId_ShouldReturnFailureAsync()
     {
         // Act
         var result = await _service.GetInstallationAsync(string.Empty);
@@ -174,7 +174,7 @@ public class GameInstallationServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetAllInstallationsAsync_ShouldReturnAllInstallations()
+    public async Task GetAllInstallationsAsync_ShouldReturnAllInstallationsAsync()
     {
         // Arrange
         var installation1 = new GameInstallation(Path.GetTempPath(), GameInstallationType.Steam, new Mock<ILogger<GameInstallation>>().Object);
@@ -205,7 +205,7 @@ public class GameInstallationServiceTests : IDisposable
     /// </remarks>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetAllInstallationsAsync_WithDetectionFailure_ShouldReturnFailure()
+    public async Task GetAllInstallationsAsync_WithDetectionFailure_ShouldReturnFailureAsync()
     {
         // Arrange
         _service.InvalidateCache();
@@ -226,7 +226,7 @@ public class GameInstallationServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetInstallationAsync_WithCaching_ShouldUseCachedResults()
+    public async Task GetInstallationAsync_WithCaching_ShouldUseCachedResultsAsync()
     {
         // Arrange
         var installation = new GameInstallation(Path.GetTempPath(), GameInstallationType.Steam, new Mock<ILogger<GameInstallation>>().Object);
@@ -265,7 +265,7 @@ public class GameInstallationServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetAllInstallationsAsync_WhenDetectionFailsWithNoResults_DoesNotCacheAndRescansOnRetry()
+    public async Task GetAllInstallationsAsync_WhenDetectionFailsWithNoResults_DoesNotCacheAndRescansOnRetryAsync()
     {
         var denied = DetectionResult<GameInstallation>.CreateFailure(
             "Could not search /Users/test/Documents because macOS denied access");
@@ -295,7 +295,7 @@ public class GameInstallationServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetAllInstallationsAsync_WhenDetectionFailsWithPersistedManifest_DoesNotCache()
+    public async Task GetAllInstallationsAsync_WhenDetectionFailsWithPersistedManifest_DoesNotCacheAsync()
     {
         var denied = DetectionResult<GameInstallation>.CreateFailure(
             "Could not search /Users/test/Documents because macOS denied access");
@@ -338,7 +338,7 @@ public class GameInstallationServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetAllInstallationsAsync_WhenDetectionSucceedsWithNoResults_CachesTheEmptyResult()
+    public async Task GetAllInstallationsAsync_WhenDetectionSucceedsWithNoResults_CachesTheEmptyResultAsync()
     {
         _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([], TimeSpan.Zero));

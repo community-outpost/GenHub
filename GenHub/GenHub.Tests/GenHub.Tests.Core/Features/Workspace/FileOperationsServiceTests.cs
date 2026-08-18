@@ -37,7 +37,7 @@ public class FileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CopyFileAsync_CreatesFile()
+    public async Task CopyFileAsync_CreatesFileAsync()
     {
         var src = Path.Combine(_tempDir, "source.txt");
         var dst = Path.Combine(_tempDir, "destination.txt");
@@ -54,7 +54,7 @@ public class FileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateSymlinkAsync_CreatesSymlinkOrCopies()
+    public async Task CreateSymlinkAsync_CreatesSymlinkOrCopiesAsync()
     {
         var src = Path.Combine(_tempDir, "source.txt");
         var link = Path.Combine(_tempDir, "link.txt");
@@ -110,7 +110,7 @@ public class FileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateHardLinkAsync_OnBaseService_RefusesInsteadOfCopying()
+    public async Task CreateHardLinkAsync_OnBaseService_RefusesInsteadOfCopyingAsync()
     {
         var src = Path.Combine(_tempDir, "source.txt");
         var link = Path.Combine(_tempDir, "hardlink.txt");
@@ -133,7 +133,7 @@ public class FileOperationsServiceTests : IDisposable
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task VerifyFileHashAsync_HandlesCase(bool caseSensitive)
+    public async Task VerifyFileHashAsync_HandlesCaseAsync(bool caseSensitive)
     {
         var file = Path.Combine(_tempDir, "test.txt");
         await File.WriteAllTextAsync(file, "test");
@@ -158,7 +158,7 @@ public class FileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task VerifyFileHashAsync_ReturnsFalse_WhenHashDoesNotMatch()
+    public async Task VerifyFileHashAsync_ReturnsFalse_WhenHashDoesNotMatchAsync()
     {
         var file = Path.Combine(_tempDir, "test.txt");
         await File.WriteAllTextAsync(file, "test");
@@ -180,7 +180,7 @@ public class FileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DownloadFileAsync_UsesDownloadService_Successfully()
+    public async Task DownloadFileAsync_UsesDownloadService_SuccessfullyAsync()
     {
         var testUrl = "https://example.com/file.txt";
         var destination = Path.Combine(_tempDir, "download.txt");
@@ -215,7 +215,7 @@ public class FileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DownloadFileAsync_ThrowsException_WhenDownloadServiceFails()
+    public async Task DownloadFileAsync_ThrowsException_WhenDownloadServiceFailsAsync()
     {
         var downloadServiceMock = new Mock<IDownloadService>();
         downloadServiceMock.Setup(s => s.DownloadFileAsync(
@@ -237,7 +237,7 @@ public class FileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CopyFileAsync_ThrowsException_WhenSourceFileNotFound()
+    public async Task CopyFileAsync_ThrowsException_WhenSourceFileNotFoundAsync()
     {
         var nonExistentSource = Path.Combine(_tempDir, "nonexistent.txt");
         var destination = Path.Combine(_tempDir, "destination.txt");
@@ -251,7 +251,7 @@ public class FileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CopyFileAsync_CreatesDirectoryStructure()
+    public async Task CopyFileAsync_CreatesDirectoryStructureAsync()
     {
         var source = Path.Combine(_tempDir, "source.txt");
         var destination = Path.Combine(_tempDir, "nested", "deep", "destination.txt");
@@ -269,7 +269,7 @@ public class FileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task VerifyFileHashAsync_ReturnsFalse_WhenFileNotExists()
+    public async Task VerifyFileHashAsync_ReturnsFalse_WhenFileNotExistsAsync()
     {
         var nonExistentFile = Path.Combine(_tempDir, "nonexistent.txt");
         var hash = "somehash";
@@ -287,7 +287,7 @@ public class FileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task VerifyFileHashAsync_HandlesExceptions_Gracefully()
+    public async Task VerifyFileHashAsync_HandlesExceptions_GracefullyAsync()
     {
         var file = Path.Combine(_tempDir, "test.txt");
         await File.WriteAllTextAsync(file, "test");
@@ -306,7 +306,7 @@ public class FileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateSymlinkAsync_WithAllowFallbackTrue_SucceedsAlways()
+    public async Task CreateSymlinkAsync_WithAllowFallbackTrue_SucceedsAlwaysAsync()
     {
         var src = Path.Combine(_tempDir, "source.txt");
         var link = Path.Combine(_tempDir, "link.txt");
@@ -326,7 +326,7 @@ public class FileOperationsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateSymlinkAsync_WithDefaultParameter_AllowsFallback()
+    public async Task CreateSymlinkAsync_WithDefaultParameter_AllowsFallbackAsync()
     {
         var src = Path.Combine(_tempDir, "source.txt");
         var link = Path.Combine(_tempDir, "link_default.txt");

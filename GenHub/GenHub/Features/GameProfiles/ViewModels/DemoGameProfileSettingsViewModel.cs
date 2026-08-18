@@ -180,6 +180,7 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
                 list.Add(new ContentDisplayItem { DisplayName = "FinalBig", ContentType = ContentType.ModdingTool, GameType = Core.Models.Enums.GameType.ZeroHour, Publisher = "Community", Version = "0.4", ManifestId = ManifestId.Create("0.4.community.tool.finalbig"), InstallationType = GameInstallationType.Unknown });
                 break;
             default:
+                // No additional mock items for other content types
                 break;
         }
 
@@ -261,7 +262,7 @@ public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewM
     public new bool IsAddLocalContentDialogOpen
     {
         get => false; // Always return false in demo mode
-        set { _ = value; } // Ignore all attempts to set this property
+        set => _ = value; // Ignore all attempts to set this property
     }
 
     /// <summary>

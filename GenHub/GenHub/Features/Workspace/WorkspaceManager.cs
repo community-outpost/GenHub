@@ -60,22 +60,10 @@ public class WorkspaceManager(
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(configuration.Id) &&
-            !string.IsNullOrWhiteSpace(configuration.BaseInstallationPath) &&
-            !string.IsNullOrWhiteSpace(configuration.WorkspaceRootPath))
+        var configError = await ValidateConfigurationPrerequisitesAsync(configuration, cancellationToken);
+        if (configError != null)
         {
-            logger.LogDebug("[Workspace] Validating workspace configuration");
-            var configValidation = await workspaceValidator.ValidateConfigurationAsync(configuration, cancellationToken);
-            if (!configValidation.Success || configValidation.Issues.Any(i => i.Severity == ValidationSeverity.Error))
-            {
-                var errorMessages = configValidation.Issues
-                    .Where(i => i.Severity == ValidationSeverity.Error)
-                    .Select(i => i.Message);
-                logger.LogError("[Workspace] Configuration validation failed: {Errors}", string.Join(", ", errorMessages));
-                return OperationResult<WorkspaceInfo>.CreateFailure(string.Join(", ", errorMessages));
-            }
-
-            logger.LogDebug("[Workspace] Configuration validation passed");
+            return OperationResult<WorkspaceInfo>.CreateFailure(configError);
         }
 
         var strategy = strategies.FirstOrDefault(s => s.CanHandle(configuration));
@@ -87,19 +75,10 @@ public class WorkspaceManager(
 
         logger.LogDebug("[Workspace] Selected strategy: {Strategy}", strategy.Name);
 
-        var prereqValidation = await workspaceValidator.ValidatePrerequisitesAsync(strategy, configuration, cancellationToken);
-        if (!prereqValidation.Success || prereqValidation.Issues.Any(i => i.Severity == ValidationSeverity.Error))
+        var strategyError = await ValidateSelectedStrategyAsync(strategy, configuration, cancellationToken);
+        if (strategyError != null)
         {
-            var errorMessages = prereqValidation.Issues
-                .Where(i => i.Severity == ValidationSeverity.Error)
-                .Select(i => i.Message);
-            return OperationResult<WorkspaceInfo>.CreateFailure(string.Join(", ", errorMessages));
-        }
-
-        var warnings = prereqValidation.Issues.Where(i => i.Severity == ValidationSeverity.Warning);
-        foreach (var warning in warnings)
-        {
-            logger.LogWarning("Workspace prerequisite warning: {Message}", warning.Message);
+            return OperationResult<WorkspaceInfo>.CreateFailure(strategyError);
         }
 
         if (configuration.ForceRecreate)
@@ -108,7 +87,6 @@ public class WorkspaceManager(
             await CleanupWorkspaceAsync(configuration.Id, cancellationToken);
         }
 
-        // Propagate skipCleanup to configuration for strategies to use
         configuration.SkipCleanup = skipCleanup;
 
         logger.LogInformation("[Workspace] Executing strategy preparation (skipCleanup: {SkipCleanup})", skipCleanup);
@@ -128,48 +106,7 @@ public class WorkspaceManager(
         }
 
         logger.LogDebug("[Workspace] Strategy preparation completed successfully");
-
-        if (configuration.ValidateAfterPreparation)
-        {
-            logger.LogDebug("[Workspace] Running post-preparation validation");
-            var validationResult = await workspaceValidator.ValidateWorkspaceAsync(workspaceInfo, cancellationToken);
-            if (!validationResult.Success || !validationResult.Data!.IsValid)
-            {
-                var errors = validationResult.Data!.Issues.Where(i => i.Severity == ValidationSeverity.Error).Select(i => i.Message);
-                logger.LogError("[Workspace] Post-preparation validation failed: {Errors}", string.Join(", ", errors));
-                return OperationResult<WorkspaceInfo>.CreateFailure($"Workspace validation failed: {string.Join(", ", errors)}");
-            }
-
-            logger.LogDebug("[Workspace] Post-preparation validation passed");
-        }
-
-        // Store manifest IDs and versions for future reuse comparison
-        workspaceInfo.ManifestIds = [.. (configuration.Manifests ?? []).Select(m => m.Id.Value)];
-        var manifestVersionsDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var m in configuration.Manifests ?? [])
-        {
-            if (!string.IsNullOrEmpty(m.Id.Value) && !manifestVersionsDict.ContainsKey(m.Id.Value))
-            {
-                manifestVersionsDict[m.Id.Value] = m.Version ?? string.Empty;
-            }
-        }
-
-        workspaceInfo.ManifestVersions = manifestVersionsDict;
-
-        // Track CAS references BEFORE persisting workspace metadata
-        logger.LogDebug("[Workspace] Tracking CAS references");
-        var trackResult = await TrackWorkspaceCasReferencesAsync(configuration.Id, configuration.Manifests ?? [], cancellationToken);
-        if (!trackResult.Success)
-        {
-            logger.LogError("[Workspace] Failed to track CAS references for workspace {Id}: {Error}", configuration.Id, trackResult.FirstError);
-            return OperationResult<WorkspaceInfo>.CreateFailure($"Failed to track CAS references: {trackResult.FirstError}");
-        }
-
-        logger.LogDebug("[Workspace] Saving workspace metadata");
-        await SaveWorkspaceMetadataAsync(workspaceInfo, cancellationToken);
-
-        logger.LogInformation("[Workspace] === Workspace {Id} prepared successfully at {Path} ===", workspaceInfo.Id, workspaceInfo.WorkspacePath);
-        return OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo);
+        return await ValidateAndFinalizeWorkspaceAsync(workspaceInfo, configuration, cancellationToken);
     }
 
     /// <summary>
@@ -595,5 +532,102 @@ public class WorkspaceManager(
         }
 
         return false;
+    }
+
+    private async Task<string?> ValidateConfigurationPrerequisitesAsync(
+        WorkspaceConfiguration configuration,
+        CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(configuration.Id) &&
+            !string.IsNullOrWhiteSpace(configuration.BaseInstallationPath) &&
+            !string.IsNullOrWhiteSpace(configuration.WorkspaceRootPath))
+        {
+            logger.LogDebug("[Workspace] Validating workspace configuration");
+            var configValidation = await workspaceValidator.ValidateConfigurationAsync(configuration, cancellationToken);
+            if (!configValidation.Success || configValidation.Issues.Any(i => i.Severity == ValidationSeverity.Error))
+            {
+                var errorMessages = configValidation.Issues
+                    .Where(i => i.Severity == ValidationSeverity.Error)
+                    .Select(i => i.Message);
+                var errorStr = string.Join(", ", errorMessages);
+                logger.LogError("[Workspace] Configuration validation failed: {Errors}", errorStr);
+                return errorStr;
+            }
+
+            logger.LogDebug("[Workspace] Configuration validation passed");
+        }
+
+        return null;
+    }
+
+    private async Task<string?> ValidateSelectedStrategyAsync(
+        IWorkspaceStrategy strategy,
+        WorkspaceConfiguration configuration,
+        CancellationToken cancellationToken)
+    {
+        var prereqValidation = await workspaceValidator.ValidatePrerequisitesAsync(strategy, configuration, cancellationToken);
+        if (!prereqValidation.Success || prereqValidation.Issues.Any(i => i.Severity == ValidationSeverity.Error))
+        {
+            var errorMessages = prereqValidation.Issues
+                .Where(i => i.Severity == ValidationSeverity.Error)
+                .Select(i => i.Message);
+            return string.Join(", ", errorMessages);
+        }
+
+        var warnings = prereqValidation.Issues.Where(i => i.Severity == ValidationSeverity.Warning);
+        foreach (var warning in warnings)
+        {
+            logger.LogWarning("Workspace prerequisite warning: {Message}", warning.Message);
+        }
+
+        return null;
+    }
+
+    private async Task<OperationResult<WorkspaceInfo>> ValidateAndFinalizeWorkspaceAsync(
+        WorkspaceInfo workspaceInfo,
+        WorkspaceConfiguration configuration,
+        CancellationToken cancellationToken)
+    {
+        if (configuration.ValidateAfterPreparation)
+        {
+            logger.LogDebug("[Workspace] Running post-preparation validation");
+            var validationResult = await workspaceValidator.ValidateWorkspaceAsync(workspaceInfo, cancellationToken);
+            if (!validationResult.Success || !validationResult.Data!.IsValid)
+            {
+                var errors = validationResult.Data!.Issues.Where(i => i.Severity == ValidationSeverity.Error).Select(i => i.Message);
+                logger.LogError("[Workspace] Post-preparation validation failed: {Errors}", string.Join(", ", errors));
+                return OperationResult<WorkspaceInfo>.CreateFailure($"Workspace validation failed: {string.Join(", ", errors)}");
+            }
+
+            logger.LogDebug("[Workspace] Post-preparation validation passed");
+        }
+
+        // Store manifest IDs and versions for future reuse comparison
+        workspaceInfo.ManifestIds = [.. (configuration.Manifests ?? []).Select(m => m.Id.Value)];
+        var manifestVersionsDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var m in configuration.Manifests ?? [])
+        {
+            if (!string.IsNullOrEmpty(m.Id.Value) && !manifestVersionsDict.ContainsKey(m.Id.Value))
+            {
+                manifestVersionsDict[m.Id.Value] = m.Version ?? string.Empty;
+            }
+        }
+
+        workspaceInfo.ManifestVersions = manifestVersionsDict;
+
+        // Track CAS references BEFORE persisting workspace metadata
+        logger.LogDebug("[Workspace] Tracking CAS references");
+        var trackResult = await TrackWorkspaceCasReferencesAsync(configuration.Id, configuration.Manifests ?? [], cancellationToken);
+        if (!trackResult.Success)
+        {
+            logger.LogError("[Workspace] Failed to track CAS references for workspace {Id}: {Error}", configuration.Id, trackResult.FirstError);
+            return OperationResult<WorkspaceInfo>.CreateFailure($"Failed to track CAS references: {trackResult.FirstError}");
+        }
+
+        logger.LogDebug("[Workspace] Saving workspace metadata");
+        await SaveWorkspaceMetadataAsync(workspaceInfo, cancellationToken);
+
+        logger.LogInformation("[Workspace] === Workspace {Id} prepared successfully at {Path} ===", workspaceInfo.Id, workspaceInfo.WorkspacePath);
+        return OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo);
     }
 }

@@ -16,7 +16,7 @@ public class UpdateNotificationViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CheckForUpdatesCommand_WhenNoUpdateAvailable_UpdatesStatus()
+    public async Task CheckForUpdatesCommand_WhenNoUpdateAvailable_UpdatesStatusAsync()
     {
         var mockVelopack = new Mock<IVelopackUpdateManager>();
         mockVelopack.Setup(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()))

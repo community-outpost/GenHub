@@ -234,7 +234,7 @@ public class ContentManifestBuilderTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task AddFilesFromDirectoryAsync_SetsCorrectInstallTargets()
+    public async Task AddFilesFromDirectoryAsync_SetsCorrectInstallTargetsAsync()
     {
         // Arrange
         var tempDir = Path.Combine(Path.GetTempPath(), "GenHubTest_" + Guid.NewGuid());

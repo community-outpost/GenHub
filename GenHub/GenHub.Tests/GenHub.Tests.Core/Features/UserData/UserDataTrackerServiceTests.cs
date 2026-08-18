@@ -120,7 +120,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task InstallUserDataAsync_ZeroHourGameDataPatch_DeploysPreservingSubdirectories()
+    public async Task InstallUserDataAsync_ZeroHourGameDataPatch_DeploysPreservingSubdirectoriesAsync()
     {
         // Arrange
         var files = new List<ManifestFile>
@@ -170,7 +170,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task InstallUserDataAsync_GeneralsGameDataPatch_DeploysToGeneralsDirectory()
+    public async Task InstallUserDataAsync_GeneralsGameDataPatch_DeploysToGeneralsDirectoryAsync()
     {
         // Arrange
         var files = new List<ManifestFile>
@@ -205,7 +205,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task InstallAndUninstall_WithExistingUserFile_SafelyBacksUpAndRestoresOriginal()
+    public async Task InstallAndUninstall_WithExistingUserFile_SafelyBacksUpAndRestoresOriginalAsync()
     {
         // Arrange: simulate pre-existing user file in Documents\...\GeneralsOnlineGameData\splash.bmp
         var gameDataDir = Path.Combine(_zeroHourDataDir, "GeneralsOnlineGameData");
@@ -260,7 +260,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task DeactivateAndActivateProfileUserDataAsync_ProperlyTogglesFiles()
+    public async Task DeactivateAndActivateProfileUserDataAsync_ProperlyTogglesFilesAsync()
     {
         // Arrange
         var files = new List<ManifestFile>
@@ -309,7 +309,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task UninstallUserDataAsync_CleansUpEmptySubdirectory_PreservesRootUserDataFolder()
+    public async Task UninstallUserDataAsync_CleansUpEmptySubdirectory_PreservesRootUserDataFolderAsync()
     {
         // Arrange
         var files = new List<ManifestFile>
@@ -352,7 +352,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task DeactivateProfileUserDataAsync_WhenUserModifiesDeployedFile_PreservesModifiedFileAndDoesNotOverwriteWithBackup()
+    public async Task DeactivateProfileUserDataAsync_WhenUserModifiesDeployedFile_PreservesModifiedFileAndDoesNotOverwriteWithBackupAsync()
     {
         // Arrange: pre-existing user file
         var gameDataDir = Path.Combine(_zeroHourDataDir, "GeneralsOnlineGameData");
@@ -413,7 +413,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ReactivateProfileUserDataAsync_WhenUserModifiesRestoredFileWhileDeactivated_BacksUpNewContentAndRestoresItOnSubsequentDeactivation()
+    public async Task ReactivateProfileUserDataAsync_WhenUserModifiesRestoredFileWhileDeactivated_BacksUpNewContentAndRestoresItOnSubsequentDeactivationAsync()
     {
         // Arrange
         var gameDataDir = Path.Combine(_zeroHourDataDir, "GeneralsOnlineGameData");
@@ -476,7 +476,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ActivateProfileUserDataAsync_WhenMaterializationFails_RollsBackAndRestoresBackup()
+    public async Task ActivateProfileUserDataAsync_WhenMaterializationFails_RollsBackAndRestoresBackupAsync()
     {
         // Arrange
         var gameDataDir = Path.Combine(_zeroHourDataDir, "GeneralsOnlineGameData");
@@ -534,7 +534,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ActivateProfileUserDataAsync_WhenCanceled_RollsBackAndRethrows()
+    public async Task ActivateProfileUserDataAsync_WhenCanceled_RollsBackAndRethrowsAsync()
     {
         // Arrange
         var gameDataDir = Path.Combine(_zeroHourDataDir, "GeneralsOnlineGameData");
@@ -603,7 +603,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task DeactivateProfileUserDataAsync_WhenCanceled_PreservesManifestActiveForRetry()
+    public async Task DeactivateProfileUserDataAsync_WhenCanceled_PreservesManifestActiveForRetryAsync()
     {
         // Arrange
         var files = new List<ManifestFile>
@@ -668,7 +668,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task InstallUserDataAsync_WithUserMapsDirectoryTarget_NormalizesPathAndDetectsConflict()
+    public async Task InstallUserDataAsync_WithUserMapsDirectoryTarget_NormalizesPathAndDetectsConflictAsync()
     {
         // Arrange
         var files = new List<ManifestFile>
@@ -718,7 +718,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task InstallUserDataAsync_WhenRelativePathEscapesUserDataDirectory_Fails()
+    public async Task InstallUserDataAsync_WhenRelativePathEscapesUserDataDirectory_FailsAsync()
     {
         // Arrange
         var validFilePath = Path.Combine(_zeroHourDataDir, "GeneralsOnlineGameData", "valid.bmp");
@@ -760,7 +760,7 @@ public sealed class UserDataTrackerServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task InstallUserDataAsync_WhenBackupFails_AbortsInstallationToPreventDataLoss()
+    public async Task InstallUserDataAsync_WhenBackupFails_AbortsInstallationToPreventDataLossAsync()
     {
         // Arrange
         var gameDataDir = Path.Combine(_zeroHourDataDir, "GeneralsOnlineGameData");

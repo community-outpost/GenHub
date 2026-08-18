@@ -58,7 +58,7 @@ public class CompressedImageToTgaConverterTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ConvertFileAsync_AvifOnUnsupportedRuntime_ThrowsPlatformNotSupported()
+    public async Task ConvertFileAsync_AvifOnUnsupportedRuntime_ThrowsPlatformNotSupportedAsync()
     {
         var source = Path.Combine(_tempDir, "texture.avif");
         await File.WriteAllBytesAsync(source, Convert.FromBase64String(TinyAvifBase64));
@@ -91,7 +91,7 @@ public class CompressedImageToTgaConverterTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ConvertDirectoryAsync_UnconvertibleAvif_IsLeftOnDisk()
+    public async Task ConvertDirectoryAsync_UnconvertibleAvif_IsLeftOnDiskAsync()
     {
         var source = Path.Combine(_tempDir, "texture.avif");
         await File.WriteAllBytesAsync(source, Convert.FromBase64String(TinyAvifBase64));
@@ -112,7 +112,7 @@ public class CompressedImageToTgaConverterTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ConvertFileAsync_ConcurrentAvifProbes_DoNotExposeNativeLoaderFailure()
+    public async Task ConvertFileAsync_ConcurrentAvifProbes_DoNotExposeNativeLoaderFailureAsync()
     {
         var tasks = Enumerable.Range(0, 8)
             .Select(

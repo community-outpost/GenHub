@@ -73,7 +73,7 @@ public class GameProfileSettingsViewModelDependencyTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task Save_Fails_WhenGameInstallationIdMismatch()
+    public async Task Save_Fails_WhenGameInstallationIdMismatchAsync()
     {
         // Arrange
         var modManifestId = new ManifestId("1.0.0.mod.example");
@@ -154,7 +154,7 @@ public class GameProfileSettingsViewModelDependencyTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task Save_Succeeds_WhenGameInstallationIdMatches()
+    public async Task Save_Succeeds_WhenGameInstallationIdMatchesAsync()
     {
         // Arrange
         var modManifestId = new ManifestId("1.0.0.mod.example");
@@ -232,7 +232,7 @@ public class GameProfileSettingsViewModelDependencyTests
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task Save_Succeeds_WhenOptionalDependencyIsMissing()
+    public async Task Save_Succeeds_WhenOptionalDependencyIsMissingAsync()
     {
         // Arrange
         var modManifestId = new ManifestId("1.0.0.mod.example");

@@ -49,7 +49,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task AddManifestAsync_WithStoredContent_ShouldSucceed()
+    public async Task AddManifestAsync_WithStoredContent_ShouldSucceedAsync()
     {
         // Arrange
         var manifest = CreateTestManifest();
@@ -74,7 +74,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task AddManifestAsync_WithoutStoredContent_ShouldFail()
+    public async Task AddManifestAsync_WithoutStoredContent_ShouldFailAsync()
     {
         // Arrange
         var manifest = CreateTestManifest();
@@ -94,7 +94,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task AddManifestAsync_WithSourceDirectory_ShouldSucceed()
+    public async Task AddManifestAsync_WithSourceDirectory_ShouldSucceedAsync()
     {
         // Arrange
         var manifest = CreateTestManifest();
@@ -118,7 +118,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetManifestAsync_WhenExists_ShouldReturnManifest()
+    public async Task GetManifestAsync_WhenExists_ShouldReturnManifestAsync()
     {
         // Arrange
         var manifest = CreateTestManifest();
@@ -143,7 +143,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetManifestAsync_WithNullVariants_PreservesEmptyCollection()
+    public async Task GetManifestAsync_WithNullVariants_PreservesEmptyCollectionAsync()
     {
         var manifestId = ManifestId.Create("1.0.genhub.mod.nullvariants");
         var manifestPath = Path.Combine(_tempDirectory, "null-variants.json");
@@ -167,7 +167,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetManifestAsync_WhenNotExists_ShouldReturnNull()
+    public async Task GetManifestAsync_WhenNotExists_ShouldReturnNullAsync()
     {
         // Arrange
         var manifestId = "1.0.genhub.mod.nonexistent";
@@ -189,7 +189,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetAllManifestsAsync_ShouldReturnAllManifests()
+    public async Task GetAllManifestsAsync_ShouldReturnAllManifestsAsync()
     {
         // Arrange
         var manifests = new List<ContentManifest>
@@ -227,7 +227,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetAllManifestsAsync_WhenNoDirectory_ShouldReturnEmptyList()
+    public async Task GetAllManifestsAsync_WhenNoDirectory_ShouldReturnEmptyListAsync()
     {
         // Arrange
         _storageServiceMock.Setup(x => x.GetContentStorageRoot())
@@ -246,7 +246,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task SearchManifestsAsync_WithQuery_ShouldReturnFilteredResults()
+    public async Task SearchManifestsAsync_WithQuery_ShouldReturnFilteredResultsAsync()
     {
         // Arrange
         var manifests = new List<ContentManifest>
@@ -278,7 +278,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task RemoveManifestAsync_ShouldSucceedAndCleanupByDefault()
+    public async Task RemoveManifestAsync_ShouldSucceedAndCleanupByDefaultAsync()
     {
         // Arrange
         var manifestId = "1.0.genhub.mod.publisher";
@@ -302,7 +302,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task RemoveManifestAsync_WithSkipCleanup_ShouldSucceed()
+    public async Task RemoveManifestAsync_WithSkipCleanup_ShouldSucceedAsync()
     {
         // Arrange
         var manifestId = "1.0.genhub.mod.publisher";
@@ -323,7 +323,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task RemoveManifestAsync_WhenStorageFails_ShouldFail()
+    public async Task RemoveManifestAsync_WhenStorageFails_ShouldFailAsync()
     {
         // Arrange
         var manifestId = "1.0.genhub.mod.publisher";
@@ -343,7 +343,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task IsManifestAcquiredAsync_ShouldReturnCorrectStatus()
+    public async Task IsManifestAcquiredAsync_ShouldReturnCorrectStatusAsync()
     {
         // Arrange
         var manifestId = "1.0.genhub.mod.publisher";
@@ -363,7 +363,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetContentDirectoryAsync_WhenExists_ShouldReturnPath()
+    public async Task GetContentDirectoryAsync_WhenExists_ShouldReturnPathAsync()
     {
         // Arrange
         var manifestId = "1.0.genhub.mod.publisher";
@@ -387,7 +387,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetContentDirectoryAsync_WhenNotExists_ShouldReturnNull()
+    public async Task GetContentDirectoryAsync_WhenNotExists_ShouldReturnNullAsync()
     {
         // Arrange
         var manifestId = "1.0.genhub.mod.publisher";
@@ -410,7 +410,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task GetManifestAsync_WhenExceptionThrown_ShouldReturnFailure()
+    public async Task GetManifestAsync_WhenExceptionThrown_ShouldReturnFailureAsync()
     {
         // Arrange
         var manifestId = "1.0.genhub.mod.publisher";
@@ -456,7 +456,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </remarks>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task AddManifestAsync_WithVariants_RejectsBeforeStoringContent()
+    public async Task AddManifestAsync_WithVariants_RejectsBeforeStoringContentAsync()
     {
         var manifest = CreateTestManifest();
         manifest.Variants.Add(new ArtifactVariant());
@@ -479,7 +479,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task AddManifestAsync_WithSourceDirectory_WithVariants_RejectsBeforeStoringContent()
+    public async Task AddManifestAsync_WithSourceDirectory_WithVariants_RejectsBeforeStoringContentAsync()
     {
         var manifest = CreateTestManifest();
         manifest.Variants.Add(new ArtifactVariant());
@@ -507,7 +507,7 @@ public class ContentManifestPoolTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task AddManifestAsync_WithoutVariants_IsNotRejectedByTheGate()
+    public async Task AddManifestAsync_WithoutVariants_IsNotRejectedByTheGateAsync()
     {
         var manifest = CreateTestManifest();
         _storageServiceMock.Setup(x => x.IsContentStoredAsync(manifest.Id, It.IsAny<CancellationToken>()))

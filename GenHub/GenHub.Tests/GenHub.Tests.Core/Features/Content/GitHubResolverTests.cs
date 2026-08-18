@@ -46,7 +46,7 @@ public class GitHubResolverTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task ResolveAsync_WithValidDiscoveredItem_ReturnsSuccessfulManifest()
+    public async Task ResolveAsync_WithValidDiscoveredItem_ReturnsSuccessfulManifestAsync()
     {
         var discoveredItem = CreateItem("v1.0");
         var release = CreateRelease("v1.0");
@@ -67,7 +67,7 @@ public class GitHubResolverTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task ResolveAsync_WithLatestTag_CallsGetLatestRelease()
+    public async Task ResolveAsync_WithLatestTag_CallsGetLatestReleaseAsync()
     {
         var discoveredItem = CreateItem("latest");
         var release = CreateRelease("v1.1");
@@ -88,7 +88,7 @@ public class GitHubResolverTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task ResolveAsync_WhenLatestReleaseNotFound_FallsBackToAnyRelease()
+    public async Task ResolveAsync_WhenLatestReleaseNotFound_FallsBackToAnyReleaseAsync()
     {
         var discoveredItem = CreateItem("latest");
         var preRelease = CreateRelease("v0.5-beta");
@@ -113,7 +113,7 @@ public class GitHubResolverTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ResolveAsync_MissingMetadata_ReturnsFailure()
+    public async Task ResolveAsync_MissingMetadata_ReturnsFailureAsync()
     {
         var discoveredItem = new ContentSearchResult { ResolverId = "GitHubRelease" };
         var result = await _resolver.ResolveAsync(discoveredItem);

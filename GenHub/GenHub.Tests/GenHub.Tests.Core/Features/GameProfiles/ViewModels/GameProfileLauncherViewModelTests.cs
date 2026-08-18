@@ -79,7 +79,7 @@ public class GameProfileLauncherViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task InitializeAsync_LoadsProfiles_Successfully()
+    public async Task InitializeAsync_LoadsProfiles_SuccessfullyAsync()
     {
         var installationService = new Mock<IGameInstallationService>();
         var vm = new GameProfileLauncherViewModel(
@@ -123,7 +123,7 @@ public class GameProfileLauncherViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ScanForGamesCommand_WithSuccessfulScan_ShowsSuccess()
+    public async Task ScanForGamesCommand_WithSuccessfulScan_ShowsSuccessAsync()
     {
         var installationService = new Mock<IGameInstallationService>();
         var installations = new List<GameInstallation>
@@ -174,7 +174,7 @@ public class GameProfileLauncherViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ScanForGamesCommand_WithFailedScan_ShowsFailure()
+    public async Task ScanForGamesCommand_WithFailedScan_ShowsFailureAsync()
     {
         var installationService = new Mock<IGameInstallationService>();
         const string expectedError = "Detection service unavailable";
@@ -212,7 +212,7 @@ public class GameProfileLauncherViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ScanForGamesCommand_WithException_HandlesGracefully()
+    public async Task ScanForGamesCommand_WithException_HandlesGracefullyAsync()
     {
         var installationService = new Mock<IGameInstallationService>();
         installationService.Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
@@ -249,7 +249,7 @@ public class GameProfileLauncherViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ScanForGamesCommand_WithoutService_ShowsError()
+    public async Task ScanForGamesCommand_WithoutService_ShowsErrorAsync()
     {
         var installationService = new Mock<IGameInstallationService>();
         var shortcutService = new Mock<IShortcutService>();

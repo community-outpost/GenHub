@@ -732,6 +732,7 @@ public class MockProfileContentLoader : IProfileContentLoader
                 break;
 
             default:
+                // No additional mock content for other content types
                 break;
         }
 

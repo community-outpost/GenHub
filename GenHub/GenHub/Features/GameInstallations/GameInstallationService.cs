@@ -545,8 +545,8 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
         CancellationToken cancellationToken)
     {
         var detectedVersion = gameClient?.Version;
-        int versionForId;
-        string versionForManifest;
+        int versionForId = 0;
+        string versionForManifest = string.Empty;
 
         if (string.IsNullOrEmpty(detectedVersion) ||
             detectedVersion.Equals("Unknown", StringComparison.OrdinalIgnoreCase))

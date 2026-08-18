@@ -149,7 +149,7 @@ public class WorkspaceCasIntegrationTests : IDisposable
     /// </summary>
     /// <returns>A task that represents the asynchronous test operation.</returns>
     [Fact]
-    public async Task PrepareWorkspace_WithCasContent_CreatesCorrectLinks()
+    public async Task PrepareWorkspace_WithCasContent_CreatesCorrectLinksAsync()
     {
         // Skip test if running on non-Windows or without admin privileges
         bool isWindows = OperatingSystem.IsWindows();

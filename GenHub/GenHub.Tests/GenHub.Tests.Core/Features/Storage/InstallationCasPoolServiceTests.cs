@@ -37,7 +37,7 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EnsurePoolPathAsync_WhenHistoricalPathIsUnwritable_PreservesLegacyLookup()
+    public async Task EnsurePoolPathAsync_WhenHistoricalPathIsUnwritable_PreservesLegacyLookupAsync()
     {
         var installation = CreateInstallation();
         var poolPath = Path.Combine(installation.InstallationPath, DirectoryNames.GenHubCasPool);
@@ -66,7 +66,7 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EnsurePoolPathAsync_WhenCustomPathIsConfigured_PreservesIt()
+    public async Task EnsurePoolPathAsync_WhenCustomPathIsConfigured_PreservesItAsync()
     {
         var installation = CreateInstallation();
         var customPath = Path.Combine(_tempPath, "custom-cas");
@@ -93,7 +93,7 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EnsurePoolPathAsync_WhenAdjacentPathIsWritable_RecordsAutoDerivedProvenance()
+    public async Task EnsurePoolPathAsync_WhenAdjacentPathIsWritable_RecordsAutoDerivedProvenanceAsync()
     {
         var installation = CreateInstallation();
         var poolPath = Path.Combine(installation.InstallationPath, DirectoryNames.GenHubCasPool);
@@ -116,7 +116,7 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EnsurePoolPathAsync_WhenNoInstallations_ContinuesWithPrimaryPool()
+    public async Task EnsurePoolPathAsync_WhenNoInstallations_ContinuesWithPrimaryPoolAsync()
     {
         var service = CreateService();
 
@@ -133,7 +133,7 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EnsurePoolPathAsync_WhenInstallationDirectoryContainsDot_UsesFullDirectory()
+    public async Task EnsurePoolPathAsync_WhenInstallationDirectoryContainsDot_UsesFullDirectoryAsync()
     {
         var installation = CreateInstallation("ZeroHour v1.04");
         var poolPath = Path.Combine(installation.InstallationPath, DirectoryNames.GenHubCasPool);
@@ -153,7 +153,7 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EnsurePoolPathAsync_WhenCancelledBeforeSave_DoesNotPersistSettings()
+    public async Task EnsurePoolPathAsync_WhenCancelledBeforeSave_DoesNotPersistSettingsAsync()
     {
         var installation = CreateInstallation();
         var poolPath = Path.Combine(installation.InstallationPath, DirectoryNames.GenHubCasPool);
@@ -296,7 +296,7 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task CasStorage_ObjectExistsAsync_DoesNotCreateWriteDirectories()
+    public async Task CasStorage_ObjectExistsAsync_DoesNotCreateWriteDirectoriesAsync()
     {
         var rootPath = Path.Combine(_tempPath, "read-only-cas");
         var hash = new string('a', 64);
@@ -318,7 +318,7 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task CasService_GetContentPathAsync_FindsContentInLegacyPool()
+    public async Task CasService_GetContentPathAsync_FindsContentInLegacyPoolAsync()
     {
         var primaryPath = Path.Combine(_tempPath, "primary-lookup");
         var legacyPath = Path.Combine(_tempPath, "legacy-lookup");
@@ -460,7 +460,7 @@ public sealed class InstallationCasPoolServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EnsurePoolPathAsync_WhenPoolMovesAgain_RetainsEveryPreviousRoot()
+    public async Task EnsurePoolPathAsync_WhenPoolMovesAgain_RetainsEveryPreviousRootAsync()
     {
         var firstLegacyPath = Path.Combine(_tempPath, "first-legacy");
         var currentInstallation = CreateInstallation("CurrentGame");

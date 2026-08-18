@@ -33,7 +33,7 @@ public class GeneralsOnlineManifestFactoryEacTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task CreateManifestsFromExtractedContentAsync_EacLayout_MarksWrapperAsExecutable()
+    public async Task CreateManifestsFromExtractedContentAsync_EacLayout_MarksWrapperAsExecutableAsync()
     {
         WriteEacPortableLayout();
 
@@ -54,7 +54,7 @@ public class GeneralsOnlineManifestFactoryEacTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task CreateManifestsFromExtractedContentAsync_EacLayout_RetainsWrappedBinaryAsWorkspaceFile()
+    public async Task CreateManifestsFromExtractedContentAsync_EacLayout_RetainsWrappedBinaryAsWorkspaceFileAsync()
     {
         WriteEacPortableLayout();
 
@@ -74,7 +74,7 @@ public class GeneralsOnlineManifestFactoryEacTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task CreateManifestsFromExtractedContentAsync_EacLayout_RetainsDefaultBinaryAsWorkspaceFile()
+    public async Task CreateManifestsFromExtractedContentAsync_EacLayout_RetainsDefaultBinaryAsWorkspaceFileAsync()
     {
         WriteEacPortableLayout();
 
@@ -94,7 +94,7 @@ public class GeneralsOnlineManifestFactoryEacTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task CreateManifestsFromExtractedContentAsync_NestedWrapperName_DoesNotBecomeLaunchTarget()
+    public async Task CreateManifestsFromExtractedContentAsync_NestedWrapperName_DoesNotBecomeLaunchTargetAsync()
     {
         WriteFile(GameClientConstants.GeneralsOnline60HzExecutable);
         WriteFile(Path.Combine("tools", GameClientConstants.GeneralsOnlineEacLauncherExecutable));
@@ -114,7 +114,7 @@ public class GeneralsOnlineManifestFactoryEacTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task CreateManifestsFromExtractedContentAsync_PreEacLayout_MarksSixtyHertzBinaryAsExecutable()
+    public async Task CreateManifestsFromExtractedContentAsync_PreEacLayout_MarksSixtyHertzBinaryAsExecutableAsync()
     {
         WriteFile(GameClientConstants.GeneralsOnline60HzExecutable);
         WriteFile("libcurl.dll");

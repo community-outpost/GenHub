@@ -107,7 +107,7 @@ public class SettingsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task SaveSettingsCommand_UpdatesUserSettingsService()
+    public async Task SaveSettingsCommand_UpdatesUserSettingsServiceAsync()
     {
         // Arrange
         var viewModel = new SettingsViewModel(
@@ -141,7 +141,7 @@ public class SettingsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task ResetToDefaultsCommand_ResetsAllProperties()
+    public async Task ResetToDefaultsCommand_ResetsAllPropertiesAsync()
     {
         // Arrange
         var viewModel = new SettingsViewModel(
@@ -273,7 +273,7 @@ public class SettingsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task SaveSettingsCommand_HandlesUserSettingsServiceException()
+    public async Task SaveSettingsCommand_HandlesUserSettingsServiceExceptionAsync()
     {
         // Arrange
         _mockConfigService.Setup(x => x.SaveAsync(default)).ThrowsAsync(new IOException("Disk full"));
@@ -395,7 +395,7 @@ public class SettingsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task UninstallGenHubCommand_CallsService()
+    public async Task UninstallGenHubCommand_CallsServiceAsync()
     {
         // Arrange
         var viewModel = new SettingsViewModel(

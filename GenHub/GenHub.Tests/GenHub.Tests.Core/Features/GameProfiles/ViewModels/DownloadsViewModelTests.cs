@@ -18,7 +18,7 @@ public class DownloadsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task InitializeAsync_CompletesSuccessfully()
+    public async Task InitializeAsync_CompletesSuccessfullyAsync()
     {
         // Arrange
         var mockServiceProvider = new Mock<IServiceProvider>();

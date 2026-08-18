@@ -61,7 +61,7 @@ public class ExecutablePermissionIsolationTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ChmodThroughHardLink_AlsoChangesTheTarget()
+    public async Task ChmodThroughHardLink_AlsoChangesTheTargetAsync()
     {
         if (OperatingSystem.IsWindows())
         {
@@ -94,7 +94,7 @@ public class ExecutablePermissionIsolationTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task CopyBeforeChmod_LeavesTheStoredBlobUntouched()
+    public async Task CopyBeforeChmod_LeavesTheStoredBlobUntouchedAsync()
     {
         if (OperatingSystem.IsWindows())
         {
@@ -131,7 +131,7 @@ public class ExecutablePermissionIsolationTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task ExecutableMaterialization_ReplacesDestinationAtomically()
+    public async Task ExecutableMaterialization_ReplacesDestinationAtomicallyAsync()
     {
         if (OperatingSystem.IsWindows())
         {
@@ -162,7 +162,7 @@ public class ExecutablePermissionIsolationTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task RepairingABrickedEntryPoint_LeavesTheStoredBlobUntouched()
+    public async Task RepairingABrickedEntryPoint_LeavesTheStoredBlobUntouchedAsync()
     {
         if (OperatingSystem.IsWindows())
         {

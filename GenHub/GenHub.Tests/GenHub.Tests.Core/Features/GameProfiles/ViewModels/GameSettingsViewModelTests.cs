@@ -58,7 +58,7 @@ public class GameSettingsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task InitializeForProfileAsync_Should_LoadFromIniOptions_WhenNoProfileSettings()
+    public async Task InitializeForProfileAsync_Should_LoadFromIniOptions_WhenNoProfileSettingsAsync()
     {
         // Arrange
         var profile = new GameProfile
@@ -119,7 +119,7 @@ public class GameSettingsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task InitializeForProfileAsync_Should_LoadFromProfile_WhenProfileHasSettings()
+    public async Task InitializeForProfileAsync_Should_LoadFromProfile_WhenProfileHasSettingsAsync()
     {
         // Arrange
         var profile = new GameProfile
@@ -310,7 +310,7 @@ public class GameSettingsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task OnSelectedGameTypeChanged_Should_LoadSettings_WhenNotInitializing()
+    public async Task OnSelectedGameTypeChanged_Should_LoadSettings_WhenNotInitializingAsync()
     {
         // Arrange
         var options = new IniOptions
@@ -337,7 +337,7 @@ public class GameSettingsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task OnSelectedGameTypeChanged_Should_NotLoadSettings_WhenSetBeforeInitialization()
+    public async Task OnSelectedGameTypeChanged_Should_NotLoadSettings_WhenSetBeforeInitializationAsync()
     {
         // Arrange
         var profile = new GameProfile
@@ -360,7 +360,7 @@ public class GameSettingsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task LoadSettings_Should_HandleFailureGracefully()
+    public async Task LoadSettings_Should_HandleFailureGracefullyAsync()
     {
         // Arrange
         _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.Generals))
@@ -382,7 +382,7 @@ public class GameSettingsViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task SaveSettings_Should_HandleFailureGracefully()
+    public async Task SaveSettings_Should_HandleFailureGracefullyAsync()
     {
         // Arrange
         _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.Generals, It.IsAny<IniOptions>()))

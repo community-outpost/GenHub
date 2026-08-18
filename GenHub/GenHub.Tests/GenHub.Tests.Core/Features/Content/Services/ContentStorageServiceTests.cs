@@ -80,7 +80,7 @@ public class ContentStorageServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task StoreContentAsync_WithTraversingSourcePath_ShouldFail()
+    public async Task StoreContentAsync_WithTraversingSourcePath_ShouldFailAsync()
     {
         // Arrange
         // Source Dir: /Temp/Source
@@ -121,7 +121,7 @@ public class ContentStorageServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task StoreContentAsync_WithValidExternalSourcePath_ShouldSucceed()
+    public async Task StoreContentAsync_WithValidExternalSourcePath_ShouldSucceedAsync()
     {
         // Arrange
         // Source Dir: /Temp/ExternalGame

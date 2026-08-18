@@ -72,7 +72,7 @@ public class GameClientDetectorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DetectGameClientsFromInstallationsAsync_WithGeneralsInstallation_DetectsGeneralsClient()
+    public async Task DetectGameClientsFromInstallationsAsync_WithGeneralsInstallation_DetectsGeneralsClientAsync()
     {
         // Arrange
         var generalsPath = Path.Combine(_tempDirectory, "Generals");
@@ -122,7 +122,7 @@ public class GameClientDetectorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DetectGameClientsFromInstallationsAsync_WithZeroHourInstallation_DetectsZeroHourClient()
+    public async Task DetectGameClientsFromInstallationsAsync_WithZeroHourInstallation_DetectsZeroHourClientAsync()
     {
         // Arrange
         var zeroHourPath = Path.Combine(_tempDirectory, "ZeroHour");
@@ -172,7 +172,7 @@ public class GameClientDetectorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task ScanDirectoryForGameClientsAsync_WithValidExecutable_FindsGameClient()
+    public async Task ScanDirectoryForGameClientsAsync_WithValidExecutable_FindsGameClientAsync()
     {
         // Arrange
         var gameDir = Path.Combine(_tempDirectory, "TestGame");
@@ -214,7 +214,7 @@ public class GameClientDetectorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task ScanDirectoryForGameClientsAsync_WithNonExistentDirectory_ReturnsFailure()
+    public async Task ScanDirectoryForGameClientsAsync_WithNonExistentDirectory_ReturnsFailureAsync()
     {
         // Arrange
         var nonExistentPath = Path.Combine(_tempDirectory, "NonExistent");
@@ -232,7 +232,7 @@ public class GameClientDetectorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task ValidateGameClientAsync_WithValidClient_ReturnsTrue()
+    public async Task ValidateGameClientAsync_WithValidClient_ReturnsTrueAsync()
     {
         // Arrange
         var executablePath = Path.Combine(_tempDirectory, "generals.exe");
@@ -255,7 +255,7 @@ public class GameClientDetectorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task ValidateGameClientAsync_WithInvalidClient_ReturnsFalse()
+    public async Task ValidateGameClientAsync_WithInvalidClient_ReturnsFalseAsync()
     {
         // Arrange
         var client = new GameClient
@@ -275,7 +275,7 @@ public class GameClientDetectorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task ScanDirectoryForGameClientsAsync_WithUnknownHash_CreatesUnknownClient()
+    public async Task ScanDirectoryForGameClientsAsync_WithUnknownHash_CreatesUnknownClientAsync()
     {
         // Arrange
         var gameDir = Path.Combine(_tempDirectory, "UnknownGame");
@@ -318,7 +318,7 @@ public class GameClientDetectorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task ScanDirectoryForGameClientsAsync_WithEacLauncherBesideSixtyHertz_FindsOnlyWrapper()
+    public async Task ScanDirectoryForGameClientsAsync_WithEacLauncherBesideSixtyHertz_FindsOnlyWrapperAsync()
     {
         var gameDir = Path.Combine(_tempDirectory, "GeneralsOnline");
         Directory.CreateDirectory(gameDir);
@@ -356,7 +356,7 @@ public class GameClientDetectorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task ScanDirectoryForGameClientsAsync_WithEacLauncherAndUnknownHash_ClassifiesAsZeroHourGeneralsOnline()
+    public async Task ScanDirectoryForGameClientsAsync_WithEacLauncherAndUnknownHash_ClassifiesAsZeroHourGeneralsOnlineAsync()
     {
         var gameDir = Path.Combine(_tempDirectory, "GeneralsOnline");
         Directory.CreateDirectory(gameDir);
@@ -408,7 +408,7 @@ public class GameClientDetectorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task ScanDirectoryForGameClientsAsync_WhenAnIdentifierThrows_StillTriesTheRest()
+    public async Task ScanDirectoryForGameClientsAsync_WhenAnIdentifierThrows_StillTriesTheRestAsync()
     {
         var gameDir = Path.Combine(_tempDirectory, "GeneralsOnline");
         Directory.CreateDirectory(gameDir);
@@ -456,7 +456,7 @@ public class GameClientDetectorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task ScanDirectoryForGameClientsAsync_WithoutEacLauncher_FindsSixtyHertzClient()
+    public async Task ScanDirectoryForGameClientsAsync_WithoutEacLauncher_FindsSixtyHertzClientAsync()
     {
         var gameDir = Path.Combine(_tempDirectory, "GeneralsOnlinePreEac");
         Directory.CreateDirectory(gameDir);
@@ -489,7 +489,7 @@ public class GameClientDetectorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DetectGameClientsFromInstallationsAsync_WithGeneralsOnline60HzExecutable_DetectsClient()
+    public async Task DetectGameClientsFromInstallationsAsync_WithGeneralsOnline60HzExecutable_DetectsClientAsync()
     {
         // Arrange - Create identifier for GeneralsOnline 60Hz
         var generalsOnlineIdentifierMock = new Mock<IGameClientIdentifier>();
@@ -589,7 +589,7 @@ public class GameClientDetectorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DetectGameClientsFromInstallationsAsync_WithEacLauncherBesideSixtyHertz_DetectsOnlyWrapper()
+    public async Task DetectGameClientsFromInstallationsAsync_WithEacLauncherBesideSixtyHertz_DetectsOnlyWrapperAsync()
     {
         var identifierMock = new Mock<IGameClientIdentifier>();
         identifierMock.Setup(x => x.PublisherId).Returns(PublisherTypeConstants.GeneralsOnline);
@@ -640,7 +640,7 @@ public class GameClientDetectorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DetectGameClientsFromInstallationsAsync_WithGeneralsOnline60HzExecutable_DetectsZeroHourClient()
+    public async Task DetectGameClientsFromInstallationsAsync_WithGeneralsOnline60HzExecutable_DetectsZeroHourClientAsync()
     {
         // Arrange - Create identifier for GeneralsOnline 60Hz
         var generalsOnlineIdentifierMock = new Mock<IGameClientIdentifier>();
@@ -724,7 +724,7 @@ public class GameClientDetectorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DetectGameClientsFromInstallationsAsync_WithGeneralsOnline60HzVariant_DetectsClientWithStandard()
+    public async Task DetectGameClientsFromInstallationsAsync_WithGeneralsOnline60HzVariant_DetectsClientWithStandardAsync()
     {
         // Arrange - Create identifier for 60Hz
         var identifier60HzMock = new Mock<IGameClientIdentifier>();
@@ -799,7 +799,7 @@ public class GameClientDetectorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DetectGameClientsFromInstallationsAsync_WithMissingGeneralsOnlineExecutable_SkipsAndContinues()
+    public async Task DetectGameClientsFromInstallationsAsync_WithMissingGeneralsOnlineExecutable_SkipsAndContinuesAsync()
     {
         // Arrange - create installation with only standard executable, no GeneralsOnline
         var generalsPath = Path.Combine(_tempDirectory, "GeneralsNoGeneralsOnline");

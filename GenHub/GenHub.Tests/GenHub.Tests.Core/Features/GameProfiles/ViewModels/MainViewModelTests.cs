@@ -125,7 +125,7 @@ public class MainViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task InitializeAsync_MultipleCallsAreSafe()
+    public async Task InitializeAsync_MultipleCallsAreSafeAsync()
     {
         // Arrange
         var (settingsVm, userSettingsMock) = CreateSettingsVm();

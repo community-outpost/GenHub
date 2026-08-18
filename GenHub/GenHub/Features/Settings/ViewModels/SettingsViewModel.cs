@@ -1333,17 +1333,13 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         if (Math.Abs(DownloadBufferSizeKB - message.BufferSizeKB) > 0.01)
             DownloadBufferSizeKB = message.BufferSizeKB;
 
-        if (DownloadTimeoutSeconds != message.TimeoutSeconds)
-            DownloadTimeoutSeconds = message.TimeoutSeconds;
-
-        if (DownloadUserAgent != message.UserAgent)
-            DownloadUserAgent = message.UserAgent;
+        DownloadTimeoutSeconds = message.TimeoutSeconds;
+        DownloadUserAgent = message.UserAgent;
     }
 
     private void OnThemeSettingsChanged(ThemeChangedMessage message)
     {
-        if (Theme != message.ThemeName)
-            Theme = message.ThemeName;
+        Theme = message.ThemeName;
     }
 
     [RelayCommand]

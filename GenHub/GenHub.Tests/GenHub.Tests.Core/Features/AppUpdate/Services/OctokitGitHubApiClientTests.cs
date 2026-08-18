@@ -18,7 +18,7 @@ public class OctokitGitHubApiClientTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task GetLatestReleaseAsync_ReturnsNullWhenNotFound()
+    public async Task GetLatestReleaseAsync_ReturnsNullWhenNotFoundAsync()
     {
         // Arrange
         var releasesClientMock = new Mock<Octokit.IReleasesClient>();
@@ -52,7 +52,7 @@ public class OctokitGitHubApiClientTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task GetReleasesAsync_ReturnsEmptyCollectionWhenNoReleases()
+    public async Task GetReleasesAsync_ReturnsEmptyCollectionWhenNoReleasesAsync()
     {
         // Arrange
         var releasesClientMock = new Mock<Octokit.IReleasesClient>();

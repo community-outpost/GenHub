@@ -59,7 +59,7 @@ public class CommunityOutpostManifestFactoryTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CreateManifestsFromExtractedContentAsync_WithHleiPackage_ShouldSplitIntoMultipleManifests()
+    public async Task CreateManifestsFromExtractedContentAsync_WithHleiPackage_ShouldSplitIntoMultipleManifestsAsync()
     {
         // Arrange
         var zhEnDir = Path.Combine(_tempDir, "ZH", "BIG EN");
@@ -114,7 +114,7 @@ public class CommunityOutpostManifestFactoryTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CreateManifestsFromExtractedContentAsync_WithNoVariants_ShouldReturnSingleManifest()
+    public async Task CreateManifestsFromExtractedContentAsync_WithNoVariants_ShouldReturnSingleManifestAsync()
     {
         // Arrange
         File.WriteAllText(Path.Combine(_tempDir, "mod.big"), "mock content");

@@ -55,7 +55,7 @@ public class GenLauncherNormalizationServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task NormalizeFilesAsync_ConvertsGibToBig()
+    public async Task NormalizeFilesAsync_ConvertsGibToBigAsync()
     {
         var gibPath = Path.Combine(_tempDir, "data.gib");
         await File.WriteAllTextAsync(gibPath, "gib-content");
@@ -73,7 +73,7 @@ public class GenLauncherNormalizationServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task NormalizeFilesAsync_RemovesSuffixes()
+    public async Task NormalizeFilesAsync_RemovesSuffixesAsync()
     {
         var glrPath = Path.Combine(_tempDir, "sound.wav.GLR");
         var gofPath = Path.Combine(_tempDir, "texture.tga.GOF");
@@ -96,7 +96,7 @@ public class GenLauncherNormalizationServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task NormalizeFilesAsync_ConvertsGibWithSuffixToBig()
+    public async Task NormalizeFilesAsync_ConvertsGibWithSuffixToBigAsync()
     {
         var sourcePath = Path.Combine(_tempDir, "sound.gib.GLR");
         await File.WriteAllTextAsync(sourcePath, "gib-content");
@@ -115,7 +115,7 @@ public class GenLauncherNormalizationServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task NormalizeFilesAsync_SkipsWhenDestinationExists()
+    public async Task NormalizeFilesAsync_SkipsWhenDestinationExistsAsync()
     {
         var gibPath = Path.Combine(_tempDir, "data.gib");
         var bigPath = Path.Combine(_tempDir, "data.big");
@@ -137,7 +137,7 @@ public class GenLauncherNormalizationServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task NormalizeFilesAsync_DetectsAndRenamesSuffixDirectory_PreservingContents()
+    public async Task NormalizeFilesAsync_DetectsAndRenamesSuffixDirectory_PreservingContentsAsync()
     {
         var gltcDir = Path.Combine(_tempDir, "Maps.GLTC");
         Directory.CreateDirectory(gltcDir);
@@ -162,7 +162,7 @@ public class GenLauncherNormalizationServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task NormalizeFilesAsync_SkipsDirectorySuffixRemoval_WhenDestinationExists()
+    public async Task NormalizeFilesAsync_SkipsDirectorySuffixRemoval_WhenDestinationExistsAsync()
     {
         var gltcDir = Path.Combine(_tempDir, "Maps.GLTC");
         Directory.CreateDirectory(gltcDir);
@@ -186,7 +186,7 @@ public class GenLauncherNormalizationServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task NormalizeFilesAsync_RemovesFileSymlink()
+    public async Task NormalizeFilesAsync_RemovesFileSymlinkAsync()
     {
         if (!TryCreateFileSymlink(out var skipReason))
         {
@@ -212,7 +212,7 @@ public class GenLauncherNormalizationServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task NormalizeFilesAsync_RemovesDanglingFileSymlink()
+    public async Task NormalizeFilesAsync_RemovesDanglingFileSymlinkAsync()
     {
         if (!TryCreateFileSymlink(out var skipReason))
         {
@@ -236,7 +236,7 @@ public class GenLauncherNormalizationServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task NormalizeFilesAsync_RemovesDanglingDirectorySymlink()
+    public async Task NormalizeFilesAsync_RemovesDanglingDirectorySymlinkAsync()
     {
         if (!TryCreateDirectorySymlink(out var skipReason))
         {
@@ -260,7 +260,7 @@ public class GenLauncherNormalizationServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task NormalizeFilesAsync_HonorsCancellation()
+    public async Task NormalizeFilesAsync_HonorsCancellationAsync()
     {
         var gibPath = Path.Combine(_tempDir, "data.gib");
         await File.WriteAllTextAsync(gibPath, "gib-content");
@@ -279,7 +279,7 @@ public class GenLauncherNormalizationServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DetectGenLauncherFilesAsync_FindsNestedFiles()
+    public async Task DetectGenLauncherFilesAsync_FindsNestedFilesAsync()
     {
         var nestedDir = Path.Combine(_tempDir, "mods", "audio");
         Directory.CreateDirectory(nestedDir);
@@ -303,7 +303,7 @@ public class GenLauncherNormalizationServiceTests : IDisposable
     [Theory]
     [InlineData(new byte[] { 0xCF, 0xFA, 0xED, 0xFE, 0x0C, 0x00, 0x00, 0x01 })]
     [InlineData(new byte[] { 0x7F, 0x45, 0x4C, 0x46, 0x02, 0x01, 0x01, 0x00 })]
-    public async Task NormalizeFilesAsync_UnmasksNativeBinaryForMagicByteClassification(byte[] header)
+    public async Task NormalizeFilesAsync_UnmasksNativeBinaryForMagicByteClassificationAsync(byte[] header)
     {
         var suffixedPath = Path.Combine(_tempDir, "generals" + GenLauncherConstants.OriginalFileSuffix);
         await File.WriteAllBytesAsync(suffixedPath, header);

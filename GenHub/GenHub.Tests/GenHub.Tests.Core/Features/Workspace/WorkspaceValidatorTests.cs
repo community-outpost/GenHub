@@ -51,7 +51,7 @@ public partial class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidateConfigurationAsync_ValidConfiguration_ReturnsSuccess()
+    public async Task ValidateConfigurationAsync_ValidConfiguration_ReturnsSuccessAsync()
     {
         // Arrange
         var config = CreateValidConfiguration();
@@ -75,7 +75,7 @@ public partial class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidateConfigurationAsync_MissingRequiredProperties_ReturnsErrors()
+    public async Task ValidateConfigurationAsync_MissingRequiredProperties_ReturnsErrorsAsync()
     {
         // Arrange
         var config = new WorkspaceConfiguration
@@ -98,7 +98,7 @@ public partial class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidateConfigurationAsync_NonExistentSourcePath_ReturnsError()
+    public async Task ValidateConfigurationAsync_NonExistentSourcePath_ReturnsErrorAsync()
     {
         // Arrange
         var config = CreateValidConfiguration();
@@ -116,7 +116,7 @@ public partial class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidateConfigurationAsync_EmptyManifest_ReturnsError()
+    public async Task ValidateConfigurationAsync_EmptyManifest_ReturnsErrorAsync()
     {
         // Arrange
         var config = CreateValidConfiguration();
@@ -134,7 +134,7 @@ public partial class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidatePrerequisitesAsync_AdminRequired_ValidatesCorrectly()
+    public async Task ValidatePrerequisitesAsync_AdminRequired_ValidatesCorrectlyAsync()
     {
         // Arrange
         var mockStrategy = new Mock<IWorkspaceStrategy>();
@@ -171,7 +171,7 @@ public partial class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidatePrerequisitesAsync_DifferentVolumes_ReturnsWarning()
+    public async Task ValidatePrerequisitesAsync_DifferentVolumes_ReturnsWarningAsync()
     {
         // Arrange
         var mockStrategy = new Mock<IWorkspaceStrategy>();
@@ -217,7 +217,7 @@ public partial class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ValidatePrerequisitesAsync_InsufficientDiskSpace_ReturnsWarning()
+    public async Task ValidatePrerequisitesAsync_InsufficientDiskSpace_ReturnsWarningAsync()
     {
         // Arrange - Use a concrete strategy that can return large disk usage
         var fileOps = new Mock<IFileOperationsService>();
@@ -267,7 +267,7 @@ public partial class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ValidateWorkspaceAsync_OtherOnlyExecuteBit_RepairsEntryPoint()
+    public async Task ValidateWorkspaceAsync_OtherOnlyExecuteBit_RepairsEntryPointAsync()
     {
         // Root bypasses the permission bits entirely: faccessat reports execute access for
         // an other-only bit, so the behaviour under test does not exist for uid 0. Checked
@@ -308,7 +308,7 @@ public partial class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EnsureEntryPointExecutableAsync_BrickedEntryPoint_RestoresExecuteMode()
+    public async Task EnsureEntryPointExecutableAsync_BrickedEntryPoint_RestoresExecuteModeAsync()
     {
         if (OperatingSystem.IsWindows())
         {
@@ -340,7 +340,7 @@ public partial class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EnsureEntryPointExecutableAsync_AlreadyExecutable_ReportsNoRepair()
+    public async Task EnsureEntryPointExecutableAsync_AlreadyExecutable_ReportsNoRepairAsync()
     {
         if (OperatingSystem.IsWindows())
         {
@@ -371,7 +371,7 @@ public partial class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EnsureEntryPointExecutableAsync_MissingEntryPoint_FailsWithoutCreatingFile()
+    public async Task EnsureEntryPointExecutableAsync_MissingEntryPoint_FailsWithoutCreatingFileAsync()
     {
         if (OperatingSystem.IsWindows())
         {
@@ -398,7 +398,7 @@ public partial class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ValidateWorkspaceAsync_MissingEntryPoint_ReportsErrorWithoutCreatingFile()
+    public async Task ValidateWorkspaceAsync_MissingEntryPoint_ReportsErrorWithoutCreatingFileAsync()
     {
         var executablePath = Path.Combine(_workspaceDir, "missing-client");
 
@@ -426,7 +426,7 @@ public partial class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EnsureEntryPointExecutableAsync_RootedPathOutsideWorkspace_RefusesWithoutMutation()
+    public async Task EnsureEntryPointExecutableAsync_RootedPathOutsideWorkspace_RefusesWithoutMutationAsync()
     {
         if (OperatingSystem.IsWindows())
         {
@@ -463,7 +463,7 @@ public partial class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EnsureEntryPointExecutableAsync_TraversalPath_RefusesWithoutMutation()
+    public async Task EnsureEntryPointExecutableAsync_TraversalPath_RefusesWithoutMutationAsync()
     {
         if (OperatingSystem.IsWindows())
         {
@@ -495,7 +495,7 @@ public partial class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EnsureEntryPointExecutableAsync_RootedPathInsideWorkspace_StillRepairs()
+    public async Task EnsureEntryPointExecutableAsync_RootedPathInsideWorkspace_StillRepairsAsync()
     {
         if (OperatingSystem.IsWindows())
         {
@@ -527,7 +527,7 @@ public partial class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ValidateWorkspaceAsync_EntryPointOutsideWorkspace_ReportsErrorWithoutMutation()
+    public async Task ValidateWorkspaceAsync_EntryPointOutsideWorkspace_ReportsErrorWithoutMutationAsync()
     {
         var outsidePath = Path.Combine(_sourceDir, "client");
         await File.WriteAllTextAsync(outsidePath, "outside binary");
@@ -568,7 +568,7 @@ public partial class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EnsureEntryPointExecutableAsync_SymlinkedIntermediateDirectory_RefusesWithoutMutation()
+    public async Task EnsureEntryPointExecutableAsync_SymlinkedIntermediateDirectory_RefusesWithoutMutationAsync()
     {
         if (OperatingSystem.IsWindows())
         {
@@ -606,7 +606,7 @@ public partial class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EnsureEntryPointExecutableAsync_SymlinkedLeafExecutable_RepairsCopyAndLeavesTargetUntouched()
+    public async Task EnsureEntryPointExecutableAsync_SymlinkedLeafExecutable_RepairsCopyAndLeavesTargetUntouchedAsync()
     {
         if (OperatingSystem.IsWindows())
         {
@@ -645,7 +645,7 @@ public partial class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EnsureEntryPointExecutableAsync_PreExistingTemporaryFile_IsNotClobbered()
+    public async Task EnsureEntryPointExecutableAsync_PreExistingTemporaryFile_IsNotClobberedAsync()
     {
         if (OperatingSystem.IsWindows())
         {
@@ -679,7 +679,7 @@ public partial class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task EnsureEntryPointExecutableAsync_OnWindows_IsANoOp()
+    public async Task EnsureEntryPointExecutableAsync_OnWindows_IsANoOpAsync()
     {
         if (!OperatingSystem.IsWindows())
         {
@@ -709,7 +709,7 @@ public partial class WorkspaceValidatorTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ValidateWorkspaceAsync_ExecutableEntryPoint_HasNoAccessError()
+    public async Task ValidateWorkspaceAsync_ExecutableEntryPoint_HasNoAccessErrorAsync()
     {
         if (OperatingSystem.IsWindows())
         {

@@ -68,7 +68,7 @@ public class ReconciliationStrategyTests : IDisposable
     [InlineData(WorkspaceStrategy.HardLink)]
     [InlineData(WorkspaceStrategy.SymlinkOnly)]
     [InlineData(WorkspaceStrategy.FullCopy)]
-    public async Task ReconcileBulkManifestReplacement_ShouldPreserveStrategy(WorkspaceStrategy strategy)
+    public async Task ReconcileBulkManifestReplacement_ShouldPreserveStrategyAsync(WorkspaceStrategy strategy)
     {
         // Arrange
         var profileId = $"profile_{strategy}";
@@ -117,7 +117,7 @@ public class ReconciliationStrategyTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ReconcileBulkManifestReplacement_WithMultipleProfiles_ShouldPreserveAllStrategies()
+    public async Task ReconcileBulkManifestReplacement_WithMultipleProfiles_ShouldPreserveAllStrategiesAsync()
     {
         // Arrange
         var profiles = new[]
@@ -189,7 +189,7 @@ public class ReconciliationStrategyTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ReconcileManifestRemoval_ShouldNotSetWorkspaceStrategy()
+    public async Task ReconcileManifestRemoval_ShouldNotSetWorkspaceStrategyAsync()
     {
         // Arrange
         var profileId = "profile_hardlink";

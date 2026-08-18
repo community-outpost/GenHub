@@ -39,7 +39,7 @@ public class NativeLaunchDiagnosticsTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task NonExecutableFile_IsRefusedWithANamedError()
+    public async Task NonExecutableFile_IsRefusedWithANamedErrorAsync()
     {
         if (!OnUnix)
         {
@@ -71,7 +71,7 @@ public class NativeLaunchDiagnosticsTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ProcessThatDiesAtStartup_SurfacesItsStderr()
+    public async Task ProcessThatDiesAtStartup_SurfacesItsStderrAsync()
     {
         if (!OnUnix)
         {
@@ -109,7 +109,7 @@ public class NativeLaunchDiagnosticsTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ChattyProcess_StillLaunchesWithoutDeadlocking()
+    public async Task ChattyProcess_StillLaunchesWithoutDeadlockingAsync()
     {
         if (!OnUnix)
         {

@@ -33,7 +33,7 @@ public class WindowsInstallationDetectorTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DetectInstallationsAsync_ReturnsDetectionResult()
+    public async Task DetectInstallationsAsync_ReturnsDetectionResultAsync()
     {
         var detector = new WindowsInstallationDetector(NullLogger<WindowsInstallationDetector>.Instance);
         var result = await detector.DetectInstallationsAsync();

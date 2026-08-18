@@ -37,7 +37,7 @@ public class ProcessLocalFileAsyncTests : IDisposable
     /// </summary>
     /// <returns>A task that represents the asynchronous test operation.</returns>
     [Fact]
-    public async Task FullCopyStrategy_ProcessLocalFileAsync_CopiesFile()
+    public async Task FullCopyStrategy_ProcessLocalFileAsync_CopiesFileAsync()
     {
         // Arrange
         var logger = new Mock<ILogger<FullCopyStrategy>>();
@@ -73,7 +73,7 @@ public class ProcessLocalFileAsyncTests : IDisposable
     /// </summary>
     /// <returns>A task that represents the asynchronous test operation.</returns>
     [Fact]
-    public async Task SymlinkOnlyStrategy_ProcessLocalFileAsync_CreatesSymlink()
+    public async Task SymlinkOnlyStrategy_ProcessLocalFileAsync_CreatesSymlinkAsync()
     {
         // Arrange
         var logger = new Mock<ILogger<SymlinkOnlyStrategy>>();
@@ -106,7 +106,7 @@ public class ProcessLocalFileAsyncTests : IDisposable
     /// </summary>
     /// <returns>A task that represents the asynchronous test operation.</returns>
     [Fact]
-    public async Task HybridCopySymlinkStrategy_ProcessLocalFileAsync_CopiesEssentialFiles()
+    public async Task HybridCopySymlinkStrategy_ProcessLocalFileAsync_CopiesEssentialFilesAsync()
     {
         // Arrange
         var logger = new Mock<ILogger<HybridCopySymlinkStrategy>>();
@@ -138,7 +138,7 @@ public class ProcessLocalFileAsyncTests : IDisposable
     /// </summary>
     /// <returns>A task that represents the asynchronous test operation.</returns>
     [Fact]
-    public async Task HybridCopySymlinkStrategy_ProcessLocalFileAsync_SymlinksNonEssentialFiles()
+    public async Task HybridCopySymlinkStrategy_ProcessLocalFileAsync_SymlinksNonEssentialFilesAsync()
     {
         // Arrange
         var logger = new Mock<ILogger<HybridCopySymlinkStrategy>>();
@@ -171,7 +171,7 @@ public class ProcessLocalFileAsyncTests : IDisposable
     /// </summary>
     /// <returns>A task that represents the asynchronous test operation.</returns>
     [Fact]
-    public async Task HardLinkStrategy_ProcessLocalFileAsync_CreatesHardLinksOnSameVolume()
+    public async Task HardLinkStrategy_ProcessLocalFileAsync_CreatesHardLinksOnSameVolumeAsync()
     {
         // Arrange
         var logger = new Mock<ILogger<HardLinkStrategy>>();
@@ -211,7 +211,7 @@ public class ProcessLocalFileAsyncTests : IDisposable
     [InlineData(WorkspaceStrategy.SymlinkOnly)]
     [InlineData(WorkspaceStrategy.HybridCopySymlink)]
     [InlineData(WorkspaceStrategy.HardLink)]
-    public async Task AllStrategies_ProcessLocalFileAsync_HandlesMissingSourceFiles(WorkspaceStrategy strategyType)
+    public async Task AllStrategies_ProcessLocalFileAsync_HandlesMissingSourceFilesAsync(WorkspaceStrategy strategyType)
     {
         // Arrange
         var strategy = CreateStrategy(strategyType);
@@ -239,7 +239,7 @@ public class ProcessLocalFileAsyncTests : IDisposable
     /// </summary>
     /// <returns>A task that represents the asynchronous test operation.</returns>
     [Fact]
-    public async Task AllStrategies_ProcessLocalFileAsync_ValidatesConfiguration()
+    public async Task AllStrategies_ProcessLocalFileAsync_ValidatesConfigurationAsync()
     {
         // Arrange
         var logger = new Mock<ILogger<FullCopyStrategy>>();
@@ -264,7 +264,7 @@ public class ProcessLocalFileAsyncTests : IDisposable
     [InlineData(WorkspaceStrategy.SymlinkOnly)]
     [InlineData(WorkspaceStrategy.HybridCopySymlink)]
     [InlineData(WorkspaceStrategy.HardLink)]
-    public async Task AllStrategies_ProcessGameInstallationFileAsync_UsesSourcePathDirectly(WorkspaceStrategy strategyType)
+    public async Task AllStrategies_ProcessGameInstallationFileAsync_UsesSourcePathDirectlyAsync(WorkspaceStrategy strategyType)
     {
         // Arrange
         var strategy = CreateStrategy(strategyType);

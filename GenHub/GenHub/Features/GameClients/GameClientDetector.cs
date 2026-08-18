@@ -240,8 +240,8 @@ public class GameClientDetector(
             // Try to detect version for both game types
             var generalsVersion = hashRegistry.GetVersionFromHash(hash, GameType.Generals);
             var zeroHourVersion = hashRegistry.GetVersionFromHash(hash, GameType.ZeroHour);
-            GameType detectedGameType;
-            string detectedVersion;
+            var detectedGameType = GameType.Unknown;
+            var detectedVersion = GameClientConstants.UnknownVersion;
             if (!string.Equals(generalsVersion, GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase))
             {
                 detectedGameType = GameType.Generals;
@@ -958,7 +958,7 @@ public class GameClientDetector(
             // Find the executable file in the manifest
             var executableFile = manifest.Files?.FirstOrDefault(f =>
                 f.IsExecutable ||
-                (f.RelativePath?.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ?? false));
+                (f.RelativePath?.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) == true));
 
             if (executableFile == null)
             {

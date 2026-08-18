@@ -53,7 +53,7 @@ public class ToolSystemIntegrationTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task CompleteWorkflow_AddAndRemoveTool_WorksCorrectly()
+    public async Task CompleteWorkflow_AddAndRemoveTool_WorksCorrectlyAsync()
     {
         // Arrange
         var mockPlugin = new MockToolPlugin("test.tool", "Test Tool", "1.0.0", "Test Author");
@@ -117,7 +117,7 @@ public class ToolSystemIntegrationTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task LoadSavedTools_LoadsMultipleToolsFromSettings()
+    public async Task LoadSavedTools_LoadsMultipleToolsFromSettingsAsync()
     {
         // Arrange
         var path1 = @"C:\Test\Tool1.dll";
@@ -163,7 +163,7 @@ public class ToolSystemIntegrationTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task AddTool_PreventsDuplicateToolIds()
+    public async Task AddTool_PreventsDuplicateToolIdsAsync()
     {
         // Arrange
         var path1 = @"C:\Test\Tool_v1.dll";
@@ -206,7 +206,7 @@ public class ToolSystemIntegrationTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task ReplaceTool_ByRemovingAndAddingNewVersion()
+    public async Task ReplaceTool_ByRemovingAndAddingNewVersionAsync()
     {
         // Arrange
         var path1 = @"C:\Test\Tool_v1.dll";

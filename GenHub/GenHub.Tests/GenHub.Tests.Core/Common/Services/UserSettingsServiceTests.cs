@@ -74,7 +74,7 @@ public class UserSettingsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task SaveAsync_CreatesFileWithCorrectData()
+    public async Task SaveAsync_CreatesFileWithCorrectDataAsync()
     {
         var service = CreateService();
         var settingsPath = Path.Combine(_tempDirectory, FileTypes.JsonFileExtension);
@@ -99,7 +99,7 @@ public class UserSettingsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task LoadSettings_AfterSave_LoadsCorrectData()
+    public async Task LoadSettings_AfterSave_LoadsCorrectDataAsync()
     {
         // Use a unique temp directory for this test
         var testDir = Path.Combine(_tempDirectory, Guid.NewGuid().ToString());
@@ -137,7 +137,7 @@ public class UserSettingsServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task LoadSettings_AfterSave_PreservesInstallationPoolProvenanceMarker()
+    public async Task LoadSettings_AfterSave_PreservesInstallationPoolProvenanceMarkerAsync()
     {
         var settingsPath = Path.Combine(_tempDirectory, "provenance", FileTypes.SettingsFileName);
         var historicalPoolPath = "/historical/installation/.genhub-cas";
@@ -170,7 +170,7 @@ public class UserSettingsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task GetSettings_WithCorruptedJson_ReturnsDefaults()
+    public async Task GetSettings_WithCorruptedJson_ReturnsDefaultsAsync()
     {
         var testDir = Path.Combine(_tempDirectory, Guid.NewGuid().ToString());
         Directory.CreateDirectory(testDir);
@@ -226,7 +226,7 @@ public class UserSettingsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task SaveAsync_CreatesDirectoryIfNotExists()
+    public async Task SaveAsync_CreatesDirectoryIfNotExistsAsync()
     {
         var nestedPath = Path.Combine(_tempDirectory, "nested", "path");
         var settingsPath = Path.Combine(nestedPath, FileTypes.JsonFileExtension);
@@ -255,7 +255,7 @@ public class UserSettingsServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task SaveAsync_WithLongPath_CreatesNestedDirectories()
+    public async Task SaveAsync_WithLongPath_CreatesNestedDirectoriesAsync()
     {
         // Arrange
         var deepPath = Path.Combine(_tempDirectory, "very", "deep", "nested", "path");

@@ -35,7 +35,7 @@ public class CNCLabsMapDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_NullQuery_ReturnsFailure()
+    public async Task DiscoverAsync_NullQuery_ReturnsFailureAsync()
     {
         // Arrange
         using var http = CreateHttpClient(_ => new HttpResponseMessage(HttpStatusCode.OK));
@@ -56,7 +56,7 @@ public class CNCLabsMapDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_MissingSearchTermAndFilters_ReturnsFailure()
+    public async Task DiscoverAsync_MissingSearchTermAndFilters_ReturnsFailureAsync()
     {
         // Arrange: neither SearchTerm nor both TargetGame & ContentType
         var query = new ContentSearchQuery
@@ -82,7 +82,7 @@ public class CNCLabsMapDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_CancellationRequested_ReturnsFailure()
+    public async Task DiscoverAsync_CancellationRequested_ReturnsFailureAsync()
     {
         // Arrange
         var query = new ContentSearchQuery
@@ -110,7 +110,7 @@ public class CNCLabsMapDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_HttpThrows_ReturnsFailure_AndLogs()
+    public async Task DiscoverAsync_HttpThrows_ReturnsFailure_AndLogsAsync()
     {
         // Arrange - any request throws
         using var http = new HttpClient(new ThrowingHandler(new HttpRequestException("boom")));
@@ -138,7 +138,7 @@ public class CNCLabsMapDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_WithFilters_ParsesListAndProjectsResults()
+    public async Task DiscoverAsync_WithFilters_ParsesListAndProjectsResultsAsync()
     {
         // Arrange
         var query = new ContentSearchQuery

@@ -39,7 +39,7 @@ public sealed class UploadHistoryServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task RemoveHistoryItemAsync_WhenItemExists_RemovesLocalRecord()
+    public async Task RemoveHistoryItemAsync_WhenItemExists_RemovesLocalRecordAsync()
     {
         var service = CreateService();
         service.RecordUpload(1024, "https://utfs.io/f/example", "example.zip");
@@ -55,7 +55,7 @@ public sealed class UploadHistoryServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task RemoveHistoryItemAsync_WhenOtherItemsExist_PreservesOtherRecords()
+    public async Task RemoveHistoryItemAsync_WhenOtherItemsExist_PreservesOtherRecordsAsync()
     {
         var service = CreateService();
         service.RecordUpload(1024, "https://utfs.io/f/first", "first.zip");
@@ -73,7 +73,7 @@ public sealed class UploadHistoryServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task RemoveHistoryItemAsync_WhenUrlDoesNotMatch_PreservesHistory()
+    public async Task RemoveHistoryItemAsync_WhenUrlDoesNotMatch_PreservesHistoryAsync()
     {
         var service = CreateService();
         service.RecordUpload(1024, "https://utfs.io/f/example", "example.zip");
@@ -90,7 +90,7 @@ public sealed class UploadHistoryServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task ClearHistoryAsync_WhenItemsExist_RemovesAllLocalRecords()
+    public async Task ClearHistoryAsync_WhenItemsExist_RemovesAllLocalRecordsAsync()
     {
         var service = CreateService();
         service.RecordUpload(1024, "https://utfs.io/f/first", "first.zip");
@@ -107,7 +107,7 @@ public sealed class UploadHistoryServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task ClearHistoryAsync_WhenHistoryIsEmpty_RemainsEmpty()
+    public async Task ClearHistoryAsync_WhenHistoryIsEmpty_RemainsEmptyAsync()
     {
         var service = CreateService();
 
@@ -122,7 +122,7 @@ public sealed class UploadHistoryServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task GetUploadHistoryAsync_WhenLegacyRecordIsPendingDeletion_RemovesRecord()
+    public async Task GetUploadHistoryAsync_WhenLegacyRecordIsPendingDeletion_RemovesRecordAsync()
     {
         var historyPath = Path.Combine(_tempDirectory, "upload_history.json");
         var timestamp = DateTime.UtcNow.ToString("O");

@@ -7,7 +7,7 @@ using GenHub.Core.Models.Storage;
 namespace GenHub.Core.Models.Common;
 
 /// <summary>Represents application-level and user-specific settings for GenHub.</summary>
-public class UserSettings : ICloneable
+public class UserSettings
 {
     /// <summary>Gets or sets the application theme preference.</summary>
     public string? Theme { get; set; } = GenHub.Core.Constants.AppConstants.DefaultThemeName;
@@ -137,7 +137,7 @@ public class UserSettings : ICloneable
 
     /// <summary>Creates a deep copy of the current UserSettings instance.</summary>
     /// <returns>A new UserSettings instance with all properties deeply copied.</returns>
-    public object Clone()
+    public UserSettings Clone()
     {
         return new UserSettings
         {

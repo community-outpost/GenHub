@@ -23,7 +23,7 @@ namespace GenHub.Tests.Core.Features.Workspace;
 /// </summary>
 public class MixedInstallationIntegrationTests : IDisposable
 {
-    private static async Task CreateTestFile(string path, string content)
+    private static async Task CreateTestFileAsync(string path, string content)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         await File.WriteAllTextAsync(path, content);
@@ -99,7 +99,7 @@ public class MixedInstallationIntegrationTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task INT1_OfficialOnly_SteamBaseWithSteamClient_WorksCorrectly()
+    public async Task INT1_OfficialOnly_SteamBaseWithSteamClient_WorksCorrectlyAsync()
     {
         // Arrange
         // Create manifests for Steam installation
@@ -148,7 +148,7 @@ public class MixedInstallationIntegrationTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task INT2_MixedInstallation_SteamBaseWithCommunityClient_CombinesCorrectly()
+    public async Task INT2_MixedInstallation_SteamBaseWithCommunityClient_CombinesCorrectlyAsync()
     {
         // Arrange
         var gameInstallManifest = await CreateManifestAsync(
@@ -212,11 +212,11 @@ public class MixedInstallationIntegrationTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task INT3_FullStack_EABaseWithCommunityClientAndMods_CombinesCorrectly()
+    public async Task INT3_FullStack_EABaseWithCommunityClientAndMods_CombinesCorrectlyAsync()
     {
         // Create physical files for all sources
-        await CreateTestFile(Path.Combine(_tempModsFolder, "ShockWave", "Data", "INI", "Weapon.ini"), "[ShockWaveMod]");
-        await CreateTestFile(Path.Combine(_tempModsFolder, "Maps", "DesertStorm.map"), "MapData");
+        await CreateTestFileAsync(Path.Combine(_tempModsFolder, "ShockWave", "Data", "INI", "Weapon.ini"), "[ShockWaveMod]");
+        await CreateTestFileAsync(Path.Combine(_tempModsFolder, "Maps", "DesertStorm.map"), "MapData");
 
         // Arrange - Create 4 different content sources
         var gameInstallManifest = await CreateManifestAsync(
@@ -281,7 +281,7 @@ public class MixedInstallationIntegrationTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task INT4_DependencyValidation_IncompatibleGameType_Blocked()
+    public async Task INT4_DependencyValidation_IncompatibleGameType_BlockedAsync()
     {
         // This test validates at the ProfileLauncherFacade level, not WorkspaceManager
         // WorkspaceManager doesn't validate dependencies - that's ProfileLauncherFacade's job
@@ -351,12 +351,12 @@ public class MixedInstallationIntegrationTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task INT5_ConflictResolution_ModBeatsInstallation_CorrectPriority()
+    public async Task INT5_ConflictResolution_ModBeatsInstallation_CorrectPriorityAsync()
     {
         // Create different content for each version
-        await CreateTestFile(Path.Combine(_tempSteamInstall, "Data", "INI", "GameData.ini"), "[Steam-Official]");
-        await CreateTestFile(Path.Combine(_tempCommunityClient, "Data", "INI", "GameData.ini"), "[GenTool-Modified]");
-        await CreateTestFile(Path.Combine(_tempModsFolder, "Data", "INI", "GameData.ini"), "[ShockWave-Mod]");
+        await CreateTestFileAsync(Path.Combine(_tempSteamInstall, "Data", "INI", "GameData.ini"), "[Steam-Official]");
+        await CreateTestFileAsync(Path.Combine(_tempCommunityClient, "Data", "INI", "GameData.ini"), "[GenTool-Modified]");
+        await CreateTestFileAsync(Path.Combine(_tempModsFolder, "Data", "INI", "GameData.ini"), "[ShockWave-Mod]");
 
         // Arrange - Create manifests with overlapping files
         var gameInstallManifest = await CreateManifestAsync(
