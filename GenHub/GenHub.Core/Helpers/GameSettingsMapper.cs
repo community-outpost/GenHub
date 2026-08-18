@@ -714,7 +714,7 @@ public static class GameSettingsMapper
                 TextureQuality.Medium => GameSettingsConstants.TextureQuality.TextureReductionMedium,
                 TextureQuality.High => GameSettingsConstants.TextureQuality.TextureReductionHigh,
                 TextureQuality.VeryHigh => GameSettingsConstants.TextureQuality.TextureReductionHigh,
-                _ => options.Video.TextureReduction,
+                _ => GameSettingsConstants.TextureQuality.TextureReductionHigh,
             };
         }
 
@@ -751,7 +751,10 @@ public static class GameSettingsMapper
         }
 
         if (profile.VideoAlternateMouseSetup.HasValue)
+        {
             options.Video.AlternateMouseSetup = profile.VideoAlternateMouseSetup.Value;
+            options.Video.AdditionalProperties["UseAlternateMouse"] = profile.VideoAlternateMouseSetup.Value ? "yes" : "no";
+        }
 
         if (profile.VideoHeatEffects.HasValue)
             options.Video.HeatEffects = profile.VideoHeatEffects.Value;

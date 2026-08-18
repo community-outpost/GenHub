@@ -64,6 +64,7 @@ public class GeneralsOnlineDeliverer(
         try
         {
             logger.LogInformation("Starting Generals Online content delivery for {Version}", packageManifest.Version);
+            PruneStaleTempArtifacts(targetDirectory, logger);
 
             var downloadResult = await DownloadAndExtractPackageAsync(packageManifest, targetDirectory, progress, cancellationToken);
             if (!downloadResult.Success)
@@ -179,6 +180,47 @@ public class GeneralsOnlineDeliverer(
         {
             logger.LogError(ex, "Validation failed for Generals Online manifest {ManifestId}", manifest.Id);
             return Task.FromResult(OperationResult<bool>.CreateFailure($"Validation failed: {ex.Message}"));
+        }
+    }
+
+    private static void PruneStaleTempArtifacts(string targetDirectory, ILogger logger)
+    {
+        try
+        {
+            if (!Directory.Exists(targetDirectory))
+            {
+                return;
+            }
+
+            foreach (var staleZip in Directory.EnumerateFiles(targetDirectory, "GeneralsOnline_*.zip"))
+            {
+                try
+                {
+                    File.Delete(staleZip);
+                    logger.LogDebug("Pruned stale ZIP artifact: {Path}", staleZip);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogTrace(ex, "Failed to prune stale ZIP {Path}", staleZip);
+                }
+            }
+
+            foreach (var staleDir in Directory.EnumerateDirectories(targetDirectory, "extracted_*"))
+            {
+                try
+                {
+                    Directory.Delete(staleDir, recursive: true);
+                    logger.LogDebug("Pruned stale extraction directory: {Path}", staleDir);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogTrace(ex, "Failed to prune stale extraction dir {Path}", staleDir);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogTrace(ex, "Error while pruning stale artifacts in {Directory}", targetDirectory);
         }
     }
 

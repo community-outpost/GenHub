@@ -54,7 +54,7 @@ internal class Program
             LogLaunchDetails(configPath, config, workingDir);
 
             var (startInfo, tempExePath) = PrepareProcessStartInfo(config, workingDir!, args);
-            var (exitCode, spawnedFound) = await ExecuteAndMonitorProcessAsync(config, startInfo);
+            var (exitCode, _) = await ExecuteAndMonitorProcessAsync(config, startInfo);
 
             CleanupTempExecutable(tempExePath);
             LogInfo($"Process completed. Final Exit Code: {exitCode}");
@@ -442,7 +442,7 @@ internal class Program
         try
         {
             var logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ProxyConstants.LogFileName);
-            File.AppendAllText(logPath, $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}] INFO: {message}{Environment.NewLine}");
+            File.AppendAllText(logPath, $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}Z] INFO: {message}{Environment.NewLine}");
         }
         catch
         {
@@ -459,7 +459,7 @@ internal class Program
         try
         {
             var logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ProxyConstants.LogFileName);
-            File.AppendAllText(logPath, $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}] ERROR: {message}{Environment.NewLine}");
+            File.AppendAllText(logPath, $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}Z] ERROR: {message}{Environment.NewLine}");
         }
         catch
         {

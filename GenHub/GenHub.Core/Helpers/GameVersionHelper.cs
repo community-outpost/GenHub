@@ -42,9 +42,20 @@ public static partial class GameVersionHelper
             return 0;
         }
 
-        if (int.TryParse(digits, NumberStyles.Integer, CultureInfo.InvariantCulture, out var intResult))
+        if (digits.Length > 10)
         {
-            return intResult;
+            // int.MaxValue is 10 digits; truncate to 10 digits for legacy manifest ID compatibility
+            digits = digits[..10];
+        }
+
+        if (long.TryParse(digits, NumberStyles.Integer, CultureInfo.InvariantCulture, out var longResult))
+        {
+            if (longResult > int.MaxValue)
+            {
+                return int.MaxValue;
+            }
+
+            return (int)longResult;
         }
 
         return 0;

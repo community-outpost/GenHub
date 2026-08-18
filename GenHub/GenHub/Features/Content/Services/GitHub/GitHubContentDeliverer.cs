@@ -245,6 +245,17 @@ public class GitHubContentDeliverer(
                ext == FileTypes.RarFileExtension;
     }
 
+    private static bool IsPathWithinDirectory(string normalizedBase, string fullPath)
+    {
+        var normalizedRoot = Path.GetFullPath(normalizedBase);
+        var normalizedTarget = Path.GetFullPath(fullPath);
+        var relative = Path.GetRelativePath(normalizedRoot, normalizedTarget);
+        return !relative.Equals("..", StringComparison.Ordinal) &&
+               !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) &&
+               !relative.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal) &&
+               !Path.IsPathRooted(relative);
+    }
+
     /// <summary>
     /// Handles extracted content by using publisher-specific factories to create manifests.
     /// May return multiple manifests if the publisher factory detects multi-variant content.
@@ -381,7 +392,12 @@ public class GitHubContentDeliverer(
                         break;
                     }
 
-                    var destinationPath = Path.Combine(targetDirectory, entry.Key ?? string.Empty);
+                    var destinationPath = Path.GetFullPath(Path.Combine(targetDirectory, entry.Key ?? string.Empty));
+                    if (!IsPathWithinDirectory(targetDirectory, destinationPath))
+                    {
+                        throw new InvalidOperationException($"Zip slip vulnerability detected: entry '{entry.Key}' attempts to extract outside target directory.");
+                    }
+
                     var destinationDir = Path.GetDirectoryName(destinationPath);
                     if (!string.IsNullOrEmpty(destinationDir))
                     {

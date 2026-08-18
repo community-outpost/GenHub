@@ -34,9 +34,8 @@ public class ContentPipelineFactory(
         }
 
         var normalized = providerId.Replace("-", string.Empty);
-        var discoverer = _discoverers.FirstOrDefault(d =>
-            d.SourceName.Equals(providerId, StringComparison.OrdinalIgnoreCase) ||
-            d.SourceName.Equals(normalized, StringComparison.OrdinalIgnoreCase));
+        var discoverer = _discoverers.FirstOrDefault(d => d.SourceName.Equals(providerId, StringComparison.OrdinalIgnoreCase))
+            ?? _discoverers.FirstOrDefault(d => d.SourceName.Equals(normalized, StringComparison.OrdinalIgnoreCase));
 
         if (discoverer == null)
         {
@@ -55,9 +54,8 @@ public class ContentPipelineFactory(
         }
 
         var normalized = providerId.Replace("-", string.Empty);
-        var resolver = _resolvers.FirstOrDefault(r =>
-            r.ResolverId.Equals(providerId, StringComparison.OrdinalIgnoreCase) ||
-            r.ResolverId.Equals(normalized, StringComparison.OrdinalIgnoreCase));
+        var resolver = _resolvers.FirstOrDefault(r => r.ResolverId.Equals(providerId, StringComparison.OrdinalIgnoreCase))
+            ?? _resolvers.FirstOrDefault(r => r.ResolverId.Equals(normalized, StringComparison.OrdinalIgnoreCase));
 
         if (resolver == null)
         {
@@ -76,9 +74,8 @@ public class ContentPipelineFactory(
         }
 
         var normalized = providerId.Replace("-", string.Empty);
-        var deliverer = _deliverers.FirstOrDefault(d =>
-            d.SourceName.Equals(providerId, StringComparison.OrdinalIgnoreCase) ||
-            d.SourceName.Equals(normalized, StringComparison.OrdinalIgnoreCase));
+        var deliverer = _deliverers.FirstOrDefault(d => d.SourceName.Equals(providerId, StringComparison.OrdinalIgnoreCase))
+            ?? _deliverers.FirstOrDefault(d => d.SourceName.Equals(normalized, StringComparison.OrdinalIgnoreCase));
 
         if (deliverer == null)
         {

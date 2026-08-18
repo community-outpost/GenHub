@@ -280,7 +280,12 @@ public sealed class MapImportService(
                             // Determine the directory name for this map
                             var mapDirName = string.IsNullOrEmpty(directoryName)
                                 ? Path.GetFileNameWithoutExtension(mapEntry.Name)
-                                : directoryName;
+                                : Path.GetFileName(directoryName);
+
+                            if (string.IsNullOrWhiteSpace(mapDirName) || mapDirName == "." || mapDirName == "..")
+                            {
+                                mapDirName = Path.GetFileNameWithoutExtension(mapEntry.Name);
+                            }
 
                             var mapDirPath = GetUniqueDirectoryPath(Path.Combine(targetDir, mapDirName));
                             Directory.CreateDirectory(mapDirPath);
@@ -333,7 +338,7 @@ public sealed class MapImportService(
                                 FullPath = mapDestPath,
                                 SizeBytes = totalSize,
                                 GameType = targetVersion,
-                                LastModified = DateTime.UtcNow,
+                                LastModified = File.GetLastWriteTime(mapDestPath),
                                 DirectoryName = Path.GetFileName(mapDirPath),
                                 IsDirectory = true,
                                 AssetFiles = assetFiles,
@@ -400,6 +405,12 @@ public sealed class MapImportService(
                 if (totalUncompressedBytes > MapManagerConstants.MaxAggregateUncompressedBytes)
                 {
                     return (false, $"ZIP aggregate uncompressed size exceeds maximum allowed limit ({totalUncompressedBytes} > {MapManagerConstants.MaxAggregateUncompressedBytes} bytes).");
+                }
+
+                var segments = entry.FullName.Split(PathSeparators, StringSplitOptions.RemoveEmptyEntries);
+                if (segments.Any(s => s == "." || s == ".." || s.Contains(':') || Path.IsPathRooted(s)))
+                {
+                    return (false, $"ZIP contains invalid path traversal segment in '{entry.FullName}'.");
                 }
 
                 // Calculate nesting depth

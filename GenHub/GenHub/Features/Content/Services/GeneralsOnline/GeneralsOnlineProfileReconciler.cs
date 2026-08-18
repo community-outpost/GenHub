@@ -617,6 +617,8 @@ public class GeneralsOnlineProfileReconciler(
             return OperationResult<int>.CreateFailure("Failed to retrieve profiles for creating new profiles");
         }
 
+        var existingProfileNames = allProfiles.Data.Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         foreach (var profile in allProfiles.Data)
         {
             // Check if profile is relevant (uses any Old GeneralsOnline manifest)
@@ -626,7 +628,7 @@ public class GeneralsOnlineProfileReconciler(
             if (!isRelevant) continue;
 
             var targetProfileName = $"{profile.Name} (v{newVersion})";
-            if (allProfiles.Data.Any(p => string.Equals(p.Name, targetProfileName, StringComparison.OrdinalIgnoreCase)))
+            if (existingProfileNames.Contains(targetProfileName))
             {
                 logger.LogInformation("[GO Reconciler] Profile '{Name}' already exists, skipping clone", targetProfileName);
                 continue;
@@ -689,6 +691,7 @@ public class GeneralsOnlineProfileReconciler(
                 if (createResult.Success)
                 {
                     createdCount++;
+                    existingProfileNames.Add(targetProfileName);
                     logger.LogInformation("[GO Reconciler] Created new profile '{Name}' for update", cloneRequest.Name);
                 }
                 else

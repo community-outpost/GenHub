@@ -200,8 +200,8 @@ public class GameProfileManager(
                 profile.Name = request.Name;
             }
 
-            ApplyUpdateRequestToProfile(profile, request);
             CheckAndHandleContentChanges(profile, request, previousEnabledContentIds, previousGameClientId);
+            ApplyUpdateRequestToProfile(profile, request);
             GameSettingsMapper.UpdateFromRequest(profile, request);
 
             var saveResult = await profileRepository.SaveProfileAsync(profile, cancellationToken);

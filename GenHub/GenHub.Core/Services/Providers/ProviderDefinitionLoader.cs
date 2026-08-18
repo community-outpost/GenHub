@@ -240,6 +240,11 @@ public class ProviderDefinitionLoader : IProviderDefinitionLoader
         }
 
         var removed = this.providers.TryRemove(providerId, out _);
+        if (!removed)
+        {
+            var normalized = providerId.Replace("-", string.Empty);
+            removed = this.providers.TryRemove(normalized, out _);
+        }
 
         if (removed)
         {

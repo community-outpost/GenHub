@@ -363,7 +363,7 @@ public class CasReferenceTracker(
         {
             throw;
         }
-        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+        catch (FileNotFoundException ex)
         {
             _logger.LogDebug(ex, "Reference file {RefFile} was deleted concurrently during scan", refFile);
             return references;

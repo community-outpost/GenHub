@@ -39,7 +39,7 @@ public class SuperHackersProvider(
             d.SourceName?.Equals(ContentSourceNames.GitHubDeliverer, StringComparison.OrdinalIgnoreCase) == true)
         ?? throw new InvalidOperationException("No GitHub deliverer found for SuperHackers");
 
-    private readonly ProviderDefinition? _cachedProviderDefinition = providerDefinitionLoader.GetProvider(SuperHackersConstants.PublisherId);
+    private ProviderDefinition? _cachedProviderDefinition;
 
     /// <inheritdoc/>
     public override string SourceName => PublisherTypeConstants.TheSuperHackers;
@@ -174,6 +174,12 @@ public class SuperHackersProvider(
     /// </remarks>
     protected override ProviderDefinition? GetProviderDefinition()
     {
+        if (_cachedProviderDefinition != null)
+        {
+            return _cachedProviderDefinition;
+        }
+
+        _cachedProviderDefinition = providerDefinitionLoader.GetProvider(SuperHackersConstants.PublisherId);
         if (_cachedProviderDefinition == null)
         {
             Logger.LogWarning(

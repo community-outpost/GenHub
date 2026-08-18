@@ -94,12 +94,6 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
     [ObservableProperty]
     private ObservableCollection<ContentTypeGroup> _contentTypes = [];
 
-    private void ContentTypes_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
-    {
-        OnPropertyChanged(nameof(HasContent));
-        OnPropertyChanged(nameof(ContentSummary));
-    }
-
     [ObservableProperty]
     private bool _showContentSummary = true;
 
@@ -331,6 +325,165 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
         }
     }
 
+    /// <summary>
+    /// Extracts numeric date from version strings like "weekly-2025-11-21" or "20251121".
+    /// </summary>
+    private static string ExtractDateFromVersion(string version)
+    {
+        if (string.IsNullOrEmpty(version))
+        {
+            return string.Empty;
+        }
+
+        var numericVersion = GameVersionHelper.ExtractVersionFromVersionString(version);
+        return numericVersion > 0 ? numericVersion.ToString() : string.Empty;
+    }
+
+    /// <summary>
+    /// Formats a user-friendly progress status message.
+    /// </summary>
+    private static string FormatProgressStatus(GenHub.Core.Models.Content.ContentAcquisitionProgress progress)
+    {
+        var phaseName = progress.Phase switch
+        {
+            Core.Models.Content.ContentAcquisitionPhase.Downloading => "Downloading",
+            Core.Models.Content.ContentAcquisitionPhase.Extracting => "Extracting",
+            Core.Models.Content.ContentAcquisitionPhase.Copying => "Copying",
+            Core.Models.Content.ContentAcquisitionPhase.ValidatingManifest => "Validating manifest",
+            Core.Models.Content.ContentAcquisitionPhase.ValidatingFiles => "Validating files",
+            Core.Models.Content.ContentAcquisitionPhase.Delivering => "Installing",
+            Core.Models.Content.ContentAcquisitionPhase.Completed => "Complete",
+            _ => "Processing",
+        };
+
+        if (!string.IsNullOrEmpty(progress.CurrentOperation))
+        {
+            return $"{phaseName}: {progress.CurrentOperation}";
+        }
+
+        // Format with percentage and phase
+        var percentText = progress.ProgressPercentage > 0 ? $"{progress.ProgressPercentage:F0}%" : string.Empty;
+
+        // Add file/bytes info if available
+        if (progress.TotalBytes > 0 && progress.Phase == Core.Models.Content.ContentAcquisitionPhase.Downloading)
+        {
+            var downloaded = ByteFormatHelper.FormatBytes(progress.BytesProcessed);
+            var total = ByteFormatHelper.FormatBytes(progress.TotalBytes);
+            return $"{phaseName}: {downloaded} / {total} ({percentText})";
+        }
+
+        if (progress.TotalFiles > 0)
+        {
+            var phasePercent = (int)((double)progress.FilesProcessed / progress.TotalFiles * 100);
+            return $"{phaseName}: {progress.FilesProcessed}/{progress.TotalFiles} files ({phasePercent}%)";
+        }
+
+        return !string.IsNullOrEmpty(percentText) ? $"{phaseName}... {percentText}" : $"{phaseName}...";
+    }
+
+    /// <summary>
+    /// Finds all installed content manifest variants that match the given content item.
+    /// Used to populate <see cref="ContentItemViewModel.AvailableVariants"/>.
+    /// </summary>
+    private static List<Core.Models.Manifest.ContentManifest> FindContentVariants(
+        ContentItemViewModel item,
+        List<Core.Models.Manifest.ContentManifest> allManifests,
+        string publisherId)
+    {
+        var variants = new List<Core.Models.Manifest.ContentManifest>();
+        var itemId = item.Model.Id ?? string.Empty;
+        var itemVersion = item.Version ?? string.Empty;
+        var itemDatePart = ExtractDateFromVersion(itemVersion);
+
+        foreach (var manifest in allManifests)
+        {
+            if (IsManifestVariantMatch(item, manifest, publisherId, itemId, itemVersion, itemDatePart))
+            {
+                variants.Add(manifest);
+            }
+        }
+
+        return [.. variants.OrderBy(v => v.Name)];
+    }
+
+    private static bool IsManifestVariantMatch(
+        ContentItemViewModel item,
+        Core.Models.Manifest.ContentManifest manifest,
+        string publisherId,
+        string itemId,
+        string itemVersion,
+        string itemDatePart)
+    {
+        if (item.Model.ContentType != manifest.ContentType)
+        {
+            return false;
+        }
+
+        var manifestIdParts = manifest.Id.Value.Split('.');
+        if (manifestIdParts.Length >= 2 && manifestIdParts[1] == "0" && manifest.ContentType == ContentType.GameClient)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(itemId) && manifest.Id.Value.Equals(itemId, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var hasPublisherInId = manifestIdParts.Length > 2 &&
+            manifestIdParts[2].Equals(publisherId, StringComparison.OrdinalIgnoreCase);
+        var publisherMatch = hasPublisherInId ||
+            (manifest.Publisher?.PublisherType?.Equals(publisherId, StringComparison.OrdinalIgnoreCase) == true);
+
+        if (!publisherMatch)
+        {
+            return false;
+        }
+
+        var nameMatch = IsNameMatch(item.Name, manifest.Name);
+        var manifestVersion = manifest.Version ?? string.Empty;
+        var manifestDatePart = ExtractDateFromVersion(manifestVersion);
+        var versionMatch = IsVersionMatch(itemVersion, manifestVersion, itemDatePart, manifestDatePart);
+
+        var isGameClient = item.Model.ContentType == ContentType.GameClient;
+        return nameMatch || (versionMatch && isGameClient);
+    }
+
+    private static bool IsNameMatch(string? itemName, string? manifestName)
+    {
+        var itemStr = itemName?.ToLowerInvariant() ?? string.Empty;
+        var manifestStr = manifestName?.ToLowerInvariant() ?? string.Empty;
+
+        if (string.IsNullOrEmpty(itemStr) || string.IsNullOrEmpty(manifestStr))
+        {
+            return false;
+        }
+
+        var normalizedItemName = itemStr.Replace(" ", string.Empty).Replace("-", string.Empty);
+        var normalizedManifestName = manifestStr.Replace(" ", string.Empty).Replace("-", string.Empty);
+
+        return normalizedManifestName.Contains(normalizedItemName, StringComparison.OrdinalIgnoreCase) ||
+               normalizedItemName.Contains(normalizedManifestName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsVersionMatch(string itemVersion, string manifestVersion, string itemDatePart, string manifestDatePart)
+    {
+        if (manifestVersion.Equals(itemVersion, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return !string.IsNullOrEmpty(itemDatePart) &&
+               !string.IsNullOrEmpty(manifestDatePart) &&
+               itemDatePart.Equals(manifestDatePart, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void ContentTypes_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(HasContent));
+        OnPropertyChanged(nameof(ContentSummary));
+    }
+
     private void UpdateItemInstallationStatus(ContentItemViewModel item, List<Core.Models.Manifest.ContentManifest> allManifests)
     {
         var variants = FindContentVariants(item, allManifests, PublisherId);
@@ -483,159 +636,6 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                 item.RequiredDependencyNames.Add(dep);
             }
         }
-    }
-
-    /// <summary>
-    /// Extracts numeric date from version strings like "weekly-2025-11-21" or "20251121".
-    /// </summary>
-    private static string ExtractDateFromVersion(string version)
-    {
-        if (string.IsNullOrEmpty(version))
-        {
-            return string.Empty;
-        }
-
-        var numericVersion = GameVersionHelper.ExtractVersionFromVersionString(version);
-        return numericVersion > 0 ? numericVersion.ToString() : string.Empty;
-    }
-
-    /// <summary>
-    /// Formats a user-friendly progress status message.
-    /// </summary>
-    private static string FormatProgressStatus(GenHub.Core.Models.Content.ContentAcquisitionProgress progress)
-    {
-        var phaseName = progress.Phase switch
-        {
-            Core.Models.Content.ContentAcquisitionPhase.Downloading => "Downloading",
-            Core.Models.Content.ContentAcquisitionPhase.Extracting => "Extracting",
-            Core.Models.Content.ContentAcquisitionPhase.Copying => "Copying",
-            Core.Models.Content.ContentAcquisitionPhase.ValidatingManifest => "Validating manifest",
-            Core.Models.Content.ContentAcquisitionPhase.ValidatingFiles => "Validating files",
-            Core.Models.Content.ContentAcquisitionPhase.Delivering => "Installing",
-            Core.Models.Content.ContentAcquisitionPhase.Completed => "Complete",
-            _ => "Processing",
-        };
-
-        if (!string.IsNullOrEmpty(progress.CurrentOperation))
-        {
-            return $"{phaseName}: {progress.CurrentOperation}";
-        }
-
-        // Format with percentage and phase
-        var percentText = progress.ProgressPercentage > 0 ? $"{progress.ProgressPercentage:F0}%" : string.Empty;
-
-        // Add file/bytes info if available
-        if (progress.TotalBytes > 0 && progress.Phase == Core.Models.Content.ContentAcquisitionPhase.Downloading)
-        {
-            var downloaded = ByteFormatHelper.FormatBytes(progress.BytesProcessed);
-            var total = ByteFormatHelper.FormatBytes(progress.TotalBytes);
-            return $"{phaseName}: {downloaded} / {total} ({percentText})";
-        }
-
-        if (progress.TotalFiles > 0)
-        {
-            var phasePercent = (int)((double)progress.FilesProcessed / progress.TotalFiles * 100);
-            return $"{phaseName}: {progress.FilesProcessed}/{progress.TotalFiles} files ({phasePercent}%)";
-        }
-
-        return !string.IsNullOrEmpty(percentText) ? $"{phaseName}... {percentText}" : $"{phaseName}...";
-    }
-
-    /// <summary>
-    /// Finds all installed content manifest variants that match the given content item.
-    /// Used to populate <see cref="ContentItemViewModel.AvailableVariants"/>.
-    /// </summary>
-    private static List<Core.Models.Manifest.ContentManifest> FindContentVariants(
-        ContentItemViewModel item,
-        List<Core.Models.Manifest.ContentManifest> allManifests,
-        string publisherId)
-    {
-        var variants = new List<Core.Models.Manifest.ContentManifest>();
-        var itemId = item.Model.Id ?? string.Empty;
-        var itemVersion = item.Version ?? string.Empty;
-        var itemDatePart = ExtractDateFromVersion(itemVersion);
-
-        foreach (var manifest in allManifests)
-        {
-            if (IsManifestVariantMatch(item, manifest, publisherId, itemId, itemVersion, itemDatePart))
-            {
-                variants.Add(manifest);
-            }
-        }
-
-        return [.. variants.OrderBy(v => v.Name)];
-    }
-
-    private static bool IsManifestVariantMatch(
-        ContentItemViewModel item,
-        Core.Models.Manifest.ContentManifest manifest,
-        string publisherId,
-        string itemId,
-        string itemVersion,
-        string itemDatePart)
-    {
-        if (item.Model.ContentType != manifest.ContentType)
-        {
-            return false;
-        }
-
-        var manifestIdParts = manifest.Id.Value.Split('.');
-        if (manifestIdParts.Length >= 2 && manifestIdParts[1] == "0" && manifest.ContentType == ContentType.GameClient)
-        {
-            return false;
-        }
-
-        if (!string.IsNullOrEmpty(itemId) && manifest.Id.Value.Equals(itemId, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        var hasPublisherInId = manifestIdParts.Length > 2 &&
-            manifestIdParts[2].Equals(publisherId, StringComparison.OrdinalIgnoreCase);
-        var publisherMatch = hasPublisherInId ||
-            (manifest.Publisher?.PublisherType?.Equals(publisherId, StringComparison.OrdinalIgnoreCase) == true);
-
-        if (!publisherMatch)
-        {
-            return false;
-        }
-
-        var nameMatch = IsNameMatch(item.Name, manifest.Name);
-        var manifestVersion = manifest.Version ?? string.Empty;
-        var manifestDatePart = ExtractDateFromVersion(manifestVersion);
-        var versionMatch = IsVersionMatch(itemVersion, manifestVersion, itemDatePart, manifestDatePart);
-
-        var isGameClient = item.Model.ContentType == ContentType.GameClient;
-        return nameMatch || (versionMatch && isGameClient);
-    }
-
-    private static bool IsNameMatch(string? itemName, string? manifestName)
-    {
-        var itemStr = itemName?.ToLowerInvariant() ?? string.Empty;
-        var manifestStr = manifestName?.ToLowerInvariant() ?? string.Empty;
-
-        if (string.IsNullOrEmpty(itemStr) || string.IsNullOrEmpty(manifestStr))
-        {
-            return false;
-        }
-
-        var normalizedItemName = itemStr.Replace(" ", string.Empty).Replace("-", string.Empty);
-        var normalizedManifestName = manifestStr.Replace(" ", string.Empty).Replace("-", string.Empty);
-
-        return normalizedManifestName.Contains(normalizedItemName, StringComparison.OrdinalIgnoreCase) ||
-               normalizedItemName.Contains(normalizedManifestName, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsVersionMatch(string itemVersion, string manifestVersion, string itemDatePart, string manifestDatePart)
-    {
-        if (manifestVersion.Equals(itemVersion, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        return !string.IsNullOrEmpty(itemDatePart) &&
-               !string.IsNullOrEmpty(manifestDatePart) &&
-               itemDatePart.Equals(manifestDatePart, StringComparison.OrdinalIgnoreCase);
     }
 
     [RelayCommand]

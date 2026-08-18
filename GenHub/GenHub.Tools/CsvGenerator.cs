@@ -21,6 +21,9 @@ internal class CsvGenerator(Dictionary<string, string> arguments, ILogger logger
     /// <returns>A task representing the asynchronous operation.</returns>
     public async Task GenerateCsvFileAsync()
     {
+        ArgumentNullException.ThrowIfNull(arguments);
+        ArgumentNullException.ThrowIfNull(logger);
+
         var installDir = arguments["installDir"];
         var output = arguments["output"];
         var gameType = arguments["gameType"];

@@ -198,8 +198,10 @@ public static class DemoViewModelFactory
 
             return vm;
         }
-        catch (InvalidOperationException)
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"Failed to create full demo game settings view model: {ex}");
+
             // Fallback
             var mockService = new MockGameSettingsService();
             var mockLogger = new MockLogger<GameSettingsViewModel>();
