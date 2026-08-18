@@ -774,7 +774,11 @@ public class GameProcessManager(
     {
         var exitCode = process.ExitCode;
 
-        if (exitCode == 0 && OperatingSystem.IsWindows())
+        // Adoption is not gated on Windows: a Wine or Proton wrapper forks and exits the same way,
+        // and GameProcessSelector only accepts a candidate that matches the name, started at or
+        // after the launcher, is inside the recency window, and runs from the workspace directory.
+        // If the engine really did exit, nothing satisfies that and the launch still fails loudly.
+        if (exitCode == 0)
         {
             logger.LogInformation(
                 "[Process] Launcher process {ProcessId} exited with code 0 - attempting to find spawned game process",

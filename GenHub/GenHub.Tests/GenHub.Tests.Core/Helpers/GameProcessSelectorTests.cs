@@ -48,6 +48,40 @@ public class GameProcessSelectorTests
     }
 
     /// <summary>
+    /// A process that was already running when the launcher started cannot be the child it
+    /// spawned. On Unix this filter is the only thing separating an adoptable child from an
+    /// instance of the same game the user started earlier from the same workspace.
+    /// </summary>
+    [Fact]
+    public void SelectSpawnedGameProcess_RejectsCandidatesStartedBeforeTheLauncher()
+    {
+        var launcherStartTime = Now.AddSeconds(-2);
+        var candidates = new[] { Candidate(1, "GeneralsOnlineZH_60", launcherStartTime.AddSeconds(-1), Workspace) };
+
+        var selected = GameProcessSelector.SelectSpawnedGameProcess(
+            candidates, "GeneralsOnlineZH_60", Workspace, Now, launcherStartTime);
+
+        Assert.Null(selected);
+    }
+
+    /// <summary>
+    /// A child can be recorded as starting in the same clock tick as the launcher that spawned it,
+    /// so the launcher's own start time has to qualify rather than disqualify.
+    /// </summary>
+    [Fact]
+    public void SelectSpawnedGameProcess_AcceptsACandidateStartedAtTheLauncherStartTime()
+    {
+        var launcherStartTime = Now.AddSeconds(-2);
+        var candidates = new[] { Candidate(1, "GeneralsOnlineZH_60", launcherStartTime, Workspace) };
+
+        var selected = GameProcessSelector.SelectSpawnedGameProcess(
+            candidates, "GeneralsOnlineZH_60", Workspace, Now, launcherStartTime);
+
+        Assert.NotNull(selected);
+        Assert.Equal(1, selected.ProcessId);
+    }
+
+    /// <summary>
     /// Workspace residence must be required even when only one candidate matches the name — a lone
     /// same-named process anywhere on the machine used to be accepted unconditionally.
     /// </summary>
