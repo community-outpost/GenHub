@@ -479,7 +479,11 @@ public class MockLocalContentService : ILocalContentService
     /// <inheritdoc/>
     public Task<OperationResult<ContentManifest>> CreateLocalContentManifestAsync(string directoryPath, string name, ContentType contentType, GameType targetGame, string? sourcePath = null, IProgress<ContentStorageProgress>? progress = null, CancellationToken cancellationToken = default, string? entryPoint = null)
     {
-         return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = name, ContentType = contentType, TargetGame = targetGame, SourcePath = sourcePath, EntryPoint = entryPoint }));
+        var normalizedEntryPoint = !string.IsNullOrWhiteSpace(entryPoint)
+            ? entryPoint.Replace('\\', '/').TrimStart('/')
+            : null;
+
+        return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = name, ContentType = contentType, TargetGame = targetGame, SourcePath = sourcePath, EntryPoint = normalizedEntryPoint }));
     }
 
     /// <inheritdoc/>
@@ -488,7 +492,11 @@ public class MockLocalContentService : ILocalContentService
     /// <inheritdoc/>
     public Task<OperationResult<ContentManifest>> UpdateLocalContentManifestAsync(string existingManifestId, string name, string directoryPath, ContentType contentType, GameType targetGame, string? sourcePath = null, IProgress<ContentStorageProgress>? progress = null, CancellationToken cancellationToken = default, string? entryPoint = null)
     {
-        return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = name, ContentType = contentType, TargetGame = targetGame, SourcePath = sourcePath, EntryPoint = entryPoint }));
+        var normalizedEntryPoint = !string.IsNullOrWhiteSpace(entryPoint)
+            ? entryPoint.Replace('\\', '/').TrimStart('/')
+            : null;
+
+        return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = name, ContentType = contentType, TargetGame = targetGame, SourcePath = sourcePath, EntryPoint = normalizedEntryPoint }));
     }
 }
 

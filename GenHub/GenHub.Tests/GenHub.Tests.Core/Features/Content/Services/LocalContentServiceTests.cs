@@ -73,7 +73,7 @@ public class LocalContentServiceTests : IDisposable
     [Fact]
     public async Task CreateLocalContentManifestAsync_WithEntryPoint_SetsManifestEntryPoint()
     {
-        SetupManifestBuilder(ContentType.ModdingTool, GameType.ZeroHour, "FinalBIG");
+        SetupManifestBuilder(ContentType.ModdingTool, GameType.ZeroHour, "FinalBIG", "FinalBIG.exe");
 
         var result = await _service.CreateLocalContentManifestAsync(
             directoryPath: _tempDir,
@@ -94,7 +94,7 @@ public class LocalContentServiceTests : IDisposable
     [Fact]
     public async Task CreateLocalContentManifestAsync_NormalizesBackslashesInEntryPoint()
     {
-        SetupManifestBuilder(ContentType.Executable, GameType.ZeroHour, "Tool");
+        SetupManifestBuilder(ContentType.Executable, GameType.ZeroHour, "Tool", "bin/sub/tool.exe");
 
         var result = await _service.CreateLocalContentManifestAsync(
             directoryPath: _tempDir,
@@ -106,6 +106,71 @@ public class LocalContentServiceTests : IDisposable
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal("bin/sub/tool.exe", result.Data!.EntryPoint);
+    }
+
+    /// <summary>
+    /// Verifies that CreateLocalContentManifestAsync leaves EntryPoint null when passed a whitespace-only value.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CreateLocalContentManifestAsync_WithWhitespaceOnlyEntryPoint_LeavesEntryPointNull()
+    {
+        SetupManifestBuilder(ContentType.ModdingTool, GameType.ZeroHour, "FinalBIG", "FinalBIG.exe");
+
+        var result = await _service.CreateLocalContentManifestAsync(
+            directoryPath: _tempDir,
+            name: "FinalBIG",
+            contentType: ContentType.ModdingTool,
+            targetGame: GameType.ZeroHour,
+            entryPoint: "   ");
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Null(result.Data!.EntryPoint);
+    }
+
+    /// <summary>
+    /// Verifies that CreateLocalContentManifestAsync rejects rooted or parent-traversal entry points.
+    /// </summary>
+    /// <param name="invalidEntryPoint">The invalid entry point path to test.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Theory]
+    [InlineData("/usr/bin/tool.exe")]
+    [InlineData("../tool.exe")]
+    [InlineData("bin/../../tool.exe")]
+    public async Task CreateLocalContentManifestAsync_WithInvalidEntryPointPath_ReturnsFailure(string invalidEntryPoint)
+    {
+        SetupManifestBuilder(ContentType.Executable, GameType.ZeroHour, "Tool", "tool.exe");
+
+        var result = await _service.CreateLocalContentManifestAsync(
+            directoryPath: _tempDir,
+            name: "Tool",
+            contentType: ContentType.Executable,
+            targetGame: GameType.ZeroHour,
+            entryPoint: invalidEntryPoint);
+
+        Assert.False(result.Success);
+        Assert.Contains("invalid", result.FirstError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Verifies that CreateLocalContentManifestAsync rejects an entry point that does not exist in manifest files.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CreateLocalContentManifestAsync_WithNonExistentEntryPoint_ReturnsFailure()
+    {
+        SetupManifestBuilder(ContentType.Executable, GameType.ZeroHour, "Tool", "tool.exe");
+
+        var result = await _service.CreateLocalContentManifestAsync(
+            directoryPath: _tempDir,
+            name: "Tool",
+            contentType: ContentType.Executable,
+            targetGame: GameType.ZeroHour,
+            entryPoint: "missing.exe");
+
+        Assert.False(result.Success);
+        Assert.Contains("not found", result.FirstError, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -135,7 +200,7 @@ public class LocalContentServiceTests : IDisposable
     [Fact]
     public async Task UpdateLocalContentManifestAsync_WithEntryPoint_SetsEntryPointOnUpdatedManifest()
     {
-        SetupManifestBuilder(ContentType.GameClient, GameType.ZeroHour, "GeneralsClient");
+        SetupManifestBuilder(ContentType.GameClient, GameType.ZeroHour, "GeneralsClient", "generals.exe");
 
         _reconciliationServiceMock
             .Setup(x => x.OrchestrateLocalUpdateAsync(
@@ -157,14 +222,19 @@ public class LocalContentServiceTests : IDisposable
         Assert.Equal("generals.exe", result.Data!.EntryPoint);
     }
 
-    private void SetupManifestBuilder(ContentType contentType, GameType targetGame, string contentName)
+    private void SetupManifestBuilder(ContentType contentType, GameType targetGame, string contentName, params string[] filePaths)
     {
+        var files = filePaths.Length > 0
+            ? filePaths.Select(f => new ManifestFile { RelativePath = f, IsExecutable = f.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) }).ToList()
+            : new List<ManifestFile>();
+
         var manifest = new ContentManifest
         {
             Id = ManifestId.Create($"1.0.local.{contentType.ToString().ToLowerInvariant()}.{contentName.ToLowerInvariant()}"),
             Name = contentName,
             ContentType = contentType,
             TargetGame = targetGame,
+            Files = files,
         };
 
         var builderMock = new Mock<IContentManifestBuilder>();

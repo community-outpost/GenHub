@@ -29,6 +29,7 @@ public class AddLocalContentViewModelTests : IDisposable
     private readonly Mock<IGenLauncherNormalizationService> _normalizationServiceMock;
     private readonly Mock<IDialogService> _dialogServiceMock;
     private readonly List<string> _tempDirectories = [];
+    private readonly List<AddLocalContentViewModel> _viewModels = [];
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AddLocalContentViewModelTests"/> class.
@@ -43,13 +44,22 @@ public class AddLocalContentViewModelTests : IDisposable
         _localContentServiceMock
             .Setup(x => x.AllowedContentTypes)
             .Returns(AddLocalContentViewModel.AllowedContentTypes);
+
+        _normalizationServiceMock
+            .Setup(x => x.DetectGenLauncherFilesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GenLauncherDetectionResult());
     }
 
     /// <summary>
-    /// Cleans up temporary test directories.
+    /// Cleans up temporary test directories and viewmodels.
     /// </summary>
     public void Dispose()
     {
+        foreach (var vm in _viewModels)
+        {
+            vm.Dispose();
+        }
+
         foreach (var dir in _tempDirectories)
         {
             try
@@ -494,6 +504,155 @@ public class AddLocalContentViewModelTests : IDisposable
         Assert.Equal($"{dirName}/bin/tool.exe", capturedEntryPoint);
     }
 
+    /// <summary>
+    /// Verifies that LoadFromManifestAsync preserves the manifest EntryPoint when reloading for edit.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task LoadFromManifestAsync_PreservesManifestEntryPoint()
+    {
+        var manifestId = ManifestId.Create("1.0.local.gameclient.zh");
+
+        var manifest = new ContentManifest
+        {
+            Id = manifestId,
+            Name = "ZH Client",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+            EntryPoint = "bin/tool.exe",
+            Files =
+            [
+                new ManifestFile { RelativePath = "special.exe", IsExecutable = true },
+                new ManifestFile { RelativePath = "bin/tool.exe", IsExecutable = true },
+            ],
+        };
+
+        _contentStorageServiceMock
+            .Setup(x => x.RetrieveContentAsync(
+                It.IsAny<ManifestId>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<ManifestId, string, CancellationToken>((_, targetPath, _) =>
+            {
+                Directory.CreateDirectory(targetPath);
+                File.WriteAllText(Path.Combine(targetPath, "special.exe"), "exe");
+                var targetSub = Path.Combine(targetPath, "bin");
+                Directory.CreateDirectory(targetSub);
+                File.WriteAllText(Path.Combine(targetSub, "tool.exe"), "tool");
+            })
+            .ReturnsAsync((ManifestId _, string targetPath, CancellationToken _) => OperationResult<string>.CreateSuccess(targetPath));
+
+        var item = new GenHub.Features.GameProfiles.ViewModels.ContentDisplayItem
+        {
+            Id = manifestId.Value,
+            ManifestId = manifestId,
+            DisplayName = "ZH Client",
+            ContentType = ContentType.GameClient,
+            GameType = GameType.ZeroHour,
+            InstallationType = GameInstallationType.Unknown,
+            Manifest = manifest,
+        };
+
+        var vm = CreateViewModel();
+        await vm.LoadFromManifestAsync(item);
+
+        Assert.NotNull(vm.SelectedExecutableItem);
+        Assert.Equal("tool.exe", vm.SelectedExecutableItem.Name);
+    }
+
+    /// <summary>
+    /// Verifies that deleting an unrelated item preserves the previously selected executable.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task DeleteItemAsync_PreservesSelectedExecutable()
+    {
+        var tempDir = CreateTempDirectory();
+        File.WriteAllText(Path.Combine(tempDir, "first.exe"), "first");
+        File.WriteAllText(Path.Combine(tempDir, "second.exe"), "second");
+        File.WriteAllText(Path.Combine(tempDir, "readme.txt"), "readme");
+
+        var vm = CreateViewModel();
+        vm.SelectedContentType = ContentType.GameClient;
+        vm.ContentName = "Test Client";
+        await vm.ImportContentAsync(tempDir);
+
+        var secondExe = FindInTree(vm.FileTree, f => f.Name == "second.exe");
+        Assert.NotNull(secondExe);
+        vm.SelectExecutableCommand.Execute(secondExe);
+        Assert.Equal("second.exe", vm.SelectedExecutableItem?.Name);
+
+        var readme = FindInTree(vm.FileTree, f => f.Name == "readme.txt");
+        Assert.NotNull(readme);
+        await vm.DeleteItemCommand.ExecuteAsync(readme);
+
+        Assert.NotNull(vm.SelectedExecutableItem);
+        Assert.Equal("second.exe", vm.SelectedExecutableItem.Name);
+    }
+
+    /// <summary>
+    /// Verifies that switching from an executable type to a non-executable type clears the selected executable.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ContentTypeChanged_FromExecutableToNonExecutable_ClearsSelectedExecutable()
+    {
+        var tempDir = CreateTempDirectory();
+        File.WriteAllText(Path.Combine(tempDir, "game.exe"), "game");
+
+        var vm = CreateViewModel();
+        vm.SelectedContentType = ContentType.GameClient;
+        vm.ContentName = "Test Client";
+        await vm.ImportContentAsync(tempDir);
+
+        Assert.NotNull(vm.SelectedExecutableItem);
+
+        vm.SelectedContentType = ContentType.Mod;
+
+        Assert.Null(vm.SelectedExecutableItem);
+    }
+
+    /// <summary>
+    /// Verifies that AddContentCommand with non-executable content type passes null as entryPoint.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task AddContentCommand_WhenNonExecutableType_PassesNullEntryPoint()
+    {
+        var tempDir = CreateTempDirectory();
+        File.WriteAllText(Path.Combine(tempDir, "somefile.txt"), "text");
+
+        string? capturedEntryPoint = "INITIAL";
+        _localContentServiceMock
+            .Setup(x => x.CreateLocalContentManifestAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<ContentType>(),
+                It.IsAny<GameType>(),
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<string?>()))
+            .Callback<string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?>(
+                (_, _, _, _, _, _, _, entryPoint) => capturedEntryPoint = entryPoint)
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest
+            {
+                Id = ManifestId.Create("1.0.local.mod.test"),
+                Name = "My Mod",
+                ContentType = ContentType.Mod,
+                TargetGame = GameType.ZeroHour,
+            }));
+
+        var vm = CreateViewModel();
+        vm.SelectedContentType = ContentType.Mod;
+        vm.ContentName = "My Mod";
+        await vm.ImportContentAsync(tempDir);
+
+        await vm.AddContentCommand.ExecuteAsync(null);
+
+        Assert.Null(capturedEntryPoint);
+    }
+
     private static FileTreeItem? FindInTree(IEnumerable<FileTreeItem> items, Func<FileTreeItem, bool> predicate)
     {
         foreach (var item in items)
@@ -516,11 +675,13 @@ public class AddLocalContentViewModelTests : IDisposable
 
     private AddLocalContentViewModel CreateViewModel()
     {
-        return new AddLocalContentViewModel(
+        var vm = new AddLocalContentViewModel(
             _localContentServiceMock.Object,
             _contentStorageServiceMock.Object,
             _normalizationServiceMock.Object,
             _dialogServiceMock.Object,
             NullLogger<AddLocalContentViewModel>.Instance);
+        _viewModels.Add(vm);
+        return vm;
     }
 }

@@ -105,7 +105,24 @@ public class LocalContentService(
 
             if (!string.IsNullOrWhiteSpace(entryPoint))
             {
-                manifest.EntryPoint = entryPoint.Replace('\\', '/');
+                var normalizedEntryPoint = entryPoint.Replace('\\', '/').TrimStart('/');
+
+                if (Path.IsPathRooted(entryPoint) || normalizedEntryPoint.Contains(".."))
+                {
+                    return OperationResult<ContentManifest>.CreateFailure(
+                        $"Entry point '{entryPoint}' is invalid. It must be a relative path without parent directory traversal ('..').");
+                }
+
+                var matchedFile = manifest.Files.FirstOrDefault(f =>
+                    ManifestVariantResolver.PathsMatch(f.RelativePath, normalizedEntryPoint));
+
+                if (matchedFile == null)
+                {
+                    return OperationResult<ContentManifest>.CreateFailure(
+                        $"Entry point '{entryPoint}' was not found among the files in the directory.");
+                }
+
+                manifest.EntryPoint = matchedFile.RelativePath.Replace('\\', '/');
             }
 
             // Auto-add GameInstallation dependency for GameClient content types

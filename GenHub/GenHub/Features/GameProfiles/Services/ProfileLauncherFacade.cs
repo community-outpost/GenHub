@@ -542,17 +542,41 @@ public class ProfileLauncherFacade(
         }
 
         var toolDirectoryPath = toolWorkspacePath;
+        var resolvedFiles = ManifestVariantResolver.ResolveFiles(toolManifest);
         var resolution = ManifestVariantResolver.ResolveEntryPoint(toolManifest);
         ManifestFile? toolExecutable = null;
         if (resolution.Success && resolution.RelativePath != null)
         {
-            toolExecutable = toolManifest.Files?.FirstOrDefault(f =>
-                f.RelativePath.Equals(resolution.RelativePath, StringComparison.OrdinalIgnoreCase) ||
-                f.RelativePath.Replace('\\', '/').Equals(resolution.RelativePath.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase));
+            toolExecutable = resolvedFiles?.FirstOrDefault(f =>
+                ManifestVariantResolver.PathsMatch(f.RelativePath, resolution.RelativePath));
+
+            if (toolExecutable != null)
+            {
+                logger.LogInformation(
+                    "[Launch] Tool executable resolved for manifest {ManifestId}: {RelativePath} ({Reason})",
+                    toolManifest.Id,
+                    toolExecutable.RelativePath,
+                    resolution.Reason);
+            }
+            else
+            {
+                logger.LogWarning(
+                    "[Launch] Entry point '{RelativePath}' resolved for tool manifest {ManifestId} ({Reason}) but not found in resolved files",
+                    resolution.RelativePath,
+                    toolManifest.Id,
+                    resolution.Reason);
+            }
+        }
+        else
+        {
+            logger.LogWarning(
+                "[Launch] Entry point resolution for tool manifest '{ManifestId}' did not succeed: {Resolution}",
+                toolManifest.Id,
+                resolution);
         }
 
-        toolExecutable ??= toolManifest.Files?.FirstOrDefault(f => f.IsExecutable)
-            ?? toolManifest.Files?.FirstOrDefault(f => f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
+        toolExecutable ??= resolvedFiles?.FirstOrDefault(f => f.IsExecutable)
+            ?? resolvedFiles?.FirstOrDefault(f => f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
 
         if (toolExecutable == null)
         {

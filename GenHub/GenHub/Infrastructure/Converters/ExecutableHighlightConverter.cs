@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using Avalonia;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
 
@@ -11,7 +12,6 @@ namespace GenHub.Infrastructure.Converters;
 /// </summary>
 public class ExecutableHighlightConverter : IMultiValueConverter
 {
-    private static readonly SolidColorBrush DefaultBrush = new(Color.Parse("#DDDDDD"));
     private static readonly SolidColorBrush ExecutableBrush = new(Color.Parse("#90CAF9")); // Light blue for executables
     private static readonly SolidColorBrush SelectedExecutableBrush = new(Color.Parse("#4CAF50")); // Green for selected
 
@@ -20,7 +20,7 @@ public class ExecutableHighlightConverter : IMultiValueConverter
     {
         if (values.Count < 2)
         {
-            return DefaultBrush;
+            return AvaloniaProperty.UnsetValue;
         }
 
         var isExecutable = values[0] is true;
@@ -36,6 +36,6 @@ public class ExecutableHighlightConverter : IMultiValueConverter
             return ExecutableBrush;
         }
 
-        return DefaultBrush;
+        return AvaloniaProperty.UnsetValue;
     }
 }
