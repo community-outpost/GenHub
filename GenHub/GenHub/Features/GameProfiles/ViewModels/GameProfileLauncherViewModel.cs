@@ -388,8 +388,7 @@ public partial class GameProfileLauncherViewModel(
     /// </summary>
     private static bool HasPublisherClients(GameInstallation installation)
     {
-        return installation.AvailableGameClients != null &&
-               installation.AvailableGameClients.Any(c => c.IsPublisherClient);
+        return installation.AvailableGameClients?.Any(c => c.IsPublisherClient) == true;
     }
 
     /// <summary>
@@ -579,59 +578,33 @@ public partial class GameProfileLauncherViewModel(
         bool anyPatchSelectedGlobally)
     {
         logger.LogInformation("Processing installation: {InstallationId} ({Type})", installation.Id, installation.InstallationType);
-        bool anyPatchHandled = false;
         int profilesCreated = 0;
 
-        if (cpDecision != GameClientConstants.WizardActionTypes.Decline && cpDecision != GameClientConstants.WizardActionTypes.None)
-        {
-            var cpClient = installation.AvailableGameClients!.FirstOrDefault(c => c.PublisherType == CommunityOutpostConstants.PublisherType);
-            if (cpClient != null || cpDecision == GameClientConstants.WizardActionTypes.Install)
-            {
-                var clientToUse = cpClient ?? new GameClient { Id = GameClientConstants.SyntheticClientIds.CommunityPatch, Name = "Community Patch", PublisherType = CommunityOutpostConstants.PublisherType, GameType = GameType.ZeroHour, InstallationId = installation.Id };
-                bool forceAttr = cpDecision == GameClientConstants.WizardActionTypes.Update;
-                var result = await publisherProfileOrchestrator.CreateProfilesForPublisherClientAsync(installation, clientToUse, forceReacquireContent: forceAttr);
-                if (result.Success && result.Data > 0)
-                {
-                    profilesCreated += result.Data;
-                }
+        var (cpHandled, cpProfiles) = await TryProcessPublisherDecisionAsync(
+            installation,
+            cpDecision,
+            CommunityOutpostConstants.PublisherType,
+            GameClientConstants.SyntheticClientIds.CommunityPatch,
+            "Community Patch");
+        profilesCreated += cpProfiles;
 
-                anyPatchHandled = true;
-            }
-        }
+        var (goHandled, goProfiles) = await TryProcessPublisherDecisionAsync(
+            installation,
+            goDecision,
+            PublisherTypeConstants.GeneralsOnline,
+            GameClientConstants.SyntheticClientIds.GeneralsOnline,
+            "GeneralsOnline");
+        profilesCreated += goProfiles;
 
-        if (goDecision != GameClientConstants.WizardActionTypes.Decline && goDecision != GameClientConstants.WizardActionTypes.None)
-        {
-            var goClient = installation.AvailableGameClients!.FirstOrDefault(c => c.PublisherType == PublisherTypeConstants.GeneralsOnline);
-            if (goClient != null || goDecision == GameClientConstants.WizardActionTypes.Install)
-            {
-                var clientToUse = goClient ?? new GameClient { Id = GameClientConstants.SyntheticClientIds.GeneralsOnline, Name = "GeneralsOnline", PublisherType = PublisherTypeConstants.GeneralsOnline, GameType = GameType.ZeroHour, InstallationId = installation.Id };
-                bool forceAttr = goDecision == GameClientConstants.WizardActionTypes.Update;
-                var result = await publisherProfileOrchestrator.CreateProfilesForPublisherClientAsync(installation, clientToUse, forceReacquireContent: forceAttr);
-                if (result.Success && result.Data > 0)
-                {
-                    profilesCreated += result.Data;
-                }
+        var (shHandled, shProfiles) = await TryProcessPublisherDecisionAsync(
+            installation,
+            shDecision,
+            PublisherTypeConstants.TheSuperHackers,
+            GameClientConstants.SyntheticClientIds.SuperHackers,
+            "SuperHackers");
+        profilesCreated += shProfiles;
 
-                anyPatchHandled = true;
-            }
-        }
-
-        if (shDecision != GameClientConstants.WizardActionTypes.Decline && shDecision != GameClientConstants.WizardActionTypes.None)
-        {
-            var shClient = installation.AvailableGameClients!.FirstOrDefault(c => c.PublisherType == PublisherTypeConstants.TheSuperHackers);
-            if (shClient != null || shDecision == GameClientConstants.WizardActionTypes.Install)
-            {
-                var clientToUse = shClient ?? new GameClient { Id = GameClientConstants.SyntheticClientIds.SuperHackers, Name = "SuperHackers", PublisherType = PublisherTypeConstants.TheSuperHackers, GameType = GameType.ZeroHour, InstallationId = installation.Id };
-                bool forceAttr = shDecision == GameClientConstants.WizardActionTypes.Update;
-                var result = await publisherProfileOrchestrator.CreateProfilesForPublisherClientAsync(installation, clientToUse, forceReacquireContent: forceAttr);
-                if (result.Success && result.Data > 0)
-                {
-                    profilesCreated += result.Data;
-                }
-
-                anyPatchHandled = true;
-            }
-        }
+        bool anyPatchHandled = cpHandled || goHandled || shHandled;
 
         if (!anyPatchHandled && !anyPatchSelectedGlobally)
         {
@@ -646,6 +619,40 @@ public partial class GameProfileLauncherViewModel(
         }
 
         return profilesCreated;
+    }
+
+    private async Task<(bool Handled, int ProfilesCreated)> TryProcessPublisherDecisionAsync(
+        GameInstallation installation,
+        string decision,
+        string publisherType,
+        string syntheticClientId,
+        string clientName)
+    {
+        if (decision == GameClientConstants.WizardActionTypes.Decline || decision == GameClientConstants.WizardActionTypes.None)
+        {
+            return (false, 0);
+        }
+
+        var client = installation.AvailableGameClients?.FirstOrDefault(c => c.PublisherType == publisherType);
+        if (client == null && decision != GameClientConstants.WizardActionTypes.Install)
+        {
+            return (false, 0);
+        }
+
+        var clientToUse = client ?? new GameClient
+        {
+            Id = syntheticClientId,
+            Name = clientName,
+            PublisherType = publisherType,
+            GameType = GameType.ZeroHour,
+            InstallationId = installation.Id,
+        };
+
+        bool forceAttr = decision == GameClientConstants.WizardActionTypes.Update;
+        var result = await publisherProfileOrchestrator.CreateProfilesForPublisherClientAsync(installation, clientToUse, forceReacquireContent: forceAttr);
+        int profiles = (result.Success && result.Data > 0) ? result.Data : 0;
+
+        return (true, profiles);
     }
 
     /// <summary>
@@ -828,12 +835,10 @@ public partial class GameProfileLauncherViewModel(
 
                 return true;
             }
-            else
-            {
-                var errors = ManifestHelper.FormatErrors(profileResult.Errors);
-                logger.LogWarning("Failed to create profile for {InstallationType} {GameClientName}: {Errors}", installation.InstallationType, gameClient.Name, errors);
-                return false;
-            }
+
+            var errors = ManifestHelper.FormatErrors(profileResult.Errors);
+            logger.LogWarning("Failed to create profile for {InstallationType} {GameClientName}: {Errors}", installation.InstallationType, gameClient.Name, errors);
+            return false;
         }
         catch (Exception ex)
         {

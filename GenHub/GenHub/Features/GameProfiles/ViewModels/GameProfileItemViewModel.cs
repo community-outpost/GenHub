@@ -504,16 +504,11 @@ public partial class GameProfileItemViewModel : ViewModelBase
             _useSteamLaunch = gameProfile2.UseSteamLaunch ?? true;
 
             // Determine if this is a Steam installation by checking the publisher in the manifest ID
-            _isSteamInstallation = gameProfile2.GameInstallationId?.Contains("steam", StringComparison.OrdinalIgnoreCase) ?? false;
+            _isSteamInstallation = gameProfile2.GameInstallationId?.Contains("steam", StringComparison.OrdinalIgnoreCase) == true;
 
-            if (string.IsNullOrEmpty(gameProfile2.ActiveWorkspaceId))
-            {
-                _workspaceStatus = "Not Prepared";
-            }
-            else
-            {
-                // Determine strategy-based status
-                _workspaceStatus = gameProfile2.WorkspaceStrategy switch
+            _workspaceStatus = string.IsNullOrEmpty(gameProfile2.ActiveWorkspaceId)
+                ? "Not Prepared"
+                : gameProfile2.WorkspaceStrategy switch
                 {
                     WorkspaceStrategy.SymlinkOnly => "Symlinked",
                     WorkspaceStrategy.FullCopy => "Copied",
@@ -521,7 +516,6 @@ public partial class GameProfileItemViewModel : ViewModelBase
                     WorkspaceStrategy.HardLink => "Hard Linked",
                     _ => "Prepared",
                 };
-            }
         }
     }
 
@@ -554,13 +548,9 @@ public partial class GameProfileItemViewModel : ViewModelBase
     {
         ActiveWorkspaceId = activeWorkspaceId;
 
-        if (string.IsNullOrEmpty(activeWorkspaceId))
-        {
-            WorkspaceStatus = "Not Prepared";
-        }
-        else
-        {
-            WorkspaceStatus = strategy switch
+        WorkspaceStatus = string.IsNullOrEmpty(activeWorkspaceId)
+            ? "Not Prepared"
+            : strategy switch
             {
                 WorkspaceStrategy.SymlinkOnly => "Symlinked",
                 WorkspaceStrategy.FullCopy => "Copied",
@@ -568,7 +558,6 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 WorkspaceStrategy.HardLink => "Hard Linked",
                 _ => "Prepared",
             };
-        }
 
         // Explicitly notify UI of all dependent property changes
         OnPropertyChanged(nameof(IsWorkspacePrepared));

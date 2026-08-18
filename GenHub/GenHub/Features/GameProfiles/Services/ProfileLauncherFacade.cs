@@ -1526,19 +1526,19 @@ public class ProfileLauncherFacade(
         Dictionary<string, ContentManifest> manifestsById,
         List<string> errors)
     {
-        if (manifest.Dependencies != null && manifest.Dependencies.Count > 0)
+        if (manifest.Dependencies is { Count: > 0 })
         {
             foreach (var dependency in manifest.Dependencies.Where(d => d.ConflictsWith.Count > 0))
             {
                 foreach (var conflictId in dependency.ConflictsWith)
                 {
-                    if (manifestsById.ContainsKey(conflictId.ToString()))
+                    if (manifestsById.TryGetValue(conflictId.ToString(), out var conflictingManifest))
                     {
-                        errors.Add($"Content '{manifest.Name}' conflicts with '{manifestsById[conflictId.ToString()].Name}' - these cannot be enabled together");
+                        errors.Add($"Content '{manifest.Name}' conflicts with '{conflictingManifest.Name}' - these cannot be enabled together");
                         logger.LogWarning(
                             "Conflict detected: {ManifestName} conflicts with {ConflictingManifest}",
                             manifest.Name,
-                            manifestsById[conflictId.ToString()].Name);
+                            conflictingManifest.Name);
                     }
                 }
             }
@@ -1586,7 +1586,8 @@ public class ProfileLauncherFacade(
                         profile.GameClient?.WorkingDirectory);
                     return OperationResult<Core.Models.GameInstallations.GameInstallation>.CreateSuccess(matchingInstallation);
                 }
-                else if (exactPathMatches.Count > 1)
+
+                if (exactPathMatches.Count > 1)
                 {
                     // This should never happen - multiple installations with same path
                     logger.LogWarning(
@@ -1614,14 +1615,15 @@ public class ProfileLauncherFacade(
                         matchingInstallation.Id);
                     return OperationResult<Core.Models.GameInstallations.GameInstallation>.CreateSuccess(matchingInstallation);
                 }
-                else if (gameTypeMatches.Count > 1)
+
+                if (gameTypeMatches.Count > 1)
                 {
                     // Multiple matching installations found - this is dangerous!
                     // Different installations may have different patches/mods.
                     // Require explicit user confirmation for rebinding.
                     var message =
                         $"Found {gameTypeMatches.Count} installations for {profile.GameClient?.GameType}. " +
-                        $"Please edit the profile to manually select the correct installation to avoid conflicts.";
+                        "Please edit the profile to manually select the correct installation to avoid conflicts.";
 
                     logger.LogError(
                         "Profile {ProfileId} installation {OldId} not found. " +
@@ -1637,7 +1639,7 @@ public class ProfileLauncherFacade(
             logger.LogError("Could not resolve or rebind installation for profile {ProfileId}", profile.Id);
             return OperationResult<Core.Models.GameInstallations.GameInstallation>.CreateFailure(
                 $"No valid installation found for {profile.GameClient?.GameType}. " +
-                $"Please verify your game installation and update the profile settings.");
+                "Please verify your game installation and update the profile settings.");
         }
         catch (Exception ex)
         {

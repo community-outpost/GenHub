@@ -884,7 +884,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             {
                 _logger.LogInformation("Invoking uninstaller: {Path}", updateExe);
                 Process.Start(new ProcessStartInfo(updateExe, "--uninstall") { UseShellExecute = true });
-                Environment.Exit(0);
+                Environment.Exit(0); // skipcq: CS-W1005
             }
             else
             {
