@@ -15,7 +15,6 @@ public static class ContentTypePriority
     /// </summary>
     /// <param name="contentType">The content type.</param>
     /// <returns>Priority value (0-100).</returns>
-    /// <exception cref="ArgumentException">Thrown when the content type should not be in a workspace.</exception>
     public static int GetPriority(ContentType contentType)
     {
         return contentType switch
@@ -35,14 +34,7 @@ public static class ContentTypePriority
             ContentType.Replay => 20,              // Replays
             ContentType.Screensaver => 20,         // Screensavers
             ContentType.GameInstallation => 10,    // Lowest: Base game files
-
-            // These types should not be in workspaces
-            ContentType.ContentBundle => throw new ArgumentException($"ContentType {contentType} should not be used in workspace priority resolution"),
-            ContentType.PublisherReferral => throw new ArgumentException($"ContentType {contentType} should not be used in workspace priority resolution"),
-            ContentType.ContentReferral => throw new ArgumentException($"ContentType {contentType} should not be used in workspace priority resolution"),
-            ContentType.UnknownContentType => throw new ArgumentException($"ContentType {contentType} should not be used in workspace priority resolution"),
-
-            _ => throw new ArgumentOutOfRangeException(nameof(contentType), contentType, $"ContentType '{contentType}' is not mapped in {nameof(ContentTypePriority)}. Add an explicit priority entry for this type."),
+            _ => 0,                                // Unknown or meta types (bundles, referrals, etc.)
         };
     }
 

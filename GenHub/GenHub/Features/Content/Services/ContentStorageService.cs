@@ -293,10 +293,17 @@ public class ContentStorageService : IContentStorageService
 
             // Create source.path marker for CAS-stored content
             // This prevents "Could not resolve source path" warnings when GetContentDirectoryAsync is called
-            var contentDir = Path.Combine(_storageRoot, DirectoryNames.Data, updatedManifest.Id.Value);
-            Directory.CreateDirectory(contentDir);
-            var sourcePathFile = Path.Combine(contentDir, FileTypes.SourcePathFileName);
-            await File.WriteAllTextAsync(sourcePathFile, "CAS-ONLY", cancellationToken);
+            try
+            {
+                var contentDir = Path.Combine(_storageRoot, DirectoryNames.Data, updatedManifest.Id.Value);
+                Directory.CreateDirectory(contentDir);
+                var sourcePathFile = Path.Combine(contentDir, FileTypes.SourcePathFileName);
+                await File.WriteAllTextAsync(sourcePathFile, FileTypes.CasOnlySourceMarker, cancellationToken);
+            }
+            catch (Exception markerEx)
+            {
+                _logger.LogWarning(markerEx, "Stored manifest {ManifestId} but failed to write CAS source-path marker", updatedManifest.Id);
+            }
 
             _logger.LogInformation("Successfully stored content for manifest {ManifestId}", manifest.Id);
             return OperationResult<ContentManifest>.CreateSuccess(updatedManifest);

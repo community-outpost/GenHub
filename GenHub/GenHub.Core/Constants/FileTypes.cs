@@ -91,4 +91,10 @@ public static class FileTypes
     /// to the original source directory (e.g., local installation folder).
     /// </summary>
     public const string SourcePathFileName = "source.path";
+
+    /// <summary>
+    /// Sentinel value written to <see cref="SourcePathFileName"/> when content is stored
+    /// via CAS and has no source directory.
+    /// </summary>
+    public const string CasOnlySourceMarker = "CAS-ONLY";
 }

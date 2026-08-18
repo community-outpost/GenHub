@@ -301,7 +301,7 @@ public class ContentManifestPool(
                 if (!string.IsNullOrWhiteSpace(sourcePath))
                 {
                     // Handle CAS-only content gracefully - return null without warnings
-                    if (sourcePath.Trim().Equals("CAS-ONLY", StringComparison.OrdinalIgnoreCase))
+                    if (sourcePath.Trim().Equals(FileTypes.CasOnlySourceMarker, StringComparison.OrdinalIgnoreCase))
                     {
                         return OperationResult<string?>.CreateSuccess(null);
                     }
