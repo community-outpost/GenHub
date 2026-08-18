@@ -146,6 +146,25 @@ public class GameSettingsMapperTests
     }
 
     /// <summary>
+    /// Verifies that a fresh settings.json keeps money transaction audio audible, so that the
+    /// model default and the settings screen agree on what an unconfigured profile writes.
+    /// </summary>
+    [Fact]
+    public void ApplyToGeneralsOnlineSettings_UnsetMoneyTransactionVolume_StaysAudible()
+    {
+        // Arrange
+        var profile = new GameProfile();
+        var settings = new GeneralsOnlineSettings();
+
+        // Act
+        GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
+
+        // Assert
+        Assert.Equal(GameSettingsTheSuperHackersConstants.DefaultMoneyTransactionVolume, settings.MoneyTransactionVolume);
+        Assert.NotEqual(0, settings.MoneyTransactionVolume);
+    }
+
+    /// <summary>
     /// Verifies that cursor capture, edge scroll and observer toggles the profile leaves unset
     /// keep the values already in settings.json.
     /// </summary>

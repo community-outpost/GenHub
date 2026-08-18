@@ -317,7 +317,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     private bool _tshScreenEdgeScrollEnabledInWindowedApp = GameSettingsTheSuperHackersConstants.DefaultScreenEdgeScrollEnabledInWindowedApp;
 
     [ObservableProperty]
-    private int _tshMoneyTransactionVolume = 50;
+    private int _tshMoneyTransactionVolume = GameSettingsTheSuperHackersConstants.DefaultMoneyTransactionVolume;
 
     // ===== GeneralsOnline Client Settings =====
     [ObservableProperty]
