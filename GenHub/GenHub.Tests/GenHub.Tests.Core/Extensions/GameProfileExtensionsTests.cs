@@ -103,6 +103,29 @@ public class GameProfileExtensionsTests
         Assert.True(profile.IsGeneralsOnlineProfile());
     }
 
+    /// <summary>
+    /// Verifies that a profile with no client at all, which is the shape the settings editor sees
+    /// while a profile is being created, falls back to its enabled content.
+    /// </summary>
+    /// <param name="contentId">The content the profile enables.</param>
+    /// <param name="expected">Whether that content makes it a GeneralsOnline profile.</param>
+    [Theory]
+    [InlineData("1.9.generalsonline.gameclient.30hz", true)]
+    [InlineData("1.0.genhub.mod.test", false)]
+    public void IsGeneralsOnlineProfile_WithoutGameClient_FallsBackToContent(string contentId, bool expected)
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            Id = "profile-1",
+            Name = "Test Profile",
+            EnabledContentIds = [contentId],
+        };
+
+        // Act & Assert
+        Assert.Equal(expected, profile.IsGeneralsOnlineProfile());
+    }
+
     private static GameProfile CreateZeroHourProfile(string? publisherType, string clientName, List<string> enabledContentIds)
     {
         return new GameProfile
