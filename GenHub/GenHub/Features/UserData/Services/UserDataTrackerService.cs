@@ -370,7 +370,7 @@ public class UserDataTrackerService(
                             }
 
                             var restoredFrom = file.BackupPath;
-                            RestoreAndConsumeBackup(file);
+                            RestoreAndConsumeBackup(file, logger);
                             logger.LogInformation("[UserData] Restored backup during deactivation: {Backup} -> {Path}", restoredFrom, file.AbsolutePath);
                         }
                         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -866,27 +866,55 @@ public class UserDataTrackerService(
     /// identical duplicate in its place.
     /// </summary>
     /// <param name="file">The entry whose backup should be restored and then cleared.</param>
-    private static void RestoreAndConsumeBackup(UserDataFileEntry file)
+    /// <param name="logger">The logger used to record a backup file that could not be deleted.</param>
+    private static void RestoreAndConsumeBackup(UserDataFileEntry file, ILogger logger)
     {
-        RestoreBackupCopy(file.BackupPath!, file.AbsolutePath);
-        File.Delete(file.BackupPath!);
+        var backupPath = file.BackupPath!;
+        RestoreBackupCopy(backupPath, file.AbsolutePath);
         file.BackupPath = null;
         file.WasOverwritten = false;
+
+        DeleteConsumedBackup(backupPath, logger);
     }
 
-    private static void RestoreBackupQuietly(string? backupPath, string targetPath, bool wasOverwritten, ILogger? logger = null)
+    /// <summary>
+    /// Deletes a backup whose content has already been put back at the path it belongs to. The
+    /// restore is what protects the user's data, so a delete that fails - an antivirus scanner or an
+    /// indexer holding the file open for a moment - must not turn the restore into a failure: the
+    /// retry would read the restored original as a modification and duplicate it.
+    /// </summary>
+    /// <param name="backupPath">The backup file to remove.</param>
+    /// <param name="logger">The logger used to record a backup file that could not be deleted.</param>
+    private static void DeleteConsumedBackup(string backupPath, ILogger logger)
+    {
+        try
+        {
+            File.Delete(backupPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(
+                ex,
+                "[UserData] Restored backup {BackupPath} but could not delete it; it is now a stray copy and can be removed by hand",
+                backupPath);
+        }
+    }
+
+    private static void RestoreBackupQuietly(string? backupPath, string targetPath, bool wasOverwritten, ILogger logger)
     {
         if (wasOverwritten && !string.IsNullOrEmpty(backupPath) && File.Exists(backupPath))
         {
             try
             {
                 RestoreBackupCopy(backupPath, targetPath);
-                File.Delete(backupPath);
             }
             catch (Exception ex)
             {
-                logger?.LogWarning(ex, "[UserData] Failed to restore safety backup from {BackupPath} to {TargetPath}", backupPath, targetPath);
+                logger.LogWarning(ex, "[UserData] Failed to restore safety backup from {BackupPath} to {TargetPath}", backupPath, targetPath);
+                return;
             }
+
+            DeleteConsumedBackup(backupPath, logger);
         }
     }
 
@@ -1284,7 +1312,7 @@ public class UserDataTrackerService(
                         Directory.CreateDirectory(targetDir);
                     }
 
-                    RestoreAndConsumeBackup(file);
+                    RestoreAndConsumeBackup(file, logger);
                 }
                 else
                 {
@@ -1403,9 +1431,10 @@ public class UserDataTrackerService(
                     // tree while the deployed path is under Documents, which is routinely redirected
                     // to another drive or to OneDrive, and File.Move cannot cross a volume boundary.
                     RestoreBackupCopy(file.BackupPath!, file.AbsolutePath);
-                    File.Delete(file.BackupPath!);
                     backupRestored = true;
                     logger.LogInformation("[UserData] Restored backup: {Backup} -> {Path}", file.BackupPath, file.AbsolutePath);
+
+                    DeleteConsumedBackup(file.BackupPath!, logger);
                 }
             }
             catch (OperationCanceledException)

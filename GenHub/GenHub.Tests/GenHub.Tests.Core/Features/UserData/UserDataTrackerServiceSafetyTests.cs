@@ -451,6 +451,69 @@ public sealed partial class UserDataTrackerServiceSafetyTests : IDisposable
     }
 
     /// <summary>
+    /// The restore is what protects the user's data; deleting the consumed backup afterwards is
+    /// housekeeping. A delete that fails must not report the restore as failed, because the retry
+    /// would read the restored original as a modification and duplicate it.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task UninstallUserDataAsync_WhenConsumedBackupCannotBeDeleted_StillReportsSuccessAsync()
+    {
+        // Arrange
+        const string originalUserContent = "the-user-original-file";
+        var deployedPath = Path.Combine(_zeroHourDataDir, "GeneralsOnlineGameData", "splash.bmp");
+        Directory.CreateDirectory(Path.GetDirectoryName(deployedPath)!);
+        File.WriteAllText(deployedPath, originalUserContent);
+
+        var installResult = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            TestProfileId,
+            GameType.ZeroHour,
+            BuildFiles(),
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+        Assert.True(installResult.Success);
+
+        var backupPath = installResult.Data!.InstalledFiles[0].BackupPath!;
+        var backupDir = Path.GetDirectoryName(backupPath)!;
+
+        // Deleting the backup has to fail while reading it still works: an open handle does that on
+        // Windows, and a directory the process may not write to does it everywhere else.
+        FileStream? openBackupHandle = null;
+        UnixFileMode? originalDirectoryMode = null;
+        if (OperatingSystem.IsWindows())
+        {
+            openBackupHandle = new FileStream(backupPath, System.IO.FileMode.Open, FileAccess.Read, FileShare.Read);
+        }
+        else
+        {
+            originalDirectoryMode = File.GetUnixFileMode(backupDir);
+            File.SetUnixFileMode(backupDir, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+        }
+
+        try
+        {
+            // Act
+            var uninstallResult = await _trackerService.UninstallUserDataAsync(TestManifestId, TestProfileId, CancellationToken.None);
+
+            // Assert
+            Assert.True(uninstallResult.Success);
+            Assert.True(File.Exists(backupPath));
+            Assert.Equal(originalUserContent, File.ReadAllText(deployedPath));
+            Assert.False(File.Exists(deployedPath + UserDataConstants.UserModifiedSuffix));
+        }
+        finally
+        {
+            openBackupHandle?.Dispose();
+            if (!OperatingSystem.IsWindows() && originalDirectoryMode.HasValue)
+            {
+                File.SetUnixFileMode(backupDir, originalDirectoryMode.Value);
+            }
+        }
+    }
+
+    /// <summary>
     /// A cancelled delete-all must abort before any tracking metadata is destroyed. Swallowing the
     /// cancellation and carrying on wipes the manifests and the index while the backups they describe
     /// are still on disk, leaving the user's originals unrecoverable by anything but hand.
