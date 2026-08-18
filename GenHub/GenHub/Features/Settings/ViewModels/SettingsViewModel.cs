@@ -1335,8 +1335,19 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             _logger.LogWarning("Deleting all user data");
-            await _userDataTracker.DeleteAllUserDataAsync();
-            _notificationService.ShowSuccess("User Data Deleted", "All user data deleted successfully.", 3000);
+            var result = await _userDataTracker.DeleteAllUserDataAsync();
+            if (result.Success)
+            {
+                _notificationService.ShowSuccess("User Data Deleted", "All user data deleted successfully.", 3000);
+            }
+            else
+            {
+                _logger.LogWarning("User data deletion kept some data: {Error}", result.FirstError);
+                _notificationService.ShowError(
+                    "User Data Partially Deleted",
+                    result.FirstError ?? "Some tracked user data could not be deleted.",
+                    5000);
+            }
 
             await UpdateDangerZoneDataAsync();
         }

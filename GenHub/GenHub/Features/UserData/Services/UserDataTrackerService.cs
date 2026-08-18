@@ -724,6 +724,12 @@ public class UserDataTrackerService(
                 // 4. Re-create empty directories
                 EnsureDirectoriesExist();
 
+                if (!allBackupsRestored)
+                {
+                    return OperationResult<bool>.CreateFailure(
+                        $"Removed GenHub's tracked user data, but one or more pristine game data backups could not be restored. Your originals were kept at '{_backupsPath}'.");
+                }
+
                 return OperationResult<bool>.CreateSuccess(true);
             }
             finally

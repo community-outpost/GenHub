@@ -63,6 +63,9 @@ public class SettingsViewModelTests
         _defaultSettings = new UserSettings();
 
         _mockConfigService.Setup(x => x.Get()).Returns(_defaultSettings);
+        _mockUserDataTracker
+            .Setup(x => x.DeleteAllUserDataAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
     }
 
     /// <summary>

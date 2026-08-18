@@ -342,9 +342,13 @@ public sealed partial class UserDataTrackerServiceSafetyTests : IDisposable
         var deleteResult = await _trackerService.DeleteAllUserDataAsync(CancellationToken.None);
 
         // Assert
-        Assert.True(deleteResult.Success);
-
         var backupsPath = Path.Combine(_appDataDir, "UserData", "backups");
+
+        // The caller must be told, and told where: "all user data deleted successfully" is a lie
+        // while the user's pristine originals are still sitting in the backups folder.
+        Assert.False(deleteResult.Success);
+        Assert.Contains(backupsPath, deleteResult.FirstError);
+
         Assert.True(Directory.Exists(backupsPath));
         Assert.NotEmpty(Directory.GetFiles(backupsPath, "*", SearchOption.AllDirectories));
 
