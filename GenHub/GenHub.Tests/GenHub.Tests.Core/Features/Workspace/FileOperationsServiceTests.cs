@@ -88,35 +88,57 @@ public class FileOperationsServiceTests : IDisposable
     }
 
     /// <summary>
-    /// A path reached through a symbolic link names the same file as the link's target, so the
-    /// same-file guard must follow the link rather than compare the two spellings of the path.
+    /// A destination that is a leftover link to the source is exactly what callers copy to get rid
+    /// of: skipping the copy because the link resolves to the source leaves the workspace file
+    /// pointing at the shared CAS object, so later writes reach the object every profile shares.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CopyFileAsync_DestinationIsSymlinkToSource_LeavesFileIntactAsync()
+    public async Task CopyFileAsync_DestinationIsSymlinkToSource_ReplacesLinkWithIndependentCopyAsync()
     {
         var file = Path.Combine(_tempDir, "real.txt");
         var link = Path.Combine(_tempDir, "link.txt");
-        await File.WriteAllTextAsync(file, "irreplaceable content");
+        await File.WriteAllTextAsync(file, "shared content");
 
-        try
+        if (!TryCreateSymbolicLink(link, file))
         {
-            File.CreateSymbolicLink(link, file);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
-        {
-            // Creating symlinks needs a privilege this machine does not grant; nothing to assert.
             return;
         }
 
         await _service.CopyFileAsync(file, link);
 
-        Assert.True(File.Exists(file));
-        Assert.Equal("irreplaceable content", await File.ReadAllTextAsync(file));
+        Assert.Null(File.ResolveLinkTarget(link, returnFinalTarget: true));
+        Assert.Equal("shared content", await File.ReadAllTextAsync(link));
 
-        // The guard must have skipped the copy outright; unlinking the destination would have left
-        // an independent duplicate where the link used to be.
-        Assert.NotNull(File.ResolveLinkTarget(link, returnFinalTarget: true));
+        await File.WriteAllTextAsync(link, "workspace content");
+
+        Assert.Equal("shared content", await File.ReadAllTextAsync(file));
+        Assert.Equal("workspace content", await File.ReadAllTextAsync(link));
+    }
+
+    /// <summary>
+    /// When the source is the link and the destination is the real file it points at, the
+    /// destination is already the independent copy the caller wants. Unlinking it would destroy the
+    /// only copy of the content, so the copy must be skipped.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CopyFileAsync_SourceIsSymlinkToDestination_LeavesFileIntactAsync()
+    {
+        var file = Path.Combine(_tempDir, "target.txt");
+        var link = Path.Combine(_tempDir, "pointer.txt");
+        await File.WriteAllTextAsync(file, "irreplaceable content");
+
+        if (!TryCreateSymbolicLink(link, file))
+        {
+            return;
+        }
+
+        await _service.CopyFileAsync(link, file);
+
+        Assert.True(File.Exists(file));
+        Assert.Null(File.ResolveLinkTarget(file, returnFinalTarget: true));
+        Assert.Equal("irreplaceable content", await File.ReadAllTextAsync(file));
     }
 
     /// <summary>
@@ -431,5 +453,25 @@ public class FileOperationsServiceTests : IDisposable
     public void Dispose()
     {
         FileOperationsService.DeleteDirectoryIfExists(_tempDir);
+    }
+
+    /// <summary>
+    /// Creates a symbolic link, reporting failure rather than throwing when the platform withholds
+    /// the privilege it needs.
+    /// </summary>
+    /// <param name="linkPath">The link to create.</param>
+    /// <param name="targetPath">The file the link points at.</param>
+    /// <returns>True when the link was created.</returns>
+    private static bool TryCreateSymbolicLink(string linkPath, string targetPath)
+    {
+        try
+        {
+            File.CreateSymbolicLink(linkPath, targetPath);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            return false;
+        }
     }
 }

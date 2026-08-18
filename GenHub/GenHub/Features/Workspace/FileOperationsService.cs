@@ -152,9 +152,9 @@ public class FileOperationsService(
         const int MaxRetries = 3;
         const int InitialDelayMs = 50;
 
-        if (IsSamePath(sourcePath, destinationPath))
+        if (WouldCopyOntoItself(sourcePath, destinationPath))
         {
-            logger.LogDebug("Skipped copy because source and destination are the same path: {Source}", sourcePath);
+            logger.LogDebug("Skipped copy because source and destination are the same file: {Source}", sourcePath);
             return;
         }
 
@@ -688,37 +688,59 @@ public class FileOperationsService(
     }
 
     /// <summary>
-    /// Determines whether two paths name the same file, so a copy never unlinks its own source.
-    /// Symbolic links and junctions are followed to their final target, so a path reached through a
-    /// link still compares equal to the file it points at. Hard links and Windows 8.3 short names
-    /// have no resolvable target and are not detected here; opening the source before unlinking the
-    /// destination is what makes those cases fail safely rather than destructively.
+    /// Determines whether a copy would do nothing but unlink the file it is reading, in which case
+    /// there is nothing to copy and the file must be left alone.
+    /// <para>
+    /// A destination that is itself a symbolic link never qualifies, even when it resolves to the
+    /// source. Callers copy precisely to replace such a link with an independent file, and unlinking
+    /// a link leaves the file it points at untouched. Only a destination that is a real file naming
+    /// the same file as the source qualifies - the identical path, or the file a source link points
+    /// at - because unlinking that would destroy the only copy.
+    /// </para>
+    /// <para>
+    /// Hard links and Windows 8.3 short names have no resolvable target and are not detected here;
+    /// opening the source before unlinking the destination is what makes those cases fail safely
+    /// rather than destructively.
+    /// </para>
     /// </summary>
-    /// <param name="path1">First path to compare.</param>
-    /// <param name="path2">Second path to compare.</param>
-    /// <returns>True if both paths resolve to the same location.</returns>
-    private static bool IsSamePath(string path1, string path2)
+    /// <param name="sourcePath">The file being read.</param>
+    /// <param name="destinationPath">The path being written.</param>
+    /// <returns>True when the copy must be skipped.</returns>
+    private static bool WouldCopyOntoItself(string sourcePath, string destinationPath)
     {
-        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        var resolved1 = ResolveFinalPath(path1);
-        var resolved2 = ResolveFinalPath(path2);
+        var source = TryGetFullPath(sourcePath);
+        var destination = TryGetFullPath(destinationPath);
 
-        return resolved1 != null &&
-               resolved2 != null &&
-               string.Equals(resolved1, resolved2, comparison);
+        if (source is null || destination is null)
+        {
+            return false;
+        }
+
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+
+        if (string.Equals(source, destination, comparison))
+        {
+            return true;
+        }
+
+        if (TryResolveLinkTarget(destination) is not null)
+        {
+            return false;
+        }
+
+        return string.Equals(TryResolveLinkTarget(source) ?? source, destination, comparison);
     }
 
     /// <summary>
-    /// Normalizes a path and follows any symbolic link or junction to its final target.
+    /// Normalizes a path without consulting the file system.
     /// </summary>
-    /// <param name="path">The path to resolve.</param>
-    /// <returns>The resolved path, or <c>null</c> when the path cannot be normalized.</returns>
-    private static string? ResolveFinalPath(string path)
+    /// <param name="path">The path to normalize.</param>
+    /// <returns>The normalized path, or <c>null</c> when the path cannot be normalized.</returns>
+    private static string? TryGetFullPath(string path)
     {
-        string fullPath;
         try
         {
-            fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+            return Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
         }
         catch (ArgumentException)
         {
@@ -732,21 +754,27 @@ public class FileOperationsService(
         {
             return null;
         }
+    }
 
+    /// <summary>
+    /// Follows a symbolic link or junction to its final target.
+    /// </summary>
+    /// <param name="fullPath">The normalized path to inspect.</param>
+    /// <returns>The final target, or <c>null</c> when the path is not a link or cannot be read.</returns>
+    private static string? TryResolveLinkTarget(string fullPath)
+    {
         try
         {
             var target = File.ResolveLinkTarget(fullPath, returnFinalTarget: true);
-            return target == null
-                ? fullPath
-                : Path.TrimEndingDirectorySeparator(target.FullName);
+            return target is null ? null : Path.TrimEndingDirectorySeparator(target.FullName);
         }
         catch (IOException)
         {
-            return fullPath;
+            return null;
         }
         catch (UnauthorizedAccessException)
         {
-            return fullPath;
+            return null;
         }
     }
 
