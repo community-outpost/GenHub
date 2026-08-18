@@ -1,5 +1,4 @@
 using GenHub.Core.Constants;
-using GenHub.Core.Exceptions;
 using GenHub.Core.Interfaces.Tools.MapManager;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.MapManager;
@@ -299,16 +298,18 @@ public sealed class MapImportService(
                             var assetFiles = new List<string>();
                             string? thumbnailPath = null;
 
+                            long mapExpandedBytes = 0;
+
                             try
                             {
                                 await using (var mapStream = mapEntry.Open())
                                 {
-                                    expandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(
+                                    mapExpandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(
                                         mapStream,
                                         mapDestPath,
                                         mapEntry.FullName,
                                         IMapImportService.MaxMapSizeBytes,
-                                        MapManagerConstants.MaxAggregateUncompressedBytes - expandedBytes,
+                                        MapManagerConstants.MaxAggregateUncompressedBytes - expandedBytes - mapExpandedBytes,
                                         cancellationToken: ct);
                                 }
 
@@ -325,12 +326,12 @@ public sealed class MapImportService(
                                         if (!File.Exists(assetDestPath))
                                         {
                                             await using var assetStream = assetEntry.Open();
-                                            expandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(
+                                            mapExpandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(
                                                 assetStream,
                                                 assetDestPath,
                                                 assetEntry.FullName,
                                                 MapManagerConstants.MaxAssetSizeBytes,
-                                                MapManagerConstants.MaxAggregateUncompressedBytes - expandedBytes,
+                                                MapManagerConstants.MaxAggregateUncompressedBytes - expandedBytes - mapExpandedBytes,
                                                 cancellationToken: ct);
                                         }
 
@@ -344,8 +345,10 @@ public sealed class MapImportService(
                                         }
                                     }
                                 }
+
+                                expandedBytes += mapExpandedBytes;
                             }
-                            catch (ArchiveExpansionLimitExceededException ex)
+                            catch (Exception ex) when (ex is not OperationCanceledException)
                             {
                                 logger.LogWarning(
                                     "Discarding map {Entry} from {ZipPath}: {Reason}",
