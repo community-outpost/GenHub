@@ -68,6 +68,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly IGameInstallationService _installationService;
     private readonly IStorageLocationService _storageLocationService;
     private readonly IUserDataTracker _userDataTracker;
+    private readonly IDialogService _dialogService;
 
     private bool _isViewVisible;
     private bool _disposed;
@@ -216,6 +217,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <param name="installationService">Game installation service.</param>
     /// <param name="storageLocationService">Storage location service.</param>
     /// <param name="userDataTracker">User data tracker service.</param>
+    /// <param name="dialogService">Dialog service used to confirm destructive actions.</param>
     /// <param name="gitHubTokenStorage">GitHub token storage.</param>
     public SettingsViewModel(
         IUserSettingsService userSettingsService,
@@ -230,6 +232,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IGameInstallationService installationService,
         IStorageLocationService storageLocationService,
         IUserDataTracker userDataTracker,
+        IDialogService dialogService,
         IGitHubTokenStorage? gitHubTokenStorage = null)
     {
         _userSettingsService = userSettingsService ?? throw new ArgumentNullException(nameof(userSettingsService));
@@ -244,6 +247,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _installationService = installationService ?? throw new ArgumentNullException(nameof(installationService));
         _storageLocationService = storageLocationService ?? throw new ArgumentNullException(nameof(storageLocationService));
         _userDataTracker = userDataTracker ?? throw new ArgumentNullException(nameof(userDataTracker));
+        _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         _gitHubTokenStorage = gitHubTokenStorage;
 
         LoadSettings();
@@ -1077,6 +1081,17 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private async Task DeleteAllData()
     {
         _logger.LogWarning("Deleting ALL application data requested");
+
+        var confirmed = await _dialogService.ShowConfirmationAsync(
+            AppConstants.DeleteAllDataConfirmationTitle,
+            AppConstants.DeleteAllDataConfirmationMessage,
+            confirmText: AppConstants.DeleteAllDataConfirmText);
+
+        if (!confirmed)
+        {
+            _logger.LogInformation("Deleting ALL application data was cancelled at the confirmation prompt");
+            return;
+        }
 
         await DeleteProfiles();
         await DeleteWorkspaces();

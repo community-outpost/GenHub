@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Extensions.Enums;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Interfaces.UserData;
@@ -22,7 +23,8 @@ namespace GenHub.Features.UserData.Services;
 /// <summary>
 /// Service for tracking and managing user data files (maps, replays, etc.)
 /// that are installed to the user's Documents folder.
-/// Uses hard links to CAS content when possible for efficient disk usage.
+/// Content bound for a user-writable destination is always copied out of CAS so that later writes
+/// by the game or by GenHub cannot reach the canonical CAS object.
 /// </summary>
 public class UserDataTrackerService(
     IConfigurationProviderService configProvider,
@@ -122,7 +124,7 @@ public class UserDataTrackerService(
                 var installResult = await InstallSingleUserDataFileAsync(file, targetPath, targetGame, userDataManifest.InstallationKey, priorEntry, cancellationToken);
                 if (!installResult.Success || installResult.Data == null)
                 {
-                    await CleanupInstalledFilesAsync(userDataManifest, CancellationToken.None);
+                    _ = await CleanupInstalledFilesAsync(userDataManifest, CancellationToken.None);
                     return OperationResult<UserDataManifest>.CreateFailure(installResult.FirstError ?? $"Failed to install '{targetPath}'.");
                 }
 
@@ -143,13 +145,13 @@ public class UserDataTrackerService(
             }
             catch (OperationCanceledException)
             {
-                await CleanupInstalledFilesAsync(userDataManifest, CancellationToken.None);
+                _ = await CleanupInstalledFilesAsync(userDataManifest, CancellationToken.None);
                 throw;
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "[UserData] Failed to persist manifest or update index for {ManifestId}; cleaning up installed files", manifestId);
-                await CleanupInstalledFilesAsync(userDataManifest, CancellationToken.None);
+                _ = await CleanupInstalledFilesAsync(userDataManifest, CancellationToken.None);
                 throw;
             }
 
@@ -196,7 +198,7 @@ public class UserDataTrackerService(
 
             var manifest = manifestResult.Data;
 
-            await CleanupInstalledFilesAsync(manifest, cancellationToken);
+            _ = await CleanupInstalledFilesAsync(manifest, cancellationToken);
 
             // Remove the manifest file
             await DeleteUserDataManifestAsync(manifestId, profileId, cancellationToken);
@@ -352,7 +354,7 @@ public class UserDataTrackerService(
                                 Directory.CreateDirectory(targetDir);
                             }
 
-                            File.Copy(file.BackupPath, file.AbsolutePath, overwrite: true);
+                            RestoreBackupCopy(file.BackupPath, file.AbsolutePath);
                             logger.LogInformation("[UserData] Restored backup during deactivation: {Backup} -> {Path}", file.BackupPath, file.AbsolutePath);
                         }
                         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -623,6 +625,7 @@ public class UserDataTrackerService(
                 var index = await LoadIndexUnlockedAsync(cancellationToken);
 
                 // Uninstall all installations (this handles backup restoration and file deletion)
+                var allBackupsRestored = true;
                 foreach (var profileId in index.ProfileInstallations.Keys.ToList())
                 {
                     // Get keys for this profile
@@ -633,17 +636,24 @@ public class UserDataTrackerService(
                             try
                             {
                                 // We are already holding the lock, so we can't call UninstallUserDataAsync which tries to acquire it.
-                                // Instead, we directly clean up the files. We don't need to update the index or delete the manifest file
-                                // because we are about to delete the entire UserData directory.
+                                // Instead, we directly clean up the files.
                                 var manifest = await LoadUserDataManifestByKeyAsync(key, cancellationToken);
-                                if (manifest != null)
+                                if (manifest == null)
                                 {
-                                    await CleanupInstalledFilesAsync(manifest, cancellationToken);
+                                    logger.LogWarning("[UserData] No manifest found for installation key {Key}; its backups cannot be restored", key);
+                                    allBackupsRestored = false;
+                                    continue;
+                                }
+
+                                if (!await CleanupInstalledFilesAsync(manifest, cancellationToken))
+                                {
+                                    allBackupsRestored = false;
                                 }
                             }
                             catch (Exception ex)
                             {
                                 logger.LogError(ex, "[UserData] Failed to cleanup user data for installation key {Key}", key);
+                                allBackupsRestored = false;
                             }
                         }
                     }
@@ -662,8 +672,24 @@ public class UserDataTrackerService(
                         return OperationResult<bool>.CreateFailure("UserData tracking path does not appear to be application-specific");
                     }
 
-                    logger.LogInformation("[UserData] Deleting UserData directory: {Path}", _userDataTrackingPath);
-                    Directory.Delete(_userDataTrackingPath, true);
+                    if (allBackupsRestored)
+                    {
+                        logger.LogInformation("[UserData] Deleting UserData directory: {Path}", _userDataTrackingPath);
+                        Directory.Delete(_userDataTrackingPath, true);
+                    }
+                    else
+                    {
+                        logger.LogWarning(
+                            "[UserData] One or more pristine game data backups could not be restored, so they were NOT deleted. Your originals remain at {BackupsPath}; restore them by hand or delete that folder once you no longer need them.",
+                            _backupsPath);
+
+                        if (Directory.Exists(_manifestsPath))
+                        {
+                            Directory.Delete(_manifestsPath, true);
+                        }
+
+                        FileOperationsService.DeleteFileIfExists(_indexPath);
+                    }
                 }
 
                 // 4. Re-create empty directories
@@ -726,13 +752,46 @@ public class UserDataTrackerService(
         return path;
     }
 
+    /// <summary>
+    /// Moves a deployed file that no longer matches its recorded hash to a clearly named sibling so
+    /// the user's edit is never discarded when the pristine backup is restored over the original path.
+    /// </summary>
+    /// <param name="filePath">The deployed file to move aside.</param>
+    /// <returns>The path the modified file was moved to.</returns>
+    private static string MoveModifiedFileAside(string filePath)
+    {
+        var preservedPath = filePath + UserDataConstants.UserModifiedSuffix;
+        var attempt = 1;
+        while (File.Exists(preservedPath) || Directory.Exists(preservedPath))
+        {
+            preservedPath = $"{filePath}{UserDataConstants.UserModifiedSuffix}.{attempt}";
+            attempt++;
+        }
+
+        File.Move(filePath, preservedPath);
+        return preservedPath;
+    }
+
+    /// <summary>
+    /// Copies a backup back over a deployed path, unlinking the destination first. An older install
+    /// may have left a hard link to a CAS object there, and copying onto it in place would write the
+    /// backup's content into the canonical object rather than replacing the deployed file.
+    /// </summary>
+    /// <param name="backupPath">The backup to restore from.</param>
+    /// <param name="targetPath">The path to restore to.</param>
+    private static void RestoreBackupCopy(string backupPath, string targetPath)
+    {
+        FileOperationsService.DeleteFileIfExists(targetPath);
+        File.Copy(backupPath, targetPath, overwrite: true);
+    }
+
     private static void RestoreBackupQuietly(string? backupPath, string targetPath, bool wasOverwritten, ILogger? logger = null)
     {
         if (wasOverwritten && !string.IsNullOrEmpty(backupPath) && File.Exists(backupPath))
         {
             try
             {
-                File.Copy(backupPath, targetPath, overwrite: true);
+                RestoreBackupCopy(backupPath, targetPath);
                 File.Delete(backupPath);
             }
             catch (Exception ex)
@@ -931,24 +990,16 @@ public class UserDataTrackerService(
         var fileMaterialized = false;
         try
         {
-            var linkResult = await fileOperations.LinkFromCasAsync(
+            var (materialized, isHardLink) = await MaterializeFromCasAsync(
                 file.CasHash,
                 file.AbsolutePath,
-                useHardLink: true,
-                contentType: null,
-                cancellationToken: cancellationToken);
+                file.InstallTarget,
+                cancellationToken);
 
-            if (linkResult)
+            fileMaterialized = materialized;
+            if (materialized)
             {
-                fileMaterialized = true;
-            }
-            else
-            {
-                var copyResult = await fileOperations.CopyFromCasAsync(file.CasHash, file.AbsolutePath, contentType: null, cancellationToken: cancellationToken);
-                if (copyResult)
-                {
-                    fileMaterialized = true;
-                }
+                file.IsHardLink = isHardLink;
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -1030,7 +1081,7 @@ public class UserDataTrackerService(
             return OperationResult<UserDataFileEntry>.CreateFailure($"File '{file.RelativePath}' has no hash. Installation aborted.");
         }
 
-        var (materialized, isHardLink) = await MaterializeFileFromCasAsync(file.Hash, targetPath, backupPath, wasOverwritten, cancellationToken);
+        var (materialized, isHardLink) = await MaterializeFileFromCasAsync(file.Hash, targetPath, file.InstallTarget, backupPath, wasOverwritten, cancellationToken);
         if (!materialized)
         {
             logger.LogError("[UserData] Failed to install file {Path}; aborting installation", targetPath);
@@ -1056,31 +1107,14 @@ public class UserDataTrackerService(
     private async Task<(bool Materialized, bool IsHardLink)> MaterializeFileFromCasAsync(
         string hash,
         string targetPath,
+        ContentInstallTarget installTarget,
         string? backupPath,
         bool wasOverwritten,
         CancellationToken cancellationToken)
     {
         try
         {
-            var linkResult = await fileOperations.LinkFromCasAsync(
-                hash,
-                targetPath,
-                useHardLink: true,
-                contentType: null,
-                cancellationToken: cancellationToken);
-
-            if (linkResult)
-            {
-                logger.LogDebug("[UserData] Created hard link for {Path}", targetPath);
-                return (true, true);
-            }
-
-            var copyResult = await fileOperations.CopyFromCasAsync(hash, targetPath, contentType: null, cancellationToken: cancellationToken);
-            if (copyResult)
-            {
-                logger.LogDebug("[UserData] Copied file for {Path} (hard link failed)", targetPath);
-                return (true, false);
-            }
+            return await MaterializeFromCasAsync(hash, targetPath, installTarget, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -1090,6 +1124,58 @@ public class UserDataTrackerService(
         catch (Exception ex)
         {
             logger.LogError(ex, "[UserData] Exception while materializing file {Path} from CAS", targetPath);
+        }
+
+        return (false, false);
+    }
+
+    /// <summary>
+    /// Materializes CAS content at the destination. User-writable destinations always receive an
+    /// independent copy: a hard link would share the underlying storage with the CAS object, so any
+    /// in-place write by the game or by GenHub would rewrite the canonical object and break the
+    /// hash-to-content invariant for every profile referencing it.
+    /// </summary>
+    /// <param name="hash">The CAS hash of the content to materialize.</param>
+    /// <param name="targetPath">The destination file path.</param>
+    /// <param name="installTarget">The install target the destination was resolved from.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns>Whether the file was materialized and whether it is a hard link.</returns>
+    private async Task<(bool Materialized, bool IsHardLink)> MaterializeFromCasAsync(
+        string hash,
+        string targetPath,
+        ContentInstallTarget installTarget,
+        CancellationToken cancellationToken)
+    {
+        if (installTarget.IsUserWritableTarget())
+        {
+            var userCopyResult = await fileOperations.CopyFromCasAsync(hash, targetPath, contentType: null, cancellationToken: cancellationToken);
+            if (userCopyResult)
+            {
+                logger.LogDebug("[UserData] Copied file for {Path} (user-writable destination)", targetPath);
+                return (true, false);
+            }
+
+            return (false, false);
+        }
+
+        var linkResult = await fileOperations.LinkFromCasAsync(
+            hash,
+            targetPath,
+            useHardLink: true,
+            contentType: null,
+            cancellationToken: cancellationToken);
+
+        if (linkResult)
+        {
+            logger.LogDebug("[UserData] Created hard link for {Path}", targetPath);
+            return (true, true);
+        }
+
+        var copyResult = await fileOperations.CopyFromCasAsync(hash, targetPath, contentType: null, cancellationToken: cancellationToken);
+        if (copyResult)
+        {
+            logger.LogDebug("[UserData] Copied file for {Path} (hard link failed)", targetPath);
+            return (true, false);
         }
 
         return (false, false);
@@ -1109,7 +1195,7 @@ public class UserDataTrackerService(
                         Directory.CreateDirectory(targetDir);
                     }
 
-                    File.Copy(file.BackupPath, file.AbsolutePath, overwrite: true);
+                    RestoreBackupCopy(file.BackupPath, file.AbsolutePath);
                 }
                 else
                 {
@@ -1135,34 +1221,54 @@ public class UserDataTrackerService(
 
     private string GetUserDataBasePath(GameType gameType) => pathProvider.GetOptionsDirectory(gameType);
 
-    private async Task CleanupInstalledFilesAsync(UserDataManifest manifest, CancellationToken cancellationToken)
+    /// <summary>
+    /// Removes the deployed files for a manifest and restores the pristine originals GenHub backed up.
+    /// A deployed file whose hash no longer matches is moved aside instead of being discarded, so the
+    /// user's edit survives and the backup can still be restored over the original path.
+    /// </summary>
+    /// <param name="manifest">The manifest whose installed files should be removed.</param>
+    /// <param name="cancellationToken">A cancellation token.</param>
+    /// <returns><c>true</c> when every backup for the manifest was restored; otherwise, <c>false</c>.</returns>
+    private async Task<bool> CleanupInstalledFilesAsync(UserDataManifest manifest, CancellationToken cancellationToken)
     {
         var userDataBasePath = GetUserDataBasePath(manifest.TargetGame);
+        var allBackupsRestored = true;
+
         foreach (var file in manifest.InstalledFiles)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            var hasBackup = !string.IsNullOrEmpty(file.BackupPath) && File.Exists(file.BackupPath);
+
             try
             {
+                var restoreNeeded = hasBackup;
+
                 if (File.Exists(file.AbsolutePath))
                 {
-                    // Verify we should delete this file (hash matches)
                     if (await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken))
                     {
                         File.Delete(file.AbsolutePath);
                         logger.LogDebug("[UserData] Deleted file: {Path}", file.AbsolutePath);
 
-                        // Clean up empty directories up to the base user data path
                         CleanupEmptyDirectories(Path.GetDirectoryName(file.AbsolutePath), userDataBasePath);
+                    }
+                    else if (hasBackup)
+                    {
+                        var preservedPath = MoveModifiedFileAside(file.AbsolutePath);
+                        logger.LogWarning(
+                            "[UserData] File hash mismatch for {Path}; your modified copy was preserved at {PreservedPath} so the original could be restored",
+                            file.AbsolutePath,
+                            preservedPath);
                     }
                     else
                     {
-                        logger.LogWarning("[UserData] File hash mismatch, user may have modified: {Path}", file.AbsolutePath);
+                        restoreNeeded = false;
+                        logger.LogWarning("[UserData] File hash mismatch and no backup to restore, leaving in place: {Path}", file.AbsolutePath);
                     }
                 }
 
-                // Restore backup if exists and target file was removed or absent
-                if (!File.Exists(file.AbsolutePath) && !string.IsNullOrEmpty(file.BackupPath) && File.Exists(file.BackupPath))
+                if (restoreNeeded)
                 {
                     var targetDir = Path.GetDirectoryName(file.AbsolutePath);
                     if (!string.IsNullOrEmpty(targetDir))
@@ -1170,15 +1276,30 @@ public class UserDataTrackerService(
                         Directory.CreateDirectory(targetDir);
                     }
 
-                    File.Move(file.BackupPath, file.AbsolutePath, overwrite: true);
+                    File.Move(file.BackupPath!, file.AbsolutePath, overwrite: true);
                     logger.LogInformation("[UserData] Restored backup: {Backup} -> {Path}", file.BackupPath, file.AbsolutePath);
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "[UserData] Failed to uninstall file: {Path}", file.AbsolutePath);
             }
+
+            if (hasBackup && File.Exists(file.BackupPath!))
+            {
+                allBackupsRestored = false;
+                logger.LogWarning(
+                    "[UserData] Backup for {Path} was not restored and is still held at {BackupPath}",
+                    file.AbsolutePath,
+                    file.BackupPath);
+            }
         }
+
+        return allBackupsRestored;
     }
 
     private void EnsureDirectoriesExist()

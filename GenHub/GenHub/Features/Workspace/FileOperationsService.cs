@@ -158,16 +158,12 @@ public class FileOperationsService(
             {
                 EnsureDirectoryExists(destinationPath);
 
-                // If destination exists and is a symlink/reparse point, delete it first
-                // This prevents issues when switching from Symlink strategy to FullCopy strategy
-                if (File.Exists(destinationPath))
+                // Always unlink an existing destination rather than truncating it. A symlink left by
+                // the Symlink strategy, or a hard link to a CAS object, would otherwise receive the
+                // write through to its target instead of yielding an independent copy here.
+                if (DeleteFileIfExists(destinationPath))
                 {
-                    var destInfo = new FileInfo(destinationPath);
-                    if (destInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
-                    {
-                        logger.LogDebug("Removing existing symlink at {Destination} before copying", destinationPath);
-                        destInfo.Delete();
-                    }
+                    logger.LogDebug("Removed existing destination at {Destination} before copying", destinationPath);
                 }
 
                 await using var source = new FileStream(

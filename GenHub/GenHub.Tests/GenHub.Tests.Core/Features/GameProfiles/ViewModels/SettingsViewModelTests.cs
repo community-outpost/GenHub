@@ -39,6 +39,7 @@ public class SettingsViewModelTests
     private readonly Mock<IGameInstallationService> _mockInstallationService;
     private readonly Mock<IStorageLocationService> _mockStorageLocationService;
     private readonly Mock<IUserDataTracker> _mockUserDataTracker;
+    private readonly Mock<IDialogService> _mockDialogService;
     private readonly UserSettings _defaultSettings;
 
     /// <summary>
@@ -58,6 +59,7 @@ public class SettingsViewModelTests
         _mockInstallationService = new Mock<IGameInstallationService>();
         _mockStorageLocationService = new Mock<IStorageLocationService>();
         _mockUserDataTracker = new Mock<IUserDataTracker>();
+        _mockDialogService = new Mock<IDialogService>();
         _defaultSettings = new UserSettings();
 
         _mockConfigService.Setup(x => x.Get()).Returns(_defaultSettings);
@@ -93,7 +95,8 @@ public class SettingsViewModelTests
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
             _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object);
+            _mockUserDataTracker.Object,
+            _mockDialogService.Object);
 
         // Assert
         Assert.Equal("Light", viewModel.Theme);
@@ -122,7 +125,8 @@ public class SettingsViewModelTests
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
             _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object)
+            _mockUserDataTracker.Object,
+            _mockDialogService.Object)
         {
             Theme = "Light",
             MaxConcurrentDownloads = 5,
@@ -156,7 +160,8 @@ public class SettingsViewModelTests
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
             _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object)
+            _mockUserDataTracker.Object,
+            _mockDialogService.Object)
         {
             Theme = "Light",
             MaxConcurrentDownloads = 10,
@@ -192,7 +197,8 @@ public class SettingsViewModelTests
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
             _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object)
+            _mockUserDataTracker.Object,
+            _mockDialogService.Object)
         {
             // Act & Assert - Test lower bound
             MaxConcurrentDownloads = 0,
@@ -227,7 +233,8 @@ public class SettingsViewModelTests
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
             _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object);
+            _mockUserDataTracker.Object,
+            _mockDialogService.Object);
 
         // Act
         var themes = SettingsViewModel.AvailableThemes.ToList();
@@ -257,7 +264,8 @@ public class SettingsViewModelTests
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
             _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object);
+            _mockUserDataTracker.Object,
+            _mockDialogService.Object);
 
         // Act
         var strategies = SettingsViewModel.AvailableWorkspaceStrategies.ToList();
@@ -289,7 +297,8 @@ public class SettingsViewModelTests
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
             _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object);
+            _mockUserDataTracker.Object,
+            _mockDialogService.Object);
 
         // Act
         await Task.Run(() => viewModel.SaveSettingsCommand.Execute(null));
@@ -327,7 +336,8 @@ public class SettingsViewModelTests
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
             _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object);
+            _mockUserDataTracker.Object,
+            _mockDialogService.Object);
 
         // Assert - Should not throw and use defaults
         Assert.Equal("Dark", viewModel.Theme);
@@ -367,7 +377,8 @@ public class SettingsViewModelTests
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
             _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object);
+            _mockUserDataTracker.Object,
+            _mockDialogService.Object);
 
         // Act
         await viewModel.DeleteCasStorageCommand.ExecuteAsync(null);
@@ -410,7 +421,8 @@ public class SettingsViewModelTests
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
             _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object);
+            _mockUserDataTracker.Object,
+            _mockDialogService.Object);
 
         // Act
         await viewModel.UninstallGenHubCommand.ExecuteAsync(null);
@@ -418,4 +430,112 @@ public class SettingsViewModelTests
         // Assert
         _mockUpdateManager.Verify(x => x.Uninstall(), Times.Once);
     }
+
+    /// <summary>
+    /// Verifies that declining the confirmation prompt leaves every piece of application data alone.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeleteAllDataCommand_WhenConfirmationDeclined_DeletesNothingAsync()
+    {
+        // Arrange
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(false);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteAllDataCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockUserDataTracker.Verify(x => x.DeleteAllUserDataAsync(It.IsAny<CancellationToken>()), Times.Never);
+        _mockCasService.Verify(x => x.RunGarbageCollectionAsync(It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockInstallationService.Verify(x => x.InvalidateCache(), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that accepting the confirmation prompt performs the deletion.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeleteAllDataCommand_WhenConfirmationAccepted_DeletesAllDataAsync()
+    {
+        // Arrange
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteAllDataCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockUserDataTracker.Verify(x => x.DeleteAllUserDataAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _mockCasService.Verify(x => x.RunGarbageCollectionAsync(true, It.IsAny<CancellationToken>()), Times.Once);
+        _mockInstallationService.Verify(x => x.InvalidateCache(), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that the confirmation prompt states the action is irreversible and that game data
+    /// backups are discarded, and that it cannot be suppressed by a "do not ask again" preference.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeleteAllDataCommand_WarnsThatBackupsAreDiscardedAndCannotBeSuppressedAsync()
+    {
+        // Arrange
+        string? capturedMessage = null;
+        string? capturedSessionKey = null;
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .Callback<string, string, string, string, string?>((title, message, confirmText, cancelText, sessionKey) =>
+            {
+                capturedMessage = message;
+                capturedSessionKey = sessionKey;
+            })
+            .ReturnsAsync(false);
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteAllDataCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.Equal(AppConstants.DeleteAllDataConfirmationMessage, capturedMessage);
+        Assert.Contains("irreversible", capturedMessage!, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("backups", capturedMessage!, StringComparison.OrdinalIgnoreCase);
+        Assert.Null(capturedSessionKey);
+    }
+
+    private SettingsViewModel CreateViewModel() => new(
+        _mockConfigService.Object,
+        _mockLogger.Object,
+        _mockCasService.Object,
+        _mockProfileManager.Object,
+        _mockWorkspaceManager.Object,
+        _mockManifestPool.Object,
+        _mockUpdateManager.Object,
+        _mockNotificationService.Object,
+        _mockConfigurationProvider.Object,
+        _mockInstallationService.Object,
+        _mockStorageLocationService.Object,
+        _mockUserDataTracker.Object,
+        _mockDialogService.Object);
 }

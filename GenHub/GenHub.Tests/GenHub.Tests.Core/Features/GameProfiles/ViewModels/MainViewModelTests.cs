@@ -253,6 +253,7 @@ public class MainViewModelTests
         var mockInstallationService = new Mock<IGameInstallationService>();
         var mockStorageLocationService = new Mock<IStorageLocationService>();
         var mockUserDataTracker = new Mock<IUserDataTracker>();
+        var mockDialogService = new Mock<IDialogService>();
         var mockGitHubTokenStorage = new Mock<IGitHubTokenStorage>();
 
         var settingsVm = new SettingsViewModel(
@@ -268,6 +269,7 @@ public class MainViewModelTests
             mockInstallationService.Object,
             mockStorageLocationService.Object,
             mockUserDataTracker.Object,
+            mockDialogService.Object,
             mockGitHubTokenStorage.Object);
         return (settingsVm, mockUserSettings);
     }
