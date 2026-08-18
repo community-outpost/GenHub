@@ -702,6 +702,20 @@ public class GameLauncher(
     private static string EnsureTrailingSeparator(string path) =>
         path.EndsWith(Path.DirectorySeparatorChar) ? path : path + Path.DirectorySeparatorChar;
 
+    private static string NormalizePath(string path)
+    {
+        try
+        {
+            path = Path.GetFullPath(path);
+        }
+        catch
+        {
+            // Ignored
+        }
+
+        return path.Replace('\\', '/');
+    }
+
     private async Task<LaunchOperationResult<GameLaunchInfo>> LaunchProfileAsync(GameProfile profile, bool skipUserDataCleanup, IProgress<LaunchProgress>? progress, string launchId, CancellationToken cancellationToken)
     {
         IDisposable? steamInstallationLock = null;
@@ -1065,11 +1079,11 @@ public class GameLauncher(
         if (!string.IsNullOrEmpty(workspaceInfo.ExecutablePath))
         {
             logger.LogDebug("[GameLauncher] Validating executable is within workspace bounds");
-            var normalizedWorkspacePath = Path.GetFullPath(workspaceInfo.WorkspacePath);
-            var normalizedWorkspacePrefix = normalizedWorkspacePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
-            var normalizedExecutablePath = Path.GetFullPath(finalExecutablePath);
+            var normalizedWorkspacePath = NormalizePath(workspaceInfo.WorkspacePath);
+            var normalizedWorkspacePrefix = normalizedWorkspacePath.TrimEnd('/') + '/';
+            var normalizedExecutablePath = NormalizePath(finalExecutablePath);
             if (!normalizedExecutablePath.StartsWith(normalizedWorkspacePrefix, StringComparison.OrdinalIgnoreCase) &&
-                !string.Equals(normalizedExecutablePath, normalizedWorkspacePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
+                !string.Equals(normalizedExecutablePath, normalizedWorkspacePath.TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
             {
                 logger.LogError("[GameLauncher] Security violation - executable outside workspace");
                 return OperationResult<string>.CreateFailure($"Security violation: Workspace executable path '{finalExecutablePath}' is outside workspace");

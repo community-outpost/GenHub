@@ -411,7 +411,7 @@ public class GameProcessManagerTests
                 // open, which would defeat the cleanup delete for the launcher's whole lifetime.
                 var linger = exitImmediately ? string.Empty : $"ping -n {LauncherLifetimeSeconds + 1} 127.0.0.1 >nul\n";
                 var complain = stderrMessage is null ? string.Empty : $"echo {stderrMessage} 1>&2\n";
-                script = $"@echo off\n{recordPid}{complain}{spawn}cd /d \"%TEMP%\"\n{linger}";
+                script = $"@echo off\n{spawn}{complain}{recordPid}cd /d \"%TEMP%\"\n{linger}";
             }
             else
             {
@@ -459,6 +459,39 @@ public class GameProcessManagerTests
             DeleteWorkingDirectory();
         }
 
+        private static string? GetImagePath(System.Diagnostics.Process process)
+        {
+            try
+            {
+                return process.MainModule?.FileName;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static string LongRunningSystemBinary()
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "PING.EXE");
+            }
+
+            return File.Exists("/bin/sleep") ? "/bin/sleep" : "/usr/bin/sleep";
+        }
+
+        private static void MakeExecutable(string path)
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                return;
+            }
+
+            using var chmod = System.Diagnostics.Process.Start("chmod", ["+x", path]);
+            chmod?.WaitForExit();
+        }
+
         /// <summary>
         /// Stops the launcher so it does not outlive the test by <see cref="LauncherLifetimeSeconds"/>.
         /// </summary>
@@ -503,39 +536,6 @@ public class GameProcessManagerTests
                     // Best effort.
                 }
             }
-        }
-
-        private static string? GetImagePath(System.Diagnostics.Process process)
-        {
-            try
-            {
-                return process.MainModule?.FileName;
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        private static string LongRunningSystemBinary()
-        {
-            if (OperatingSystem.IsWindows())
-            {
-                return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "PING.EXE");
-            }
-
-            return File.Exists("/bin/sleep") ? "/bin/sleep" : "/usr/bin/sleep";
-        }
-
-        private static void MakeExecutable(string path)
-        {
-            if (OperatingSystem.IsWindows())
-            {
-                return;
-            }
-
-            using var chmod = System.Diagnostics.Process.Start("chmod", ["+x", path]);
-            chmod?.WaitForExit();
         }
     }
 }
