@@ -548,25 +548,6 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
     }
 
     /// <summary>
-    /// Extracts numeric date from version strings like "weekly-2025-11-21" or "20251121".
-    /// </summary>
-    private static string ExtractDateFromVersion(string version)
-    {
-        if (string.IsNullOrEmpty(version))
-        {
-            return string.Empty;
-        }
-
-        var match = System.Text.RegularExpressions.Regex.Match(version, @"\d{4}-?\d{2}-?\d{2}|\d{8}");
-        if (match.Success)
-        {
-            return match.Value.Replace("-", string.Empty);
-        }
-
-        return string.Empty;
-    }
-
-    /// <summary>
     /// Finds all installed content manifest variants that match the given content item.
     /// Used to populate <see cref="ContentItemViewModel.AvailableVariants"/>.
     /// </summary>

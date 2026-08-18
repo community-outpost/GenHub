@@ -53,7 +53,7 @@ internal class CsvGenerator(Dictionary<string, string> arguments, ILogger logger
         var files = Directory.GetFiles(installationPath, "*", SearchOption.AllDirectories);
         var totalFiles = files.Length;
 
-        this.logger.LogInformation("Scanning {Count} files in {Path}", totalFiles, installationPath);
+        logger.LogInformation("Scanning {Count} files in {Path}", totalFiles, installationPath);
 
         for (var i = 0; i < totalFiles; i++)
         {

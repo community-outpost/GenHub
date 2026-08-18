@@ -373,7 +373,7 @@ public class GameProfileManager(
         }
     }
 
-    private static void ApplyUpdateRequestToProfile(GameProfile profile, UpdateProfileRequest request)
+    private void ApplyUpdateRequestToProfile(GameProfile profile, UpdateProfileRequest request)
     {
         profile.Description = request.Description ?? profile.Description;
         profile.EnabledContentIds = request.EnabledContentIds ?? profile.EnabledContentIds ?? [];

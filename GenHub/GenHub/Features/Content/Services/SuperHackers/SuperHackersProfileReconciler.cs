@@ -10,6 +10,7 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Dialogs;
 using GenHub.Core.Models.Enums;
@@ -176,8 +177,8 @@ public class SuperHackersProfileReconciler(
     }
 
     private static Dictionary<string, string> BuildManifestMapping(
-        List<ContentManifest> oldManifests,
-        List<ContentManifest> newManifests)
+        IReadOnlyList<ContentManifest> oldManifests,
+        IReadOnlyList<ContentManifest> newManifests)
     {
         var mapping = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -240,7 +241,7 @@ public class SuperHackersProfileReconciler(
     }
 
     private async Task<OperationResult<List<ContentManifest>>> AcquireLatestVersionAsync(
-        List<ContentManifest> oldManifests,
+        IReadOnlyList<ContentManifest> oldManifests,
         CancellationToken cancellationToken)
     {
         try
@@ -309,8 +310,8 @@ public class SuperHackersProfileReconciler(
     /// Creates new profiles for the update instead of replacing existing ones.
     /// </summary>
     private async Task<OperationResult<int>> CreateNewProfilesForUpdateAsync(
-        List<ContentManifest> oldManifests,
-        List<ContentManifest> newManifests,
+        IReadOnlyList<ContentManifest> oldManifests,
+        IReadOnlyList<ContentManifest> newManifests,
         string newVersion,
         CancellationToken cancellationToken)
     {
@@ -408,7 +409,7 @@ public class SuperHackersProfileReconciler(
 
     private async Task<(bool ShouldProceed, UpdateStrategy Strategy, bool ShouldDeleteOldVersions)> PromptUserForUpdateStrategyAsync(
         UserSettings settings,
-        UpdateCheckResult updateResult)
+        ContentUpdateCheckResult updateResult)
     {
         var subscription = settings.GetSubscription(PublisherTypeConstants.TheSuperHackers);
         var strategy = subscription?.PreferredUpdateStrategy ?? settings.PreferredUpdateStrategy ?? UpdateStrategy.ReplaceCurrent;

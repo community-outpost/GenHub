@@ -20,6 +20,7 @@ public partial class GameProfileContentEditorView : UserControl
     private static readonly TimeSpan FrameInterval = TimeSpan.FromMilliseconds(16); // ~60fps
 
     private readonly List<(string Name, Control Control, ContentEditorCategory Category)> _sections = [];
+    private readonly Stopwatch _animationStopwatch = new();
 
     private ScrollViewer? _scrollViewer;
     private GameProfileSettingsViewModel? _subscribedViewModel;
@@ -27,7 +28,6 @@ public partial class GameProfileContentEditorView : UserControl
 
     // Animation state
     private DispatcherTimer? _animationTimer;
-    private readonly Stopwatch _animationStopwatch = new();
     private double _animStartOffset;
     private double _animTargetOffset;
 

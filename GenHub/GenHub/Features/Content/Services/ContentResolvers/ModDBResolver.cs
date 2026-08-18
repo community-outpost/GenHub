@@ -47,17 +47,17 @@ public class ModDBResolver(
         if (timeEl != null)
         {
             var dateTimeAttr = timeEl.GetAttribute("datetime");
-            if (DateTime.TryParse(dateTimeAttr, out var dt))
+            if (DateTime.TryParse(dateTimeAttr, out var parsedTime))
             {
-                return dt;
+                return parsedTime;
             }
         }
 
         // Try finding "Added:" or "Posted:" labels
         var addedText = ExtractMetadataValue(document, "Added:", "Posted:", "Released:");
-        if (!string.IsNullOrEmpty(addedText) && DateTime.TryParse(addedText, out var dt))
+        if (!string.IsNullOrEmpty(addedText) && DateTime.TryParse(addedText, out var parsedDate))
         {
-            return dt;
+            return parsedDate;
         }
 
         // Fallback: use current date

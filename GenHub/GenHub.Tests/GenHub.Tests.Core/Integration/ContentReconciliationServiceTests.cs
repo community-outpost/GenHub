@@ -126,7 +126,7 @@ public class ContentReconciliationServiceTests
         _profileManagerMock.Verify(
             x => x.UpdateProfileAsync(
                 "profile-1",
-                It.Is<UpdateProfileRequest>(r => r.GameClient?.Id == newId),
+                It.Is<UpdateProfileRequest>(r => r.GameClient != null && r.GameClient.Id == newId),
                 It.IsAny<CancellationToken>()),
             Times.Once,
             "Should update profile with new manifest ID");

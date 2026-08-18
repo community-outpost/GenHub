@@ -124,7 +124,7 @@ public class SuperHackersProvider(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to search SuperHackers content");
+            Logger.LogError(ex, "Failed to search SuperHackers content");
             return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure($"Search failed: {ex.Message}");
         }
     }

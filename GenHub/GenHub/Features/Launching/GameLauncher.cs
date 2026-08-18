@@ -874,7 +874,7 @@ public class GameLauncher(
         }
     }
 
-    private async Task<OperationResult<(WorkspaceInfo, IDisposable?)>> SetupAndAcquireWorkspaceAsync(
+    private async Task<OperationResult<(WorkspaceInfo Workspace, IDisposable? SteamLock)>> SetupAndAcquireWorkspaceAsync(
         GameProfile profile,
         List<ContentManifest> manifests,
         GenHub.Core.Models.GameClients.GameClient gameClient,

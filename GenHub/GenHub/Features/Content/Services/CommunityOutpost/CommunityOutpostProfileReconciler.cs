@@ -9,6 +9,7 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Dialogs;
 using GenHub.Core.Models.Enums;
@@ -189,8 +190,8 @@ public class CommunityOutpostProfileReconciler(
     /// Builds a mapping from old manifest IDs to new manifest IDs.
     /// </summary>
     private static Dictionary<string, string> BuildManifestMapping(
-        List<ContentManifest> oldManifests,
-        List<ContentManifest> newManifests)
+        IReadOnlyList<ContentManifest> oldManifests,
+        IReadOnlyList<ContentManifest> newManifests)
     {
         var mapping = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -231,7 +232,7 @@ public class CommunityOutpostProfileReconciler(
     /// Acquires the latest Community Outpost version by searching and downloading.
     /// </summary>
     private async Task<OperationResult<List<ContentManifest>>> AcquireLatestVersionAsync(
-        List<ContentManifest> oldManifests,
+        IReadOnlyList<ContentManifest> oldManifests,
         CancellationToken cancellationToken)
     {
         try
@@ -299,8 +300,8 @@ public class CommunityOutpostProfileReconciler(
     /// Creates new profiles for the update instead of replacing existing ones.
     /// </summary>
     private async Task<OperationResult<int>> CreateNewProfilesForUpdateAsync(
-        List<ContentManifest> oldManifests,
-        List<ContentManifest> newManifests,
+        IReadOnlyList<ContentManifest> oldManifests,
+        IReadOnlyList<ContentManifest> newManifests,
         string newVersion,
         CancellationToken cancellationToken)
     {
@@ -375,7 +376,7 @@ public class CommunityOutpostProfileReconciler(
 
     private async Task<(bool ShouldProceed, UpdateStrategy Strategy, bool ShouldDeleteOldVersions)> PromptUserForUpdateStrategyAsync(
         UserSettings settings,
-        UpdateCheckResult updateResult)
+        ContentUpdateCheckResult updateResult)
     {
         var subscription = settings.GetSubscription(CommunityOutpostConstants.PublisherType);
         var strategy = subscription?.PreferredUpdateStrategy ?? settings.PreferredUpdateStrategy ?? UpdateStrategy.ReplaceCurrent;

@@ -645,9 +645,13 @@ public class GeneralsOnlineProfileReconciler(
                         {
                             Id = newManifest.Id.Value,
                             Name = newManifest.Name,
-                            Version = newManifest.Version.Value,
-                            ExecutablePath = newManifest.EntryPoints.FirstOrDefault()?.RelativePath ?? profile.GameClient.ExecutablePath,
-                            Publisher = newManifest.Publisher?.Name ?? profile.GameClient.Publisher,
+                            Version = newManifest.Version ?? string.Empty,
+                            GameType = newManifest.TargetGame,
+                            SourceType = newManifest.ContentType,
+                            PublisherType = newManifest.Publisher?.PublisherType ?? profile.GameClient.PublisherType,
+                            InstallationId = profile.GameClient.InstallationId,
+                            ExecutablePath = profile.GameClient.ExecutablePath,
+                            WorkingDirectory = profile.GameClient.WorkingDirectory,
                         };
                     }
                 }

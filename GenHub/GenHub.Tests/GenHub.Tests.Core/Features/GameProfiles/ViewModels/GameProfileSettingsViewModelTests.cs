@@ -189,7 +189,6 @@ public class GameProfileSettingsViewModelTests
             Version = "2.0",
         };
 
-
         mockManifestPool
             .Setup(x => x.GetManifestAsync(It.Is<GenHub.Core.Models.Manifest.ManifestId>(id => id.Value == newId), It.IsAny<System.Threading.CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(newManifest));

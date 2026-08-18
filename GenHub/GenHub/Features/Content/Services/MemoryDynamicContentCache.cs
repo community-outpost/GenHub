@@ -56,10 +56,9 @@ public class MemoryDynamicContentCache(IMemoryCache memoryCache) : IDynamicConte
     {
         var regex = new Regex(pattern.Replace("*", ".*"));
         List<string> keysToRemove;
-
         lock (_keys)
         {
-            keysToRemove = [.._keys.Where(regex.IsMatch)];
+            keysToRemove = _keys.FindAll(k => regex.IsMatch(k));
         }
 
         foreach (var key in keysToRemove)
