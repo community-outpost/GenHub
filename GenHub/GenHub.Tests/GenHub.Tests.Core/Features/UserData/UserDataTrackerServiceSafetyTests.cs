@@ -353,6 +353,56 @@ public sealed partial class UserDataTrackerServiceSafetyTests : IDisposable
     }
 
     /// <summary>
+    /// Deactivation puts the user's original back at its own path, which consumes the backup. Keeping
+    /// the backup file and its recorded path would make the following uninstall read that restored
+    /// original as a user modification, move the byte-identical file aside and restore a duplicate.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task DeactivateThenUninstall_DoesNotDuplicateTheRestoredOriginalAsync()
+    {
+        // Arrange
+        const string originalUserContent = "the-user-original-file";
+        var deployedPath = Path.Combine(_zeroHourDataDir, "GeneralsOnlineGameData", "splash.bmp");
+        Directory.CreateDirectory(Path.GetDirectoryName(deployedPath)!);
+        File.WriteAllText(deployedPath, originalUserContent);
+
+        var installResult = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            TestProfileId,
+            GameType.ZeroHour,
+            BuildFiles(),
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+        Assert.True(installResult.Success);
+
+        var backupPath = installResult.Data!.InstalledFiles[0].BackupPath;
+        Assert.NotNull(backupPath);
+
+        // Only the deployed CAS content matches the recorded hash; the user's own file does not.
+        _fileOperationsMock
+            .Setup(f => f.CheckFileHashAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string path, string hash, CancellationToken _) =>
+                File.Exists(path) && File.ReadAllText(path) == CasContent
+                    ? FileHashVerification.Match
+                    : FileHashVerification.Mismatch);
+
+        // Act
+        var deactivateResult = await _trackerService.DeactivateProfileUserDataAsync(TestProfileId, CancellationToken.None);
+        Assert.True(deactivateResult.Success);
+        Assert.Equal(originalUserContent, File.ReadAllText(deployedPath));
+        Assert.False(File.Exists(backupPath));
+
+        var uninstallResult = await _trackerService.UninstallUserDataAsync(TestManifestId, TestProfileId, CancellationToken.None);
+
+        // Assert
+        Assert.True(uninstallResult.Success);
+        Assert.Equal(originalUserContent, File.ReadAllText(deployedPath));
+        Assert.False(File.Exists(deployedPath + UserDataConstants.UserModifiedSuffix));
+    }
+
+    /// <summary>
     /// A cancelled delete-all must abort before any tracking metadata is destroyed. Swallowing the
     /// cancellation and carrying on wipes the manifests and the index while the backups they describe
     /// are still on disk, leaving the user's originals unrecoverable by anything but hand.

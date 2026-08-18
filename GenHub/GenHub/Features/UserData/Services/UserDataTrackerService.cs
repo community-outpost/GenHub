@@ -364,8 +364,9 @@ public class UserDataTrackerService(
                                 Directory.CreateDirectory(targetDir);
                             }
 
-                            RestoreBackupCopy(file.BackupPath, file.AbsolutePath);
-                            logger.LogInformation("[UserData] Restored backup during deactivation: {Backup} -> {Path}", file.BackupPath, file.AbsolutePath);
+                            var restoredFrom = file.BackupPath;
+                            RestoreAndConsumeBackup(file);
+                            logger.LogInformation("[UserData] Restored backup during deactivation: {Backup} -> {Path}", restoredFrom, file.AbsolutePath);
                         }
                         catch (Exception ex) when (ex is not OperationCanceledException)
                         {
@@ -817,6 +818,21 @@ public class UserDataTrackerService(
         File.Copy(backupPath, targetPath, overwrite: true);
     }
 
+    /// <summary>
+    /// Restores a backup over the deployed path and consumes it. The protected content is back where
+    /// it belongs, so leaving the backup file and its recorded path behind would make the next
+    /// uninstall read the restored original as a user modification, move it aside and put an
+    /// identical duplicate in its place.
+    /// </summary>
+    /// <param name="file">The entry whose backup should be restored and then cleared.</param>
+    private static void RestoreAndConsumeBackup(UserDataFileEntry file)
+    {
+        RestoreBackupCopy(file.BackupPath!, file.AbsolutePath);
+        File.Delete(file.BackupPath!);
+        file.BackupPath = null;
+        file.WasOverwritten = false;
+    }
+
     private static void RestoreBackupQuietly(string? backupPath, string targetPath, bool wasOverwritten, ILogger? logger = null)
     {
         if (wasOverwritten && !string.IsNullOrEmpty(backupPath) && File.Exists(backupPath))
@@ -1227,7 +1243,7 @@ public class UserDataTrackerService(
                         Directory.CreateDirectory(targetDir);
                     }
 
-                    RestoreBackupCopy(file.BackupPath, file.AbsolutePath);
+                    RestoreAndConsumeBackup(file);
                 }
                 else
                 {
