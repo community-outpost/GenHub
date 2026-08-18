@@ -84,6 +84,13 @@ public static class ProcessConstants
     public const double EarlyExitThresholdSeconds = 10.0;
 
     /// <summary>
+    /// How many characters of a process name a Unix kernel keeps. Linux stores it in a
+    /// TASK_COMM_LEN buffer and macOS in a MAXCOMLEN one, both of which leave room for fifteen
+    /// characters and a terminator, and the truncated value is what process enumeration matches on.
+    /// </summary>
+    public const int UnixProcessNameMaxLength = 15;
+
+    /// <summary>
     /// How long to wait for a launcher's expected child process to appear. Measured spawn latency
     /// for the Easy Anti-Cheat bootstrapper is well under two seconds. Must not exceed
     /// <see cref="EarlyExitThresholdSeconds"/>, which bounds how old an adoptable process may be.

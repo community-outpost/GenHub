@@ -1138,7 +1138,7 @@ public class GameProcessManager(
         Process[] processes = [];
         try
         {
-            processes = Process.GetProcessesByName(executableName);
+            processes = Process.GetProcessesByName(GameProcessSelector.GetDiscoveryName(executableName));
         }
         catch (Exception ex)
         {

@@ -9,11 +9,17 @@ namespace GenHub.Tests.Core.Helpers;
 /// </summary>
 public class GameProcessSelectorTests
 {
+    /// <summary>A real client whose name is longer than a Unix kernel will report.</summary>
+    private const string LongClientName = "GeneralsOnlineZH_60";
+
     private static readonly DateTime Now = new(2026, 7, 31, 12, 0, 0, DateTimeKind.Utc);
 
     // Native separators on both platforms: a real workspace path never mixes them, and comparing
     // like-for-like is what the non-separator tests are meant to exercise.
     private static readonly string Workspace = Path.Combine(Path.GetTempPath(), "genhub-workspace", "generalsonline");
+
+    /// <summary>The name a Unix kernel reports for <see cref="LongClientName"/>.</summary>
+    private static readonly string TruncatedClientName = LongClientName[..ProcessConstants.UnixProcessNameMaxLength];
 
     /// <summary>
     /// The spawned game is identified by the name the caller expects, not by the launcher's name.
@@ -188,6 +194,79 @@ public class GameProcessSelectorTests
         var selected = GameProcessSelector.SelectSpawnedGameProcess(candidates, "GeneralsOnlineZH_60", Workspace, Now);
 
         Assert.Null(selected);
+    }
+
+    /// <summary>
+    /// A Unix kernel keeps only <see cref="ProcessConstants.UnixProcessNameMaxLength"/> characters
+    /// of a process name, so every client whose name is longer — which is most of the ones this
+    /// adoption path exists for — reports a truncated name and the full one survives only in the
+    /// image path. Matching on the reported name alone finds none of them.
+    /// </summary>
+    [Fact]
+    public void SelectSpawnedGameProcess_MatchesACandidateWhoseKernelTruncatedItsName()
+    {
+        var candidates = new[]
+        {
+            new GameProcessCandidate(1, TruncatedClientName, Now, Path.Combine(Workspace, LongClientName)),
+        };
+
+        var selected = GameProcessSelector.SelectSpawnedGameProcess(candidates, LongClientName, Workspace, Now);
+
+        Assert.NotNull(selected);
+        Assert.Equal(1, selected.ProcessId);
+    }
+
+    /// <summary>
+    /// Two clients that share a truncated name are still different clients, and the image path is
+    /// what tells them apart. Matching on the truncated name alone would adopt either one.
+    /// </summary>
+    [Fact]
+    public void SelectSpawnedGameProcess_RejectsATruncatedNameBelongingToADifferentClient()
+    {
+        var otherClient = TruncatedClientName + "H_61";
+        var candidates = new[]
+        {
+            new GameProcessCandidate(1, TruncatedClientName, Now, Path.Combine(Workspace, otherClient)),
+        };
+
+        var selected = GameProcessSelector.SelectSpawnedGameProcess(candidates, LongClientName, Workspace, Now);
+
+        Assert.Null(selected);
+    }
+
+    /// <summary>
+    /// With no image path to read, the truncated name the kernel reports is the only evidence
+    /// there is, so it has to be accepted where the kernel truncates and nowhere else.
+    /// </summary>
+    [Fact]
+    public void SelectSpawnedGameProcess_WithoutAnImagePath_FallsBackToTheTruncatedProcessName()
+    {
+        var candidates = new[] { new GameProcessCandidate(1, TruncatedClientName, Now, null) };
+
+        var selected = GameProcessSelector.SelectSpawnedGameProcess(candidates, LongClientName, null, Now);
+
+        Assert.Equal(!OperatingSystem.IsWindows(), selected is not null);
+    }
+
+    /// <summary>
+    /// Enumeration matches against the name the kernel kept, so a longer name has to be shortened
+    /// to the same prefix before it is asked for. Windows reports names in full.
+    /// </summary>
+    [Fact]
+    public void GetDiscoveryName_ShortensNamesTheUnixKernelWouldTruncate()
+    {
+        var discoveryName = GameProcessSelector.GetDiscoveryName(LongClientName);
+
+        Assert.Equal(OperatingSystem.IsWindows() ? LongClientName : TruncatedClientName, discoveryName);
+    }
+
+    /// <summary>
+    /// A name the kernel keeps whole is asked for exactly as it is on every platform.
+    /// </summary>
+    [Fact]
+    public void GetDiscoveryName_LeavesNamesTheKernelKeepsWhole()
+    {
+        Assert.Equal("generalszh", GameProcessSelector.GetDiscoveryName("generalszh"));
     }
 
     private static GameProcessCandidate Candidate(int id, string name, DateTime startTime, string directory) =>
