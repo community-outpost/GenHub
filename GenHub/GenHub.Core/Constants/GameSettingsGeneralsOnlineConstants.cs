@@ -11,6 +11,11 @@ public static class GameSettingsGeneralsOnlineConstants
     public const string SettingsFileName = "settings.json";
 
     /// <summary>
+    /// Extension of the file a save is written to before it is moved over settings.json.
+    /// </summary>
+    public const string TemporarySettingsFileExtension = ".tmp";
+
+    /// <summary>
     /// Default chat font size.
     /// </summary>
     public const int DefaultChatFontSize = 12;

@@ -246,6 +246,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     {
         using var scope = _logger.BeginScope(new Dictionary<string, object> { ["Section"] = "GeneralsOnline" });
 
+        string? temporaryPath = null;
         try
         {
             var settingsPath = GetGeneralsOnlineSettingsPath();
@@ -258,7 +259,15 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             }
 
             var json = JsonSerializer.Serialize(settings, _jsonSerializerOptions);
-            await File.WriteAllTextAsync(settingsPath, json, Encoding.UTF8);
+
+            // Written beside settings.json under a name of its own and then moved over it. This
+            // file belongs to the GeneralsOnline client and holds keys GenHub cannot reconstruct,
+            // so a truncating write that is interrupted, or that overlaps a second launch writing
+            // the same path, would leave the client with a settings.json it cannot read.
+            temporaryPath = $"{settingsPath}.{Guid.NewGuid():N}{GameSettingsGeneralsOnlineConstants.TemporarySettingsFileExtension}";
+            await File.WriteAllTextAsync(temporaryPath, json, Encoding.UTF8);
+            File.Move(temporaryPath, settingsPath, overwrite: true);
+            temporaryPath = null;
 
             _logger.LogInformation("Saved GeneralsOnline settings to {SettingsPath}", settingsPath);
             return OperationResult<bool>.CreateSuccess(true);
@@ -267,6 +276,39 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         {
             _logger.LogError(ex, "Failed to save GeneralsOnline settings");
             return OperationResult<bool>.CreateFailure($"Failed to save GeneralsOnline settings: {ex.Message}");
+        }
+        finally
+        {
+            DiscardTemporarySettingsFile(temporaryPath);
+        }
+    }
+
+    /// <summary>
+    /// Gets the path of the GeneralsOnline client's global settings.json.
+    /// </summary>
+    /// <returns>The full path to settings.json.</returns>
+    protected virtual string GetGeneralsOnlineSettingsPath()
+    {
+        var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        var zeroHourDataPath = Path.Combine(documentsPath, GameSettingsConstants.FolderNames.ZeroHour);
+        var generalsOnlineDataPath = Path.Combine(zeroHourDataPath, GameSettingsConstants.FolderNames.GeneralsOnlineData);
+        return Path.Combine(generalsOnlineDataPath, GameSettingsGeneralsOnlineConstants.SettingsFileName);
+    }
+
+    private static void DiscardTemporarySettingsFile(string? temporaryPath)
+    {
+        if (temporaryPath == null || !File.Exists(temporaryPath))
+        {
+            return;
+        }
+
+        try
+        {
+            File.Delete(temporaryPath);
+        }
+        catch (IOException)
+        {
+            // Best effort; a leftover temporary file is not worth failing the save over.
         }
     }
 
@@ -728,14 +770,6 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             ["ShowMoneyPerMinute"] = BoolToString(settings.ShowMoneyPerMinute),
             ["SystemTimeFontSize"] = settings.SystemTimeFontSize.ToString(),
         };
-    }
-
-    private static string GetGeneralsOnlineSettingsPath()
-    {
-        var documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-        var zeroHourDataPath = Path.Combine(documentsPath, GameSettingsConstants.FolderNames.ZeroHour);
-        var generalsOnlineDataPath = Path.Combine(zeroHourDataPath, GameSettingsConstants.FolderNames.GeneralsOnlineData);
-        return Path.Combine(generalsOnlineDataPath, GameSettingsGeneralsOnlineConstants.SettingsFileName);
     }
 
     private static string SanitizeKey(string key)
