@@ -186,11 +186,16 @@ public partial class BundlePackEditorViewModel : ObservableObject
     [RelayCommand]
     private void RemoveFiles()
     {
-        var filesToRemove = SelectedFiles.Count > 0
-            ? SelectedFiles.ToList()
-            : (SelectedFile != null ? new List<BundleFileInfo> { SelectedFile } : new List<BundleFileInfo>());
-
-        if (filesToRemove.Count == 0)
+        List<BundleFileInfo> filesToRemove;
+        if (SelectedFiles.Count > 0)
+        {
+            filesToRemove = SelectedFiles.ToList();
+        }
+        else if (SelectedFile != null)
+        {
+            filesToRemove = [SelectedFile];
+        }
+        else
         {
             return;
         }

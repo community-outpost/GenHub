@@ -125,36 +125,23 @@ public partial class ProgressCardViewModel : ObservableObject
 
     partial void OnTitleChanged(string value)
     {
-        if (StageName != value)
-        {
-            StageName = value;
-        }
+        StageName = value;
     }
 
     partial void OnStageNameChanged(string value)
     {
-        if (Title != value)
-        {
-            Title = value;
-        }
+        Title = value;
     }
 
     partial void OnStatusChanged(string value)
     {
-        if (StatusText != value)
-        {
-            StatusText = value;
-        }
-
+        StatusText = value;
         IsActive = string.Equals(value, "InProgress", StringComparison.OrdinalIgnoreCase);
     }
 
     partial void OnStatusTextChanged(string value)
     {
-        if (Status != value)
-        {
-            Status = value;
-        }
+        Status = value;
     }
 
     partial void OnProgressChanged(double value)

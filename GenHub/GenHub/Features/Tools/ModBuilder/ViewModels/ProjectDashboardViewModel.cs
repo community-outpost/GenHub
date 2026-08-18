@@ -113,7 +113,7 @@ public sealed partial class ProjectDashboardViewModel(
             }
         }
 
-        await Dispatcher.UIThread.InvokeAsync(() =>
+        void PopulateRecentProjects()
         {
             RecentProjects.Clear();
             foreach (var p in projects)
@@ -124,7 +124,16 @@ public sealed partial class ProjectDashboardViewModel(
             HasRecentProjects = RecentProjects.Count > 0;
             TotalProjects = RecentProjects.Count;
             TotalBuilds = RecentProjects.Count;
-        });
+        }
+
+        if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            PopulateRecentProjects();
+        }
+        else
+        {
+            await Dispatcher.UIThread.InvokeAsync(PopulateRecentProjects);
+        }
     }
 
     /// <summary>
