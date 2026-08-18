@@ -1,10 +1,13 @@
 using System;
 using System.IO;
+using System.Linq;
+using System.Security;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
 using Microsoft.Extensions.Logging;
@@ -27,11 +30,23 @@ public class UserSettingsService : IUserSettingsService
         Converters = { new JsonStringEnumConverter() },
     };
 
+    /// <summary>
+    /// The settings file names to look for in the pre-upgrade data root, most recent first.
+    /// Releases up to v0.0.3 combined the data root with the JSON extension rather than the settings
+    /// file name, so their settings file is literally named <c>.json</c>.
+    /// </summary>
+    private static readonly string[] LegacySettingsFileNames =
+    [
+        FileTypes.SettingsFileName,
+        FileTypes.LegacySettingsFileName,
+    ];
+
     private readonly ILogger<UserSettingsService> _logger;
     private readonly IAppConfiguration _appConfig;
     private readonly object _lock = new();
     private string _settingsFilePath = string.Empty;
     private UserSettings _settings = new();
+    private bool _settingsLoaded;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="UserSettingsService"/> class.
@@ -63,6 +78,7 @@ public class UserSettingsService : IUserSettingsService
             // For testing - set defaults but don't load from file
             _settingsFilePath = string.Empty;
             _settings = new UserSettings();
+            _settingsLoaded = true;
         }
     }
 
@@ -93,7 +109,7 @@ public class UserSettingsService : IUserSettingsService
 
             // If the settings file path was changed, update the internal field
             if (!string.IsNullOrWhiteSpace(_settings.SettingsFilePath) &&
-                !string.Equals(_settings.SettingsFilePath, _settingsFilePath, StringComparison.OrdinalIgnoreCase))
+                !PathHelper.AreSamePath(_settings.SettingsFilePath, _settingsFilePath))
             {
                 _settingsFilePath = _settings.SettingsFilePath;
             }
@@ -115,7 +131,7 @@ public class UserSettingsService : IUserSettingsService
             {
                 // propagate any internal path updates
                 if (!string.IsNullOrWhiteSpace(_settings.SettingsFilePath) &&
-                    !string.Equals(_settings.SettingsFilePath, _settingsFilePath, StringComparison.OrdinalIgnoreCase))
+                    !PathHelper.AreSamePath(_settings.SettingsFilePath, _settingsFilePath))
                 {
                     _settingsFilePath = _settings.SettingsFilePath;
                 }
@@ -148,10 +164,21 @@ public class UserSettingsService : IUserSettingsService
     {
         UserSettings settingsToSave;
         string pathToSave;
+        bool settingsLoaded;
         lock (_lock)
         {
             pathToSave = _settingsFilePath;
             settingsToSave = Get();
+            settingsLoaded = _settingsLoaded;
+        }
+
+        if (!settingsLoaded)
+        {
+            _logger.LogError(
+                "Refusing to save settings to {Path}: initialization failed, so the in-memory settings are defaults rather than the user's values",
+                pathToSave);
+            throw new InvalidOperationException(
+                "User settings were never loaded successfully; saving would overwrite the existing settings file with defaults.");
         }
 
         try
@@ -194,6 +221,7 @@ public class UserSettingsService : IUserSettingsService
         ArgumentException.ThrowIfNullOrWhiteSpace(path, nameof(path));
         _settingsFilePath = path;
         _settings = LoadSettings(path);
+        _settingsLoaded = true;
     }
 
     private static void NormalizeAndValidateLocked(UserSettings s, IAppConfiguration appConfig)
@@ -352,8 +380,12 @@ public class UserSettingsService : IUserSettingsService
                 return defaultPath;
             }
 
-            var legacyPath = Path.Combine(_appConfig.GetLegacyConfiguredDataPath(), FileTypes.SettingsFileName);
-            if (!string.Equals(legacyPath, defaultPath, StringComparison.OrdinalIgnoreCase) && File.Exists(legacyPath))
+            var legacyRoot = _appConfig.GetLegacyConfiguredDataPath();
+            var legacyPath = LegacySettingsFileNames
+                .Select(name => Path.Combine(legacyRoot, name))
+                .FirstOrDefault(path => !PathHelper.AreSamePath(path, defaultPath) && File.Exists(path));
+
+            if (legacyPath is not null)
             {
                 _logger.LogInformation(
                     "No settings file at {DefaultPath}, reading pre-upgrade settings from {LegacyPath}",
@@ -362,7 +394,7 @@ public class UserSettingsService : IUserSettingsService
                 return legacyPath;
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
         {
             _logger.LogWarning(ex, "Failed to look for pre-upgrade settings, falling back to {DefaultPath}", defaultPath);
         }
@@ -370,17 +402,25 @@ public class UserSettingsService : IUserSettingsService
         return defaultPath;
     }
 
+    /// <summary>
+    /// Loads the settings and resolves the path they are persisted to.
+    /// </summary>
+    /// <remarks>
+    /// A failure here leaves <see cref="_settingsLoaded"/> false, which blocks <see cref="SaveAsync"/>
+    /// rather than letting the session persist defaults over a settings file that was never read.
+    /// Normalization is applied separately: clamping to an inconsistent configured range is no reason
+    /// to discard settings that loaded fine.
+    /// </remarks>
     private void InitializeSettings()
     {
         try
         {
-            // 1. Load from default path to determine if a custom path is set.
             var defaultPath = GetDefaultSettingsFilePath();
             var initialSettings = LoadSettings(ResolveSettingsSourcePath(defaultPath));
 
-            // 2. If user has a custom path, reload from that path. Otherwise, use the settings from the default path.
+            // If the user has a custom path, reload from there; otherwise keep what the default path gave us.
             if (!string.IsNullOrWhiteSpace(initialSettings.SettingsFilePath) &&
-                !string.Equals(initialSettings.SettingsFilePath, defaultPath, StringComparison.OrdinalIgnoreCase))
+                !PathHelper.AreSamePath(initialSettings.SettingsFilePath, defaultPath))
             {
                 _settingsFilePath = initialSettings.SettingsFilePath;
                 _settings = LoadSettings(_settingsFilePath);
@@ -391,16 +431,26 @@ public class UserSettingsService : IUserSettingsService
                 _settings = initialSettings;
             }
 
-            // Apply validation and normalization
+            _settingsLoaded = true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to initialize settings, continuing with defaults and without persistence");
+            _settings = new UserSettings();
+            _settingsLoaded = false;
+            return;
+        }
+
+        try
+        {
             lock (_lock)
             {
                 NormalizeAndValidateLocked(_settings, _appConfig);
             }
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
         {
-            _logger.LogError(ex, "Failed to initialize settings, continuing with defaults");
-            _settings = new UserSettings();
+            _logger.LogError(ex, "Failed to normalize settings, keeping the loaded values as they are");
         }
     }
 }

@@ -136,6 +136,101 @@ public class LegacyRootUpgradeTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that the migration puts the profiles where <see cref="ConfigurationProviderService.GetProfilesPath"/>
+    /// resolves them when an application data path override is in effect, rather than in the
+    /// configured root the app would never look at.
+    /// </summary>
+    [Fact]
+    public void FirstLaunch_WithOverride_MigratesDataIntoTheRootTheAppReadsFrom()
+    {
+        var overridePath = Path.Combine(_testRoot, "relocated");
+        WriteLegacySettings($$"""
+        {
+          "applicationDataPath": "{{overridePath.Replace("\\", "\\\\")}}"
+        }
+        """);
+        SeedLegacyDataDirectories();
+
+        var appConfig = CreateAppConfig();
+        var provider = new ConfigurationProviderService(
+            appConfig,
+            CreateSettingsService(appConfig),
+            Mock.Of<ILogger<ConfigurationProviderService>>());
+
+        Assert.Equal("profile", File.ReadAllText(Path.Combine(provider.GetProfilesPath(), "profile.json")));
+        Assert.Equal("manifest", File.ReadAllText(Path.Combine(provider.GetManifestsPath(), "content.manifest.json")));
+        Assert.Equal("workspaces", File.ReadAllText(Path.Combine(provider.GetApplicationDataPath(), FileTypes.WorkspaceMetadataFileName)));
+
+        Assert.False(Directory.Exists(Path.Combine(_newRoot, DirectoryNames.Profiles)));
+        Assert.True(File.Exists(Path.Combine(_newRoot, FileTypes.SettingsFileName)));
+    }
+
+    /// <summary>
+    /// Verifies that the settings file releases up to v0.0.3 wrote, which was named after the JSON
+    /// extension rather than the settings file name, is still picked up on the first launch.
+    /// </summary>
+    [Fact]
+    public void FirstLaunch_WithV003SettingsFileName_LoadsLegacyValues()
+    {
+        var legacyJson = """
+        { "theme": "Light", "maxConcurrentDownloads": 7 }
+        """;
+        File.WriteAllText(Path.Combine(_legacyRoot, FileTypes.LegacySettingsFileName), legacyJson);
+
+        var settings = CreateSettingsService().Get();
+
+        Assert.Equal("Light", settings.Theme);
+        Assert.Equal(7, settings.MaxConcurrentDownloads);
+    }
+
+    /// <summary>
+    /// Verifies that a normalization failure, which used to reset the settings to defaults while the
+    /// settings path still pointed at the user's file, keeps the loaded values instead.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task FirstLaunch_WhenNormalizationThrows_KeepsLoadedValuesAsync()
+    {
+        WriteLegacySettings("""
+        { "theme": "Light", "maxConcurrentDownloads": 7 }
+        """);
+
+        var appConfig = CreateAppConfigMock();
+        appConfig.Setup(config => config.GetMinConcurrentDownloads()).Returns(8);
+        appConfig.Setup(config => config.GetMaxConcurrentDownloads()).Returns(1);
+
+        var service = new UserSettingsService(Mock.Of<ILogger<UserSettingsService>>(), appConfig.Object);
+        Assert.Equal("Light", service.Get().Theme);
+
+        await service.SaveAsync();
+
+        Assert.Equal("Light", CreateSettingsService().Get().Theme);
+    }
+
+    /// <summary>
+    /// Verifies that a failed initialization can never persist defaults over a settings file that was
+    /// never read successfully.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task Save_AfterFailedInitialization_RefusesToOverwriteExistingSettingsAsync()
+    {
+        var settingsPath = Path.Combine(_newRoot, FileTypes.SettingsFileName);
+        var existingJson = """
+        { "theme": "Light" }
+        """;
+        File.WriteAllText(settingsPath, existingJson);
+
+        var appConfig = CreateBaseAppConfigMock();
+        appConfig.Setup(config => config.GetConfiguredDataPath()).Throws(new UnauthorizedAccessException("denied"));
+
+        var service = new UserSettingsService(Mock.Of<ILogger<UserSettingsService>>(), appConfig.Object);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.SaveAsync());
+        Assert.Contains("Light", File.ReadAllText(settingsPath));
+    }
+
+    /// <summary>
     /// Verifies that a settings file already present in the current root wins over the legacy copy.
     /// </summary>
     [Fact]
@@ -211,4 +306,17 @@ public class LegacyRootUpgradeTests : IDisposable
 
     private void WriteLegacySettings(string json) =>
         File.WriteAllText(Path.Combine(_legacyRoot, FileTypes.SettingsFileName), json);
+
+    private void SeedLegacyDataDirectories()
+    {
+        WriteLegacyFile(Path.Combine(_legacyRoot, DirectoryNames.Profiles, "profile.json"), "profile");
+        WriteLegacyFile(Path.Combine(_legacyRoot, FileTypes.ManifestsDirectory, "content.manifest.json"), "manifest");
+        WriteLegacyFile(Path.Combine(_legacyRoot, FileTypes.WorkspaceMetadataFileName), "workspaces");
+    }
+
+    private void WriteLegacyFile(string path, string content)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, content);
+    }
 }
