@@ -426,6 +426,7 @@ public class GameSettingsViewModelTests
 
         // Assert
         Assert.NotNull(saved);
+        Assert.True(saved.AdditionalSettings.ContainsKey("auth_token"), "client-owned key was dropped");
         Assert.Equal("preserve-me", saved.AdditionalSettings["auth_token"].GetString());
     }
 

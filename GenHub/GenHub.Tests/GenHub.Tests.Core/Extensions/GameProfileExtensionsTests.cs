@@ -36,9 +36,10 @@ public class GameProfileExtensionsTests
     [Theory]
     [InlineData(PublisherTypeConstants.TheSuperHackers)]
     [InlineData(CommunityOutpostConstants.PublisherType)]
+    [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public void IsGeneralsOnlineProfile_WithOtherPublisher_ReturnsFalse(string publisherType)
+    public void IsGeneralsOnlineProfile_WithOtherPublisher_ReturnsFalse(string? publisherType)
     {
         // Arrange
         var profile = CreateZeroHourProfile(publisherType, "Zero Hour", ["1.0.genhub.mod.test"]);
@@ -70,13 +71,16 @@ public class GameProfileExtensionsTests
 
     /// <summary>
     /// Verifies that a profile predating the recorded publisher type is still recognised by its
-    /// client name.
+    /// client name. Such a profile records no publisher at all, so null is its real shape.
     /// </summary>
-    [Fact]
-    public void IsGeneralsOnlineProfile_WithGeneralsOnlineClientName_ReturnsTrue()
+    /// <param name="publisherType">The publisher type recorded on the profile's client.</param>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void IsGeneralsOnlineProfile_WithGeneralsOnlineClientName_ReturnsTrue(string? publisherType)
     {
         // Arrange
-        var profile = CreateZeroHourProfile(string.Empty, "GeneralsOnline 30Hz", []);
+        var profile = CreateZeroHourProfile(publisherType, "GeneralsOnline 30Hz", []);
 
         // Act & Assert
         Assert.True(profile.IsGeneralsOnlineProfile());
@@ -84,19 +88,22 @@ public class GameProfileExtensionsTests
 
     /// <summary>
     /// Verifies that a profile predating the recorded publisher type is still recognised by its
-    /// enabled content.
+    /// enabled content. Such a profile records no publisher at all, so null is its real shape.
     /// </summary>
-    [Fact]
-    public void IsGeneralsOnlineProfile_WithGeneralsOnlineContent_ReturnsTrue()
+    /// <param name="publisherType">The publisher type recorded on the profile's client.</param>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void IsGeneralsOnlineProfile_WithGeneralsOnlineContent_ReturnsTrue(string? publisherType)
     {
         // Arrange
-        var profile = CreateZeroHourProfile(string.Empty, "Zero Hour", ["1.9.generalsonline.gameclient.30hz"]);
+        var profile = CreateZeroHourProfile(publisherType, "Zero Hour", ["1.9.generalsonline.gameclient.30hz"]);
 
         // Act & Assert
         Assert.True(profile.IsGeneralsOnlineProfile());
     }
 
-    private static GameProfile CreateZeroHourProfile(string publisherType, string clientName, List<string> enabledContentIds)
+    private static GameProfile CreateZeroHourProfile(string? publisherType, string clientName, List<string> enabledContentIds)
     {
         return new GameProfile
         {

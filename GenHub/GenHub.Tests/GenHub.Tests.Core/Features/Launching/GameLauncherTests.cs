@@ -941,7 +941,7 @@ public class GameLauncherTests : IDisposable
         var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
 
         // Assert
-        Assert.True(result.Success);
+        Assert.True(result.Success, result.FirstError);
         _gameSettingsServiceMock.Verify(
             x => x.SaveGeneralsOnlineSettingsAsync(It.Is<GeneralsOnlineSettings>(s => s.ShowFps)),
             Times.Once);
@@ -1040,13 +1040,14 @@ public class GameLauncherTests : IDisposable
         var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
 
         // Assert
-        Assert.True(result.Success);
+        Assert.True(result.Success, result.FirstError);
         Assert.NotNull(saved);
         Assert.True(saved.ShowFps);
         Assert.False(saved.ShowPing);
         Assert.Equal(24, saved.ChatFontSize);
         Assert.False(saved.RememberUsername);
         Assert.Equal(60, saved.Render.FpsLimit);
+        Assert.True(saved.AdditionalSettings.ContainsKey("auth_token"), "client-owned key was dropped");
         Assert.Equal("preserve-me", saved.AdditionalSettings["auth_token"].GetString());
     }
 

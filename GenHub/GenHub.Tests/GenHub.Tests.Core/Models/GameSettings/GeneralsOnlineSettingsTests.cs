@@ -120,6 +120,9 @@ public class GeneralsOnlineSettingsTests
         Assert.NotNull(reloaded);
         Assert.False(reloaded.ShowPing);
         Assert.Equal(100.0f, reloaded.Camera.MinHeight);
+        Assert.True(reloaded.AdditionalSettings.ContainsKey("auth_token"), "client-owned key was dropped");
+        Assert.True(reloaded.AdditionalSettings.ContainsKey("unmodelled_toggle"), "client-owned key was dropped");
+        Assert.True(reloaded.Camera.AdditionalSettings.ContainsKey("unmodelled_zoom_step"), "client-owned nested key was dropped");
         Assert.Equal("secret", reloaded.AdditionalSettings["auth_token"].GetString());
         Assert.False(reloaded.AdditionalSettings["unmodelled_toggle"].GetBoolean());
         Assert.Equal(7, reloaded.Camera.AdditionalSettings["unmodelled_zoom_step"].GetInt32());
