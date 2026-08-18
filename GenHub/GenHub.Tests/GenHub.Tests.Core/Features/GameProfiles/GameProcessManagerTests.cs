@@ -467,7 +467,9 @@ public class GameProcessManagerTests
                 // Batch has no $$. PowerShell's own parent is the batch host, so it can report the
                 // PID the harness needs. If PowerShell is unavailable the loop simply writes
                 // nothing and Dispose falls back to leaving the launcher alone.
-                var recordPid = $"for /f %%p in ('powershell -NoProfile -Command \"(Get-Process -Id $PID).Parent.Id\"') do @echo %%p> \"{Path.Combine(workingDirectory, LauncherPidFileName)}\"\n";
+                var recordPid = exitImmediately
+                    ? string.Empty
+                    : $"for /f %%p in ('powershell -NoProfile -Command \"(Get-Process -Id $PID).Parent.Id\"') do @echo %%p> \"{Path.Combine(workingDirectory, LauncherPidFileName)}\"\n";
 
                 // Leave the working directory afterwards: a batch host holds its current directory
                 // open, which would defeat the cleanup delete for the launcher's whole lifetime.
