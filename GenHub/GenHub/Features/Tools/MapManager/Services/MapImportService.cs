@@ -292,8 +292,6 @@ public sealed class MapImportService(
                             }
 
                             var mapDirPath = GetUniqueDirectoryPath(Path.Combine(targetDir, mapDirName));
-                            Directory.CreateDirectory(mapDirPath);
-
                             var mapDestPath = Path.Combine(mapDirPath, mapEntry.Name);
                             var assetFiles = new List<string>();
                             string? thumbnailPath = null;
@@ -302,6 +300,8 @@ public sealed class MapImportService(
 
                             try
                             {
+                                Directory.CreateDirectory(mapDirPath);
+
                                 await using (var mapStream = mapEntry.Open())
                                 {
                                     mapExpandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(

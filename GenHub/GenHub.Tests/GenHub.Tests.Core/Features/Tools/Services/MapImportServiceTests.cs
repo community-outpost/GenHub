@@ -135,6 +135,32 @@ public sealed class MapImportServiceTests : IDisposable
         Assert.Single(Directory.GetDirectories(_mapDirectory));
     }
 
+    /// <summary>
+    /// Skips only the map whose directory cannot be created and keeps importing the rest. Creating
+    /// that directory is the first thing done for a map and can fail on its own — here a file
+    /// already occupies the name — so it belongs inside the per-map handler rather than in front of
+    /// it, where one bad name would sink the whole archive.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportFromZipAsync_MapDirectoryThatCannotBeCreated_SkipsOnlyThatMapAsync()
+    {
+        var zipPath = Path.Combine(_workingDirectory, "blocked.zip");
+        CreateZip(
+            zipPath,
+            ("Blocked/blocked.map", "map"),
+            ("Second/second.map", "map"));
+        await File.WriteAllTextAsync(Path.Combine(_mapDirectory, "Blocked"), "not a directory");
+
+        var result = await _service.ImportFromZipAsync(zipPath, GameType.ZeroHour);
+
+        Assert.True(result.Success, string.Join(" ", result.Errors));
+        var imported = Assert.Single(result.ImportedMaps);
+        Assert.Equal("Second", imported.DirectoryName);
+        Assert.NotEmpty(result.Errors);
+        Assert.False(Directory.Exists(Path.Combine(_mapDirectory, "Blocked")));
+    }
+
     private static void CreateZip(string zipPath, params (string EntryName, string Content)[] entries)
     {
         using var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create);
