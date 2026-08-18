@@ -11,6 +11,7 @@ using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameSettings;
+using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
@@ -423,6 +424,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         try
         {
             _currentProfileId = profileId;
+            _currentProfileIsGeneralsOnline = profile?.IsGeneralsOnlineProfile() == true;
 
             // Auto-select game type from profile
             if (profile != null)
@@ -632,6 +634,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
 
     private IniOptions? _currentOptions;
     private GeneralsOnlineSettings? _currentGeneralsOnlineSettings;
+    private bool _currentProfileIsGeneralsOnline;
     private string? _currentProfileId;
     private int _initializationDepth;
     private bool _isLoadingFromOptions;
@@ -874,24 +877,35 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             var options = CreateOptionsFromViewModel();
             var result = await _gameSettingsService.SaveOptionsAsync(SelectedGameType, options);
 
-            // Save GeneralsOnline settings. A profile-initialized view model never reads
-            // settings.json, so it is read here before being rewritten.
-            if (_currentGeneralsOnlineSettings == null)
+            var writeGeneralsOnlineSettings = ShouldWriteGeneralsOnlineSettings();
+            OperationResult<bool>? goResult = null;
+            GeneralsOnlineSettings? goSettings = null;
+
+            if (writeGeneralsOnlineSettings)
             {
-                var goLoadResult = await _gameSettingsService.LoadGeneralsOnlineSettingsAsync();
-                if (goLoadResult?.Success == true && goLoadResult.Data != null)
+                // A profile-initialized view model may never have read settings.json, so it is
+                // read here before being rewritten.
+                if (_currentGeneralsOnlineSettings == null)
                 {
-                    _currentGeneralsOnlineSettings = goLoadResult.Data;
+                    var goLoadResult = await _gameSettingsService.LoadGeneralsOnlineSettingsAsync();
+                    if (goLoadResult?.Success == true && goLoadResult.Data != null)
+                    {
+                        _currentGeneralsOnlineSettings = goLoadResult.Data;
+                    }
                 }
+
+                goSettings = CreateGeneralsOnlineSettings();
+                goResult = await _gameSettingsService.SaveGeneralsOnlineSettingsAsync(goSettings);
             }
 
-            var goSettings = CreateGeneralsOnlineSettings();
-            var goResult = await _gameSettingsService.SaveGeneralsOnlineSettingsAsync(goSettings);
-
-            if (result?.Success == true && goResult?.Success == true)
+            if (result?.Success == true && (!writeGeneralsOnlineSettings || goResult?.Success == true))
             {
                 _currentOptions = options;
-                _currentGeneralsOnlineSettings = goSettings;
+                if (goSettings != null)
+                {
+                    _currentGeneralsOnlineSettings = goSettings;
+                }
+
                 OptionsFileExists = true;
                 StatusMessage = $"{SelectedGameType} settings saved successfully";
                 _logger.LogInformation("Saved settings for {GameType}", SelectedGameType);
@@ -902,7 +916,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
                 if (result?.Success == false) errors.AddRange(result.Errors);
                 if (goResult?.Success == false) errors.AddRange(goResult.Errors);
                 if (result == null) errors.Add("SaveOptions result was null");
-                if (goResult == null) errors.Add("SaveGeneralsOnlineSettings result was null");
+                if (writeGeneralsOnlineSettings && goResult == null) errors.Add("SaveGeneralsOnlineSettings result was null");
 
                 StatusMessage = $"Failed to save settings: {string.Join(", ", errors)}";
                 _logger.LogWarning("Failed to save settings: {Errors}", string.Join(", ", errors));
@@ -1210,6 +1224,17 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         GoSocialNotificationPlayerAcceptsRequestMenus = settings.Social.NotificationPlayerAcceptsRequestMenus;
         GoSocialNotificationPlayerSendsRequestGameplay = settings.Social.NotificationPlayerSendsRequestGameplay;
         GoSocialNotificationPlayerSendsRequestMenus = settings.Social.NotificationPlayerSendsRequestMenus;
+    }
+
+    /// <summary>
+    /// Decides whether this save may rewrite settings.json, which is a single global file owned by
+    /// the GeneralsOnline client rather than a per-profile one. Saving a retail, TheSuperHackers or
+    /// CommunityOutpost profile must leave it untouched.
+    /// </summary>
+    /// <returns>True when the profile being edited runs the GeneralsOnline client.</returns>
+    private bool ShouldWriteGeneralsOnlineSettings()
+    {
+        return SelectedGameType == GameType.ZeroHour && _currentProfileIsGeneralsOnline;
     }
 
     private GeneralsOnlineSettings CreateGeneralsOnlineSettings()

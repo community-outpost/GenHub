@@ -1,4 +1,5 @@
 using System.Text.Json;
+using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Models.Enums;
@@ -407,11 +408,11 @@ public class GameSettingsViewModelTests
         var existing = new GeneralsOnlineSettings();
         existing.AdditionalSettings["auth_token"] = JsonSerializer.Deserialize<JsonElement>("\"preserve-me\"");
 
-        _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.Generals))
+        _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(GameType.ZeroHour))
             .ReturnsAsync(OperationResult<IniOptions>.CreateSuccess(new IniOptions()));
         _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
             .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(existing));
-        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.Generals, It.IsAny<IniOptions>()))
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         GeneralsOnlineSettings? saved = null;
@@ -420,7 +421,7 @@ public class GameSettingsViewModelTests
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         // Act
-        await _viewModel.LoadSettingsCommand.ExecuteAsync(null);
+        await _viewModel.InitializeForProfileAsync("go-profile", CreateGeneralsOnlineProfile());
         await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
 
         // Assert
@@ -437,16 +438,55 @@ public class GameSettingsViewModelTests
     public async Task SaveSettings_Should_ReadGeneralsOnlineSettings_WhenNeverLoadedAsync()
     {
         // Arrange
-        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.Generals, It.IsAny<IniOptions>()))
+        var profile = CreateGeneralsOnlineProfile();
+        profile.GoShowFps = true; // custom settings, so initialization does not read settings.json
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
         _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         // Act
+        await _viewModel.InitializeForProfileAsync("go-profile", profile);
         await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
 
         // Assert
         _gameSettingsServiceMock.Verify(x => x.LoadGeneralsOnlineSettingsAsync(), Times.Once);
+    }
+
+    /// <summary>
+    /// Should leave the GeneralsOnline client's global settings.json alone when the profile being
+    /// edited runs some other client.
+    /// </summary>
+    /// <param name="publisherType">The publisher the profile's client belongs to.</param>
+    /// <param name="gameType">The game the profile targets.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Theory]
+    [InlineData(PublisherTypeConstants.TheSuperHackers, GameType.ZeroHour)]
+    [InlineData(CommunityOutpostConstants.PublisherType, GameType.ZeroHour)]
+    [InlineData(PublisherTypeConstants.TheSuperHackers, GameType.Generals)]
+    public async Task SaveSettings_Should_NotWriteGeneralsOnlineSettings_ForOtherPublishersAsync(string publisherType, GameType gameType)
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            Id = "other-profile",
+            Name = "Other Profile",
+            GameClient = new GameClient { GameType = gameType, PublisherType = publisherType },
+            VideoResolutionWidth = 1920,
+        };
+
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(gameType, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("other-profile", profile);
+        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        _gameSettingsServiceMock.Verify(
+            x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()),
+            Times.Never);
+        Assert.Contains("saved successfully", _viewModel.StatusMessage);
     }
 
     /// <summary>
@@ -471,5 +511,19 @@ public class GameSettingsViewModelTests
 
         // Assert
         Assert.Equal("1920x1080", _viewModel.SelectedResolutionPreset);
+    }
+
+    private static GameProfile CreateGeneralsOnlineProfile()
+    {
+        return new GameProfile
+        {
+            Id = "go-profile",
+            Name = "GeneralsOnline Profile",
+            GameClient = new GameClient
+            {
+                GameType = GameType.ZeroHour,
+                PublisherType = PublisherTypeConstants.GeneralsOnline,
+            },
+        };
     }
 }
