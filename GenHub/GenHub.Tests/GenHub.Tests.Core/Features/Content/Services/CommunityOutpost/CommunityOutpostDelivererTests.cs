@@ -103,16 +103,43 @@ public sealed class CommunityOutpostDelivererTests : IDisposable
     }
 
     /// <summary>
+    /// Refuses an entry whose name cannot name a file before that name is turned into a path. A
+    /// name that resolves to the extract directory itself would otherwise stage the write beside
+    /// that directory rather than inside it, and a colon names an NTFS alternate data stream.
+    /// </summary>
+    /// <param name="entryName">The entry name the archive declares.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Theory]
+    [InlineData(".")]
+    [InlineData("patch/..")]
+    [InlineData(" ")]
+    [InlineData("payload.big:stream")]
+    public async Task ExtractArchiveAsync_RejectsEntryWithAnUnusableNameAsync(string entryName)
+    {
+        var archivePath = Path.Combine(_workingDirectory, "unusable.zip");
+        CreateArchive(archivePath, entryName);
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            InvokeExtractArchiveAsync(archivePath, _extractDirectory));
+
+        Assert.Contains("cannot be extracted to a file", failure.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(Directory.GetFileSystemEntries(_workingDirectory, "*.genhub-staging*"));
+    }
+
+    /// <summary>
     /// Surfaces a cancellation that lands part-way through extraction as a cancellation rather than
     /// as an ordinary extraction failure, so callers can tell a user who changed their mind from a
-    /// hostile or broken archive. The downloaded archive is the only complete copy of the content,
-    /// so it must survive, and the truncated file set must never reach the manifest pool.
+    /// hostile or broken archive. The cancellation is triggered once an early entry has landed on
+    /// disk and while a much larger one is still being written, which is what puts it inside the
+    /// entry loop rather than in front of it. The downloaded archive is the only complete copy of
+    /// the content, so it must survive, and the truncated file set must never reach the manifest
+    /// pool.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task DeliverContentAsync_CancelledDuringExtraction_KeepsArchiveAndRegistersNothingAsync()
+    public async Task DeliverContentAsync_CancelledMidExtraction_KeepsArchiveAndRegistersNothingAsync()
     {
-        const int entryCount = 6;
+        const int largeEntryBytes = 32 * 1024 * 1024;
         var targetDirectory = Path.Combine(_workingDirectory, "target");
         Directory.CreateDirectory(targetDirectory);
 
@@ -126,9 +153,7 @@ public sealed class CommunityOutpostDelivererTests : IDisposable
                 It.IsAny<CancellationToken>()))
             .Returns((Uri _, string destination, string? _, IProgress<DownloadProgress>? _, CancellationToken _) =>
             {
-                CreateArchive(
-                    destination,
-                    Enumerable.Range(0, entryCount).Select(index => $"entry{index}.dat").ToArray());
+                CreateArchive(destination, ("first.dat", 16), ("marker.dat", 16), ("large.dat", largeEntryBytes));
                 return Task.FromResult(DownloadResult.CreateSuccess(destination, 1, TimeSpan.FromSeconds(1)));
             });
 
@@ -146,19 +171,27 @@ public sealed class CommunityOutpostDelivererTests : IDisposable
             ],
         };
 
+        var extractDirectory = Path.Combine(targetDirectory, "extracted");
         using var cancellation = new CancellationTokenSource();
+        var cancelWhenMarkerLands = CancelWhenFileAppearsAsync(
+            Path.Combine(extractDirectory, "marker.dat"),
+            cancellation);
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            deliverer.DeliverContentAsync(
-                manifest,
-                targetDirectory,
-                new CancelOnExtractingReport(cancellation),
-                cancellation.Token));
+            deliverer.DeliverContentAsync(manifest, targetDirectory, null, cancellation.Token));
+
+        await cancelWhenMarkerLands;
 
         Assert.True(
             File.Exists(Path.Combine(targetDirectory, "content.zip")),
             "the archive is the only recoverable copy of the content");
-        Assert.True(Directory.GetFiles(targetDirectory, "entry*.dat", SearchOption.AllDirectories).Length < entryCount);
+        Assert.True(
+            File.Exists(Path.Combine(extractDirectory, "first.dat")),
+            "the cancellation has to land after extraction started, not in front of it");
+        Assert.False(
+            File.Exists(Path.Combine(extractDirectory, "large.dat")),
+            "the entry being written when the cancellation landed must not be left behind");
+        Assert.Empty(Directory.GetFileSystemEntries(extractDirectory, "*.genhub-staging*"));
 
         manifestPool.Verify(
             p => p.AddManifestAsync(
@@ -200,6 +233,34 @@ public sealed class CommunityOutpostDelivererTests : IDisposable
         }
     }
 
+    private static void CreateArchive(string archivePath, params (string EntryName, int ByteCount)[] entries)
+    {
+        using var archive = ZipFile.Open(archivePath, ZipArchiveMode.Create);
+        foreach (var (entryName, byteCount) in entries)
+        {
+            var entry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
+            using var stream = entry.Open();
+            stream.Write(new byte[byteCount]);
+        }
+    }
+
+    private static Task CancelWhenFileAppearsAsync(string path, CancellationTokenSource cancellation)
+    {
+        return Task.Factory.StartNew(
+            () =>
+            {
+                var deadline = DateTime.UtcNow.AddSeconds(30);
+                while (!File.Exists(path) && DateTime.UtcNow < deadline)
+                {
+                }
+
+                cancellation.Cancel();
+            },
+            CancellationToken.None,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
+    }
+
     private static async Task InvokeExtractArchiveAsync(string archivePath, string extractPath)
     {
         var extract = typeof(CommunityOutpostDeliverer).GetMethod(
@@ -208,16 +269,5 @@ public sealed class CommunityOutpostDelivererTests : IDisposable
             ?? throw new InvalidOperationException("CommunityOutpostDeliverer.ExtractArchiveAsync was not found.");
 
         await (Task)extract.Invoke(null, [archivePath, extractPath, CancellationToken.None])!;
-    }
-
-    private sealed class CancelOnExtractingReport(CancellationTokenSource cancellation) : IProgress<ContentAcquisitionProgress>
-    {
-        public void Report(ContentAcquisitionProgress value)
-        {
-            if (value.Phase == ContentAcquisitionPhase.Extracting)
-            {
-                cancellation.Cancel();
-            }
-        }
     }
 }

@@ -1,4 +1,5 @@
 using FluentAssertions;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Models.Common;
@@ -221,6 +222,130 @@ public class GitHubContentDelivererTests
         }
     }
 
+    /// <summary>
+    /// Refuses an entry whose key climbs out of the target directory rather than trusting the
+    /// archive library to block it.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchiveAsync_RejectsEntryEscapingTheTargetDirectoryAsync()
+    {
+        var root = CreateWorkingDirectory();
+
+        try
+        {
+            var targetDirectory = Path.Combine(root, "target");
+            Directory.CreateDirectory(targetDirectory);
+            var archivePath = Path.Combine(root, "traversal.zip");
+            CreateArchive(archivePath, "../escaped.dat");
+
+            var failure = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                InvokeExtractArchiveAsync(CreateDeliverer(), archivePath, targetDirectory));
+
+            failure.Message.Should().Contain("outside target directory");
+            File.Exists(Path.Combine(root, "escaped.dat")).Should().BeFalse();
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Refuses an entry whose name cannot name a file before that name is turned into a path,
+    /// rather than letting the write fail several layers deeper with an unrelated error.
+    /// </summary>
+    /// <param name="entryName">The entry name the archive declares.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Theory]
+    [InlineData(".")]
+    [InlineData("assets/..")]
+    [InlineData(" ")]
+    [InlineData("payload.dat:stream")]
+    public async Task ExtractArchiveAsync_RejectsEntryWithAnUnusableNameAsync(string entryName)
+    {
+        var root = CreateWorkingDirectory();
+
+        try
+        {
+            var targetDirectory = Path.Combine(root, "target");
+            Directory.CreateDirectory(targetDirectory);
+            var archivePath = Path.Combine(root, "unusable.zip");
+            CreateArchive(archivePath, entryName);
+
+            var failure = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                InvokeExtractArchiveAsync(CreateDeliverer(), archivePath, targetDirectory));
+
+            failure.Message.Should().Contain("cannot be extracted to a file");
+            Directory.GetFileSystemEntries(root, "*.genhub-staging*").Should().BeEmpty();
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Refuses an archive that declares more entries than the extraction budget allows, before any
+    /// of them is written.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchiveAsync_RejectsArchiveOverTheEntryBudgetAsync()
+    {
+        var root = CreateWorkingDirectory();
+
+        try
+        {
+            var targetDirectory = Path.Combine(root, "target");
+            Directory.CreateDirectory(targetDirectory);
+            var archivePath = Path.Combine(root, "swarm.zip");
+            CreateArchive(archivePath, GitHubConstants.MaxArchiveEntries + 1);
+
+            var failure = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                InvokeExtractArchiveAsync(CreateDeliverer(), archivePath, targetDirectory));
+
+            failure.Message.Should().Contain("too many entries");
+            Directory.GetFileSystemEntries(targetDirectory).Should().BeEmpty();
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static string CreateWorkingDirectory()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "GenHubGitHubDeliverer", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+
+        return root;
+    }
+
+    private static async Task InvokeExtractArchiveAsync(
+        GitHubContentDeliverer deliverer,
+        string archivePath,
+        string targetDirectory)
+    {
+        var extract = typeof(GitHubContentDeliverer).GetMethod(
+            "ExtractArchiveAsync",
+            BindingFlags.NonPublic | BindingFlags.Instance)
+            ?? throw new InvalidOperationException("GitHubContentDeliverer.ExtractArchiveAsync was not found.");
+
+        await (Task)extract.Invoke(deliverer, [archivePath, targetDirectory, null, CancellationToken.None])!;
+    }
+
+    private static void CreateArchive(string archivePath, params string[] entryNames)
+    {
+        using var archive = ZipFile.Open(archivePath, ZipArchiveMode.Create);
+        foreach (var entryName in entryNames)
+        {
+            var entry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
+            using var stream = entry.Open();
+            stream.Write(Encoding.UTF8.GetBytes("payload"));
+        }
+    }
+
     private static void CreateArchive(string archivePath, int entryCount)
     {
         using var archive = ZipFile.Open(archivePath, ZipArchiveMode.Create);
@@ -231,6 +356,9 @@ public class GitHubContentDelivererTests
             stream.Write(Encoding.UTF8.GetBytes($"payload {index}"));
         }
     }
+
+    private GitHubContentDeliverer CreateDeliverer() =>
+        new(_downloadService.Object, _manifestPool.Object, _factoryResolver.Object, _logger.Object);
 
     private sealed class CancelOnFirstReport(CancellationTokenSource cancellation) : IProgress<ContentAcquisitionProgress>
     {
