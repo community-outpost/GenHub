@@ -33,6 +33,17 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     /// </summary>
     private static readonly SemaphoreSlim _optionsIniWriteSemaphore = new(1, 1);
 
+    /// <summary>
+    /// Static semaphore to serialize settings.json reads and writes across all game launches.
+    /// The launch lock is per profile, so two GeneralsOnline profiles launching at once both
+    /// reach this one global file. On Windows that is not a race one writer simply wins: two
+    /// overlapping replacements of the same destination, or a replacement overlapping a read,
+    /// fail outright with an access denial, and the launch loses the settings it meant to save.
+    /// The lock is released between a load and the save that follows it, so which launch writes
+    /// last is still whichever finishes last.
+    /// </summary>
+    private static readonly SemaphoreSlim _generalsOnlineSettingsSemaphore = new(1, 1);
+
     private readonly ILogger<GameSettingsService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     // Required, not optional. This previously defaulted to WindowsGamePathProvider when
@@ -209,6 +220,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     {
         using var scope = _logger.BeginScope(new Dictionary<string, object> { ["Section"] = "GeneralsOnline" });
 
+        await _generalsOnlineSettingsSemaphore.WaitAsync();
         try
         {
             var settingsPath = GetGeneralsOnlineSettingsPath();
@@ -239,6 +251,10 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             _logger.LogError(ex, "Failed to load GeneralsOnline settings");
             return OperationResult<GeneralsOnlineSettings>.CreateFailure($"Failed to load GeneralsOnline settings: {ex.Message}");
         }
+        finally
+        {
+            _generalsOnlineSettingsSemaphore.Release();
+        }
     }
 
     /// <inheritdoc/>
@@ -247,6 +263,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         using var scope = _logger.BeginScope(new Dictionary<string, object> { ["Section"] = "GeneralsOnline" });
 
         string? temporaryPath = null;
+        await _generalsOnlineSettingsSemaphore.WaitAsync();
         try
         {
             var settingsPath = GetGeneralsOnlineSettingsPath();
@@ -266,7 +283,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             // the same path, would leave the client with a settings.json it cannot read.
             temporaryPath = $"{settingsPath}.{Guid.NewGuid():N}{GameSettingsGeneralsOnlineConstants.TemporarySettingsFileExtension}";
             await File.WriteAllTextAsync(temporaryPath, json, Encoding.UTF8);
-            File.Move(temporaryPath, settingsPath, overwrite: true);
+            await ReplaceSettingsFileAsync(temporaryPath, settingsPath);
             temporaryPath = null;
 
             _logger.LogInformation("Saved GeneralsOnline settings to {SettingsPath}", settingsPath);
@@ -280,6 +297,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         finally
         {
             DiscardTemporarySettingsFile(temporaryPath);
+            _generalsOnlineSettingsSemaphore.Release();
         }
     }
 
@@ -306,9 +324,10 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         {
             File.Delete(temporaryPath);
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // Best effort; a leftover temporary file is not worth failing the save over.
+            // Best effort; a leftover temporary file is not worth failing the save over, and
+            // this runs in a finally block where throwing would hide the error being reported.
         }
     }
 
@@ -784,5 +803,44 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
 
         // Remove any other control characters or non-printable chars if needed
         return key.Trim();
+    }
+
+    /// <summary>
+    /// Moves a completed settings file over settings.json, retrying the move a bounded number
+    /// of times before letting the failure reach the caller.
+    /// </summary>
+    /// <remarks>
+    /// The semaphore keeps GenHub's own saves off each other, but settings.json belongs to the
+    /// GeneralsOnline client, and a running client, a virus scanner or the search indexer can
+    /// hold it open. Windows refuses a replacement of a file another handle has open instead of
+    /// waiting for it, and reports that as an access denial rather than as contention. Every
+    /// such holder lets go within milliseconds, so a few attempts separated by a short delay
+    /// tell an overlap apart from a file GenHub genuinely may not write.
+    /// </remarks>
+    /// <param name="temporaryPath">The completed file to move.</param>
+    /// <param name="settingsPath">The settings.json path to replace.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    private async Task ReplaceSettingsFileAsync(string temporaryPath, string settingsPath)
+    {
+        for (var attempt = 1; attempt < GameSettingsGeneralsOnlineConstants.SettingsReplaceAttemptLimit; attempt++)
+        {
+            try
+            {
+                File.Move(temporaryPath, settingsPath, overwrite: true);
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger.LogDebug(
+                    ex,
+                    "Attempt {Attempt} of {AttemptLimit} to replace {SettingsPath} was refused, retrying",
+                    attempt,
+                    GameSettingsGeneralsOnlineConstants.SettingsReplaceAttemptLimit,
+                    settingsPath);
+                await Task.Delay(GameSettingsGeneralsOnlineConstants.SettingsReplaceRetryDelayMilliseconds);
+            }
+        }
+
+        File.Move(temporaryPath, settingsPath, overwrite: true);
     }
 }

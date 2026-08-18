@@ -16,6 +16,18 @@ public static class GameSettingsGeneralsOnlineConstants
     public const string TemporarySettingsFileExtension = ".tmp";
 
     /// <summary>
+    /// Number of times the completed settings file is moved over settings.json before the save
+    /// gives up and reports the failure. Anything holding settings.json open releases it within
+    /// milliseconds, so a handful of attempts either succeeds or is looking at a real fault.
+    /// </summary>
+    public const int SettingsReplaceAttemptLimit = 5;
+
+    /// <summary>
+    /// Delay between attempts to move the completed settings file over settings.json.
+    /// </summary>
+    public const int SettingsReplaceRetryDelayMilliseconds = 20;
+
+    /// <summary>
     /// Default chat font size.
     /// </summary>
     public const int DefaultChatFontSize = 12;
