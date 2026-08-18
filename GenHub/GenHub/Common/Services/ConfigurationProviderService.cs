@@ -49,7 +49,14 @@ public class ConfigurationProviderService(
     private readonly IUserSettingsService _userSettings = userSettings ?? throw new ArgumentNullException(nameof(userSettings));
     private readonly ILogger<ConfigurationProviderService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     private readonly object _migrationLock = new();
-    private bool _migrated;
+
+    /// <summary>
+    /// Set once the migration has finished. Volatile because the fast path in
+    /// <see cref="EnsureLegacyDataMigrated"/> reads it outside <see cref="_migrationLock"/>: without
+    /// the release/acquire pair a second thread could observe the flag on a weakly ordered
+    /// architecture and read profiles or manifests before the moves that produced them are visible.
+    /// </summary>
+    private volatile bool _migrated;
 
     /// <inheritdoc />
     public string GetWorkspacePath()
