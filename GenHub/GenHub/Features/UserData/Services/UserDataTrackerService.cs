@@ -34,9 +34,9 @@ public class UserDataTrackerService(
     private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
 
     private readonly string _userDataTrackingPath = Path.Combine(configProvider.GetApplicationDataPath(), DirectoryNames.UserData);
-    private readonly string _manifestsPath = Path.Combine(configProvider.GetApplicationDataPath(), DirectoryNames.UserData, "manifests");
-    private readonly string _backupsPath = Path.Combine(configProvider.GetApplicationDataPath(), DirectoryNames.UserData, "backups");
-    private readonly string _indexPath = Path.Combine(configProvider.GetApplicationDataPath(), DirectoryNames.UserData, "index.json");
+    private readonly string _manifestsPath = Path.Combine(configProvider.GetApplicationDataPath(), DirectoryNames.UserData, DirectoryNames.UserDataManifests);
+    private readonly string _backupsPath = Path.Combine(configProvider.GetApplicationDataPath(), DirectoryNames.UserData, DirectoryNames.UserDataBackups);
+    private readonly string _indexPath = Path.Combine(configProvider.GetApplicationDataPath(), DirectoryNames.UserData, FileTypes.UserDataIndexFileName);
 
     private UserDataIndex? _cachedIndex;
 
