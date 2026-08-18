@@ -1,13 +1,18 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Common.ViewModels.Dialogs;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Messages;
@@ -110,7 +115,7 @@ public partial class MainViewModel(
     /// <summary>
     /// Gets the available navigation tabs.
     /// </summary>
-    public NavigationTab[] AvailableTabs { get; } =
+    public IReadOnlyList<NavigationTab> AvailableTabs { get; } =
     [
         NavigationTab.GameProfiles,
         NavigationTab.Downloads,
@@ -409,5 +414,34 @@ public partial class MainViewModel(
         }
 
         SaveSelectedTab(value);
+    }
+
+    /// <summary>
+    /// Copies the application version to the clipboard.
+    /// </summary>
+    [RelayCommand]
+    private async Task CopyVersionToClipboard()
+    {
+        try
+        {
+            var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+            var mainWindow = lifetime?.MainWindow;
+            var topLevel = mainWindow != null ? TopLevel.GetTopLevel(mainWindow) : null;
+
+            if (topLevel?.Clipboard != null)
+            {
+                await topLevel.Clipboard.SetTextAsync(AppConstants.FullDisplayVersion);
+                notificationService.ShowSuccess("Copied", "Version copied to clipboard.", 3000);
+            }
+            else
+            {
+                notificationService.ShowError("Error", "Clipboard not available.", 3000);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to copy version to clipboard");
+            notificationService.ShowError("Error", "Failed to copy version to clipboard.", 3000);
+        }
     }
 }

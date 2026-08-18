@@ -84,4 +84,17 @@ public static class FileTypes
     /// File extension for user data manifest files.
     /// </summary>
     public const string UserDataManifestExtension = ".userdata.json";
+
+    /// <summary>
+    /// Filename used to store the source directory path mapping for a manifest's content.
+    /// This file is written inside the manifest's data directory and contains the path
+    /// to the original source directory (e.g., local installation folder).
+    /// </summary>
+    public const string SourcePathFileName = "source.path";
+
+    /// <summary>
+    /// Sentinel value written to <see cref="SourcePathFileName"/> when content is stored
+    /// via CAS and has no source directory.
+    /// </summary>
+    public const string CasOnlySourceMarker = "CAS-ONLY";
 }
