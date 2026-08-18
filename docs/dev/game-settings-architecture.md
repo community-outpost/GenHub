@@ -65,16 +65,19 @@ These settings are:
 
 **Fix**: Implemented in `GameSettingsViewModel.CreateOptionsFromViewModel()` - now preserves existing `AdditionalProperties` and `AdditionalSections`.
 
-### Settings Not Applying from Profile
+### GeneralsOnline Client Settings Reset After Launching
 
-**Symptom**: Profile settings don't apply when launching the game.
+**Symptom**: Options configured inside the GeneralsOnline client (including ones GenHub has no UI for) revert after launching a profile through GenHub.
 
-**Cause**: The `ApplyToGeneralsOnlineSettings()` mapper was using `if (HasValue)` checks, skipping null values and leaving constructor defaults.
+**Cause**: `ApplyToGeneralsOnlineSettings()` coalesced every field with `?? default`, so a launch wrote GenHub's defaults over each option the profile said nothing about, and the write started from a fresh `GeneralsOnlineSettings` instance, which dropped every key the model does not declare.
 
-**Fix**: Changed to use null-coalescing operators with explicit defaults:
+**Fix**: `settings.json` is loaded first and merged into, and only the fields the profile actually declares are written:
 ```csharp
-settings.ShowFps = profile.GoShowFps ?? false;  // Always sets a value
+if (profile.GoShowFps.HasValue) settings.ShowFps = profile.GoShowFps.Value;  // Merges into what was loaded
 ```
+Anything the profile leaves unset stays as the client wrote it, and unmodelled keys survive through `[JsonExtensionData]`. The load must succeed before the file is rewritten: a missing file loads as defaults and reports success, so a failed load means the client's file exists and is unreadable, and both `GameLauncher` and `GameSettingsViewModel` skip the write in that case.
+
+Note that this applies to `settings.json` only. `ApplyToOptions()` still coalesces, because `Options.ini` keys GenHub does not model are preserved through `AdditionalProperties` and `AdditionalSections` instead.
 
 ## Overview
 
@@ -198,9 +201,9 @@ Tracing a setting change (e.g., "Show FPS") from User to Disk:
     - `GameSettingsService` writes `Options.ini`. *Note: It manually adds the `[TheSuperHackers]` header.*
 
     **Path B: To settings.json (GeneralsOnline)**
-    - Calls `ApplyGeneralsOnlineSettingsAsync`.
-    - Instantiates new `GeneralsOnlineSettings`.
-    - Manually maps properties: `settings.ShowFps = profile.GoShowFps.Value;`
+    - Calls `ApplyGeneralsOnlineSettingsAsync`, which runs only for GeneralsOnline profiles: `settings.json` is a single global file owned by that client, so a retail, TheSuperHackers or CommunityOutpost profile must leave it alone.
+    - Loads the existing `settings.json` into a `GeneralsOnlineSettings`, and skips the write if it could not be read.
+    - Merges the declared properties into it: `if (profile.GoShowFps.HasValue) settings.ShowFps = profile.GoShowFps.Value;`
     - `GameSettingsService` writes `settings.json` using `System.Text.Json`.
 
 ### Inheritance Detail
