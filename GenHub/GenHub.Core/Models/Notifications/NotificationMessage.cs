@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Models.Notifications;
@@ -10,7 +12,7 @@ public record NotificationMessage
     /// <summary>
     /// Gets the unique identifier for this notification.
     /// </summary>
-    public Guid Id { get; init; }
+    public Guid Id { get; init; } = Guid.NewGuid();
 
     /// <summary>
     /// Gets the type of notification.
@@ -30,7 +32,7 @@ public record NotificationMessage
     /// <summary>
     /// Gets the timestamp when the notification was created.
     /// </summary>
-    public DateTime Timestamp { get; init; }
+    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 
     /// <summary>
     /// Gets the auto-dismiss timeout in milliseconds. Null means no auto-dismiss.
@@ -97,7 +99,7 @@ public record NotificationMessage
         NotificationType type,
         string title,
         string message,
-        int? autoDismissMilliseconds = 5000,
+        int? autoDismissMilliseconds = GenHub.Core.Constants.NotificationDurations.Medium,
         string? actionText = null,
         Action? action = null,
         IReadOnlyList<NotificationAction>? actions = null,

@@ -21,6 +21,7 @@
         </PackageReference>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
         <PackageReference Include="StyleCop.Analyzers" />
+        <PackageReference Include="System.Management" />
         <PackageReference Include="System.Security.Cryptography.ProtectedData" />
     </ItemGroup>
 

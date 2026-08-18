@@ -27,7 +27,6 @@ namespace GenHub.Features.Content.Services.CommunityOutpost;
 public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogParser> logger) : ICatalogParser
 {
     private static readonly string[] LineSeparators = ["\r\n", "\n"];
-
     private readonly ILogger<GenPatcherDatCatalogParser> _logger = logger;
 
     /// <inheritdoc/>

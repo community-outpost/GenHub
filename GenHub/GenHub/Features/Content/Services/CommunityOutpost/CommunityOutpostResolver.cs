@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -75,7 +74,6 @@ public class CommunityOutpostResolver(
 
             // Extract metadata from resolver metadata (set by the discoverer/parser)
             var contentCode = GetMetadataValue(discoveredItem, "contentCode", "unknown");
-            var catalogVersion = GetMetadataValue(discoveredItem, "catalogVersion", "unknown");
             var category = GetMetadataValue(discoveredItem, "category", "Other");
             var fileSize = GetMetadataValueLong(discoveredItem, "fileSize", 0);
 
@@ -86,7 +84,9 @@ public class CommunityOutpostResolver(
             var downloadUrl = discoveredItem.SourceUrl ?? throw new InvalidOperationException(
                 "SourceUrl cannot be null for Community Outpost content");
 
-            var filename = GetFilenameFromUrl(downloadUrl, contentCode);
+            var filename = Uri.TryCreate(downloadUrl, UriKind.Absolute, out var parsedUri)
+                ? GetFilenameFromUri(parsedUri, contentCode)
+                : $"{contentCode}{CommunityOutpostConstants.DatFileExtension}";
 
             // Get all mirror URLs for fallback support
             var mirrorUrls = GetMirrorUrls(discoveredItem);
@@ -207,19 +207,9 @@ public class CommunityOutpostResolver(
 
             // Override the display name to be more user-friendly
             builtManifest.Name = discoveredItem.Name ?? contentMetadata.DisplayName;
-
-            // For community-patch, prioritize discoveredItem.Version (dynamic date from legi.cc/patch)
-            // over static metadata version which may be null/empty
-            if (contentCode == "community-patch" && !string.IsNullOrEmpty(discoveredItem.Version))
-            {
-                builtManifest.Version = discoveredItem.Version;
-            }
-            else
-            {
-                builtManifest.Version = !string.IsNullOrEmpty(contentMetadata.Version)
-                    ? contentMetadata.Version
-                    : discoveredItem.Version;
-            }
+            builtManifest.Version = !string.IsNullOrEmpty(contentMetadata.Version)
+                ? contentMetadata.Version
+                : discoveredItem.Version;
 
             logger.LogInformation(
                 "Successfully resolved Community Outpost manifest: {ManifestId} for {ContentCode} ({Category})",
@@ -349,7 +339,7 @@ public class CommunityOutpostResolver(
     /// </summary>
     private static string GetMetadataValue(ContentSearchResult item, string key, string defaultValue)
     {
-        if (item.ResolverMetadata != null && item.ResolverMetadata.TryGetValue(key, out var value))
+        if (item.ResolverMetadata?.TryGetValue(key, out var value) == true)
         {
             return value;
         }
@@ -367,13 +357,15 @@ public class CommunityOutpostResolver(
     }
 
     /// <summary>
-    /// Gets the filename from the download URL or generates one from the content code.
+    /// Gets the filename from the download URI or generates one from the content code.
     /// </summary>
-    private static string GetFilenameFromUrl(string url, string contentCode)
+    /// <param name="uri">The download URI.</param>
+    /// <param name="contentCode">The content code.</param>
+    /// <returns>The extracted or generated filename.</returns>
+    private static string GetFilenameFromUri(Uri uri, string contentCode)
     {
         try
         {
-            var uri = new Uri(url);
             var path = uri.AbsolutePath;
             var lastSegment = path.Split('/')[^1];
 

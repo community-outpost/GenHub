@@ -81,9 +81,30 @@ if ($null -ne $setupExe) {
     Write-Error "Could not find Setup.exe in Velopack output."
 }
 
-# Cleanup temporary directories
-Remove-Item -Path $tempPackDir -Recurse -Force
-Remove-Item -Path $publishDir -Recurse -Force
+# Cleanup temporary directories (with retry for locked files)
+function Remove-DirectoryWithRetry {
+    param([string]$Path, [int]$MaxRetries = 3)
+
+    for ($i = 1; $i -le $MaxRetries; $i++) {
+        try {
+            if (Test-Path $Path) {
+                Remove-Item -Path $Path -Recurse -Force -ErrorAction Stop
+            }
+            return $true
+        } catch {
+            if ($i -lt $MaxRetries) {
+                Write-Host "Cleanup attempt $i failed, retrying in 2 seconds..." -ForegroundColor Yellow
+                Start-Sleep -Seconds 2
+            } else {
+                Write-Host "Warning: Could not fully clean up $Path (files may be locked)." -ForegroundColor Yellow
+                return $false
+            }
+        }
+    }
+}
+
+Remove-DirectoryWithRetry -Path $tempPackDir | Out-Null
+Remove-DirectoryWithRetry -Path $publishDir | Out-Null
 
 Write-Host ""
 Write-Host "--- Build Complete! ---" -ForegroundColor Cyan

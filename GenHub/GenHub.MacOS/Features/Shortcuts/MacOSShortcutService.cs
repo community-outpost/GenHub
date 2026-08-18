@@ -81,6 +81,24 @@ public sealed class MacOSShortcutService(ILogger<MacOSShortcutService> logger) :
         return Path.Combine(desktopPath, $"{AppConstants.AppName}-{name}{ShortcutExtension}");
     }
 
+    /// <inheritdoc />
+    public Task<OperationResult<bool>> CreateShortcutAsync(
+        string shortcutPath,
+        string targetPath,
+        string? arguments = null,
+        string? workingDirectory = null,
+        string? description = null,
+        string? iconPath = null)
+    {
+        logger.LogWarning(
+            "Shortcut creation is not implemented on macOS yet for target {TargetPath}",
+            targetPath);
+
+        return Task.FromResult(
+            OperationResult<bool>.CreateFailure(
+                "Shortcut creation is not implemented on macOS yet."));
+    }
+
     private static string SanitizeFileName(string fileName)
     {
         var sanitized = new StringBuilder(fileName);

@@ -37,4 +37,22 @@ public interface IShortcutService
     /// <param name="shortcutName">Optional custom name for the shortcut. If null, uses the profile name.</param>
     /// <returns>The full path to the shortcut file.</returns>
     string GetShortcutPath(GameProfile profile, string? shortcutName = null);
+
+    /// <summary>
+    /// Creates a shortcut at the specified path.
+    /// </summary>
+    /// <param name="shortcutPath">The path where the shortcut will be created.</param>
+    /// <param name="targetPath">The path to the target executable.</param>
+    /// <param name="arguments">Optional command line arguments.</param>
+    /// <param name="workingDirectory">Optional working directory.</param>
+    /// <param name="description">Optional description.</param>
+    /// <param name="iconPath">Optional icon path.</param>
+    /// <returns>An operation result indicating success or failure.</returns>
+    Task<OperationResult<bool>> CreateShortcutAsync(
+        string shortcutPath,
+        string targetPath,
+        string? arguments = null,
+        string? workingDirectory = null,
+        string? description = null,
+        string? iconPath = null);
 }

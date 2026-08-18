@@ -7,7 +7,9 @@ using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Interfaces.Tools;
+using GenHub.Core.Messages;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Tools.ViewModels;
@@ -21,7 +23,7 @@ namespace GenHub.Features.Tools.ViewModels;
 /// <param name="toolService">The tool service for managing plugins.</param>
 /// <param name="logger">The logger instance.</param>
 /// <param name="serviceProvider">The service provider for dependency injection.</param>
-public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewModel> logger, IServiceProvider serviceProvider) : ObservableObject
+public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewModel> logger, IServiceProvider serviceProvider) : ObservableObject, IRecipient<ToolStatusMessage>
 {
     [ObservableProperty]
     private IToolPlugin? _selectedTool;
@@ -74,6 +76,15 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
     public ObservableCollection<IToolPlugin> InstalledTools { get; } = [];
 
     /// <summary>
+    /// Receives tool status messages.
+    /// </summary>
+    /// <param name="message">The tool status message.</param>
+    public void Receive(ToolStatusMessage message)
+    {
+        ShowStatusMessage(message.Message, message.Type);
+    }
+
+    /// <summary>
     /// Initializes the ViewModel by loading saved tools.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
@@ -81,6 +92,11 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
     {
         try
         {
+            if (!WeakReferenceMessenger.Default.IsRegistered<ToolStatusMessage>(this))
+            {
+                WeakReferenceMessenger.Default.Register<ToolStatusMessage>(this, (r, m) => ((ToolsViewModel)r).ShowStatusMessage(m.Message, m.Type));
+            }
+
             IsLoading = true;
 
             var result = await toolService.LoadSavedToolsAsync();
@@ -98,23 +114,20 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
                 if (HasTools)
                 {
                     // Select the first tool by default
-                    if (InstalledTools.Count > 0)
-                    {
-                        SelectedTool = InstalledTools[0];
-                    }
+                    SelectedTool = InstalledTools[0];
                 }
 
                 logger.LogInformation("Loaded {Count} tool plugins", InstalledTools.Count);
             }
             else
             {
-                ShowStatusMessage($"⚠ Failed to load tools: {string.Join(", ", result.Errors)}", error: true);
+                ShowStatusMessage($"⚠ Failed to load tools: {string.Join(", ", result.Errors)}", MessageType.Error);
                 logger.LogWarning("Failed to load tools: {Errors}", string.Join(", ", result.Errors));
             }
         }
         catch (Exception ex)
         {
-            ShowStatusMessage($"⚠ An error occurred while loading tools: {ex.Message}", error: true);
+            ShowStatusMessage($"⚠ An error occurred while loading tools: {ex.Message}", MessageType.Error);
             logger.LogError(ex, "Error loading tools");
         }
         finally
@@ -162,7 +175,7 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
                 var assemblyPath = files[0].Path.LocalPath;
                 IsLoading = true;
                 StatusMessage = "Installing tool...";
-                SetStatusType(info: true);
+                SetStatusType(MessageType.Info);
                 IsStatusVisible = true;
 
                 var result = await toolService.AddToolAsync(assemblyPath);
@@ -174,12 +187,12 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
                     SelectedTool = result.Data;
 
                     var versionDisplay = string.IsNullOrEmpty(result.Data.Metadata.Version) ? string.Empty : $" v{result.Data.Metadata.Version}";
-                    ShowStatusMessage($"✓ Tool '{result.Data.Metadata.Name}'{versionDisplay} installed successfully.", success: true);
+                    ShowStatusMessage($"✓ Tool '{result.Data.Metadata.Name}'{versionDisplay} installed successfully.", MessageType.Success);
                     logger.LogInformation("Tool {ToolName} added successfully", result.Data.Metadata.Name);
                 }
                 else
                 {
-                    ShowStatusMessage($"✗ Failed to install tool: {string.Join(", ", result.Errors)}", error: true);
+                    ShowStatusMessage($"✗ Failed to install tool: {string.Join(", ", result.Errors)}", MessageType.Error);
                     logger.LogWarning("Failed to add tool: {Errors}", string.Join(", ", result.Errors));
                 }
 
@@ -189,7 +202,7 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         catch (Exception ex)
         {
             IsLoading = false;
-            ShowStatusMessage($"✗ An error occurred while adding the tool: {ex.Message}", error: true);
+            ShowStatusMessage($"✗ An error occurred while adding the tool: {ex.Message}", MessageType.Error);
             logger.LogError(ex, "Error adding tool");
         }
     }
@@ -204,7 +217,7 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         if (toolToRemove == null) return;
         if (toolToRemove.Metadata.IsBundled)
         {
-            ShowStatusMessage($"✗ Tool '{toolToRemove.Metadata.Name}' is a bundled tool and cannot be removed.", error: true);
+            ShowStatusMessage($"✗ Tool '{toolToRemove.Metadata.Name}' is a bundled tool and cannot be removed.", MessageType.Error);
             return;
         }
 
@@ -212,7 +225,7 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         {
             IsLoading = true;
             StatusMessage = $"Removing tool '{toolToRemove.Metadata.Name}'...";
-            SetStatusType(info: true);
+            SetStatusType(MessageType.Info);
             IsStatusVisible = true;
 
             // Deactivate the tool before removal
@@ -240,13 +253,13 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
                     SelectedTool = InstalledTools.FirstOrDefault();
                 }
 
-                ShowStatusMessage($"✓ Tool '{toolToRemove.Metadata.Name}' removed successfully.", success: true);
+                ShowStatusMessage($"✓ Tool '{toolToRemove.Metadata.Name}' removed successfully.", MessageType.Success);
 
                 logger.LogInformation("Tool {ToolId} removed successfully", toolToRemove.Metadata.Id);
             }
             else
             {
-                ShowStatusMessage($"✗ Failed to remove tool: {string.Join(", ", result.Errors)}", error: true);
+                ShowStatusMessage($"✗ Failed to remove tool: {string.Join(", ", result.Errors)}", MessageType.Error);
                 logger.LogWarning("Failed to remove tool: {Errors}", string.Join(", ", result.Errors));
             }
 
@@ -255,7 +268,7 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         catch (Exception ex)
         {
             IsLoading = false;
-            ShowStatusMessage($"✗ An error occurred while removing the tool: {ex.Message}", error: true);
+            ShowStatusMessage($"✗ An error occurred while removing the tool: {ex.Message}", MessageType.Error);
             logger.LogError(ex, "Error removing tool");
         }
     }
@@ -270,7 +283,7 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         {
             IsLoading = true;
             StatusMessage = "Refreshing tools...";
-            SetStatusType(info: true);
+            SetStatusType(MessageType.Info);
             IsStatusVisible = true;
 
             // Store the current selection
@@ -310,24 +323,24 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
                                       ?? InstalledTools[0];
                     SelectedTool = toolToSelect;
 
-                    ShowStatusMessage($"✓ Refreshed {InstalledTools.Count} tool(s) successfully.", success: true);
+                    ShowStatusMessage($"✓ Refreshed {InstalledTools.Count} tool(s) successfully.", MessageType.Success);
                 }
                 else
                 {
-                    ShowStatusMessage("✓ Refreshed tools list.", success: true);
+                    ShowStatusMessage("✓ Refreshed tools list.", MessageType.Success);
                 }
 
                 logger.LogInformation("Refreshed {Count} tool plugins", InstalledTools.Count);
             }
             else
             {
-                ShowStatusMessage($"⚠ Failed to refresh tools: {string.Join(", ", result.Errors)}", error: true);
+                ShowStatusMessage($"⚠ Failed to refresh tools: {string.Join(", ", result.Errors)}", MessageType.Error);
                 logger.LogWarning("Failed to refresh tools: {Errors}", string.Join(", ", result.Errors));
             }
         }
         catch (Exception ex)
         {
-            ShowStatusMessage($"⚠ An error occurred while refreshing tools: {ex.Message}", error: true);
+            ShowStatusMessage($"⚠ An error occurred while refreshing tools: {ex.Message}", MessageType.Error);
             logger.LogError(ex, "Error refreshing tools");
         }
         finally
@@ -365,7 +378,7 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
             {
                 logger.LogError(ex, "Error activating tool: {ToolName}", newValue.Metadata.Name);
                 CurrentToolControl = null;
-                ShowStatusMessage($"✗ Error loading tool '{newValue.Metadata.Name}': {ex.Message}", error: true);
+                ShowStatusMessage($"✗ Error loading tool '{newValue.Metadata.Name}': {ex.Message}", MessageType.Error);
             }
         }
         else
@@ -374,11 +387,11 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         }
     }
 
-    private void SetStatusType(bool success = false, bool error = false, bool info = false)
+    private void SetStatusType(MessageType type)
     {
-        IsStatusSuccess = success;
-        IsStatusError = error;
-        IsStatusInfo = info;
+        IsStatusSuccess = type == MessageType.Success;
+        IsStatusError = type == MessageType.Error || type == MessageType.Warning;
+        IsStatusInfo = type == MessageType.Info;
     }
 
     /// <summary>
@@ -404,26 +417,34 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         ToolForDetails = null;
     }
 
-    private async void ShowStatusMessage(string message, bool success = false, bool error = false, bool info = false)
+    private void ShowStatusMessage(string message, MessageType type = MessageType.Info)
     {
         // Cancel any existing hide timer
         _statusHideCts?.Cancel();
         _statusHideCts?.Dispose();
 
         StatusMessage = message;
-        SetStatusType(success, error, info);
+        SetStatusType(type);
         IsStatusVisible = true;
 
-        // Auto-hide after 5 seconds
-        _statusHideCts = new System.Threading.CancellationTokenSource();
-        try
+        // Auto-hide after 3 seconds
+        var cts = new System.Threading.CancellationTokenSource();
+        _statusHideCts = cts;
+
+        _ = Task.Run(async () =>
         {
-            await Task.Delay(3000, _statusHideCts.Token);
-            IsStatusVisible = false;
-        }
-        catch (TaskCanceledException)
-        {
-            // Timer was cancelled, ignore
-        }
+            try
+            {
+                await Task.Delay(3000, cts.Token);
+                if (!cts.Token.IsCancellationRequested)
+                {
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => IsStatusVisible = false);
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                // Timer was cancelled, ignore
+            }
+        });
     }
 }
