@@ -12,6 +12,9 @@ internal static class ArchiveFixtures
     private const int CentralUncompressedSizeField = 24;
     private const int CentralLocalHeaderOffsetField = 42;
     private const int LocalUncompressedSizeField = 22;
+    private const int EndOfCentralDirectorySignature = 0x06054b50;
+    private const int CentralDirectorySignature = 0x02014b50;
+    private const int LocalFileHeaderSignature = 0x04034b50;
 
     /// <summary>
     /// Writes a single-entry archive that advertises a harmless size and then inflates to a much
@@ -40,11 +43,27 @@ internal static class ArchiveFixtures
         // file and points at the central directory, whose record points back at the local header.
         var bytes = File.ReadAllBytes(archivePath);
         var endOfCentralDirectory = bytes.Length - EndOfCentralDirectoryLength;
+        RequireSignature(bytes, endOfCentralDirectory, EndOfCentralDirectorySignature, "end-of-central-directory record");
+
         var centralDirectory = BitConverter.ToInt32(bytes, endOfCentralDirectory + CentralDirectoryOffsetField);
+        RequireSignature(bytes, centralDirectory, CentralDirectorySignature, "central directory record");
+
         var localHeader = BitConverter.ToInt32(bytes, centralDirectory + CentralLocalHeaderOffsetField);
+        RequireSignature(bytes, localHeader, LocalFileHeaderSignature, "local file header");
 
         BitConverter.GetBytes(declaredBytes).CopyTo(bytes, centralDirectory + CentralUncompressedSizeField);
         BitConverter.GetBytes(declaredBytes).CopyTo(bytes, localHeader + LocalUncompressedSizeField);
         File.WriteAllBytes(archivePath, bytes);
+    }
+
+    private static void RequireSignature(byte[] bytes, int offset, int signature, string recordName)
+    {
+        if (offset < 0 || offset + sizeof(int) > bytes.Length ||
+            BitConverter.ToInt32(bytes, offset) != signature)
+        {
+            throw new InvalidOperationException(
+                $"Expected a ZIP {recordName} at offset {offset}. The layout written by ZipFile has drifted, " +
+                "so patching these offsets would corrupt the fixture instead of resizing its entry.");
+        }
     }
 }
