@@ -534,6 +534,45 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
+    /// Verifies that a user data deletion that had to keep some data is not followed by a success
+    /// message claiming that data was deleted.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeleteAllDataCommand_WhenUserDataPartiallyDeleted_DoesNotClaimSuccessAsync()
+    {
+        // Arrange
+        SetupDeletableData();
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync(true);
+        _mockUserDataTracker
+            .Setup(x => x.DeleteAllUserDataAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("Your originals were kept at 'backups'."));
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteAllDataCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockNotificationService.Verify(
+            x => x.ShowError("User Data Partially Deleted", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        _mockNotificationService.Verify(
+            x => x.ShowSuccess("Data Deleted", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+        _mockNotificationService.Verify(
+            x => x.ShowWarning("Data Partially Deleted", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    /// <summary>
     /// Verifies that the confirmation prompt states the action is irreversible and that game data
     /// backups are discarded, and that it cannot be suppressed by a "do not ask again" preference.
     /// </summary>

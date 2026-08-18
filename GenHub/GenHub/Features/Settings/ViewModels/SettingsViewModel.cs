@@ -1099,16 +1099,29 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             await DeleteWorkspaces();
             await DeleteManifests();
             await DeleteCasStorage();
-            await DeleteUserData();
+            var userDataDeleted = await DeleteUserDataInternalAsync();
 
             // Invalidate installation cache to force re-generation of manifests on next scan
             _installationService.InvalidateCache();
 
             await UpdateDangerZoneDataAsync();
-            _notificationService.ShowSuccess(
-                "Data Deleted",
-                $"Profiles, workspaces, manifests, and user data were deleted. {CasDefaults.GarbageCollectionDisabledMessage}",
-                5000);
+
+            // A success toast on top of the partial-failure toast the user data deletion just raised
+            // would tell the user their data is gone while their originals are still on disk.
+            if (userDataDeleted)
+            {
+                _notificationService.ShowSuccess(
+                    "Data Deleted",
+                    $"Profiles, workspaces, manifests, and user data were deleted. {CasDefaults.GarbageCollectionDisabledMessage}",
+                    5000);
+            }
+            else
+            {
+                _notificationService.ShowWarning(
+                    "Data Partially Deleted",
+                    $"Profiles, workspaces, and manifests were deleted, but some user data was kept. {CasDefaults.GarbageCollectionDisabledMessage}",
+                    5000);
+            }
         }
         catch (Exception ex)
         {
@@ -1332,6 +1345,16 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task DeleteUserData()
     {
+        await DeleteUserDataInternalAsync();
+    }
+
+    /// <summary>
+    /// Deletes the tracked user data and reports whether everything was actually removed, so a
+    /// caller that follows it with a summary message cannot contradict the partial-failure it raised.
+    /// </summary>
+    /// <returns><c>true</c> when all tracked user data was deleted; otherwise, <c>false</c>.</returns>
+    private async Task<bool> DeleteUserDataInternalAsync()
+    {
         try
         {
             _logger.LogWarning("Deleting all user data");
@@ -1350,11 +1373,13 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
 
             await UpdateDangerZoneDataAsync();
+            return result.Success;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to delete user data");
             _notificationService.ShowError("Deletion Failed", $"Failed to delete user data: {ex.Message}", 5000);
+            return false;
         }
     }
 
