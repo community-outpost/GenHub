@@ -50,6 +50,43 @@ public class FileOperationsServiceTests : IDisposable
     }
 
     /// <summary>
+    /// A copy that cannot even open its source must not have destroyed the file already sitting at
+    /// the destination: the destination is unlinked to break hard links, and doing that before the
+    /// source is known to be readable turns a failed copy into data loss.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CopyFileAsync_MissingSource_LeavesExistingDestinationIntactAsync()
+    {
+        var src = Path.Combine(_tempDir, "missing-source.txt");
+        var dst = Path.Combine(_tempDir, "existing-destination.txt");
+
+        await File.WriteAllTextAsync(dst, "the file the user already had");
+
+        await Assert.ThrowsAsync<FileNotFoundException>(() => _service.CopyFileAsync(src, dst));
+
+        Assert.True(File.Exists(dst));
+        Assert.Equal("the file the user already had", await File.ReadAllTextAsync(dst));
+    }
+
+    /// <summary>
+    /// Copying a file onto itself must leave it alone rather than unlinking it and then failing to
+    /// read the source it has just deleted.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CopyFileAsync_SameSourceAndDestination_LeavesFileIntactAsync()
+    {
+        var file = Path.Combine(_tempDir, "self.txt");
+        await File.WriteAllTextAsync(file, "irreplaceable content");
+
+        await _service.CopyFileAsync(file, Path.Combine(_tempDir, ".", "self.txt"));
+
+        Assert.True(File.Exists(file));
+        Assert.Equal("irreplaceable content", await File.ReadAllTextAsync(file));
+    }
+
+    /// <summary>
     /// Tests that CreateSymlinkAsync creates a symbolic link or falls back to copy on unsupported platforms.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

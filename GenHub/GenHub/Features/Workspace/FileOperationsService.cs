@@ -152,11 +152,27 @@ public class FileOperationsService(
         const int MaxRetries = 3;
         const int InitialDelayMs = 50;
 
+        if (IsSamePath(sourcePath, destinationPath))
+        {
+            logger.LogDebug("Skipped copy because source and destination are the same path: {Source}", sourcePath);
+            return;
+        }
+
         for (int attempt = 0; attempt <= MaxRetries; attempt++)
         {
             try
             {
                 EnsureDirectoryExists(destinationPath);
+
+                // Open the source before touching the destination: a missing or unreadable source
+                // must fail without having destroyed a valid file already sitting at the destination.
+                await using var source = new FileStream(
+                    sourcePath,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read,
+                    BufferSize,
+                    useAsync: true);
 
                 // Always unlink an existing destination rather than truncating it. A symlink left by
                 // the Symlink strategy, or a hard link to a CAS object, would otherwise receive the
@@ -166,13 +182,6 @@ public class FileOperationsService(
                     logger.LogDebug("Removed existing destination at {Destination} before copying", destinationPath);
                 }
 
-                await using var source = new FileStream(
-                    sourcePath,
-                    FileMode.Open,
-                    FileAccess.Read,
-                    FileShare.Read,
-                    BufferSize,
-                    useAsync: true);
                 await using var destination = new FileStream(
                     destinationPath,
                     FileMode.Create,
@@ -651,6 +660,28 @@ public class FileOperationsService(
         {
             logger.LogError(ex, "Exception opening CAS content stream for hash {Hash}", hash);
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Determines whether two paths name the same file, so a copy never unlinks its own source.
+    /// </summary>
+    /// <param name="path1">First path to compare.</param>
+    /// <param name="path2">Second path to compare.</param>
+    /// <returns>True if both paths resolve to the same location.</returns>
+    private static bool IsSamePath(string path1, string path2)
+    {
+        try
+        {
+            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            return string.Equals(
+                Path.TrimEndingDirectorySeparator(Path.GetFullPath(path1)),
+                Path.TrimEndingDirectorySeparator(Path.GetFullPath(path2)),
+                comparison);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return false;
         }
     }
 
