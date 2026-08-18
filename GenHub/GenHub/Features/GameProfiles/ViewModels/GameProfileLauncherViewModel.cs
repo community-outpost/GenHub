@@ -67,6 +67,8 @@ public partial class GameProfileLauncherViewModel(
     private string? _expectedProfileIdForSuccess;
     private bool _isCreatingNewProfile;
 
+    private bool _isHovering;
+
     [ObservableProperty]
     private ObservableCollection<GameProfileItemViewModel> _profiles = [];
 
@@ -312,8 +314,6 @@ public partial class GameProfileLauncherViewModel(
         ResetHeaderState();
     }
 
-    private bool _isHovering;
-
     /// <summary>
     /// Resets the header state to expanded and restarts the auto-collapse timer.
     /// </summary>
@@ -415,11 +415,51 @@ public partial class GameProfileLauncherViewModel(
 
                 if (existingItem != null)
                 {
-                    // Use UpdateFromProfile to refresh the existing ViewModel in-place
-                    // This preserves running state and just updates displayed properties (especially GameVersion)
-                    existingItem.UpdateFromProfile(profile);
+                    // Preserve the running state before updating
+                    var wasRunning = existingItem.IsProcessRunning;
+                    var processId = existingItem.ProcessId;
+                    var workspaceId = existingItem.ActiveWorkspaceId;
 
-                    logger.LogInformation("Refreshed profile {ProfileId} in-place (Running: {IsRunning})", profileId, existingItem.IsProcessRunning);
+                    // Update the profile data
+                    var gameTypeStr = profile.GameClient?.GameType.ToString() ?? "ZeroHour";
+
+                    var iconPath = !string.IsNullOrEmpty(profile.IconPath)
+                        ? profile.IconPath
+                        : UriConstants.DefaultIconUri;
+
+                    var coverPath = !string.IsNullOrEmpty(profile.CoverPath)
+                        ? profile.CoverPath
+                        : profileResourceService.GetDefaultCoverPath(gameTypeStr);
+
+                    var newItem = new GameProfileItemViewModel(
+                        profile.Id,
+                        profile,
+                        iconPath,
+                        coverPath)
+                    {
+                        LaunchAction = LaunchProfileAsync,
+                        EditProfileAction = EditProfile,
+                        DeleteProfileAction = DeleteProfile,
+                        CreateShortcutAction = CreateShortcut,
+                    };
+
+                    // Restore the running state
+                    if (wasRunning)
+                    {
+                        newItem.IsProcessRunning = true;
+                        newItem.ProcessId = processId;
+                    }
+
+                    // Restore workspace state
+                    if (!string.IsNullOrEmpty(workspaceId))
+                    {
+                        newItem.UpdateWorkspaceStatus(workspaceId, profile.WorkspaceStrategy ?? WorkspaceConstants.DefaultWorkspaceStrategy);
+                    }
+
+                    var index = Profiles.IndexOf(existingItem);
+                    Profiles[index] = newItem;
+
+                    logger.LogInformation("Refreshed profile {ProfileId} (Running: {IsRunning})", profileId, wasRunning);
                 }
             }
         }
@@ -683,13 +723,12 @@ public partial class GameProfileLauncherViewModel(
     [RelayCommand]
     private void StartHeaderTimer()
     {
-        _isHovering = false;
-
         if (IsScanning)
         {
             return; // Don't collapse header while scanning
         }
 
+        _isHovering = false;
         _headerCollapseTimer.Stop();
         _headerExpansionTimer.Stop(); // Cancel any pending expansion
 
@@ -767,7 +806,7 @@ public partial class GameProfileLauncherViewModel(
             // Logic must match GameInstallationService.GenerateAndPoolManifestForGameTypeAsync to ensure ID alignment
             string installationManifestId;
             if (string.IsNullOrEmpty(gameClient.Version) ||
-                gameClient.Version.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
+                gameClient.Version.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
                 gameClient.Version.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) ||
                 gameClient.Version.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase))
             {
@@ -842,7 +881,7 @@ public partial class GameProfileLauncherViewModel(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error creating profile for {InstallationType} {GameClientName}", installation.InstallationType, gameClient?.Name ?? GameClientConstants.UnknownVersion);
+            logger.LogError(ex, "Error creating profile for {InstallationType} {GameClientName}", installation.InstallationType, gameClient?.Name ?? "Unknown");
             return false;
         }
     }
