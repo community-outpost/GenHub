@@ -200,10 +200,7 @@ public partial class SettingsPanelViewModel : ObservableObject
                 "Rebuilding Cache",
                 "Cache index is being rebuilt...");
 
-            // Cache rebuild would be handled by the build cache service
-            // This is a placeholder for the actual implementation
-            await Task.Delay(1000);
-
+            _buildCacheService.Clear();
             await LoadCacheStatisticsAsync();
 
             _notificationService.ShowSuccess(

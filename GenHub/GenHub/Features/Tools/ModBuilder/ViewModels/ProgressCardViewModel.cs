@@ -122,4 +122,43 @@ public partial class ProgressCardViewModel : ObservableObject
     /// </summary>
     [ObservableProperty]
     private string _message = string.Empty;
+
+    partial void OnTitleChanged(string value)
+    {
+        if (StageName != value)
+        {
+            StageName = value;
+        }
+    }
+
+    partial void OnStageNameChanged(string value)
+    {
+        if (Title != value)
+        {
+            Title = value;
+        }
+    }
+
+    partial void OnStatusChanged(string value)
+    {
+        if (StatusText != value)
+        {
+            StatusText = value;
+        }
+
+        IsActive = string.Equals(value, "InProgress", StringComparison.OrdinalIgnoreCase);
+    }
+
+    partial void OnStatusTextChanged(string value)
+    {
+        if (Status != value)
+        {
+            Status = value;
+        }
+    }
+
+    partial void OnProgressChanged(double value)
+    {
+        ProgressWidth = Math.Clamp(value, 0, 100);
+    }
 }

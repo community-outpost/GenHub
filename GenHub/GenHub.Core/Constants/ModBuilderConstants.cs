@@ -103,14 +103,24 @@ public static class ModBuilderConstants
     public const string CrunchFallbackExecutable = "crunch.exe";
 
     /// <summary>
+    /// DXT1 texture format identifier (no alpha).
+    /// </summary>
+    public const string Dxt1Format = "DXT1";
+
+    /// <summary>
+    /// DXT5 texture format identifier (with alpha).
+    /// </summary>
+    public const string Dxt5Format = "DXT5";
+
+    /// <summary>
     /// Candidate search paths for the crunch tool executable.
     /// </summary>
     public static readonly IReadOnlyList<string> CrunchExecutableCandidates =
     [
-        @"Z:\GeneralsGamePatch\Patch104pZH\Scripts\Windows\.tools\crunch_x64.exe",
-        @"Z:\GeneralsGamePatch\Patch104pZH\internal\bin\crunch_x64.exe",
         @".tools\crunch_x64.exe",
         @"tools\crunch_x64.exe",
+        @".tools\crunch.exe",
+        @"tools\crunch.exe",
     ];
 
     /// <summary>

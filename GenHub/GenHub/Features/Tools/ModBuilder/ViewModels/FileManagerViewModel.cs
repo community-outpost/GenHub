@@ -214,7 +214,15 @@ public partial class FileManagerViewModel : ObservableObject
                     }
                 }
 
-                PopulateInstallations();
+                if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
+                {
+                    PopulateInstallations();
+                }
+                else
+                {
+                    await Dispatcher.UIThread.InvokeAsync(PopulateInstallations);
+                }
+
                 await LoadGameFilesAsync(cancellationToken).ConfigureAwait(false);
             }
 

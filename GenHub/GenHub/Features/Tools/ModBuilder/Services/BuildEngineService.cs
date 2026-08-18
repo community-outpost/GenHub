@@ -445,10 +445,19 @@ public sealed class BuildEngineService(
 
                 if (!string.IsNullOrEmpty(targetRel))
                 {
-                    var srcInRaw = Path.Combine(rawDir, targetRel.TrimStart('/', '\\'));
-                    if (File.Exists(srcInRaw))
+                    var cleanRel = targetRel.TrimStart('/', '\\');
+                    var fullRawDir = Path.GetFullPath(rawDir);
+                    var fullStagingDir = Path.GetFullPath(itemStagingDir);
+                    var srcInRaw = Path.GetFullPath(Path.Combine(rawDir, cleanRel));
+                    var destInStaging = Path.GetFullPath(Path.Combine(itemStagingDir, cleanRel));
+
+                    var rawDirPrefix = fullRawDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+                    var stagingDirPrefix = fullStagingDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+
+                    if (srcInRaw.StartsWith(rawDirPrefix, StringComparison.OrdinalIgnoreCase) &&
+                        destInStaging.StartsWith(stagingDirPrefix, StringComparison.OrdinalIgnoreCase) &&
+                        File.Exists(srcInRaw))
                     {
-                        var destInStaging = Path.Combine(itemStagingDir, targetRel.TrimStart('/', '\\'));
                         var destDir = Path.GetDirectoryName(destInStaging);
                         if (!string.IsNullOrEmpty(destDir))
                         {
@@ -460,9 +469,7 @@ public sealed class BuildEngineService(
                 }
             }
 
-            var sourceToPack = Directory.Exists(itemStagingDir) && Directory.EnumerateFileSystemEntries(itemStagingDir).Any()
-                ? itemStagingDir
-                : rawDir;
+            var sourceToPack = itemStagingDir;
 
             var archiveResult = await archiveService.CreateBigArchiveAsync(sourceToPack, bigFilePath, null, cancellationToken).ConfigureAwait(false);
             if (!archiveResult.Success)
@@ -725,9 +732,7 @@ public sealed class BuildEngineService(
         // fire OnRelease event
         FireBundleEvent(BundleEventType.OnRelease, null);
 
-        await BuildStageAsync(BuildIndex.ReleaseBundlePack, setup, progress, cancellationToken).ConfigureAwait(false);
-
-        return true;
+        return await BuildStageAsync(BuildIndex.ReleaseBundlePack, setup, progress, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

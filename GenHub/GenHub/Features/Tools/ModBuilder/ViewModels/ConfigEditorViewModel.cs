@@ -301,8 +301,10 @@ public partial class ConfigEditorViewModel(
                 var packsPath = Path.Combine(configDir, ModBuilderConstants.BundlePacksConfigFileName);
 
                 var jsonOptions = new System.Text.Json.JsonSerializerOptions { WriteIndented = true };
-                File.WriteAllText(itemsPath, System.Text.Json.JsonSerializer.Serialize(Configuration.Items, jsonOptions));
-                File.WriteAllText(packsPath, System.Text.Json.JsonSerializer.Serialize(Configuration.Packs, jsonOptions));
+                var itemsConfig = new BuildConfiguration { Items = Configuration.Items };
+                var packsConfig = new BuildConfiguration { Packs = Configuration.Packs };
+                File.WriteAllText(itemsPath, System.Text.Json.JsonSerializer.Serialize(itemsConfig, jsonOptions));
+                File.WriteAllText(packsPath, System.Text.Json.JsonSerializer.Serialize(packsConfig, jsonOptions));
             }
 
             HasChanges = false;

@@ -525,10 +525,11 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                 if (masterList?.Build?.Files != null)
                 {
                     var fullProjectDir = Path.GetFullPath(projectDir);
+                    var projectDirPrefix = fullProjectDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
                     foreach (var file in masterList.Build.Files)
                     {
                         var resolvedPath = Path.GetFullPath(Path.IsPathRooted(file) ? file : Path.Combine(projectDir, file));
-                        if (resolvedPath.StartsWith(fullProjectDir, StringComparison.OrdinalIgnoreCase) && File.Exists(resolvedPath))
+                        if (resolvedPath.StartsWith(projectDirPrefix, StringComparison.OrdinalIgnoreCase) && File.Exists(resolvedPath))
                         {
                             configFiles.Add(resolvedPath);
                         }

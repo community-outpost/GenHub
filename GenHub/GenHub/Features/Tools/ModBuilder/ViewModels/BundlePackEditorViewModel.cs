@@ -6,6 +6,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Features.Tools.ModBuilder.Models;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -185,18 +186,22 @@ public partial class BundlePackEditorViewModel : ObservableObject
     [RelayCommand]
     private void RemoveFiles()
     {
-        if (SelectedFiles.Count == 0)
+        var filesToRemove = SelectedFiles.Count > 0
+            ? SelectedFiles.ToList()
+            : (SelectedFile != null ? new List<BundleFileInfo> { SelectedFile } : new List<BundleFileInfo>());
+
+        if (filesToRemove.Count == 0)
         {
             return;
         }
 
-        var filesToRemove = SelectedFiles.ToList();
         foreach (var file in filesToRemove)
         {
             Files.Remove(file);
         }
 
         SelectedFiles.Clear();
+        SelectedFile = null;
         UpdateStatistics();
         HasChanges = true;
 
