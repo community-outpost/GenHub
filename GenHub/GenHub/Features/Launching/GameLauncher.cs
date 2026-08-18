@@ -759,6 +759,7 @@ public class GameLauncher(
 
             if (!workspaceSetupResult.Success || workspaceSetupResult.Data.Workspace == null)
             {
+                await launchRegistry.UnregisterLaunchAsync(launchId);
                 return LaunchOperationResult<GameLaunchInfo>.CreateFailure(workspaceSetupResult.FirstError ?? "Workspace preparation failed", launchId, profile.Id);
             }
 
@@ -766,12 +767,13 @@ public class GameLauncher(
             steamInstallationLock = acquiredLock;
 
             progress?.Report(new LaunchProgress { Phase = LaunchPhase.PreparingUserData, PercentComplete = 82 });
-            TriggerBackgroundUserDataSwitch(profile, manifests, skipUserDataCleanup, cancellationToken);
+            TriggerBackgroundUserDataSwitch(profile, manifests, skipUserDataCleanup);
 
             progress?.Report(new LaunchProgress { Phase = LaunchPhase.Starting, PercentComplete = 90 });
             var executableResult = ResolveAndValidateExecutablePath(profile, workspaceInfo);
             if (!executableResult.Success || executableResult.Data == null)
             {
+                await launchRegistry.UnregisterLaunchAsync(launchId);
                 return LaunchOperationResult<GameLaunchInfo>.CreateFailure(executableResult.FirstError ?? "No executable path available", launchId, profile.Id);
             }
 
@@ -789,6 +791,7 @@ public class GameLauncher(
 
             if (!prepResult.Success || prepResult.Data.LaunchConfig == null)
             {
+                await launchRegistry.UnregisterLaunchAsync(launchId);
                 return LaunchOperationResult<GameLaunchInfo>.CreateFailure(prepResult.FirstError ?? "Launch configuration failed", launchId, profile.Id);
             }
 
@@ -809,6 +812,7 @@ public class GameLauncher(
             if (!processResult.Success || processResult.Data == null)
             {
                 logger.LogError("[GameLauncher] Process start/discovery failed: {Error}", processResult.FirstError);
+                await launchRegistry.UnregisterLaunchAsync(launchId);
                 return LaunchOperationResult<GameLaunchInfo>.CreateFailure(processResult.FirstError ?? "Process start failed", launchId, profile.Id);
             }
 
@@ -1004,8 +1008,7 @@ public class GameLauncher(
     private void TriggerBackgroundUserDataSwitch(
         GameProfile profile,
         List<ContentManifest> manifests,
-        bool skipUserDataCleanup,
-        CancellationToken cancellationToken)
+        bool skipUserDataCleanup)
     {
         var previousActiveProfileId = profileContentLinker.GetActiveProfileId();
         _ = Task.Run(
@@ -1038,7 +1041,7 @@ public class GameLauncher(
                     logger.LogError(ex, "[GameLauncher] Unexpected error in background user data linkage for profile {ProfileId}", profile.Id);
                 }
             },
-            cancellationToken);
+            CancellationToken.None);
     }
 
     private OperationResult<string> ResolveAndValidateExecutablePath(
@@ -1063,8 +1066,10 @@ public class GameLauncher(
         {
             logger.LogDebug("[GameLauncher] Validating executable is within workspace bounds");
             var normalizedWorkspacePath = Path.GetFullPath(workspaceInfo.WorkspacePath);
+            var normalizedWorkspacePrefix = normalizedWorkspacePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
             var normalizedExecutablePath = Path.GetFullPath(finalExecutablePath);
-            if (!normalizedExecutablePath.StartsWith(normalizedWorkspacePath, StringComparison.OrdinalIgnoreCase))
+            if (!normalizedExecutablePath.StartsWith(normalizedWorkspacePrefix, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(normalizedExecutablePath, normalizedWorkspacePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
             {
                 logger.LogError("[GameLauncher] Security violation - executable outside workspace");
                 return OperationResult<string>.CreateFailure($"Security violation: Workspace executable path '{finalExecutablePath}' is outside workspace");

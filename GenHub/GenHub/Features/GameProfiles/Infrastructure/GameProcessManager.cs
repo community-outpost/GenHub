@@ -256,7 +256,7 @@ public class GameProcessManager(
                 {
                     ProcessId = process.Id,
                     ProcessName = process.ProcessName,
-                    StartTime = process.StartTime,
+                    StartTime = process.StartTime.ToUniversalTime(),
                     ExecutablePath = GetProcessExecutablePath(process),
                     IsRunning = IsStillRunning(process),
                 };
@@ -277,7 +277,7 @@ public class GameProcessManager(
                 {
                     ProcessId = process.Id,
                     ProcessName = process.ProcessName,
-                    StartTime = process.StartTime,
+                    StartTime = process.StartTime.ToUniversalTime(),
                     ExecutablePath = GetProcessExecutablePath(process),
                     IsRunning = IsStillRunning(process),
                 };
@@ -314,7 +314,7 @@ public class GameProcessManager(
                         {
                             ProcessId = process.Id,
                             ProcessName = process.ProcessName,
-                            StartTime = process.StartTime,
+                            StartTime = process.StartTime.ToUniversalTime(),
                             ExecutablePath = GetProcessExecutablePath(process),
                             IsRunning = IsStillRunning(process),
                         };

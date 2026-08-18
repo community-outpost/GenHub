@@ -6,7 +6,7 @@ namespace GenHub.Core.Models.Launching;
 /// </summary>
 /// <param name="ProcessId">The operating system process identifier.</param>
 /// <param name="ProcessName">The process name, without extension.</param>
-/// <param name="StartTime">When the process started.</param>
+/// <param name="StartTime">When the process started in UTC (must have <see cref="DateTimeKind.Utc"/>).</param>
 /// <param name="ExecutablePath">The full image path, or <see langword="null"/> when it cannot be read.</param>
 public sealed record GameProcessCandidate(
     int ProcessId,

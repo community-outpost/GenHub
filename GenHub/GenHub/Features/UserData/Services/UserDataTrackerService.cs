@@ -104,6 +104,11 @@ public class UserDataTrackerService(
             }
 
             long totalSize = 0;
+            var existingManifest = await LoadUserDataManifestByKeyAsync(userDataManifest.InstallationKey, cancellationToken);
+            var priorFiles = existingManifest?.InstalledFiles?.ToDictionary(
+                f => f.AbsolutePath,
+                f => f,
+                OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
 
             foreach (var (file, targetPath) in resolvedFiles)
             {
@@ -111,7 +116,10 @@ public class UserDataTrackerService(
 
                 logger.LogDebug("[UserData] Installing {RelativePath} to {TargetPath}", file.RelativePath, targetPath);
 
-                var installResult = await InstallSingleUserDataFileAsync(file, targetPath, targetGame, userDataManifest.InstallationKey, cancellationToken);
+                UserDataFileEntry? priorEntry = null;
+                priorFiles?.TryGetValue(targetPath, out priorEntry);
+
+                var installResult = await InstallSingleUserDataFileAsync(file, targetPath, targetGame, userDataManifest.InstallationKey, priorEntry, cancellationToken);
                 if (!installResult.Success || installResult.Data == null)
                 {
                     await CleanupInstalledFilesAsync(userDataManifest, CancellationToken.None);
@@ -962,6 +970,7 @@ public class UserDataTrackerService(
         string targetPath,
         GameType targetGame,
         string installationKey,
+        UserDataFileEntry? priorEntry,
         CancellationToken cancellationToken)
     {
         var conflictResult = await CheckFileConflictUnlockedAsync(targetPath, cancellationToken);
@@ -994,8 +1003,18 @@ public class UserDataTrackerService(
                 wasOverwritten = true;
                 logger.LogInformation("[UserData] Backed up existing user file: {Path} -> {Backup}", targetPath, backupPath);
             }
+            else if (conflictResult.Data == installationKey && priorEntry != null)
+            {
+                wasOverwritten = priorEntry.WasOverwritten;
+                backupPath = priorEntry.BackupPath;
+            }
 
             FileOperationsService.DeleteFileIfExists(targetPath);
+        }
+        else if (conflictResult.Data == installationKey && priorEntry != null)
+        {
+            wasOverwritten = priorEntry.WasOverwritten;
+            backupPath = priorEntry.BackupPath;
         }
 
         var targetDir = Path.GetDirectoryName(targetPath);
@@ -1197,7 +1216,7 @@ public class UserDataTrackerService(
 
             // Ensure backupPath never escapes _backupsPath
             var fullBackupPath = Path.GetFullPath(backupPath);
-            var fullBackupsRoot = Path.GetFullPath(_backupsPath);
+            var fullBackupsRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(_backupsPath)) + Path.DirectorySeparatorChar;
             var pathComparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
             if (!fullBackupPath.StartsWith(fullBackupsRoot, pathComparison))
             {

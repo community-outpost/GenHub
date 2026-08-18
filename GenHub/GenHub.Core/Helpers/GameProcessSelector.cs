@@ -15,11 +15,11 @@ public static class GameProcessSelector
     /// <summary>
     /// Selects the process matching <paramref name="processName"/> that this launch spawned.
     /// </summary>
-    /// <param name="candidates">The processes currently observed on the machine.</param>
+    /// <param name="candidates">The processes currently observed on the machine. Each candidate's <see cref="GameProcessCandidate.StartTime"/> must be a UTC <see cref="DateTime"/> with <see cref="DateTimeKind.Utc"/>.</param>
     /// <param name="processName">The expected process name, without extension.</param>
     /// <param name="workingDirectory">The directory the game must run from, or <see langword="null"/> to skip the check.</param>
-    /// <param name="now">The current time, used to apply the recency window.</param>
-    /// <param name="launcherStartTime">The start time of the launcher process, if known.</param>
+    /// <param name="now">The current time, used to apply the recency window. Must be a UTC <see cref="DateTime"/> with <see cref="DateTimeKind.Utc"/>.</param>
+    /// <param name="launcherStartTime">The start time of the launcher process, if known. Must be a UTC <see cref="DateTime"/> with <see cref="DateTimeKind.Utc"/> when supplied.</param>
     /// <returns>The selected candidate, or <see langword="null"/> when none qualifies.</returns>
     public static GameProcessCandidate? SelectSpawnedGameProcess(
         IEnumerable<GameProcessCandidate> candidates,

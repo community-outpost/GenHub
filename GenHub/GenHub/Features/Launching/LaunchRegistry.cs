@@ -191,7 +191,7 @@ public class LaunchRegistry : ILaunchRegistry
                 _logger.LogWarning(ex, "[LaunchRegistry] Process inspection failed {Failures} consecutive times for launch {LaunchId}. Marking as terminated.", failures, launchId);
                 launchInfo.TerminatedAt = DateTime.UtcNow;
                 launchInfo.ProcessInfo.IsRunning = false;
-                ((ICollection<KeyValuePair<string, int>>)_inspectionFailureCounts).Remove(new KeyValuePair<string, int>(launchId, failures));
+                _inspectionFailureCounts.TryRemove(new KeyValuePair<string, int>(launchId, failures));
             }
             else
             {

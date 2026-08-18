@@ -587,14 +587,14 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         if (isSatisfied) return;
 
         ContentDisplayItem? compatibleInstallation = null;
-        if (!string.IsNullOrEmpty(contentItem.SourceId))
-        {
-            compatibleInstallation = AvailableGameInstallations.FirstOrDefault(x => x.ManifestId.Value == contentItem.SourceId);
-        }
-
-        if (compatibleInstallation == null && dependency.Id.ToString() != ManifestConstants.DefaultContentDependencyId)
+        if (dependency.Id.ToString() != ManifestConstants.DefaultContentDependencyId)
         {
             compatibleInstallation = AvailableGameInstallations.FirstOrDefault(x => x.ManifestId.Value == dependency.Id.ToString());
+        }
+
+        if (compatibleInstallation == null && !string.IsNullOrEmpty(contentItem.SourceId))
+        {
+            compatibleInstallation = AvailableGameInstallations.FirstOrDefault(x => x.ManifestId.Value == contentItem.SourceId);
         }
 
         if (compatibleInstallation == null && dependency.CompatibleGameTypes != null)
@@ -608,7 +608,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         if (compatibleInstallation != null)
         {
             _localNotificationService.ShowSuccess("Auto-Resolved", $"Switched Game Installation to '{compatibleInstallation.DisplayName}' as required by '{contentItem.DisplayName}'.");
-            await EnableContentInternal(compatibleInstallation);
+            await EnableContentInternal(compatibleInstallation, bypassLoadingGuard: true);
         }
     }
 
@@ -644,7 +644,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             if (!viewModelItem.IsEnabled)
             {
                 _localNotificationService.ShowSuccess("Auto-Resolved", $"Automatically enabled required content: '{viewModelItem.DisplayName}'");
-                await EnableContentAsync(viewModelItem);
+                await EnableContentInternal(viewModelItem, bypassLoadingGuard: true);
             }
         }
     }

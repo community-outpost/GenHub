@@ -295,7 +295,7 @@ public class ContentOrchestrator : IContentOrchestrator
 
         lock (_providerLock)
         {
-            if (_providers.All(p => p.SourceName != provider.SourceName))
+            if (_providers.All(p => !string.Equals(p.SourceName, provider.SourceName, StringComparison.OrdinalIgnoreCase)))
             {
                 _providers.Add(provider);
                 _logger.LogInformation("Registered content provider: {ProviderName}", provider.SourceName);
