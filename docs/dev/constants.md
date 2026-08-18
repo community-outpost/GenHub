@@ -61,6 +61,9 @@ Application-wide constants for GenHub.
 | `DefaultTheme`            | `Theme.Dark`        | Default UI theme                                 |
 | `DefaultThemeName`        | `"Dark"`            | Default theme name as string                     |
 | `TokenFileName`           | `".ghtoken"`        | Default GitHub token file name                   |
+| `DeleteAllDataConfirmationTitle`   | `"Delete All Application Data"` | Title of the confirmation prompt shown before all application data is deleted |
+| `DeleteAllDataConfirmationMessage` | string              | Body of that prompt, warning that the deletion is irreversible and that pristine game data backups are discarded |
+| `DeleteAllDataConfirmText`         | `"Delete Everything"` | Confirm button text for the delete-all-application-data prompt |
 
 ---
 
@@ -1309,6 +1312,7 @@ Constants for content pipeline component identifiers used in dependency injectio
 - **StorageConstants**: Storage and CAS operation constants
 - **TimeIntervals**: Time spans and intervals
 - **UiConstants**: User interface sizing and behavior
+- **UserDataConstants**: Tracked user data installation constants
 - **ValidationLimits**: Input validation boundaries
 
 ### Best Practices
@@ -1511,6 +1515,17 @@ Constants specifically for the Map Manager feature.
 | `ToolId`                       | `"map-manager"`                            | Unique identifier for Map Manager                                                     |
 | `ToolName`                     | `"Map Manager"`                            | Display name for Map Manager                                                          |
 | `ToolDescription`              | `"Manage, import, and share custom maps. Create MapPacks for easy profile switching."` | Description of the tool |
+
+---
+
+## UserDataConstants Class
+
+Constants for tracked user data installations — content GenHub deploys into the user's game data
+folder under `Documents`.
+
+| Constant             | Value              | Description                                                                                                       |
+| -------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `UserModifiedSuffix` | `".user-modified"` | Suffix appended to a deployed file that no longer matches its recorded hash when it is moved aside so the pristine backup can be restored over it |
 
 ---
 
