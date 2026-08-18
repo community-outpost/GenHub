@@ -446,7 +446,10 @@ public class FileOperationsService(
         {
             if (!File.Exists(filePath))
             {
-                return FileHashVerification.Mismatch;
+                // No hash was computed, so nothing is known about the content that used to be here.
+                // Reporting a mismatch would invite a caller to act on a change it never observed.
+                logger.LogDebug("Hash verification for {File}: file does not exist", filePath);
+                return FileHashVerification.Failed;
             }
 
             var actualHash = await downloadService.ComputeFileHashAsync(

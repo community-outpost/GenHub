@@ -62,6 +62,8 @@ public interface IFileOperationsService
     /// Compares a file against an expected hash, distinguishing a genuine mismatch from a failure to
     /// compute the hash at all. Callers that act destructively on a mismatch must use this rather
     /// than <see cref="VerifyFileHashAsync"/>, which collapses both outcomes into <c>false</c>.
+    /// A file that does not exist yields <see cref="FileHashVerification.Failed"/>: no hash was
+    /// computed, so its absence is not evidence that its content ever differed.
     /// </summary>
     /// <param name="filePath">The file path.</param>
     /// <param name="expectedHash">The expected hash value.</param>

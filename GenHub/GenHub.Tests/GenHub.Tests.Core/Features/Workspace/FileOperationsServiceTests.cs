@@ -1,6 +1,7 @@
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Results;
 using GenHub.Features.Workspace;
 using Microsoft.Extensions.Logging;
@@ -317,6 +318,22 @@ public class FileOperationsServiceTests : IDisposable
         _downloadService.Verify(
             x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);
+    }
+
+    /// <summary>
+    /// A file that is not there yields no hash at all, so it must be reported as a failed check
+    /// rather than as a confirmed difference that a destructive caller could act on.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckFileHashAsync_MissingFile_ReportsFailedAsync()
+    {
+        var missing = Path.Combine(_tempDir, "not-here.txt");
+
+        var result = await _service.CheckFileHashAsync(missing, "any-hash");
+
+        Assert.Equal(FileHashVerification.Failed, result);
+        Assert.False(await _service.VerifyFileHashAsync(missing, "any-hash"));
     }
 
     /// <summary>
