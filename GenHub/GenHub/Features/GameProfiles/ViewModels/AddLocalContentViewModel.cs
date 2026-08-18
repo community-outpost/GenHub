@@ -56,6 +56,9 @@ public partial class AddLocalContentViewModel(
         ContentType.Mission,
     ];
 
+    private static bool RequiresExecutable(ContentType contentType) =>
+        contentType is ContentType.GameClient or ContentType.ModdingTool or ContentType.Executable;
+
     private static FileTreeItem? FindFirstExecutable(IEnumerable<FileTreeItem> items)
     {
         foreach (var item in items)
@@ -177,7 +180,7 @@ public partial class AddLocalContentViewModel(
     private bool _isDemoMode;
 
     /// <summary>
-    /// Gets or sets the selected executable item (for Executable/ModdingTool content type).
+    /// Gets or sets the selected executable item (for GameClient/Executable/ModdingTool content type).
     /// </summary>
     [ObservableProperty]
     private FileTreeItem? _selectedExecutableItem;
@@ -192,7 +195,7 @@ public partial class AddLocalContentViewModel(
     /// <summary>
     /// Gets a value indicating whether the executable selection should be shown.
     /// </summary>
-    public bool ShowExecutableSelection => (SelectedContentType == ContentType.ModdingTool || SelectedContentType == ContentType.Executable) && ExecutableCount > 1;
+    public bool ShowExecutableSelection => RequiresExecutable(SelectedContentType) && ExecutableCount > 0;
 
     /// <summary>
     /// Gets the text to display in the preview area when no content is loaded.
@@ -640,6 +643,19 @@ public partial class AddLocalContentViewModel(
 
             _cts = new CancellationTokenSource();
 
+            string? entryPoint = null;
+            if (SelectedExecutableItem != null && !string.IsNullOrWhiteSpace(SelectedExecutableItem.FullPath))
+            {
+                try
+                {
+                    entryPoint = Path.GetRelativePath(_stagingPath, SelectedExecutableItem.FullPath).Replace('\\', '/');
+                }
+                catch
+                {
+                    entryPoint = SelectedExecutableItem.Name;
+                }
+            }
+
             // Preserve SourcePath metadata if available
             // Note: We no longer write to "source.path" file to avoid polluting the content.
             // Instead we pass the SourcePath directly to the service.
@@ -652,7 +668,8 @@ public partial class AddLocalContentViewModel(
                     targetGame,
                     SourcePath,
                     progress,
-                    _cts.Token)
+                    _cts.Token,
+                    entryPoint)
                 : await localContentService.CreateLocalContentManifestAsync(
                     _stagingPath,
                     ContentName,
@@ -660,7 +677,8 @@ public partial class AddLocalContentViewModel(
                     targetGame,
                     SourcePath,
                     progress,
-                    _cts.Token);
+                    _cts.Token,
+                    entryPoint);
 
             if (result.Success)
             {
@@ -792,7 +810,7 @@ public partial class AddLocalContentViewModel(
             ExecutableCount = CountExecutables(FileTree);
 
             // Auto-select first executable if content type requires it
-            if (SelectedContentType == ContentType.ModdingTool || SelectedContentType == ContentType.Executable)
+            if (RequiresExecutable(SelectedContentType))
             {
                 AutoSelectFirstExecutable();
             }
@@ -816,8 +834,8 @@ public partial class AddLocalContentViewModel(
         var stagingExists = Directory.Exists(_stagingPath);
         var stagingHasEntries = stagingExists && Directory.EnumerateFileSystemEntries(_stagingPath).Any();
 
-        // For ModdingTool (Tool) and Executable, we also need an executable selected
-        var requiresExecutable = SelectedContentType == ContentType.ModdingTool || SelectedContentType == ContentType.Executable;
+        // For GameClient, ModdingTool (Tool), and Executable, we also need an executable selected
+        var requiresExecutable = RequiresExecutable(SelectedContentType);
         var hasExecutableIfNeeded = !requiresExecutable || SelectedExecutableItem != null;
 
         CanAdd = hasName && (hasFiles || stagingHasEntries) && hasExecutableIfNeeded;
@@ -842,8 +860,8 @@ public partial class AddLocalContentViewModel(
         OnPropertyChanged(nameof(ShowExecutableSelection));
         OnPropertyChanged(nameof(PreviewIdleText));
 
-        // Auto-select first executable if switching to ModdingTool or Executable
-        if ((value == ContentType.ModdingTool || value == ContentType.Executable) && SelectedExecutableItem == null)
+        // Auto-select first executable if switching to a content type that requires it
+        if (RequiresExecutable(value) && SelectedExecutableItem == null)
         {
             AutoSelectFirstExecutable();
         }

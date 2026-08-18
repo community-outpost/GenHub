@@ -542,7 +542,16 @@ public class ProfileLauncherFacade(
         }
 
         var toolDirectoryPath = toolWorkspacePath;
-        var toolExecutable = toolManifest.Files?.FirstOrDefault(f => f.IsExecutable)
+        var resolution = ManifestVariantResolver.ResolveEntryPoint(toolManifest);
+        ManifestFile? toolExecutable = null;
+        if (resolution.Success && resolution.RelativePath != null)
+        {
+            toolExecutable = toolManifest.Files?.FirstOrDefault(f =>
+                f.RelativePath.Equals(resolution.RelativePath, StringComparison.OrdinalIgnoreCase) ||
+                f.RelativePath.Replace('\\', '/').Equals(resolution.RelativePath.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase));
+        }
+
+        toolExecutable ??= toolManifest.Files?.FirstOrDefault(f => f.IsExecutable)
             ?? toolManifest.Files?.FirstOrDefault(f => f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
 
         if (toolExecutable == null)

@@ -57,7 +57,8 @@ public class LocalContentService(
         GameType targetGame,
         string? sourcePath = null,
         IProgress<ContentStorageProgress>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? entryPoint = null)
     {
         try
         {
@@ -101,6 +102,11 @@ public class LocalContentService(
 
             var manifest = builder.Build();
             manifest.SourcePath = !string.IsNullOrEmpty(sourcePath) ? sourcePath : directoryPath;
+
+            if (!string.IsNullOrWhiteSpace(entryPoint))
+            {
+                manifest.EntryPoint = entryPoint.Replace('\\', '/');
+            }
 
             // Auto-add GameInstallation dependency for GameClient content types
             // This ensures auto-resolution logic works correctly for locally added clients
@@ -195,13 +201,14 @@ public class LocalContentService(
         GameType targetGame,
         string? sourcePath = null,
         IProgress<ContentStorageProgress>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? entryPoint = null)
     {
         try
         {
             // 1. Create the new manifest/content
             // We do this FIRST to ensure the new content is valid before deleting the old one
-            var createResult = await CreateLocalContentManifestAsync(directoryPath, name, contentType, targetGame, sourcePath, progress, cancellationToken);
+            var createResult = await CreateLocalContentManifestAsync(directoryPath, name, contentType, targetGame, sourcePath, progress, cancellationToken, entryPoint);
 
             if (!createResult.Success)
             {

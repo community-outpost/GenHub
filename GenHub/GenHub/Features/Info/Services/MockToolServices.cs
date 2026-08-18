@@ -457,7 +457,18 @@ public class MockMapPackService : IMapPackService
 public class MockLocalContentService : ILocalContentService
 {
     /// <inheritdoc/>
-    public IReadOnlyList<ContentType> AllowedContentTypes => [ContentType.Mod, ContentType.Map, ContentType.GameClient];
+    public IReadOnlyList<ContentType> AllowedContentTypes =>
+    [
+        ContentType.Mod,
+        ContentType.GameClient,
+        ContentType.Executable,
+        ContentType.ModdingTool,
+        ContentType.Patch,
+        ContentType.Addon,
+        ContentType.Map,
+        ContentType.MapPack,
+        ContentType.Mission,
+    ];
 
     /// <inheritdoc/>
     public Task<OperationResult<ContentManifest>> AddLocalContentAsync(string name, string directoryPath, ContentType contentType, GameType targetGame, CancellationToken cancellationToken = default)
@@ -466,18 +477,18 @@ public class MockLocalContentService : ILocalContentService
     }
 
     /// <inheritdoc/>
-    public Task<OperationResult<ContentManifest>> CreateLocalContentManifestAsync(string directoryPath, string name, ContentType contentType, GameType targetGame, string? sourcePath = null, IProgress<ContentStorageProgress>? progress = null, CancellationToken cancellationToken = default)
+    public Task<OperationResult<ContentManifest>> CreateLocalContentManifestAsync(string directoryPath, string name, ContentType contentType, GameType targetGame, string? sourcePath = null, IProgress<ContentStorageProgress>? progress = null, CancellationToken cancellationToken = default, string? entryPoint = null)
     {
-         return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = name, ContentType = contentType, TargetGame = targetGame, SourcePath = sourcePath }));
+         return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = name, ContentType = contentType, TargetGame = targetGame, SourcePath = sourcePath, EntryPoint = entryPoint }));
     }
 
     /// <inheritdoc/>
     public Task<OperationResult> DeleteLocalContentAsync(string manifestId, CancellationToken cancellationToken = default) => Task.FromResult(OperationResult.CreateSuccess());
 
     /// <inheritdoc/>
-    public Task<OperationResult<ContentManifest>> UpdateLocalContentManifestAsync(string existingManifestId, string name, string directoryPath, ContentType contentType, GameType targetGame, string? sourcePath = null, IProgress<ContentStorageProgress>? progress = null, CancellationToken cancellationToken = default)
+    public Task<OperationResult<ContentManifest>> UpdateLocalContentManifestAsync(string existingManifestId, string name, string directoryPath, ContentType contentType, GameType targetGame, string? sourcePath = null, IProgress<ContentStorageProgress>? progress = null, CancellationToken cancellationToken = default, string? entryPoint = null)
     {
-        return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = name, ContentType = contentType, TargetGame = targetGame, SourcePath = sourcePath }));
+        return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = name, ContentType = contentType, TargetGame = targetGame, SourcePath = sourcePath, EntryPoint = entryPoint }));
     }
 }
 
