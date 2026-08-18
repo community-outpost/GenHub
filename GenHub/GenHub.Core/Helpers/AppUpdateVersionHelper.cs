@@ -11,9 +11,10 @@ public static partial class AppUpdateVersionHelper
 {
     /// <summary>
     /// Extracts the workflow run number from a version string (e.g., "0.0.641-pr241" -> 641).
+    /// Returns 0 for plain semantic versions without CI run markers.
     /// </summary>
     /// <param name="version">The version string to extract the run number from.</param>
-    /// <returns>The extracted run number, or 0 if extraction fails.</returns>
+    /// <returns>The extracted run number, or 0 if extraction fails or not a CI build.</returns>
     public static int ExtractRunNumber(string? version)
     {
         if (string.IsNullOrWhiteSpace(version))
@@ -21,19 +22,16 @@ public static partial class AppUpdateVersionHelper
             return 0;
         }
 
-        var match = RunNumberRegex().Match(version);
+        var match = CiRunNumberRegex().Match(version);
         if (match.Success && int.TryParse(match.Groups[1].Value, out var runNumber))
         {
             return runNumber;
         }
 
-        var parts = version.Split('.', '-', '+');
-        foreach (var part in parts.Reverse())
+        var ciMatch = CiMarkerRegex().Match(version);
+        if (ciMatch.Success && int.TryParse(ciMatch.Groups[1].Value, out var ciRunNumber))
         {
-            if (int.TryParse(part, out var number))
-            {
-                return number;
-            }
+            return ciRunNumber;
         }
 
         return 0;
@@ -89,9 +87,15 @@ public static partial class AppUpdateVersionHelper
     }
 
     /// <summary>
-    /// Regex for extracting workflow run number from a version string.
+    /// Regex for extracting workflow run number from a 0.0.X CI version string.
     /// Matches patterns like "0.0.1282-pr265", "0.0.1282-main", "0.0.1282".
     /// </summary>
-    [GeneratedRegex(@"(\d+)(?:-pr\d+|-\w+)?$", RegexOptions.IgnoreCase)]
-    private static partial Regex RunNumberRegex();
+    [GeneratedRegex(@"^0\.0\.(\d+)(?:-[a-zA-Z0-9_.-]+)?$", RegexOptions.IgnoreCase)]
+    private static partial Regex CiRunNumberRegex();
+
+    /// <summary>
+    /// Regex for extracting workflow run number from a -ci.X marker.
+    /// </summary>
+    [GeneratedRegex(@"-ci\.(\d+)", RegexOptions.IgnoreCase)]
+    private static partial Regex CiMarkerRegex();
 }

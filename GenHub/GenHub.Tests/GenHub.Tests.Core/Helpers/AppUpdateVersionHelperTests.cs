@@ -17,7 +17,8 @@ public class AppUpdateVersionHelperTests
     [InlineData("0.0.1287-development", 1287)]
     [InlineData("0.0.1287", 1287)]
     [InlineData("0.0.0-ci.500", 500)]
-    [InlineData("1.0.42", 42)]
+    [InlineData("1.0.42", 0)]
+    [InlineData("1.2.5", 0)]
     [InlineData("", 0)]
     [InlineData("   ", 0)]
     [InlineData(null, 0)]
@@ -96,6 +97,8 @@ public class AppUpdateVersionHelperTests
     [Fact]
     public void IsArtifactVersionNewer_SemanticVersion_ShouldCompareCorrectly()
     {
+        Assert.True(AppUpdateVersionHelper.IsArtifactVersionNewer("1.2.5", "1.1.9"));
+        Assert.False(AppUpdateVersionHelper.IsArtifactVersionNewer("1.1.9", "1.2.5"));
         Assert.True(AppUpdateVersionHelper.IsArtifactVersionNewer("1.2.0", "1.1.0"));
         Assert.False(AppUpdateVersionHelper.IsArtifactVersionNewer("1.1.0", "1.2.0"));
         Assert.False(AppUpdateVersionHelper.IsArtifactVersionNewer("1.0.0", "1.0.0"));

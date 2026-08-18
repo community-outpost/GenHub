@@ -399,10 +399,13 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     /// <inheritdoc/>
     public async Task<ArtifactUpdateInfo?> CheckForArtifactUpdatesAsync(CancellationToken cancellationToken = default)
     {
-        // Check cache
+        var targetPrNumber = SubscribedPrNumber;
+        var targetBranch = SubscribedBranch;
+
+        // check cache
         if (DateTime.UtcNow - _lastArtifactCheckTime < AppUpdateConstants.CacheDuration &&
-            _cachedArtifactSubscribedPrNumber == SubscribedPrNumber &&
-            string.Equals(_cachedArtifactSubscribedBranch, SubscribedBranch, StringComparison.OrdinalIgnoreCase))
+            _cachedArtifactSubscribedPrNumber == targetPrNumber &&
+            string.Equals(_cachedArtifactSubscribedBranch, targetBranch, StringComparison.OrdinalIgnoreCase))
         {
             _logger.LogInformation("Returning cached artifact update info (checked {TimeLess} ago)", (DateTime.UtcNow - _lastArtifactCheckTime).ToString(@"mm\:ss"));
             return _cachedArtifactUpdateInfo;
@@ -418,36 +421,44 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         try
         {
-            // Reset latest artifact if switching modes/channels
-            _latestArtifactUpdate = null;
+            ArtifactUpdateInfo? artifactUpdate = null;
 
-            // Priority:
-            // 1. Subscribed PR
-            // 2. Subscribed Branch
-            // 3. Overall latest
-            if (SubscribedPrNumber.HasValue)
+            // priority:
+            // 1. subscribed pr
+            // 2. subscribed branch
+            // 3. overall latest
+            if (targetPrNumber.HasValue)
             {
-                _logger.LogInformation("Checking for artifacts for subscribed PR #{PrNumber}", SubscribedPrNumber.Value);
+                _logger.LogInformation("Checking for artifacts for subscribed PR #{PrNumber}", targetPrNumber.Value);
                 var prs = await GetOpenPullRequestsAsync(cancellationToken);
-                var subscribedPr = prs.FirstOrDefault(p => p.Number == SubscribedPrNumber.Value);
-                _latestArtifactUpdate = subscribedPr?.LatestArtifact;
+                var subscribedPr = prs.FirstOrDefault(p => p.Number == targetPrNumber.Value);
+                artifactUpdate = subscribedPr?.LatestArtifact;
             }
-            else if (!string.IsNullOrEmpty(SubscribedBranch))
+            else if (!string.IsNullOrEmpty(targetBranch))
             {
-                _logger.LogInformation("Checking for artifacts for subscribed branch: {Branch}", SubscribedBranch);
-                _latestArtifactUpdate = await FindLatestArtifactAsync(SubscribedBranch, cancellationToken);
+                _logger.LogInformation("Checking for artifacts for subscribed branch: {Branch}", targetBranch);
+                artifactUpdate = await FindLatestArtifactAsync(targetBranch, cancellationToken);
             }
             else
             {
                 _logger.LogInformation("Checking for overall latest artifact");
-                _latestArtifactUpdate = await FindLatestArtifactAsync(null, cancellationToken);
+                artifactUpdate = await FindLatestArtifactAsync(null, cancellationToken);
             }
 
-            _cachedArtifactUpdateInfo = _latestArtifactUpdate;
-            _cachedArtifactSubscribedPrNumber = SubscribedPrNumber;
-            _cachedArtifactSubscribedBranch = SubscribedBranch;
+            // verify subscription did not change while awaiting
+            if (SubscribedPrNumber != targetPrNumber ||
+                !string.Equals(SubscribedBranch, targetBranch, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogInformation("Subscription changed during artifact check, discarding result");
+                return null;
+            }
+
+            _latestArtifactUpdate = artifactUpdate;
+            _cachedArtifactUpdateInfo = artifactUpdate;
+            _cachedArtifactSubscribedPrNumber = targetPrNumber;
+            _cachedArtifactSubscribedBranch = targetBranch;
             _lastArtifactCheckTime = DateTime.UtcNow;
-            return _latestArtifactUpdate;
+            return artifactUpdate;
         }
         catch (Exception ex)
         {

@@ -350,7 +350,11 @@ public class UpdateNotificationViewModelTests
             new ArtifactUpdateInfo("0.0.1314-pr391", "230d15b", 391, 999, "https://github.com/test/run/99", 499, "genhub-velopack-linux-0.0.1314-pr391", DateTime.UtcNow, "https://github.com/test/art/99", 1024),
         ]);
 
-        await Task.Delay(50);
+        var timeout = DateTime.UtcNow.AddSeconds(2);
+        while ((vm.IsLoadingVersions || vm.AvailableVersions.Count > 0) && DateTime.UtcNow < timeout)
+        {
+            await Task.Delay(10);
+        }
 
         Assert.False(vm.IsLoadingVersions);
         Assert.Empty(vm.AvailableVersions);

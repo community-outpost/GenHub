@@ -33,27 +33,26 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     private CancellationTokenSource? _loadArtifactsCts;
     private UpdateInfo? _currentUpdateInfo;
 
+    private static readonly Lazy<string> CachedCurrentAppVersion = new(() =>
+    {
+        try
+        {
+            // get actual installed version from velopack
+            var updateManager = new UpdateManager(new SimpleWebSource(string.Empty));
+            var currentVersion = updateManager.CurrentVersion;
+            return currentVersion?.ToString() ?? AppConstants.AppVersion;
+        }
+        catch
+        {
+            // fallback to compile-time version if velopack fails
+            return AppConstants.AppVersion;
+        }
+    });
+
     /// <summary>
     /// Gets the current application version.
     /// </summary>
-    public static string CurrentAppVersion
-    {
-        get
-        {
-            try
-            {
-                // get actual installed version from velopack
-                var updateManager = new UpdateManager(new SimpleWebSource(string.Empty));
-                var currentVersion = updateManager.CurrentVersion;
-                return currentVersion?.ToString() ?? AppConstants.AppVersion;
-            }
-            catch
-            {
-                // fallback to compile-time version if velopack fails
-                return AppConstants.AppVersion;
-            }
-        }
-    }
+    public static string CurrentAppVersion => CachedCurrentAppVersion.Value;
 
     /// <summary>
     /// Gets or sets the status message.
@@ -495,12 +494,30 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         GC.SuppressFinalize(this);
     }
 
-    /// <summary>
-    /// Extracts the workflow run number from a version string like "0.0.641-pr241".
-    /// </summary>
-    private static int ExtractRunNumber(string version)
+    private void ProcessPrArtifactUpdate(ArtifactUpdateInfo artifact, int prNumber)
     {
-        return AppUpdateVersionHelper.ExtractRunNumber(version);
+        var currentVersionBase = CurrentAppVersion.Split('+')[0];
+        var prVersionBase = artifact.Version.Split('+')[0];
+
+        if (AppUpdateVersionHelper.IsArtifactVersionNewer(prVersionBase, currentVersionBase))
+        {
+            var settings = _userSettingsService.Get();
+            if (!string.Equals(prVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
+            {
+                IsUpdateAvailable = true;
+                LatestVersion = prVersionBase;
+                ReleaseNotesUrl = $"{AppConstants.GitHubRepositoryUrl}/pull/{prNumber}";
+                StatusMessage = $"New PR build available: {artifact.DisplayVersion}";
+                _logger.LogInformation("Subscribed to PR #{PrNumber}, new build available: {Version}", prNumber, artifact.DisplayVersion);
+                return;
+            }
+
+            StatusMessage = $"You dismissed the update for PR #{prNumber}";
+            return;
+        }
+
+        IsUpdateAvailable = false;
+        StatusMessage = $"You are on the latest build for PR #{prNumber}";
     }
 
     /// <summary>
@@ -529,34 +546,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             {
                 if (SubscribedPr.LatestArtifact != null)
                 {
-                    var currentVersionBase = CurrentAppVersion.Split('+')[0];
-                    var prVersionBase = SubscribedPr.LatestArtifact.Version.Split('+')[0];
-
-                    // extract run numbers for numeric comparison
-                    var currentRun = ExtractRunNumber(currentVersionBase);
-                    var prRun = ExtractRunNumber(prVersionBase);
-
-                    _logger.LogDebug("Comparing PR #{PrNumber} versions: current run #{CurrentRun} vs new run #{PrRun}", SubscribedPr.Number, currentRun, prRun);
-
-                    if (prRun > currentRun)
-                    {
-                        var settings = _userSettingsService.Get();
-                        if (!string.Equals(prVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
-                        {
-                            IsUpdateAvailable = true;
-                            LatestVersion = prVersionBase;
-                            ReleaseNotesUrl = $"{AppConstants.GitHubRepositoryUrl}/pull/{SubscribedPr.Number}";
-                            StatusMessage = $"New PR build available: {SubscribedPr.LatestArtifact.DisplayVersion}";
-                            _logger.LogInformation("Subscribed to PR #{PrNumber}, new build available: run #{PrRun} (current: #{CurrentRun})", SubscribedPr.Number, prRun, currentRun);
-                            return;
-                        }
-
-                        StatusMessage = $"You dismissed the update for PR #{SubscribedPr.Number}";
-                        return;
-                    }
-
-                    IsUpdateAvailable = false;
-                    StatusMessage = $"You are on the latest build for PR #{SubscribedPr.Number}";
+                    ProcessPrArtifactUpdate(SubscribedPr.LatestArtifact, SubscribedPr.Number);
                     return;
                 }
 
@@ -565,34 +555,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 var prArtifact = await _velopackUpdateManager.CheckForArtifactUpdatesAsync(_cancellationTokenSource.Token);
                 if (prArtifact != null)
                 {
-                    var currentVersionBase = CurrentAppVersion.Split('+')[0];
-                    var prVersionBase = prArtifact.Version.Split('+')[0];
-
-                    // extract run numbers for numeric comparison
-                    var currentRun = ExtractRunNumber(currentVersionBase);
-                    var prRun = ExtractRunNumber(prVersionBase);
-
-                    _logger.LogDebug("Comparing fetched PR #{PrNumber} versions: current run #{CurrentRun} vs new run #{PrRun}", SubscribedPr.Number, currentRun, prRun);
-
-                    if (prRun > currentRun)
-                    {
-                        var settings = _userSettingsService.Get();
-                        if (!string.Equals(prVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
-                        {
-                            IsUpdateAvailable = true;
-                            LatestVersion = prVersionBase;
-                            ReleaseNotesUrl = $"{AppConstants.GitHubRepositoryUrl}/pull/{SubscribedPr.Number}";
-                            StatusMessage = $"New PR build available: {prArtifact.DisplayVersion}";
-                            _logger.LogInformation("Fetched PR #{PrNumber} artifact, new build available: run #{PrRun} (current: #{CurrentRun})", SubscribedPr.Number, prRun, currentRun);
-                            return;
-                        }
-
-                        StatusMessage = $"You dismissed the update for PR #{SubscribedPr.Number}";
-                        return;
-                    }
-
-                    IsUpdateAvailable = false;
-                    StatusMessage = $"You are on the latest build for PR #{SubscribedPr.Number}";
+                    ProcessPrArtifactUpdate(prArtifact, SubscribedPr.Number);
                     return;
                 }
 
