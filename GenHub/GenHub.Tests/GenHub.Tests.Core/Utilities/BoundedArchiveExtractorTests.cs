@@ -124,6 +124,80 @@ public sealed class BoundedArchiveExtractorTests : IDisposable
     }
 
     /// <summary>
+    /// Leaves the existing destination untouched when an overwriting copy fails part-way through.
+    /// The replacement is staged beside the destination, so the only file removed is the one this
+    /// call wrote.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CopyEntryToFileAsync_KeepsExistingFileWhenOverwritingCopyFailsAsync()
+    {
+        var destination = Path.Combine(_workingDirectory, "replaced.dat");
+        await File.WriteAllTextAsync(destination, "original");
+        using var source = new MemoryStream(new byte[64 * 1024]);
+
+        await Assert.ThrowsAsync<ArchiveExpansionLimitExceededException>(() =>
+            BoundedArchiveExtractor.CopyEntryToFileAsync(
+                source,
+                destination,
+                "replaced.dat",
+                maxEntryBytes: 1024,
+                remainingAggregateBytes: long.MaxValue,
+                overwrite: true));
+
+        Assert.Equal("original", await File.ReadAllTextAsync(destination));
+        Assert.Equal([destination], Directory.GetFiles(_workingDirectory));
+    }
+
+    /// <summary>
+    /// Replaces the existing destination once an overwriting copy completes, leaving no staging
+    /// file behind.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CopyEntryToFileAsync_ReplacesExistingFileWhenOverwriteAllowedAsync()
+    {
+        var destination = Path.Combine(_workingDirectory, "replaced.dat");
+        await File.WriteAllTextAsync(destination, "original");
+        using var source = new MemoryStream(Encoding.UTF8.GetBytes("replacement"));
+
+        var written = await BoundedArchiveExtractor.CopyEntryToFileAsync(
+            source,
+            destination,
+            "replaced.dat",
+            maxEntryBytes: 1024,
+            remainingAggregateBytes: 1024,
+            overwrite: true);
+
+        Assert.Equal("replacement".Length, written);
+        Assert.Equal("replacement", await File.ReadAllTextAsync(destination));
+        Assert.Equal([destination], Directory.GetFiles(_workingDirectory));
+    }
+
+    /// <summary>
+    /// Rejects an entry once the archive-wide budget is spent, even when the entry is empty and so
+    /// never reaches the read loop where the running total is checked.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CopyEntryToFileAsync_RejectsEmptyEntryOnceAggregateBudgetIsSpentAsync()
+    {
+        using var source = new MemoryStream([]);
+        var destination = Path.Combine(_workingDirectory, "empty.dat");
+
+        var failure = await Assert.ThrowsAsync<ArchiveExpansionLimitExceededException>(() =>
+            BoundedArchiveExtractor.CopyEntryToFileAsync(
+                source,
+                destination,
+                "empty.dat",
+                maxEntryBytes: 1024,
+                remainingAggregateBytes: 0));
+
+        Assert.Equal("empty.dat", failure.EntryName);
+        Assert.False(File.Exists(destination));
+    }
+
+    /// <summary>
     /// Rejects an archive entry whose central-directory header understates its real size. The
     /// archive claims four kilobytes and inflates to twelve megabytes, which is only visible while
     /// decompressing, so the copy must abort mid-stream and leave no partial output behind.

@@ -15,4 +15,10 @@ public static class IoConstants
     /// themselves reached through links. Bounds the walk on a filesystem that contains a cycle.
     /// </summary>
     public const int MaxSymbolicLinkResolutionDepth = 8;
+
+    /// <summary>
+    /// Suffix appended to a destination path to stage a write beside its final location so the
+    /// existing file is only replaced once the write has completed.
+    /// </summary>
+    public const string StagingFileSuffix = ".genhub-staging";
 }

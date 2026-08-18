@@ -16,8 +16,9 @@ public static class BoundedArchiveExtractor
 {
     /// <summary>
     /// Copies a decompressed archive entry to <paramref name="destinationPath"/>, aborting as soon as the
-    /// per-entry cap or the remaining archive-wide budget is exhausted. The partially written file is
-    /// deleted before the failure is surfaced.
+    /// per-entry cap or the remaining archive-wide budget is exhausted. When <paramref name="overwrite"/>
+    /// is set the entry is staged beside its destination and moved into place only once the copy has
+    /// completed, so a failure leaves any pre-existing file intact and removes only what this call wrote.
     /// </summary>
     /// <param name="entryStream">The decompressed entry stream to read from.</param>
     /// <param name="destinationPath">The file to write the entry to.</param>
@@ -27,7 +28,7 @@ public static class BoundedArchiveExtractor
     /// <param name="overwrite">Whether an existing destination file may be replaced.</param>
     /// <param name="cancellationToken">Token used to cancel the copy.</param>
     /// <returns>The number of bytes written.</returns>
-    /// <exception cref="ArchiveExpansionLimitExceededException">Thrown when the entry expands past its budget.</exception>
+    /// <exception cref="ArchiveExpansionLimitExceededException">Thrown when the budget is already exhausted or the entry expands past it.</exception>
     public static async Task<long> CopyEntryToFileAsync(
         Stream entryStream,
         string destinationPath,
@@ -40,15 +41,22 @@ public static class BoundedArchiveExtractor
         ArgumentNullException.ThrowIfNull(entryStream);
 
         var limit = Math.Min(maxEntryBytes, remainingAggregateBytes);
+        if (limit <= 0)
+        {
+            throw new ArchiveExpansionLimitExceededException(entryName, limit);
+        }
+
         var buffer = new byte[IoConstants.DefaultFileBufferSize];
         long written = 0;
 
-        var mode = overwrite ? FileMode.Create : FileMode.CreateNew;
-        var destination = new FileStream(destinationPath, mode, FileAccess.Write, FileShare.None);
+        var writePath = overwrite
+            ? $"{destinationPath}{IoConstants.StagingFileSuffix}{Guid.NewGuid():N}"
+            : destinationPath;
+        var destination = new FileStream(writePath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
 
         try
         {
-            int read;
+            int read = 0;
             while ((read = await entryStream.ReadAsync(buffer, cancellationToken)) > 0)
             {
                 written += read;
@@ -59,25 +67,31 @@ public static class BoundedArchiveExtractor
 
                 await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
             }
+
+            await destination.DisposeAsync();
+
+            if (overwrite)
+            {
+                File.Move(writePath, destinationPath, overwrite: true);
+            }
         }
         catch
         {
             await destination.DisposeAsync();
-            DeletePartialOutput(destinationPath);
+            DeletePartialOutput(writePath);
             throw;
         }
 
-        await destination.DisposeAsync();
         return written;
     }
 
-    private static void DeletePartialOutput(string destinationPath)
+    private static void DeletePartialOutput(string writePath)
     {
         try
         {
-            if (File.Exists(destinationPath))
+            if (File.Exists(writePath))
             {
-                File.Delete(destinationPath);
+                File.Delete(writePath);
             }
         }
         catch (IOException)
