@@ -904,14 +904,15 @@ public class GameLauncherTests : IDisposable
 
     /// <summary>
     /// Tests that a Zero Hour profile running some other client leaves the GeneralsOnline
-    /// client's settings.json alone.
+    /// client's settings.json alone, even when its name would match the heuristic that
+    /// identifies profiles with no recorded publisher.
     /// </summary>
     /// <returns>The async task.</returns>
     [Fact]
     public async Task LaunchProfileAsync_WithNonGeneralsOnlineZeroHourProfile_ShouldNotWriteGeneralsOnlineSettingsAsync()
     {
         // Arrange
-        var profile = CreateZeroHourProfile(PublisherTypeConstants.TheSuperHackers, "TheSuperHackers Zero Hour");
+        var profile = CreateZeroHourProfile(PublisherTypeConstants.TheSuperHackers, "GeneralsOnline-compatible TheSuperHackers");
         ArrangeSuccessfulLaunch(profile);
 
         // Act

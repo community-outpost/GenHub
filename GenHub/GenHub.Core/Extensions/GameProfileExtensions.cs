@@ -28,17 +28,20 @@ public static class GameProfileExtensions
     /// Checks if a profile runs the GeneralsOnline client.
     /// </summary>
     /// <remarks>
-    /// The publisher type is the authoritative marker, but profiles created before it was
-    /// recorded carry it only in the client name or the enabled content ids, so both are
-    /// consulted as fallbacks.
+    /// A recorded publisher type settles the question either way. The client name and the enabled
+    /// content ids are consulted only when no publisher type was recorded, which is the case for
+    /// profiles created before it existed: a TheSuperHackers profile with GeneralsOnline content
+    /// enabled belongs to TheSuperHackers, and answering otherwise would let it rewrite the
+    /// GeneralsOnline client's global settings.
     /// </remarks>
     /// <param name="profile">The game profile.</param>
     /// <returns>True if the profile runs GeneralsOnline, false otherwise.</returns>
     public static bool IsGeneralsOnlineProfile(this GameProfile profile)
     {
-        if (string.Equals(profile.GameClient?.PublisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase))
+        var publisherType = profile.GameClient?.PublisherType;
+        if (!string.IsNullOrWhiteSpace(publisherType))
         {
-            return true;
+            return string.Equals(publisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase);
         }
 
         if (profile.GameClient?.Name?.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true)

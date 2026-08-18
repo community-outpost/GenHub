@@ -37,10 +37,32 @@ public class GameProfileExtensionsTests
     [InlineData(PublisherTypeConstants.TheSuperHackers)]
     [InlineData(CommunityOutpostConstants.PublisherType)]
     [InlineData("")]
+    [InlineData("   ")]
     public void IsGeneralsOnlineProfile_WithOtherPublisher_ReturnsFalse(string publisherType)
     {
         // Arrange
         var profile = CreateZeroHourProfile(publisherType, "Zero Hour", ["1.0.genhub.mod.test"]);
+
+        // Act & Assert
+        Assert.False(profile.IsGeneralsOnlineProfile());
+    }
+
+    /// <summary>
+    /// Verifies that a recorded publisher settles the question, so a profile belonging to another
+    /// client is not reclassified by content it happens to enable or by its client name. Answering
+    /// otherwise would let it rewrite the GeneralsOnline client's global settings.
+    /// </summary>
+    /// <param name="publisherType">The publisher type recorded on the profile's client.</param>
+    [Theory]
+    [InlineData(PublisherTypeConstants.TheSuperHackers)]
+    [InlineData(CommunityOutpostConstants.PublisherType)]
+    public void IsGeneralsOnlineProfile_WithOtherPublisherAndGeneralsOnlineHints_ReturnsFalse(string publisherType)
+    {
+        // Arrange
+        var profile = CreateZeroHourProfile(
+            publisherType,
+            "GeneralsOnline Compatible",
+            ["1.9.generalsonline.gameclient.30hz"]);
 
         // Act & Assert
         Assert.False(profile.IsGeneralsOnlineProfile());
