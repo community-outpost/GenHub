@@ -284,10 +284,11 @@ public class ConfigurationProviderService(
             return settings.ContentDirectories;
         }
 
+        var dataRoot = GetApplicationDataPath();
         return
         [
-            Path.Combine(_appConfig.GetConfiguredDataPath(), FileTypes.ManifestsDirectory),
-            Path.Combine(_appConfig.GetConfiguredDataPath(), "CustomManifests"),
+            Path.Combine(dataRoot, FileTypes.ManifestsDirectory),
+            Path.Combine(dataRoot, DirectoryNames.CustomManifests),
             Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                 "Command and Conquer Generals Zero Hour Data",

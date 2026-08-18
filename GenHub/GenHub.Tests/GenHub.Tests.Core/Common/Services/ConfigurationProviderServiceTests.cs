@@ -794,8 +794,33 @@ public class ConfigurationProviderServiceTests
 
         // Assert
         Assert.Contains(Path.Combine(appDataPath, FileTypes.ManifestsDirectory), result);
-        Assert.Contains(Path.Combine(appDataPath, "CustomManifests"), result);
+        Assert.Contains(Path.Combine(appDataPath, DirectoryNames.CustomManifests), result);
         Assert.True(result.Count >= 3);
+    }
+
+    /// <summary>
+    /// Verifies that the default content directories follow an explicitly set application data path,
+    /// so local discovery scans the same root the manifests are read from and written to.
+    /// </summary>
+    [Fact]
+    public void GetContentDirectories_WithExplicitApplicationDataPath_ReturnsOverride()
+    {
+        // Arrange
+        var userPath = Path.Combine(Path.GetTempPath(), "genhub-user-data-root");
+        var userSettings = new UserSettings { ApplicationDataPath = userPath, ContentDirectories = [] };
+        userSettings.MarkAsExplicitlySet(nameof(UserSettings.ApplicationDataPath));
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+        _mockAppConfig.Setup(x => x.GetConfiguredDataPath()).Returns("/app/data/path");
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetContentDirectories();
+
+        // Assert
+        Assert.Contains(Path.Combine(userPath, FileTypes.ManifestsDirectory), result);
+        Assert.Contains(Path.Combine(userPath, DirectoryNames.CustomManifests), result);
+        Assert.Equal(provider.GetManifestsPath(), result[0]);
     }
 
     /// <summary>

@@ -51,6 +51,11 @@ public static class DirectoryNames
     public const string Profiles = "Profiles";
 
     /// <summary>
+    /// Directory holding manifests authored by the user, alongside <see cref="FileTypes.ManifestsDirectory"/>.
+    /// </summary>
+    public const string CustomManifests = "CustomManifests";
+
+    /// <summary>
     /// Directory that releases up to v0.0.3 nested the manifests, tracked user data and workspace
     /// metadata under. Current releases keep those entries directly in the data root.
     /// </summary>

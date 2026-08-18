@@ -127,7 +127,7 @@ public class ManifestDiscoveryService(
         // is honoured; a raw SpecialFolder lookup would keep reading the default tree.
         var applicationDataPath = configurationProvider.GetApplicationDataPath();
         var localManifestDir = Path.Combine(applicationDataPath, FileTypes.ManifestsDirectory);
-        var customManifestDir = Path.Combine(applicationDataPath, "CustomManifests");
+        var customManifestDir = Path.Combine(applicationDataPath, DirectoryNames.CustomManifests);
 
         await DiscoverFileSystemManifestsAsync([localManifestDir, customManifestDir], cancellationToken);
 
