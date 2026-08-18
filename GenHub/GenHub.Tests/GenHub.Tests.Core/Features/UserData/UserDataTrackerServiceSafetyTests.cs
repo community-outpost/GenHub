@@ -353,6 +353,49 @@ public sealed partial class UserDataTrackerServiceSafetyTests : IDisposable
     }
 
     /// <summary>
+    /// A cancelled delete-all must abort before any tracking metadata is destroyed. Swallowing the
+    /// cancellation and carrying on wipes the manifests and the index while the backups they describe
+    /// are still on disk, leaving the user's originals unrecoverable by anything but hand.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task DeleteAllUserDataAsync_WhenCancelledMidCleanup_KeepsTrackingMetadataAsync()
+    {
+        // Arrange
+        var deployedPath = Path.Combine(_zeroHourDataDir, "GeneralsOnlineGameData", "splash.bmp");
+        Directory.CreateDirectory(Path.GetDirectoryName(deployedPath)!);
+        File.WriteAllText(deployedPath, "the-user-original-file");
+
+        var installResult = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            TestProfileId,
+            GameType.ZeroHour,
+            BuildFiles(),
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+        Assert.True(installResult.Success);
+
+        using var cts = new CancellationTokenSource();
+        _fileOperationsMock
+            .Setup(f => f.CheckFileHashAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns<string, string, CancellationToken>((_, _, token) =>
+            {
+                cts.Cancel();
+                token.ThrowIfCancellationRequested();
+                return Task.FromResult(FileHashVerification.Match);
+            });
+
+        // Act
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _trackerService.DeleteAllUserDataAsync(cts.Token));
+
+        // Assert
+        Assert.True(File.Exists(Path.Combine(_appDataDir, "UserData", "index.json")));
+        Assert.NotEmpty(Directory.GetFiles(Path.Combine(_appDataDir, "UserData", "manifests"), "*", SearchOption.AllDirectories));
+        Assert.NotEmpty(Directory.GetFiles(Path.Combine(_appDataDir, "UserData", "backups"), "*", SearchOption.AllDirectories));
+    }
+
+    /// <summary>
     /// Verifies that a clean delete-all still restores the originals and clears the backups, so the
     /// retention path does not become the permanent behaviour.
     /// </summary>

@@ -660,6 +660,12 @@ public class UserDataTrackerService(
                                     allBackupsRestored = false;
                                 }
                             }
+                            catch (OperationCanceledException)
+                            {
+                                // Abort before step 3 removes the manifests and the index: those are
+                                // the only map from a backup file back to the path it belongs at.
+                                throw;
+                            }
                             catch (Exception ex)
                             {
                                 logger.LogError(ex, "[UserData] Failed to cleanup user data for installation key {Key}", key);
@@ -711,6 +717,10 @@ public class UserDataTrackerService(
             {
                 IndexLock.Release();
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
