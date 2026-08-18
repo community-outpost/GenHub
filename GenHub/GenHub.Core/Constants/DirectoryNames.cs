@@ -51,6 +51,11 @@ public static class DirectoryNames
     public const string Profiles = "Profiles";
 
     /// <summary>
+    /// Directory for storing tracked user data.
+    /// </summary>
+    public const string UserData = "UserData";
+
+    /// <summary>
     /// Directory for storing workspaces.
     /// </summary>
     public const string Workspaces = "Workspaces";

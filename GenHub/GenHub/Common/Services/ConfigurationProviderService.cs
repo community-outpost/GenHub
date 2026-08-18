@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
@@ -20,6 +21,19 @@ public class ConfigurationProviderService(
     IUserSettingsService userSettings,
     ILogger<ConfigurationProviderService> logger) : IConfigurationProviderService
 {
+    private static readonly string[] LegacyRootDirectories =
+    [
+        DirectoryNames.Profiles,
+        FileTypes.ManifestsDirectory,
+        DirectoryNames.UserData,
+    ];
+
+    private static readonly string[] LegacyRootFiles =
+    [
+        FileTypes.SettingsFileName,
+        FileTypes.WorkspaceMetadataFileName,
+    ];
+
     private readonly IAppConfiguration _appConfig = appConfig ?? throw new ArgumentNullException(nameof(appConfig));
     private readonly IUserSettingsService _userSettings = userSettings ?? throw new ArgumentNullException(nameof(userSettings));
     private readonly ILogger<ConfigurationProviderService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -295,6 +309,7 @@ public class ConfigurationProviderService(
                 if (!_migrated)
                 {
                     // Double-check
+                    MigrateLegacyDataRoot();
                     MigrateContentDirectory();
                     _migrated = true;
                 }
@@ -315,10 +330,10 @@ public class ConfigurationProviderService(
     public string GetRootAppDataPath() => _appConfig.GetConfiguredDataPath();
 
     /// <inheritdoc />
-    public string GetProfilesPath() => Path.Combine(_appConfig.GetConfiguredDataPath(), DirectoryNames.Profiles);
+    public string GetProfilesPath() => Path.Combine(GetApplicationDataPath(), DirectoryNames.Profiles);
 
     /// <inheritdoc />
-    public string GetManifestsPath() => Path.Combine(_appConfig.GetConfiguredDataPath(), FileTypes.ManifestsDirectory);
+    public string GetManifestsPath() => Path.Combine(GetApplicationDataPath(), FileTypes.ManifestsDirectory);
 
     /// <inheritdoc />
     /// <remarks>
@@ -357,6 +372,91 @@ public class ConfigurationProviderService(
             DirectoryNames.Logs.ToLowerInvariant());
     }
 
+    /// <summary>
+    /// Moves the data written by releases that stored everything under the roaming application data
+    /// folder into the current data root, so upgrading users keep their profiles, manifests, tracked
+    /// user data, workspace metadata and settings.
+    /// </summary>
+    /// <param name="legacyRoot">The roaming data root used before the move to local application data.</param>
+    /// <param name="newRoot">The current data root.</param>
+    /// <remarks>
+    /// The CAS pool is deliberately excluded: <see cref="GetCasConfiguration"/> still defaults to the
+    /// legacy location, so moving the pool would orphan it.
+    /// </remarks>
+    internal void MigrateLegacyDataRoot(string legacyRoot, string newRoot)
+    {
+        if (!Directory.Exists(legacyRoot) || IsSamePath(legacyRoot, newRoot))
+        {
+            return;
+        }
+
+        var hasLegacyEntries = LegacyRootDirectories
+            .Select(name => Path.Combine(legacyRoot, name))
+            .Any(Directory.Exists)
+            || LegacyRootFiles
+                .Select(name => Path.Combine(legacyRoot, name))
+                .Any(File.Exists);
+
+        if (!hasLegacyEntries)
+        {
+            return;
+        }
+
+        _logger.LogInformation("Migrating legacy data root {LegacyRoot} to {NewRoot}", legacyRoot, newRoot);
+        Directory.CreateDirectory(newRoot);
+
+        foreach (var name in LegacyRootDirectories)
+        {
+            try
+            {
+                MigrateDirectory(Path.Combine(legacyRoot, name), Path.Combine(newRoot, name));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to migrate legacy directory {Name} from {LegacyRoot}", name, legacyRoot);
+            }
+        }
+
+        foreach (var name in LegacyRootFiles)
+        {
+            try
+            {
+                MigrateFile(Path.Combine(legacyRoot, name), Path.Combine(newRoot, name));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to migrate legacy file {Name} from {LegacyRoot}", name, legacyRoot);
+            }
+        }
+    }
+
+    private static bool IsSamePath(string first, string second)
+    {
+        try
+        {
+            return string.Equals(
+                Path.TrimEndingDirectorySeparator(Path.GetFullPath(first)),
+                Path.TrimEndingDirectorySeparator(Path.GetFullPath(second)),
+                PathHelper.PathComparison);
+        }
+        catch (Exception)
+        {
+            return string.Equals(first, second, PathHelper.PathComparison);
+        }
+    }
+
+    private void MigrateLegacyDataRoot()
+    {
+        try
+        {
+            MigrateLegacyDataRoot(_appConfig.GetLegacyConfiguredDataPath(), _appConfig.GetConfiguredDataPath());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to migrate legacy data root");
+        }
+    }
+
     private void MigrateContentDirectory()
     {
         try
@@ -372,14 +472,14 @@ public class ConfigurationProviderService(
             _logger.LogInformation("Migrating content from {ContentPath} to root {RootPath}", contentPath, rootPath);
 
             // 1. Move Manifests
-            MigrateDirectory(Path.Combine(contentPath, "Manifests"), Path.Combine(rootPath, "Manifests"));
+            MigrateDirectory(Path.Combine(contentPath, FileTypes.ManifestsDirectory), Path.Combine(rootPath, FileTypes.ManifestsDirectory));
 
             // 2. Move UserData
-            MigrateDirectory(Path.Combine(contentPath, "UserData"), Path.Combine(rootPath, "UserData"));
+            MigrateDirectory(Path.Combine(contentPath, DirectoryNames.UserData), Path.Combine(rootPath, DirectoryNames.UserData));
 
             // 3. Move workspaces.json
-            var sourceWorkspaces = Path.Combine(contentPath, "workspaces.json");
-            var destWorkspaces = Path.Combine(rootPath, "workspaces.json");
+            var sourceWorkspaces = Path.Combine(contentPath, FileTypes.WorkspaceMetadataFileName);
+            var destWorkspaces = Path.Combine(rootPath, FileTypes.WorkspaceMetadataFileName);
             if (File.Exists(sourceWorkspaces))
             {
                 if (!File.Exists(destWorkspaces))
@@ -419,19 +519,23 @@ public class ConfigurationProviderService(
 
         if (!Directory.Exists(destDir))
         {
-            Directory.Move(sourceDir, destDir);
-            _logger.LogInformation("Moved {Source} to {Dest}", sourceDir, destDir);
-            return;
+            try
+            {
+                Directory.Move(sourceDir, destDir);
+                _logger.LogInformation("Moved {Source} to {Dest}", sourceDir, destDir);
+                return;
+            }
+            catch (IOException ex)
+            {
+                _logger.LogWarning(ex, "Could not move {Source} to {Dest} directly, falling back to per-entry migration", sourceDir, destDir);
+                Directory.CreateDirectory(destDir);
+            }
         }
 
         // Destination exists, move content
         foreach (var file in Directory.GetFiles(sourceDir))
         {
-            var destFile = Path.Combine(destDir, Path.GetFileName(file));
-            if (!File.Exists(destFile))
-            {
-                File.Move(file, destFile);
-            }
+            MigrateFile(file, Path.Combine(destDir, Path.GetFileName(file)));
         }
 
         foreach (var subDir in Directory.GetDirectories(sourceDir))
@@ -451,5 +555,28 @@ public class ConfigurationProviderService(
         catch
         {
         }
+    }
+
+    private void MigrateFile(string sourceFile, string destFile)
+    {
+        if (!File.Exists(sourceFile))
+        {
+            return;
+        }
+
+        if (File.Exists(destFile))
+        {
+            _logger.LogInformation("Skipping {Source}, {Dest} already exists", sourceFile, destFile);
+            return;
+        }
+
+        var destDir = Path.GetDirectoryName(destFile);
+        if (!string.IsNullOrEmpty(destDir))
+        {
+            Directory.CreateDirectory(destDir);
+        }
+
+        File.Move(sourceFile, destFile);
+        _logger.LogInformation("Moved {Source} to {Dest}", sourceFile, destFile);
     }
 }

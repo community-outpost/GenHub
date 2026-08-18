@@ -7,8 +7,8 @@ using GenHub.Core.Models.Enums;
 namespace GenHub.Core.Serialization;
 
 /// <summary>
-/// Custom JSON converter for WorkspaceStrategy that supports both string and integer formats.
-/// Provides backward compatibility for integer-based strategy values.
+/// Custom JSON converter for WorkspaceStrategy that writes the member name and reads both string
+/// and integer formats, so metadata written by releases up to v0.0.3 still deserializes.
 /// </summary>
 public class JsonWorkspaceStrategyConverter : JsonConverter<WorkspaceStrategy>
 {
@@ -53,6 +53,6 @@ public class JsonWorkspaceStrategyConverter : JsonConverter<WorkspaceStrategy>
     /// <inheritdoc />
     public override void Write(Utf8JsonWriter writer, WorkspaceStrategy value, JsonSerializerOptions options)
     {
-        writer.WriteNumberValue((int)value);
+        writer.WriteStringValue(value.ToString());
     }
 }

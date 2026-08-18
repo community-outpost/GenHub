@@ -12,6 +12,10 @@ public interface IAppConfiguration
     /// <returns>The root application data path.</returns>
     string GetConfiguredDataPath();
 
+    /// <summary>Gets the root application data path used by releases up to v0.0.3, which stored data under the roaming profile.</summary>
+    /// <returns>The legacy root application data path.</returns>
+    string GetLegacyConfiguredDataPath();
+
     /// <summary>Gets the default workspace path for GenHub.</summary>
     /// <returns>The default workspace path.</returns>
     string GetDefaultWorkspacePath();

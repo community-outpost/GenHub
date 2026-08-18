@@ -841,6 +841,244 @@ public class ConfigurationProviderServiceTests
     }
 
     /// <summary>
+    /// Verifies that GetProfilesPath honors an explicitly set application data path.
+    /// </summary>
+    [Fact]
+    public void GetProfilesPath_WithExplicitApplicationDataPath_ReturnsOverride()
+    {
+        // Arrange
+        var userPath = Path.Combine(Path.GetTempPath(), "genhub-user-data-root");
+        var userSettings = new UserSettings { ApplicationDataPath = userPath };
+        userSettings.MarkAsExplicitlySet(nameof(UserSettings.ApplicationDataPath));
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+        _mockAppConfig.Setup(x => x.GetConfiguredDataPath()).Returns("/app/data/path");
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetProfilesPath();
+
+        // Assert
+        Assert.Equal(Path.Combine(userPath, DirectoryNames.Profiles), result);
+    }
+
+    /// <summary>
+    /// Verifies that GetManifestsPath honors an explicitly set application data path.
+    /// </summary>
+    [Fact]
+    public void GetManifestsPath_WithExplicitApplicationDataPath_ReturnsOverride()
+    {
+        // Arrange
+        var userPath = Path.Combine(Path.GetTempPath(), "genhub-user-data-root");
+        var userSettings = new UserSettings { ApplicationDataPath = userPath };
+        userSettings.MarkAsExplicitlySet(nameof(UserSettings.ApplicationDataPath));
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+        _mockAppConfig.Setup(x => x.GetConfiguredDataPath()).Returns("/app/data/path");
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetManifestsPath();
+
+        // Assert
+        Assert.Equal(Path.Combine(userPath, FileTypes.ManifestsDirectory), result);
+    }
+
+    /// <summary>
+    /// Verifies that the profiles and manifests paths fall back to the configured data path when no
+    /// application data path override is set.
+    /// </summary>
+    [Fact]
+    public void GetProfilesAndManifestsPath_WithoutOverride_ReturnConfiguredDataPath()
+    {
+        // Arrange
+        var appDataPath = "/app/data/path";
+        _mockAppConfig.Setup(x => x.GetConfiguredDataPath()).Returns(appDataPath);
+
+        var provider = CreateProvider();
+
+        // Act & Assert
+        Assert.Equal(Path.Combine(appDataPath, DirectoryNames.Profiles), provider.GetProfilesPath());
+        Assert.Equal(Path.Combine(appDataPath, FileTypes.ManifestsDirectory), provider.GetManifestsPath());
+    }
+
+    /// <summary>
+    /// Verifies that the legacy roaming data root is migrated into the current root while the CAS
+    /// pool, which still defaults to the legacy location, is left in place.
+    /// </summary>
+    [Fact]
+    public void MigrateLegacyDataRoot_WithLegacyData_MovesTrackedEntriesAndLeavesCasPool()
+    {
+        var (legacyRoot, newRoot) = CreateMigrationRoots();
+        try
+        {
+            SeedLegacyRoot(legacyRoot);
+
+            CreateProvider().MigrateLegacyDataRoot(legacyRoot, newRoot);
+
+            Assert.Equal("profile", File.ReadAllText(Path.Combine(newRoot, DirectoryNames.Profiles, "profile.json")));
+            Assert.Equal("manifest", File.ReadAllText(Path.Combine(newRoot, FileTypes.ManifestsDirectory, "content.manifest.json")));
+            Assert.Equal("index", File.ReadAllText(Path.Combine(newRoot, DirectoryNames.UserData, "index.json")));
+            Assert.Equal("backup", File.ReadAllText(Path.Combine(newRoot, DirectoryNames.UserData, "backups", "save.bak")));
+            Assert.Equal("settings", File.ReadAllText(Path.Combine(newRoot, FileTypes.SettingsFileName)));
+            Assert.Equal("workspaces", File.ReadAllText(Path.Combine(newRoot, FileTypes.WorkspaceMetadataFileName)));
+
+            Assert.True(File.Exists(Path.Combine(legacyRoot, DirectoryNames.CasPool, "objects", "blob.bin")));
+            Assert.False(Directory.Exists(Path.Combine(newRoot, DirectoryNames.CasPool)));
+        }
+        finally
+        {
+            DeleteDirectories(legacyRoot, newRoot);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that running the legacy root migration a second time leaves the migrated data alone.
+    /// </summary>
+    [Fact]
+    public void MigrateLegacyDataRoot_RunTwice_IsIdempotent()
+    {
+        var (legacyRoot, newRoot) = CreateMigrationRoots();
+        try
+        {
+            SeedLegacyRoot(legacyRoot);
+            var provider = CreateProvider();
+
+            provider.MigrateLegacyDataRoot(legacyRoot, newRoot);
+            provider.MigrateLegacyDataRoot(legacyRoot, newRoot);
+
+            Assert.Equal("profile", File.ReadAllText(Path.Combine(newRoot, DirectoryNames.Profiles, "profile.json")));
+            Assert.Equal("settings", File.ReadAllText(Path.Combine(newRoot, FileTypes.SettingsFileName)));
+            Assert.True(File.Exists(Path.Combine(legacyRoot, DirectoryNames.CasPool, "objects", "blob.bin")));
+        }
+        finally
+        {
+            DeleteDirectories(legacyRoot, newRoot);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that data already present in the current root wins over the legacy copy.
+    /// </summary>
+    [Fact]
+    public void MigrateLegacyDataRoot_WithExistingData_DoesNotOverwriteNewRoot()
+    {
+        var (legacyRoot, newRoot) = CreateMigrationRoots();
+        try
+        {
+            SeedLegacyRoot(legacyRoot);
+            Directory.CreateDirectory(Path.Combine(newRoot, DirectoryNames.Profiles));
+            File.WriteAllText(Path.Combine(newRoot, DirectoryNames.Profiles, "profile.json"), "current-profile");
+            File.WriteAllText(Path.Combine(newRoot, FileTypes.SettingsFileName), "current-settings");
+
+            CreateProvider().MigrateLegacyDataRoot(legacyRoot, newRoot);
+
+            Assert.Equal("current-profile", File.ReadAllText(Path.Combine(newRoot, DirectoryNames.Profiles, "profile.json")));
+            Assert.Equal("current-settings", File.ReadAllText(Path.Combine(newRoot, FileTypes.SettingsFileName)));
+            Assert.Equal("workspaces", File.ReadAllText(Path.Combine(newRoot, FileTypes.WorkspaceMetadataFileName)));
+        }
+        finally
+        {
+            DeleteDirectories(legacyRoot, newRoot);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a missing legacy root does not create the current root.
+    /// </summary>
+    [Fact]
+    public void MigrateLegacyDataRoot_WithoutLegacyRoot_DoesNothing()
+    {
+        var (legacyRoot, newRoot) = CreateMigrationRoots();
+        Directory.Delete(legacyRoot);
+        Directory.Delete(newRoot);
+        try
+        {
+            CreateProvider().MigrateLegacyDataRoot(legacyRoot, newRoot);
+
+            Assert.False(Directory.Exists(newRoot));
+        }
+        finally
+        {
+            DeleteDirectories(legacyRoot, newRoot);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the migration is skipped when both roots resolve to the same directory.
+    /// </summary>
+    [Fact]
+    public void MigrateLegacyDataRoot_WithIdenticalRoots_DoesNothing()
+    {
+        var (legacyRoot, newRoot) = CreateMigrationRoots();
+        try
+        {
+            SeedLegacyRoot(legacyRoot);
+
+            CreateProvider().MigrateLegacyDataRoot(legacyRoot, Path.Combine(legacyRoot, "."));
+
+            Assert.Equal("profile", File.ReadAllText(Path.Combine(legacyRoot, DirectoryNames.Profiles, "profile.json")));
+            Assert.Equal("settings", File.ReadAllText(Path.Combine(legacyRoot, FileTypes.SettingsFileName)));
+        }
+        finally
+        {
+            DeleteDirectories(legacyRoot, newRoot);
+        }
+    }
+
+    /// <summary>
+    /// Creates a fresh legacy and current data root pair under the temp directory.
+    /// </summary>
+    /// <returns>The legacy and current root paths.</returns>
+    private static (string LegacyRoot, string NewRoot) CreateMigrationRoots()
+    {
+        var testRoot = Path.Combine(Path.GetTempPath(), $"genhub-migration-{Guid.NewGuid():N}");
+        var legacyRoot = Path.Combine(testRoot, "roaming");
+        var newRoot = Path.Combine(testRoot, "local");
+        Directory.CreateDirectory(legacyRoot);
+        Directory.CreateDirectory(newRoot);
+        return (legacyRoot, newRoot);
+    }
+
+    /// <summary>
+    /// Populates a legacy data root with the entries an alpha-3 install would contain.
+    /// </summary>
+    /// <param name="legacyRoot">The legacy data root to populate.</param>
+    private static void SeedLegacyRoot(string legacyRoot)
+    {
+        WriteFile(Path.Combine(legacyRoot, DirectoryNames.Profiles, "profile.json"), "profile");
+        WriteFile(Path.Combine(legacyRoot, FileTypes.ManifestsDirectory, "content.manifest.json"), "manifest");
+        WriteFile(Path.Combine(legacyRoot, DirectoryNames.UserData, "index.json"), "index");
+        WriteFile(Path.Combine(legacyRoot, DirectoryNames.UserData, "backups", "save.bak"), "backup");
+        WriteFile(Path.Combine(legacyRoot, FileTypes.SettingsFileName), "settings");
+        WriteFile(Path.Combine(legacyRoot, FileTypes.WorkspaceMetadataFileName), "workspaces");
+        WriteFile(Path.Combine(legacyRoot, DirectoryNames.CasPool, "objects", "blob.bin"), "cas");
+    }
+
+    private static void WriteFile(string path, string content)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, content);
+    }
+
+    private static void DeleteDirectories(params string[] paths)
+    {
+        foreach (var path in paths.Select(Path.GetDirectoryName).Where(path => !string.IsNullOrEmpty(path)).Distinct())
+        {
+            try
+            {
+                if (Directory.Exists(path))
+                {
+                    Directory.Delete(path!, true);
+                }
+            }
+            catch (IOException)
+            {
+            }
+        }
+    }
+
+    /// <summary>
     /// Creates a ConfigurationProviderService instance for testing.
     /// </summary>
     /// <returns>A new ConfigurationProviderService instance.</returns>

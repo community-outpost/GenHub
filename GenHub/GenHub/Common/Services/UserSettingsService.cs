@@ -334,29 +334,73 @@ public class UserSettingsService : IUserSettingsService
         return Path.Combine(_appConfig.GetConfiguredDataPath(), FileTypes.SettingsFileName);
     }
 
+    /// <summary>
+    /// Resolves the file the settings are read from. When the current data root holds no settings
+    /// file, the pre-upgrade roaming location is read instead so an upgrading user keeps their
+    /// settings on the first launch rather than starting from defaults and then overwriting the
+    /// migrated file on the first save. Writes always target <paramref name="defaultPath"/>; moving
+    /// the file remains the responsibility of the legacy data root migration.
+    /// </summary>
+    /// <param name="defaultPath">The settings file path for the current data root.</param>
+    /// <returns>The path the settings should be read from.</returns>
+    private string ResolveSettingsSourcePath(string defaultPath)
+    {
+        try
+        {
+            if (_appConfig == null || File.Exists(defaultPath))
+            {
+                return defaultPath;
+            }
+
+            var legacyPath = Path.Combine(_appConfig.GetLegacyConfiguredDataPath(), FileTypes.SettingsFileName);
+            if (!string.Equals(legacyPath, defaultPath, StringComparison.OrdinalIgnoreCase) && File.Exists(legacyPath))
+            {
+                _logger.LogInformation(
+                    "No settings file at {DefaultPath}, reading pre-upgrade settings from {LegacyPath}",
+                    defaultPath,
+                    legacyPath);
+                return legacyPath;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to look for pre-upgrade settings, falling back to {DefaultPath}", defaultPath);
+        }
+
+        return defaultPath;
+    }
+
     private void InitializeSettings()
     {
-        // 1. Load from default path to determine if a custom path is set.
-        var defaultPath = GetDefaultSettingsFilePath();
-        var initialSettings = LoadSettings(defaultPath);
+        try
+        {
+            // 1. Load from default path to determine if a custom path is set.
+            var defaultPath = GetDefaultSettingsFilePath();
+            var initialSettings = LoadSettings(ResolveSettingsSourcePath(defaultPath));
 
-        // 2. If user has a custom path, reload from that path. Otherwise, use the settings from the default path.
-        if (!string.IsNullOrWhiteSpace(initialSettings.SettingsFilePath) &&
-            !string.Equals(initialSettings.SettingsFilePath, defaultPath, StringComparison.OrdinalIgnoreCase))
-        {
-            _settingsFilePath = initialSettings.SettingsFilePath;
-            _settings = LoadSettings(_settingsFilePath);
-        }
-        else
-        {
-            _settingsFilePath = defaultPath;
-            _settings = initialSettings;
-        }
+            // 2. If user has a custom path, reload from that path. Otherwise, use the settings from the default path.
+            if (!string.IsNullOrWhiteSpace(initialSettings.SettingsFilePath) &&
+                !string.Equals(initialSettings.SettingsFilePath, defaultPath, StringComparison.OrdinalIgnoreCase))
+            {
+                _settingsFilePath = initialSettings.SettingsFilePath;
+                _settings = LoadSettings(_settingsFilePath);
+            }
+            else
+            {
+                _settingsFilePath = defaultPath;
+                _settings = initialSettings;
+            }
 
-        // Apply validation and normalization
-        lock (_lock)
+            // Apply validation and normalization
+            lock (_lock)
+            {
+                NormalizeAndValidateLocked(_settings, _appConfig);
+            }
+        }
+        catch (Exception ex)
         {
-            NormalizeAndValidateLocked(_settings, _appConfig);
+            _logger.LogError(ex, "Failed to initialize settings, continuing with defaults");
+            _settings = new UserSettings();
         }
     }
 }

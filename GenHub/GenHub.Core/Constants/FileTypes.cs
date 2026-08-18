@@ -36,6 +36,11 @@ public static class FileTypes
     public const string SettingsFileName = "settings.json";
 
     /// <summary>
+    /// File name holding the persisted workspace metadata.
+    /// </summary>
+    public const string WorkspaceMetadataFileName = "workspaces.json";
+
+    /// <summary>
     /// File extension for replay files.
     /// </summary>
     public const string ReplayFileExtension = ".rep";
