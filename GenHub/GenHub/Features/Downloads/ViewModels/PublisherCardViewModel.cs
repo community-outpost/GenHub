@@ -354,7 +354,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
             item.RequiredDependencyNames.Count);
     }
 
-    private static void UpdateItemVariants(ContentItemViewModel item, List<Core.Models.Manifest.ContentManifest> variants)
+    private void UpdateItemVariants(ContentItemViewModel item, List<Core.Models.Manifest.ContentManifest> variants)
     {
         if (variants.Count > 0)
         {
@@ -412,7 +412,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
         }
     }
 
-    private static void UpdateItemResolutionVariants(ContentItemViewModel item, List<Core.Models.Manifest.ContentManifest> variants)
+    private void UpdateItemResolutionVariants(ContentItemViewModel item, List<Core.Models.Manifest.ContentManifest> variants)
     {
         if (variants.Count == 1)
         {
@@ -444,7 +444,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
         }
     }
 
-    private static void UpdateItemDependencies(ContentItemViewModel item, List<Core.Models.Manifest.ContentManifest> variants)
+    private void UpdateItemDependencies(ContentItemViewModel item, List<Core.Models.Manifest.ContentManifest> variants)
     {
         List<string> requiredDependencies;
         if (variants.Count > 0)

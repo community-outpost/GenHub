@@ -114,10 +114,10 @@ public sealed class QuarantineClearingTests : IDisposable
 
     private static bool HasQuarantine(string path)
     {
-        return RunXattr($"-p com.apple.quarantine \"{path}\"").exitCode == 0;
+        return RunXattr($"-p com.apple.quarantine \"{path}\"").ExitCode == 0;
     }
 
-    private static (int exitCode, string output) RunXattr(string arguments)
+    private static (int ExitCode, string Output) RunXattr(string arguments)
     {
         using var process = Process.Start(new ProcessStartInfo("/usr/bin/xattr", arguments)
         {
