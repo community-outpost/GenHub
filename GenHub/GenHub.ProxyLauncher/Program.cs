@@ -27,7 +27,7 @@ internal class Program
         if (!createdNew)
         {
             LogError($"Another instance of proxy launcher is already running for directory: {baseDir}");
-            return 1;
+            return 0;
         }
 
         try

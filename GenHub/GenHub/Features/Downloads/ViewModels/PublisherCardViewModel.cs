@@ -321,173 +321,167 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
             {
                 foreach (var item in group.Items)
                 {
-                    // Find all matching manifests for this item to populate variants
-                    var variants = FindContentVariants(item, allManifests, PublisherId);
-
-                    // Update variants collection
-                    if (variants.Count > 0)
-                    {
-                        // Only update if changed to avoid unnecessary UI updates
-                        // Check if counts differ or if any IDs differ
-                        var currentIds = item.AvailableVariants.Select(v => v.Id.Value).ToHashSet();
-                        var newIds = variants.Select(v => v.Id.Value).ToHashSet();
-
-                        if (!currentIds.SetEquals(newIds))
-                        {
-                            item.AvailableVariants.Clear();
-                            foreach (var variant in variants)
-                            {
-                                item.AvailableVariants.Add(variant);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        item.AvailableVariants.Clear();
-                    }
-
-                    var isDownloaded = variants.Count > 0;
-                    item.IsDownloaded = isDownloaded;
-                    item.IsInstalled = isDownloaded;
-
-                    // Check if a newer version is available
-                    if (isDownloaded && !string.IsNullOrEmpty(item.Version))
-                    {
-                        // Find the highest version among installed variants
-                        var highestInstalledVersion = variants
-                            .Select(v => v.Version ?? string.Empty)
-                            .OrderByDescending(v => v, _versionComparer.GetScheme(PublisherId))
-                            .FirstOrDefault();
-
-                        if (!string.IsNullOrEmpty(highestInstalledVersion))
-                        {
-                            var isNewer = _versionComparer.IsNewer(item.Version, highestInstalledVersion, PublisherId);
-                            item.IsUpdateAvailable = isNewer;
-
-                            if (isNewer)
-                            {
-                                item.UpdateAvailableVersion = item.Version;
-                                _logger.LogDebug(
-                                    "Update available for {Name}: installed={InstalledVersion}, available={AvailableVersion}",
-                                    item.Name,
-                                    highestInstalledVersion,
-                                    item.Version);
-                            }
-                            else
-                            {
-                                item.UpdateAvailableVersion = null;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        item.IsUpdateAvailable = false;
-                        item.UpdateAvailableVersion = null;
-                    }
-
-                    // If we have a single variant, ensure the Model ID matches it
-                    if (variants.Count == 1)
-                    {
-                        var variant = variants[0];
-                        item.Model.Id = variant.Id.Value;
-
-                        // Populate resolution variants from the manifest metadata
-                        if (variant.Metadata?.Variants != null && variant.Metadata.Variants.Count > 0)
-                        {
-                            if (!item.ResolutionVariants.SequenceEqual(variant.Metadata.Variants))
-                            {
-                                item.ResolutionVariants.Clear();
-                                foreach (var resVariant in variant.Metadata.Variants)
-                                {
-                                    item.ResolutionVariants.Add(resVariant);
-                                }
-                            }
-
-                            // Set default variant if not already selected (even if list already matched)
-                            if (string.IsNullOrEmpty(item.SelectedVariantId))
-                            {
-                                var defaultVariant = variant.Metadata.Variants.FirstOrDefault(v => v.IsDefault);
-                                item.SelectedVariantId = defaultVariant?.Id ?? variant.Metadata.Variants.FirstOrDefault()?.Id;
-                            }
-                        }
-                        else
-                        {
-                            item.ResolutionVariants.Clear();
-                            item.SelectedVariantId = null;
-                        }
-                    }
-
-                    // If we have multiple variants, we don't change the Model.Id arbitrarily
-                    // The UI will force the user to choose one from AvailableVariants
-
-                    // Populate dependency information for the item
-                    if (variants.Count > 0)
-                    {
-                        // Get dependencies from the first variant (all variants should have same dependencies)
-                        var manifest = variants[0];
-
-                        // Filter out auto-bundled dependencies and installation/client dependencies
-                        // Only show manual dependencies (e.g., GenTool) that users must explicitly download
-                        var requiredDependencies = manifest.Dependencies?
-                            .Where(d => !d.IsOptional)
-                            .Where(d => d.DependencyType != Core.Models.Enums.ContentType.GameInstallation &&
-                                       d.DependencyType != Core.Models.Enums.ContentType.GameClient)
-                            .Where(d => d.InstallBehavior != Core.Models.Enums.DependencyInstallBehavior.AutoInstall)
-                            .Select(d => d.Name ?? string.Empty)
-                            .Where(n => !string.IsNullOrEmpty(n))
-                            .ToList() ?? [];
-
-                        // Update dependency names only if they've changed (notifications fire automatically via NotifyPropertyChangedFor)
-                        if (!item.RequiredDependencyNames.SequenceEqual(requiredDependencies))
-                        {
-                            item.RequiredDependencyNames.Clear();
-                            foreach (var dep in requiredDependencies)
-                            {
-                                item.RequiredDependencyNames.Add(dep);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // Try to get dependencies from manifest data if available
-                        if (item.Model.Data is Core.Models.Manifest.ContentManifest dataManifest)
-                        {
-                            // Filter out auto-bundled dependencies and installation/client dependencies
-                            // Only show manual dependencies (e.g., GenTool) that users must explicitly download
-                            var requiredDependencies = dataManifest.Dependencies?
-                                .Where(d => !d.IsOptional)
-                                .Where(d => d.DependencyType != Core.Models.Enums.ContentType.GameInstallation &&
-                                           d.DependencyType != Core.Models.Enums.ContentType.GameClient)
-                                .Where(d => d.InstallBehavior != Core.Models.Enums.DependencyInstallBehavior.AutoInstall)
-                                .Select(d => d.Name ?? string.Empty)
-                                .Where(n => !string.IsNullOrEmpty(n))
-                                .ToList() ?? [];
-
-                            if (!item.RequiredDependencyNames.SequenceEqual(requiredDependencies))
-                            {
-                                item.RequiredDependencyNames.Clear();
-                                foreach (var dep in requiredDependencies)
-                                {
-                                    item.RequiredDependencyNames.Add(dep);
-                                }
-                            }
-                        }
-                    }
-
-                    _logger.LogDebug(
-                        "Content item: {Name} v{Version} ({ContentType}) - Downloaded: {IsDownloaded}, Variants: {VariantCount}, Dependencies: {DependencyCount}",
-                        item.Name,
-                        item.Version,
-                        item.Model.ContentType,
-                        item.IsDownloaded,
-                        item.AvailableVariants.Count,
-                        item.RequiredDependencyNames.Count);
+                    UpdateItemInstallationStatus(item, allManifests);
                 }
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to refresh installation status for {PublisherId}", PublisherId);
+        }
+    }
+
+    private void UpdateItemInstallationStatus(ContentItemViewModel item, List<Core.Models.Manifest.ContentManifest> allManifests)
+    {
+        var variants = FindContentVariants(item, allManifests, PublisherId);
+        UpdateItemVariants(item, variants);
+
+        var isDownloaded = variants.Count > 0;
+        item.IsDownloaded = isDownloaded;
+        item.IsInstalled = isDownloaded;
+
+        UpdateItemUpdateAvailability(item, variants, isDownloaded);
+        UpdateItemResolutionVariants(item, variants);
+        UpdateItemDependencies(item, variants);
+
+        _logger.LogDebug(
+            "Content item: {Name} v{Version} ({ContentType}) - Downloaded: {IsDownloaded}, Variants: {VariantCount}, Dependencies: {DependencyCount}",
+            item.Name,
+            item.Version,
+            item.Model.ContentType,
+            item.IsDownloaded,
+            item.AvailableVariants.Count,
+            item.RequiredDependencyNames.Count);
+    }
+
+    private static void UpdateItemVariants(ContentItemViewModel item, List<Core.Models.Manifest.ContentManifest> variants)
+    {
+        if (variants.Count > 0)
+        {
+            var currentIds = item.AvailableVariants.Select(v => v.Id.Value).ToHashSet();
+            var newIds = variants.Select(v => v.Id.Value).ToHashSet();
+
+            if (!currentIds.SetEquals(newIds))
+            {
+                item.AvailableVariants.Clear();
+                foreach (var variant in variants)
+                {
+                    item.AvailableVariants.Add(variant);
+                }
+            }
+        }
+        else
+        {
+            item.AvailableVariants.Clear();
+        }
+    }
+
+    private void UpdateItemUpdateAvailability(ContentItemViewModel item, List<Core.Models.Manifest.ContentManifest> variants, bool isDownloaded)
+    {
+        if (isDownloaded && !string.IsNullOrEmpty(item.Version))
+        {
+            var highestInstalledVersion = variants
+                .Select(v => v.Version ?? string.Empty)
+                .OrderByDescending(v => v, _versionComparer.GetScheme(PublisherId))
+                .FirstOrDefault();
+
+            if (!string.IsNullOrEmpty(highestInstalledVersion))
+            {
+                var isNewer = _versionComparer.IsNewer(item.Version, highestInstalledVersion, PublisherId);
+                item.IsUpdateAvailable = isNewer;
+
+                if (isNewer)
+                {
+                    item.UpdateAvailableVersion = item.Version;
+                    _logger.LogDebug(
+                        "Update available for {Name}: installed={InstalledVersion}, available={AvailableVersion}",
+                        item.Name,
+                        highestInstalledVersion,
+                        item.Version);
+                }
+                else
+                {
+                    item.UpdateAvailableVersion = null;
+                }
+            }
+        }
+        else
+        {
+            item.IsUpdateAvailable = false;
+            item.UpdateAvailableVersion = null;
+        }
+    }
+
+    private static void UpdateItemResolutionVariants(ContentItemViewModel item, List<Core.Models.Manifest.ContentManifest> variants)
+    {
+        if (variants.Count == 1)
+        {
+            var variant = variants[0];
+            item.Model.Id = variant.Id.Value;
+
+            if (variant.Metadata?.Variants != null && variant.Metadata.Variants.Count > 0)
+            {
+                if (!item.ResolutionVariants.SequenceEqual(variant.Metadata.Variants))
+                {
+                    item.ResolutionVariants.Clear();
+                    foreach (var resVariant in variant.Metadata.Variants)
+                    {
+                        item.ResolutionVariants.Add(resVariant);
+                    }
+                }
+
+                if (string.IsNullOrEmpty(item.SelectedVariantId))
+                {
+                    var defaultVariant = variant.Metadata.Variants.FirstOrDefault(v => v.IsDefault);
+                    item.SelectedVariantId = defaultVariant?.Id ?? variant.Metadata.Variants.FirstOrDefault()?.Id;
+                }
+            }
+            else
+            {
+                item.ResolutionVariants.Clear();
+                item.SelectedVariantId = null;
+            }
+        }
+    }
+
+    private static void UpdateItemDependencies(ContentItemViewModel item, List<Core.Models.Manifest.ContentManifest> variants)
+    {
+        List<string> requiredDependencies;
+        if (variants.Count > 0)
+        {
+            var manifest = variants[0];
+            requiredDependencies = manifest.Dependencies?
+                .Where(d => !d.IsOptional)
+                .Where(d => d.DependencyType != Core.Models.Enums.ContentType.GameInstallation &&
+                           d.DependencyType != Core.Models.Enums.ContentType.GameClient)
+                .Where(d => d.InstallBehavior != Core.Models.Enums.DependencyInstallBehavior.AutoInstall)
+                .Select(d => d.Name ?? string.Empty)
+                .Where(n => !string.IsNullOrEmpty(n))
+                .ToList() ?? [];
+        }
+        else if (item.Model.Data is Core.Models.Manifest.ContentManifest dataManifest)
+        {
+            requiredDependencies = dataManifest.Dependencies?
+                .Where(d => !d.IsOptional)
+                .Where(d => d.DependencyType != Core.Models.Enums.ContentType.GameInstallation &&
+                           d.DependencyType != Core.Models.Enums.ContentType.GameClient)
+                .Where(d => d.InstallBehavior != Core.Models.Enums.DependencyInstallBehavior.AutoInstall)
+                .Select(d => d.Name ?? string.Empty)
+                .Where(n => !string.IsNullOrEmpty(n))
+                .ToList() ?? [];
+        }
+        else
+        {
+            return;
+        }
+
+        if (!item.RequiredDependencyNames.SequenceEqual(requiredDependencies))
+        {
+            item.RequiredDependencyNames.Clear();
+            foreach (var dep in requiredDependencies)
+            {
+                item.RequiredDependencyNames.Add(dep);
+            }
         }
     }
 

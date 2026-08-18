@@ -353,7 +353,7 @@ public class GameProfileWorkspaceIntegrationTest : IDisposable
         var manifests = CreateTestManifests();
         var workspaceConfig = new WorkspaceConfiguration
         {
-            Id = $"test-workspace-{strategy.ToString().ToLower()}",
+            Id = $"test-workspace-{strategy.ToString().ToLowerInvariant()}",
             Manifests = manifests,
             GameClient = new GameClient
             {

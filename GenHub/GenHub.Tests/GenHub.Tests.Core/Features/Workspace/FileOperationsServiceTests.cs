@@ -229,7 +229,7 @@ public class FileOperationsServiceTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<HttpRequestException>(() =>
-            fileOps.DownloadFileAsync(new Uri("http://fail"), "fail.zip"));
+            fileOps.DownloadFileAsync(new Uri("https://fail"), "fail.zip"));
     }
 
     /// <summary>

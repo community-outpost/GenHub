@@ -219,11 +219,6 @@ public partial class WorkspaceValidatorTests : IDisposable
     [Fact]
     public async Task ValidatePrerequisitesAsync_InsufficientDiskSpace_ReturnsWarningAsync()
     {
-        // Arrange - Use a concrete strategy that can return large disk usage
-        var fileOps = new Mock<IFileOperationsService>();
-        var logger = new Mock<ILogger<FullCopyStrategy>>();
-        var strategy = new FullCopyStrategy(fileOps.Object, logger.Object);
-
         // Create a configuration with large files to trigger disk space warning
         var largeFileManifest = new ContentManifest
         {

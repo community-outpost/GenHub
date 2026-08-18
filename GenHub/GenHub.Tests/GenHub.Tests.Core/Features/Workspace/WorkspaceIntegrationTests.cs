@@ -236,14 +236,13 @@ public class WorkspaceIntegrationTests : IDisposable
         var testFile = Directory.GetFiles(workspace.WorkspacePath, "*.exe").First();
         var fileInfo = new FileInfo(testFile);
 
-        switch (strategy)
+        if (strategy == WorkspaceStrategy.FullCopy)
         {
-            case WorkspaceStrategy.FullCopy:
-                Assert.Null(fileInfo.LinkTarget);
-                break;
-            case WorkspaceStrategy.SymlinkOnly:
-                Assert.NotNull(fileInfo.LinkTarget);
-                break;
+            Assert.Null(fileInfo.LinkTarget);
+        }
+        else if (strategy == WorkspaceStrategy.SymlinkOnly)
+        {
+            Assert.NotNull(fileInfo.LinkTarget);
         }
 
         return Task.CompletedTask;
