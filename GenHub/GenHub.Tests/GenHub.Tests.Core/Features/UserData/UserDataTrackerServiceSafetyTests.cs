@@ -103,6 +103,13 @@ public sealed partial class UserDataTrackerServiceSafetyTests : IDisposable
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
+        _fileOperationsMock
+            .Setup(f => f.CheckFileHashAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(FileHashVerification.Match);
+
         _trackerService = new UserDataTrackerService(
             _configProviderMock.Object,
             _fileOperationsMock.Object,
@@ -194,8 +201,8 @@ public sealed partial class UserDataTrackerServiceSafetyTests : IDisposable
 
         File.WriteAllText(deployedPath, modifiedContent);
         _fileOperationsMock
-            .Setup(f => f.VerifyFileHashAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+            .Setup(f => f.CheckFileHashAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(FileHashVerification.Mismatch);
 
         // Act
         var uninstallResult = await _trackerService.UninstallUserDataAsync(TestManifestId, TestProfileId, CancellationToken.None);
@@ -207,6 +214,49 @@ public sealed partial class UserDataTrackerServiceSafetyTests : IDisposable
         var preservedPath = deployedPath + UserDataConstants.UserModifiedSuffix;
         Assert.True(File.Exists(preservedPath));
         Assert.Equal(modifiedContent, File.ReadAllText(preservedPath));
+    }
+
+    /// <summary>
+    /// A deployed file whose hash could not be computed at all — an IO error, or the running game
+    /// briefly holding it open — is not evidence that the user changed it. Moving it aside and
+    /// restoring over it would churn a pristine file and log a preserved edit that never happened,
+    /// so the file and its backup are both left alone.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task UninstallUserDataAsync_WhenVerificationFails_LeavesDeployedFileUntouchedAsync()
+    {
+        // Arrange
+        const string originalUserContent = "the-user-original-file";
+        var deployedPath = Path.Combine(_zeroHourDataDir, "GeneralsOnlineGameData", "splash.bmp");
+        Directory.CreateDirectory(Path.GetDirectoryName(deployedPath)!);
+        File.WriteAllText(deployedPath, originalUserContent);
+
+        var installResult = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            TestProfileId,
+            GameType.ZeroHour,
+            BuildFiles(),
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+        Assert.True(installResult.Success);
+
+        var backupPath = installResult.Data!.InstalledFiles[0].BackupPath;
+        Assert.NotNull(backupPath);
+
+        _fileOperationsMock
+            .Setup(f => f.CheckFileHashAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(FileHashVerification.Failed);
+
+        // Act
+        await _trackerService.UninstallUserDataAsync(TestManifestId, TestProfileId, CancellationToken.None);
+
+        // Assert
+        Assert.False(File.Exists(deployedPath + UserDataConstants.UserModifiedSuffix));
+        Assert.Equal(CasContent, File.ReadAllText(deployedPath));
+        Assert.True(File.Exists(backupPath));
+        Assert.Equal(originalUserContent, File.ReadAllText(backupPath!));
     }
 
     /// <summary>
@@ -233,8 +283,8 @@ public sealed partial class UserDataTrackerServiceSafetyTests : IDisposable
         Assert.True(installResult.Success);
 
         _fileOperationsMock
-            .Setup(f => f.VerifyFileHashAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new IOException("hash verification unavailable"));
+            .Setup(f => f.CheckFileHashAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(FileHashVerification.Failed);
 
         // Act
         var deleteResult = await _trackerService.DeleteAllUserDataAsync(CancellationToken.None);

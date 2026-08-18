@@ -427,15 +427,32 @@ public class FileOperationsService(
     {
         try
         {
+            return await CheckFileHashAsync(filePath, expectedHash, cancellationToken) == FileHashVerification.Match;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to verify hash for {File}", filePath);
+            return false;
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<FileHashVerification> CheckFileHashAsync(
+        string filePath,
+        string expectedHash,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
             if (!File.Exists(filePath))
             {
-                return false;
+                return FileHashVerification.Mismatch;
             }
 
             var actualHash = await downloadService.ComputeFileHashAsync(
                 filePath,
                 cancellationToken);
-            var result = string.Equals(
+            var matches = string.Equals(
                 actualHash,
                 expectedHash,
                 StringComparison.OrdinalIgnoreCase);
@@ -443,13 +460,17 @@ public class FileOperationsService(
             logger.LogDebug(
                 "Hash verification for {File}: {Result}",
                 filePath,
-                result);
-            return result;
+                matches);
+            return matches ? FileHashVerification.Match : FileHashVerification.Mismatch;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to verify hash for {File}", filePath);
-            return false;
+            logger.LogError(ex, "Failed to compute hash for {File}", filePath);
+            return FileHashVerification.Failed;
         }
     }
 

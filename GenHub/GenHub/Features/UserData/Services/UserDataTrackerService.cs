@@ -1223,8 +1223,10 @@ public class UserDataTrackerService(
 
     /// <summary>
     /// Removes the deployed files for a manifest and restores the pristine originals GenHub backed up.
-    /// A deployed file whose hash no longer matches is moved aside instead of being discarded, so the
-    /// user's edit survives and the backup can still be restored over the original path.
+    /// A deployed file confirmed to differ from its recorded hash is moved aside instead of being
+    /// discarded, so the user's edit survives and the backup can still be restored over the original
+    /// path. A file whose hash could not be computed is left alone: an unreadable or briefly locked
+    /// file is not evidence that the user changed it.
     /// </summary>
     /// <param name="manifest">The manifest whose installed files should be removed.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
@@ -1246,25 +1248,34 @@ public class UserDataTrackerService(
 
                 if (File.Exists(file.AbsolutePath))
                 {
-                    if (await fileOperations.VerifyFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken))
+                    switch (await fileOperations.CheckFileHashAsync(file.AbsolutePath, file.SourceHash, cancellationToken))
                     {
-                        File.Delete(file.AbsolutePath);
-                        logger.LogDebug("[UserData] Deleted file: {Path}", file.AbsolutePath);
+                        case FileHashVerification.Match:
+                            File.Delete(file.AbsolutePath);
+                            logger.LogDebug("[UserData] Deleted file: {Path}", file.AbsolutePath);
 
-                        CleanupEmptyDirectories(Path.GetDirectoryName(file.AbsolutePath), userDataBasePath);
-                    }
-                    else if (hasBackup)
-                    {
-                        var preservedPath = MoveModifiedFileAside(file.AbsolutePath);
-                        logger.LogWarning(
-                            "[UserData] File hash mismatch for {Path}; your modified copy was preserved at {PreservedPath} so the original could be restored",
-                            file.AbsolutePath,
-                            preservedPath);
-                    }
-                    else
-                    {
-                        restoreNeeded = false;
-                        logger.LogWarning("[UserData] File hash mismatch and no backup to restore, leaving in place: {Path}", file.AbsolutePath);
+                            CleanupEmptyDirectories(Path.GetDirectoryName(file.AbsolutePath), userDataBasePath);
+                            break;
+
+                        case FileHashVerification.Mismatch when hasBackup:
+                            var preservedPath = MoveModifiedFileAside(file.AbsolutePath);
+                            logger.LogWarning(
+                                "[UserData] File hash mismatch for {Path}; your modified copy was preserved at {PreservedPath} so the original could be restored",
+                                file.AbsolutePath,
+                                preservedPath);
+                            break;
+
+                        case FileHashVerification.Mismatch:
+                            restoreNeeded = false;
+                            logger.LogWarning("[UserData] File hash mismatch and no backup to restore, leaving in place: {Path}", file.AbsolutePath);
+                            break;
+
+                        default:
+                            restoreNeeded = false;
+                            logger.LogWarning(
+                                "[UserData] Could not verify {Path} against its recorded hash, so it is left untouched along with any backup; the deployed file may still be pristine",
+                                file.AbsolutePath);
+                            break;
                     }
                 }
 

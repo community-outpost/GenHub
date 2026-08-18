@@ -109,6 +109,13 @@ public sealed class UserDataTrackerServiceTests : IDisposable
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
+        _fileOperationsMock
+            .Setup(f => f.CheckFileHashAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(FileHashVerification.Match);
+
         _trackerService = new UserDataTrackerService(
             _configProviderMock.Object,
             _fileOperationsMock.Object,
