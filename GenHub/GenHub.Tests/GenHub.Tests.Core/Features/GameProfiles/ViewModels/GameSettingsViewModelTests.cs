@@ -443,7 +443,9 @@ public class GameSettingsViewModelTests
         var profile = CreateGeneralsOnlineProfile();
         profile.GoShowFps = true;
 
-        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+        // The file was readable when the editor opened and is not when the save reads it again
+        _gameSettingsServiceMock.SetupSequence(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()))
             .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateFailure("settings.json is locked"));
         _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
@@ -494,7 +496,8 @@ public class GameSettingsViewModelTests
     }
 
     /// <summary>
-    /// Should read settings.json before rewriting it, including when the first read failed.
+    /// Should read settings.json again immediately before rewriting it, rather than reusing what
+    /// initialization read.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
@@ -503,6 +506,8 @@ public class GameSettingsViewModelTests
         // Arrange
         var profile = CreateGeneralsOnlineProfile();
         profile.GoShowFps = true;
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()));
         _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
         _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
@@ -512,8 +517,114 @@ public class GameSettingsViewModelTests
         await _viewModel.InitializeForProfileAsync("go-profile", profile);
         await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
 
+        // Assert - once to seed the view model, once more as the baseline for the rewrite
+        _gameSettingsServiceMock.Verify(x => x.LoadGeneralsOnlineSettingsAsync(), Times.Exactly(2));
+        _gameSettingsServiceMock.Verify(
+            x => x.SaveGeneralsOnlineSettingsAsync(It.Is<GeneralsOnlineSettings>(s => s.ShowFps)),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Should build every save on what settings.json holds at that moment, so that changes the
+    /// GeneralsOnline client made while this editor was open are not reverted by the rewrite.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_RewriteWhatSettingsJsonHoldsNow_NotWhatItHeldAtInitializationAsync()
+    {
+        // Arrange
+        var atInitialization = new GeneralsOnlineSettings();
+        atInitialization.AdditionalSettings["auth_token"] = JsonSerializer.Deserialize<JsonElement>("\"old-token\"");
+
+        var writtenByTheClientSince = new GeneralsOnlineSettings { ChatFontSize = 24 };
+        writtenByTheClientSince.AdditionalSettings["auth_token"] = JsonSerializer.Deserialize<JsonElement>("\"new-token\"");
+
+        _gameSettingsServiceMock.SetupSequence(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(atInitialization))
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(writtenByTheClientSince));
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        GeneralsOnlineSettings? saved = null;
+        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
+            .Callback<GeneralsOnlineSettings>(s => saved = s)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var profile = CreateGeneralsOnlineProfile();
+        profile.GoShowFps = true;
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("go-profile", profile);
+        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+
         // Assert
-        _gameSettingsServiceMock.Verify(x => x.LoadGeneralsOnlineSettingsAsync(), Times.AtLeastOnce);
+        Assert.NotNull(saved);
+        Assert.True(saved.AdditionalSettings.ContainsKey("auth_token"), "client-owned key was dropped");
+        Assert.Equal("new-token", saved.AdditionalSettings["auth_token"].GetString());
+    }
+
+    /// <summary>
+    /// Should leave settings.json alone when the view model was never seeded from it, because the
+    /// view model has no unset state and would otherwise write its own defaults over every option
+    /// the user configured inside the GeneralsOnline client.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_NotRewriteGeneralsOnlineSettings_WhenSeedingFailedAsync()
+    {
+        // Arrange - the read fails while the view model is seeded, then recovers before the save
+        _gameSettingsServiceMock.SetupSequence(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateFailure("settings.json is locked"))
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()));
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var profile = CreateGeneralsOnlineProfile();
+        profile.GoShowFps = true;
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("go-profile", profile);
+        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        _gameSettingsServiceMock.Verify(
+            x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()),
+            Times.Never);
+        Assert.Contains("Failed to save settings", _viewModel.StatusMessage);
+    }
+
+    /// <summary>
+    /// Should not carry one profile's settings.json read into the next profile, because saving the
+    /// second profile would then rewrite the file from a reading taken for the first.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeForProfileAsync_Should_NotReuseThePreviousProfilesSettingsAsync()
+    {
+        // Arrange
+        _gameSettingsServiceMock.SetupSequence(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()))
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateFailure("settings.json is locked"))
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()));
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var first = CreateGeneralsOnlineProfile();
+        first.GoShowFps = true;
+
+        var second = CreateGeneralsOnlineProfile();
+        second.Id = "go-profile-2";
+        second.GoShowFps = false;
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("go-profile", first);
+        await _viewModel.InitializeForProfileAsync("go-profile-2", second);
+        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        _gameSettingsServiceMock.Verify(
+            x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()),
+            Times.Never);
     }
 
     /// <summary>
