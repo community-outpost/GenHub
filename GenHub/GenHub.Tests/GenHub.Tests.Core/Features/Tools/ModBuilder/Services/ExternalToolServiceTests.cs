@@ -162,8 +162,8 @@ public sealed class ExternalToolServiceTests : IDisposable
         // Arrange
         var scriptPath = await CreateExecutableScriptAsync(
             "long",
-            "@echo off\ntimeout /t 10 /nobreak",
-            "sleep 10");
+            "@echo off\nping 127.0.0.1 -n 2 > nul",
+            "sleep 1");
         var cts = new CancellationTokenSource();
         cts.Cancel();
 

@@ -59,6 +59,7 @@ public sealed class ExternalToolService(ILogger<ExternalToolService> logger) : I
         CancellationToken cancellationToken)
     {
         var resolvedPath = FindToolInPath(toolPath) ?? toolPath;
+        cancellationToken.ThrowIfCancellationRequested();
         try
         {
             logger.LogInformation("Executing tool: {ToolPath} {Arguments}", resolvedPath, arguments);
