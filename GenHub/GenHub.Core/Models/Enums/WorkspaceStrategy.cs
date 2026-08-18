@@ -7,8 +7,17 @@ namespace GenHub.Core.Models.Enums;
 /// Workspace preparation strategy preference.
 /// </summary>
 /// <remarks>
-/// The numeric values are part of the on-disk format for workspace metadata written by
-/// releases up to v0.0.3 and must not be reordered.
+/// <para>
+/// The numeric values are part of the on-disk format. Releases up to v0.0.3 serialized workspace
+/// metadata without an enum converter, so <c>workspaces.json</c> holds raw ordinals in this order;
+/// they must not be reordered. Profile files are unaffected: v0.0.3 wrote the member name.
+/// </para>
+/// <para>
+/// Builds of the default branch made after v0.0.3 and before this ordering was restored wrote
+/// ordinals under a reordered enum, so numbers they persisted are now read as a different member
+/// (<c>0</c> meant HardLink there and means SymlinkOnly here). No release is affected, but such an
+/// install should have its <c>workspaces.json</c> and profile strategies checked after upgrading.
+/// </para>
 /// </remarks>
 [JsonConverter(typeof(JsonWorkspaceStrategyConverter))]
 public enum WorkspaceStrategy

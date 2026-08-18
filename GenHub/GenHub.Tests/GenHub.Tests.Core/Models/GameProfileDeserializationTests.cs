@@ -8,8 +8,11 @@ namespace GenHub.Tests.Core.Models;
 
 /// <summary>
 /// Tests to verify that GameProfile correctly applies default values during deserialization.
-/// The numeric values exercised here are the ordinals written by releases up to v0.0.3, so they
-/// also guard the upgrade path for profiles persisted before the strategy was written as a string.
+/// The numeric values exercised here are not the profile format of any release: v0.0.3 serialized
+/// profiles with a string enum converter, so it wrote member names. Numbers only reach a profile
+/// file from v0.0.2 and older, or from a build of the default branch made while the enum was
+/// reordered. Pinning the mapping is a deliberate decision, because the ordinals below are the ones
+/// v0.0.3 wrote into workspaces.json and the two formats have to agree.
 /// </summary>
 public class GameProfileDeserializationTests
 {
