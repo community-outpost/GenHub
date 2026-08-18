@@ -72,12 +72,16 @@ These settings are:
 **Cause**: `ApplyToGeneralsOnlineSettings()` coalesced every field with `?? default`, so a launch wrote GenHub's defaults over each option the profile said nothing about, and the write started from a fresh `GeneralsOnlineSettings` instance, which dropped every key the model does not declare.
 
 **Fix**: `settings.json` is loaded first and merged into, and only the fields the profile actually declares are written:
+
 ```csharp
 if (profile.GoShowFps.HasValue) settings.ShowFps = profile.GoShowFps.Value;  // Merges into what was loaded
 ```
+
 Anything the profile leaves unset stays as the client wrote it, and unmodelled keys survive through `[JsonExtensionData]`. The load must succeed before the file is rewritten: a missing file loads as defaults and reports success, so a failed load means the client's file exists and is unreadable, and both `GameLauncher` and `GameSettingsViewModel` skip the write in that case.
 
-Note that this applies to `settings.json` only. `ApplyToOptions()` still coalesces, because `Options.ini` keys GenHub does not model are preserved through `AdditionalProperties` and `AdditionalSections` instead.
+`ApplyToOptions()` writes `Options.ini` the same way, only conditionally, and the keys GenHub does not model are preserved there through `AdditionalProperties` and `AdditionalSections` rather than `[JsonExtensionData]`.
+
+`GameSettingsViewModel` reads `settings.json` again immediately before each save rather than keeping the copy it read when the editor opened, so a save cannot revert what the client (or another GenHub window) wrote in between. Its GeneralsOnline properties have no unset state, so all of them are written on save; if the read that seeds them fails, the view model skips the rewrite entirely rather than writing its own defaults over the client's values. The save itself is written to a file beside `settings.json` and moved over it, so an interrupted or overlapping write cannot leave a half-written file behind.
 
 ## Overview
 
