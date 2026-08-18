@@ -198,7 +198,17 @@ public class UserDataTrackerService(
 
             var manifest = manifestResult.Data;
 
-            _ = await CleanupInstalledFilesAsync(manifest, cancellationToken);
+            // Keep the manifest and index entry when a pristine original could not be put back: they
+            // are the only record of which backup belongs to which path, so discarding them would
+            // strand the user's originals under machine-generated names with nothing referencing them.
+            if (!await CleanupInstalledFilesAsync(manifest, cancellationToken))
+            {
+                logger.LogError(
+                    "[UserData] Uninstall of {ManifestId} left one or more pristine backups unrestored; keeping its tracking data so the originals stay recoverable",
+                    manifestId);
+                return OperationResult<bool>.CreateFailure(
+                    $"Uninstalled files for '{manifestId}' but could not restore every original. Your originals are still under '{_backupsPath}' and GenHub kept tracking them so the uninstall can be retried.");
+            }
 
             // Remove the manifest file
             await DeleteUserDataManifestAsync(manifestId, profileId, cancellationToken);
@@ -1241,6 +1251,7 @@ public class UserDataTrackerService(
             cancellationToken.ThrowIfCancellationRequested();
 
             var hasBackup = !string.IsNullOrEmpty(file.BackupPath) && File.Exists(file.BackupPath);
+            var backupRestored = false;
 
             try
             {
@@ -1292,6 +1303,7 @@ public class UserDataTrackerService(
                     // to another drive or to OneDrive, and File.Move cannot cross a volume boundary.
                     RestoreBackupCopy(file.BackupPath!, file.AbsolutePath);
                     File.Delete(file.BackupPath!);
+                    backupRestored = true;
                     logger.LogInformation("[UserData] Restored backup: {Backup} -> {Path}", file.BackupPath, file.AbsolutePath);
                 }
             }
@@ -1304,11 +1316,11 @@ public class UserDataTrackerService(
                 logger.LogWarning(ex, "[UserData] Failed to uninstall file: {Path}", file.AbsolutePath);
             }
 
-            if (hasBackup && File.Exists(file.BackupPath!))
+            if (hasBackup && !backupRestored)
             {
                 allBackupsRestored = false;
                 logger.LogWarning(
-                    "[UserData] Backup for {Path} was not restored and is still held at {BackupPath}",
+                    "[UserData] Backup for {Path} was not restored; the recorded backup is {BackupPath}",
                     file.AbsolutePath,
                     file.BackupPath);
             }

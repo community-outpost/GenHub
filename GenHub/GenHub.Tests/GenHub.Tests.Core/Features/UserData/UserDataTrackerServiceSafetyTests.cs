@@ -250,13 +250,65 @@ public sealed partial class UserDataTrackerServiceSafetyTests : IDisposable
             .ReturnsAsync(FileHashVerification.Failed);
 
         // Act
-        await _trackerService.UninstallUserDataAsync(TestManifestId, TestProfileId, CancellationToken.None);
+        var uninstallResult = await _trackerService.UninstallUserDataAsync(TestManifestId, TestProfileId, CancellationToken.None);
 
         // Assert
+        Assert.False(uninstallResult.Success);
         Assert.False(File.Exists(deployedPath + UserDataConstants.UserModifiedSuffix));
         Assert.Equal(CasContent, File.ReadAllText(deployedPath));
         Assert.True(File.Exists(backupPath));
         Assert.Equal(originalUserContent, File.ReadAllText(backupPath!));
+    }
+
+    /// <summary>
+    /// Pins the dangerous window an uninstall opens: the deployed file has already been moved aside
+    /// and the restore of the pristine original then fails, leaving the original path empty. The
+    /// uninstall must report that failure and keep its tracking data, because the manifest is the
+    /// only record tying a machine-named backup to the path it belongs at.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task UninstallUserDataAsync_WhenRestoreFailsAfterMoveAside_ReportsFailureAndKeepsTrackingDataAsync()
+    {
+        // Arrange
+        var deployedPath = Path.Combine(_zeroHourDataDir, "GeneralsOnlineGameData", "splash.bmp");
+        Directory.CreateDirectory(Path.GetDirectoryName(deployedPath)!);
+        File.WriteAllText(deployedPath, "the-user-original-file");
+
+        var installResult = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            TestProfileId,
+            GameType.ZeroHour,
+            BuildFiles(),
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+        Assert.True(installResult.Success);
+
+        var backupPath = installResult.Data!.InstalledFiles[0].BackupPath!;
+
+        // The backup disappears in the window between the move-aside and the restore.
+        _fileOperationsMock
+            .Setup(f => f.CheckFileHashAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                File.Delete(backupPath);
+                return FileHashVerification.Mismatch;
+            });
+
+        // Act
+        var uninstallResult = await _trackerService.UninstallUserDataAsync(TestManifestId, TestProfileId, CancellationToken.None);
+
+        // Assert
+        Assert.False(uninstallResult.Success);
+        Assert.False(File.Exists(deployedPath));
+
+        var preservedPath = deployedPath + UserDataConstants.UserModifiedSuffix;
+        Assert.True(File.Exists(preservedPath));
+        Assert.Equal(CasContent, File.ReadAllText(preservedPath));
+
+        var manifestsPath = Path.Combine(_appDataDir, "UserData", "manifests");
+        Assert.NotEmpty(Directory.GetFiles(manifestsPath, "*", SearchOption.AllDirectories));
     }
 
     /// <summary>
