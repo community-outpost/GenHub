@@ -475,27 +475,19 @@ public class ContentReconciliationService(
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
-                GameClient? newGameClient = null;
-                if (profile.GameClient != null)
+                GameClient? newGameClient = profile.GameClient;
+                if (profile.GameClient != null && replacements.TryGetValue(profile.GameClient.Id, out var m))
                 {
-                    if (replacements.TryGetValue(profile.GameClient.Id, out var m))
+                    newGameClient = new GameClient
                     {
-                        newGameClient = new GameClient
-                        {
-                            Id = m.Id.Value,
-                            Name = m.Name ?? m.Id.Value,
-                            Version = m.Version ?? string.Empty,
-                            GameType = m.TargetGame,
-                            SourceType = m.ContentType,
-                            PublisherType = m.Publisher?.PublisherType,
-                            InstallationId = profile.GameClient.InstallationId, // Preserve installation link
-                        };
-                    }
-                    else
-                    {
-                        // Preserve existing GameClient if its ID is not in the replacement list
-                        newGameClient = profile.GameClient;
-                    }
+                        Id = m.Id.Value,
+                        Name = m.Name ?? m.Id.Value,
+                        Version = m.Version ?? string.Empty,
+                        GameType = m.TargetGame,
+                        SourceType = m.ContentType,
+                        PublisherType = m.Publisher?.PublisherType,
+                        InstallationId = profile.GameClient.InstallationId, // Preserve installation link
+                    };
                 }
 
                 bool workspaceInvalidated = false;
@@ -529,14 +521,12 @@ public class ContentReconciliationService(
                 }
                 else
                 {
-                    var error = $"Failed to update profile '{profile.Name}': {updateResult.FirstError}";
                     logger.LogWarning("Failed to update profile '{ProfileName}': {Error}", profile.Name, updateResult.FirstError);
                     failedProfiles.Add(profile.Name);
                 }
             }
             catch (Exception ex)
             {
-                var error = $"Error reconciling profile '{profile.Name}': {ex.Message}";
                 logger.LogError(ex, "Error reconciling profile '{ProfileName}': {Message}", profile.Name, ex.Message);
                 failedProfiles.Add(profile.Name);
             }
@@ -613,14 +603,12 @@ public class ContentReconciliationService(
                 }
                 else
                 {
-                    var error = $"Failed to update profile '{profile.Name}': {updateResult.FirstError}";
                     logger.LogWarning("Failed to update profile '{ProfileName}': {Error}", profile.Name, updateResult.FirstError);
                     failedProfiles.Add(profile.Name);
                 }
             }
             catch (Exception ex)
             {
-                var error = $"Error removing manifest from profile '{profile.Name}': {ex.Message}";
                 logger.LogError(ex, "Error removing manifest from profile '{ProfileName}': {Message}", profile.Name, ex.Message);
                 failedProfiles.Add(profile.Name);
             }

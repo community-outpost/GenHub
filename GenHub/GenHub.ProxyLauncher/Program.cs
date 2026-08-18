@@ -30,6 +30,8 @@ internal class Program
             return 0;
         }
 
+        GC.KeepAlive(mutex);
+
         try
         {
             var configPath = Path.Combine(baseDir, ConfigFileName);

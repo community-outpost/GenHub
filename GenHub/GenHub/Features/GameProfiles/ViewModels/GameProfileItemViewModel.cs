@@ -460,22 +460,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
                 {
                     // Normalize version to handle Unknown, Auto-Updated, and Automatically added cases
                     var version = gameProfile.GameClient.Version;
-                    if (version.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase) ||
-                        version.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
-                        version.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) ||
-                        version.Contains("Automatically", StringComparison.OrdinalIgnoreCase) ||
-                        version == "0" ||
-                        version == "0.0" ||
-                        version == "0.0.0" ||
-                        version == "0.0.0.0" ||
-                        version.Equals("v0", StringComparison.OrdinalIgnoreCase))
-                    {
-                        GameVersion = string.Empty;
-                    }
-                    else
-                    {
-                        GameVersion = version;
-                    }
+                    GameVersion = IsZeroOrPlaceholderVersion(version) ? string.Empty : version;
                 }
             }
 
@@ -629,22 +614,7 @@ public partial class GameProfileItemViewModel : ViewModelBase
                     !string.Equals(Publisher, "Local", StringComparison.OrdinalIgnoreCase))
                 {
                     var version = gameProfile.GameClient.Version;
-                    if (version.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase) ||
-                        version.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
-                        version.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) ||
-                        version.Contains("Automatically", StringComparison.OrdinalIgnoreCase) ||
-                        version == "0" ||
-                        version == "0.0" ||
-                        version == "0.0.0" ||
-                        version == "0.0.0.0" ||
-                        version.Equals("v0", StringComparison.OrdinalIgnoreCase))
-                    {
-                        GameVersion = string.Empty;
-                    }
-                    else
-                    {
-                        GameVersion = version;
-                    }
+                    GameVersion = IsZeroOrPlaceholderVersion(version) ? string.Empty : version;
                 }
             }
 
@@ -842,6 +812,23 @@ public partial class GameProfileItemViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// Checks if the version is zero or a placeholder.
+    /// </summary>
+    /// <param name="version">The version string to check.</param>
+    private bool IsZeroOrPlaceholderVersion(string version)
+    {
+        return version.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase) ||
+               version.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
+               version.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) ||
+               version.Contains("Automatically", StringComparison.OrdinalIgnoreCase) ||
+               version == "0" ||
+               version == "0.0" ||
+               version == "0.0.0" ||
+               version == "0.0.0.0" ||
+               version.Equals("v0", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// Extracts version, publisher, and content type information from a manifest ID.
     /// Expected format: schemaVersion.userVersion.publisher.contentType.contentName.
     /// Example: 1.104.steam.gameclient.zerohour → version=104 (1.04), publisher=Steam, contentType=Game Client.
@@ -850,105 +837,108 @@ public partial class GameProfileItemViewModel : ViewModelBase
     private void ExtractManifestInfo(string manifestId)
     {
         if (string.IsNullOrEmpty(manifestId))
+        {
             return;
+        }
 
         var segments = manifestId.Split('.');
         if (segments.Length < 4)
+        {
             return;
+        }
 
         try
         {
-            // Parse publisher: segment[2] contains the platform/publisher
             var publisherSegment = segments[2].ToLowerInvariant();
-            Publisher = publisherSegment switch
-            {
-                PublisherTypeConstants.Steam => "Steam",
-                PublisherTypeConstants.EaApp => "EA App",
-                "thefirstdecade" => "The First Decade",
-                PublisherTypeConstants.Retail => "Retail",
-                "cdiso" => "CD/ISO",
-                "wine" => "Wine",
-                PublisherTypeConstants.GeneralsOnline => "Generals Online",
-                PublisherTypeConstants.TheSuperHackers => "The Super Hackers",
-                CommunityOutpostConstants.PublisherType => "Community Outpost",
-                "local" => "Local",
-                _ => segments[2].ToUpperInvariant(),
-            };
-
-            // --- Faction Branding (Round 2 Fix) ---
-            // Apply theme colors and covers based on the publisher segment
-            if (publisherSegment == PublisherTypeConstants.TheSuperHackers)
-            {
-                // Super Hackers = China branding
-                ColorValue = SuperHackersConstants.ZeroHourThemeColor; // #8B0000
-                CoverImagePath = SuperHackersConstants.ZeroHourCoverSource; // "/Assets/Covers/china-cover.png"
-            }
-            else if (publisherSegment == PublisherTypeConstants.GeneralsOnline)
-            {
-                // Generals Online = USA branding
-                ColorValue = GeneralsOnlineConstants.ThemeColor; // #00A3FF
-                CoverImagePath = GeneralsOnlineConstants.CoverSource; // "/Assets/Covers/usa-cover.png"
-            }
-            else if (publisherSegment == CommunityOutpostConstants.PublisherType)
-            {
-                // Community Outpost / GenPatcher = GLA branding
-                ColorValue = CommunityOutpostConstants.ThemeColor; // #2D5A27
-                CoverImagePath = CommunityOutpostConstants.CoverSource; // "/Assets/Covers/gla-cover.png"
-            }
-
-            // Parse version: segment[1] contains the user version (e.g., 104, 108)
-            // For local content, don't show version at all since it's always 0
-            if (publisherSegment == "local")
-            {
-                // Local content has no meaningful version
-                GameVersion = string.Empty;
-            }
-            else if (int.TryParse(segments[1], out var versionNumber) && versionNumber > 0)
-            {
-                if (publisherSegment == PublisherTypeConstants.GeneralsOnline)
-                {
-                    // For Generals Online, the version is a datecode (MMDDYY).
-                    // Format as 6 digits (e.g., 10326 -> "010326")
-                    GameVersion = versionNumber.ToString("D6");
-                }
-                else
-                {
-                    // Standard version logic: Convert 104 -> "v1.04", 108 -> "v1.08", 105 -> "v1.05"
-                    GameVersion = versionNumber >= 100
-                        ? $"v{versionNumber / 100}.{versionNumber % 100:D2}"
-                        : $"v{versionNumber}";
-                }
-            }
-            else
-            {
-                // If version is 0 or invalid, try to extract from GameClient.Version directly
-                GameVersion = string.Empty;
-            }
-
-            // Parse content type from suffix in segment[3]
-            var gameTypeSegment = segments[3];
-            if (gameTypeSegment.Contains('-'))
-            {
-                var parts = gameTypeSegment.Split('-');
-                ContentType = parts[1] switch
-                {
-                    "gameinstallation" => "Game Installation",
-                    "gameclient" => "Game Client",
-                    "mod" => "Mod",
-                    "patch" => "Patch",
-                    "addon" => "Add-on",
-                    "map" => "Map",
-                    "mappack" => "Map Pack",
-                    "executable" => "Executable",
-                    "moddingtool" => "Modding Tool",
-                    "mission" => "Mission",
-                    _ => parts[1].ToUpperInvariant(),
-                };
-            }
+            Publisher = ParsePublisherName(publisherSegment, segments[2]);
+            ApplyPublisherBranding(publisherSegment);
+            GameVersion = ParseManifestVersion(publisherSegment, segments[1]);
+            ContentType = ParseContentType(segments[3]);
         }
         catch
         {
             // If parsing fails, leave the fields empty
         }
+    }
+
+    private string ParsePublisherName(string publisherSegment, string originalSegment) =>
+        publisherSegment switch
+        {
+            PublisherTypeConstants.Steam => "Steam",
+            PublisherTypeConstants.EaApp => "EA App",
+            "thefirstdecade" => "The First Decade",
+            PublisherTypeConstants.Retail => "Retail",
+            "cdiso" => "CD/ISO",
+            "wine" => "Wine",
+            PublisherTypeConstants.GeneralsOnline => "Generals Online",
+            PublisherTypeConstants.TheSuperHackers => "The Super Hackers",
+            CommunityOutpostConstants.PublisherType => "Community Outpost",
+            "local" => "Local",
+            _ => originalSegment.ToUpperInvariant(),
+        };
+
+    private void ApplyPublisherBranding(string publisherSegment)
+    {
+        if (publisherSegment == PublisherTypeConstants.TheSuperHackers)
+        {
+            ColorValue = SuperHackersConstants.ZeroHourThemeColor;
+            CoverImagePath = SuperHackersConstants.ZeroHourCoverSource;
+        }
+        else if (publisherSegment == PublisherTypeConstants.GeneralsOnline)
+        {
+            ColorValue = GeneralsOnlineConstants.ThemeColor;
+            CoverImagePath = GeneralsOnlineConstants.CoverSource;
+        }
+        else if (publisherSegment == CommunityOutpostConstants.PublisherType)
+        {
+            ColorValue = CommunityOutpostConstants.ThemeColor;
+            CoverImagePath = CommunityOutpostConstants.CoverSource;
+        }
+    }
+
+    private string ParseManifestVersion(string publisherSegment, string versionSegment)
+    {
+        if (publisherSegment == "local")
+        {
+            return string.Empty;
+        }
+
+        if (int.TryParse(versionSegment, out var versionNumber) && versionNumber > 0)
+        {
+            if (publisherSegment == PublisherTypeConstants.GeneralsOnline)
+            {
+                return versionNumber.ToString("D6");
+            }
+
+            return versionNumber >= 100
+                ? $"v{versionNumber / 100}.{versionNumber % 100:D2}"
+                : $"v{versionNumber}";
+        }
+
+        return string.Empty;
+    }
+
+    private string ParseContentType(string gameTypeSegment)
+    {
+        if (!gameTypeSegment.Contains('-'))
+        {
+            return string.Empty;
+        }
+
+        var parts = gameTypeSegment.Split('-');
+        return parts[1] switch
+        {
+            "gameinstallation" => "Game Installation",
+            "gameclient" => "Game Client",
+            "mod" => "Mod",
+            "patch" => "Patch",
+            "addon" => "Add-on",
+            "map" => "Map",
+            "mappack" => "Map Pack",
+            "executable" => "Executable",
+            "moddingtool" => "Modding Tool",
+            "mission" => "Mission",
+            _ => parts[1].ToUpperInvariant(),
+        };
     }
 }

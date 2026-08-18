@@ -355,7 +355,11 @@ public class UserDataTrackerService(
                             File.Copy(file.BackupPath, file.AbsolutePath, overwrite: true);
                             logger.LogInformation("[UserData] Restored backup during deactivation: {Backup} -> {Path}", file.BackupPath, file.AbsolutePath);
                         }
-                        catch (Exception ex) when (ex is not OperationCanceledException)
+                        catch (OperationCanceledException)
+                        {
+                            throw;
+                        }
+                        catch (Exception ex)
                         {
                             logger.LogWarning(ex, "[UserData] Failed to restore backup during deactivation: {Path}", file.AbsolutePath);
                             manifestHasErrors = true;
@@ -951,7 +955,11 @@ public class UserDataTrackerService(
                 }
             }
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
         {
             logger.LogError(ex, "[UserData] Exception while materializing file {Path} during activation", file.AbsolutePath);
         }

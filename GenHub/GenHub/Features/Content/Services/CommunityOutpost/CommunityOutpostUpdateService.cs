@@ -71,18 +71,13 @@ public class CommunityOutpostUpdateService(
                 var installed = installedManifests.FirstOrDefault(m =>
                     m.Id.Value.Equals(discovered.Id, StringComparison.OrdinalIgnoreCase));
 
-                if (installed != null)
+                if (installed != null &&
+                    versionComparer.IsNewer(discovered.Version, installed.Version, CommunityOutpostConstants.PublisherType) &&
+                    (latestToResolve == null || versionComparer.IsNewer(discovered.Version, latestToResolve.Version, CommunityOutpostConstants.PublisherType)))
                 {
-                    if (versionComparer.IsNewer(discovered.Version, installed.Version, CommunityOutpostConstants.PublisherType))
-                    {
-                        // Check if this discovered version is newer than our current "latest to resolve"
-                        if (latestToResolve == null || versionComparer.IsNewer(discovered.Version, latestToResolve.Version, CommunityOutpostConstants.PublisherType))
-                        {
-                            logger.LogInformation("Newer update candidate found for {Id}: {OldVersion} -> {NewVersion}", discovered.Id, installed.Version, discovered.Version);
-                            latestToResolve = discovered;
-                            currentVersionAtLatest = installed.Version;
-                        }
-                    }
+                    logger.LogInformation("Newer update candidate found for {Id}: {OldVersion} -> {NewVersion}", discovered.Id, installed.Version, discovered.Version);
+                    latestToResolve = discovered;
+                    currentVersionAtLatest = installed.Version;
                 }
             }
 

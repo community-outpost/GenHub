@@ -611,7 +611,11 @@ public class GameLauncher(
                     .EnumerateFiles(root, RetailArchiveConstants.ArchiveSearchPattern, RetailArchiveConstants.ArchiveSearch)
                     .Any();
             }
-            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+            catch (UnauthorizedAccessException ex)
+            {
+                return $"The retail archive root for {variableName} could not be read: {root} ({ex.Message}).";
+            }
+            catch (IOException ex)
             {
                 return $"The retail archive root for {variableName} could not be read: {root} ({ex.Message}).";
             }

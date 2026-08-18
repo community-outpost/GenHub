@@ -34,7 +34,7 @@ public partial class AddLocalContentViewModel(
     /// <summary>
     /// Gets the list of available game types.
     /// </summary>
-    public static GameType[] AvailableGameTypes { get; } =
+    public static IReadOnlyList<GameType> AvailableGameTypes { get; } =
     [
         GameType.Generals,
         GameType.ZeroHour,
@@ -43,7 +43,7 @@ public partial class AddLocalContentViewModel(
     /// <summary>
     /// Gets the list of allowed content types for the dialog.
     /// </summary>
-    public static ContentType[] AllowedContentTypes { get; } =
+    public static IReadOnlyList<ContentType> AllowedContentTypes { get; } =
     [
         ContentType.Mod,
         ContentType.GameClient,
@@ -550,7 +550,7 @@ public partial class AddLocalContentViewModel(
         if (BrowseFileAction != null)
         {
             var paths = await BrowseFileAction();
-            if (paths != null && paths.Count > 0)
+            if (paths is { Count: > 0 })
             {
                 foreach (var path in paths)
                 {
@@ -643,11 +643,8 @@ public partial class AddLocalContentViewModel(
             // Preserve SourcePath metadata if available
             // Note: We no longer write to "source.path" file to avoid polluting the content.
             // Instead we pass the SourcePath directly to the service.
-            GenHub.Core.Models.Results.OperationResult<GenHub.Core.Models.Manifest.ContentManifest> result;
-
-            if (IsEditing && _originalManifestId != null)
-            {
-                 result = await localContentService.UpdateLocalContentManifestAsync(
+            var result = IsEditing && _originalManifestId != null
+                ? await localContentService.UpdateLocalContentManifestAsync(
                     _originalManifestId,
                     ContentName,
                     _stagingPath,
@@ -655,11 +652,8 @@ public partial class AddLocalContentViewModel(
                     targetGame,
                     SourcePath,
                     progress,
-                    _cts.Token);
-            }
-            else
-            {
-                result = await localContentService.CreateLocalContentManifestAsync(
+                    _cts.Token)
+                : await localContentService.CreateLocalContentManifestAsync(
                     _stagingPath,
                     ContentName,
                     SelectedContentType,
@@ -667,7 +661,6 @@ public partial class AddLocalContentViewModel(
                     SourcePath,
                     progress,
                     _cts.Token);
-            }
 
             if (result.Success)
             {

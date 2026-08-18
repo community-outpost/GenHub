@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -80,6 +81,7 @@ public class ContentReconciliationServiceTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
+    [SuppressMessage("DeepSource", "CS-R1136", Justification = "Expression tree lambdas in Moq do not support null propagation")]
     public async Task OrchestrateLocalUpdateAsync_WhenIdChanges_ShouldAddManifestToPool_AndUpdateProfilesAsync()
     {
         // Arrange

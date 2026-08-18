@@ -227,7 +227,12 @@ public class MacOSInstallationDetector(ILogger<MacOSInstallationDetector> logger
             {
                 bottles = Directory.Exists(container) ? Directory.GetDirectories(container) : [];
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (IOException)
+            {
+                // An unreadable bottle container is not a detection failure.
+                continue;
+            }
+            catch (UnauthorizedAccessException)
             {
                 // An unreadable bottle container is not a detection failure.
                 continue;

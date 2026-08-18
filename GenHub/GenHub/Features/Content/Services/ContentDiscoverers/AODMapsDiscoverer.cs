@@ -261,7 +261,6 @@ public partial class AODMapsDiscoverer(
     private static string BuildDiscoveryUrl(ContentSearchQuery query)
     {
         var page = query.Page ?? 1;
-        var pageStr = page > 1 ? page.ToString() : string.Empty; // Some URLs use "2", "3". "1" is often empty or omitted.
 
         // Special case: Page 1 often has no suffix. Page 2 has '2'.
         // Format {0} in patterns usually denotes the number suffix.
@@ -270,7 +269,7 @@ public partial class AODMapsDiscoverer(
         // 1. Check for specific map makers in query or tags
         // If we want to browse a map maker
         // Not implemented in basic browsing yet unless we parse "tags" containing "author:xxx"
-        if (query.CNCLabsMapTags != null && query.CNCLabsMapTags.Any(t => t.StartsWith("author:")))
+        if (query.CNCLabsMapTags?.Any(t => t.StartsWith("author:")) == true)
         {
             var authorTag = query.CNCLabsMapTags.First(t => t.StartsWith("author:"));
             var authorName = authorTag.Replace("author:", string.Empty);
@@ -289,7 +288,7 @@ public partial class AODMapsDiscoverer(
         // 3. Check Categories (Compstomp, Air, Race, etc - passed as Tags or specialized logic?)
         // Assuming user might pass these as Tags or we map ContentType?
         // Simplification: If "Compstomp" tag is present
-        if (query.CNCLabsMapTags != null && query.CNCLabsMapTags.Contains("Compstomp", StringComparer.OrdinalIgnoreCase))
+        if (query.CNCLabsMapTags?.Contains("Compstomp", StringComparer.OrdinalIgnoreCase) == true)
         {
             return string.Format(AODMapsConstants.CompstompPagePattern, suffix);
         }

@@ -190,7 +190,20 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets the text to display as a placeholder in the version selection combo box.
     /// </summary>
-    public string VersionPlaceholderText => IsLoadingVersions ? AppUpdateConstants.LoadingVersionsMessage : (AvailableVersions.Count > 0 ? AppUpdateConstants.SelectVersionMessage : AppUpdateConstants.NoVersionsFoundMessage);
+    public string VersionPlaceholderText
+    {
+        get
+        {
+            if (IsLoadingVersions)
+            {
+                return AppUpdateConstants.LoadingVersionsMessage;
+            }
+
+            return AvailableVersions.Count > 0
+                ? AppUpdateConstants.SelectVersionMessage
+                : AppUpdateConstants.NoVersionsFoundMessage;
+        }
+    }
 
     /// <summary>
     /// Gets or sets a value indicating whether a merged/closed PR warning should be shown.
@@ -509,18 +522,14 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                             _logger.LogInformation("Subscribed to PR #{PrNumber}, new build available: run #{PrRun} (current: #{CurrentRun})", SubscribedPr.Number, prRun, currentRun);
                             return;
                         }
-                        else
-                        {
-                            StatusMessage = $"You dismissed the update for PR #{SubscribedPr.Number}";
-                            return;
-                        }
-                    }
-                    else
-                    {
-                        IsUpdateAvailable = false;
-                        StatusMessage = $"You are on the latest build for PR #{SubscribedPr.Number}";
+
+                        StatusMessage = $"You dismissed the update for PR #{SubscribedPr.Number}";
                         return;
                     }
+
+                    IsUpdateAvailable = false;
+                    StatusMessage = $"You are on the latest build for PR #{SubscribedPr.Number}";
+                    return;
                 }
                 else
                 {
@@ -550,18 +559,14 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                                 _logger.LogInformation("Fetched PR #{PrNumber} artifact, new build available: run #{PrRun} (current: #{CurrentRun})", SubscribedPr.Number, prRun, currentRun);
                                 return;
                             }
-                            else
-                            {
-                                StatusMessage = $"You dismissed the update for PR #{SubscribedPr.Number}";
-                                return;
-                            }
-                        }
-                        else
-                        {
-                            IsUpdateAvailable = false;
-                            StatusMessage = $"You are on the latest build for PR #{SubscribedPr.Number}";
+
+                            StatusMessage = $"You dismissed the update for PR #{SubscribedPr.Number}";
                             return;
                         }
+
+                        IsUpdateAvailable = false;
+                        StatusMessage = $"You are on the latest build for PR #{SubscribedPr.Number}";
+                        return;
                     }
 
                     // If subscribed to PR but no artifact found, don't fall through to main release

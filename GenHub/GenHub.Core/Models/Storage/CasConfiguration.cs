@@ -130,7 +130,15 @@ public class CasConfiguration : ICloneable
             if (!string.IsNullOrEmpty(parentDir) && !Directory.Exists(parentDir))
                 throw new DirectoryNotFoundException($"Parent directory of CasRootPath does not exist: {parentDir}");
         }
-        catch (Exception ex) when (!(ex is ArgumentException || ex is DirectoryNotFoundException))
+        catch (ArgumentException)
+        {
+            throw;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            throw;
+        }
+        catch (Exception ex)
         {
             throw new ArgumentException($"Invalid CasRootPath: {CasRootPath}", ex);
         }

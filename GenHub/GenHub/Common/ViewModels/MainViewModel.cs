@@ -245,22 +245,19 @@ public partial class MainViewModel(
                 if (updateInfo != null)
                 {
                     logger?.LogInformation("GitHub release update available: {Version}", updateInfo.TargetFullRelease.Version);
-                    await Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        notificationService.Show(new NotificationMessage(
-                            NotificationType.Info,
-                            "Update Available",
-                            $"A new version ({updateInfo.TargetFullRelease.Version}) is available.",
-                            null, // Persistent
-                            actions:
-                            [
-                                new NotificationAction(
-                                    "View Updates",
-                                    () => { SettingsViewModel.OpenUpdateWindowCommand.Execute(null); },
-                                    NotificationActionStyle.Primary,
-                                    dismissOnExecute: true),
-                            ]));
-                    });
+                    await Dispatcher.UIThread.InvokeAsync(() => notificationService.Show(new NotificationMessage(
+                        NotificationType.Info,
+                        "Update Available",
+                        $"A new version ({updateInfo.TargetFullRelease.Version}) is available.",
+                        null, // Persistent
+                        actions:
+                        [
+                            new NotificationAction(
+                                "View Updates",
+                                () => SettingsViewModel.OpenUpdateWindowCommand.Execute(null),
+                                NotificationActionStyle.Primary,
+                                dismissOnExecute: true),
+                        ])));
                     return;
                 }
             }
@@ -277,22 +274,19 @@ public partial class MainViewModel(
                 {
                     var newVersionBase = artifactUpdate.Version.Split('+')[0];
 
-                    await Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        notificationService.Show(new NotificationMessage(
-                            NotificationType.Info,
-                            "Branch Update Available",
-                            $"A new build ({newVersionBase}) is available on branch '{settings.SubscribedBranch}'.",
-                            null, // Persistent
-                            actions:
-                            [
-                                new NotificationAction(
-                                    "View Updates",
-                                    () => { SettingsViewModel.OpenUpdateWindowCommand.Execute(null); },
-                                    NotificationActionStyle.Primary,
-                                    dismissOnExecute: true),
-                            ]));
-                    });
+                    await Dispatcher.UIThread.InvokeAsync(() => notificationService.Show(new NotificationMessage(
+                        NotificationType.Info,
+                        "Branch Update Available",
+                        $"A new build ({newVersionBase}) is available on branch '{settings.SubscribedBranch}'.",
+                        null, // Persistent
+                        actions:
+                        [
+                            new NotificationAction(
+                                "View Updates",
+                                () => SettingsViewModel.OpenUpdateWindowCommand.Execute(null),
+                                NotificationActionStyle.Primary,
+                                dismissOnExecute: true),
+                        ])));
                 }
             }
         }
