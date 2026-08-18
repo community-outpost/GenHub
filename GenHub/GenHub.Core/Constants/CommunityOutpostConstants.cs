@@ -85,6 +85,22 @@ public static class CommunityOutpostConstants
     /// </summary>
     public const string PatchPageUrl = "https://legi.cc/downloads/genpatcher/";
 
+    /// <summary>
+    /// Maximum number of file entries a downloaded Community Outpost archive may contain.
+    /// </summary>
+    public const int MaxArchiveEntries = 10000;
+
+    /// <summary>
+    /// Maximum number of bytes a single Community Outpost archive entry may expand to (2 GB),
+    /// sized to accommodate the largest shipped BIG files.
+    /// </summary>
+    public const long MaxEntryUncompressedBytes = 2L * 1024 * 1024 * 1024;
+
+    /// <summary>
+    /// Maximum aggregate uncompressed bytes a Community Outpost archive may expand to (4 GB).
+    /// </summary>
+    public const long MaxAggregateUncompressedBytes = 4L * 1024 * 1024 * 1024;
+
     /// <summary>Display name for Game Clients content type.</summary>
     public const string ContentTypeGameClients = "Game Clients";
 

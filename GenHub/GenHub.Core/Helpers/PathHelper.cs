@@ -62,4 +62,24 @@ public static class PathHelper
         var parent = Path.GetDirectoryName(path);
         return string.IsNullOrEmpty(parent) ? path : parent;
     }
+
+    /// <summary>
+    /// Determines whether a candidate path resolves to a location inside a base directory.
+    /// Both paths are fully normalized first, so <c>..</c> segments, redundant separators and
+    /// rooted candidates cannot escape the base directory.
+    /// </summary>
+    /// <param name="baseDirectory">The directory that must contain the candidate path.</param>
+    /// <param name="candidatePath">The path to test for containment.</param>
+    /// <returns><see langword="true"/> when the candidate resolves inside the base directory; otherwise, <see langword="false"/>.</returns>
+    public static bool IsPathWithinDirectory(string baseDirectory, string candidatePath)
+    {
+        var normalizedRoot = Path.GetFullPath(baseDirectory);
+        var normalizedTarget = Path.GetFullPath(candidatePath);
+        var relative = Path.GetRelativePath(normalizedRoot, normalizedTarget);
+
+        return !relative.Equals("..", StringComparison.Ordinal) &&
+               !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) &&
+               !relative.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal) &&
+               !Path.IsPathRooted(relative);
+    }
 }

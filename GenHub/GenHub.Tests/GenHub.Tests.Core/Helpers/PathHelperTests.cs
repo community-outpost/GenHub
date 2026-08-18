@@ -34,4 +34,51 @@ public sealed class PathHelperTests
 
         Assert.Equal(OperatingSystem.IsWindows(), pathsAreEqual);
     }
+
+    /// <summary>
+    /// Accepts the base directory itself and anything nested beneath it.
+    /// </summary>
+    /// <param name="relativeCandidate">A candidate path relative to the base directory.</param>
+    [Theory]
+    [InlineData("")]
+    [InlineData("file.dat")]
+    [InlineData("nested/deeper/file.dat")]
+    [InlineData("nested/../file.dat")]
+    public void IsPathWithinDirectory_AcceptsContainedPaths(string relativeCandidate)
+    {
+        var baseDirectory = Path.Combine(Path.GetTempPath(), "GenHubContainment");
+        var candidate = Path.Combine(baseDirectory, relativeCandidate);
+
+        Assert.True(PathHelper.IsPathWithinDirectory(baseDirectory, candidate));
+    }
+
+    /// <summary>
+    /// Rejects traversal segments, escapes that only appear after normalization, and sibling
+    /// directories that merely share a name prefix with the base directory.
+    /// </summary>
+    /// <param name="relativeCandidate">A candidate path relative to the base directory.</param>
+    [Theory]
+    [InlineData("..")]
+    [InlineData("../escaped.dat")]
+    [InlineData("nested/../../escaped.dat")]
+    [InlineData("../GenHubContainmentEvil/escaped.dat")]
+    public void IsPathWithinDirectory_RejectsEscapingPaths(string relativeCandidate)
+    {
+        var baseDirectory = Path.Combine(Path.GetTempPath(), "GenHubContainment");
+        var candidate = Path.Combine(baseDirectory, relativeCandidate);
+
+        Assert.False(PathHelper.IsPathWithinDirectory(baseDirectory, candidate));
+    }
+
+    /// <summary>
+    /// Rejects a rooted candidate that resolves outside the base directory.
+    /// </summary>
+    [Fact]
+    public void IsPathWithinDirectory_RejectsAbsolutePathOutsideBase()
+    {
+        var baseDirectory = Path.Combine(Path.GetTempPath(), "GenHubContainment");
+        var candidate = Path.Combine(Path.GetTempPath(), "GenHubElsewhere", "escaped.dat");
+
+        Assert.False(PathHelper.IsPathWithinDirectory(baseDirectory, candidate));
+    }
 }

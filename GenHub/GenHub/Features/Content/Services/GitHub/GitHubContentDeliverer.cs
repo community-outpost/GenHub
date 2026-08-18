@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
@@ -14,10 +15,10 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Utilities;
 using GenHub.Features.Content.Services.Publishers;
 using Microsoft.Extensions.Logging;
 using SharpCompress.Archives;
-using SharpCompress.Common;
 
 namespace GenHub.Features.Content.Services.GitHub;
 
@@ -162,6 +163,13 @@ public class GitHubContentDeliverer(
                         logger.LogInformation("Extracted {ArchiveFile}", Path.GetFileName(archiveFile));
                         File.Delete(archiveFile);
                     }
+                    catch (OperationCanceledException)
+                    {
+                        logger.LogInformation(
+                            "Extraction of {ArchiveFile} was cancelled; the downloaded archive is left in place",
+                            Path.GetFileName(archiveFile));
+                        throw;
+                    }
                     catch (Exception ex)
                     {
                         logger.LogError(ex, "Failed to extract {ArchiveFile}", Path.GetFileName(archiveFile));
@@ -181,6 +189,10 @@ public class GitHubContentDeliverer(
 
             // For content without archives, return original manifest
             return OperationResult<ContentManifest>.CreateSuccess(packageManifest);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -243,17 +255,6 @@ public class GitHubContentDeliverer(
                ext == FileTypes.TarFileExtension ||
                ext == FileTypes.GzipFileExtension ||
                ext == FileTypes.RarFileExtension;
-    }
-
-    private static bool IsPathWithinDirectory(string normalizedBase, string fullPath)
-    {
-        var normalizedRoot = Path.GetFullPath(normalizedBase);
-        var normalizedTarget = Path.GetFullPath(fullPath);
-        var relative = Path.GetRelativePath(normalizedRoot, normalizedTarget);
-        return !relative.Equals("..", StringComparison.Ordinal) &&
-               !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) &&
-               !relative.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal) &&
-               !Path.IsPathRooted(relative);
     }
 
     /// <summary>
@@ -365,7 +366,9 @@ public class GitHubContentDeliverer(
     }
 
     /// <summary>
-    /// Extracts an archive file asynchronously to prevent UI blocking.
+    /// Extracts an archive file asynchronously to prevent UI blocking. Release archives are remote
+    /// input, so every entry is confined to <paramref name="targetDirectory"/> and the archive is
+    /// held to entry-count and expansion budgets measured against the bytes actually decompressed.
     /// </summary>
     /// <param name="archiveFile">Path to the archive file.</param>
     /// <param name="targetDirectory">Directory to extract files to.</param>
@@ -379,21 +382,32 @@ public class GitHubContentDeliverer(
         CancellationToken cancellationToken)
     {
         await Task.Run(
-            () =>
+            async () =>
             {
-                using var archive = ArchiveFactory.Open(new FileInfo(archiveFile));
-                int totalEntries = archive.Entries.Count(e => !e.IsDirectory);
-                int currentEntry = 0;
+                using var archive = ArchiveFactory.OpenArchive(new FileInfo(archiveFile));
+                var fileEntries = archive.Entries.Where(e => !e.IsDirectory).ToList();
 
-                foreach (var entry in archive.Entries.Where(e => !e.IsDirectory))
+                if (fileEntries.Count > GitHubConstants.MaxArchiveEntries)
                 {
-                    if (cancellationToken.IsCancellationRequested)
-                    {
-                        break;
-                    }
+                    throw new InvalidOperationException(
+                        $"Archive contains too many entries ({fileEntries.Count} > {GitHubConstants.MaxArchiveEntries}).");
+                }
+
+                int totalEntries = fileEntries.Count;
+                int currentEntry = 0;
+                long expandedBytes = 0;
+                long expansionBudget = Math.Min(
+                    GitHubConstants.MaxAggregateUncompressedBytes,
+                    Math.Max(
+                        GitHubConstants.MinArchiveExpansionBudgetBytes,
+                        new FileInfo(archiveFile).Length * GitHubConstants.MaxArchiveExpansionRatio));
+
+                foreach (var entry in fileEntries)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
 
                     var destinationPath = Path.GetFullPath(Path.Combine(targetDirectory, entry.Key ?? string.Empty));
-                    if (!IsPathWithinDirectory(targetDirectory, destinationPath))
+                    if (!PathHelper.IsPathWithinDirectory(targetDirectory, destinationPath))
                     {
                         throw new InvalidOperationException($"Zip slip vulnerability detected: entry '{entry.Key}' attempts to extract outside target directory.");
                     }
@@ -404,13 +418,17 @@ public class GitHubContentDeliverer(
                         Directory.CreateDirectory(destinationDir);
                     }
 
-                    entry.WriteToFile(
-                        destinationPath,
-                        new ExtractionOptions
-                        {
-                            ExtractFullPath = true,
-                            Overwrite = true,
-                        });
+                    await using (var entryStream = entry.OpenEntryStream())
+                    {
+                        expandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(
+                            entryStream,
+                            destinationPath,
+                            entry.Key ?? string.Empty,
+                            GitHubConstants.MaxEntryUncompressedBytes,
+                            expansionBudget - expandedBytes,
+                            overwrite: true,
+                            cancellationToken);
+                    }
 
                     currentEntry++;
 
