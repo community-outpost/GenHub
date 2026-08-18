@@ -426,11 +426,11 @@ public partial class MainViewModel(
         {
             var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
             var mainWindow = lifetime?.MainWindow;
-            var topLevel = mainWindow != null ? TopLevel.GetTopLevel(mainWindow) : null;
+            var topLevel = mainWindow is not null ? TopLevel.GetTopLevel(mainWindow) : null;
 
-            if (topLevel?.Clipboard != null)
+            if (topLevel?.Clipboard is { } clipboard)
             {
-                await topLevel.Clipboard.SetTextAsync(AppConstants.FullDisplayVersion);
+                await clipboard.SetTextAsync(AppConstants.FullDisplayVersion);
                 notificationService.ShowSuccess("Copied", "Version copied to clipboard.", 3000);
             }
             else
