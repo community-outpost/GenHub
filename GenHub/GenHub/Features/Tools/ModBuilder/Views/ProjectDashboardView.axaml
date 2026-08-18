@@ -42,7 +42,7 @@
           <StackPanel Orientation="Horizontal" Spacing="8">
             <Path Width="18" Height="18"
                   Fill="{StaticResource TextPrimaryBrush}"
-                  Data="{StaticResource IconPackage}"/>
+                  Data="{StaticResource IconArchiveFile}"/>
             <TextBlock Text="Load Sample Project"/>
           </StackPanel>
         </Button>

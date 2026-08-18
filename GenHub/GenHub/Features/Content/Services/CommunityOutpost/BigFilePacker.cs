@@ -35,13 +35,44 @@ public static class BigFilePacker
     /// <param name="destinationPath">The output .big file path.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public static async Task PackAsync(string sourceDirectory, string destinationPath, CancellationToken cancellationToken = default)
+    public static Task PackAsync(string sourceDirectory, string destinationPath, CancellationToken cancellationToken = default)
+        => PackAsync(sourceDirectory, destinationPath, null, cancellationToken);
+
+    /// <summary>
+    /// Packs the contents of a directory into a .big file, excluding temporary and target archive files.
+    /// </summary>
+    /// <param name="sourceDirectory">The directory containing files to pack.</param>
+    /// <param name="destinationPath">The output .big file path.</param>
+    /// <param name="targetArchivePath">Optional target archive path to exclude if packing in-place.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public static async Task PackAsync(string sourceDirectory, string destinationPath, string? targetArchivePath, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         var destinationFullPath = Path.GetFullPath(destinationPath);
+        var targetArchiveFullPath = !string.IsNullOrEmpty(targetArchivePath) ? Path.GetFullPath(targetArchivePath) : null;
         var files = Directory.GetFiles(sourceDirectory, "*", SearchOption.AllDirectories)
-            .Where(f => !Path.GetFullPath(f).Equals(destinationFullPath, StringComparison.OrdinalIgnoreCase))
+            .Where(f =>
+            {
+                var full = Path.GetFullPath(f);
+                if (full.Equals(destinationFullPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                if (targetArchiveFullPath != null && full.Equals(targetArchiveFullPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                if (full.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                return true;
+            })
             .Select(f => new
             {
                 FullPath = f,

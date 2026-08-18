@@ -192,9 +192,13 @@ public sealed class StringTableConversionService(
             };
 
             process.Start();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
             try
             {
-                await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                timeoutCts.CancelAfter(TimeSpan.FromSeconds(60));
+                await process.WaitForExitAsync(timeoutCts.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {

@@ -51,7 +51,7 @@ public sealed class ArchiveService(
             try
             {
                 // use existing BigFilePacker
-                await BigFilePacker.PackAsync(sourceDirectory, tempBigPath, cancellationToken).ConfigureAwait(false);
+                await BigFilePacker.PackAsync(sourceDirectory, tempBigPath, targetBigPath, cancellationToken).ConfigureAwait(false);
 
                 if (!File.Exists(tempBigPath))
                 {

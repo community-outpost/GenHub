@@ -25,7 +25,6 @@ public static class ModBuilderModule
         services.AddSingleton<IConfigurationLoaderService, ConfigurationLoaderService>();
         services.AddSingleton<IFileConversionService, FileConversionService>();
         services.AddSingleton<IImageConversionService, ImageConversionService>();
-        services.AddSingleton<CrunchImageConversionService>();
         services.AddSingleton<IStringTableConversionService, StringTableConversionService>();
         services.AddSingleton<ITextProcessingService, TextProcessingService>();
         services.AddSingleton<IArchiveService, ArchiveService>();

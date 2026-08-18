@@ -743,13 +743,8 @@ public sealed class ProjectConfigService : IProjectConfigService
         _fileExistsCache[_recentProjectsPath] = true;
     }
 
-    /// <summary>
-    /// Checks if a file exists using cached results to reduce filesystem I/O.
-    /// </summary>
-    /// <param name="path">The file path to check.</param>
-    /// <returns>True if the file exists; otherwise, false.</returns>
-    private bool FileExistsCached(string path)
+    private static bool FileExistsCached(string path)
     {
-        return _fileExistsCache.GetOrAdd(path, p => File.Exists(p));
+        return File.Exists(path);
     }
 }

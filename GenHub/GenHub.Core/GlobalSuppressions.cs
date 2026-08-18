@@ -71,15 +71,22 @@ using System.Diagnostics.CodeAnalysis;
     Justification = "System.Text.Json requires ref Utf8JsonReader as the first parameter in JsonConverter<T>.Read overrides.")]
 
 [assembly: SuppressMessage(
-    "StyleCop.CSharp.MaintainabilityRules",
-    "SA1402:FileMayOnlyContainASingleType",
-    Scope = "namespaceanddescendants",
-    Target = "~N:GenHub.Core.Models.Tools.ModBuilder",
-    Justification = "Python configuration DTOs are grouped together in PythonConfigModels.cs for cohesion.")]
-
-[assembly: SuppressMessage(
     "StyleCop.CSharp.DocumentationRules",
     "SA1649:FileNameMustMatchTypeName",
-    Scope = "namespaceanddescendants",
-    Target = "~N:GenHub.Core.Models.Tools.ModBuilder",
+    Scope = "type",
+    Target = "~T:GenHub.Core.Models.Tools.ModBuilder.PythonConfigRoot",
     Justification = "PythonConfigModels.cs groups related DTO types.")]
+
+[assembly: SuppressMessage("StyleCop.CSharp.MaintainabilityRules", "SA1402:FileMayOnlyContainASingleType", Scope = "type", Target = "~T:GenHub.Core.Models.Tools.ModBuilder.PythonBundlesConfig", Justification = "Python configuration DTOs are grouped in PythonConfigModels.cs.")]
+[assembly: SuppressMessage("StyleCop.CSharp.MaintainabilityRules", "SA1402:FileMayOnlyContainASingleType", Scope = "type", Target = "~T:GenHub.Core.Models.Tools.ModBuilder.PythonBundleItem", Justification = "Python configuration DTOs are grouped in PythonConfigModels.cs.")]
+[assembly: SuppressMessage("StyleCop.CSharp.MaintainabilityRules", "SA1402:FileMayOnlyContainASingleType", Scope = "type", Target = "~T:GenHub.Core.Models.Tools.ModBuilder.PythonBundlePack", Justification = "Python configuration DTOs are grouped in PythonConfigModels.cs.")]
+[assembly: SuppressMessage("StyleCop.CSharp.MaintainabilityRules", "SA1402:FileMayOnlyContainASingleType", Scope = "type", Target = "~T:GenHub.Core.Models.Tools.ModBuilder.PythonBundleFileGroup", Justification = "Python configuration DTOs are grouped in PythonConfigModels.cs.")]
+[assembly: SuppressMessage("StyleCop.CSharp.MaintainabilityRules", "SA1402:FileMayOnlyContainASingleType", Scope = "type", Target = "~T:GenHub.Core.Models.Tools.ModBuilder.PythonSourceTargetPair", Justification = "Python configuration DTOs are grouped in PythonConfigModels.cs.")]
+[assembly: SuppressMessage("StyleCop.CSharp.MaintainabilityRules", "SA1402:FileMayOnlyContainASingleType", Scope = "type", Target = "~T:GenHub.Core.Models.Tools.ModBuilder.PythonBundleEvent", Justification = "Python configuration DTOs are grouped in PythonConfigModels.cs.")]
+[assembly: SuppressMessage("StyleCop.CSharp.MaintainabilityRules", "SA1402:FileMayOnlyContainASingleType", Scope = "type", Target = "~T:GenHub.Core.Models.Tools.ModBuilder.PythonModJsonFilesConfig", Justification = "Python configuration DTOs are grouped in PythonConfigModels.cs.")]
+[assembly: SuppressMessage("StyleCop.CSharp.MaintainabilityRules", "SA1402:FileMayOnlyContainASingleType", Scope = "type", Target = "~T:GenHub.Core.Models.Tools.ModBuilder.PythonModJsonFilesBuild", Justification = "Python configuration DTOs are grouped in PythonConfigModels.cs.")]
+[assembly: SuppressMessage("StyleCop.CSharp.MaintainabilityRules", "SA1402:FileMayOnlyContainASingleType", Scope = "type", Target = "~T:GenHub.Core.Models.Tools.ModBuilder.PythonModFoldersConfig", Justification = "Python configuration DTOs are grouped in PythonConfigModels.cs.")]
+[assembly: SuppressMessage("StyleCop.CSharp.MaintainabilityRules", "SA1402:FileMayOnlyContainASingleType", Scope = "type", Target = "~T:GenHub.Core.Models.Tools.ModBuilder.PythonModFoldersData", Justification = "Python configuration DTOs are grouped in PythonConfigModels.cs.")]
+[assembly: SuppressMessage("StyleCop.CSharp.MaintainabilityRules", "SA1402:FileMayOnlyContainASingleType", Scope = "type", Target = "~T:GenHub.Core.Models.Tools.ModBuilder.SimplifiedConfigRoot", Justification = "Python configuration DTOs are grouped in PythonConfigModels.cs.")]
+[assembly: SuppressMessage("StyleCop.CSharp.MaintainabilityRules", "SA1402:FileMayOnlyContainASingleType", Scope = "type", Target = "~T:GenHub.Core.Models.Tools.ModBuilder.SimplifiedBundleItem", Justification = "Python configuration DTOs are grouped in PythonConfigModels.cs.")]
+[assembly: SuppressMessage("StyleCop.CSharp.MaintainabilityRules", "SA1402:FileMayOnlyContainASingleType", Scope = "type", Target = "~T:GenHub.Core.Models.Tools.ModBuilder.SimplifiedBundlePack", Justification = "Python configuration DTOs are grouped in PythonConfigModels.cs.")]

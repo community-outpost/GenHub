@@ -36,11 +36,7 @@ public sealed class FileConversionService(
 
             if (!File.Exists(sourcePath))
             {
-                return new ConversionOperationResult
-                {
-                    Success = false,
-                    Errors = [$"Source file not found: {sourcePath}"]
-                };
+                return ConversionOperationResult.CreateFailure($"Source file not found: {sourcePath}");
             }
 
             // Determine conversion type from file extensions if not provided
@@ -84,11 +80,7 @@ public sealed class FileConversionService(
         catch (Exception ex)
         {
             logger.LogError(ex, "File conversion failed");
-            return new ConversionOperationResult
-            {
-                Success = false,
-                Errors = [ex.Message]
-            };
+            return ConversionOperationResult.CreateFailure(ex.Message);
         }
     }
 
@@ -120,11 +112,9 @@ public sealed class FileConversionService(
 
         progress?.Report(1.0);
 
-        return new ConversionOperationResult
-        {
-            Success = success,
-            Errors = success ? [] : ["Image conversion failed"]
-        };
+        return success
+            ? ConversionOperationResult.CreateSuccess()
+            : ConversionOperationResult.CreateFailure("Image conversion failed");
     }
 
     /// <summary>
@@ -153,11 +143,9 @@ public sealed class FileConversionService(
 
         progress?.Report(1.0);
 
-        return new ConversionOperationResult
-        {
-            Success = result.Success,
-            Errors = result.Success ? [] : [result.FirstError ?? "String table conversion failed"]
-        };
+        return result.Success
+            ? ConversionOperationResult.CreateSuccess()
+            : ConversionOperationResult.CreateFailure(result.FirstError ?? "String table conversion failed");
     }
 
     /// <summary>
@@ -191,11 +179,9 @@ public sealed class FileConversionService(
 
         progress?.Report(1.0);
 
-        return new ConversionOperationResult
-        {
-            Success = result.Success,
-            Errors = [.. result.Errors]
-        };
+        return result.Success
+            ? ConversionOperationResult.CreateSuccess()
+            : ConversionOperationResult.CreateFailure(result.Errors);
     }
 
     /// <summary>
@@ -238,19 +224,12 @@ public sealed class FileConversionService(
 
             progress?.Report(1.0);
 
-            return new ConversionOperationResult
-            {
-                Success = true
-            };
+            return ConversionOperationResult.CreateSuccess();
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Text file processing failed");
-            return new ConversionOperationResult
-            {
-                Success = false,
-                Errors = [ex.Message]
-            };
+            return ConversionOperationResult.CreateFailure(ex.Message);
         }
     }
 
@@ -268,10 +247,7 @@ public sealed class FileConversionService(
         if (string.Equals(Path.GetFullPath(sourcePath), Path.GetFullPath(destinationPath), StringComparison.OrdinalIgnoreCase))
         {
             progress?.Report(1.0);
-            return new ConversionOperationResult
-            {
-                Success = true
-            };
+            return ConversionOperationResult.CreateSuccess();
         }
 
         // Ensure target directory exists
@@ -303,10 +279,7 @@ public sealed class FileConversionService(
 
         progress?.Report(1.0);
 
-        return new ConversionOperationResult
-        {
-            Success = true
-        };
+        return ConversionOperationResult.CreateSuccess();
     }
 
     /// <inheritdoc />
@@ -320,12 +293,7 @@ public sealed class FileConversionService(
             // Check if source file exists
             if (!File.Exists(sourcePath))
             {
-                return Task.FromResult(new ConversionOperationResult<bool>
-                {
-                    Success = false,
-                    Data = false,
-                    Errors = [$"Source file not found: {sourcePath}"]
-                });
+                return Task.FromResult(ConversionOperationResult<bool>.CreateFailure($"Source file not found: {sourcePath}"));
             }
 
             // Check if conversion is supported
@@ -341,21 +309,12 @@ public sealed class FileConversionService(
                 _ => sourceExt == targetExt
             };
 
-            return Task.FromResult(new ConversionOperationResult<bool>
-            {
-                Success = true,
-                Data = isSupported
-            });
+            return Task.FromResult(ConversionOperationResult<bool>.CreateSuccess(isSupported));
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Validation failed");
-            return Task.FromResult(new ConversionOperationResult<bool>
-            {
-                Success = false,
-                Data = false,
-                Errors = [ex.Message]
-            });
+            return Task.FromResult(ConversionOperationResult<bool>.CreateFailure(ex.Message));
         }
     }
 }

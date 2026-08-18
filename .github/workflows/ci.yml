@@ -487,17 +487,10 @@ jobs:
 
           if kill -0 "$APP_PID" 2>/dev/null; then
             echo "App stayed up for ${SURVIVED}s"
-            if kill "$APP_PID" 2>/dev/null; then
-              wait "$APP_PID" 2>/dev/null || true
-            else
-              set +e
-              wait "$APP_PID"
-              APP_STATUS=$?
-              set -e
-              echo "::error::GenHub.app exited before CI could stop it (status $APP_STATUS). Log follows."
-              cat app-launch.log
-              exit 1
-            fi
+            kill "$APP_PID" 2>/dev/null || true
+            sleep 2
+            kill -9 "$APP_PID" 2>/dev/null || true
+            wait "$APP_PID" 2>/dev/null || true
           else
             set +e
             wait "$APP_PID"

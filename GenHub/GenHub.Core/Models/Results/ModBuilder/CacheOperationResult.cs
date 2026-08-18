@@ -1,22 +1,47 @@
+using System;
+using System.Collections.Generic;
+using GenHub.Core.Models.Results;
+
 namespace GenHub.Core.Models.Results.ModBuilder;
 
 /// <summary>
 /// Represents the result of a cache operation.
 /// </summary>
-public class CacheOperationResult
+public class CacheOperationResult : ResultBase
 {
     /// <summary>
-    /// Gets or sets a value indicating whether the operation succeeded.
+    /// Initializes a new instance of the <see cref="CacheOperationResult"/> class.
     /// </summary>
-    public bool Success { get; set; }
+    public CacheOperationResult()
+        : base(true, (IEnumerable<string>?)null, default)
+    {
+    }
 
     /// <summary>
-    /// Gets or sets the list of errors.
+    /// Initializes a new instance of the <see cref="CacheOperationResult"/> class.
     /// </summary>
-    public List<string> Errors { get; set; } = [];
+    /// <param name="success">Whether the operation succeeded.</param>
+    /// <param name="errors">The errors, if any.</param>
+    /// <param name="elapsed">The elapsed time.</param>
+    public CacheOperationResult(bool success, IEnumerable<string>? errors = null, TimeSpan elapsed = default)
+        : base(success, errors, elapsed)
+    {
+    }
 
-    /// <summary>
-    /// Gets the first error message, if any.
-    /// </summary>
-    public string? FirstError => Errors.Count > 0 ? Errors[0] : null;
+    /// <summary>Creates a successful cache operation result.</summary>
+    /// <param name="elapsed">The elapsed time.</param>
+    /// <returns>A successful <see cref="CacheOperationResult"/>.</returns>
+    public static CacheOperationResult CreateSuccess(TimeSpan elapsed = default) => new(true, (IEnumerable<string>?)null, elapsed);
+
+    /// <summary>Creates a failed cache operation result with a single error message.</summary>
+    /// <param name="error">The error message.</param>
+    /// <param name="elapsed">The elapsed time.</param>
+    /// <returns>A failed <see cref="CacheOperationResult"/>.</returns>
+    public static CacheOperationResult CreateFailure(string error, TimeSpan elapsed = default) => new(false, [error], elapsed);
+
+    /// <summary>Creates a failed cache operation result with multiple error messages.</summary>
+    /// <param name="errors">The error messages.</param>
+    /// <param name="elapsed">The elapsed time.</param>
+    /// <returns>A failed <see cref="CacheOperationResult"/>.</returns>
+    public static CacheOperationResult CreateFailure(IEnumerable<string> errors, TimeSpan elapsed = default) => new(false, errors, elapsed);
 }

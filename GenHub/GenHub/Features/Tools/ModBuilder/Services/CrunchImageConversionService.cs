@@ -104,6 +104,10 @@ public class CrunchImageConversionService(
                 return DetectAlpha(loaded);
             }, cancellationToken).ConfigureAwait(false);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to detect alpha channel in {ImagePath}", imagePath);
@@ -115,7 +119,7 @@ public class CrunchImageConversionService(
     public async Task<string> GetRecommendedDxtFormatAsync(string imagePath, CancellationToken cancellationToken = default)
     {
         var hasAlpha = await HasAlphaChannelAsync(imagePath, cancellationToken).ConfigureAwait(false);
-        return hasAlpha ? "DXT5" : "DXT1";
+        return hasAlpha ? ModBuilderConstants.Dxt5Format : ModBuilderConstants.Dxt1Format;
     }
 
     /// <summary>
@@ -178,7 +182,7 @@ public class CrunchImageConversionService(
                 }
             }
 
-            return toolResult.Success;
+            return toolResult.Success && File.Exists(targetPath);
         }
         finally
         {
@@ -205,12 +209,12 @@ public class CrunchImageConversionService(
         IDictionary<string, object>? parameters,
         CancellationToken cancellationToken)
     {
-        var args = new List<string>
+        var rawArgs = new List<string>
         {
             "-file",
-            $"\"{inputFile}\"",
+            inputFile,
             "-out",
-            $"\"{outputFile}\"",
+            outputFile,
             "-fileformat",
             "dds",
             "-noprogress",
@@ -229,16 +233,16 @@ public class CrunchImageConversionService(
                     {
                         if (b)
                         {
-                            args.Add(kvp.Key);
+                            rawArgs.Add(kvp.Key);
                         }
                     }
                     else if (kvp.Value != null)
                     {
-                        args.Add(kvp.Key);
+                        rawArgs.Add(kvp.Key);
                         var valStr = kvp.Value.ToString();
                         if (!string.IsNullOrEmpty(valStr))
                         {
-                            args.Add(valStr);
+                            rawArgs.Add(valStr);
                         }
                     }
                 }
@@ -247,19 +251,34 @@ public class CrunchImageConversionService(
 
         if (!string.IsNullOrEmpty(explicitFormat))
         {
-            if (!args.Contains(explicitFormat, StringComparer.OrdinalIgnoreCase))
+            if (!rawArgs.Contains(explicitFormat, StringComparer.OrdinalIgnoreCase))
             {
-                args.Add(explicitFormat);
+                rawArgs.Add(explicitFormat);
             }
         }
         else
         {
             // auto detect dxt format based on alpha presence
             var hasAlpha = await HasAlphaChannelAsync(inputFile, cancellationToken).ConfigureAwait(false);
-            args.Add(hasAlpha ? "-DXT5" : "-DXT1");
+            rawArgs.Add(hasAlpha ? "-DXT5" : "-DXT1");
         }
 
-        return string.Join(" ", args);
+        return string.Join(" ", rawArgs.Select(EscapeArgument));
+    }
+
+    private static string EscapeArgument(string arg)
+    {
+        if (string.IsNullOrEmpty(arg))
+        {
+            return "\"\"";
+        }
+
+        if (!arg.Contains(' ') && !arg.Contains('\t') && !arg.Contains('"') && !arg.Contains('\\'))
+        {
+            return arg;
+        }
+
+        return "\"" + arg.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
     }
 
     /// <summary>
@@ -411,6 +430,13 @@ public class CrunchImageConversionService(
                 return true;
             }
 
+            if (sourceExt == ".dds")
+            {
+                using var magickDds = new MagickImage(sourcePath);
+                magickDds.Write(targetTgaPath);
+                return true;
+            }
+
             using var image = Image.Load(sourcePath);
             var resizedImage = ApplyResizeParameters(image, parameters);
 
@@ -440,6 +466,13 @@ public class CrunchImageConversionService(
         return await Task.Run(() =>
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            if (sourceExt == ".dds")
+            {
+                using var magickDds = new MagickImage(sourcePath);
+                magickDds.Write(targetPath);
+                return true;
+            }
 
             if (sourceExt == ".psd")
             {
