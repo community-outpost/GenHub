@@ -324,25 +324,25 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     private bool _goShowFps;
 
     [ObservableProperty]
-    private bool _goShowPing;
+    private bool _goShowPing = GameSettingsGeneralsOnlineConstants.DefaultShowPing;
 
     [ObservableProperty]
-    private bool _goShowPlayerRanks;
+    private bool _goShowPlayerRanks = GameSettingsGeneralsOnlineConstants.DefaultShowPlayerRanks;
 
     [ObservableProperty]
     private bool _goAutoLogin;
 
     [ObservableProperty]
-    private bool _goRememberUsername;
+    private bool _goRememberUsername = GameSettingsGeneralsOnlineConstants.DefaultRememberUsername;
 
     [ObservableProperty]
-    private bool _goEnableNotifications;
+    private bool _goEnableNotifications = GameSettingsGeneralsOnlineConstants.DefaultEnableNotifications;
 
     [ObservableProperty]
-    private bool _goEnableSoundNotifications;
+    private bool _goEnableSoundNotifications = GameSettingsGeneralsOnlineConstants.DefaultEnableSoundNotifications;
 
     [ObservableProperty]
-    private int _goChatFontSize = 12;
+    private int _goChatFontSize = GameSettingsGeneralsOnlineConstants.DefaultChatFontSize;
 
     // Camera settings
     [ObservableProperty]
@@ -459,6 +459,10 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             // If profile has settings, load them
             if (profile?.HasCustomSettings() == true)
             {
+                // Seeded from settings.json first so that the options the profile does not declare
+                // show, and are saved back as, what the user configured inside the GeneralsOnline
+                // client rather than this view model's defaults.
+                await LoadGeneralsOnlineSettingsFromClientAsync();
                 LoadSettingsFromProfile(profile);
             }
             else
@@ -710,6 +714,35 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         finally
         {
             IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Reads the GeneralsOnline client's own settings.json into this view model.
+    /// </summary>
+    /// <remarks>
+    /// The view model's GeneralsOnline properties have no unset state, so every one of them is
+    /// written back on save. Seeding them from the client's file is what keeps that from replacing
+    /// options the profile says nothing about with defaults.
+    /// </remarks>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    private async Task LoadGeneralsOnlineSettingsFromClientAsync()
+    {
+        if (_gameSettingsService == null || !_currentProfileIsGeneralsOnline)
+        {
+            return;
+        }
+
+        var goResult = await _gameSettingsService.LoadGeneralsOnlineSettingsAsync();
+        if (goResult?.Success == true && goResult.Data != null)
+        {
+            _currentGeneralsOnlineSettings = goResult.Data;
+            ApplyGeneralsOnlineSettings(goResult.Data);
+        }
+        else
+        {
+            var goErrors = goResult?.Errors ?? ["LoadGeneralsOnlineSettings result was null"];
+            _logger.LogWarning("Failed to load GeneralsOnline settings: {Errors}", string.Join(", ", goErrors));
         }
     }
 

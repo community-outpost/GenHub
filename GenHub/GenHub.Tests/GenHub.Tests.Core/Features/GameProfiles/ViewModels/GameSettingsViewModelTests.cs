@@ -430,16 +430,15 @@ public class GameSettingsViewModelTests
     }
 
     /// <summary>
-    /// Should read settings.json before rewriting it, even when the view model was initialized
-    /// from a profile and so never loaded it.
+    /// Should read settings.json before rewriting it, including when the first read failed.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task SaveSettings_Should_ReadGeneralsOnlineSettings_WhenNeverLoadedAsync()
+    public async Task SaveSettings_Should_ReadGeneralsOnlineSettings_BeforeRewritingAsync()
     {
         // Arrange
         var profile = CreateGeneralsOnlineProfile();
-        profile.GoShowFps = true; // custom settings, so initialization does not read settings.json
+        profile.GoShowFps = true;
         _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
         _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
@@ -450,7 +449,89 @@ public class GameSettingsViewModelTests
         await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
 
         // Assert
-        _gameSettingsServiceMock.Verify(x => x.LoadGeneralsOnlineSettingsAsync(), Times.Once);
+        _gameSettingsServiceMock.Verify(x => x.LoadGeneralsOnlineSettingsAsync(), Times.AtLeastOnce);
+    }
+
+    /// <summary>
+    /// Should keep the values a user configured inside the GeneralsOnline client when saving a
+    /// profile that declares only some GeneralsOnline options.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_NotOverwriteClientValues_TheProfileDoesNotDeclareAsync()
+    {
+        // Arrange - the client's values are all the opposite of the view model's defaults
+        var existing = new GeneralsOnlineSettings
+        {
+            ShowPing = false,
+            ShowPlayerRanks = false,
+            RememberUsername = false,
+            EnableNotifications = false,
+            EnableSoundNotifications = false,
+            ChatFontSize = 24,
+        };
+
+        var profile = CreateGeneralsOnlineProfile();
+        profile.GoShowFps = true;
+
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(existing));
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        GeneralsOnlineSettings? saved = null;
+        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
+            .Callback<GeneralsOnlineSettings>(s => saved = s)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("go-profile", profile);
+        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(saved);
+        Assert.True(saved.ShowFps);
+        Assert.False(saved.ShowPing);
+        Assert.False(saved.ShowPlayerRanks);
+        Assert.False(saved.RememberUsername);
+        Assert.False(saved.EnableNotifications);
+        Assert.False(saved.EnableSoundNotifications);
+        Assert.Equal(24, saved.ChatFontSize);
+    }
+
+    /// <summary>
+    /// Should not turn the client's enabled toggles off when nothing has read them, which is what
+    /// a view model default of false would do to a model that defaults them to true.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_NotFlipEnabledTogglesOffAsync()
+    {
+        // Arrange - nothing supplies GeneralsOnline settings, so the defaults decide
+        var profile = CreateGeneralsOnlineProfile();
+        profile.GoShowFps = true;
+
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        GeneralsOnlineSettings? saved = null;
+        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
+            .Callback<GeneralsOnlineSettings>(s => saved = s)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("go-profile", profile);
+        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.NotNull(saved);
+        var expected = new GeneralsOnlineSettings();
+        Assert.Equal(expected.ShowPing, saved.ShowPing);
+        Assert.Equal(expected.ShowPlayerRanks, saved.ShowPlayerRanks);
+        Assert.Equal(expected.RememberUsername, saved.RememberUsername);
+        Assert.Equal(expected.EnableNotifications, saved.EnableNotifications);
+        Assert.Equal(expected.EnableSoundNotifications, saved.EnableSoundNotifications);
+        Assert.Equal(expected.ChatFontSize, saved.ChatFontSize);
     }
 
     /// <summary>

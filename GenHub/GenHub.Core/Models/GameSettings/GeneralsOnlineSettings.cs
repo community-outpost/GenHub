@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using GenHub.Core.Constants;
 
 namespace GenHub.Core.Models.GameSettings;
 
@@ -11,25 +12,25 @@ public class GeneralsOnlineSettings : TheSuperHackersSettings
     public bool ShowFps { get; set; }
 
     /// <summary>Gets or sets a value indicating whether to show ping/latency.</summary>
-    public bool ShowPing { get; set; } = true;
+    public bool ShowPing { get; set; } = GameSettingsGeneralsOnlineConstants.DefaultShowPing;
 
     /// <summary>Gets or sets a value indicating whether to enable auto-login.</summary>
     public bool AutoLogin { get; set; }
 
     /// <summary>Gets or sets a value indicating whether to remember username.</summary>
-    public bool RememberUsername { get; set; } = true;
+    public bool RememberUsername { get; set; } = GameSettingsGeneralsOnlineConstants.DefaultRememberUsername;
 
     /// <summary>Gets or sets a value indicating whether to enable notifications.</summary>
-    public bool EnableNotifications { get; set; } = true;
+    public bool EnableNotifications { get; set; } = GameSettingsGeneralsOnlineConstants.DefaultEnableNotifications;
 
     /// <summary>Gets or sets the chat font size.</summary>
-    public int ChatFontSize { get; set; } = 12;
+    public int ChatFontSize { get; set; } = GameSettingsGeneralsOnlineConstants.DefaultChatFontSize;
 
     /// <summary>Gets or sets a value indicating whether to enable sound notifications.</summary>
-    public bool EnableSoundNotifications { get; set; } = true;
+    public bool EnableSoundNotifications { get; set; } = GameSettingsGeneralsOnlineConstants.DefaultEnableSoundNotifications;
 
     /// <summary>Gets or sets a value indicating whether to show player ranks.</summary>
-    public bool ShowPlayerRanks { get; set; } = true;
+    public bool ShowPlayerRanks { get; set; } = GameSettingsGeneralsOnlineConstants.DefaultShowPlayerRanks;
 
     /// <summary>Gets or sets the camera settings.</summary>
     public CameraSettings Camera { get; set; } = new();
