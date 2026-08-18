@@ -914,12 +914,12 @@ public class ConfigurationProviderServiceTests
         {
             SeedLegacyRoot(legacyRoot);
 
-            CreateProvider().MigrateLegacyDataRoot(legacyRoot, newRoot);
+            CreateProvider().MigrateLegacyDataRoot(legacyRoot, newRoot, newRoot);
 
             Assert.Equal("profile", File.ReadAllText(Path.Combine(newRoot, DirectoryNames.Profiles, "profile.json")));
             Assert.Equal("manifest", File.ReadAllText(Path.Combine(newRoot, FileTypes.ManifestsDirectory, "content.manifest.json")));
-            Assert.Equal("index", File.ReadAllText(Path.Combine(newRoot, DirectoryNames.UserData, "index.json")));
-            Assert.Equal("backup", File.ReadAllText(Path.Combine(newRoot, DirectoryNames.UserData, "backups", "save.bak")));
+            Assert.Equal("index", File.ReadAllText(Path.Combine(newRoot, DirectoryNames.UserData, FileTypes.UserDataIndexFileName)));
+            Assert.Equal("backup", File.ReadAllText(Path.Combine(newRoot, DirectoryNames.UserData, DirectoryNames.UserDataBackups, "save.bak")));
             Assert.Equal("settings", File.ReadAllText(Path.Combine(newRoot, FileTypes.SettingsFileName)));
             Assert.Equal("workspaces", File.ReadAllText(Path.Combine(newRoot, FileTypes.WorkspaceMetadataFileName)));
 
@@ -944,8 +944,8 @@ public class ConfigurationProviderServiceTests
             SeedLegacyRoot(legacyRoot);
             var provider = CreateProvider();
 
-            provider.MigrateLegacyDataRoot(legacyRoot, newRoot);
-            provider.MigrateLegacyDataRoot(legacyRoot, newRoot);
+            provider.MigrateLegacyDataRoot(legacyRoot, newRoot, newRoot);
+            provider.MigrateLegacyDataRoot(legacyRoot, newRoot, newRoot);
 
             Assert.Equal("profile", File.ReadAllText(Path.Combine(newRoot, DirectoryNames.Profiles, "profile.json")));
             Assert.Equal("settings", File.ReadAllText(Path.Combine(newRoot, FileTypes.SettingsFileName)));
@@ -971,7 +971,7 @@ public class ConfigurationProviderServiceTests
             File.WriteAllText(Path.Combine(newRoot, DirectoryNames.Profiles, "profile.json"), "current-profile");
             File.WriteAllText(Path.Combine(newRoot, FileTypes.SettingsFileName), "current-settings");
 
-            CreateProvider().MigrateLegacyDataRoot(legacyRoot, newRoot);
+            CreateProvider().MigrateLegacyDataRoot(legacyRoot, newRoot, newRoot);
 
             Assert.Equal("current-profile", File.ReadAllText(Path.Combine(newRoot, DirectoryNames.Profiles, "profile.json")));
             Assert.Equal("current-settings", File.ReadAllText(Path.Combine(newRoot, FileTypes.SettingsFileName)));
@@ -994,7 +994,7 @@ public class ConfigurationProviderServiceTests
         Directory.Delete(newRoot);
         try
         {
-            CreateProvider().MigrateLegacyDataRoot(legacyRoot, newRoot);
+            CreateProvider().MigrateLegacyDataRoot(legacyRoot, newRoot, newRoot);
 
             Assert.False(Directory.Exists(newRoot));
         }
@@ -1015,10 +1015,164 @@ public class ConfigurationProviderServiceTests
         {
             SeedLegacyRoot(legacyRoot);
 
-            CreateProvider().MigrateLegacyDataRoot(legacyRoot, Path.Combine(legacyRoot, "."));
+            CreateProvider().MigrateLegacyDataRoot(legacyRoot, Path.Combine(legacyRoot, "."), Path.Combine(legacyRoot, "."));
 
             Assert.Equal("profile", File.ReadAllText(Path.Combine(legacyRoot, DirectoryNames.Profiles, "profile.json")));
             Assert.Equal("settings", File.ReadAllText(Path.Combine(legacyRoot, FileTypes.SettingsFileName)));
+        }
+        finally
+        {
+            DeleteDirectories(legacyRoot, newRoot);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the migration leaves nothing behind in the legacy root, so a regression from a
+    /// move to a copy is caught rather than passing every positive assertion.
+    /// </summary>
+    [Fact]
+    public void MigrateLegacyDataRoot_WithLegacyData_RemovesTheLegacySources()
+    {
+        var (legacyRoot, newRoot) = CreateMigrationRoots();
+        try
+        {
+            SeedLegacyRoot(legacyRoot);
+
+            CreateProvider().MigrateLegacyDataRoot(legacyRoot, newRoot, newRoot);
+
+            Assert.False(File.Exists(Path.Combine(legacyRoot, FileTypes.SettingsFileName)));
+            Assert.False(File.Exists(Path.Combine(legacyRoot, FileTypes.WorkspaceMetadataFileName)));
+            Assert.False(Directory.Exists(Path.Combine(legacyRoot, DirectoryNames.Profiles)));
+            Assert.False(Directory.Exists(Path.Combine(legacyRoot, FileTypes.ManifestsDirectory)));
+            Assert.False(Directory.Exists(Path.Combine(legacyRoot, DirectoryNames.UserData)));
+        }
+        finally
+        {
+            DeleteDirectories(legacyRoot, newRoot);
+        }
+    }
+
+    /// <summary>
+    /// Verifies the steady state after a successful migration: a legacy root that still holds the CAS
+    /// pool, but none of the migrated entries, is left completely alone.
+    /// </summary>
+    [Fact]
+    public void MigrateLegacyDataRoot_WithoutLegacyEntries_LeavesBothRootsAlone()
+    {
+        var (legacyRoot, newRoot) = CreateMigrationRoots();
+        Directory.Delete(newRoot);
+        try
+        {
+            WriteFile(Path.Combine(legacyRoot, DirectoryNames.CasPool, "objects", "blob.bin"), "cas");
+
+            CreateProvider().MigrateLegacyDataRoot(legacyRoot, newRoot, newRoot);
+
+            Assert.False(Directory.Exists(newRoot));
+            Assert.True(File.Exists(Path.Combine(legacyRoot, DirectoryNames.CasPool, "objects", "blob.bin")));
+        }
+        finally
+        {
+            DeleteDirectories(legacyRoot, newRoot);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the sub-layout releases up to v0.0.3 wrote, which nested the manifests, tracked
+    /// user data and workspace metadata under a Content directory, is flattened into the data root.
+    /// </summary>
+    [Fact]
+    public void MigrateLegacyDataRoot_WithContentSubLayout_FlattensIntoDataRoot()
+    {
+        var (legacyRoot, newRoot) = CreateMigrationRoots();
+        try
+        {
+            var legacyContent = Path.Combine(legacyRoot, DirectoryNames.LegacyContent);
+            WriteFile(Path.Combine(legacyRoot, DirectoryNames.Profiles, "profile.json"), "profile");
+            WriteFile(Path.Combine(legacyContent, FileTypes.ManifestsDirectory, "content.manifest.json"), "manifest");
+            WriteFile(Path.Combine(legacyContent, DirectoryNames.UserData, FileTypes.UserDataIndexFileName), "index");
+            WriteFile(Path.Combine(legacyContent, FileTypes.WorkspaceMetadataFileName), "workspaces");
+
+            CreateProvider().MigrateLegacyDataRoot(legacyRoot, newRoot, newRoot);
+
+            Assert.Equal("profile", File.ReadAllText(Path.Combine(newRoot, DirectoryNames.Profiles, "profile.json")));
+            Assert.Equal("manifest", File.ReadAllText(Path.Combine(newRoot, FileTypes.ManifestsDirectory, "content.manifest.json")));
+            Assert.Equal("index", File.ReadAllText(Path.Combine(newRoot, DirectoryNames.UserData, FileTypes.UserDataIndexFileName)));
+            Assert.Equal("workspaces", File.ReadAllText(Path.Combine(newRoot, FileTypes.WorkspaceMetadataFileName)));
+        }
+        finally
+        {
+            DeleteDirectories(legacyRoot, newRoot);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the settings file releases up to v0.0.3 wrote, which was named after the JSON
+    /// extension rather than the settings file name, is migrated under the current name.
+    /// </summary>
+    [Fact]
+    public void MigrateLegacyDataRoot_WithLegacySettingsFileName_MigratesUnderCurrentName()
+    {
+        var (legacyRoot, newRoot) = CreateMigrationRoots();
+        try
+        {
+            WriteFile(Path.Combine(legacyRoot, FileTypes.LegacySettingsFileName), "settings");
+
+            CreateProvider().MigrateLegacyDataRoot(legacyRoot, newRoot, newRoot);
+
+            Assert.Equal("settings", File.ReadAllText(Path.Combine(newRoot, FileTypes.SettingsFileName)));
+            Assert.False(File.Exists(Path.Combine(legacyRoot, FileTypes.LegacySettingsFileName)));
+        }
+        finally
+        {
+            DeleteDirectories(legacyRoot, newRoot);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that a settings file already under the current name wins over the v0.0.3 one.
+    /// </summary>
+    [Fact]
+    public void MigrateLegacyDataRoot_WithBothSettingsFileNames_PrefersTheCurrentName()
+    {
+        var (legacyRoot, newRoot) = CreateMigrationRoots();
+        try
+        {
+            WriteFile(Path.Combine(legacyRoot, FileTypes.SettingsFileName), "current");
+            WriteFile(Path.Combine(legacyRoot, FileTypes.LegacySettingsFileName), "older");
+
+            CreateProvider().MigrateLegacyDataRoot(legacyRoot, newRoot, newRoot);
+
+            Assert.Equal("current", File.ReadAllText(Path.Combine(newRoot, FileTypes.SettingsFileName)));
+        }
+        finally
+        {
+            DeleteDirectories(legacyRoot, newRoot);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that the data consumers read through the application data path lands in the override
+    /// root while the settings file, which is resolved from the configured root, lands there instead.
+    /// </summary>
+    [Fact]
+    public void MigrateLegacyDataRoot_WithSeparateDataAndSettingsRoots_SplitsTheDestinations()
+    {
+        var (legacyRoot, newRoot) = CreateMigrationRoots();
+        var overrideRoot = Path.Combine(Path.GetDirectoryName(newRoot)!, "relocated");
+        try
+        {
+            SeedLegacyRoot(legacyRoot);
+
+            CreateProvider().MigrateLegacyDataRoot(legacyRoot, overrideRoot, newRoot);
+
+            Assert.Equal("profile", File.ReadAllText(Path.Combine(overrideRoot, DirectoryNames.Profiles, "profile.json")));
+            Assert.Equal("manifest", File.ReadAllText(Path.Combine(overrideRoot, FileTypes.ManifestsDirectory, "content.manifest.json")));
+            Assert.Equal("index", File.ReadAllText(Path.Combine(overrideRoot, DirectoryNames.UserData, FileTypes.UserDataIndexFileName)));
+            Assert.Equal("workspaces", File.ReadAllText(Path.Combine(overrideRoot, FileTypes.WorkspaceMetadataFileName)));
+
+            Assert.Equal("settings", File.ReadAllText(Path.Combine(newRoot, FileTypes.SettingsFileName)));
+            Assert.False(File.Exists(Path.Combine(overrideRoot, FileTypes.SettingsFileName)));
+            Assert.False(Directory.Exists(Path.Combine(newRoot, DirectoryNames.Profiles)));
         }
         finally
         {
@@ -1048,8 +1202,8 @@ public class ConfigurationProviderServiceTests
     {
         WriteFile(Path.Combine(legacyRoot, DirectoryNames.Profiles, "profile.json"), "profile");
         WriteFile(Path.Combine(legacyRoot, FileTypes.ManifestsDirectory, "content.manifest.json"), "manifest");
-        WriteFile(Path.Combine(legacyRoot, DirectoryNames.UserData, "index.json"), "index");
-        WriteFile(Path.Combine(legacyRoot, DirectoryNames.UserData, "backups", "save.bak"), "backup");
+        WriteFile(Path.Combine(legacyRoot, DirectoryNames.UserData, FileTypes.UserDataIndexFileName), "index");
+        WriteFile(Path.Combine(legacyRoot, DirectoryNames.UserData, DirectoryNames.UserDataBackups, "save.bak"), "backup");
         WriteFile(Path.Combine(legacyRoot, FileTypes.SettingsFileName), "settings");
         WriteFile(Path.Combine(legacyRoot, FileTypes.WorkspaceMetadataFileName), "workspaces");
         WriteFile(Path.Combine(legacyRoot, DirectoryNames.CasPool, "objects", "blob.bin"), "cas");
