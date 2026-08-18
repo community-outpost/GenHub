@@ -948,6 +948,33 @@ public class GameLauncherTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that settings.json is left alone when it could not be read. A missing file reads as
+    /// defaults and reports success, so a failed read means the client's own file exists and is
+    /// unreadable, and rewriting it from defaults would discard everything the client owns.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithUnreadableGeneralsOnlineSettings_ShouldNotRewriteThemAsync()
+    {
+        // Arrange
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateFailure("settings.json is locked"));
+
+        var profile = CreateZeroHourProfile(PublisherTypeConstants.GeneralsOnline, "GeneralsOnline");
+        profile.GoShowFps = true;
+        ArrangeSuccessfulLaunch(profile);
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
+
+        // Assert
+        Assert.True(result.Success, result.FirstError);
+        _gameSettingsServiceMock.Verify(
+            x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()),
+            Times.Never);
+    }
+
+    /// <summary>
     /// Tests that the values a user configured inside the GeneralsOnline client survive a launch
     /// of a profile that says nothing about them.
     /// </summary>

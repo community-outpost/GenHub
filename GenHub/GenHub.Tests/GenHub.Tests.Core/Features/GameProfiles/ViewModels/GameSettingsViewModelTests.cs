@@ -430,6 +430,35 @@ public class GameSettingsViewModelTests
     }
 
     /// <summary>
+    /// Should leave settings.json alone when it could not be read, because a missing file reads as
+    /// defaults and reports success: a failed read means the client's own file exists and is
+    /// unreadable, and rewriting it from defaults would discard everything the client owns.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_NotRewriteGeneralsOnlineSettings_WhenTheyCannotBeReadAsync()
+    {
+        // Arrange
+        var profile = CreateGeneralsOnlineProfile();
+        profile.GoShowFps = true;
+
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateFailure("settings.json is locked"));
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("go-profile", profile);
+        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        _gameSettingsServiceMock.Verify(
+            x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()),
+            Times.Never);
+        Assert.Contains("settings.json is locked", _viewModel.StatusMessage);
+    }
+
+    /// <summary>
     /// Should read settings.json before rewriting it, including when the first read failed.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
@@ -507,10 +536,12 @@ public class GameSettingsViewModelTests
     [Fact]
     public async Task SaveSettings_Should_NotFlipEnabledTogglesOffAsync()
     {
-        // Arrange - nothing supplies GeneralsOnline settings, so the defaults decide
+        // Arrange - settings.json does not exist yet, which reads as defaults, so the defaults decide
         var profile = CreateGeneralsOnlineProfile();
         profile.GoShowFps = true;
 
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()));
         _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 

@@ -1627,9 +1627,18 @@ public class GameLauncher(
             // Loaded first so the settings the client owns and the profile says nothing about
             // survive the rewrite; the mapper then overwrites only what the profile declares.
             var loadResult = await gameSettingsService.LoadGeneralsOnlineSettingsAsync();
-            var settings = loadResult.Success && loadResult.Data != null
-                ? loadResult.Data
-                : new GeneralsOnlineSettings();
+            if (loadResult?.Success != true || loadResult.Data == null)
+            {
+                // A missing settings.json loads as defaults and reports success, so a failure here
+                // means the client's own file exists and could not be read. Rewriting it from
+                // defaults would discard every key the client owns.
+                logger.LogWarning(
+                    "[GameLauncher] Not writing GeneralsOnline settings because settings.json could not be read: {Error}",
+                    loadResult?.FirstError ?? "LoadGeneralsOnlineSettings result was null");
+                return;
+            }
+
+            var settings = loadResult.Data;
 
             GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
 
