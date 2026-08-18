@@ -91,13 +91,13 @@ public static class CommunityOutpostConstants
     public const int MaxArchiveEntries = 10000;
 
     /// <summary>
-    /// Maximum number of bytes a single Community Outpost archive entry may expand to (2 GB),
+    /// Maximum number of bytes a single Community Outpost archive entry may expand to (2 GiB),
     /// sized to accommodate the largest shipped BIG files.
     /// </summary>
     public const long MaxEntryUncompressedBytes = 2L * 1024 * 1024 * 1024;
 
     /// <summary>
-    /// Maximum aggregate uncompressed bytes a Community Outpost archive may expand to (4 GB).
+    /// Maximum aggregate uncompressed bytes a Community Outpost archive may expand to (4 GiB).
     /// </summary>
     public const long MaxAggregateUncompressedBytes = 4L * 1024 * 1024 * 1024;
 
