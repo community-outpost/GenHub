@@ -295,6 +295,13 @@ public class CommunityOutpostDeliverer(
             {
                 await ExtractArchiveAsync(archivePath, extractPath, cancellationToken);
             }
+            catch (OperationCanceledException)
+            {
+                logger.LogInformation(
+                    "Extraction of {Path} was cancelled; the downloaded archive is left in place",
+                    archivePath);
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed to extract archive from {Path}", archivePath);
@@ -411,6 +418,10 @@ public class CommunityOutpostDeliverer(
                 manifests.Count);
 
             return OperationResult<ContentManifest>.CreateSuccess(primaryManifest);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -831,7 +842,7 @@ public class CommunityOutpostDeliverer(
                     // Ignore cleanup errors
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 logger.LogError(ex, "Failed to process dependency {Name}", dep.Name);
             }

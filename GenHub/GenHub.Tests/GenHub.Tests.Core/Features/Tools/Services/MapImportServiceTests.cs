@@ -108,6 +108,33 @@ public sealed class MapImportServiceTests : IDisposable
         Assert.True(File.Exists(Path.Combine(_mapDirectory, "Bob's Map", "map.tga")));
     }
 
+    /// <summary>
+    /// Surfaces a cancellation that lands part-way through an archive as a cancellation. Maps
+    /// extracted before the cancellation must not be reported as a successful import, because the
+    /// caller would otherwise treat a truncated map set as the whole archive.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportFromZipAsync_CancelledMidArchive_DoesNotReportSuccessAsync()
+    {
+        var zipPath = Path.Combine(_workingDirectory, "cancelled.zip");
+        CreateZip(
+            zipPath,
+            ("First/first.map", "map"),
+            ("Second/second.map", "map"));
+
+        using var cancellation = new CancellationTokenSource();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            _service.ImportFromZipAsync(
+                zipPath,
+                GameType.ZeroHour,
+                new CancelOnFirstReport(cancellation),
+                cancellation.Token));
+
+        Assert.Single(Directory.GetDirectories(_mapDirectory));
+    }
+
     private static void CreateZip(string zipPath, params (string EntryName, string Content)[] entries)
     {
         using var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create);
@@ -117,5 +144,10 @@ public sealed class MapImportServiceTests : IDisposable
             using var stream = entry.Open();
             stream.Write(Encoding.UTF8.GetBytes(content));
         }
+    }
+
+    private sealed class CancelOnFirstReport(CancellationTokenSource cancellation) : IProgress<double>
+    {
+        public void Report(double value) => cancellation.Cancel();
     }
 }

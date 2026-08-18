@@ -172,7 +172,7 @@ public sealed class ReplayImportService(
                     skipped++;
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 errors.Add($"Failed to import {Path.GetFileName(path)}: {ex.Message}");
                 skipped++;
@@ -226,6 +226,8 @@ public sealed class ReplayImportService(
 
             foreach (var entry in entries)
             {
+                ct.ThrowIfCancellationRequested();
+
                 count++;
                 progress?.Report((double)count / total);
 
@@ -250,6 +252,11 @@ public sealed class ReplayImportService(
                     skipped++;
                 }
             }
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation("Import from ZIP {ZipPath} was cancelled", zipPath);
+            throw;
         }
         catch (Exception ex)
         {
@@ -293,7 +300,7 @@ public sealed class ReplayImportService(
                 ImportedFiles = [targetPath],
             };
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, LogMessages.FailedToImportStream, fileName);
             return new ImportResult { Success = false, FilesImported = 0, FilesSkipped = 1, Errors = [ex.Message] };

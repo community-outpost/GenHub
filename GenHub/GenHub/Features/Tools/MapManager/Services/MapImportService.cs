@@ -99,7 +99,7 @@ public sealed class MapImportService(
                 result = await ImportFromFilesAsync([tempPath], targetVersion, ct);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to import from URL: {Url}", url);
             result.Errors.Add($"Import failed: {ex.Message}");
@@ -209,7 +209,7 @@ public sealed class MapImportService(
                 };
                 result.ImportedMaps.Add(mapFile);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 logger.LogError(ex, "Failed to import file: {FilePath}", filePath);
                 result.Errors.Add($"Failed to import {Path.GetFileName(filePath)}: {ex.Message}");
@@ -274,6 +274,8 @@ public sealed class MapImportService(
 
                         foreach (var mapEntry in mapEntries)
                         {
+                            ct.ThrowIfCancellationRequested();
+
                             if (mapEntry.Length > IMapImportService.MaxMapSizeBytes)
                             {
                                 result.Errors.Add($"Map too large: {mapEntry.Name}");
@@ -383,6 +385,11 @@ public sealed class MapImportService(
                     }
 
                     progress?.Report(1.0);
+                }
+                catch (OperationCanceledException)
+                {
+                    logger.LogInformation("Import from ZIP was cancelled: {ZipPath}", zipPath);
+                    throw;
                 }
                 catch (Exception ex)
                 {
