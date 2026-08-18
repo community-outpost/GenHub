@@ -1287,7 +1287,11 @@ public class UserDataTrackerService(
                         Directory.CreateDirectory(targetDir);
                     }
 
-                    File.Move(file.BackupPath!, file.AbsolutePath, overwrite: true);
+                    // Delete-then-copy rather than File.Move: backups live under the application data
+                    // tree while the deployed path is under Documents, which is routinely redirected
+                    // to another drive or to OneDrive, and File.Move cannot cross a volume boundary.
+                    RestoreBackupCopy(file.BackupPath!, file.AbsolutePath);
+                    File.Delete(file.BackupPath!);
                     logger.LogInformation("[UserData] Restored backup: {Backup} -> {Path}", file.BackupPath, file.AbsolutePath);
                 }
             }
