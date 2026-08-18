@@ -317,7 +317,7 @@ public sealed partial class UserDataTrackerServiceSafetyTests : IDisposable
                 ? CreateHardLinkWindows(linkPath, existingPath, IntPtr.Zero)
                 : LinkUnix(existingPath, linkPath) == 0;
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or EntryPointNotFoundException or DllNotFoundException)
         {
             return false;
         }
