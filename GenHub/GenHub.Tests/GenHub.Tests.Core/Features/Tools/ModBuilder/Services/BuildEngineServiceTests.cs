@@ -265,7 +265,7 @@ public sealed class BuildEngineServiceTests : IDisposable
 
         _mockFileConversionService.Setup(x => x.ConvertFileAsync(
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ConversionOperationResult { Success = true });
+            .ReturnsAsync(ConversionOperationResult.CreateSuccess());
 
         // Act
         var result = await _service.ExecuteBuildAsync(project, configuration, selectedPacks, BuildStep.Build);
@@ -385,7 +385,7 @@ public sealed class BuildEngineServiceTests : IDisposable
 
         _mockFileConversionService.Setup(x => x.ConvertFileAsync(
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ConversionOperationResult { Success = false, Errors = new List<string> { "Conversion failed" } });
+            .ReturnsAsync(ConversionOperationResult.CreateFailure("Conversion failed"));
 
         // Act
         var result = await _service.ExecuteBuildAsync(project, configuration, selectedPacks, BuildStep.Build);
@@ -493,7 +493,7 @@ public sealed class BuildEngineServiceTests : IDisposable
 
         _mockFileConversionService.Setup(x => x.ConvertFileAsync(
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ConversionOperationResult { Success = true });
+            .ReturnsAsync(ConversionOperationResult.CreateSuccess());
 
         // Act
         var result = await _service.ExecuteBuildAsync(project, configuration, selectedPacks, BuildStep.Build);
