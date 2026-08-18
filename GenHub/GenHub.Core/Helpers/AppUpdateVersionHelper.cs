@@ -64,8 +64,8 @@ public static partial class AppUpdateVersionHelper
             return true;
         }
 
-        var newVersionBase = newVersion.Split('+')[0];
-        var currentVersionBase = currentVersion.Split('+')[0];
+        var newVersionBase = newVersion.Split('+')[0].Trim();
+        var currentVersionBase = currentVersion.Split('+')[0].Trim();
 
         var newRun = ExtractRunNumber(newVersionBase);
         var currentRun = ExtractRunNumber(currentVersionBase);
@@ -75,6 +75,23 @@ public static partial class AppUpdateVersionHelper
             return newRun > currentRun;
         }
 
-        return !string.Equals(newVersionBase, currentVersionBase, StringComparison.OrdinalIgnoreCase);
+        if (newRun == 0 && currentRun > 0)
+        {
+            return false;
+        }
+
+        if (newRun > 0 && currentRun == 0)
+        {
+            return true;
+        }
+
+        var newClean = newVersionBase.Split('-')[0];
+        var currentClean = currentVersionBase.Split('-')[0];
+        if (Version.TryParse(newClean, out var newVer) && Version.TryParse(currentClean, out var currentVer))
+        {
+            return newVer > currentVer;
+        }
+
+        return false;
     }
 }

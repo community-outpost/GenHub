@@ -79,4 +79,25 @@ public class AppUpdateVersionHelperTests
         Assert.True(AppUpdateVersionHelper.IsArtifactVersionNewer("0.0.1282-pr265", null));
         Assert.True(AppUpdateVersionHelper.IsArtifactVersionNewer("0.0.1282-pr265", string.Empty));
     }
+
+    /// <summary>
+    /// Tests that fallback versions like 0.0.0 are not treated as newer than installed builds.
+    /// </summary>
+    [Fact]
+    public void IsArtifactVersionNewer_FallbackZeroVersusValidRun_ShouldReturnFalse()
+    {
+        Assert.False(AppUpdateVersionHelper.IsArtifactVersionNewer("0.0.0", "0.0.1282-pr265"));
+        Assert.True(AppUpdateVersionHelper.IsArtifactVersionNewer("0.0.1282-pr265", "0.0.0"));
+    }
+
+    /// <summary>
+    /// Tests that standard version numbers compare correctly when no run number is present.
+    /// </summary>
+    [Fact]
+    public void IsArtifactVersionNewer_SemanticVersion_ShouldCompareCorrectly()
+    {
+        Assert.True(AppUpdateVersionHelper.IsArtifactVersionNewer("1.2.0", "1.1.0"));
+        Assert.False(AppUpdateVersionHelper.IsArtifactVersionNewer("1.1.0", "1.2.0"));
+        Assert.False(AppUpdateVersionHelper.IsArtifactVersionNewer("1.0.0", "1.0.0"));
+    }
 }
