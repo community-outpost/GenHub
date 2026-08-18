@@ -939,14 +939,34 @@ public class GameProcessManager(
         var gracePeriod = TimeSpan.FromMilliseconds(ProcessConstants.LauncherExitGracePeriodMs);
         DateTime? launcherExitedAt = null;
 
-        logger.LogInformation(
-            "[Process] Waiting up to {TimeoutMs}ms for launcher {LauncherId} to start {ExpectedName}",
-            (int)timeout.TotalMilliseconds,
-            launcher.Id,
-            expectedName);
-
         try
         {
+            // Adoption requires the launcher's start time to rule out an instance of the game the
+            // user already had running, so without it no candidate can ever qualify. Polling that
+            // out would repeat the refusal once per interval and then report a discovery timeout,
+            // which describes a launcher that was never given the chance to fail.
+            if (!launcherStartTime.HasValue)
+            {
+                logger.LogError(
+                    "[Process] Not waiting for {ExpectedName}: the launcher's start time is unknown, so a process that predates this launch cannot be ruled out",
+                    expectedName);
+
+                await TerminateAbandonedLauncherAsync(launcher);
+
+                // Terminated first, so the launcher has exited and its stderr drains in full.
+                return OperationResult<GameProcessInfo>.CreateFailure(
+                    AppendLauncherErrors(
+                        $"Cannot adopt {expectedName}: the launcher's start time could not be read.",
+                        launcher,
+                        capturedErrors));
+            }
+
+            logger.LogInformation(
+                "[Process] Waiting up to {TimeoutMs}ms for launcher {LauncherId} to start {ExpectedName}",
+                (int)timeout.TotalMilliseconds,
+                launcher.Id,
+                expectedName);
+
             while (true)
             {
                 var child = FindAdoptableGameProcess(expectedName, workingDirectory, launcherStartTime);
