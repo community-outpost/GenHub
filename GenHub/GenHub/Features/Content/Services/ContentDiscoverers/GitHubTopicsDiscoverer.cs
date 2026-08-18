@@ -415,7 +415,7 @@ public partial class GitHubTopicsDiscoverer(
         }
 
         // Fallback: extract meaningful suffix
-        var parts = nameWithoutExt.Split(['_', '-', '.'], StringSplitOptions.RemoveEmptyEntries);
+        var parts = nameWithoutExt.Split(new[] { '_', '-', '.' }, StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length > 1)
         {
             // Return last meaningful part (often the variant)
