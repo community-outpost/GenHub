@@ -88,6 +88,38 @@ public class FileOperationsServiceTests : IDisposable
     }
 
     /// <summary>
+    /// A path reached through a symbolic link names the same file as the link's target, so the
+    /// same-file guard must follow the link rather than compare the two spellings of the path.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CopyFileAsync_DestinationIsSymlinkToSource_LeavesFileIntactAsync()
+    {
+        var file = Path.Combine(_tempDir, "real.txt");
+        var link = Path.Combine(_tempDir, "link.txt");
+        await File.WriteAllTextAsync(file, "irreplaceable content");
+
+        try
+        {
+            File.CreateSymbolicLink(link, file);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            // Creating symlinks needs a privilege this machine does not grant; nothing to assert.
+            return;
+        }
+
+        await _service.CopyFileAsync(file, link);
+
+        Assert.True(File.Exists(file));
+        Assert.Equal("irreplaceable content", await File.ReadAllTextAsync(file));
+
+        // The guard must have skipped the copy outright; unlinking the destination would have left
+        // an independent duplicate where the link used to be.
+        Assert.NotNull(File.ResolveLinkTarget(link, returnFinalTarget: true));
+    }
+
+    /// <summary>
     /// Tests that CreateSymlinkAsync creates a symbolic link or falls back to copy on unsupported platforms.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

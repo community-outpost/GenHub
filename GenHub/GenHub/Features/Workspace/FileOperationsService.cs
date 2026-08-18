@@ -689,23 +689,64 @@ public class FileOperationsService(
 
     /// <summary>
     /// Determines whether two paths name the same file, so a copy never unlinks its own source.
+    /// Symbolic links and junctions are followed to their final target, so a path reached through a
+    /// link still compares equal to the file it points at. Hard links and Windows 8.3 short names
+    /// have no resolvable target and are not detected here; opening the source before unlinking the
+    /// destination is what makes those cases fail safely rather than destructively.
     /// </summary>
     /// <param name="path1">First path to compare.</param>
     /// <param name="path2">Second path to compare.</param>
     /// <returns>True if both paths resolve to the same location.</returns>
     private static bool IsSamePath(string path1, string path2)
     {
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        var resolved1 = ResolveFinalPath(path1);
+        var resolved2 = ResolveFinalPath(path2);
+
+        return resolved1 != null &&
+               resolved2 != null &&
+               string.Equals(resolved1, resolved2, comparison);
+    }
+
+    /// <summary>
+    /// Normalizes a path and follows any symbolic link or junction to its final target.
+    /// </summary>
+    /// <param name="path">The path to resolve.</param>
+    /// <returns>The resolved path, or <c>null</c> when the path cannot be normalized.</returns>
+    private static string? ResolveFinalPath(string path)
+    {
+        string fullPath;
         try
         {
-            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-            return string.Equals(
-                Path.TrimEndingDirectorySeparator(Path.GetFullPath(path1)),
-                Path.TrimEndingDirectorySeparator(Path.GetFullPath(path2)),
-                comparison);
+            fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
         }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        catch (ArgumentException)
         {
-            return false;
+            return null;
+        }
+        catch (NotSupportedException)
+        {
+            return null;
+        }
+        catch (PathTooLongException)
+        {
+            return null;
+        }
+
+        try
+        {
+            var target = File.ResolveLinkTarget(fullPath, returnFinalTarget: true);
+            return target == null
+                ? fullPath
+                : Path.TrimEndingDirectorySeparator(target.FullName);
+        }
+        catch (IOException)
+        {
+            return fullPath;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return fullPath;
         }
     }
 
