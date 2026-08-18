@@ -77,8 +77,18 @@ public class ProfileContentLinkerService(
                             "[ProfileContentLinker] User data verification failed for {ManifestId}, reinstalling",
                             manifest.Id.Value);
 
-                        // Reinstall
-                        await userDataTracker.UninstallUserDataAsync(manifest.Id.Value, profileId, cancellationToken);
+                        // Reinstall, but never on top of an uninstall that could not put the user's
+                        // originals back: redeploying would bury the unfinished restore.
+                        var uninstallResult = await userDataTracker.UninstallUserDataAsync(manifest.Id.Value, profileId, cancellationToken);
+                        if (!uninstallResult.Success)
+                        {
+                            logger.LogError(
+                                "[ProfileContentLinker] Cannot reinstall {ManifestId}: the previous installation could not be fully removed: {Error}",
+                                manifest.Id.Value,
+                                uninstallResult.FirstError);
+                            return OperationResult<bool>.CreateFailure(uninstallResult.Errors);
+                        }
+
                         await InstallManifestUserDataAsync(manifest, profileId, targetGame, cancellationToken);
                     }
                     else if (!existingResult.Data.IsActive)
@@ -256,10 +266,19 @@ public class ProfileContentLinkerService(
 
             // Find manifests to remove (in current but not in new)
             var toRemove = currentManifestIds.Except(newManifestIds).ToList();
+            var uninstallErrors = new List<string>();
             foreach (var manifestId in toRemove)
             {
                 logger.LogInformation("[ProfileContentLinker] Removing deselected content: {ManifestId}", manifestId);
-                await userDataTracker.UninstallUserDataAsync(manifestId, profileId, cancellationToken);
+                var uninstallResult = await userDataTracker.UninstallUserDataAsync(manifestId, profileId, cancellationToken);
+                if (!uninstallResult.Success)
+                {
+                    logger.LogError(
+                        "[ProfileContentLinker] Failed to remove deselected content {ManifestId}: {Error}",
+                        manifestId,
+                        uninstallResult.FirstError);
+                    uninstallErrors.AddRange(uninstallResult.Errors);
+                }
             }
 
             // Find manifests to add (in new but not in current)
@@ -292,7 +311,9 @@ public class ProfileContentLinkerService(
                 toRemove.Count,
                 toAdd.Count);
 
-            return OperationResult<bool>.CreateSuccess(true);
+            return uninstallErrors.Count > 0
+                ? OperationResult<bool>.CreateFailure(uninstallErrors)
+                : OperationResult<bool>.CreateSuccess(true);
         }
         catch (Exception ex)
         {

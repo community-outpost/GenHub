@@ -312,6 +312,50 @@ public sealed partial class UserDataTrackerServiceSafetyTests : IDisposable
     }
 
     /// <summary>
+    /// Profile cleanup runs the same uninstall, so it must not report success while an original the
+    /// user never asked to lose is still sitting in the backups tree. Every caller above it reads
+    /// this result and nothing else.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CleanupProfileAsync_WhenRestoreFails_ReportsTheUnfinishedUninstallAsync()
+    {
+        // Arrange
+        var deployedPath = Path.Combine(_zeroHourDataDir, "GeneralsOnlineGameData", "splash.bmp");
+        Directory.CreateDirectory(Path.GetDirectoryName(deployedPath)!);
+        File.WriteAllText(deployedPath, "the-user-original-file");
+
+        var installResult = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            TestProfileId,
+            GameType.ZeroHour,
+            BuildFiles(),
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+        Assert.True(installResult.Success);
+
+        var backupPath = installResult.Data!.InstalledFiles[0].BackupPath!;
+
+        // The backup disappears in the window between the move-aside and the restore.
+        _fileOperationsMock
+            .Setup(f => f.CheckFileHashAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                File.Delete(backupPath);
+                return FileHashVerification.Mismatch;
+            });
+
+        // Act
+        var cleanupResult = await _trackerService.CleanupProfileAsync(TestProfileId, CancellationToken.None);
+
+        // Assert
+        Assert.False(cleanupResult.Success);
+        Assert.Contains(Path.Combine(_appDataDir, "UserData", "backups"), cleanupResult.FirstError);
+        Assert.NotEmpty(Directory.GetFiles(Path.Combine(_appDataDir, "UserData", "manifests"), "*", SearchOption.AllDirectories));
+    }
+
+    /// <summary>
     /// Verifies that a restore failure keeps the backups directory intact, so the user's pristine
     /// originals are still recoverable by hand after a delete-all.
     /// </summary>

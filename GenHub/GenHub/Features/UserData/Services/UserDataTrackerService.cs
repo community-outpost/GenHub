@@ -584,13 +584,34 @@ public class UserDataTrackerService(
                 return OperationResult<bool>.CreateSuccess(true);
             }
 
+            var uninstallErrors = new List<string>();
             foreach (var manifest in manifestsResult.Data)
             {
-                await UninstallUserDataAsync(manifest.ManifestId, profileId, cancellationToken);
+                var uninstallResult = await UninstallUserDataAsync(manifest.ManifestId, profileId, cancellationToken);
+                if (!uninstallResult.Success)
+                {
+                    uninstallErrors.AddRange(uninstallResult.Errors);
+                }
+            }
+
+            // A discarded uninstall failure is a silent data-safety failure: the user's pristine
+            // originals are still under the backups tree and nothing above would ever say so.
+            if (uninstallErrors.Count > 0)
+            {
+                logger.LogError(
+                    "[UserData] Cleanup of profile {ProfileId} left {Count} uninstall(s) unfinished; their originals are still tracked under {BackupsPath}",
+                    profileId,
+                    uninstallErrors.Count,
+                    _backupsPath);
+                return OperationResult<bool>.CreateFailure(uninstallErrors);
             }
 
             logger.LogInformation("[UserData] Cleaned up {Count} manifests for profile {ProfileId}", manifestsResult.Data.Count, profileId);
             return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
