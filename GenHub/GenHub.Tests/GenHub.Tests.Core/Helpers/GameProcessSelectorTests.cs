@@ -338,6 +338,58 @@ public class GameProcessSelectorTests
         }
     }
 
+    /// <summary>
+    /// A launcher whose start time cannot be read leaves nothing to separate the child it spawned
+    /// from an instance of the same game already running in the same workspace, so adoption is
+    /// declined outright rather than gambling on the recency window.
+    /// </summary>
+    [Fact]
+    public void SelectAdoptableGameProcess_WithoutALauncherStartTime_AdoptsNothing()
+    {
+        var candidates = new[] { Candidate(1, LongClientName, Now, Workspace) };
+
+        var selected = GameProcessSelector.SelectAdoptableGameProcess(
+            candidates, LongClientName, Workspace, Now, launcherStartTime: null);
+
+        Assert.Null(selected);
+    }
+
+    /// <summary>
+    /// A known launcher start time disqualifies anything that was already running when the
+    /// launcher started, however recently it started.
+    /// </summary>
+    [Fact]
+    public void SelectAdoptableGameProcess_RejectsACandidateThatPredatesTheLauncher()
+    {
+        var launcherStartTime = Now.AddSeconds(-2);
+        var candidates = new[] { Candidate(1, LongClientName, launcherStartTime.AddSeconds(-1), Workspace) };
+
+        var selected = GameProcessSelector.SelectAdoptableGameProcess(
+            candidates, LongClientName, Workspace, Now, launcherStartTime);
+
+        Assert.Null(selected);
+    }
+
+    /// <summary>
+    /// The process the launcher started is the one adoption is for.
+    /// </summary>
+    [Fact]
+    public void SelectAdoptableGameProcess_AdoptsTheChildStartedAfterTheLauncher()
+    {
+        var launcherStartTime = Now.AddSeconds(-2);
+        var candidates = new[]
+        {
+            Candidate(1, LongClientName, launcherStartTime.AddSeconds(-1), Workspace),
+            Candidate(2, LongClientName, launcherStartTime.AddSeconds(1), Workspace),
+        };
+
+        var selected = GameProcessSelector.SelectAdoptableGameProcess(
+            candidates, LongClientName, Workspace, Now, launcherStartTime);
+
+        Assert.NotNull(selected);
+        Assert.Equal(2, selected.ProcessId);
+    }
+
     private static GameProcessCandidate Candidate(int id, string name, DateTime startTime, string directory) =>
         new(id, name, startTime, Path.Combine(directory, name + ".exe"));
 

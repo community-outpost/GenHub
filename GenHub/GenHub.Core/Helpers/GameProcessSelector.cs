@@ -69,6 +69,34 @@ public static class GameProcessSelector
     }
 
     /// <summary>
+    /// Selects the process a launcher spawned, to be tracked and eventually terminated in the
+    /// launcher's place. Unlike <see cref="SelectSpawnedGameProcess"/> this refuses to answer at all
+    /// when the launcher's start time is unknown: without it, a process that started before this
+    /// launch and merely shares the name and the workspace cannot be told apart from the child, and
+    /// adopting it means killing somebody else's game when this launch is stopped.
+    /// </summary>
+    /// <param name="candidates">The processes currently observed on the machine. Each candidate's <see cref="GameProcessCandidate.StartTime"/> must be a UTC <see cref="DateTime"/> with <see cref="DateTimeKind.Utc"/>.</param>
+    /// <param name="processName">The expected process name, without extension.</param>
+    /// <param name="workingDirectory">The directory the game must run from, or <see langword="null"/> to skip the check.</param>
+    /// <param name="now">The current time, used to apply the recency window. Must be a UTC <see cref="DateTime"/> with <see cref="DateTimeKind.Utc"/>.</param>
+    /// <param name="launcherStartTime">The start time of the launcher process. Must be a UTC <see cref="DateTime"/> with <see cref="DateTimeKind.Utc"/> when supplied.</param>
+    /// <returns>The candidate to adopt, or <see langword="null"/> when none qualifies or the launcher's start time is unknown.</returns>
+    public static GameProcessCandidate? SelectAdoptableGameProcess(
+        IEnumerable<GameProcessCandidate> candidates,
+        string processName,
+        string? workingDirectory,
+        DateTime now,
+        DateTime? launcherStartTime)
+    {
+        if (!launcherStartTime.HasValue)
+        {
+            return null;
+        }
+
+        return SelectSpawnedGameProcess(candidates, processName, workingDirectory, now, launcherStartTime);
+    }
+
+    /// <summary>
     /// Decides whether a candidate is the client the caller asked for. The image path is the
     /// authority when it is readable: a Unix kernel truncates the reported process name, so the
     /// path is the only place the full name survives for a client such as GeneralsOnlineZH_60.
