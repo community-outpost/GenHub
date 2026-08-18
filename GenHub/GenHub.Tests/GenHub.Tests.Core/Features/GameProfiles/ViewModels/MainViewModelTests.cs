@@ -173,9 +173,14 @@ public class MainViewModelTests
         userSettingsMock.Setup(x => x.Get()).Returns(new UserSettings { SubscribedPrNumber = 265 });
         var toolsVm = CreateToolsVm();
         var configProvider = CreateConfigProviderMock();
+        var updateCheckedTcs = new TaskCompletionSource<bool>();
         var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
         mockVelopackUpdateManager.Setup(x => x.CheckForArtifactUpdatesAsync(It.IsAny<System.Threading.CancellationToken>()))
-            .ReturnsAsync((ArtifactUpdateInfo?)null);
+            .Returns(() =>
+            {
+                updateCheckedTcs.TrySetResult(true);
+                return Task.FromResult<ArtifactUpdateInfo?>(null);
+            });
         var mockLogger = new Mock<ILogger<MainViewModel>>();
         var mockNotificationService = CreateNotificationServiceMock();
         var mockNotificationManager = new Mock<NotificationManagerViewModel>(
@@ -201,8 +206,8 @@ public class MainViewModelTests
 
         await vm.InitializeAsync();
 
-        // Allow background task to execute
-        await Task.Delay(100);
+        // Await deterministic completion of background check
+        await updateCheckedTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         mockVelopackUpdateManager.Verify(x => x.CheckForArtifactUpdatesAsync(It.IsAny<System.Threading.CancellationToken>()), Times.AtLeastOnce);
     }
@@ -219,9 +224,14 @@ public class MainViewModelTests
         userSettingsMock.Setup(x => x.Get()).Returns(new UserSettings { SubscribedBranch = "main" });
         var toolsVm = CreateToolsVm();
         var configProvider = CreateConfigProviderMock();
+        var updateCheckedTcs = new TaskCompletionSource<bool>();
         var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
         mockVelopackUpdateManager.Setup(x => x.CheckForArtifactUpdatesAsync(It.IsAny<System.Threading.CancellationToken>()))
-            .ReturnsAsync((ArtifactUpdateInfo?)null);
+            .Returns(() =>
+            {
+                updateCheckedTcs.TrySetResult(true);
+                return Task.FromResult<ArtifactUpdateInfo?>(null);
+            });
         var mockLogger = new Mock<ILogger<MainViewModel>>();
         var mockNotificationService = CreateNotificationServiceMock();
         var mockNotificationManager = new Mock<NotificationManagerViewModel>(
@@ -247,8 +257,8 @@ public class MainViewModelTests
 
         await vm.InitializeAsync();
 
-        // Allow background task to execute
-        await Task.Delay(100);
+        // Await deterministic completion of background check
+        await updateCheckedTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         mockVelopackUpdateManager.Verify(x => x.CheckForArtifactUpdatesAsync(It.IsAny<System.Threading.CancellationToken>()), Times.AtLeastOnce);
     }

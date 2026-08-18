@@ -52,10 +52,15 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     private UpdateInfo? _cachedUpdateInfo;
     private DateTime _lastArtifactCheckTime = DateTime.MinValue;
     private ArtifactUpdateInfo? _cachedArtifactUpdateInfo;
+    private int? _cachedArtifactSubscribedPrNumber;
+    private string? _cachedArtifactSubscribedBranch;
     private DateTime _lastPrListCheckTime = DateTime.MinValue;
     private IReadOnlyList<PullRequestInfo>? _cachedPrList;
     private DateTime _lastBranchListCheckTime = DateTime.MinValue;
     private IReadOnlyList<string>? _cachedBranchList;
+
+    private int? _subscribedPrNumber;
+    private string? _subscribedBranch;
 
     /// <inheritdoc/>
     public bool HasArtifactUpdateAvailable => _latestArtifactUpdate != null;
@@ -64,10 +69,34 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     public ArtifactUpdateInfo? LatestArtifactUpdate => _latestArtifactUpdate;
 
     /// <inheritdoc/>
-    public int? SubscribedPrNumber { get; set; }
+    public int? SubscribedPrNumber
+    {
+        get => _subscribedPrNumber;
+        set
+        {
+            if (_subscribedPrNumber != value)
+            {
+                _subscribedPrNumber = value;
+                _cachedArtifactUpdateInfo = null;
+                _lastArtifactCheckTime = DateTime.MinValue;
+            }
+        }
+    }
 
     /// <inheritdoc/>
-    public string? SubscribedBranch { get; set; }
+    public string? SubscribedBranch
+    {
+        get => _subscribedBranch;
+        set
+        {
+            if (!string.Equals(_subscribedBranch, value, StringComparison.OrdinalIgnoreCase))
+            {
+                _subscribedBranch = value;
+                _cachedArtifactUpdateInfo = null;
+                _lastArtifactCheckTime = DateTime.MinValue;
+            }
+        }
+    }
 
     /// <inheritdoc/>
     public bool IsPrMergedOrClosed { get; private set; }
@@ -371,7 +400,9 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     public async Task<ArtifactUpdateInfo?> CheckForArtifactUpdatesAsync(CancellationToken cancellationToken = default)
     {
         // Check cache
-        if (DateTime.UtcNow - _lastArtifactCheckTime < AppUpdateConstants.CacheDuration)
+        if (DateTime.UtcNow - _lastArtifactCheckTime < AppUpdateConstants.CacheDuration &&
+            _cachedArtifactSubscribedPrNumber == SubscribedPrNumber &&
+            string.Equals(_cachedArtifactSubscribedBranch, SubscribedBranch, StringComparison.OrdinalIgnoreCase))
         {
             _logger.LogInformation("Returning cached artifact update info (checked {TimeLess} ago)", (DateTime.UtcNow - _lastArtifactCheckTime).ToString(@"mm\:ss"));
             return _cachedArtifactUpdateInfo;
@@ -413,6 +444,8 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             }
 
             _cachedArtifactUpdateInfo = _latestArtifactUpdate;
+            _cachedArtifactSubscribedPrNumber = SubscribedPrNumber;
+            _cachedArtifactSubscribedBranch = SubscribedBranch;
             _lastArtifactCheckTime = DateTime.UtcNow;
             return _latestArtifactUpdate;
         }
@@ -862,6 +895,8 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         _cachedUpdateInfo = null;
         _lastArtifactCheckTime = DateTime.MinValue;
         _cachedArtifactUpdateInfo = null;
+        _cachedArtifactSubscribedPrNumber = null;
+        _cachedArtifactSubscribedBranch = null;
         _lastPrListCheckTime = DateTime.MinValue;
         _cachedPrList = null;
         _lastBranchListCheckTime = DateTime.MinValue;
