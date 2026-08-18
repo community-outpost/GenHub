@@ -161,7 +161,7 @@ public class GameProfileSettingsViewModelTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ReceiveManifestReplacedMessage_UpdatesEnabledContent_WithoutDuplication()
+    public async Task ReceiveManifestReplacedMessage_UpdatesEnabledContent_WithoutDuplicationAsync()
     {
         // Arrange
         var mockGameSettingsService = new Mock<IGameSettingsService>();
