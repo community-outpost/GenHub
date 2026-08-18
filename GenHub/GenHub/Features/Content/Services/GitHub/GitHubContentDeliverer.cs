@@ -406,7 +406,13 @@ public class GitHubContentDeliverer(
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    var destinationPath = Path.GetFullPath(Path.Combine(targetDirectory, entry.Key ?? string.Empty));
+                    if (!ArchiveEntryName.IsExtractable(entry.Key))
+                    {
+                        throw new InvalidOperationException(
+                            $"Archive entry '{entry.Key}' has a name that cannot be extracted to a file.");
+                    }
+
+                    var destinationPath = Path.GetFullPath(Path.Combine(targetDirectory, entry.Key));
                     if (!PathHelper.IsPathWithinDirectory(targetDirectory, destinationPath))
                     {
                         throw new InvalidOperationException($"Zip slip vulnerability detected: entry '{entry.Key}' attempts to extract outside target directory.");
@@ -423,7 +429,7 @@ public class GitHubContentDeliverer(
                         expandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(
                             entryStream,
                             destinationPath,
-                            entry.Key ?? string.Empty,
+                            entry.Key,
                             GitHubConstants.MaxEntryUncompressedBytes,
                             expansionBudget - expandedBytes,
                             overwrite: true,

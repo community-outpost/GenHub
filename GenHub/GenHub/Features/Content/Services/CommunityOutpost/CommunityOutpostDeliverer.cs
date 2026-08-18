@@ -113,7 +113,13 @@ public class CommunityOutpostDeliverer(
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    var destinationPath = Path.GetFullPath(Path.Combine(extractPath, entry.Key ?? string.Empty));
+                    if (!ArchiveEntryName.IsExtractable(entry.Key))
+                    {
+                        throw new InvalidOperationException(
+                            $"Archive entry '{entry.Key}' has a name that cannot be extracted to a file.");
+                    }
+
+                    var destinationPath = Path.GetFullPath(Path.Combine(extractPath, entry.Key));
                     if (!PathHelper.IsPathWithinDirectory(extractPath, destinationPath))
                     {
                         throw new InvalidOperationException(
@@ -130,7 +136,7 @@ public class CommunityOutpostDeliverer(
                     expandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(
                         entryStream,
                         destinationPath,
-                        entry.Key ?? string.Empty,
+                        entry.Key,
                         CommunityOutpostConstants.MaxEntryUncompressedBytes,
                         CommunityOutpostConstants.MaxAggregateUncompressedBytes - expandedBytes,
                         overwrite: true,
