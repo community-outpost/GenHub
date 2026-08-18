@@ -517,7 +517,7 @@ public class CommunityOutpostManifestFactory(
                 manifest.Dependencies?.Count ?? 0);
 
             // Log each dependency for debugging
-            if (manifest.Dependencies != null && manifest.Dependencies.Count > 0)
+            if (manifest.Dependencies is { Count: > 0 })
             {
                 foreach (var dep in manifest.Dependencies)
                 {

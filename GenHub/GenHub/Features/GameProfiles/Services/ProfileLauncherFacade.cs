@@ -264,7 +264,6 @@ public class ProfileLauncherFacade(
 
             // Build list of manifests from enabled content IDs only
             var manifests = new List<ContentManifest>();
-            var resolvedContentIds = new HashSet<string>(profile.EnabledContentIds ?? Enumerable.Empty<string>());
 
             // Resolve dependencies recursively
             var resolutionResult = await dependencyResolver.ResolveDependenciesWithManifestsAsync(profile.EnabledContentIds ?? Enumerable.Empty<string>(), cancellationToken);
@@ -427,11 +426,9 @@ public class ProfileLauncherFacade(
                     logger.LogInformation("Successfully deleted profile {ProfileId}", profileId);
                     return ProfileOperationResult<bool>.CreateSuccess(true);
                 }
-                else
-                {
-                    logger.LogError("Failed to delete profile {ProfileId}: {Errors}", profileId, string.Join(", ", deleteResult.Errors));
-                    return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", deleteResult.Errors));
-                }
+
+                logger.LogError("Failed to delete profile {ProfileId}: {Errors}", profileId, string.Join(", ", deleteResult.Errors));
+                return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", deleteResult.Errors));
             }
         }
         catch (IOException ioEx) when (ioEx.Message.Contains("being used by another process"))
@@ -694,75 +691,13 @@ public class ProfileLauncherFacade(
             }
 
             // Step 2.5: Check for game client updates before launching.
-            // All three publisher game clients block launch on reconciler failure —
-            // the user is prompted via dialog first, so a failure after accepting means
-            // the update process itself broke and launching would use a stale/invalid client.
-            logger.LogDebug(
-                "[Launch] Step 2.5: Publisher check - Client={Client}, Publisher={PublisherType}",
-                profile.GameClient?.Name ?? "null",
-                profile.GameClient?.PublisherType ?? "null");
-
-            // Try to get reconciler by PublisherType first, then fall back to legacy detection
-            IPublisherReconciler? reconciler = null;
-            string? publisherType = profile.GameClient?.PublisherType;
-
-            if (!string.IsNullOrWhiteSpace(publisherType))
+            var reconcileResult = await ReconcilePublisherClientAsync(profile, profileId, cancellationToken);
+            if (reconcileResult.Failed)
             {
-                logger.LogDebug("[Launch] Looking up reconciler for publisher: {PublisherType}", publisherType);
-                reconciler = reconcilerRegistry.GetReconciler(publisherType);
-            }
-            else
-            {
-                // Legacy fallback: detect publisher from profile characteristics
-                if (IsGeneralsOnlineProfile(profile))
-                {
-                    publisherType = PublisherTypeConstants.GeneralsOnline;
-                    reconciler = reconcilerRegistry.GetReconciler(publisherType);
-                    logger.LogDebug("[Launch] Detected legacy GeneralsOnline profile, using reconciler");
-                }
-                else if (IsSuperHackersProfile(profile))
-                {
-                    publisherType = PublisherTypeConstants.TheSuperHackers;
-                    reconciler = reconcilerRegistry.GetReconciler(publisherType);
-                    logger.LogDebug("[Launch] Detected legacy SuperHackers profile, using reconciler");
-                }
-                else if (IsCommunityOutpostProfile(profile))
-                {
-                    publisherType = CommunityOutpostConstants.PublisherType;
-                    reconciler = reconcilerRegistry.GetReconciler(publisherType);
-                    logger.LogDebug("[Launch] Detected legacy CommunityOutpost profile, using reconciler");
-                }
+                return ProfileOperationResult<GameLaunchInfo>.CreateFailure(reconcileResult.FirstError ?? "Reconciliation failed");
             }
 
-            if (reconciler != null && publisherType != null)
-            {
-                logger.LogDebug("[Launch] Checking for {PublisherType} updates", publisherType);
-                var reconcileResult = await reconciler.CheckAndReconcileIfNeededAsync(profileId, cancellationToken);
-
-                if (!reconcileResult.Success)
-                {
-                    // Log the error but don't block launch - users should be able to play offline
-                    logger.LogWarning(
-                        "[Launch] {PublisherType} reconciliation failed (non-blocking): {Error}",
-                        publisherType,
-                        reconcileResult.FirstError);
-
-                    // Show a non-blocking notification to the user
-                    // The game will still launch with the currently installed version
-                }
-                else if (reconcileResult.Data)
-                {
-                    logger.LogInformation("[Launch] Profile updated by {PublisherType} reconciliation, reloading", publisherType);
-                    var reloadedProfileResult = await profileManager.GetProfileAsync(profileId, cancellationToken);
-                    if (reloadedProfileResult.Failed || reloadedProfileResult.Data == null)
-                    {
-                        var error = reloadedProfileResult.Failed ? string.Join(", ", reloadedProfileResult.Errors) : "Profile data is null after reload";
-                        return ProfileOperationResult<GameLaunchInfo>.CreateFailure(error);
-                    }
-
-                    profile = reloadedProfileResult.Data;
-                }
-            }
+            profile = reconcileResult.Data ?? profile;
 
             // Validate the profile before launching
             logger.LogDebug("[Launch] Step 3: Validating profile for launch");
@@ -776,61 +711,9 @@ public class ProfileLauncherFacade(
             logger.LogDebug("[Launch] Validation passed");
 
             // Options.ini application moved to GameLauncher.LaunchProfileAsync() (before process start)
-            // This eliminates duplicate writes and race conditions that caused black screens.
-            // See: GameLauncher.ApplyProfileSettingsToIniOptionsAsync()
             logger.LogDebug("[Launch] Step 4: Options.ini will be applied by GameLauncher (delegated)");
 
-            var effectiveStrategy = profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy();
-            logger.LogDebug("[Launch] Step 5: Checking workspace strategy and symlink capability - Strategy: {Strategy}", effectiveStrategy);
-
-            // Downgrade symlink strategies only where symlinks genuinely cannot be created.
-            // This previously asked whether the process was an administrator and computed
-            // that only on Windows, leaving it false on Unix — which made SymlinkOnly and
-            // HybridCopySymlink unreachable there despite symlink(2) needing no privilege.
-            var canCreateSymlinks = symlinkCapability.CanCreateSymlinks;
-            logger.LogInformation(
-                "Profile {ProfileId} launch - Symlink capability: {CanCreateSymlinks}, Strategy={Strategy}",
-                profileId,
-                canCreateSymlinks,
-                effectiveStrategy);
-
-            if (!canCreateSymlinks && (effectiveStrategy == WorkspaceStrategy.HybridCopySymlink || effectiveStrategy == WorkspaceStrategy.SymlinkOnly))
-            {
-                // Symlinks unavailable here - switch the profile to HardLink
-                var originalStrategy = effectiveStrategy;
-                effectiveStrategy = WorkspaceStrategy.HardLink; // Force HardLink instead of default which might be symlink-based
-
-                logger.LogInformation(
-                    "Profile {ProfileId} - Switching from {OriginalStrategy} to HardLink because symlinks are unavailable in this environment",
-                    profileId,
-                    originalStrategy);
-
-                notificationService.ShowInfo(
-                    "Workspace Strategy Changed",
-                    $"'{profile.Name}' cannot use {originalStrategy} here because symlinks are unavailable. Switching to HardLink.",
-                    NotificationDurations.Long);
-
-                // Persist the downgrade only if the profile had an explicit strategy set (not inheriting default)
-                if (profile.WorkspaceStrategy.HasValue)
-                {
-                    var updateRequest = new UpdateProfileRequest
-                    {
-                        WorkspaceStrategy = effectiveStrategy,
-                    };
-                    var strategyUpdateResult = await profileManager.UpdateProfileAsync(profileId, updateRequest, cancellationToken);
-                    if (strategyUpdateResult.Success)
-                    {
-                        logger.LogInformation(
-                            "Updated profile {ProfileId} workspace strategy to {Strategy} because symlinks are unavailable",
-                            profileId,
-                            effectiveStrategy);
-                    }
-                }
-            }
-
-            // GameLauncher constructs the actual workspace request from this in-memory
-            // profile. Persisting an explicit downgrade is not enough: inherited defaults
-            // are intentionally not persisted, and persistence may fail independently.
+            var effectiveStrategy = await AdjustWorkspaceStrategyAsync(profile, profileId, cancellationToken);
             profile.WorkspaceStrategy = effectiveStrategy;
 
             // Use dynamic workspace path based on the game installation location
@@ -854,31 +737,7 @@ public class ProfileLauncherFacade(
 
             if (launchResult.Failed)
             {
-                logger.LogError("[Launch] GameLauncher failed: {Errors}", string.Join(", ", launchResult.Errors));
-
-                // If HardLink failed due to cross-drive, show specific error about FullCopy
-                if (profile.WorkspaceStrategy == WorkspaceStrategy.HardLink &&
-                    launchResult.Errors.Any(e => e.Contains("different volumes") || e.Contains("cross-drive")))
-                {
-                    var gameDrive = Path.GetPathRoot(resolvedInstallation.InstallationPath);
-                    var errorMessage = $"HardLink strategy failed because your workspace is on a different drive than the game on {gameDrive} drive. " +
-                        $"You can manually change to FullCopy strategy (uses more disk space) or move your workspace to the same drive as your game.";
-
-                    notificationService.ShowError(
-                        "Launch Failed - Cross-Drive Issue",
-                        errorMessage,
-                        NotificationDurations.Critical);
-
-                    return ProfileOperationResult<GameLaunchInfo>.CreateFailure(errorMessage);
-                }
-
-                // General error notification
-                notificationService.ShowError(
-                    "Launch Failed",
-                    $"Cannot launch '{profile.Name}': {launchResult.FirstError ?? "Unknown error"}",
-                    NotificationDurations.VeryLong);
-
-                return ProfileOperationResult<GameLaunchInfo>.CreateFailure(string.Join(", ", launchResult.Errors));
+                return HandleLaunchFailure(profile, launchResult, resolvedInstallation);
             }
 
             var launchInfo = launchResult.Data!;
@@ -935,6 +794,155 @@ public class ProfileLauncherFacade(
             logger.LogError(ex, "Failed to launch profile {ProfileId}", profileId);
             return ProfileOperationResult<GameLaunchInfo>.CreateFailure($"Failed to launch profile: {ex.Message}");
         }
+    }
+
+    private async Task<ProfileOperationResult<GameProfile>> ReconcilePublisherClientAsync(
+        GameProfile profile,
+        string profileId,
+        CancellationToken cancellationToken)
+    {
+        logger.LogDebug(
+            "[Launch] Step 2.5: Publisher check - Client={Client}, Publisher={PublisherType}",
+            profile.GameClient?.Name ?? "null",
+            profile.GameClient?.PublisherType ?? "null");
+
+        IPublisherReconciler? reconciler = null;
+        string? publisherType = profile.GameClient?.PublisherType;
+
+        if (!string.IsNullOrWhiteSpace(publisherType))
+        {
+            logger.LogDebug("[Launch] Looking up reconciler for publisher: {PublisherType}", publisherType);
+            reconciler = reconcilerRegistry.GetReconciler(publisherType);
+        }
+        else
+        {
+            if (IsGeneralsOnlineProfile(profile))
+            {
+                publisherType = PublisherTypeConstants.GeneralsOnline;
+                reconciler = reconcilerRegistry.GetReconciler(publisherType);
+                logger.LogDebug("[Launch] Detected legacy GeneralsOnline profile, using reconciler");
+            }
+            else if (IsSuperHackersProfile(profile))
+            {
+                publisherType = PublisherTypeConstants.TheSuperHackers;
+                reconciler = reconcilerRegistry.GetReconciler(publisherType);
+                logger.LogDebug("[Launch] Detected legacy SuperHackers profile, using reconciler");
+            }
+            else if (IsCommunityOutpostProfile(profile))
+            {
+                publisherType = CommunityOutpostConstants.PublisherType;
+                reconciler = reconcilerRegistry.GetReconciler(publisherType);
+                logger.LogDebug("[Launch] Detected legacy CommunityOutpost profile, using reconciler");
+            }
+        }
+
+        if (reconciler != null && publisherType != null)
+        {
+            logger.LogDebug("[Launch] Checking for {PublisherType} updates", publisherType);
+            var reconcileResult = await reconciler.CheckAndReconcileIfNeededAsync(profileId, cancellationToken);
+
+            if (!reconcileResult.Success)
+            {
+                logger.LogWarning(
+                    "[Launch] {PublisherType} reconciliation failed (non-blocking): {Error}",
+                    publisherType,
+                    reconcileResult.FirstError);
+            }
+            else if (reconcileResult.Data)
+            {
+                logger.LogInformation("[Launch] Profile updated by {PublisherType} reconciliation, reloading", publisherType);
+                var reloadedProfileResult = await profileManager.GetProfileAsync(profileId, cancellationToken);
+                if (reloadedProfileResult.Failed || reloadedProfileResult.Data == null)
+                {
+                    var error = reloadedProfileResult.Failed ? string.Join(", ", reloadedProfileResult.Errors) : "Profile data is null after reload";
+                    return ProfileOperationResult<GameProfile>.CreateFailure(error);
+                }
+
+                return ProfileOperationResult<GameProfile>.CreateSuccess(reloadedProfileResult.Data);
+            }
+        }
+
+        return ProfileOperationResult<GameProfile>.CreateSuccess(profile);
+    }
+
+    private async Task<WorkspaceStrategy> AdjustWorkspaceStrategyAsync(
+        GameProfile profile,
+        string profileId,
+        CancellationToken cancellationToken)
+    {
+        var effectiveStrategy = profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy();
+        logger.LogDebug("[Launch] Step 5: Checking workspace strategy and symlink capability - Strategy: {Strategy}", effectiveStrategy);
+
+        var canCreateSymlinks = symlinkCapability.CanCreateSymlinks;
+        logger.LogInformation(
+            "Profile {ProfileId} launch - Symlink capability: {CanCreateSymlinks}, Strategy={Strategy}",
+            profileId,
+            canCreateSymlinks,
+            effectiveStrategy);
+
+        if (!canCreateSymlinks && (effectiveStrategy == WorkspaceStrategy.HybridCopySymlink || effectiveStrategy == WorkspaceStrategy.SymlinkOnly))
+        {
+            var originalStrategy = effectiveStrategy;
+            effectiveStrategy = WorkspaceStrategy.HardLink;
+
+            logger.LogInformation(
+                "Profile {ProfileId} - Switching from {OriginalStrategy} to HardLink because symlinks are unavailable in this environment",
+                profileId,
+                originalStrategy);
+
+            notificationService.ShowInfo(
+                "Workspace Strategy Changed",
+                $"'{profile.Name}' cannot use {originalStrategy} here because symlinks are unavailable. Switching to HardLink.",
+                NotificationDurations.Long);
+
+            if (profile.WorkspaceStrategy.HasValue)
+            {
+                var updateRequest = new UpdateProfileRequest
+                {
+                    WorkspaceStrategy = effectiveStrategy,
+                };
+                var strategyUpdateResult = await profileManager.UpdateProfileAsync(profileId, updateRequest, cancellationToken);
+                if (strategyUpdateResult.Success)
+                {
+                    logger.LogInformation(
+                        "Updated profile {ProfileId} workspace strategy to {Strategy} because symlinks are unavailable",
+                        profileId,
+                        effectiveStrategy);
+                }
+            }
+        }
+
+        return effectiveStrategy;
+    }
+
+    private ProfileOperationResult<GameLaunchInfo> HandleLaunchFailure(
+        GameProfile profile,
+        LaunchOperationResult<GameLaunchInfo> launchResult,
+        Core.Models.GameInstallations.GameInstallation resolvedInstallation)
+    {
+        logger.LogError("[Launch] GameLauncher failed: {Errors}", string.Join(", ", launchResult.Errors));
+
+        if (profile.WorkspaceStrategy == WorkspaceStrategy.HardLink &&
+            launchResult.Errors.Any(e => e.Contains("different volumes") || e.Contains("cross-drive")))
+        {
+            var gameDrive = Path.GetPathRoot(resolvedInstallation.InstallationPath);
+            var errorMessage = $"HardLink strategy failed because your workspace is on a different drive than the game on {gameDrive} drive. " +
+                "You can manually change to FullCopy strategy (uses more disk space) or move your workspace to the same drive as your game.";
+
+            notificationService.ShowError(
+                "Launch Failed - Cross-Drive Issue",
+                errorMessage,
+                NotificationDurations.Critical);
+
+            return ProfileOperationResult<GameLaunchInfo>.CreateFailure(errorMessage);
+        }
+
+        notificationService.ShowError(
+            "Launch Failed",
+            $"Cannot launch '{profile.Name}': {launchResult.FirstError ?? "Unknown error"}",
+            NotificationDurations.VeryLong);
+
+        return ProfileOperationResult<GameLaunchInfo>.CreateFailure(string.Join(", ", launchResult.Errors));
     }
 
     private ProfileOperationResult<bool> ValidateToolProfileLaunch(GameProfile profile)
@@ -1122,20 +1130,14 @@ public class ProfileLauncherFacade(
 
         // Simple string comparison for min/max versions (semantic versioning would be better in production)
         // For now, we use string comparison which works for versions like "1.04", "1.08", etc.
-        if (!string.IsNullOrEmpty(dependency.MinVersion))
+        if (!string.IsNullOrEmpty(dependency.MinVersion) && string.Compare(version, dependency.MinVersion, StringComparison.OrdinalIgnoreCase) < 0)
         {
-            if (string.Compare(version, dependency.MinVersion, StringComparison.OrdinalIgnoreCase) < 0)
-            {
-                return false;
-            }
+            return false;
         }
 
-        if (!string.IsNullOrEmpty(dependency.MaxVersion))
+        if (!string.IsNullOrEmpty(dependency.MaxVersion) && string.Compare(version, dependency.MaxVersion, StringComparison.OrdinalIgnoreCase) > 0)
         {
-            if (string.Compare(version, dependency.MaxVersion, StringComparison.OrdinalIgnoreCase) > 0)
-            {
-                return false;
-            }
+            return false;
         }
 
         return true;
@@ -1419,25 +1421,23 @@ public class ProfileLauncherFacade(
             return;
         }
 
-        if (!string.IsNullOrEmpty(dependency.MinVersion) || !string.IsNullOrEmpty(dependency.MaxVersion) || dependency.CompatibleVersions.Count > 0)
+        if ((!string.IsNullOrEmpty(dependency.MinVersion) || !string.IsNullOrEmpty(dependency.MaxVersion) || dependency.CompatibleVersions.Count > 0)
+            && !IsVersionCompatible(requiredManifest.Version, dependency))
         {
-            if (!IsVersionCompatible(requiredManifest.Version, dependency))
+            var versionInfo = BuildVersionRequirementString(dependency);
+            var msg = $"Content '{manifest.Name}' requires '{dependency.Name}' {versionInfo}, but version {requiredManifest.Version} is selected";
+            if (!dependency.IsOptional)
             {
-                var versionInfo = BuildVersionRequirementString(dependency);
-                var msg = $"Content '{manifest.Name}' requires '{dependency.Name}' {versionInfo}, but version {requiredManifest.Version} is selected";
-                if (!dependency.IsOptional)
-                {
-                    errors.Add(msg);
-                }
-
-                logger.LogWarning(
-                    "Version compatibility failed: {ManifestName} requires {DependencyName} {VersionInfo}, but {ActualVersion} found (Optional: {IsOptional})",
-                    manifest.Name,
-                    dependency.Name,
-                    versionInfo,
-                    requiredManifest.Version,
-                    dependency.IsOptional);
+                errors.Add(msg);
             }
+
+            logger.LogWarning(
+                "Version compatibility failed: {ManifestName} requires {DependencyName} {VersionInfo}, but {ActualVersion} found (Optional: {IsOptional})",
+                manifest.Name,
+                dependency.Name,
+                versionInfo,
+                requiredManifest.Version,
+                dependency.IsOptional);
         }
     }
 
@@ -1469,7 +1469,7 @@ public class ProfileLauncherFacade(
             }
         }
 
-        if (dependency.CompatibleGameTypes != null && dependency.CompatibleGameTypes.Count > 0 && !dependency.CompatibleGameTypes.Contains(profileGameType))
+        if (dependency.CompatibleGameTypes is { Count: > 0 } && !dependency.CompatibleGameTypes.Contains(profileGameType))
         {
             var compatibleGamesStr = string.Join(", ", dependency.CompatibleGameTypes);
             var msg = $"Content '{manifest.Name}' dependency '{dependency.Name}' is only compatible with {compatibleGamesStr}, but profile is for {profileGameType}";

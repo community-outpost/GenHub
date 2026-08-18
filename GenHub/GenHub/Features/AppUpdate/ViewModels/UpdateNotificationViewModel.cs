@@ -276,7 +276,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         DismissCommand = new RelayCommand(DismissUpdate);
 
         // Check if PAT is available
-        HasPat = gitHubTokenStorage?.HasToken() ?? false;
+        HasPat = gitHubTokenStorage?.HasToken() == true;
 
         _logger.LogInformation("UpdateNotificationViewModel initialized with Velopack (HasPat={HasPat})", HasPat);
 
@@ -531,50 +531,48 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                     StatusMessage = $"You are on the latest build for PR #{SubscribedPr.Number}";
                     return;
                 }
-                else
+
+                // Try to fetch artifact for update check
+                _logger.LogInformation("PR #{PrNumber} has no cached artifact, fetching for update check", SubscribedPr.Number);
+                var prArtifact = await _velopackUpdateManager.CheckForArtifactUpdatesAsync(_cancellationTokenSource.Token);
+                if (prArtifact != null)
                 {
-                    // Try to fetch artifact for update check
-                    _logger.LogInformation("PR #{PrNumber} has no cached artifact, fetching for update check", SubscribedPr.Number);
-                    var prArtifact = await _velopackUpdateManager.CheckForArtifactUpdatesAsync(_cancellationTokenSource.Token);
-                    if (prArtifact != null)
+                    var currentVersionBase = CurrentAppVersion.Split('+')[0];
+                    var prVersionBase = prArtifact.Version.Split('+')[0];
+
+                    // Extract run numbers for numeric comparison
+                    var currentRun = ExtractRunNumber(currentVersionBase);
+                    var prRun = ExtractRunNumber(prVersionBase);
+
+                    _logger.LogDebug("Comparing fetched PR #{PrNumber} versions: current run #{CurrentRun} vs new run #{PrRun}", SubscribedPr.Number, currentRun, prRun);
+
+                    if (prRun > currentRun)
                     {
-                        var currentVersionBase = CurrentAppVersion.Split('+')[0];
-                        var prVersionBase = prArtifact.Version.Split('+')[0];
-
-                        // Extract run numbers for numeric comparison
-                        var currentRun = ExtractRunNumber(currentVersionBase);
-                        var prRun = ExtractRunNumber(prVersionBase);
-
-                        _logger.LogDebug("Comparing fetched PR #{PrNumber} versions: current run #{CurrentRun} vs new run #{PrRun}", SubscribedPr.Number, currentRun, prRun);
-
-                        if (prRun > currentRun)
+                        var settings = _userSettingsService.Get();
+                        if (!string.Equals(prVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
                         {
-                            var settings = _userSettingsService.Get();
-                            if (!string.Equals(prVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
-                            {
-                                IsUpdateAvailable = true;
-                                LatestVersion = prVersionBase;
-                                ReleaseNotesUrl = $"{AppConstants.GitHubRepositoryUrl}/pull/{SubscribedPr.Number}";
-                                StatusMessage = $"New PR build available: {prArtifact.DisplayVersion}";
-                                _logger.LogInformation("Fetched PR #{PrNumber} artifact, new build available: run #{PrRun} (current: #{CurrentRun})", SubscribedPr.Number, prRun, currentRun);
-                                return;
-                            }
-
-                            StatusMessage = $"You dismissed the update for PR #{SubscribedPr.Number}";
+                            IsUpdateAvailable = true;
+                            LatestVersion = prVersionBase;
+                            ReleaseNotesUrl = $"{AppConstants.GitHubRepositoryUrl}/pull/{SubscribedPr.Number}";
+                            StatusMessage = $"New PR build available: {prArtifact.DisplayVersion}";
+                            _logger.LogInformation("Fetched PR #{PrNumber} artifact, new build available: run #{PrRun} (current: #{CurrentRun})", SubscribedPr.Number, prRun, currentRun);
                             return;
                         }
 
-                        IsUpdateAvailable = false;
-                        StatusMessage = $"You are on the latest build for PR #{SubscribedPr.Number}";
+                        StatusMessage = $"You dismissed the update for PR #{SubscribedPr.Number}";
                         return;
                     }
 
-                    // If subscribed to PR but no artifact found, don't fall through to main release
-                    _logger.LogInformation("Subscribed to PR #{PrNumber} but no artifact available yet", SubscribedPr.Number);
-                    StatusMessage = $"Waiting for PR #{SubscribedPr.Number} build...";
                     IsUpdateAvailable = false;
+                    StatusMessage = $"You are on the latest build for PR #{SubscribedPr.Number}";
                     return;
                 }
+
+                // If subscribed to PR but no artifact found, don't fall through to main release
+                _logger.LogInformation("Subscribed to PR #{PrNumber} but no artifact available yet", SubscribedPr.Number);
+                StatusMessage = $"Waiting for PR #{SubscribedPr.Number} build...";
+                IsUpdateAvailable = false;
+                return;
             }
 
             // Check Branch updates if subscribed

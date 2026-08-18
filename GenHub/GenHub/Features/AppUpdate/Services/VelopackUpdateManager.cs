@@ -154,7 +154,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 return await CheckViaUpdateManagerAsync();
             }
 
-            JsonElement releases;
+            JsonElement releases = default;
             try
             {
                 releases = JsonSerializer.Deserialize<JsonElement>(json);
@@ -869,6 +869,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     }
 
     /// <inheritdoc/>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("DeepSource", "CS-W1005", Justification = "Explicit application termination required after launching uninstaller.")]
     public void Uninstall()
     {
         try
@@ -1521,62 +1522,11 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
             foreach (var run in runs.EnumerateArray())
             {
-                var runId = run.GetProperty("id").GetInt64();
-                var runUrl = run.GetProperty("html_url").GetString() ?? string.Empty;
-                var eventType = run.TryGetProperty("event", out var e) ? e.GetString() : "unknown";
-                var headSha = run.GetProperty("head_sha").GetString() ?? string.Empty;
-                var shortHash = headSha.Length >= AppConstants.GitShortHashLength ? headSha[..AppConstants.GitShortHashLength] : headSha;
-                var actualBranch = run.TryGetProperty("head_branch", out var b) ? b.GetString() : branch ?? "unknown";
-
-                if (!string.Equals(eventType, "push", StringComparison.OrdinalIgnoreCase))
-                {
-                    _logger.LogDebug("Skipping run {RunId} ({EventType}) - only 'push' events are valid for branch subscriptions", runId, eventType);
-                    continue;
-                }
-
-                if (!string.IsNullOrEmpty(branch) && !string.Equals(actualBranch, branch, StringComparison.OrdinalIgnoreCase))
-                {
-                    _logger.LogDebug("Skipping run {RunId} ({ActualBranch}) - does not match requested branch {Branch}", runId, actualBranch, branch);
-                    continue;
-                }
-
-                var createdAt = DateTime.MinValue;
-                try
-                {
-                    createdAt = run.GetProperty("created_at").GetDateTime();
-                }
-                catch (FormatException)
-                {
-                    createdAt = DateTime.MinValue;
-                }
-
-                _logger.LogDebug("Checking run {RunId} on branch {Branch} ({Hash}) for artifacts...", runId, actualBranch, shortHash);
-
-                var artifactsUrl = string.Format(ApiConstants.GitHubApiRunArtifactsFormat, owner, repo, runId);
-                var artifactsResponse = await SendWithRetryAsync(client, artifactsUrl, cancellationToken);
-
-                if (artifactsResponse == null || !artifactsResponse.IsSuccessStatusCode)
-                {
-                    _logger.LogWarning("Failed to fetch artifacts for run {RunId}: {Status}", runId, artifactsResponse?.StatusCode);
-                    continue;
-                }
-
-                var artifactsJson = await artifactsResponse.Content.ReadAsStringAsync(cancellationToken);
-                var artifactsData = JsonSerializer.Deserialize<JsonElement>(artifactsJson);
-
-                if (!artifactsData.TryGetProperty("artifacts", out var artifacts) || artifacts.GetArrayLength() == 0)
-                {
-                    _logger.LogWarning("No artifacts found for run {RunId}", runId);
-                    continue;
-                }
-
-                var selectedArtifact = FindPlatformArtifactInRun(artifacts, platformFilter, null, runId, runUrl, shortHash, createdAt);
+                var selectedArtifact = await CheckRunForLatestArtifactAsync(client, run, branch, platformFilter, owner, repo, cancellationToken);
                 if (selectedArtifact != null)
                 {
                     return selectedArtifact;
                 }
-
-                _logger.LogDebug("No suitable Velopack artifacts found for current platform in run {RunId}, checking next run", runId);
             }
 
             _logger.LogWarning("No suitable artifacts found in the last 10 'push' runs for branch {Branch}", branch ?? "any");
@@ -1587,6 +1537,74 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             _logger.LogWarning(ex, "Failed to find latest artifact for branch {Branch}", branch ?? "any");
             return null;
         }
+    }
+
+    private async Task<ArtifactUpdateInfo?> CheckRunForLatestArtifactAsync(
+        HttpClient client,
+        JsonElement run,
+        string? branch,
+        string platformFilter,
+        string owner,
+        string repo,
+        CancellationToken cancellationToken)
+    {
+        var runId = run.GetProperty("id").GetInt64();
+        var runUrl = run.GetProperty("html_url").GetString() ?? string.Empty;
+        var eventType = run.TryGetProperty("event", out var e) ? e.GetString() : "unknown";
+        var headSha = run.GetProperty("head_sha").GetString() ?? string.Empty;
+        var shortHash = headSha.Length >= AppConstants.GitShortHashLength ? headSha[..AppConstants.GitShortHashLength] : headSha;
+        var actualBranch = run.TryGetProperty("head_branch", out var b) ? b.GetString() : branch ?? "unknown";
+
+        if (!string.Equals(eventType, "push", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogDebug("Skipping run {RunId} ({EventType}) - only 'push' events are valid for branch subscriptions", runId, eventType);
+            return null;
+        }
+
+        if (!string.IsNullOrEmpty(branch) && !string.Equals(actualBranch, branch, StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogDebug("Skipping run {RunId} ({ActualBranch}) - does not match requested branch {Branch}", runId, actualBranch, branch);
+            return null;
+        }
+
+        var createdAt = DateTime.MinValue;
+        try
+        {
+            createdAt = run.GetProperty("created_at").GetDateTime();
+        }
+        catch (FormatException)
+        {
+            createdAt = DateTime.MinValue;
+        }
+
+        _logger.LogDebug("Checking run {RunId} on branch {Branch} ({Hash}) for artifacts...", runId, actualBranch, shortHash);
+
+        var artifactsUrl = string.Format(ApiConstants.GitHubApiRunArtifactsFormat, owner, repo, runId);
+        var artifactsResponse = await SendWithRetryAsync(client, artifactsUrl, cancellationToken);
+
+        if (artifactsResponse == null || !artifactsResponse.IsSuccessStatusCode)
+        {
+            _logger.LogWarning("Failed to fetch artifacts for run {RunId}: {Status}", runId, artifactsResponse?.StatusCode);
+            return null;
+        }
+
+        var artifactsJson = await artifactsResponse.Content.ReadAsStringAsync(cancellationToken);
+        var artifactsData = JsonSerializer.Deserialize<JsonElement>(artifactsJson);
+
+        if (!artifactsData.TryGetProperty("artifacts", out var artifacts) || artifacts.GetArrayLength() == 0)
+        {
+            _logger.LogWarning("No artifacts found for run {RunId}", runId);
+            return null;
+        }
+
+        var selectedArtifact = FindPlatformArtifactInRun(artifacts, platformFilter, null, runId, runUrl, shortHash, createdAt);
+        if (selectedArtifact != null)
+        {
+            return selectedArtifact;
+        }
+
+        _logger.LogDebug("No suitable Velopack artifacts found for current platform in run {RunId}, checking next run", runId);
+        return null;
     }
 
     private async Task<IReadOnlyList<ArtifactUpdateInfo>> FindArtifactsAsync(HttpClient client, string? branchName, int? prNumber, CancellationToken cancellationToken)
