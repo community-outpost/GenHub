@@ -1080,33 +1080,41 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task DeleteAllData()
     {
-        _logger.LogWarning("Deleting ALL application data requested");
-
-        var confirmed = await _dialogService.ShowConfirmationAsync(
-            AppConstants.DeleteAllDataConfirmationTitle,
-            AppConstants.DeleteAllDataConfirmationMessage,
-            confirmText: AppConstants.DeleteAllDataConfirmText);
-
-        if (!confirmed)
+        try
         {
-            _logger.LogInformation("Deleting ALL application data was cancelled at the confirmation prompt");
-            return;
+            _logger.LogWarning("Deleting ALL application data requested");
+
+            var confirmed = await _dialogService.ShowConfirmationAsync(
+                AppConstants.DeleteAllDataConfirmationTitle,
+                AppConstants.DeleteAllDataConfirmationMessage,
+                confirmText: AppConstants.DeleteAllDataConfirmText);
+
+            if (!confirmed)
+            {
+                _logger.LogInformation("Deleting ALL application data was cancelled at the confirmation prompt");
+                return;
+            }
+
+            await DeleteProfiles();
+            await DeleteWorkspaces();
+            await DeleteManifests();
+            await DeleteCasStorage();
+            await DeleteUserData();
+
+            // Invalidate installation cache to force re-generation of manifests on next scan
+            _installationService.InvalidateCache();
+
+            await UpdateDangerZoneDataAsync();
+            _notificationService.ShowSuccess(
+                "Data Deleted",
+                $"Profiles, workspaces, manifests, and user data were deleted. {CasDefaults.GarbageCollectionDisabledMessage}",
+                5000);
         }
-
-        await DeleteProfiles();
-        await DeleteWorkspaces();
-        await DeleteManifests();
-        await DeleteCasStorage();
-        await DeleteUserData();
-
-        // Invalidate installation cache to force re-generation of manifests on next scan
-        _installationService.InvalidateCache();
-
-        await UpdateDangerZoneDataAsync();
-        _notificationService.ShowSuccess(
-            "Data Deleted",
-            $"Profiles, workspaces, manifests, and user data were deleted. {CasDefaults.GarbageCollectionDisabledMessage}",
-            5000);
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete all application data");
+            _notificationService.ShowError("Deletion Failed", $"Failed to delete all application data: {ex.Message}", 5000);
+        }
     }
 
     [RelayCommand]

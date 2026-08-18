@@ -439,6 +439,7 @@ public class SettingsViewModelTests
     public async Task DeleteAllDataCommand_WhenConfirmationDeclined_DeletesNothingAsync()
     {
         // Arrange
+        SetupDeletableData();
         _mockDialogService
             .Setup(x => x.ShowConfirmationAsync(
                 It.IsAny<string>(),
@@ -460,6 +461,41 @@ public class SettingsViewModelTests
     }
 
     /// <summary>
+    /// Verifies that a confirmation prompt that fails to open — no main window, or an Avalonia
+    /// failure — is reported to the user instead of escaping the command unlogged, and that it still
+    /// deletes nothing.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeleteAllDataCommand_WhenConfirmationThrows_ReportsErrorAndDeletesNothingAsync()
+    {
+        // Arrange
+        SetupDeletableData();
+        _mockDialogService
+            .Setup(x => x.ShowConfirmationAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .ThrowsAsync(new InvalidOperationException("no main window"));
+
+        var viewModel = CreateViewModel();
+
+        // Act
+        await viewModel.DeleteAllDataCommand.ExecuteAsync(null);
+
+        // Assert
+        _mockNotificationService.Verify(
+            x => x.ShowError(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Once);
+        _mockUserDataTracker.Verify(x => x.DeleteAllUserDataAsync(It.IsAny<CancellationToken>()), Times.Never);
+        _mockProfileManager.Verify(x => x.DeleteProfileAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockWorkspaceManager.Verify(x => x.CleanupWorkspaceAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockManifestPool.Verify(x => x.RemoveManifestAsync(It.IsAny<ManifestId>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
     /// Verifies that accepting the confirmation prompt performs the deletion.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
@@ -467,6 +503,7 @@ public class SettingsViewModelTests
     public async Task DeleteAllDataCommand_WhenConfirmationAccepted_DeletesAllDataAsync()
     {
         // Arrange
+        SetupDeletableData();
         _mockDialogService
             .Setup(x => x.ShowConfirmationAsync(
                 It.IsAny<string>(),
@@ -522,6 +559,19 @@ public class SettingsViewModelTests
         Assert.Contains("irreversible", capturedMessage!, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("backups", capturedMessage!, StringComparison.OrdinalIgnoreCase);
         Assert.Null(capturedSessionKey);
+    }
+
+    private void SetupDeletableData()
+    {
+        _mockProfileManager
+            .Setup(x => x.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([new GameProfile { Id = "profile-to-delete" }]));
+        _mockWorkspaceManager
+            .Setup(x => x.GetAllWorkspacesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<WorkspaceInfo>>.CreateSuccess([new WorkspaceInfo { Id = "workspace-to-delete" }]));
+        _mockManifestPool
+            .Setup(x => x.GetAllManifestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([new ContentManifest { Name = "manifest-to-delete" }]));
     }
 
     private SettingsViewModel CreateViewModel() => new(
