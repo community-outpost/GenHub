@@ -396,8 +396,54 @@ public sealed partial class UserDataTrackerServiceSafetyTests : IDisposable
         Assert.True(Directory.Exists(backupsPath));
         Assert.NotEmpty(Directory.GetFiles(backupsPath, "*", SearchOption.AllDirectories));
 
-        Assert.False(File.Exists(Path.Combine(_appDataDir, "UserData", "index.json")));
-        Assert.Empty(Directory.GetFiles(Path.Combine(_appDataDir, "UserData", "manifests"), "*", SearchOption.AllDirectories));
+        // The manifests and the index are the only map from a machine-named backup file back to the
+        // path it belongs at, so retaining the backups while deleting them would strand them.
+        Assert.True(File.Exists(Path.Combine(_appDataDir, "UserData", "index.json")));
+        Assert.NotEmpty(Directory.GetFiles(Path.Combine(_appDataDir, "UserData", "manifests"), "*", SearchOption.AllDirectories));
+    }
+
+    /// <summary>
+    /// A delete-all that retains backups keeps its tracking data, so retrying it once the restores
+    /// can succeed must still finish the job rather than leave the tracking directory behind forever.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task DeleteAllUserDataAsync_RetriedAfterRetention_ClearsEverythingAsync()
+    {
+        // Arrange
+        const string originalUserContent = "the-user-original-file";
+        var deployedPath = Path.Combine(_zeroHourDataDir, "GeneralsOnlineGameData", "splash.bmp");
+        Directory.CreateDirectory(Path.GetDirectoryName(deployedPath)!);
+        File.WriteAllText(deployedPath, originalUserContent);
+
+        var installResult = await _trackerService.InstallUserDataAsync(
+            TestManifestId,
+            TestProfileId,
+            GameType.ZeroHour,
+            BuildFiles(),
+            TestVersion,
+            TestManifestName,
+            CancellationToken.None);
+        Assert.True(installResult.Success);
+
+        _fileOperationsMock
+            .Setup(f => f.CheckFileHashAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(FileHashVerification.Failed);
+
+        var firstAttempt = await _trackerService.DeleteAllUserDataAsync(CancellationToken.None);
+        Assert.False(firstAttempt.Success);
+
+        _fileOperationsMock
+            .Setup(f => f.CheckFileHashAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(FileHashVerification.Match);
+
+        // Act
+        var retry = await _trackerService.DeleteAllUserDataAsync(CancellationToken.None);
+
+        // Assert
+        Assert.True(retry.Success);
+        Assert.Equal(originalUserContent, File.ReadAllText(deployedPath));
+        Assert.Empty(Directory.GetFiles(Path.Combine(_appDataDir, "UserData"), "*", SearchOption.AllDirectories));
     }
 
     /// <summary>

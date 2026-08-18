@@ -723,10 +723,7 @@ public class UserDataTrackerService(
                     }
                 }
 
-                // 2. Clear the in-memory index
-                _cachedIndex = new UserDataIndex();
-
-                // 3. Nuke the directories to be sure
+                // 2. Nuke the directories to be sure
                 if (Directory.Exists(_userDataTrackingPath))
                 {
                     // Sanity check: ensure we're not deleting a system root or unrelated directory
@@ -740,29 +737,26 @@ public class UserDataTrackerService(
                     {
                         logger.LogInformation("[UserData] Deleting UserData directory: {Path}", _userDataTrackingPath);
                         Directory.Delete(_userDataTrackingPath, true);
+                        _cachedIndex = new UserDataIndex();
                     }
                     else
                     {
+                        // Keep the manifests and the index alongside the retained backups: they are
+                        // the only map from a machine-named backup file back to the path it belongs
+                        // at, and a later delete-all clears whatever is left once the restores work.
                         logger.LogWarning(
-                            "[UserData] One or more pristine game data backups could not be restored, so they were NOT deleted. Your originals remain at {BackupsPath}; restore them by hand or delete that folder once you no longer need them.",
+                            "[UserData] One or more pristine game data backups could not be restored, so they were NOT deleted. Your originals remain at {BackupsPath} and GenHub kept tracking them; retry the deletion or restore them by hand.",
                             _backupsPath);
-
-                        if (Directory.Exists(_manifestsPath))
-                        {
-                            Directory.Delete(_manifestsPath, true);
-                        }
-
-                        FileOperationsService.DeleteFileIfExists(_indexPath);
                     }
                 }
 
-                // 4. Re-create empty directories
+                // 3. Re-create empty directories
                 EnsureDirectoriesExist();
 
                 if (!allBackupsRestored)
                 {
                     return OperationResult<bool>.CreateFailure(
-                        $"Removed GenHub's tracked user data, but one or more pristine game data backups could not be restored. Your originals were kept at '{_backupsPath}'.");
+                        $"Removed what could be removed, but one or more pristine game data backups could not be restored. Your originals were kept at '{_backupsPath}' along with the tracking data that records where each one belongs, so the deletion can be retried.");
                 }
 
                 return OperationResult<bool>.CreateSuccess(true);
