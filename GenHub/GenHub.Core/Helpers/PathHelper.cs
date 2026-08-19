@@ -96,26 +96,6 @@ public static class PathHelper
     }
 
     /// <summary>
-    /// Determines whether a candidate path resolves to a location inside a base directory.
-    /// Both paths are fully normalized first, so <c>..</c> segments, redundant separators and
-    /// rooted candidates cannot escape the base directory. Because normalization is textual and a
-    /// symbolic link or junction redirects a path that reads as contained, both sides are also
-    /// compared after their links are followed; a path that cannot be resolved — because it does
-    /// not exist yet, or the filesystem refuses the query — is compared as written.
-    /// </summary>
-    /// <param name="baseDirectory">The directory that must contain the candidate path.</param>
-    /// <param name="candidatePath">The path to test for containment.</param>
-    /// <returns><see langword="true"/> when the candidate resolves inside the base directory; otherwise, <see langword="false"/>.</returns>
-    public static bool IsPathWithinDirectory(string baseDirectory, string candidatePath)
-    {
-        var normalizedRoot = Path.GetFullPath(baseDirectory);
-        var normalizedTarget = Path.GetFullPath(candidatePath);
-
-        return IsContained(normalizedRoot, normalizedTarget) &&
-               IsContained(FollowLinks(normalizedRoot), FollowLinks(normalizedTarget));
-    }
-
-    /// <summary>
     /// Normalizes a relative path by standardizing directory separators and removing leading separators.
     /// </summary>
     /// <param name="relativePath">The relative path to normalize.</param>

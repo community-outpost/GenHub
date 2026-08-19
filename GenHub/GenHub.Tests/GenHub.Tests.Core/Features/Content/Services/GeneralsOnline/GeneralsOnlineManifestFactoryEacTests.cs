@@ -175,6 +175,69 @@ public class GeneralsOnlineManifestFactoryEacTests : IDisposable
         Assert.Null(eacStep);
     }
 
+    /// <summary>
+    /// Verifies that an inherited EAC step is not duplicated when EAC portable layout already contains the setup executable.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_InheritedEacStep_SetupExecutablePresent_DoesNotDuplicateEacStepAsync()
+    {
+        WriteEacPortableLayout();
+
+        var originalManifest = CreateOriginalManifest();
+        originalManifest.InstallationInstructions = new InstallationInstructions
+        {
+            PostInstallSteps =
+            [
+                new InstallationStep
+                {
+                    Name = GeneralsOnlineConstants.EacStepName,
+                    Kind = InstallationStepKind.RunVerifiedInstaller,
+                    TargetRelativePath = GameClientConstants.GeneralsOnlineEacSetupExecutable,
+                },
+            ],
+        };
+
+        var gameClient = await CreateGameClientManifestAsync(originalManifest);
+
+        Assert.NotNull(gameClient.InstallationInstructions);
+        var eacSteps = gameClient.InstallationInstructions.PostInstallSteps.Where(s =>
+            string.Equals(s.TargetRelativePath, GameClientConstants.GeneralsOnlineEacSetupExecutable, StringComparison.OrdinalIgnoreCase)).ToList();
+        Assert.Single(eacSteps);
+    }
+
+    /// <summary>
+    /// Verifies that an inherited EAC step is dropped when the setup executable is absent in extracted content.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_InheritedEacStep_SetupExecutableAbsent_DropsEacStepAsync()
+    {
+        WriteFile(GameClientConstants.GeneralsOnline60HzExecutable);
+        WriteFile("libcurl.dll");
+
+        var originalManifest = CreateOriginalManifest();
+        originalManifest.InstallationInstructions = new InstallationInstructions
+        {
+            PostInstallSteps =
+            [
+                new InstallationStep
+                {
+                    Name = GeneralsOnlineConstants.EacStepName,
+                    Kind = InstallationStepKind.RunVerifiedInstaller,
+                    TargetRelativePath = GameClientConstants.GeneralsOnlineEacSetupExecutable,
+                },
+            ],
+        };
+
+        var gameClient = await CreateGameClientManifestAsync(originalManifest);
+
+        Assert.NotNull(gameClient.InstallationInstructions);
+        var eacStep = gameClient.InstallationInstructions.PostInstallSteps.FirstOrDefault(s =>
+            string.Equals(s.TargetRelativePath, GameClientConstants.GeneralsOnlineEacSetupExecutable, StringComparison.OrdinalIgnoreCase));
+        Assert.Null(eacStep);
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {
@@ -216,7 +279,7 @@ public class GeneralsOnlineManifestFactoryEacTests : IDisposable
         File.WriteAllText(fullPath, relativePath);
     }
 
-    private async Task<ContentManifest> CreateGameClientManifestAsync()
+    private async Task<ContentManifest> CreateGameClientManifestAsync(ContentManifest? originalManifest = null)
     {
         var providerLoader = new Mock<IProviderDefinitionLoader>();
         var factory = new GeneralsOnlineManifestFactory(
@@ -224,7 +287,7 @@ public class GeneralsOnlineManifestFactoryEacTests : IDisposable
             providerLoader.Object);
 
         var manifests = await factory.CreateManifestsFromExtractedContentAsync(
-            CreateOriginalManifest(),
+            originalManifest ?? CreateOriginalManifest(),
             _extractedDirectory);
 
         return manifests.Single(manifest => manifest.ContentType == ContentType.GameClient);

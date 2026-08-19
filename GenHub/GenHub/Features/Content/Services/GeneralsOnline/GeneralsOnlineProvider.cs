@@ -1,3 +1,9 @@
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
@@ -10,11 +16,6 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.ContentProviders;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.GeneralsOnline;
 
@@ -33,6 +34,7 @@ public class GeneralsOnlineProvider(
     ILogger<GeneralsOnlineProvider> logger)
     : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
+    private readonly ConcurrentDictionary<string, HashSet<string>> _preExistingManifestIdsByManifest = new(StringComparer.OrdinalIgnoreCase);
     private ProviderDefinition? _cachedProviderDefinition;
 
     /// <inheritdoc />
@@ -213,6 +215,18 @@ public class GeneralsOnlineProvider(
                     $"Cannot deliver content for manifest {manifest.Id}");
             }
 
+            var existingPool = await manifestPool.GetAllManifestsAsync(cancellationToken);
+            var preExisting = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (existingPool.Success && existingPool.Data != null)
+            {
+                foreach (var m in existingPool.Data)
+                {
+                    preExisting.Add(m.Id);
+                }
+            }
+
+            _preExistingManifestIdsByManifest[manifest.Id] = preExisting;
+
             var deliveryResult = await Deliverer.DeliverContentAsync(
                 manifest,
                 workingDirectory,
@@ -254,12 +268,15 @@ public class GeneralsOnlineProvider(
 
         try
         {
+            _preExistingManifestIdsByManifest.TryRemove(originalManifest.Id, out var preExistingIds);
+
             var allManifestsResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
             if (allManifestsResult.Success && allManifestsResult.Data != null)
             {
                 var matchingManifests = allManifestsResult.Data
                     .Where(m => string.Equals(m.Version, preparedManifest.Version, StringComparison.OrdinalIgnoreCase) &&
-                                string.Equals(m.Publisher?.PublisherType, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+                                string.Equals(m.Publisher?.PublisherType, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase) &&
+                                (preExistingIds == null || !preExistingIds.Contains(m.Id)))
                     .ToList();
 
                 foreach (var manifest in matchingManifests)
@@ -278,7 +295,7 @@ public class GeneralsOnlineProvider(
         }
         catch (Exception ex)
         {
-            Logger.LogWarning(ex, "Exception occurred during Generals Online manifest rollback for version {Version}", preparedManifest.Version);
+            Logger.LogError(ex, "Error occurred during Generals Online manifest registration rollback");
         }
     }
 }

@@ -121,12 +121,19 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that mutating steps like RemoveFile and RenameFile fail when provider is untrusted.
+    /// Verifies that mutating steps like RemoveFile and RenameFile fail and do not modify files on disk when provider is untrusted.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
     public async Task ExecutePostInstallStepsAsync_UntrustedProvider_MutatingSteps_FailExecution()
     {
+        var importantFilePath = Path.Combine(_tempDirectory, "important.dat");
+        var sourceFilePath = Path.Combine(_tempDirectory, "source.dat");
+        var destFilePath = Path.Combine(_tempDirectory, "dest.dat");
+
+        await File.WriteAllTextAsync(importantFilePath, "important content");
+        await File.WriteAllTextAsync(sourceFilePath, "source content");
+
         var manifest = CreateBaseManifest();
         manifest.InstallationInstructions = new InstallationInstructions
         {
@@ -138,6 +145,13 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
                     Kind = InstallationStepKind.RemoveFile,
                     TargetRelativePath = "important.dat",
                 },
+                new InstallationStep
+                {
+                    Name = "Rename Something",
+                    Kind = InstallationStepKind.RenameFile,
+                    TargetRelativePath = "source.dat",
+                    DestinationRelativePath = "dest.dat",
+                },
             ],
         };
 
@@ -145,6 +159,9 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
 
         Assert.False(result.Success);
         Assert.Contains("not authorized to execute installation steps", result.FirstError);
+        Assert.True(File.Exists(importantFilePath));
+        Assert.True(File.Exists(sourceFilePath));
+        Assert.False(File.Exists(destFilePath));
     }
 
     /// <summary>

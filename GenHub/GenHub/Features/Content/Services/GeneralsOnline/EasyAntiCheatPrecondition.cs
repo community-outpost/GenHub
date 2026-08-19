@@ -17,12 +17,22 @@ public class EasyAntiCheatPrecondition : IInstallationStepPrecondition
     /// <inheritdoc />
     public bool CanHandle(InstallationStep step, ContentManifest manifest)
     {
-        if (!OperatingSystem.IsWindows() || step == null)
+        if (!OperatingSystem.IsWindows() || step == null || manifest == null)
         {
             return false;
         }
 
         if (step.Kind != InstallationStepKind.RunVerifiedInstaller)
+        {
+            return false;
+        }
+
+        var isGeneralsOnline = string.Equals(
+            manifest.Publisher?.PublisherType,
+            PublisherTypeConstants.GeneralsOnline,
+            StringComparison.OrdinalIgnoreCase);
+
+        if (!isGeneralsOnline)
         {
             return false;
         }

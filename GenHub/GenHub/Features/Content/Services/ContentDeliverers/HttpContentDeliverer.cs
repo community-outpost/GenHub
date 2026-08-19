@@ -131,39 +131,40 @@ public class HttpContentDeliverer(IDownloadService downloadService, IContentMani
                         $"Failed to download {file.RelativePath}: {downloadResult.FirstError}");
                 }
 
-                // Add the delivered file using the builder preserving hash
-                if (!string.IsNullOrEmpty(file.Hash))
+                // Add the delivered file preserving InstallTarget, DownloadUrl, and hash
+                var fileInfo = new FileInfo(localPath);
+                var deliveredFile = new ManifestFile
                 {
-                    var fileInfo = new FileInfo(localPath);
-                    await deliveredManifest.AddContentAddressableFileAsync(
-                        file.RelativePath,
-                        file.Hash,
-                        fileInfo.Exists ? fileInfo.Length : file.Size,
-                        isExecutable: file.IsExecutable,
-                        permissions: file.Permissions);
-                }
-                else
-                {
-                    await deliveredManifest.AddRemoteFileAsync(
-                        file.RelativePath,
-                        file.DownloadUrl ?? string.Empty,
-                        ContentSourceType.ContentAddressable,
-                        isExecutable: file.IsExecutable,
-                        permissions: file.Permissions);
-                }
+                    RelativePath = file.RelativePath,
+                    SourceType = ContentSourceType.ContentAddressable,
+                    InstallTarget = file.InstallTarget,
+                    IsExecutable = file.IsExecutable,
+                    Hash = !string.IsNullOrEmpty(file.Hash) ? file.Hash : string.Empty,
+                    DownloadUrl = file.DownloadUrl,
+                    Size = fileInfo.Exists ? fileInfo.Length : file.Size,
+                    Permissions = file.Permissions ?? new FilePermissions { UnixPermissions = file.IsExecutable ? "755" : "644" },
+                };
+                deliveredManifest.AddFile(deliveredFile);
 
                 processedFiles++;
             }
 
-            // Add any other files (without DownloadUrl) as-is
+            // Add any other files (without DownloadUrl) preserving metadata
             foreach (var file in packageManifest.Files.Where(f => string.IsNullOrEmpty(f.DownloadUrl)))
             {
-                await deliveredManifest.AddLocalFileAsync(
-                    file.RelativePath,
-                    file.SourcePath ?? string.Empty,
-                    ContentSourceType.ContentAddressable,
-                    isExecutable: file.IsExecutable,
-                    permissions: file.Permissions);
+                var otherFile = new ManifestFile
+                {
+                    RelativePath = file.RelativePath,
+                    SourcePath = file.SourcePath ?? string.Empty,
+                    SourceType = ContentSourceType.ContentAddressable,
+                    InstallTarget = file.InstallTarget,
+                    IsExecutable = file.IsExecutable,
+                    Hash = file.Hash,
+                    DownloadUrl = file.DownloadUrl,
+                    Size = file.Size,
+                    Permissions = file.Permissions ?? new FilePermissions { UnixPermissions = file.IsExecutable ? "755" : "644" },
+                };
+                deliveredManifest.AddFile(otherFile);
             }
 
             // Add required directories

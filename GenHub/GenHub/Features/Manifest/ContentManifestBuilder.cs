@@ -512,6 +512,7 @@ public partial class ContentManifestBuilder(
         {
             RelativePath = relativePath,
             SourceType = ContentSourceType.ContentAddressable,
+            InstallTarget = DetermineInstallTarget(relativePath),
             IsExecutable = isExecutable,
             Hash = hash,
             Size = size,
@@ -614,8 +615,20 @@ public partial class ContentManifestBuilder(
     public IContentManifestBuilder WithInstallationInstructions(
         WorkspaceStrategy workspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy)
     {
-        _manifest.InstallationInstructions ??= new InstallationInstructions();
-        _manifest.InstallationInstructions.WorkspaceStrategy = workspaceStrategy;
+        if (_manifest.InstallationInstructions == null)
+        {
+            _manifest.InstallationInstructions = new InstallationInstructions { WorkspaceStrategy = workspaceStrategy };
+        }
+        else
+        {
+            _manifest.InstallationInstructions = new InstallationInstructions
+            {
+                WorkspaceStrategy = workspaceStrategy,
+                DownloadHash = _manifest.InstallationInstructions.DownloadHash,
+                PostInstallSteps = [.. _manifest.InstallationInstructions.PostInstallSteps],
+            };
+        }
+
         logger.LogDebug("Set workspace strategy: {Strategy}", workspaceStrategy);
         return this;
     }
@@ -623,7 +636,20 @@ public partial class ContentManifestBuilder(
     /// <inheritdoc />
     public IContentManifestBuilder WithInstallationInstructions(InstallationInstructions installationInstructions)
     {
-        _manifest.InstallationInstructions = installationInstructions ?? new InstallationInstructions();
+        if (installationInstructions == null)
+        {
+            _manifest.InstallationInstructions = new InstallationInstructions();
+        }
+        else
+        {
+            _manifest.InstallationInstructions = new InstallationInstructions
+            {
+                WorkspaceStrategy = installationInstructions.WorkspaceStrategy,
+                DownloadHash = installationInstructions.DownloadHash,
+                PostInstallSteps = [.. installationInstructions.PostInstallSteps],
+            };
+        }
+
         logger.LogDebug(
             "Set installation instructions with strategy {Strategy}, {PostCount} post-install steps",
             _manifest.InstallationInstructions.WorkspaceStrategy,

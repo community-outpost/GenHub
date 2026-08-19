@@ -1,8 +1,11 @@
+using System.Text.Json.Serialization;
+
 namespace GenHub.Core.Models.Enums;
 
 /// <summary>
 /// Defines the supported kind of installation operation in manifest-declared installation steps.
 /// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum InstallationStepKind
 {
     /// <summary>
