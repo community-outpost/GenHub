@@ -12,7 +12,7 @@ GenHub serves a vibrant, global Command & Conquer community across multiple oper
 We do not copy multi-gigabyte game directories or duplicate mod files. Game assets and content patches are indexed by cryptographic hash in a shared CAS pool, then hardlinked, symlinked, or atomically materialized into isolated workspaces. Switching complex mods or profiles must happen in milliseconds.
 
 ### 2. Multi-platform at the core
-Generals was a 2003 Win32 DirectX 8 title. GenHub makes it first-class on modern **Windows**, **Linux** (Wine/Proton), and **macOS** (Wine/CrossOver/native runners). Platform-specific logic (registry lookups, shortcut generation, desktop entries, macOS quarantine `xattr` removal) is strictly isolated inside platform composition hosts, keeping `GenHub.Core` completely platform-agnostic.
+Generals was a 2003 Win32 DirectX 8 title. GenHub makes it first-class on modern **Windows**, **Linux** (Wine/Proton), and **macOS** (Wine/CrossOver/native runners). Platform-specific logic (registry lookups, shortcut generation, desktop entries, macOS quarantine `xattr` removal) is strictly isolated inside platform composition hosts, keeping core services portable.
 
 ### 3. Shared `development` branch & zero regressions
 Every contributor and agent targets the `development` branch. Because changes to core services (storage, reconciliation, manifests, game detectors) ripple across multiple platforms and UI bindings, we do not tolerate blind edits or speculative refactors that break downstream consumers.
@@ -86,6 +86,7 @@ This repository uses **GitNexus** to maintain an AST-parsed structural knowledge
 
 ## Code Conventions & Taste
 
+- **Coding Style Authority:** Follow `coding-style.md`.
 - **Primary Constructors:** Always use primary constructors for classes and records when dependencies are injected. Remove redundant private instance fields (e.g., `_logger = logger;`) and use constructor parameters directly in class members.
 - **Collection Types:** Prefer `IReadOnlyList<T>` / `IReadOnlyCollection<T>` over `IEnumerable<T>` for public properties and return types to ensure indexed access and avoid multi-pass LINQ enumeration.
 - **No `this.`:** Never qualify instance members with `this.`.
@@ -125,7 +126,7 @@ This repository uses **GitNexus** to maintain an AST-parsed structural knowledge
 
 ## Where code lives
 
-- `GenHub/GenHub.Core/` — Pure .NET 8 domain logic, CAS storage (`CasService`), manifest models, atomic reconciliation (`ReconciliationService`), launchers, game detectors. **Zero UI dependencies.**
+- `GenHub/GenHub.Core/` — Domain logic, CAS storage (`CasService`), manifest models, atomic reconciliation (`ReconciliationService`), launchers, game detectors, and tool plugin abstractions (`IToolPlugin`).
 - `GenHub/GenHub/` — Avalonia MVVM application, ViewModels, Views, Converters, Dialogs.
 - `GenHub/GenHub.Windows/` — Windows platform host, composition root, registry discovery, Win32 shortcuts.
 - `GenHub/GenHub.Linux/` — Linux platform host, composition root, desktop entries, Wine/Proton runner.
@@ -136,7 +137,9 @@ This repository uses **GitNexus** to maintain an AST-parsed structural knowledge
 
 ## Pull requests
 
-- Target the `development` branch.
-- Conventional commit titles in plain language: `feat(core): add CAS pool pruning support`, `fix(launch): clear quarantine on macOS game binaries`.
-- Body: the problem in a sentence or two, followed by how you fixed it.
-- One concern per PR.
+- Never make a PR unless the developer explicitly asks you to do so.
+- Conventional commit titles, plain language: `fix(core): CAS pool pruning handles locked files`.
+- Body: the problem in a sentence or two, then how you fixed it. End with the model and harness that did the work.
+- UI changes need before/after images. Motion or timing needs a short video.
+- One concern per PR. If the description says "also", split it.
+- When babysitting: poll checks and comments newer than the last push, verify each bot finding against the source, fix real ones, dismiss false positives with a written reason. Stay quiet when nothing is new. Stop when the bots are green on the latest commit.
