@@ -32,15 +32,6 @@ jobs:
         with:
           node-version: 22
 
-      - name: Cache GitNexus Graph
-        id: cache-gitnexus
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: .gitnexus
-          key: gitnexus-${{ runner.os }}-${{ github.sha }}
-          restore-keys: |
-            gitnexus-${{ runner.os }}-
-
       - name: Analyze Codebase
         run: |
           npx -y gitnexus@1.6.9 analyze --force --index-only
@@ -52,9 +43,10 @@ jobs:
         run: |
           echo "### 🔍 GitNexus Blast Radius & Change Impact" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          set -o pipefail
+          set +e
           npx -y gitnexus@1.6.9 detect-changes 2>&1 | tee -a $GITHUB_STEP_SUMMARY
           EXIT_CODE=${PIPESTATUS[0]}
+          set -e
           echo '```' >> $GITHUB_STEP_SUMMARY
           exit $EXIT_CODE
 

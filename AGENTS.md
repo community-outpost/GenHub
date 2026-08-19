@@ -150,7 +150,6 @@ This repository uses **GitNexus** to maintain an AST-parsed structural knowledge
 - `GenHub/GenHub.MacOS/` — macOS platform host, composition root, `.app` bundle hooks, quarantine `xattr` removal.
 - `GenHub/GenHub.Tests/` — Partitioned test suites (`Core`, `Windows`, `Linux`, `MacOS`).
 - `docs/` — Architecture documentation, Result pattern guide (`docs/dev/result-pattern.md`), Constants reference (`docs/dev/constants.md`).
-- `.vs/tree.md` — Project file tree for fast service/manager discovery.
 
 ## Pull requests
 
