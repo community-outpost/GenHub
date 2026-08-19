@@ -44,9 +44,8 @@ public class UserSettingsService : IUserSettingsService
     private readonly ILogger<UserSettingsService> _logger;
     private readonly IAppConfiguration _appConfig;
     private readonly object _lock = new();
-    private string _settingsFilePath = string.Empty;
+    private SettingsFileTarget _target = SettingsFileTarget.Unverified(string.Empty);
     private UserSettings _settings = new();
-    private bool _settingsLoaded;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="UserSettingsService"/> class.
@@ -63,7 +62,11 @@ public class UserSettingsService : IUserSettingsService
     /// </summary>
     /// <param name="logger">Logger instance.</param>
     /// <param name="appConfig">Application configuration service.</param>
-    /// <param name="initialize">Whether to perform normal initialization.</param>
+    /// <param name="initialize">
+    /// Whether to read the settings from disk. When <see langword="false"/> the service starts from
+    /// defaults with no file it is allowed to write, until <see cref="SetSettingsFilePath"/>
+    /// establishes one.
+    /// </param>
     protected UserSettingsService(ILogger<UserSettingsService> logger, IAppConfiguration appConfig, bool initialize)
     {
         _logger = logger;
@@ -72,13 +75,6 @@ public class UserSettingsService : IUserSettingsService
         if (initialize)
         {
             InitializeSettings();
-        }
-        else
-        {
-            // For testing - set defaults but don't load from file
-            _settingsFilePath = string.Empty;
-            _settings = new UserSettings();
-            _settingsLoaded = true;
         }
     }
 
@@ -129,13 +125,7 @@ public class UserSettingsService : IUserSettingsService
 
             // Only update internal state if no exception occurred
             _settings = settingsCopy;
-
-            // If the settings file path was changed, update the internal field
-            if (!string.IsNullOrWhiteSpace(_settings.SettingsFilePath) &&
-                !PathHelper.AreSamePath(_settings.SettingsFilePath, _settingsFilePath))
-            {
-                _settingsFilePath = _settings.SettingsFilePath;
-            }
+            RetargetLocked(_settings.SettingsFilePath);
 
             _logger.LogDebug("Settings updated in memory");
         }
@@ -152,12 +142,7 @@ public class UserSettingsService : IUserSettingsService
             accepted = applyChanges(_settings);
             if (accepted)
             {
-                // propagate any internal path updates
-                if (!string.IsNullOrWhiteSpace(_settings.SettingsFilePath) &&
-                    !PathHelper.AreSamePath(_settings.SettingsFilePath, _settingsFilePath))
-                {
-                    _settingsFilePath = _settings.SettingsFilePath;
-                }
+                RetargetLocked(_settings.SettingsFilePath);
             }
         }
 
@@ -183,25 +168,29 @@ public class UserSettingsService : IUserSettingsService
     /// </summary>
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
     /// <returns>A task that represents the asynchronous save operation.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the settings file the save would write has not been verified as safe to
+    /// overwrite, either because it could not be read or because the in-memory settings came from
+    /// a different file.
+    /// </exception>
     public async Task SaveAsync(CancellationToken cancellationToken = default)
     {
         UserSettings settingsToSave;
-        string pathToSave;
-        bool settingsLoaded;
+        SettingsFileTarget target;
         lock (_lock)
         {
-            pathToSave = _settingsFilePath;
+            target = _target;
             settingsToSave = Get();
-            settingsLoaded = _settingsLoaded;
         }
 
-        if (!settingsLoaded)
+        var pathToSave = target.Path;
+        if (!target.CanWrite)
         {
             _logger.LogError(
-                "Refusing to save settings to {Path}: the existing settings could not be read, so the in-memory settings are defaults rather than the user's values",
+                "Refusing to save settings to {Path}: the settings held in memory were not read from it, so saving would replace its contents with unrelated values",
                 pathToSave);
             throw new InvalidOperationException(
-                "User settings were never loaded successfully; saving would overwrite the existing settings file with defaults.");
+                $"The settings file '{pathToSave}' was never read into the current settings; saving would overwrite it with values that did not come from it.");
         }
 
         try
@@ -235,17 +224,34 @@ public class UserSettingsService : IUserSettingsService
     }
 
     /// <summary>
-    /// Sets the settings file path for testing purposes.
+    /// Adopts <paramref name="path"/> as the settings file, reading it into the in-memory settings.
+    /// This is the "start using this file" move, and it necessarily discards the settings currently
+    /// held in memory, which is why the settings the user is editing are never re-pointed through it.
     /// </summary>
     /// <param name="path">The path to set.</param>
     /// <exception cref="ArgumentException">Thrown when <paramref name="path"/> is null, empty, or consists only of white-space characters.</exception>
     protected void SetSettingsFilePath(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path, nameof(path));
-        _settingsFilePath = path;
-        _settings = LoadSettings(path, out var outcome);
-        _settingsLoaded = outcome != SettingsLoadOutcome.Failed;
+
+        lock (_lock)
+        {
+            _settings = LoadSettings(path, out var outcome);
+            _target = TargetFor(path, outcome);
+        }
     }
+
+    /// <summary>
+    /// Pairs a settings file with what reading it produced, so a path can never be adopted without
+    /// the read that decides whether writing it is safe.
+    /// </summary>
+    /// <param name="path">The settings file that was read.</param>
+    /// <param name="outcome">What reading it produced.</param>
+    /// <returns>The target the service should hold.</returns>
+    private static SettingsFileTarget TargetFor(string path, SettingsLoadOutcome outcome) =>
+        outcome == SettingsLoadOutcome.Failed
+            ? SettingsFileTarget.Unverified(path)
+            : SettingsFileTarget.Verified(path);
 
     private static void NormalizeAndValidateLocked(UserSettings s, IAppConfiguration appConfig)
     {
@@ -389,6 +395,48 @@ public class UserSettingsService : IUserSettingsService
         }
     }
 
+    /// <summary>
+    /// Points saves at <paramref name="path"/> on behalf of a user who edited the settings file
+    /// location, reading it first so the move cannot leave the service treating an unread file as
+    /// safe to overwrite.
+    /// </summary>
+    /// <remarks>
+    /// A path that already holds settings is adopted as the write target but left unverified, so
+    /// <see cref="SaveAsync"/> refuses instead of replacing that file with values derived from a
+    /// different one. Refusing rather than reloading is the only reading of the request that
+    /// destroys nothing: the file keeps its contents and the user keeps the edits they were saving,
+    /// and the ambiguity between "start using this file" and "save my settings there" is theirs to
+    /// resolve. Recovery needs no extra state, because pointing back at the verified file, or at
+    /// the same path once it no longer holds settings, verifies the target again.
+    /// </remarks>
+    /// <param name="path">The requested settings file path. A blank path leaves the target alone.</param>
+    private void RetargetLocked(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        var moved = _target.MoveTo(path);
+        if (moved.CanWrite)
+        {
+            _target = moved;
+            return;
+        }
+
+        LoadSettings(path, out var outcome);
+        if (outcome == SettingsLoadOutcome.Absent)
+        {
+            _target = SettingsFileTarget.Verified(path);
+            return;
+        }
+
+        _logger.LogError(
+            "Refusing to adopt {Path} as the settings file: it already holds settings that the settings in memory were not read from, so saving there would replace them",
+            path);
+        _target = moved;
+    }
+
     private string GetDefaultSettingsFilePath()
     {
         if (_appConfig == null)
@@ -445,7 +493,7 @@ public class UserSettingsService : IUserSettingsService
     /// Loads the settings and resolves the path they are persisted to.
     /// </summary>
     /// <remarks>
-    /// A failure here leaves <see cref="_settingsLoaded"/> false, which blocks <see cref="SaveAsync"/>
+    /// A failure here leaves the target unverified, which blocks <see cref="SaveAsync"/>
     /// rather than letting the session persist defaults over a settings file that was never read.
     /// That covers both the exceptions that escape to the outer catch and the ones
     /// <see cref="LoadSettings"/> swallows, which is why the source it read has to report whether it
@@ -462,25 +510,26 @@ public class UserSettingsService : IUserSettingsService
             var initialSettings = LoadSettings(ResolveSettingsSourcePath(defaultPath), out var outcome);
 
             // If the user has a custom path, reload from there; otherwise keep what the default path gave us.
+            string writePath;
             if (!string.IsNullOrWhiteSpace(initialSettings.SettingsFilePath) &&
                 !PathHelper.AreSamePath(initialSettings.SettingsFilePath, defaultPath))
             {
-                _settingsFilePath = initialSettings.SettingsFilePath;
-                _settings = LoadSettings(_settingsFilePath, out outcome);
+                writePath = initialSettings.SettingsFilePath;
+                _settings = LoadSettings(writePath, out outcome);
             }
             else
             {
-                _settingsFilePath = defaultPath;
+                writePath = defaultPath;
                 _settings = initialSettings;
             }
 
-            _settingsLoaded = outcome != SettingsLoadOutcome.Failed;
+            _target = TargetFor(writePath, outcome);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to initialize settings, continuing with defaults and without persistence");
             _settings = new UserSettings();
-            _settingsLoaded = false;
+            _target = SettingsFileTarget.Unverified(string.Empty);
             return;
         }
 
@@ -495,5 +544,64 @@ public class UserSettingsService : IUserSettingsService
         {
             _logger.LogError(ex, "Failed to normalize settings, keeping the loaded values as they are");
         }
+    }
+
+    /// <summary>
+    /// The settings file a save writes to, paired with the file that was last verified as safe to
+    /// overwrite.
+    /// </summary>
+    /// <remarks>
+    /// The pairing is what makes the guard hold structurally. The two facts live in one immutable
+    /// value with a private constructor, so a caller cannot move the write path and leave a stale
+    /// "already read" flag behind it: the only ways to produce a target are to state that a path was
+    /// verified, to state that it was not, or to move away from a verified path, which drops the
+    /// permission to write with it.
+    /// </remarks>
+    private sealed class SettingsFileTarget
+    {
+        private SettingsFileTarget(string path, string verifiedPath)
+        {
+            Path = path;
+            VerifiedPath = verifiedPath;
+        }
+
+        /// <summary>
+        /// Gets the settings file a save writes to.
+        /// </summary>
+        public string Path { get; }
+
+        /// <summary>
+        /// Gets the settings file last verified as safe to overwrite, either because it was read
+        /// into the in-memory settings or because it held nothing a save could destroy. Empty when
+        /// no file has been verified.
+        /// </summary>
+        public string VerifiedPath { get; }
+
+        /// <summary>
+        /// Gets a value indicating whether saving writes the file the in-memory settings account
+        /// for rather than an unrelated one.
+        /// </summary>
+        public bool CanWrite => VerifiedPath.Length > 0 && PathHelper.AreSamePath(Path, VerifiedPath);
+
+        /// <summary>
+        /// Creates a target for a file that was read, or that held nothing a save could destroy.
+        /// </summary>
+        /// <param name="path">The settings file.</param>
+        /// <returns>A target that may be written.</returns>
+        public static SettingsFileTarget Verified(string path) => new(path, path);
+
+        /// <summary>
+        /// Creates a target for a file holding settings the in-memory settings do not account for.
+        /// </summary>
+        /// <param name="path">The settings file.</param>
+        /// <returns>A target that must not be written.</returns>
+        public static SettingsFileTarget Unverified(string path) => new(path, string.Empty);
+
+        /// <summary>
+        /// Moves the write path, carrying the verified file rather than the permission to write.
+        /// </summary>
+        /// <param name="path">The settings file to write from now on.</param>
+        /// <returns>The moved target, writable only when it lands back on the verified file.</returns>
+        public SettingsFileTarget MoveTo(string path) => new(path, VerifiedPath);
     }
 }
