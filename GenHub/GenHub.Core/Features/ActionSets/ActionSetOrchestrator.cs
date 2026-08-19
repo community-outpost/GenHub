@@ -30,7 +30,18 @@ public class ActionSetOrchestrator : IActionSetOrchestrator
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-        var allSets = new List<IActionSet>(actionSets ?? []);
+        var setMap = new Dictionary<string, IActionSet>(StringComparer.OrdinalIgnoreCase);
+
+        if (actionSets != null)
+        {
+            foreach (var set in actionSets)
+            {
+                if (!setMap.TryAdd(set.Id, set))
+                {
+                    _logger.LogWarning("Duplicate action set ID {Id} ignored from direct registration", set.Id);
+                }
+            }
+        }
 
         if (providers != null)
         {
@@ -38,7 +49,13 @@ public class ActionSetOrchestrator : IActionSetOrchestrator
             {
                 try
                 {
-                    allSets.AddRange(provider.GetActionSets());
+                    foreach (var set in provider.GetActionSets())
+                    {
+                        if (!setMap.TryAdd(set.Id, set))
+                        {
+                            _logger.LogWarning("Duplicate action set ID {Id} ignored from provider {Provider}", set.Id, provider.GetType().Name);
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -47,24 +64,29 @@ public class ActionSetOrchestrator : IActionSetOrchestrator
             }
         }
 
-        _actionSets = allSets;
+        _actionSets = setMap.Values.ToList();
     }
 
     /// <inheritdoc/>
     public IReadOnlyList<IActionSet> GetAllActionSets() => _actionSets.ToList();
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<IActionSet>> GetApplicableCoreFixesAsync(GameInstallation installation)
+    public async Task<IReadOnlyList<IActionSet>> GetApplicableCoreFixesAsync(GameInstallation installation, CancellationToken ct = default)
     {
         var applicable = new List<IActionSet>();
         foreach (var actionSet in _actionSets.Where(x => x.IsCoreFix))
         {
+            ct.ThrowIfCancellationRequested();
             try
             {
-                if (await actionSet.IsApplicableAsync(installation))
+                if (await actionSet.IsApplicableAsync(installation, ct))
                 {
                     applicable.Add(actionSet);
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -99,14 +121,27 @@ public class ActionSetOrchestrator : IActionSetOrchestrator
             }
 
             // Double check applicability and applied state with exception shielding
-            bool isApplicable;
+            bool isApplicable = false;
             try
             {
-                isApplicable = await actionSet.IsApplicableAsync(installation);
+                isApplicable = await actionSet.IsApplicableAsync(installation, ct);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning("Action set application cancelled by user");
+                errors.Add($"Cancelled after {successCount} of {totalCount} fixes");
+                return OperationResult<int>.CreateFailure(errors);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error checking applicability for {Title}", actionSet.Title);
+                errors.Add($"Error checking applicability for {actionSet.Title}: {ex.Message}");
+                if (actionSet.IsCrucialFix)
+                {
+                    _logger.LogError("Critical fix {Title} applicability check failed. Aborting sequence.", actionSet.Title);
+                    errors.Add($"Critical fix '{actionSet.Title}' applicability check failed. Remaining fixes were not applied.");
+                    return OperationResult<int>.CreateFailure(errors);
+                }
                 continue;
             }
 
@@ -116,14 +151,27 @@ public class ActionSetOrchestrator : IActionSetOrchestrator
                 continue;
             }
 
-            bool isApplied;
+            bool isApplied = false;
             try
             {
-                isApplied = await actionSet.IsAppliedAsync(installation);
+                isApplied = await actionSet.IsAppliedAsync(installation, ct);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning("Action set application cancelled by user");
+                errors.Add($"Cancelled after {successCount} of {totalCount} fixes");
+                return OperationResult<int>.CreateFailure(errors);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error checking applied status for {Title}", actionSet.Title);
+                errors.Add($"Error checking applied status for {actionSet.Title}: {ex.Message}");
+                if (actionSet.IsCrucialFix)
+                {
+                    _logger.LogError("Critical fix {Title} applied check failed. Aborting sequence.", actionSet.Title);
+                    errors.Add($"Critical fix '{actionSet.Title}' applied check failed. Remaining fixes were not applied.");
+                    return OperationResult<int>.CreateFailure(errors);
+                }
                 isApplied = false;
             }
 
@@ -135,7 +183,23 @@ public class ActionSetOrchestrator : IActionSetOrchestrator
 
             _logger.LogInformation("Applying fix {Current}/{Total}: {Title}", i + 1, totalCount, actionSet.Title);
 
-            var result = await actionSet.ApplyAsync(installation, ct);
+            ActionSetResult result;
+            try
+            {
+                result = await actionSet.ApplyAsync(installation, ct);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning("Action set application cancelled by user");
+                errors.Add($"Cancelled after {successCount} of {totalCount} fixes");
+                return OperationResult<int>.CreateFailure(errors);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error applying {Title}", actionSet.Title);
+                result = new ActionSetResult(false, ex.Message);
+            }
+
             if (result.Success)
             {
                 successCount++;

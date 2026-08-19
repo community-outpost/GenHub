@@ -191,11 +191,11 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
 
             if (hasFailures)
             {
-                logger.LogWarning("Firewall rules applied with one or more failures: {Details}", string.Join("; ", details));
-                return new ActionSetResult(false, "Failed to create one or more firewall rules", details);
+                logger.LogWarning("Firewall exceptions applied with one or more failures");
+                return new ActionSetResult(false, "Failed to add one or more firewall rules.", details);
             }
 
-            logger.LogInformation("Firewall rules applied. Details: {Details}", string.Join("; ", details));
+            logger.LogInformation("Firewall rules added");
             return new ActionSetResult(true, null, details);
         }
         catch (Exception ex)
@@ -213,35 +213,74 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
 
         try
         {
+            details.Add("Removing firewall rules...");
+            bool hasFailures = false;
+
+            // Run firewall commands asynchronously to avoid UI blocking
             await Task.Run(
                 () =>
             {
-                // Remove all GP rules (like GenPatcher does - runs multiple times for duplicates)
-                var rulesToRemove = new[]
+                // Remove port rules
+                if (RemoveFirewallRule(PortRuleUdp16000))
                 {
-                    PortRuleUdp16000,
-                    PortRuleUdp16001,
-                    PortRuleTcp16001,
-                    GeneralsRule,
-                    GeneralsGameDatRule,
-                    ZeroHourRule,
-                    ZeroHourGameDatRule,
-                };
-
-                foreach (var ruleName in rulesToRemove)
+                    details.Add($"✓ Removed rule: {PortRuleUdp16000}");
+                }
+                else
                 {
-                    // Remove multiple times in case of duplicates (like GenPatcher)
-                    for (int i = 0; i < 3; i++)
-                    {
-                        RemoveFirewallRule(ruleName);
-                    }
+                    hasFailures = true;
+                    details.Add($"⚠ Failed to remove rule: {PortRuleUdp16000}");
+                }
 
-                    details.Add($"✓ Removed rule: {ruleName}");
+                if (RemoveFirewallRule(PortRuleUdp16001))
+                {
+                    details.Add($"✓ Removed rule: {PortRuleUdp16001}");
+                }
+                else
+                {
+                    hasFailures = true;
+                    details.Add($"⚠ Failed to remove rule: {PortRuleUdp16001}");
+                }
+
+                if (RemoveFirewallRule(PortRuleTcp16001))
+                {
+                    details.Add($"✓ Removed rule: {PortRuleTcp16001}");
+                }
+                else
+                {
+                    hasFailures = true;
+                    details.Add($"⚠ Failed to remove rule: {PortRuleTcp16001}");
+                }
+
+                // Remove Generals executable rules
+                if (RemoveFirewallRule(GeneralsRule))
+                {
+                    details.Add($"✓ Removed rule: {GeneralsRule}");
+                }
+
+                if (RemoveFirewallRule(GeneralsGameDatRule))
+                {
+                    details.Add($"✓ Removed rule: {GeneralsGameDatRule}");
+                }
+
+                // Remove Zero Hour executable rules
+                if (RemoveFirewallRule(ZeroHourRule))
+                {
+                    details.Add($"✓ Removed rule: {ZeroHourRule}");
+                }
+
+                if (RemoveFirewallRule(ZeroHourGameDatRule))
+                {
+                    details.Add($"✓ Removed rule: {ZeroHourGameDatRule}");
                 }
             },
                 cancellationToken);
 
             logger.LogInformation("Firewall rules removed");
+            if (hasFailures)
+            {
+                return new ActionSetResult(false, "Failed to remove one or more firewall rules.", details);
+            }
+
             return new ActionSetResult(true, null, details);
         }
         catch (Exception ex)
@@ -273,8 +312,9 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
                 _ = process.StandardError.ReadToEnd();
                 process.WaitForExit();
 
-                // GenPatcher checks: if output contains "No rules", rule doesn't exist
-                return !output.Contains("No rules", StringComparison.OrdinalIgnoreCase);
+                return process.ExitCode == ProcessConstants.ExitCodeSuccess &&
+                       !string.IsNullOrWhiteSpace(output) &&
+                       !output.Contains("No rules", StringComparison.OrdinalIgnoreCase);
             }
 
             return false;
@@ -309,7 +349,7 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
                 _ = process.StandardOutput.ReadToEnd();
                 _ = process.StandardError.ReadToEnd();
                 process.WaitForExit();
-                return process.ExitCode == 0;
+                return process.ExitCode == ProcessConstants.ExitCodeSuccess;
             }
 
             return false;
@@ -344,7 +384,7 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
                 _ = process.StandardOutput.ReadToEnd();
                 _ = process.StandardError.ReadToEnd();
                 process.WaitForExit();
-                return process.ExitCode == 0;
+                return process.ExitCode == ProcessConstants.ExitCodeSuccess;
             }
 
             return false;
@@ -376,7 +416,7 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
                 _ = process.StandardOutput.ReadToEnd();
                 _ = process.StandardError.ReadToEnd();
                 process.WaitForExit();
-                return process.ExitCode == 0;
+                return process.ExitCode == ProcessConstants.ExitCodeSuccess;
             }
 
             return false;

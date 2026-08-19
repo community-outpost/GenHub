@@ -41,7 +41,7 @@ public class DisableOriginInGame(ILogger<DisableOriginInGame> logger) : BaseActi
     /// <inheritdoc/>
     public override Task<bool> IsAppliedAsync(GameInstallation installation)
     {
-        return Task.FromResult(File.Exists(_markerPath));
+        return Task.FromResult(IsOriginOverlayDisabled() || File.Exists(_markerPath));
     }
 
     /// <inheritdoc/>
@@ -54,14 +54,15 @@ public class DisableOriginInGame(ILogger<DisableOriginInGame> logger) : BaseActi
             if (!originInstalled)
             {
                 logger.LogInformation("Origin is not installed. No action needed.");
-                return Task.FromResult(new ActionSetResult(true));
+                return Task.FromResult(new ActionSetResult(true, null, ["Origin is not installed. No action needed."]));
             }
 
             // Check if overlay is already disabled
             if (IsOriginOverlayDisabled())
             {
                 logger.LogInformation("Origin in-game overlay is already disabled.");
-                return Task.FromResult(new ActionSetResult(true));
+                WriteMarker();
+                return Task.FromResult(new ActionSetResult(true, null, ["Origin in-game overlay is already disabled."]));
             }
 
             // Provide guidance for disabling Origin overlay
@@ -72,24 +73,12 @@ public class DisableOriginInGame(ILogger<DisableOriginInGame> logger) : BaseActi
             logger.LogInformation("3. Select 'Origin In-Game'");
             logger.LogInformation("4. Uncheck 'Enable Origin In-Game'");
             logger.LogInformation("5. Click 'Save'");
-            logger.LogInformation(string.Empty);
-            logger.LogInformation("Alternatively, you can disable it per game:");
-            logger.LogInformation("1. Right-click on Generals or Zero Hour in Origin");
-            logger.LogInformation("2. Select 'Game Properties'");
-            logger.LogInformation("3. Uncheck 'Enable Origin In-Game for this game'");
-            logger.LogInformation("4. Click 'Save'");
 
-            try
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(_markerPath)!);
-                File.WriteAllText(_markerPath, DateTime.UtcNow.ToString());
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to create marker file for DisableOriginInGame");
-            }
+            WriteMarker();
 
-            return Task.FromResult(new ActionSetResult(true, null, ["Please manually disable Origin in-game overlay. See logs for details."]));
+            return Task.FromResult(new ActionSetResult(true, null, [
+                "Please manually disable Origin in-game overlay in Origin Application Settings > Origin In-Game > Uncheck Enable Origin In-Game."
+            ]));
         }
         catch (Exception ex)
         {
@@ -101,22 +90,52 @@ public class DisableOriginInGame(ILogger<DisableOriginInGame> logger) : BaseActi
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        logger.LogWarning("Disable Origin In-Game Fix is informational only. No undo action needed.");
-        return Task.FromResult(new ActionSetResult(true));
+        try
+        {
+            if (File.Exists(_markerPath))
+            {
+                File.Delete(_markerPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to clean up DisableOriginInGame marker");
+        }
+
+        return Task.FromResult(new ActionSetResult(true, null, ["Origin overlay marker removed."]));
+    }
+
+    private void WriteMarker()
+    {
+        try
+        {
+            var dir = Path.GetDirectoryName(_markerPath);
+            if (!string.IsNullOrEmpty(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+
+            File.WriteAllText(_markerPath, DateTime.UtcNow.ToString("O"));
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to create marker file for DisableOriginInGame");
+        }
     }
 
     private bool IsOriginInstalled()
     {
         try
         {
-            // Check for Origin in registry
-            using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
-                RegistryConstants.OriginKeyPath,
-                false);
-
-            if (key != null)
+            // Check for Origin in 64-bit and WOW64 registry views
+            using (var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(RegistryConstants.OriginKeyPath, false))
             {
-                return true;
+                if (key != null) return true;
+            }
+
+            using (var wowKey = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(RegistryConstants.OriginKeyPathWow64, false))
+            {
+                if (wowKey != null) return true;
             }
 
             // Check for Origin processes

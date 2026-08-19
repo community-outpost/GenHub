@@ -1,14 +1,15 @@
 namespace GenHub.Windows.Features.ActionSets.UI;
 
 using System;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Windows.Features.ActionSets.Infrastructure;
 using Microsoft.Extensions.Logging;
-using System.Threading.Tasks;
 
 /// <summary>
 /// View model for an individual action set.
@@ -33,7 +34,7 @@ public partial class ActionSetViewModel(
     /// <summary>
     /// Gets the description of the action set.
     /// </summary>
-    public string Description => $"Fix ID: {ActionSet.Id}"; // Placeholder description
+    public string Description => ActionSet.Title;
 
     /// <summary>
     /// Gets a value indicating whether this is a core fix.
@@ -41,9 +42,19 @@ public partial class ActionSetViewModel(
     public bool IsCore => ActionSet.IsCoreFix;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanApply))]
+    [NotifyPropertyChangedFor(nameof(StatusDisplay))]
+    [NotifyPropertyChangedFor(nameof(StatusColor))]
+    [NotifyPropertyChangedFor(nameof(StatusBackground))]
+    [NotifyPropertyChangedFor(nameof(StatusBorder))]
     private bool isApplicable;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanApply))]
+    [NotifyPropertyChangedFor(nameof(StatusDisplay))]
+    [NotifyPropertyChangedFor(nameof(StatusColor))]
+    [NotifyPropertyChangedFor(nameof(StatusBackground))]
+    [NotifyPropertyChangedFor(nameof(StatusBorder))]
     private bool isApplied;
 
     /// <summary>
@@ -57,7 +68,7 @@ public partial class ActionSetViewModel(
     public string StatusDisplay => (IsApplied, IsApplicable) switch
     {
         (true, _) => "APPLIED",
-        (false, true) => "NOT INSTALLED",
+        (false, true) => "NOT APPLIED",
         (false, false) => "NOT APPLICABLE",
     };
 
@@ -66,9 +77,9 @@ public partial class ActionSetViewModel(
     /// </summary>
     public string StatusColor => (IsApplied, IsApplicable) switch
     {
-        (true, _) => "#44FF44",
-        (false, true) => "#FFFFFF",
-        (false, false) => "#888888",
+        (true, _) => ActionSetConstants.StatusColors.Applied,
+        (false, true) => ActionSetConstants.StatusColors.Unapplied,
+        (false, false) => ActionSetConstants.StatusColors.NotApplicable,
     };
 
     /// <summary>
@@ -112,13 +123,6 @@ public partial class ActionSetViewModel(
                 ActionSet.Title,
                 IsApplicable,
                 IsApplied);
-
-            // Notify dependent properties
-            OnPropertyChanged(nameof(CanApply));
-            OnPropertyChanged(nameof(StatusDisplay));
-            OnPropertyChanged(nameof(StatusColor));
-            OnPropertyChanged(nameof(StatusBackground));
-            OnPropertyChanged(nameof(StatusBorder));
         }
         catch (Exception ex)
         {

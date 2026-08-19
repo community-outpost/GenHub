@@ -21,6 +21,18 @@ public static class RegistryConstants
 
     // ===== VCRedist Keys =====
 
+    /// <summary>Squished (compressed) GUID for Visual C++ 2005 Redistributable x86.</summary>
+    public const string VCRedist2005SquishedGuid = "b25099274a207264182f8181add555d0";
+
+    /// <summary>Registry key for VCRedist 2005 in Installer UserData Products.</summary>
+    public const string VCRedist2005InstallerProductsKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Products\" + VCRedist2005SquishedGuid;
+
+    /// <summary>Registry key for VCRedist 2005 in WOW6432Node Installer UserData Products.</summary>
+    public const string VCRedist2005InstallerProductsKeyWow64 = @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Installer\UserData\S-1-5-18\Products\" + VCRedist2005SquishedGuid;
+
+    /// <summary>Registry key for VCRedist 2005 in Classes Installer Products.</summary>
+    public const string VCRedist2005ClassesKey = @"SOFTWARE\Classes\Installer\Products\" + VCRedist2005SquishedGuid;
+
     /// <summary>Registry key for VCRedist 2010 x86 (32-bit).</summary>
     public const string VCRedist2010x86Key = @"SOFTWARE\Microsoft\VisualStudio\10.0\VC\VCRedist\x86";
 
@@ -108,8 +120,52 @@ public static class RegistryConstants
     /// <summary>Registry key path for Origin.</summary>
     public const string OriginKeyPath = @"SOFTWARE\Origin";
 
+    /// <summary>Registry key path for Origin in WOW6432Node.</summary>
+    public const string OriginKeyPathWow64 = @"SOFTWARE\WOW6432Node\Origin";
+
     /// <summary>Registry value name for Origin Client Path.</summary>
     public const string OriginClientPathValue = "ClientPath";
+
+    // ===== WOW64 Uninstall Key =====
+
+    /// <summary>Registry key path for 32-bit Uninstall under WOW64.</summary>
+    public const string UninstallKeyPathWow64 = @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall";
+
+    // ===== TCP/IP IPv6 Parameters =====
+
+    /// <summary>Registry key path for TCPIP6 Parameters.</summary>
+    public const string Tcpip6ParametersKeyPath = @"SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters";
+
+    /// <summary>Registry value name for DisabledComponents.</summary>
+    public const string DisabledComponentsValueName = "DisabledComponents";
+
+    /// <summary>Registry DWORD value for Prefer IPv4 over IPv6 (0x20 = 32).</summary>
+    public const int PreferIPv4DisabledComponentsValue = 32;
+
+    // ===== Fonts =====
+
+    /// <summary>Registry key path for Windows Fonts.</summary>
+    public const string FontsKeyPath = @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts";
+
+    /// <summary>Registry font value name for Arial TrueType font.</summary>
+    public const string ArialFontValueName = "Arial (TrueType)";
+
+    // ===== Component Based Servicing (CBS) =====
+
+    /// <summary>Registry key path for CBS Packages.</summary>
+    public const string CbsPackagesKeyPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\Packages";
+
+    /// <summary>Registry value name for CBS InstallState.</summary>
+    public const string InstallStateValueName = "InstallState";
+
+    /// <summary>CBS InstallState: Installed (7).</summary>
+    public const int CbsInstallStateInstalled = 7;
+
+    /// <summary>CBS InstallState: Staged (112).</summary>
+    public const int CbsInstallStateStaged = 112;
+
+    /// <summary>CBS InstallState: Superseded (128).</summary>
+    public const int CbsInstallStateSuperseded = 128;
 
     // ===== WMI Constants =====
 

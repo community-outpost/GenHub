@@ -183,6 +183,48 @@ public static class ActionSetConstants
         /// Gets the directory name for sub-action set markers.
         /// </summary>
         public const string SubActionSetMarkers = "sub_markers";
+
+        /// <summary>
+        /// Gets the marker file name for remove read-only fix.
+        /// </summary>
+        public const string ReadOnlyFixMarker = ".gp_ro_fix";
+    }
+
+    /// <summary>
+    /// Default serial keys used for fallback generation.
+    /// </summary>
+    public static class Serials
+    {
+        /// <summary>
+        /// Default placeholder serial for Generals EA App installations.
+        /// </summary>
+        public const string DefaultEAAppGeneralsSerial = "GENS1234567890ABCDEF";
+
+        /// <summary>
+        /// Default placeholder serial for Zero Hour EA App installations.
+        /// </summary>
+        public const string DefaultEAAppZeroHourSerial = "ZH1234567890ABCDEFGH";
+    }
+
+    /// <summary>
+    /// UI status badge colors.
+    /// </summary>
+    public static class StatusColors
+    {
+        /// <summary>Hex color for applied state.</summary>
+        public const string Applied = "#28a745";
+
+        /// <summary>Hex color for unapplied state.</summary>
+        public const string Unapplied = "#ffc107";
+
+        /// <summary>Hex color for not applicable state.</summary>
+        public const string NotApplicable = "#6c757d";
+
+        /// <summary>Hex color for checking state.</summary>
+        public const string Checking = "#17a2b8";
+
+        /// <summary>Hex color for error state.</summary>
+        public const string Error = "#dc3545";
     }
 
     /// <summary>
@@ -194,5 +236,25 @@ public static class ActionSetConstants
         /// Minimum file size for VCRedist installers (1000 KB).
         /// </summary>
         public const long VCRedistMinSize = 1000 * 1024;
+
+        /// <summary>
+        /// Minimum file size for DirectX web setup installer (200 KB).
+        /// </summary>
+        public const long DirectXWebSetupMinSize = 200 * 1024;
+
+        /// <summary>
+        /// Minimum file size for DirectX runtime ZIP package (1 MB).
+        /// </summary>
+        public const long DirectXPackageMinSize = 1024 * 1024;
+
+        /// <summary>
+        /// Minimum file size for patch archives and installers (1 MB).
+        /// </summary>
+        public const long PatchMinSize = 1024 * 1024;
+
+        /// <summary>
+        /// Minimum file size for GenTool archive (200 KB).
+        /// </summary>
+        public const long GenToolMinSize = 200 * 1024;
     }
 }

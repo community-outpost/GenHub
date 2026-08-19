@@ -32,9 +32,10 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
     public override bool IsCrucialFix => false; // Recommended but not strictly crucial for launch (though highly recommended)
 
     /// <inheritdoc/>
+    /// <inheritdoc/>
     public override Task<bool> IsApplicableAsync(GameInstallation installation)
     {
-        return Task.FromResult(true);
+        return Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
     }
 
     /// <inheritdoc/>
@@ -48,7 +49,7 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
     /// <inheritdoc/>
     protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        var tempFile = Path.Combine(Path.GetTempPath(), "gentool_setup.zip");
+        var tempFile = Path.Combine(Path.GetTempPath(), $"gentool_setup_{Guid.NewGuid():N}.zip");
         var details = new List<string>();
 
         try
@@ -68,31 +69,33 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
                 try
                 {
                     logger.LogInformation("Attempting GenTool download from {Url}", url);
-                    using var response = await client.GetAsync(url, cancellationToken);
+                    using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
                     response.EnsureSuccessStatusCode();
 
-                    var fileSize = response.Content.Headers.ContentLength ?? 0;
-
-                    // GenTool zip is small but definitely > 100KB
-                    if (fileSize < 1024 * 100)
-                    {
-                        logger.LogWarning("Downloaded file from {Url} is too small ({Size} bytes). Likely blocked.", url, fileSize);
-                        continue;
-                    }
-
-                    details.Add($"✓ Downloaded {fileSize / 1024.0:F2} KB from {new Uri(url).Host}");
-
-                    using (var fs = new FileStream(tempFile, FileMode.Create))
+                    await using (var fs = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
                     {
                         await response.Content.CopyToAsync(fs, cancellationToken);
                     }
 
+                    var fileInfo = new FileInfo(tempFile);
+                    var fileSize = fileInfo.Length;
+
+                    // GenTool zip is small but definitely > 100KB
+                    if (fileSize < 100 * 1024)
+                    {
+                        logger.LogWarning("Downloaded file from {Url} is too small ({Size} bytes). Likely blocked.", url, fileSize);
+                        if (File.Exists(tempFile)) File.Delete(tempFile);
+                        continue;
+                    }
+
+                    details.Add($"✓ Downloaded {fileSize / 1024.0:F2} KB from {new Uri(url).Host}");
                     downloaded = true;
                     break;
                 }
                 catch (Exception ex)
                 {
                     logger.LogWarning("Failed to download from {Url}: {Error}", url, ex.Message);
+                    if (File.Exists(tempFile)) File.Delete(tempFile);
                 }
             }
 
@@ -139,7 +142,7 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
                 return new ActionSetResult(false, "d3d8.dll not found in downloaded archive.", details);
             }
 
-            // Add Defender exclusions (would require admin, currently just logging)
+            // Add Defender exclusions note
             details.Add("ℹ Note: You may need to add 'd3d8.dll' to Windows Defender exclusions manually.");
 
             return new ActionSetResult(true, null, details);
@@ -151,16 +154,16 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
         }
         finally
         {
-            if (File.Exists(tempFile))
+            try
             {
-                try
+                if (File.Exists(tempFile))
                 {
                     File.Delete(tempFile);
                 }
-                catch
-                {
-                    // Ignore temp deletion errors
-                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Failed to delete temp file {TempFile}", tempFile);
             }
         }
     }

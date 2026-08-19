@@ -163,20 +163,20 @@ public class EdgeScrollerFix(ILogger<EdgeScrollerFix> logger, IGameSettingsServi
             }
 
             // Apply scroll settings
-            tshSection[ActionSetConstants.IniFiles.ScrollEdgeZoneKey] = "0";
-            tshSection[ActionSetConstants.IniFiles.ScrollEdgeSpeedKey] = "1.0";
-            tshSection[ActionSetConstants.IniFiles.ScrollEdgeAccelerationKey] = "0.0";
+            tshSection[ActionSetConstants.IniFiles.ScrollEdgeZoneKey] = GameSettingsConstants.OptimalSettings.ScrollEdgeZone;
+            tshSection[ActionSetConstants.IniFiles.ScrollEdgeSpeedKey] = GameSettingsConstants.OptimalSettings.ScrollEdgeSpeed;
+            tshSection[ActionSetConstants.IniFiles.ScrollEdgeAccelerationKey] = GameSettingsConstants.OptimalSettings.ScrollEdgeAcceleration;
 
             // Also ensure default scroll factor is good if present
             if (tshSection.ContainsKey("ScrollFactor"))
             {
-                tshSection["ScrollFactor"] = "60";
-                details.Add($"✓ Set ScrollFactor=60 for {gameType}");
+                tshSection["ScrollFactor"] = GameSettingsConstants.OptimalSettings.ScrollFactor;
+                details.Add($"✓ Set ScrollFactor={GameSettingsConstants.OptimalSettings.ScrollFactor} for {gameType}");
             }
 
-            details.Add($"✓ Set {ActionSetConstants.IniFiles.ScrollEdgeZoneKey}=0 for {gameType}");
-            details.Add($"✓ Set {ActionSetConstants.IniFiles.ScrollEdgeSpeedKey}=1.0 for {gameType}");
-            details.Add($"✓ Set {ActionSetConstants.IniFiles.ScrollEdgeAccelerationKey}=0.0 for {gameType}");
+            details.Add($"✓ Set {ActionSetConstants.IniFiles.ScrollEdgeZoneKey}={GameSettingsConstants.OptimalSettings.ScrollEdgeZone} for {gameType}");
+            details.Add($"✓ Set {ActionSetConstants.IniFiles.ScrollEdgeSpeedKey}={GameSettingsConstants.OptimalSettings.ScrollEdgeSpeed} for {gameType}");
+            details.Add($"✓ Set {ActionSetConstants.IniFiles.ScrollEdgeAccelerationKey}={GameSettingsConstants.OptimalSettings.ScrollEdgeAcceleration} for {gameType}");
 
             var saveResult = await gameSettingsService.SaveOptionsAsync(gameType, options);
             if (!saveResult.Success)

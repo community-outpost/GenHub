@@ -69,7 +69,7 @@ public class SerialKeyFix(
                 if (IsPlaceholder(serial)) return Task.FromResult(false);
             }
 
-            return Task.FromResult(false);
+            return Task.FromResult(true);
         }
         catch (Exception ex)
         {
@@ -86,7 +86,6 @@ public class SerialKeyFix(
         try
         {
             details.Add("Checking game serial keys...");
-            var randomSerial = GenerateRandomSerial();
             bool writeFailed = false;
 
             if (installation.HasGenerals)
@@ -94,8 +93,9 @@ public class SerialKeyFix(
                 var serial = registryService.GetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty);
                 if (IsPlaceholder(serial))
                 {
+                    var generalsSerial = GenerateRandomSerial();
                     details.Add("  Found placeholder serial for Generals. Generating new one...");
-                    if (registryService.SetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty, randomSerial))
+                    if (registryService.SetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty, generalsSerial))
                     {
                         details.Add($"  ✓ Applied new serial to {RegistryConstants.EAAppGeneralsErgcKeyPath}");
                     }
@@ -116,10 +116,9 @@ public class SerialKeyFix(
                 var serial = registryService.GetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty);
                 if (IsPlaceholder(serial))
                 {
+                    var zeroHourSerial = GenerateRandomSerial();
                     details.Add("  Found placeholder serial for Zero Hour. Generating new one...");
-
-                    // We can use the same or different serial. GenPatcher uses same for both if applied together.
-                    if (registryService.SetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty, randomSerial))
+                    if (registryService.SetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty, zeroHourSerial))
                     {
                         details.Add($"  ✓ Applied new serial to {RegistryConstants.EAAppZeroHourErgcKeyPath}");
                     }

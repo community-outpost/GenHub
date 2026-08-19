@@ -66,31 +66,39 @@ public class CncOnlineLauncherFix(
         try
         {
             details.Add("Starting C&C Online registry configuration...");
+            bool allSucceeded = true;
 
             // Create C&C Online registry entries for Generals
             if (installation.HasGenerals)
             {
                 details.Add($"Configuring C&C Online for Generals at: {installation.GeneralsPath}");
 
-                registryService.SetStringValue(
+                bool ok1 = registryService.SetStringValue(
                     RegistryConstants.CncOnlineGeneralsKeyPath,
                     RegistryConstants.InstallPathValueName,
                     installation.GeneralsPath,
                     useWow6432Node: true,
                     hive: RegistryHive.CurrentUser);
 
-                registryService.SetStringValue(
+                bool ok2 = registryService.SetStringValue(
                     RegistryConstants.CncOnlineGeneralsKeyPath,
                     RegistryConstants.VersionValueName,
                     RegistryConstants.CncOnlineGeneralsVersion,
                     useWow6432Node: true,
                     hive: RegistryHive.CurrentUser);
 
-                details.Add("✓ Created: HKCU\\SOFTWARE\\Revora\\CNCOnline\\Generals");
-                details.Add($"  • InstallPath = {installation.GeneralsPath}");
-                details.Add("  • Version = 1.08");
-
-                logger.LogInformation("Created C&C Online registry entries for Generals");
+                if (ok1 && ok2)
+                {
+                    details.Add("✓ Created: HKCU\\SOFTWARE\\Revora\\CNCOnline\\Generals");
+                    details.Add($"  • InstallPath = {installation.GeneralsPath}");
+                    details.Add($"  • Version = {RegistryConstants.CncOnlineGeneralsVersion}");
+                    logger.LogInformation("Created C&C Online registry entries for Generals");
+                }
+                else
+                {
+                    allSucceeded = false;
+                    details.Add("✗ Failed to write C&C Online registry entries for Generals");
+                }
             }
 
             // Create C&C Online registry entries for Zero Hour
@@ -98,25 +106,32 @@ public class CncOnlineLauncherFix(
             {
                 details.Add($"Configuring C&C Online for Zero Hour at: {installation.ZeroHourPath}");
 
-                registryService.SetStringValue(
+                bool ok1 = registryService.SetStringValue(
                     RegistryConstants.CncOnlineZeroHourKeyPath,
                     RegistryConstants.InstallPathValueName,
                     installation.ZeroHourPath,
                     useWow6432Node: true,
                     hive: RegistryHive.CurrentUser);
 
-                registryService.SetStringValue(
+                bool ok2 = registryService.SetStringValue(
                     RegistryConstants.CncOnlineZeroHourKeyPath,
                     RegistryConstants.VersionValueName,
                     RegistryConstants.CncOnlineZeroHourVersion,
                     useWow6432Node: true,
                     hive: RegistryHive.CurrentUser);
 
-                details.Add("✓ Created: HKCU\\SOFTWARE\\Revora\\CNCOnline\\ZeroHour");
-                details.Add($"  • InstallPath = {installation.ZeroHourPath}");
-                details.Add("  • Version = 1.04");
-
-                logger.LogInformation("Created C&C Online registry entries for Zero Hour");
+                if (ok1 && ok2)
+                {
+                    details.Add("✓ Created: HKCU\\SOFTWARE\\Revora\\CNCOnline\\ZeroHour");
+                    details.Add($"  • InstallPath = {installation.ZeroHourPath}");
+                    details.Add($"  • Version = {RegistryConstants.CncOnlineZeroHourVersion}");
+                    logger.LogInformation("Created C&C Online registry entries for Zero Hour");
+                }
+                else
+                {
+                    allSucceeded = false;
+                    details.Add("✗ Failed to write C&C Online registry entries for Zero Hour");
+                }
             }
 
             // Create main C&C Online entry
@@ -126,25 +141,38 @@ public class CncOnlineLauncherFix(
 
             details.Add("Creating main C&C Online registry entry...");
 
-            registryService.SetStringValue(
+            bool mainOk1 = registryService.SetStringValue(
                 RegistryConstants.CncOnlineKeyPath,
                 RegistryConstants.InstallPathValueName,
                 basePath,
                 useWow6432Node: true,
                 hive: RegistryHive.CurrentUser);
 
-            registryService.SetStringValue(
+            bool mainOk2 = registryService.SetStringValue(
                 RegistryConstants.CncOnlineKeyPath,
                 RegistryConstants.VersionValueName,
                 RegistryConstants.CncOnlineVersion,
                 useWow6432Node: true,
                 hive: RegistryHive.CurrentUser);
 
-            details.Add("✓ Created: HKCU\\SOFTWARE\\Revora\\CNCOnline");
-            details.Add($"  • InstallPath = {basePath}");
-            details.Add("  • Version = 1.0");
-            details.Add("✓ C&C Online registry configuration completed successfully");
+            if (mainOk1 && mainOk2)
+            {
+                details.Add("✓ Created: HKCU\\SOFTWARE\\Revora\\CNCOnline");
+                details.Add($"  • InstallPath = {basePath}");
+                details.Add($"  • Version = {RegistryConstants.CncOnlineVersion}");
+            }
+            else
+            {
+                allSucceeded = false;
+                details.Add("✗ Failed to write main C&C Online registry entries");
+            }
 
+            if (!allSucceeded)
+            {
+                return Task.FromResult(new ActionSetResult(false, "Failed to write one or more C&C Online registry entries.", details));
+            }
+
+            details.Add("✓ C&C Online registry configuration completed successfully");
             logger.LogInformation("C&C Online registry fix applied with {DetailCount} actions", details.Count);
             return Task.FromResult(new ActionSetResult(true, null, details));
         }

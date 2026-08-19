@@ -20,14 +20,14 @@ using Microsoft.Extensions.Logging;
 public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSet(logger)
 {
     // Marker file to definitively track if GenPatcher applied this fix
-    private const string MarkerFileName = ".gp_ro_fix";
+    private const string MarkerFileName = ActionSetConstants.Paths.ReadOnlyFixMarker;
 
     private static string GetUserDataPath(GameType gameType)
     {
         var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         var folder = gameType == GameType.ZeroHour
-            ? "Command and Conquer Generals Zero Hour Data"
-            : "Command and Conquer Generals Data";
+            ? GameSettingsConstants.FolderNames.ZeroHour
+            : GameSettingsConstants.FolderNames.Generals;
         return Path.Combine(documents, folder);
     }
 
@@ -275,7 +275,7 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
             // Attrib +P -U
             var psi = new ProcessStartInfo
             {
-                FileName = "powershell.exe",
+                FileName = ProcessConstants.PowerShellExecutable,
                 Arguments = $"-WindowStyle Hidden -NoProfile -NonInteractive -Command \"Get-ChildItem -Path '{path.Replace("'", "''")}' -Recurse | ForEach-Object {{ attrib +P -U $_.FullName }}\"",
                 CreateNoWindow = true,
                 UseShellExecute = false,
@@ -285,7 +285,7 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
             if (process != null)
             {
                 await process.WaitForExitAsync(ct);
-                if (process.ExitCode != 0)
+                if (process.ExitCode != ProcessConstants.ExitCodeSuccess)
                 {
                     logger.LogWarning("attrib command exited with code {Code} for {Path}", process.ExitCode, path);
                 }

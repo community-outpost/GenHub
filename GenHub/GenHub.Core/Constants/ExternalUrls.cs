@@ -82,4 +82,9 @@ public static class ExternalUrls
     /// Download URL for Intel Graphics Drivers.
     /// </summary>
     public const string IntelDriverDownloadUrl = "https://www.intel.com/content/www/us/en/download-center/home";
+
+    /// <summary>
+    /// Support URL for Windows Media Feature Pack.
+    /// </summary>
+    public const string WindowsMediaFeaturePackSupportUrl = "https://support.microsoft.com/en-us/windows/media-feature-pack-for-windows-10-11-n-and-kn-editions-8007a829-873b-e0cf-dd4e-9d2fa7848fbb";
 }

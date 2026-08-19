@@ -126,7 +126,7 @@ public class GameRangerRunAsAdmin(ILogger<GameRangerRunAsAdmin> logger) : BaseAc
             foreach (var subKeyName in key.GetSubKeyNames())
             {
                 using var subKey = key.OpenSubKey(subKeyName, false);
-                if (subKey?.GetValue("DisplayName") is string displayName && displayName.Contains("GameRanger", StringComparison.OrdinalIgnoreCase))
+                if (subKey?.GetValue(RegistryConstants.DisplayNameValueName) is string displayName && displayName.Contains("GameRanger", StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
@@ -142,7 +142,7 @@ public class GameRangerRunAsAdmin(ILogger<GameRangerRunAsAdmin> logger) : BaseAc
         {
             // Check for GameRanger in registry (HKLM, WOW6432Node, HKCU)
             if (CheckUninstallKey(Microsoft.Win32.Registry.LocalMachine, RegistryConstants.UninstallKeyPath)) return true;
-            if (CheckUninstallKey(Microsoft.Win32.Registry.LocalMachine, @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall")) return true;
+            if (CheckUninstallKey(Microsoft.Win32.Registry.LocalMachine, RegistryConstants.UninstallKeyPathWow64)) return true;
             if (CheckUninstallKey(Microsoft.Win32.Registry.CurrentUser, RegistryConstants.UninstallKeyPath)) return true;
 
             // Check for GameRanger processes

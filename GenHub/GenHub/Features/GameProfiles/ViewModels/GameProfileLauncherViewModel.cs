@@ -415,51 +415,19 @@ public partial class GameProfileLauncherViewModel(
 
                 if (existingItem != null)
                 {
-                    // Preserve the running state before updating
-                    var wasRunning = existingItem.IsProcessRunning;
-                    var processId = existingItem.ProcessId;
-                    var workspaceId = existingItem.ActiveWorkspaceId;
+                    existingItem.UpdateFromProfile(profile);
 
-                    // Update the profile data
-                    var gameTypeStr = profile.GameClient?.GameType.ToString() ?? "ZeroHour";
-
-                    var iconPath = !string.IsNullOrEmpty(profile.IconPath)
-                        ? profile.IconPath
-                        : UriConstants.DefaultIconUri;
-
-                    var coverPath = !string.IsNullOrEmpty(profile.CoverPath)
-                        ? profile.CoverPath
-                        : profileResourceService.GetDefaultCoverPath(gameTypeStr);
-
-                    var newItem = new GameProfileItemViewModel(
-                        profile.Id,
-                        profile,
-                        iconPath,
-                        coverPath)
+                    if (!string.IsNullOrEmpty(profile.IconPath))
                     {
-                        LaunchAction = LaunchProfileAsync,
-                        EditProfileAction = EditProfile,
-                        DeleteProfileAction = DeleteProfile,
-                        CreateShortcutAction = CreateShortcut,
-                    };
-
-                    // Restore the running state
-                    if (wasRunning)
-                    {
-                        newItem.IsProcessRunning = true;
-                        newItem.ProcessId = processId;
+                        existingItem.IconPath = profile.IconPath;
                     }
 
-                    // Restore workspace state
-                    if (!string.IsNullOrEmpty(workspaceId))
+                    if (!string.IsNullOrEmpty(profile.CoverPath))
                     {
-                        newItem.UpdateWorkspaceStatus(workspaceId, profile.WorkspaceStrategy ?? WorkspaceConstants.DefaultWorkspaceStrategy);
+                        existingItem.CoverPath = profile.CoverPath;
                     }
 
-                    var index = Profiles.IndexOf(existingItem);
-                    Profiles[index] = newItem;
-
-                    logger.LogInformation("Refreshed profile {ProfileId} (Running: {IsRunning})", profileId, wasRunning);
+                    logger.LogInformation("Refreshed profile {ProfileId} in-place (Running: {IsRunning})", profileId, existingItem.IsProcessRunning);
                 }
             }
         }
@@ -806,8 +774,6 @@ public partial class GameProfileLauncherViewModel(
             // Logic must match GameInstallationService.GenerateAndPoolManifestForGameTypeAsync to ensure ID alignment
             string installationManifestId;
             if (string.IsNullOrEmpty(gameClient.Version) ||
-                gameClient.Version.Equals("Unknown", StringComparison.OrdinalIgnoreCase) ||
-                gameClient.Version.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) ||
                 gameClient.Version.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase))
             {
                 // For unknown/auto versions, use the default version for the game type (1.04/1.08)

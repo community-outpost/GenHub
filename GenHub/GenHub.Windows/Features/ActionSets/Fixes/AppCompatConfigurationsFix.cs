@@ -37,7 +37,11 @@ public class AppCompatConfigurationsFix(
     public override bool IsCrucialFix => true;
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation) => Task.FromResult(true);
+    /// <inheritdoc/>
+    public override Task<bool> IsApplicableAsync(GameInstallation installation)
+    {
+        return Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
+    }
 
     /// <inheritdoc/>
     public override Task<bool> IsAppliedAsync(GameInstallation installation)
@@ -92,16 +96,25 @@ public class AppCompatConfigurationsFix(
             details.Add($"Compatibility flags: {flag}");
             details.Add(string.Empty);
 
+            bool allSucceeded = true;
+
             if (installation.HasGenerals)
             {
                 details.Add($"Processing Generals executables: {installation.GeneralsPath}");
-                await ProcessExecutablesAsync(installation.GeneralsPath, GeneralsExecutables, flag, details, ct);
+                var ok = await ProcessExecutablesAsync(installation.GeneralsPath, GeneralsExecutables, flag, details, ct);
+                if (!ok) allSucceeded = false;
             }
 
             if (installation.HasZeroHour)
             {
                 details.Add($"Processing Zero Hour executables: {installation.ZeroHourPath}");
-                await ProcessExecutablesAsync(installation.ZeroHourPath, ZeroHourExecutables, flag, details, ct);
+                var ok = await ProcessExecutablesAsync(installation.ZeroHourPath, ZeroHourExecutables, flag, details, ct);
+                if (!ok) allSucceeded = false;
+            }
+
+            if (!allSucceeded)
+            {
+                return new ActionSetResult(false, "Failed to apply compatibility flags to one or more executables.", details);
             }
 
             details.Add("✓ Windows compatibility configuration completed successfully");
@@ -122,10 +135,11 @@ public class AppCompatConfigurationsFix(
         return Task.FromResult(new ActionSetResult(true));
     }
 
-    private async Task ProcessExecutablesAsync(string installPath, IReadOnlyList<string> executables, string flag, List<string> details, CancellationToken ct)
+    private async Task<bool> ProcessExecutablesAsync(string installPath, IReadOnlyList<string> executables, string flag, List<string> details, CancellationToken ct)
     {
         int processedCount = 0;
         int defenderCount = 0;
+        bool allSucceeded = true;
 
         foreach (var exe in executables)
         {
@@ -144,11 +158,13 @@ public class AppCompatConfigurationsFix(
                 }
                 else
                 {
+                    allSucceeded = false;
                     details.Add($"  ✗ Failed to set flags for: {exe}");
                 }
             }
             catch (Exception ex)
             {
+                allSucceeded = false;
                 logger.LogWarning(ex, "Failed to set registry flag for {Path}", fullPath);
                 details.Add($"  ✗ Failed to set flags for: {exe}");
             }
@@ -168,18 +184,20 @@ public class AppCompatConfigurationsFix(
 
         details.Add($"✓ Processed {processedCount} executables");
         details.Add($"✓ Added {defenderCount} Windows Defender exclusions");
+        return allSucceeded;
     }
 
     private async Task<bool> AddDefenderExclusionAsync(string path, CancellationToken ct)
     {
         try
         {
+            var escapedPath = path.Replace("'", "''");
             var psi = new ProcessStartInfo
             {
-                FileName = "powershell.exe",
-                Arguments = $"-WindowStyle Hidden -NoProfile -NonInteractive -Command \"Add-MpPreference -ExclusionPath \\\"{path}\\\"\"",
+                FileName = ProcessConstants.PowerShellExecutable,
+                Arguments = $"-WindowStyle Hidden -NoProfile -NonInteractive -Command \"Add-MpPreference -ExclusionPath '{escapedPath}'\"",
                 CreateNoWindow = true,
-                UseShellExecute = true, // Required for admin prompt if not already admin
+                UseShellExecute = true,
                 Verb = "runas",
             };
 
@@ -187,7 +205,7 @@ public class AppCompatConfigurationsFix(
             if (process != null)
             {
                 await process.WaitForExitAsync(ct);
-                return process.ExitCode == 0;
+                return process.ExitCode == ProcessConstants.ExitCodeSuccess;
             }
 
             return false;

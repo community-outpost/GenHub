@@ -37,9 +37,10 @@ public class VCRedist2005Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
     public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
+    /// <inheritdoc/>
     public override Task<bool> IsApplicableAsync(GameInstallation installation)
     {
-        return Task.FromResult(true);
+        return Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
     }
 
     /// <inheritdoc/>
@@ -49,14 +50,11 @@ public class VCRedist2005Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
 
         try
         {
-            using var key1 = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Classes\Installer\Products\b25099274a207264182f8181ad555dd0");
+            using var key1 = Registry.LocalMachine.OpenSubKey(RegistryConstants.VCRedist2005InstallerProductsKey);
             if (key1 != null) return Task.FromResult(true);
 
-            using var key2 = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Classes\Installer\Products\b25099274a207264182f8181add555d0");
+            using var key2 = Registry.LocalMachine.OpenSubKey(RegistryConstants.VCRedist2005InstallerProductsKeyWow64);
             if (key2 != null) return Task.FromResult(true);
-
-            using var key3 = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\Classes\Installer\Products\b25099274a207264182f8181ad555dd0");
-            if (key3 != null) return Task.FromResult(true);
         }
         catch
         {
@@ -68,7 +66,7 @@ public class VCRedist2005Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
     /// <inheritdoc/>
     protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        var tempFile = Path.Combine(Path.GetTempPath(), "vcredist_2005_x86.exe");
+        var tempFile = Path.Combine(Path.GetTempPath(), $"vcredist_2005_x86_{Guid.NewGuid():N}.exe");
         var details = new List<string>();
 
         try
@@ -89,7 +87,7 @@ public class VCRedist2005Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
                     using var response = await client.GetAsync(url, cancellationToken);
                     response.EnsureSuccessStatusCode();
 
-                    using (var fs = new FileStream(tempFile, FileMode.Create))
+                    await using (var fs = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
                     {
                         await response.Content.CopyToAsync(fs, cancellationToken);
                     }
@@ -98,6 +96,7 @@ public class VCRedist2005Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
                     if (new FileInfo(tempFile).Length < ActionSetConstants.Validation.VCRedistMinSize)
                     {
                         logger.LogWarning("Downloaded file too small, likely corrupt.");
+                        if (File.Exists(tempFile)) File.Delete(tempFile);
                         continue;
                     }
 
@@ -108,6 +107,7 @@ public class VCRedist2005Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
                 catch (Exception ex)
                 {
                     logger.LogWarning("Failed to download from {Url}: {Error}", url, ex.Message);
+                    if (File.Exists(tempFile)) File.Delete(tempFile);
                 }
             }
 
@@ -130,8 +130,7 @@ public class VCRedist2005Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
 
             await process.WaitForExitAsync(cancellationToken);
 
-            // 3010 = Reboot required
-            if (process.ExitCode == 0 || process.ExitCode == 3010)
+            if (process.ExitCode == ProcessConstants.ExitCodeSuccess || process.ExitCode == ProcessConstants.ExitCodeRebootRequired)
             {
                 details.Add("✓ Visual C++ 2005 installed successfully.");
                 return new ActionSetResult(true, null, details);
@@ -145,15 +144,16 @@ public class VCRedist2005Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
         }
         finally
         {
-            if (File.Exists(tempFile))
+            try
             {
-                try
+                if (File.Exists(tempFile))
                 {
                     File.Delete(tempFile);
                 }
-                catch
-                {
-                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Failed to delete temp file {TempFile}", tempFile);
             }
         }
     }

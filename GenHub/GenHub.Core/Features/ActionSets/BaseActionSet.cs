@@ -35,10 +35,29 @@ public abstract class BaseActionSet : IActionSet
     public abstract bool IsCrucialFix { get; }
 
     /// <inheritdoc/>
-    public abstract Task<bool> IsApplicableAsync(GameInstallation installation);
+    /// <inheritdoc/>
+    public virtual Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
+        => IsApplicableAsync(installation);
+
+    /// <summary>
+    /// Checks if the action set is applicable to the installation.
+    /// </summary>
+    /// <param name="installation">The game installation to check.</param>
+    /// <returns>A task returning true if applicable.</returns>
+    public virtual Task<bool> IsApplicableAsync(GameInstallation installation)
+        => Task.FromResult(true);
 
     /// <inheritdoc/>
-    public abstract Task<bool> IsAppliedAsync(GameInstallation installation);
+    public virtual Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
+        => IsAppliedAsync(installation);
+
+    /// <summary>
+    /// Checks if the action set has already been applied.
+    /// </summary>
+    /// <param name="installation">The game installation to check.</param>
+    /// <returns>A task returning true if applied.</returns>
+    public virtual Task<bool> IsAppliedAsync(GameInstallation installation)
+        => Task.FromResult(false);
 
     /// <inheritdoc/>
     public async Task<ActionSetResult> ApplyAsync(GameInstallation installation, CancellationToken ct = default)
@@ -57,6 +76,11 @@ public abstract class BaseActionSet : IActionSet
             }
 
             return result;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogWarning("ActionSet {Title} ({Id}) application was cancelled", Title, Id);
+            throw;
         }
         catch (Exception ex)
         {
@@ -82,6 +106,11 @@ public abstract class BaseActionSet : IActionSet
             }
 
             return result;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogWarning("ActionSet {Title} ({Id}) undo was cancelled", Title, Id);
+            throw;
         }
         catch (Exception ex)
         {

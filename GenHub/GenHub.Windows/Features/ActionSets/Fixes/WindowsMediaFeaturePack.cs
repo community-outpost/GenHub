@@ -78,12 +78,12 @@ public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : 
             logger.LogInformation("5. Click 'Install'");
             logger.LogInformation(string.Empty);
             logger.LogInformation("Alternatively, you can download it from Microsoft website:");
-            logger.LogInformation("https://support.microsoft.com/en-us/help/4033582/windows-media-feature-pack");
+            logger.LogInformation("{Url}", ExternalUrls.WindowsMediaFeaturePackSupportUrl);
 
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(_markerPath)!);
-                File.WriteAllText(_markerPath, DateTime.UtcNow.ToString());
+                File.WriteAllText(_markerPath, DateTime.UtcNow.ToString("O"));
             }
             catch (Exception ex)
             {
@@ -102,8 +102,19 @@ public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : 
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        logger.LogWarning("Windows Media Feature Pack Fix is informational only. No undo action needed.");
-        return Task.FromResult(new ActionSetResult(true));
+        try
+        {
+            if (File.Exists(_markerPath))
+            {
+                File.Delete(_markerPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to delete marker file.");
+        }
+
+        return Task.FromResult(new ActionSetResult(true, null, ["Media Feature Pack marker removed."]));
     }
 
     private bool IsMediaFeaturePackInstalled()
@@ -112,7 +123,7 @@ public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : 
         {
             // Check for Media Feature Pack in registry
             using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
-                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\Packages",
+                RegistryConstants.CbsPackagesKeyPath,
                 false);
 
             if (key != null)
@@ -124,8 +135,11 @@ public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : 
                         using var subKey = key.OpenSubKey(subKeyName, false);
                         if (subKey != null)
                         {
-                            var installStateVal = subKey.GetValue("InstallState");
-                            if (installStateVal is int stateInt && (stateInt == 112 || stateInt == 7 || stateInt == 128))
+                            var installStateVal = subKey.GetValue(RegistryConstants.InstallStateValueName);
+                            if (installStateVal is int stateInt &&
+                                (stateInt == RegistryConstants.CbsInstallStateStaged ||
+                                 stateInt == RegistryConstants.CbsInstallStateInstalled ||
+                                 stateInt == RegistryConstants.CbsInstallStateSuperseded))
                             {
                                 logger.LogInformation("Found Media Feature Pack: {Package}", subKeyName);
                                 return true;

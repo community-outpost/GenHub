@@ -457,9 +457,9 @@ These fixes improve compatibility with Windows features and third-party software
 
 ---
 
-### CNCOnlineRegistryFix
+### CncOnlineLauncherFix
 
-**Purpose**: Creates registry entries for C&C Online (Revora) multiplayer service.
+**Purpose**: Creates registry entries for C&C Online (Revora) multiplayer launcher service.
 
 **What It Does**:
 
@@ -834,7 +834,7 @@ These fixes provide additional improvements and guidance but are not essential f
 
 ## Fix Categories
 
-### Automated Fixes (21)
+### Automated Fixes (20)
 
 These fixes automatically apply changes without user intervention:
 
@@ -842,24 +842,24 @@ These fixes automatically apply changes without user intervention:
 2. DbgHelpFix
 3. EAAppRegistryFix
 4. MyDocumentsPathCompatibility
-5. VCRedist2010Fix
-6. RemoveReadOnlyFix
-7. AppCompatConfigurationsFix
-8. DirectXRuntimeFix
-9. Patch104Fix
-10. Patch108Fix
-11. OptionsINIFix
-12. OneDriveFix
-13. EdgeScrollerFix
-14. TheFirstDecadeRegistryFix
-15. CNCOnlineRegistryFix
-16. NetworkPrivateProfileFix
-17. PreferIPv4Fix
-18. FirewallExceptionFix
-19. SerialKeyFix
-20. CncOnlineLauncherFix
-21. Patch104Fix (Official)
-22. Patch108Fix (Official)
+5. VCRedist2005Fix
+6. VCRedist2008Fix
+7. VCRedist2010Fix
+8. RemoveReadOnlyFix
+9. AppCompatConfigurationsFix
+10. DirectXRuntimeFix
+11. Patch104Fix
+12. Patch108Fix
+13. OptionsINIFix
+14. OneDriveFix
+15. EdgeScrollerFix
+16. TheFirstDecadeRegistryFix
+17. CncOnlineLauncherFix
+18. NetworkPrivateProfileFix
+19. PreferIPv4Fix
+20. FirewallExceptionFix
+21. SerialKeyFix
+22. GenToolFix
 
 ### Network Optimization Fixes (3)
 
@@ -897,6 +897,8 @@ Fixes are applied in the following recommended order for optimal results:
 1. **Critical Fixes** (must be applied first):
    - RemoveReadOnlyFix
    - MyDocumentsPathCompatibility
+   - VCRedist2005Fix
+   - VCRedist2008Fix
    - VCRedist2010Fix
    - DirectXRuntimeFix
    - Patch108Fix (Generals only)
@@ -908,8 +910,10 @@ Fixes are applied in the following recommended order for optimal results:
    - AppCompatConfigurationsFix
    - EdgeScrollerFix
    - TheFirstDecadeRegistryFix
-   - CNCOnlineRegistryFix
+   - CncOnlineLauncherFix
    - EAAppRegistryFix
+   - SerialKeyFix
+   - GenToolFix
 
 3. **Network Optimization Fixes** (apply for better multiplayer):
    - NetworkPrivateProfileFix
@@ -951,10 +955,10 @@ public interface IActionSet
     bool IsCoreFix { get; }
     bool IsCrucialFix { get; }
 
-    Task<bool> IsApplicableAsync(GameInstallation installation);
-    Task<bool> IsAppliedAsync(GameInstallation installation);
-    Task<ActionSetResult> ApplyAsync(GameInstallation installation, IProgress<double>? progress, CancellationToken ct);
-    Task<ActionSetResult> UndoAsync(GameInstallation installation, IProgress<double>? progress, CancellationToken ct);
+    Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default);
+    Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default);
+    Task<ActionSetResult> ApplyAsync(GameInstallation installation, IProgress<double>? progress = null, CancellationToken ct = default);
+    Task<ActionSetResult> UndoAsync(GameInstallation installation, IProgress<double>? progress = null, CancellationToken ct = default);
 }
 ```
 
@@ -963,11 +967,12 @@ public interface IActionSet
 All fixes return `ActionSetResult` with the following structure:
 
 ```csharp
-public record ActionSetResult(bool Success, string? ErrorMessage = null);
+public record ActionSetResult(bool Success, string? ErrorMessage = null, IReadOnlyList<string>? Details = null);
 ```
 
 - `Success`: Indicates whether the fix was applied successfully
 - `ErrorMessage`: Optional error message if the fix failed
+- `Details`: Optional list of human-readable detail lines generated during execution
 
 ### Dependency Injection
 

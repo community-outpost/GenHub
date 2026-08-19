@@ -34,6 +34,16 @@ public static class ProcessConstants
     /// </summary>
     public const int ExitCodeAccessDenied = 5;
 
+    /// <summary>
+    /// Exit code indicating success with reboot required (Windows Installer standard).
+    /// </summary>
+    public const int ExitCodeRebootRequired = 3010;
+
+    /// <summary>
+    /// PowerShell executable name.
+    /// </summary>
+    public const string PowerShellExecutable = "powershell.exe";
+
     // Windows API constants
 
     /// <summary>
