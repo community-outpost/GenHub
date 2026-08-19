@@ -99,10 +99,10 @@ public class AppUpdateConstantsTests
     [Fact]
     public void ParallelDownload_Constants_ShouldHaveExpectedValues()
     {
-        Assert.Equal(65536, AppUpdateConstants.DefaultStreamBufferSize);
-        Assert.Equal(8 * 1024 * 1024, AppUpdateConstants.DownloadChunkSizeBytes);
-        Assert.Equal(6, AppUpdateConstants.ParallelDownloadConcurrency);
-        Assert.Equal(8 * 1024 * 1024, AppUpdateConstants.ParallelDownloadThresholdBytes);
+        Assert.Equal(131072, AppUpdateConstants.DefaultStreamBufferSize);
+        Assert.Equal(2 * 1024 * 1024, AppUpdateConstants.DownloadChunkSizeBytes);
+        Assert.Equal(8, AppUpdateConstants.ParallelDownloadConcurrency);
+        Assert.Equal(4 * 1024 * 1024, AppUpdateConstants.ParallelDownloadThresholdBytes);
         Assert.True(AppUpdateConstants.ParallelDownloadConcurrency > 0);
         Assert.True(AppUpdateConstants.DownloadChunkSizeBytes > 0);
     }

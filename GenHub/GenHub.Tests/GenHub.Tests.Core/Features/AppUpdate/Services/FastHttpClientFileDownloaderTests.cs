@@ -117,12 +117,12 @@ public class FastHttpClientFileDownloaderTests : IDisposable
     [Fact]
     public async Task DownloadFile_ParallelRange_ValidAssembly_ShouldDownloadAndVerifyContentAsync()
     {
-        // 16 MB file (2 chunks of 8 MB)
-        var totalBytes = AppUpdateConstants.DownloadChunkSizeBytes * 2;
+        // 6 MB file (3 chunks of 2 MB)
+        var totalBytes = AppUpdateConstants.DownloadChunkSizeBytes * 3;
         var sourceBytes = new byte[totalBytes];
         new Random(42).NextBytes(sourceBytes);
 
-        var progressHistory = new ConcurrentBag<int>();
+        var progressHistory = new ConcurrentQueue<int>();
 
         var handler = new TestHttpMessageHandler(request =>
         {
@@ -168,7 +168,7 @@ public class FastHttpClientFileDownloaderTests : IDisposable
         await downloader.DownloadFile(
             "https://github.com/community-outpost/GenHub/releases/download/v1.0.0/test.bin",
             targetFile,
-            progressHistory.Add,
+            progressHistory.Enqueue,
             null,
             30);
 
@@ -386,7 +386,7 @@ public class FastHttpClientFileDownloaderTests : IDisposable
         var totalBytes = AppUpdateConstants.DownloadChunkSizeBytes * 3; // 24 MB
         var sourceBytes = new byte[totalBytes];
 
-        var progressHistory = new ConcurrentBag<int>();
+        var progressHistory = new ConcurrentQueue<int>();
 
         var handler = new TestHttpMessageHandler(request =>
         {
@@ -424,7 +424,7 @@ public class FastHttpClientFileDownloaderTests : IDisposable
         var downloader = new FastHttpClientFileDownloader(_mockLogger.Object, handler);
         var targetFile = Path.Combine(_tempDirectory, "progress-test.bin");
 
-        await downloader.DownloadFile("https://example.com/file.bin", targetFile, progressHistory.Add, null, 30);
+        await downloader.DownloadFile("https://example.com/file.bin", targetFile, progressHistory.Enqueue, null, 30);
 
         var progressList = progressHistory.ToList();
 
