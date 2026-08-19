@@ -188,7 +188,7 @@ public class MainViewModelTests
 
         var vm = new MainViewModel(
             gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
-            downloadsViewModel: CreateDownloadsViewModel(configProvider),
+            downloadsBrowserViewModel: CreateDownloadsBrowserViewModel(configProvider),
             toolsViewModel: toolsVm,
             settingsViewModel: settingsVm,
             notificationManager: mockNotificationManager.Object,
@@ -235,7 +235,7 @@ public class MainViewModelTests
 
         var vm = new MainViewModel(
             gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
-            downloadsViewModel: CreateDownloadsViewModel(configProvider),
+            downloadsBrowserViewModel: CreateDownloadsBrowserViewModel(configProvider),
             toolsViewModel: toolsVm,
             settingsViewModel: settingsVm,
             notificationManager: mockNotificationManager.Object,
@@ -285,7 +285,7 @@ public class MainViewModelTests
 
         var vm = new MainViewModel(
             gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
-            downloadsViewModel: CreateDownloadsViewModel(configProvider),
+            downloadsBrowserViewModel: CreateDownloadsBrowserViewModel(configProvider),
             toolsViewModel: toolsVm,
             settingsViewModel: settingsVm,
             notificationManager: mockNotificationManager.Object,
@@ -336,7 +336,7 @@ public class MainViewModelTests
 
         var vm = new MainViewModel(
             gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
-            downloadsViewModel: CreateDownloadsViewModel(configProvider),
+            downloadsBrowserViewModel: CreateDownloadsBrowserViewModel(configProvider),
             toolsViewModel: toolsVm,
             settingsViewModel: settingsVm,
             notificationManager: mockNotificationManager.Object,
@@ -415,7 +415,7 @@ public class MainViewModelTests
 
         var vm = new MainViewModel(
             gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
-            downloadsViewModel: CreateDownloadsViewModel(configProvider),
+            downloadsBrowserViewModel: CreateDownloadsBrowserViewModel(configProvider),
             toolsViewModel: toolsVm,
             settingsViewModel: settingsVm,
             notificationManager: mockNotificationManager.Object,
@@ -500,7 +500,7 @@ public class MainViewModelTests
 
         using var vm = new MainViewModel(
             gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
-            downloadsViewModel: CreateDownloadsViewModel(configProvider),
+            downloadsBrowserViewModel: CreateDownloadsBrowserViewModel(configProvider),
             toolsViewModel: toolsVm,
             settingsViewModel: settingsVm,
             notificationManager: mockNotificationManager.Object,

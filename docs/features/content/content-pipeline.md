@@ -213,7 +213,7 @@ Factories create proper `ContentManifest` objects after downloading, handling pu
 
 | Factory | Publisher | Features |
 |---------|-----------|----------|
-| `ModDBManifestFactory` | ModDB | ID format: `1.YYYYMMDD.moddb-{author}.{type}.{name}` |
+| `ModDBManifestFactory` | ModDB | ID format: `1.YYYYMMDD.moddb.{type}.{name}` |
 | `CNCLabsManifestFactory` | CNC Labs | Map-specific metadata |
 | `AODMapsManifestFactory` | AOD Maps | Referer header handling |
 | `GitHubManifestFactory` | GitHub | Release asset handling |
@@ -257,7 +257,7 @@ var manifest = manifestBuilder
     .WithPublisher(
         name: "ModDB - Author Name",
         website: "https://moddb.com",
-        publisherType: "moddb-author")
+        publisherType: "moddb")
     .WithMetadata(
         description: details.Description,
         tags: ["mod", "zerohour"],
@@ -286,7 +286,7 @@ await manifest.AddDownloadedFileAsync(
 
 ## Manifest ID System
 
-**Documentation**: [manifest-id-system.md](../dev/manifest-id-system.md)
+**Documentation**: [manifest-id-system.md](../../dev/manifest-id-system.md)
 
 IDs follow a deterministic format:
 
@@ -296,7 +296,7 @@ IDs follow a deterministic format:
 
 **Examples**:
 
-- `1.20190826.moddb-hanpatch.mod.hanpatchv32` - ModDB mod
+- `1.20190826.moddb.mod.hanpatchv32` - ModDB mod
 - `1.0.zerohour.gameinstallation` - Base game
 
 ---
@@ -421,7 +421,7 @@ services.AddTransient<IContentManifestFactory, MyPublisherManifestFactory>();
 
 ## Related Documentation
 
-- [Provider Configuration](./provider-configuration.md) - Data-driven provider settings
-- [Discovery Flow](../FlowCharts/Discovery-Flow.md) - Visual discovery workflow
-- [Manifest ID System](../dev/manifest-id-system.md) - ID generation rules
-- [Manifest Factories](./publisher-manifest-factories.md) - Factory pattern details
+- [Publisher Configuration](./publisher-configuration.md) - Data-driven publisher settings
+- [Discovery Flow](../../FlowCharts/Discovery-Flow.md) - Visual discovery workflow
+- [Manifest ID System](../../dev/manifest-id-system.md) - ID generation rules
+- [Publisher Infrastructure](./publisher-infrastructure.md) - Clean architecture for content publishers

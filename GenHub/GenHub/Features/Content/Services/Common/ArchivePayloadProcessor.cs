@@ -79,6 +79,13 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                         }
                     }
                 }
+
+                var remainingArchives = FindArchiveFiles(extractedDirectory, contentType);
+                if (remainingArchives.Count > 0)
+                {
+                    throw new InvalidDataException(
+                        $"Payload contains nested archives exceeding maximum extraction depth of {MaxNestedExtractionDepth}: {string.Join(", ", remainingArchives.Select(Path.GetFileName))}");
+                }
             },
             cancellationToken);
     }
@@ -445,13 +452,6 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                     $"Archive exceeds maximum entry count of {CatalogConstants.MaxZipEntryCount}");
             }
 
-            totalUncompressedSize += entry.Size;
-            if (totalUncompressedSize > CatalogConstants.MaxZipUncompressedSizeBytes)
-            {
-                throw new InvalidDataException(
-                    $"Archive exceeds maximum uncompressed size of {CatalogConstants.MaxZipUncompressedSizeBytes} bytes");
-            }
-
             if (Path.IsPathRooted(entry.Key))
             {
                 throw new InvalidDataException($"Archive entry has an unsafe path: {entry.Key}");
@@ -471,11 +471,31 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 Directory.CreateDirectory(destinationDir);
             }
 
-            entry.WriteToFile(destinationPath, new ExtractionOptions
+            using var entryStream = entry.OpenEntryStream();
+            CopyEntryWithCap(entryStream, destinationPath, ref totalUncompressedSize, cancellationToken);
+        }
+    }
+
+    private static void CopyEntryWithCap(
+        Stream source,
+        string destinationPath,
+        ref long totalBytesWritten,
+        CancellationToken cancellationToken)
+    {
+        using var dest = File.Create(destinationPath);
+        var buffer = new byte[81920];
+        var read = 0;
+        while ((read = source.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            totalBytesWritten += read;
+            if (totalBytesWritten > CatalogConstants.MaxZipUncompressedSizeBytes)
             {
-                ExtractFullPath = false,
-                Overwrite = true,
-            });
+                throw new InvalidDataException(
+                    $"Archive exceeds maximum uncompressed size of {CatalogConstants.MaxZipUncompressedSizeBytes} bytes");
+            }
+
+            dest.Write(buffer, 0, read);
         }
     }
 
@@ -517,13 +537,6 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                         $"Archive exceeds maximum entry count of {CatalogConstants.MaxZipEntryCount}");
                 }
 
-                totalUncompressedSize += entry.Length;
-                if (totalUncompressedSize > CatalogConstants.MaxZipUncompressedSizeBytes)
-                {
-                    throw new InvalidDataException(
-                        $"Archive exceeds maximum uncompressed size of {CatalogConstants.MaxZipUncompressedSizeBytes} bytes");
-                }
-
                 if (Path.IsPathRooted(entry.FullName))
                 {
                     throw new InvalidDataException($"Archive entry has an unsafe path: {entry.FullName}");
@@ -542,10 +555,15 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                     Directory.CreateDirectory(destinationDir);
                 }
 
-                entry.ExtractToFile(destinationPath, overwrite: true);
+                using var entryStream = entry.Open();
+                CopyEntryWithCap(entryStream, destinationPath, ref totalUncompressedSize, cancellationToken);
             }
 
             return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (InvalidDataException)
         {
@@ -583,6 +601,10 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             ExtractSharpCompressArchive(archive, extractPath, cancellationToken);
             return true;
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (InvalidDataException)
         {
             throw;
@@ -598,6 +620,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         string extractPath,
         CancellationToken cancellationToken)
     {
+        var stagingDir = Path.Combine(extractPath, "_sim_staging_" + Guid.NewGuid().ToString("N"));
         try
         {
             using var stream = File.OpenRead(archivePath);
@@ -614,15 +637,27 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 return false;
             }
 
-            var records = ParseSmartInstallMakerFileTable(fileTableData);
+            var records = ParseSmartInstallMakerFileTable(fileTableData, stream, payloadOffset);
             if (records.Count == 0)
             {
                 return false;
             }
 
-            var extractRoot = Path.GetFullPath(extractPath);
-            var extractedCount = ExtractSmartInstallMakerPayload(stream, payloadOffset, records, extractRoot, cancellationToken);
-            return extractedCount > 0;
+            Directory.CreateDirectory(stagingDir);
+            var stagingRoot = Path.GetFullPath(stagingDir);
+            var extractedCount = ExtractSmartInstallMakerPayload(stream, payloadOffset, records, stagingRoot, cancellationToken);
+            if (extractedCount != records.Count)
+            {
+                throw new InvalidDataException(
+                    $"Smart Install Maker extraction incomplete: extracted {extractedCount} of {records.Count} entries.");
+            }
+
+            PromoteDirectoryContents(stagingDir, extractPath);
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (InvalidDataException)
         {
@@ -632,26 +667,44 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         {
             return false;
         }
+        finally
+        {
+            try
+            {
+                if (Directory.Exists(stagingDir))
+                {
+                    Directory.Delete(stagingDir, recursive: true);
+                }
+            }
+            catch
+            {
+                // Best effort cleanup
+            }
+        }
     }
 
     private static (byte[]? TableData, long PayloadOffset) ReadSmartInstallMakerMetadata(Stream stream)
     {
         using var reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen: true);
 
-        var blocks = new List<(long Pos, int CompSize, byte CompType, long DataStart)>();
-        var blockIdx = 0;
-        while (stream.Position < stream.Length - 13)
+        (long Pos, int CompSize, byte CompType, long DataStart)? secondToLastBlock = null;
+        (long Pos, int CompSize, byte CompType, long DataStart)? lastBlock = null;
+        var blockCount = 0;
+        const int MaxBlockWalkCount = 100_000;
+
+        while (stream.Position < stream.Length - 13 && blockCount < MaxBlockWalkCount)
         {
             var pos = stream.Position;
-            _ = blockIdx == 0 ? reader.ReadInt16() : reader.ReadInt32();
+            _ = blockCount == 0 ? reader.ReadInt16() : reader.ReadInt32();
             var compSize = reader.ReadInt32();
             _ = reader.ReadInt32();
             var compType = reader.ReadByte();
             var dataLength = compSize - 5;
             var dataStart = stream.Position;
 
-            blocks.Add((pos, compSize, compType, dataStart));
-            blockIdx++;
+            secondToLastBlock = lastBlock;
+            lastBlock = (pos, compSize, compType, dataStart);
+            blockCount++;
 
             if (dataLength > 0 && stream.Position + dataLength <= stream.Length)
             {
@@ -663,13 +716,13 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             }
         }
 
-        if (blocks.Count < 2)
+        if (secondToLastBlock == null || lastBlock == null)
         {
             return (null, -1);
         }
 
-        var payloadOffset = blocks[^1].DataStart;
-        var tableBlock = blocks[^2];
+        var payloadOffset = lastBlock.Value.DataStart;
+        var tableBlock = secondToLastBlock.Value;
         if (tableBlock.CompType == 1)
         {
             stream.Position = tableBlock.DataStart + 2; // skip zlib 78-DA header
@@ -677,8 +730,15 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             using var ms = new MemoryStream();
             var buf = new byte[8192];
             var r = 0;
+            var totalDecompressed = 0L;
             while ((r = def.Read(buf, 0, buf.Length)) > 0)
             {
+                totalDecompressed += r;
+                if (totalDecompressed > CatalogConstants.MaxCatalogSizeBytes)
+                {
+                    throw new InvalidDataException("Smart Install Maker metadata table exceeds maximum allowed size.");
+                }
+
                 ms.Write(buf, 0, r);
             }
 
@@ -701,148 +761,280 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         foreach (var rec in records)
         {
             cancellationToken.ThrowIfCancellationRequested();
-
-            var pathResult = ContentPathPolicy.ResolveContainedFile(extractRoot, rec.Name);
-            if (!pathResult.Success)
-            {
-                throw new InvalidDataException($"Smart Install Maker entry has an unsafe path: {rec.Name}");
-            }
-
-            var destinationPath = pathResult.Data!;
-            var destinationDir = Path.GetDirectoryName(destinationPath);
-            if (!string.IsNullOrEmpty(destinationDir))
-            {
-                Directory.CreateDirectory(destinationDir);
-            }
-
-            var filePos = payloadOffset + rec.StreamOffset;
-            if (filePos < 0 || filePos >= stream.Length)
-            {
-                continue;
-            }
-
-            stream.Position = filePos;
-            var header = new byte[2];
-            var headerRead = stream.Read(header, 0, 2);
-            stream.Position = filePos;
-
-            long written = 0;
-
-            if (headerRead >= 2 && header[0] == 'B' && header[1] == 'Z')
-            {
-                using var bz2 = SharpCompress.Compressors.BZip2.BZip2Stream.Create(
-                    stream,
-                    SharpCompress.Compressors.CompressionMode.Decompress,
-                    decompressConcatenated: false,
-                    leaveOpen: true);
-
-                using var outStream = File.Create(destinationPath);
-                while (written < rec.UncompressedSize)
-                {
-                    var toRead = (int)Math.Min(copyBuffer.Length, rec.UncompressedSize - written);
-                    var readBytes = bz2.Read(copyBuffer, 0, toRead);
-                    if (readBytes <= 0)
-                    {
-                        break;
-                    }
-
-                    outStream.Write(copyBuffer, 0, readBytes);
-                    written += readBytes;
-                }
-            }
-            else if (headerRead >= 2 && header[0] == 0x78 && (header[1] == 0xDA || header[1] == 0x9C || header[1] == 0x01 || header[1] == 0x5E))
-            {
-                stream.Position = filePos + 2; // skip zlib header
-                using var def = new DeflateStream(stream, CompressionMode.Decompress, leaveOpen: true);
-                using var outStream = File.Create(destinationPath);
-                while (written < rec.UncompressedSize)
-                {
-                    var toRead = (int)Math.Min(copyBuffer.Length, rec.UncompressedSize - written);
-                    var readBytes = def.Read(copyBuffer, 0, toRead);
-                    if (readBytes <= 0)
-                    {
-                        break;
-                    }
-
-                    outStream.Write(copyBuffer, 0, readBytes);
-                    written += readBytes;
-                }
-            }
-            else
-            {
-                using var outStream = File.Create(destinationPath);
-                while (written < rec.UncompressedSize)
-                {
-                    var toRead = (int)Math.Min(copyBuffer.Length, rec.UncompressedSize - written);
-                    var readBytes = stream.Read(copyBuffer, 0, toRead);
-                    if (readBytes <= 0)
-                    {
-                        break;
-                    }
-
-                    outStream.Write(copyBuffer, 0, readBytes);
-                    written += readBytes;
-                }
-            }
-
-            if (written == rec.UncompressedSize)
-            {
-                extractedCount++;
-            }
+            ExtractSingleSmartInstallMakerRecord(stream, payloadOffset, rec, extractRoot, copyBuffer);
+            extractedCount++;
         }
 
         return extractedCount;
     }
 
-    private static List<(string Name, uint UncompressedSize, uint StreamOffset, uint CompressedSize)> ParseSmartInstallMakerFileTable(byte[] tableData)
+    private static void ExtractSingleSmartInstallMakerRecord(
+        Stream stream,
+        long payloadOffset,
+        (string Name, uint UncompressedSize, uint StreamOffset, uint CompressedSize) rec,
+        string extractRoot,
+        byte[] copyBuffer)
+    {
+        var pathResult = ContentPathPolicy.ResolveContainedFile(extractRoot, rec.Name);
+        if (!pathResult.Success)
+        {
+            throw new InvalidDataException($"Smart Install Maker entry has an unsafe path: {rec.Name}");
+        }
+
+        var destinationPath = pathResult.Data!;
+        var destinationDir = Path.GetDirectoryName(destinationPath);
+        if (!string.IsNullOrEmpty(destinationDir))
+        {
+            Directory.CreateDirectory(destinationDir);
+        }
+
+        var filePos = payloadOffset + rec.StreamOffset;
+        if (filePos < 0 || filePos + rec.CompressedSize > stream.Length)
+        {
+            throw new InvalidDataException($"Smart Install Maker entry '{rec.Name}' compressed range exceeds stream bounds.");
+        }
+
+        stream.Position = filePos;
+        var header = new byte[2];
+        var headerRead = stream.Read(header, 0, 2);
+        stream.Position = filePos;
+
+        var written = TryDecompressSmartInstallMakerRecord(stream, filePos, header, headerRead, destinationPath, rec.UncompressedSize, copyBuffer);
+
+        if (written != rec.UncompressedSize && filePos + rec.UncompressedSize <= stream.Length)
+        {
+            // Fallback to raw copy if sniffed decompressor failed but raw payload is available
+            stream.Position = filePos;
+            using var outStream = File.Create(destinationPath);
+            written = 0;
+            while (written < rec.UncompressedSize)
+            {
+                var toRead = (int)Math.Min(copyBuffer.Length, rec.UncompressedSize - written);
+                var readBytes = stream.Read(copyBuffer, 0, toRead);
+                if (readBytes <= 0)
+                {
+                    break;
+                }
+
+                outStream.Write(copyBuffer, 0, readBytes);
+                written += readBytes;
+            }
+        }
+
+        if (written != rec.UncompressedSize)
+        {
+            throw new InvalidDataException(
+                $"Smart Install Maker entry '{rec.Name}' decompressed size mismatch: expected {rec.UncompressedSize} bytes, got {written} bytes.");
+        }
+    }
+
+    private static long TryDecompressSmartInstallMakerRecord(
+        Stream stream,
+        long filePos,
+        byte[] header,
+        int headerRead,
+        string destinationPath,
+        uint uncompressedSize,
+        byte[] copyBuffer)
+    {
+        long written = 0;
+
+        if (headerRead >= 2 && header[0] == 'B' && header[1] == 'Z')
+        {
+            using var bz2 = SharpCompress.Compressors.BZip2.BZip2Stream.Create(
+                stream,
+                SharpCompress.Compressors.CompressionMode.Decompress,
+                decompressConcatenated: false,
+                leaveOpen: true);
+
+            using var outStream = File.Create(destinationPath);
+            while (written < uncompressedSize)
+            {
+                var toRead = (int)Math.Min(copyBuffer.Length, uncompressedSize - written);
+                var readBytes = bz2.Read(copyBuffer, 0, toRead);
+                if (readBytes <= 0)
+                {
+                    break;
+                }
+
+                outStream.Write(copyBuffer, 0, readBytes);
+                written += readBytes;
+            }
+        }
+        else if (headerRead >= 2 && header[0] == 0x78 && (header[1] == 0xDA || header[1] == 0x9C || header[1] == 0x01 || header[1] == 0x5E))
+        {
+            stream.Position = filePos + 2; // skip zlib header
+            using var def = new DeflateStream(stream, CompressionMode.Decompress, leaveOpen: true);
+            using var outStream = File.Create(destinationPath);
+            while (written < uncompressedSize)
+            {
+                var toRead = (int)Math.Min(copyBuffer.Length, uncompressedSize - written);
+                var readBytes = def.Read(copyBuffer, 0, toRead);
+                if (readBytes <= 0)
+                {
+                    break;
+                }
+
+                outStream.Write(copyBuffer, 0, readBytes);
+                written += readBytes;
+            }
+        }
+        else
+        {
+            using var outStream = File.Create(destinationPath);
+            while (written < uncompressedSize)
+            {
+                var toRead = (int)Math.Min(copyBuffer.Length, uncompressedSize - written);
+                var readBytes = stream.Read(copyBuffer, 0, toRead);
+                if (readBytes <= 0)
+                {
+                    break;
+                }
+
+                outStream.Write(copyBuffer, 0, readBytes);
+                written += readBytes;
+            }
+        }
+
+        return written;
+    }
+
+    private static List<(string Name, uint UncompressedSize, uint StreamOffset, uint CompressedSize)> ParseSmartInstallMakerFileTable(
+        byte[] tableData,
+        Stream stream,
+        long payloadOffset)
     {
         var records = new List<(string Name, uint UncompressedSize, uint StreamOffset, uint CompressedSize)>();
+        var cumulativeUncompressedSize = 0L;
+
         for (var i = 0; i < tableData.Length - 4; i++)
         {
-            if (tableData[i] == '.' && i >= 40)
+            if (tableData[i] != '.' || i < 40)
             {
-                var start = i;
-                while (start > 0 && tableData[start - 1] != 0 && tableData[start - 1] >= 32 && tableData[start - 1] <= 126)
+                continue;
+            }
+
+            if (!TryExtractSimCandidateName(tableData, i, out var name, out var nextIndex, out var startOffset))
+            {
+                continue;
+            }
+
+            i = nextIndex;
+
+            if (!IsValidSimEntryName(name))
+            {
+                continue;
+            }
+
+            if (TryReadSimRecord(tableData, startOffset, name, stream, payloadOffset, records, out var record))
+            {
+                if (records.Count >= CatalogConstants.MaxZipEntryCount)
                 {
-                    start--;
+                    throw new InvalidDataException(
+                        $"Smart Install Maker archive exceeds maximum entry count of {CatalogConstants.MaxZipEntryCount}");
                 }
 
-                var end = i;
-                while (end < tableData.Length && tableData[end] != 0 && tableData[end] >= 32 && tableData[end] <= 126)
+                cumulativeUncompressedSize += record.UncompressedSize;
+                if (cumulativeUncompressedSize > CatalogConstants.MaxZipUncompressedSizeBytes)
                 {
-                    end++;
+                    throw new InvalidDataException(
+                        $"Smart Install Maker archive exceeds maximum uncompressed size of {CatalogConstants.MaxZipUncompressedSizeBytes} bytes");
                 }
 
-                var name = Encoding.Latin1.GetString(tableData, start, end - start);
-                if (name.Contains('.') &&
-                    !name.StartsWith(' ') &&
-                    name.Length > 3 &&
-                    !name.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase) &&
-                    !name.EndsWith("Intrnl.exe", StringComparison.OrdinalIgnoreCase) &&
-                    start >= 40)
-                {
-                    var ext = Path.GetExtension(name);
-                    if (!string.IsNullOrEmpty(ext) && ext.Length <= 5)
-                    {
-                        var uncompSize = BitConverter.ToUInt32(tableData, start - 40);
-                        var streamOffset = BitConverter.ToUInt32(tableData, start - 36);
-                        var compSize = BitConverter.ToUInt32(tableData, start - 32);
-
-                        if (uncompSize > 0 &&
-                            compSize > 0 &&
-                            (ulong)uncompSize < (ulong)CatalogConstants.MaxZipUncompressedSizeBytes &&
-                            !records.Exists(r => r.Name == name && r.StreamOffset == streamOffset))
-                        {
-                            records.Add((name, uncompSize, streamOffset, compSize));
-                        }
-                    }
-
-                    i = end;
-                }
+                records.Add(record);
             }
         }
 
         return records;
+    }
+
+    private static bool TryExtractSimCandidateName(
+        byte[] tableData,
+        int dotIndex,
+        out string name,
+        out int nextIndex,
+        out int startOffset)
+    {
+        var start = dotIndex;
+        while (start > 0 && tableData[start - 1] != 0 && tableData[start - 1] >= 32 && tableData[start - 1] <= 126)
+        {
+            start--;
+        }
+
+        var end = dotIndex;
+        while (end < tableData.Length && tableData[end] != 0 && tableData[end] >= 32 && tableData[end] <= 126)
+        {
+            end++;
+        }
+
+        startOffset = start;
+        nextIndex = end;
+
+        if (start < 40 || end - start <= 3)
+        {
+            name = string.Empty;
+            return false;
+        }
+
+        name = Encoding.Latin1.GetString(tableData, start, end - start);
+        return true;
+    }
+
+    private static bool IsValidSimEntryName(string name)
+    {
+        if (!name.Contains('.') || name.StartsWith(' ') || name.Length <= 3 || name.Contains(".."))
+        {
+            return false;
+        }
+
+        if (name.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase) ||
+            name.EndsWith("Intrnl.exe", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var invalidChars = Path.GetInvalidPathChars().Concat([':', '"', '<', '>', '|', '*', '?']).ToArray();
+        if (name.IndexOfAny(invalidChars) >= 0)
+        {
+            return false;
+        }
+
+        var ext = Path.GetExtension(name);
+        return !string.IsNullOrEmpty(ext) && ext.Length <= 5;
+    }
+
+    private static bool TryReadSimRecord(
+        byte[] tableData,
+        int startOffset,
+        string name,
+        Stream stream,
+        long payloadOffset,
+        List<(string Name, uint UncompressedSize, uint StreamOffset, uint CompressedSize)> existingRecords,
+        out (string Name, uint UncompressedSize, uint StreamOffset, uint CompressedSize) record)
+    {
+        record = default;
+        var uncompSize = BitConverter.ToUInt32(tableData, startOffset - 40);
+        var streamOffset = BitConverter.ToUInt32(tableData, startOffset - 36);
+        var compSize = BitConverter.ToUInt32(tableData, startOffset - 32);
+
+        if (uncompSize == 0 || compSize == 0)
+        {
+            return false;
+        }
+
+        if ((ulong)uncompSize > (ulong)CatalogConstants.MaxZipUncompressedSizeBytes ||
+            payloadOffset + streamOffset + compSize > stream.Length)
+        {
+            return false;
+        }
+
+        if (existingRecords.Exists(r => r.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        record = (name, uncompSize, streamOffset, compSize);
+        return true;
     }
 
     private static void PurgeSystemJunk(string directory)
@@ -913,8 +1105,13 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
     private static void PromoteDirectoryContents(string sourceDirectory, string targetDirectory)
     {
-        // Use a sibling staging directory on the same filesystem/volume for fast, safe move without nesting collisions
-        var tempStaging = targetDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+        if (!Directory.Exists(sourceDirectory) ||
+            string.Equals(Path.GetFullPath(sourceDirectory), Path.GetFullPath(targetDirectory), StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var tempStaging = Path.Combine(Path.GetDirectoryName(sourceDirectory) ?? targetDirectory, Path.GetFileName(sourceDirectory))
             + "_staging_" + Guid.NewGuid().ToString("N");
 
         try
@@ -931,16 +1128,123 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                     Directory.CreateDirectory(destinationDir);
                 }
 
-                File.Move(subFile, destinationPath, overwrite: true);
+                if (File.Exists(destinationPath))
+                {
+                    var destInfo = new FileInfo(destinationPath);
+                    var srcInfo = new FileInfo(subFile);
+
+                    if (destInfo.Length == srcInfo.Length && FilesHaveIdenticalContent(subFile, destinationPath))
+                    {
+                        File.Delete(subFile);
+                        continue;
+                    }
+
+                    var newDestPath = GetNonCollidingDestinationPath(destinationPath);
+                    File.Move(subFile, newDestPath);
+                }
+                else
+                {
+                    File.Move(subFile, destinationPath);
+                }
             }
+        }
+        catch
+        {
+            try
+            {
+                if (Directory.Exists(tempStaging))
+                {
+                    if (!Directory.Exists(sourceDirectory))
+                    {
+                        Directory.Move(tempStaging, sourceDirectory);
+                    }
+                    else
+                    {
+                        foreach (var remainingFile in Directory.GetFiles(tempStaging, "*", SearchOption.AllDirectories))
+                        {
+                            var rel = Path.GetRelativePath(tempStaging, remainingFile);
+                            var backPath = Path.Combine(sourceDirectory, rel);
+                            var dir = Path.GetDirectoryName(backPath);
+                            if (!string.IsNullOrEmpty(dir))
+                            {
+                                Directory.CreateDirectory(dir);
+                            }
+
+                            File.Move(remainingFile, backPath, overwrite: true);
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Best effort rollback
+            }
+
+            throw;
         }
         finally
         {
             if (Directory.Exists(tempStaging))
             {
-                Directory.Delete(tempStaging, recursive: true);
+                try
+                {
+                    Directory.Delete(tempStaging, recursive: true);
+                }
+                catch
+                {
+                    // Best effort cleanup
+                }
             }
         }
+    }
+
+    private static string GetNonCollidingDestinationPath(string destinationPath)
+    {
+        var dir = Path.GetDirectoryName(destinationPath) ?? string.Empty;
+        var fileNameWithoutExt = Path.GetFileNameWithoutExtension(destinationPath);
+        var ext = Path.GetExtension(destinationPath);
+        var counter = 1;
+        var newDestPath = string.Empty;
+        do
+        {
+            newDestPath = Path.Combine(dir, $"{fileNameWithoutExt}_{counter}{ext}");
+            counter++;
+        }
+        while (File.Exists(newDestPath));
+
+        return newDestPath;
+    }
+
+    private static bool FilesHaveIdenticalContent(string file1, string file2)
+    {
+        const int bufferSize = 65536;
+        var buffer1 = new byte[bufferSize];
+        var buffer2 = new byte[bufferSize];
+
+        using var s1 = File.OpenRead(file1);
+        using var s2 = File.OpenRead(file2);
+
+        if (s1.Length != s2.Length)
+        {
+            return false;
+        }
+
+        var bytesRead1 = 0;
+        while ((bytesRead1 = s1.Read(buffer1, 0, bufferSize)) > 0)
+        {
+            var bytesRead2 = s2.Read(buffer2, 0, bufferSize);
+            if (bytesRead1 != bytesRead2)
+            {
+                return false;
+            }
+
+            if (!buffer1.AsSpan(0, bytesRead1).SequenceEqual(buffer2.AsSpan(0, bytesRead2)))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static void CleanupEmptyDirectories(string rootDirectory)
@@ -1039,7 +1343,6 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                     targetGame);
 
                 PromoteDirectoryContents(subDir, extractedDirectory);
-                break;
             }
         }
     }
@@ -1110,8 +1413,17 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 var bigFile = Path.ChangeExtension(gibFile, ".big");
                 if (File.Exists(bigFile))
                 {
-                    File.Delete(gibFile);
-                    logger.LogInformation("Removed redundant inactive file '{GibFile}' as '{BigFile}' already exists", gibFile, bigFile);
+                    if (FilesHaveIdenticalContent(gibFile, bigFile))
+                    {
+                        File.Delete(gibFile);
+                        logger.LogInformation("Removed duplicate identical inactive file '{GibFile}' as '{BigFile}' already exists", gibFile, bigFile);
+                    }
+                    else
+                    {
+                        var nonCollidingBigPath = GetNonCollidingDestinationPath(bigFile);
+                        File.Move(gibFile, nonCollidingBigPath);
+                        logger.LogInformation("Preserved differing inactive file '{GibFile}' by renaming to '{NewBigFile}'", gibFile, nonCollidingBigPath);
+                    }
                 }
                 else
                 {

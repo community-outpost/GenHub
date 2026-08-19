@@ -535,14 +535,23 @@ public class UserDataTrackerService(
         string absolutePath,
         CancellationToken cancellationToken = default)
     {
+        await IndexLock.WaitAsync(cancellationToken);
         try
         {
-            var index = await LoadIndexAsync(cancellationToken);
+            var index = await LoadIndexUnlockedAsync(cancellationToken);
             var normalizedPath = Path.GetFullPath(absolutePath);
 
             if (index.FileToInstallationMap.TryGetValue(normalizedPath, out var installationKey))
             {
-                return OperationResult<string?>.CreateSuccess(installationKey);
+                var manifest = await LoadUserDataManifestByKeyAsync(installationKey, cancellationToken);
+                if (manifest != null && manifest.IsActive)
+                {
+                    return OperationResult<string?>.CreateSuccess(installationKey);
+                }
+
+                // Installation is inactive or manifest no longer exists; clean up stale index mapping and persist
+                index.FileToInstallationMap.Remove(normalizedPath);
+                await SaveIndexAsync(index, cancellationToken);
             }
 
             return OperationResult<string?>.CreateSuccess(null);
@@ -551,6 +560,10 @@ public class UserDataTrackerService(
         {
             logger.LogError(ex, "[UserData] Failed to check file conflict for {Path}", absolutePath);
             return OperationResult<string?>.CreateFailure($"Failed to check file conflict: {ex.Message}");
+        }
+        finally
+        {
+            IndexLock.Release();
         }
     }
 
@@ -1357,14 +1370,13 @@ public class UserDataTrackerService(
             if (index.FileToInstallationMap.TryGetValue(normalizedPath, out var installationKey))
             {
                 var manifest = await LoadUserDataManifestByKeyAsync(installationKey, cancellationToken);
-                if (manifest != null && manifest.IsActive && File.Exists(normalizedPath))
+                if (manifest != null && manifest.IsActive)
                 {
                     return OperationResult<string?>.CreateSuccess(installationKey);
                 }
 
-                // Installation is inactive or file no longer exists on disk; clean up stale index mapping
+                // Installation is inactive or manifest no longer exists; clean up stale in-memory mapping
                 index.FileToInstallationMap.Remove(normalizedPath);
-                await SaveIndexAsync(index, cancellationToken);
             }
 
             return OperationResult<string?>.CreateSuccess(null);

@@ -286,7 +286,6 @@ public static class AppUpdateConstants
     public const int PeriodicUpdateCheckIntervalIncrementMinutes = 5;
 
     /// <summary>
->>>>>>> upstream/development
     /// Delay before exit after applying update (5 seconds).
     /// </summary>
     public static readonly TimeSpan PostUpdateExitDelay = TimeSpan.FromSeconds(5);

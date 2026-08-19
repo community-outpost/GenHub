@@ -190,7 +190,7 @@ The ModDB content provider enables discovery and acquisition of game content fro
 - **ModDBDiscoverer**: Uses Playwright to fetch listing pages with browser automation
 - **ModDBPageParser**: Universal web page parser supporting multiple page types (detail, list, file detail)
 - **ModDBResolver**: Transforms discovered items into content manifests using parsed data
-- **ModDBManifestFactory**: Generates manifest IDs with release-date versioning (format: `1.YYYYMMDD.moddb-{author}.{contentType}.{contentName}`)
+- **ModDBManifestFactory**: Generates manifest IDs with release-date versioning (format: `1.YYYYMMDD.moddb.{contentType}.{contentName}`)
 
 **Key Features:**
 
@@ -239,7 +239,7 @@ schemaVersion.userVersion.publisher.contentType.contentName
 
 **Examples:**
 
-- `1.20240315.moddb-westwood.mod.contra` (ModDB content with date versioning)
+- `1.20240315.moddb.mod.contra` (ModDB content with date versioning)
 - `1.0.themodders.gameclient.generals` (Publisher content with semantic versioning)
 - `1.108.ea.gameinstallation.zerohour` (Game installation)
 

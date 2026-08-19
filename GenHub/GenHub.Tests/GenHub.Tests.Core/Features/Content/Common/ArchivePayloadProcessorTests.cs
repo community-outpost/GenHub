@@ -461,6 +461,75 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
             "Expected ShockWaveLauncher.exe to exist.");
     }
 
+    /// <summary>
+    /// Verifies that payloads containing nested archives exceeding maximum extraction depth throw InvalidDataException.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_ExceedsMaxNestedDepth_ThrowsInvalidDataExceptionAsync()
+    {
+        // Arrange: create 6 layers of nested zips
+        Directory.CreateDirectory(_stagingDirectory);
+        var currentZip = Path.Combine(_stagingDirectory, "nested_level_6.zip");
+        {
+            using var archive = ZipFile.Open(currentZip, ZipArchiveMode.Create);
+            using var writer = new StreamWriter(archive.CreateEntry("Data/test.ini").Open());
+            await writer.WriteAsync("data=1");
+        }
+
+        for (var i = 5; i >= 1; i--)
+        {
+            var nextZip = Path.Combine(_stagingDirectory, $"nested_level_{i}.zip");
+            using (var archive = ZipFile.Open(nextZip, ZipArchiveMode.Create))
+            {
+                archive.CreateEntryFromFile(currentZip, Path.GetFileName(currentZip));
+            }
+
+            File.Delete(currentZip);
+            currentZip = nextZip;
+        }
+
+        var processor = CreateProcessor();
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            processor.ExtractArchivesSafelyAsync(_stagingDirectory));
+    }
+
+    /// <summary>
+    /// Verifies that wrapper promotion with colliding files preserving both files when content differs.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_WrapperCollisionWithDifferentContent_PreservesBothFilesAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var wrapperDir = Path.Combine(_stagingDirectory, "WrapperFolder");
+        Directory.CreateDirectory(Path.Combine(wrapperDir, "Data"));
+
+        // File at root
+        await File.WriteAllTextAsync(Path.Combine(_stagingDirectory, "Readme.txt"), "Root Readme content");
+
+        // File inside wrapper with same name but different content
+        await File.WriteAllTextAsync(Path.Combine(wrapperDir, "Readme.txt"), "Wrapper Readme content");
+        await File.WriteAllTextAsync(Path.Combine(wrapperDir, "Data", "GameData.ini"), "data=1");
+
+        var processor = CreateProcessor();
+
+        // Act
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Mod, GameType.ZeroHour);
+
+        // Assert
+        Assert.True(File.Exists(Path.Combine(_stagingDirectory, "Readme.txt")));
+        Assert.True(File.Exists(Path.Combine(_stagingDirectory, "Readme_1.txt")));
+        var rootText = await File.ReadAllTextAsync(Path.Combine(_stagingDirectory, "Readme.txt"));
+        var wrapperText = await File.ReadAllTextAsync(Path.Combine(_stagingDirectory, "Readme_1.txt"));
+        Assert.Contains("Readme content", rootText);
+        Assert.Contains("Readme content", wrapperText);
+        Assert.NotEqual(rootText, wrapperText);
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {

@@ -1644,6 +1644,33 @@ public sealed class ModDBPageParserTests
             Times.Once);
     }
 
+    /// <summary>
+    /// Verifies CanParse accepts valid ModDB HTTP(S) domains and rejects invalid or attacker origins.
+    /// </summary>
+    /// <param name="url">The URL to test.</param>
+    /// <param name="expected">The expected parseability result.</param>
+    [Theory]
+    [InlineData("https://www.moddb.com/mods/test-mod", true)]
+    [InlineData("http://moddb.com/mods/test-mod", true)]
+    [InlineData("https://media.moddb.com/downloads/test.zip", true)]
+    [InlineData("https://localhost/?source=moddb.com", false)]
+    [InlineData("https://moddb.com.attacker.example/mods/test", false)]
+    [InlineData("https://attacker-moddb.com/mods/test", false)]
+    [InlineData("not-a-valid-url", false)]
+    [InlineData("ftp://www.moddb.com/mods/test", false)]
+    public void CanParse_ValidatesSchemeAndHostCorrectly(string url, bool expected)
+    {
+        // Arrange
+        var playwright = new Mock<IPlaywrightService>();
+        var parser = new ModDBPageParser(playwright.Object, new Mock<ILogger<ModDBPageParser>>().Object);
+
+        // Act
+        var result = parser.CanParse(url);
+
+        // Assert
+        Assert.Equal(expected, result);
+    }
+
     private static async Task<IDocument> CreateDocumentAsync(string html)
     {
         var browsingContext = BrowsingContext.New(Configuration.Default);

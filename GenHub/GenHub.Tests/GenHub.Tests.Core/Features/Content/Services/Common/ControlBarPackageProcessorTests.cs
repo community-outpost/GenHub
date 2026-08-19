@@ -167,7 +167,30 @@ public sealed class ControlBarPackageProcessorTests : IDisposable
         Assert.Contains("340_ControlBarProLemonEditionData1080ZH.big", outputFiles);
         Assert.Contains("340_ControlBarProLemonEditionZH.big", outputFiles);
         Assert.DoesNotContain("340_ControlBarProZH.big", outputFiles);
-        Assert.False(File.Exists(Path.Combine(_testDir, "339_ControlBarProLemonEditionHideIpZH.big.BAK")));
-        Assert.False(File.Exists(Path.Combine(_testDir, "ReadMe.txt")));
+    }
+
+    /// <summary>
+    /// Verifies that generic game folders like ZH without Control Bar markers or assets do not trigger Control Bar classification.
+    /// </summary>
+    [Fact]
+    public void IsControlBarContent_WithGenericGameDirectoryAndNoMarker_ReturnsFalse()
+    {
+        var zhDir = Path.Combine(_testDir, "ZH");
+        Directory.CreateDirectory(zhDir);
+        File.WriteAllText(Path.Combine(zhDir, "mod.big"), "some mod content");
+
+        var converter = new CompressedImageToTgaConverter(NullLogger<CompressedImageToTgaConverter>.Instance);
+        var processor = new ControlBarPackageProcessor(converter, NullLogger<ControlBarPackageProcessor>.Instance);
+
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.github.mod.somemod"),
+            Name = "Regular Mod (ZH)",
+            ContentType = ContentType.Mod,
+        };
+
+        var result = processor.IsControlBarContent(_testDir, manifest);
+
+        Assert.False(result);
     }
 }

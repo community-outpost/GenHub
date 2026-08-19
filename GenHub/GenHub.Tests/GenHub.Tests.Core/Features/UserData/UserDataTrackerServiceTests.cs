@@ -850,4 +850,93 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         // Assert: Installation succeeds for profile B
         Assert.True(installB.Success);
     }
+
+    /// <summary>
+    /// Verifies that when a file is temporarily missing on disk but its manifest is active, conflict checking still reports conflict.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CheckFileConflictAsync_WhenFileMissingOnDiskButManifestActive_ReportsConflictAsync()
+    {
+        // Arrange
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "Maps/TempMissing/map.ini",
+                Hash = "hash-missing-test",
+                Size = 100,
+                InstallTarget = ContentInstallTarget.UserDataDirectory,
+            },
+        };
+
+        var installResult = await _trackerService.InstallUserDataAsync(
+            "missing-test-manifest",
+            "profile-missing-test",
+            GameType.ZeroHour,
+            files,
+            "1.0",
+            "Missing Test",
+            CancellationToken.None);
+
+        Assert.True(installResult.Success);
+
+        var targetPath = Path.Combine(_zeroHourDataDir, "Maps", "TempMissing", "map.ini");
+        Assert.True(File.Exists(targetPath));
+
+        // Temporarily delete the file from disk
+        File.Delete(targetPath);
+        Assert.False(File.Exists(targetPath));
+
+        // Act
+        var conflictResult = await _trackerService.CheckFileConflictAsync(targetPath, CancellationToken.None);
+
+        // Assert: Conflict is still reported because the owning manifest is active
+        Assert.True(conflictResult.Success);
+        Assert.Equal("missing-test-manifest_profile-missing-test", conflictResult.Data);
+    }
+
+    /// <summary>
+    /// Verifies that when a manifest is deactivated, CheckFileConflictAsync prunes the stale mapping and reports no conflict.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task CheckFileConflictAsync_WhenManifestDeactivated_PrunesStaleMappingAndReturnsNoConflictAsync()
+    {
+        // Arrange
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "Maps/DeactivatedCheck/map.ini",
+                Hash = "hash-deact-test",
+                Size = 100,
+                InstallTarget = ContentInstallTarget.UserDataDirectory,
+            },
+        };
+
+        var installResult = await _trackerService.InstallUserDataAsync(
+            "deact-test-manifest",
+            "profile-deact-test",
+            GameType.ZeroHour,
+            files,
+            "1.0",
+            "Deact Test",
+            CancellationToken.None);
+
+        Assert.True(installResult.Success);
+
+        var targetPath = Path.Combine(_zeroHourDataDir, "Maps", "DeactivatedCheck", "map.ini");
+
+        // Deactivate the profile
+        var deactivateResult = await _trackerService.DeactivateProfileUserDataAsync("profile-deact-test", CancellationToken.None);
+        Assert.True(deactivateResult.Success);
+
+        // Act
+        var conflictResult = await _trackerService.CheckFileConflictAsync(targetPath, CancellationToken.None);
+
+        // Assert: No conflict reported and stale mapping is pruned
+        Assert.True(conflictResult.Success);
+        Assert.Null(conflictResult.Data);
+    }
 }

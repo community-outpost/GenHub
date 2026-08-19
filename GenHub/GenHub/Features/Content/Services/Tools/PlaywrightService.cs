@@ -85,7 +85,22 @@ public class PlaywrightService(
 
         var context = await _browser.NewContextAsync(contextOptions);
 
-        return await context.NewPageAsync();
+        try
+        {
+            return await context.NewPageAsync();
+        }
+        catch
+        {
+            try
+            {
+                await context.CloseAsync();
+            }
+            catch (PlaywrightException)
+            {
+            }
+
+            throw;
+        }
     }
 
     /// <inheritdoc />
@@ -726,47 +741,40 @@ public class PlaywrightService(
             ? await CreatePersistentPageAsync(ModDBConstants.BrowserProfileName, cancellationToken)
             : await CreatePageAsync(cancellationToken: cancellationToken);
 
-        var requestHeaders = BuildSafeDownloadHeaders(configuration);
-        if (requestHeaders.Count > 0)
-        {
-            await page.SetExtraHTTPHeadersAsync(requestHeaders);
-        }
-
-        if (usePersistentModDbProfile)
-        {
-            logger.LogInformation("Using persistent ModDB browser profile for protected download {Url}", configuration.Url);
-            NotifyBrowserWindowOpening(
-                "ModDB download starting",
-                "A browser window is opening to download this file. Wait for the download to finish and do not click anything in that window.");
-        }
-
-        // ModDB frequently hands the actual binary off to a new tab/popup rather than the page
-        // that performed the navigation. A page-level Download handler therefore misses the
-        // event and the wait times out, surfacing as a download that "never completes". The
-        // context-level handler catches downloads started in ANY page of the persistent context,
-        // which is what actually fires for ModDB's popup-style mirrors.
+        List<IPage> popups = [];
         var downloadTcs = new TaskCompletionSource<IDownload>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        // Playwright .NET raises Download only on the page that owns the download, not at the
-        // browser-context level. ModDB's mirror frequently opens the binary in a new tab, so we
-        // attach the same handler to the navigating page AND to every popup it spawns. The first
-        // download to fire wins (TrySetResult is idempotent).
         void OnDownload(object? sender, IDownload download) => downloadTcs.TrySetResult(download);
-        page.Download += OnDownload;
-
-        // Track any popup the navigation opens so it can be closed in finally. Leftover popups
-        // accumulate as orphan tabs in the headed ModDB profile.
-        List<IPage> popups = [];
         void OnPopup(object? sender, IPage popup)
         {
             popups.Add(popup);
             popup.Download += OnDownload;
         }
 
-        page.Popup += OnPopup;
-
         try
         {
+            var requestHeaders = BuildSafeDownloadHeaders(configuration);
+            if (requestHeaders.Count > 0)
+            {
+                await page.SetExtraHTTPHeadersAsync(requestHeaders);
+            }
+
+            if (usePersistentModDbProfile)
+            {
+                logger.LogInformation("Using persistent ModDB browser profile for protected download {Url}", configuration.Url);
+                NotifyBrowserWindowOpening(
+                    "ModDB download starting",
+                    "A browser window is opening to download this file. Wait for the download to finish and do not click anything in that window.");
+            }
+
+            // ModDB frequently hands the actual binary off to a new tab/popup rather than the page
+            // that performed the navigation. A page-level Download handler therefore misses the
+            // event and the wait times out, surfacing as a download that "never completes". The
+            // context-level handler catches downloads started in ANY page of the persistent context,
+            // which is what actually fires for ModDB's popup-style mirrors.
+            page.Download += OnDownload;
+            page.Popup += OnPopup;
+
             // Trigger the download by navigating to the URL.
             await page.GotoAsync(configuration.Url.ToString(), new PageGotoOptions
             {
@@ -974,11 +982,15 @@ public class PlaywrightService(
             {
                 return;
             }
+            else if (_persistentContext != null)
+            {
+                await ClosePersistentContextCoreUnderLockAsync();
+            }
 
             await EnsureManagedPlaywrightAsync(cancellationToken);
             Directory.CreateDirectory(profileDir);
 
-            _persistentContext = await _playwright!.Chromium.LaunchPersistentContextAsync(
+            var context = await _playwright!.Chromium.LaunchPersistentContextAsync(
                 profileDir,
                 new BrowserTypeLaunchPersistentContextOptions
                 {
@@ -1010,13 +1022,18 @@ public class PlaywrightService(
                     IgnoreDefaultArgs = ["--enable-automation"],
                 });
 
-            _persistentContext.Close += (_, _) =>
+            var ctx = context;
+            context.Close += (_, _) =>
             {
-                _inUsePersistentPages.Clear();
-                _persistentContext = null;
-                _persistentProfileName = null;
+                if (ReferenceEquals(_persistentContext, ctx))
+                {
+                    _inUsePersistentPages.Clear();
+                    _persistentContext = null;
+                    _persistentProfileName = null;
+                }
             };
 
+            _persistentContext = context;
             _persistentProfileName = profileDir;
         }
         finally

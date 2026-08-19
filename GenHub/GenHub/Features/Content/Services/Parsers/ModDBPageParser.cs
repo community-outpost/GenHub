@@ -2230,7 +2230,10 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
 
     /// <inheritdoc />
     public bool CanParse(string url) =>
-        url.Contains("moddb.com", StringComparison.OrdinalIgnoreCase);
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) &&
+        (uri.Host.Equals("moddb.com", StringComparison.OrdinalIgnoreCase) ||
+         uri.Host.EndsWith(".moddb.com", StringComparison.OrdinalIgnoreCase));
 
     /// <inheritdoc />
     public async Task<ParsedWebPage> ParseAsync(string url, CancellationToken cancellationToken = default)
@@ -2288,8 +2291,10 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
                     if (enrichedFetched.Count > 0)
                     {
                         var enrichedFiles = new Dictionary<string, DownloadableFile>(StringComparer.OrdinalIgnoreCase);
-                        foreach (var (detailUrl, detailDoc) in enrichedFetched)
+                        foreach (var kvp in enrichedFetched)
                         {
+                            var detailUrl = kvp.Key;
+                            var detailDoc = kvp.Value;
                             var detailed = ExtractDetailedFile(detailDoc, detailUrl);
                             if (detailed != null)
                             {
@@ -2467,7 +2472,10 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
     {
         if (IsModDetailPage(url))
         {
-            var baseUrl = url.TrimEnd('/');
+            var baseUrl = Uri.TryCreate(url, UriKind.Absolute, out var uri)
+                ? $"{uri.Scheme}://{uri.Authority}{uri.AbsolutePath.TrimEnd('/')}"
+                : url.Split('?')[0].Split('#')[0].TrimEnd('/');
+
             return
             [
                 url,
@@ -2483,7 +2491,10 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
         var parentModUrl = ExtractParentModUrl(url);
         if (!string.IsNullOrEmpty(parentModUrl))
         {
-            var baseUrl = parentModUrl.TrimEnd('/');
+            var baseUrl = Uri.TryCreate(parentModUrl, UriKind.Absolute, out var parentUri)
+                ? $"{parentUri.Scheme}://{parentUri.Authority}{parentUri.AbsolutePath.TrimEnd('/')}"
+                : parentModUrl.Split('?')[0].Split('#')[0].TrimEnd('/');
+
             return
             [
                 url,
@@ -3011,7 +3022,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
             Filename: filename);
     }
 
-    private static Dictionary<string, string> CollectDetailedFileMetadata(IDocument document)
+    private Dictionary<string, string> CollectDetailedFileMetadata(IDocument document)
     {
         var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var containers = document.QuerySelectorAll("#downloadsinfo, .table, table.table, #downloadsfiles, .sidecolumn, #modsinfo, #profile");
@@ -3055,7 +3066,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
         return metadata;
     }
 
-    private static string ResolveDetailedFileName(IDocument document, string? filename)
+    private string ResolveDetailedFileName(IDocument document, string? filename)
     {
         string? fileHeading = null;
         var headingCandidates = document.QuerySelectorAll(ModDBParserConstants.FilePageTitleSelector);
@@ -3099,7 +3110,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
         return humanName ?? filename ?? "Unknown";
     }
 
-    private static (long? SizeBytes, string? SizeDisplay) ExtractDetailedFileSize(IDocument document, Dictionary<string, string> metadata)
+    private (long? SizeBytes, string? SizeDisplay) ExtractDetailedFileSize(IDocument document, Dictionary<string, string> metadata)
     {
         string? sizeDisplay = metadata.GetValueOrDefault(ModDBParserConstants.MetadataSize)
             ?? metadata.GetValueOrDefault(ModDBParserConstants.MetadataFileSizeAlt);
@@ -3133,7 +3144,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
         return (sizeBytes, sizeDisplay);
     }
 
-    private static (DateTime? UploadDate, DateTime? ReleaseDate) ExtractDetailedFileDates(Dictionary<string, string> metadata)
+    private (DateTime? UploadDate, DateTime? ReleaseDate) ExtractDetailedFileDates(Dictionary<string, string> metadata)
     {
         DateTime? uploadDate = null;
         DateTime? releaseDate = null;
@@ -3161,7 +3172,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
         return (uploadDate, releaseDate);
     }
 
-    private static string? ExtractDetailedDownloadUrl(IDocument document)
+    private string? ExtractDetailedDownloadUrl(IDocument document)
     {
         var downloadButton = document.QuerySelector(ModDBParserConstants.MainDownloadButtonSelector);
         if (downloadButton != null)
@@ -3176,7 +3187,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
         return null;
     }
 
-    private static int? ExtractDetailedDownloadCount(Dictionary<string, string> metadata)
+    private int? ExtractDetailedDownloadCount(Dictionary<string, string> metadata)
     {
         var downloadsStr = metadata.GetValueOrDefault(ModDBParserConstants.MetadataTotalDownloads)
             ?? metadata.GetValueOrDefault(ModDBParserConstants.MetadataDownloadCount)
@@ -3194,7 +3205,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
         return null;
     }
 
-    private static List<string> ExtractDetailedPreviewImages(IDocument document)
+    private List<string> ExtractDetailedPreviewImages(IDocument document)
     {
         var previewImages = new List<string>();
         var imageEls = document.QuerySelectorAll(ModDBParserConstants.FilePreviewImagesSelector);

@@ -541,7 +541,6 @@ public class ContentOrchestratorTests
     }
 
     /// <summary>
-    /// <summary>
     /// Verifies that ResolveManifestAsync successfully resolves manifests with hyphenated and unhyphenated IDs.
     /// </summary>
     /// <param name="registeredResolverId">The resolver ID registered in the container.</param>

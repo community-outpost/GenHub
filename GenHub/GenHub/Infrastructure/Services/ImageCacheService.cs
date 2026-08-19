@@ -41,6 +41,24 @@ public sealed class ImageCacheService
             AllowAutoRedirect = false,
             PooledConnectionLifetime = TimeSpan.FromMinutes(5),
             ConnectTimeout = TimeSpan.FromSeconds(10),
+            ConnectCallback = async (context, cancellationToken) =>
+            {
+                var entry = await Dns.GetHostEntryAsync(context.DnsEndPoint.Host, cancellationToken);
+                var safeIp = entry.AddressList.FirstOrDefault(IsSafeIpAddress)
+                    ?? throw new HttpRequestException($"No safe IP address resolved for host '{context.DnsEndPoint.Host}'");
+
+                var socket = new System.Net.Sockets.Socket(safeIp.AddressFamily, System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp);
+                try
+                {
+                    await socket.ConnectAsync(new IPEndPoint(safeIp, context.DnsEndPoint.Port), cancellationToken);
+                    return new System.Net.Sockets.NetworkStream(socket, ownsSocket: true);
+                }
+                catch
+                {
+                    socket.Dispose();
+                    throw;
+                }
+            },
         };
 
         httpClient = new HttpClient(handler)
@@ -50,9 +68,16 @@ public sealed class ImageCacheService
         httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36");
 
-        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        cacheDirectory = Path.Combine(appData, "GenHub", DirectoryNames.Cache, "Images");
-        Directory.CreateDirectory(cacheDirectory);
+        try
+        {
+            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            cacheDirectory = Path.Combine(appData, "GenHub", DirectoryNames.Cache, "Images");
+            Directory.CreateDirectory(cacheDirectory);
+        }
+        catch
+        {
+            cacheDirectory = string.Empty;
+        }
     }
 
     /// <summary>
@@ -304,15 +329,11 @@ public sealed class ImageCacheService
         }
 
         var diskPath = GetDiskCachePath(url);
-        if (File.Exists(diskPath))
+        if (!string.IsNullOrEmpty(diskPath) && File.Exists(diskPath))
         {
-            try
-            {
-                var diskBitmap = new Bitmap(diskPath);
-                memoryCache.AddOrUpdate(url, diskBitmap);
-                return diskBitmap;
-            }
-            catch
+            var fileInfo = new FileInfo(diskPath);
+            var cutoff = DateTime.UtcNow.AddDays(-ImageCacheConstants.DiskCacheTtlDays);
+            if (fileInfo.LastWriteTimeUtc < cutoff)
             {
                 try
                 {
@@ -321,6 +342,26 @@ public sealed class ImageCacheService
                 catch
                 {
                     // ignore file deletion failure
+                }
+            }
+            else
+            {
+                try
+                {
+                    var diskBitmap = new Bitmap(diskPath);
+                    memoryCache.AddOrUpdate(url, diskBitmap);
+                    return diskBitmap;
+                }
+                catch
+                {
+                    try
+                    {
+                        File.Delete(diskPath);
+                    }
+                    catch
+                    {
+                        // ignore file deletion failure
+                    }
                 }
             }
         }
@@ -433,7 +474,10 @@ public sealed class ImageCacheService
                 }
 
                 var bytes = ms.ToArray();
-                await File.WriteAllBytesAsync(diskPath, bytes);
+                if (!string.IsNullOrEmpty(diskPath))
+                {
+                    await File.WriteAllBytesAsync(diskPath, bytes);
+                }
 
                 using var decodeStream = new MemoryStream(bytes);
                 var bitmap = new Bitmap(decodeStream);
@@ -449,14 +493,22 @@ public sealed class ImageCacheService
         }
         finally
         {
-            pendingDownloads.TryRemove(initialUrl, out _);
+            if (pendingDownloads.TryGetValue(initialUrl, out var task) && task.IsCompleted)
+            {
+                pendingDownloads.TryRemove(initialUrl, out _);
+            }
         }
     }
 
     private string GetDiskCachePath(string url)
     {
-        var hashBytes = MD5.HashData(Encoding.UTF8.GetBytes(url));
-        var sb = new StringBuilder();
+        if (string.IsNullOrEmpty(cacheDirectory))
+        {
+            return string.Empty;
+        }
+
+        var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(url));
+        var sb = new StringBuilder(hashBytes.Length * 2);
         foreach (var b in hashBytes)
         {
             sb.Append(b.ToString("x2"));
@@ -467,7 +519,7 @@ public sealed class ImageCacheService
 
     private void TriggerDiskCleanupIfNeeded()
     {
-        if (DateTime.UtcNow - lastDiskCleanup < TimeSpan.FromHours(1))
+        if (string.IsNullOrEmpty(cacheDirectory) || DateTime.UtcNow - lastDiskCleanup < TimeSpan.FromHours(1))
         {
             return;
         }
@@ -528,8 +580,9 @@ public sealed class ImageCacheService
 
                             try
                             {
-                                totalSize -= file.Length;
+                                var fileLen = file.Length;
                                 file.Delete();
+                                totalSize -= fileLen;
                             }
                             catch
                             {
@@ -577,6 +630,11 @@ public sealed class ImageCacheService
                 if (cache.TryGetValue(key, out var existingNode))
                 {
                     lruList.Remove(existingNode);
+                    if (!ReferenceEquals(existingNode.Value.Bitmap, bitmap))
+                    {
+                        existingNode.Value.Bitmap.Dispose();
+                    }
+
                     existingNode.Value = new CacheItem(key, bitmap);
                     lruList.AddFirst(existingNode);
                 }
@@ -589,6 +647,7 @@ public sealed class ImageCacheService
                         {
                             lruList.RemoveLast();
                             cache.Remove(last.Value.Key);
+                            last.Value.Bitmap.Dispose();
                         }
                     }
 
@@ -603,6 +662,11 @@ public sealed class ImageCacheService
         {
             lock (syncLock)
             {
+                foreach (var item in lruList)
+                {
+                    item.Bitmap.Dispose();
+                }
+
                 cache.Clear();
                 lruList.Clear();
             }

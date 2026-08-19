@@ -21,7 +21,6 @@ public static class CommandLineConstants
     public const string LaunchProfileInlinePrefix = "--launch-profile=";
 
     /// <summary>
-    /// <summary>
     /// Scheme name for custom protocol registration.
     /// </summary>
     public const string SchemeName = "genhub";

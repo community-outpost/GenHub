@@ -407,6 +407,7 @@ public partial class GitHubResolver(
             logger.LogInformation("Successfully resolved single release asset: {AssetName}", asset.Name);
 
             var builtManifest = manifest.Build();
+
             // Propagate variant group identity from the discovery card so the installed
             // manifest retains the grouping information the downloads browser needs.
             if (!string.IsNullOrWhiteSpace(discoveredItem.VariantGroupId))

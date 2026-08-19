@@ -349,15 +349,15 @@ Manifest IDs are generated using the `ManifestIdGenerator`:
 
 ```csharp
 // Format: {schemaVersion}.{userVersion}.{publisher}.{contentType}.{contentName}
-// Example: 1.0.20240115.moddb.Mod.Shockwave
+// Example: 1.20240115.moddb.mod.shockwave
 
 var manifestId = ManifestIdGenerator.GeneratePublisherContentId(
-    publisher: "moddb",
+    publisherId: "moddb",
     contentType: ContentType.Mod,
     contentName: "Shockwave",
-    releaseDate: new DateTime(2024, 1, 15)
+    userVersion: 20240115
 );
-// Result: "1.0.20240115.moddb.Mod.Shockwave"
+// Result: "1.20240115.moddb.mod.shockwave"
 ```
 
 The `userVersion` segment (second component) is the release date in `yyyyMMdd` format, enabling:
