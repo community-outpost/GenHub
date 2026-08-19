@@ -105,8 +105,19 @@ public class GenArial(ILogger<GenArial> logger) : BaseActionSet(logger)
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        logger.LogWarning("GenArial Fix is informational only. No undo action needed.");
-        return Task.FromResult(new ActionSetResult(true));
+        try
+        {
+            if (File.Exists(_markerPath))
+            {
+                File.Delete(_markerPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to delete marker file for GenArial");
+        }
+
+        return Task.FromResult(new ActionSetResult(true, null, ["Arial font marker removed."]));
     }
 
     private bool IsArialFontInstalled()
@@ -129,11 +140,17 @@ public class GenArial(ILogger<GenArial> logger) : BaseActionSet(logger)
 
             // Check for Arial in registry
             using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
-                @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts",
+                RegistryConstants.FontsKeyPath,
                 false);
 
             if (key != null)
             {
+                if (key.GetValue(RegistryConstants.ArialFontValueName) != null)
+                {
+                    logger.LogInformation("Found Arial font in registry: {Font}", RegistryConstants.ArialFontValueName);
+                    return true;
+                }
+
                 foreach (var valueName in key.GetValueNames())
                 {
                     if (valueName.Contains("Arial", StringComparison.OrdinalIgnoreCase))

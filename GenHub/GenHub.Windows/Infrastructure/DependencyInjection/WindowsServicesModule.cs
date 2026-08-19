@@ -35,6 +35,7 @@ public static class WindowsServicesModule
     {
         // Add HttpClient for patches that download content
         services.AddHttpClient();
+        services.AddHttpClient("Downloader");
 
         // Register Windows-specific services
         services.AddSingleton<IGameInstallationDetector, WindowsInstallationDetector>();
@@ -101,7 +102,7 @@ public static class WindowsServicesModule
 
         // Register GenPatcher Tool
         services.AddSingleton<IToolPlugin, GenPatcherTool>();
-        services.AddTransient<GenPatcherViewModel>();
+        services.AddSingleton<GenPatcherViewModel>();
 
         return services;
     }

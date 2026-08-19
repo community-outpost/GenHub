@@ -35,11 +35,7 @@ public class GenPatcherTool(ILogger<GenPatcherTool> logger) : IToolPlugin
         // If we have the service provider, resolve the VM
         if (_serviceProvider != null)
         {
-            var vm = _serviceProvider.GetRequiredService<GenPatcherViewModel>();
-            if (vm != null)
-            {
-                view.DataContext = vm;
-            }
+            view.DataContext = _serviceProvider.GetRequiredService<GenPatcherViewModel>();
         }
 
         return view;

@@ -18,11 +18,9 @@ public class HDIconsFix(ILogger<HDIconsFix> logger) : BaseActionSet(logger)
 {
     private static readonly IReadOnlyList<string> HdIconFiles =
     [
-        "generals.ico",
-        "game.ico",
-        "zh.ico",
         "generals_hd.ico",
         "game_hd.ico",
+        "zh_hd.ico",
     ];
 
     private readonly string _markerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", ActionSetConstants.Paths.SubActionSetMarkers, "HDIconsFix.done");
@@ -110,8 +108,19 @@ public class HDIconsFix(ILogger<HDIconsFix> logger) : BaseActionSet(logger)
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        logger.LogWarning("HD Icons Fix is informational only. No undo action needed.");
-        return Task.FromResult(new ActionSetResult(true));
+        try
+        {
+            if (File.Exists(_markerPath))
+            {
+                File.Delete(_markerPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to delete marker file for HDIconsFix");
+        }
+
+        return Task.FromResult(new ActionSetResult(true, null, ["HD icons marker removed."]));
     }
 
     private bool AreHDIconsPresent(GameInstallation installation)

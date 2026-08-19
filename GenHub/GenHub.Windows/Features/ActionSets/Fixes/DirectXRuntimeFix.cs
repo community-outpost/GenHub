@@ -60,7 +60,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
     protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
         var details = new List<string>();
-        var tempFolder = Path.Combine(Path.GetTempPath(), "GenHub_DirectX");
+        var tempFolder = Path.Combine(Path.GetTempPath(), $"GenHub_DirectX_{Guid.NewGuid():N}");
         var zipFile = Path.Combine(tempFolder, "dx_runtime.zip");
         var extractPath = Path.Combine(tempFolder, "Extracted");
 
@@ -69,22 +69,13 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
             details.Add("Starting DirectX Runtime installation...");
             details.Add($"Download URL: {ExternalUrls.DirectXRuntimeDownloadUrl}");
 
-            if (Directory.Exists(tempFolder))
-            {
-                Directory.Delete(tempFolder, true);
-            }
-
             Directory.CreateDirectory(extractPath);
             details.Add($"Temp directory: {tempFolder}");
 
             details.Add("Downloading DirectX Runtime...");
 
-            using var client = httpClientFactory.CreateClient();
-
-            // Add User-Agent to avoid blocking
+            using var client = httpClientFactory.CreateClient("Downloader");
             client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-
-            // Increase timeout for large downloads (DirectX is ~100MB)
             client.Timeout = TimeSpan.FromMinutes(5);
 
             var urls = new[]
@@ -107,27 +98,29 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
                     isExe = uri.AbsolutePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase);
                     downloadPath = isExe ? Path.Combine(tempFolder, "dxsetup.exe") : zipFile;
 
-                    using var response = await client.GetAsync(url, cancellationToken);
+                    using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
                     response.EnsureSuccessStatusCode();
 
-                    var fileSize = response.Content.Headers.ContentLength ?? 0;
+                    await using (var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken))
+                    await using (var fileStream = new FileStream(downloadPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
+                    {
+                        await contentStream.CopyToAsync(fileStream, cancellationToken);
+                    }
+
+                    var fileInfo = new FileInfo(downloadPath);
+                    var fileSize = fileInfo.Length;
 
                     // Validate file size - 200KB for web installer, 1MB for zip
-                    var minSize = isExe ? 200 * 1024 : 1024 * 1024;
+                    var minSize = isExe ? ActionSetConstants.Validation.MinDirectXExeSizeBytes : ActionSetConstants.Validation.MinDirectXZipSizeBytes;
 
                     if (fileSize < minSize)
                     {
                         logger.LogWarning("Downloaded file from {Url} is too small ({Size} bytes). Likely blocked.", url, fileSize);
+                        if (File.Exists(downloadPath)) File.Delete(downloadPath);
                         continue;
                     }
 
                     details.Add($"✓ Downloaded {fileSize / 1024.0 / 1024.0:F2} MB from {uri.Host}");
-
-                    logger.LogInformation("Reading response content to memory...");
-                    var fileBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-
-                    logger.LogInformation("Writing {Size} bytes to disk...", fileBytes.Length);
-                    await File.WriteAllBytesAsync(downloadPath, fileBytes, cancellationToken);
 
                     if (!isExe)
                     {
@@ -141,6 +134,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
                         catch (Exception ex)
                         {
                             logger.LogWarning("Downloaded file from {Url} is corrupt: {Error}. Trying next mirror.", url, ex.Message);
+                            if (File.Exists(downloadPath)) File.Delete(downloadPath);
                             continue;
                         }
                     }
@@ -151,6 +145,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
                 catch (Exception ex)
                 {
                     logger.LogWarning("Failed to download from {Url}: {Error}", url, ex.Message);
+                    if (File.Exists(downloadPath)) File.Delete(downloadPath);
                 }
             }
 
@@ -159,8 +154,8 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
                 throw new HttpRequestException("Failed to download or validate DirectX Runtime from all mirrors.");
             }
 
-            string setupExe;
-            string arguments;
+            string setupExe = string.Empty;
+            string arguments = string.Empty;
 
             if (isExe)
             {
@@ -191,7 +186,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
             details.Add("  ⚠ This may require administrator privileges");
             logger.LogInformation("Running DirectX Setup (Silent)...");
 
-            var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
             {
                 FileName = setupExe,
                 Arguments = arguments,
@@ -207,7 +202,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
 
             await process.WaitForExitAsync(cancellationToken);
 
-            if (process.ExitCode != 0)
+            if (process.ExitCode != ProcessConstants.ExitCodeSuccess && process.ExitCode != ProcessConstants.ExitCodeRebootRequired)
             {
                 logger.LogWarning("DirectX setup exited with code {ExitCode}", process.ExitCode);
                 details.Add($"⚠ DirectX setup exited with code {process.ExitCode}");

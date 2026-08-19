@@ -34,15 +34,17 @@ public interface IActionSet
     /// Checks if the action set is applicable to the current system and game installation.
     /// </summary>
     /// <param name="installation">The game installation to check.</param>
+    /// <param name="ct">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation, returning true if applicable.</returns>
-    Task<bool> IsApplicableAsync(GameInstallation installation);
+    Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default);
 
     /// <summary>
     /// Checks if the action set has already been applied.
     /// </summary>
     /// <param name="installation">The game installation to check.</param>
+    /// <param name="ct">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation, returning true if applied.</returns>
-    Task<bool> IsAppliedAsync(GameInstallation installation);
+    Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default);
 
     /// <summary>
     /// Applies the action set patches.
@@ -64,15 +66,35 @@ public interface IActionSet
 /// <summary>
 /// Represents the result of an action set operation.
 /// </summary>
-/// <param name="Success">Whether the operation succeeded.</param>
-/// <param name="ErrorMessage">Error message if the operation failed.</param>
-/// <param name="Details">Detailed list of actions taken during the operation.</param>
-public record ActionSetResult(bool Success, string? ErrorMessage = null, List<string>? Details = null)
+public record ActionSetResult
 {
     /// <summary>
-    /// Gets the details list, creating one if needed.
+    /// Initializes a new instance of the <see cref="ActionSetResult"/> class.
     /// </summary>
-    public List<string> Details { get; init; } = Details ?? [];
+    /// <param name="success">Whether the operation succeeded.</param>
+    /// <param name="errorMessage">Error message if the operation failed.</param>
+    /// <param name="details">Detailed list of actions taken during the operation.</param>
+    public ActionSetResult(bool success, string? errorMessage = null, IReadOnlyList<string>? details = null)
+    {
+        Success = success;
+        ErrorMessage = errorMessage;
+        Details = details ?? [];
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether the operation succeeded.
+    /// </summary>
+    public bool Success { get; init; }
+
+    /// <summary>
+    /// Gets the error message if the operation failed.
+    /// </summary>
+    public string? ErrorMessage { get; init; }
+
+    /// <summary>
+    /// Gets the detailed list of actions taken during the operation.
+    /// </summary>
+    public IReadOnlyList<string> Details { get; init; }
 
     /// <summary>
     /// Creates a new ActionSetResult with an additional detail message.
@@ -82,7 +104,7 @@ public record ActionSetResult(bool Success, string? ErrorMessage = null, List<st
     public ActionSetResult WithDetail(string detail)
     {
         var newDetails = new List<string>(Details) { detail };
-        return this with { Details = newDetails };
+        return new ActionSetResult(Success, ErrorMessage, newDetails);
     }
 
     /// <summary>

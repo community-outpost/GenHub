@@ -196,7 +196,18 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             }
 
             var options = optionsResult.Data;
-            var tshSection = SerializeTheSuperHackersSettings(settings);
+            Dictionary<string, string> tshSection = [];
+            if (options.AdditionalSections.TryGetValue("TheSuperHackers", out var existingTsh) && existingTsh != null)
+            {
+                tshSection = new Dictionary<string, string>(existingTsh, StringComparer.OrdinalIgnoreCase);
+            }
+
+            var serializedTsh = SerializeTheSuperHackersSettings(settings);
+            foreach (var kvp in serializedTsh)
+            {
+                tshSection[kvp.Key] = kvp.Value;
+            }
+
             options.AdditionalSections["TheSuperHackers"] = tshSection;
 
             var saveResult = await SaveOptionsAsync(gameType, options);

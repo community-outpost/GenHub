@@ -102,7 +102,7 @@ public class TheFirstDecadeRegistryFix(
                 return Task.FromResult(new ActionSetResult(false, "Failed to write The First Decade registry entries", details));
             }
 
-            details.Add("✓ Created: HKLM\\SOFTWARE\\EA Games\\Command & Conquer The First Decade");
+            details.Add($"✓ Created: HKLM\\{RegistryConstants.TheFirstDecadeKeyPath}");
             details.Add($"  • InstallPath = {tfdPath}");
             details.Add($"  • Version = {RegistryConstants.TfdVersionData}");
             details.Add("✓ The First Decade registry configuration completed successfully");

@@ -94,7 +94,18 @@ public class ExpandedLANLobbyMenu(ILogger<ExpandedLANLobbyMenu> logger) : BaseAc
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        logger.LogWarning("Expanded LAN Lobby Menu Fix is informational only. No undo action needed.");
-        return Task.FromResult(new ActionSetResult(true));
+        try
+        {
+            if (File.Exists(_markerPath))
+            {
+                File.Delete(_markerPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to delete marker file for ExpandedLANLobbyMenu");
+        }
+
+        return Task.FromResult(new ActionSetResult(true, null, ["LAN lobby marker removed."]));
     }
 }

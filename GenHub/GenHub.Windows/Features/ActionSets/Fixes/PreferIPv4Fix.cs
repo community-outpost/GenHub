@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.GameInstallations;
@@ -17,10 +18,6 @@ public class PreferIPv4Fix(
     IRegistryService registryService,
     ILogger<PreferIPv4Fix> logger) : BaseActionSet(logger)
 {
-    private const string RegistryPath = @"SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters";
-    private const string DisabledComponentsKey = "DisabledComponents";
-    private const int PreferIPv4Value = 32; // Disable IPv6 tunnel interfaces
-
     /// <inheritdoc/>
     public override string Id => "PreferIPv4Fix";
 
@@ -45,10 +42,10 @@ public class PreferIPv4Fix(
         try
         {
             var currentValue = registryService.GetIntValue(
-                RegistryPath,
-                DisabledComponentsKey);
+                RegistryConstants.Tcpip6ParametersKeyPath,
+                RegistryConstants.DisabledComponentsValueName);
 
-            var isApplied = currentValue == PreferIPv4Value;
+            var isApplied = currentValue == RegistryConstants.PreferIPv4DisabledComponentsValue;
             return Task.FromResult(isApplied);
         }
         catch (Exception ex)
@@ -68,12 +65,12 @@ public class PreferIPv4Fix(
             details.Add("Checking current IPv6 configuration...");
 
             var currentValue = registryService.GetIntValue(
-                RegistryPath,
-                DisabledComponentsKey);
+                RegistryConstants.Tcpip6ParametersKeyPath,
+                RegistryConstants.DisabledComponentsValueName);
 
             details.Add($"Current DisabledComponents value: {currentValue}");
 
-            if (currentValue == PreferIPv4Value)
+            if (currentValue == RegistryConstants.PreferIPv4DisabledComponentsValue)
             {
                 details.Add("✓ IPv4 preference is already enabled (IPv6 tunnels disabled)");
                 logger.LogInformation("IPv4 preference is already enabled. No action needed.");
@@ -81,16 +78,16 @@ public class PreferIPv4Fix(
             }
 
             details.Add("Configuring system to prefer IPv4...");
-            details.Add($"Registry: HKLM\\{RegistryPath}");
-            details.Add($"Key: {DisabledComponentsKey}");
-            details.Add($"New value: {PreferIPv4Value} (0x20 - Disable IPv6 tunnel interfaces)");
+            details.Add($"Registry: HKLM\\{RegistryConstants.Tcpip6ParametersKeyPath}");
+            details.Add($"Key: {RegistryConstants.DisabledComponentsValueName}");
+            details.Add($"New value: {RegistryConstants.PreferIPv4DisabledComponentsValue} (0x20 - Disable IPv6 tunnel interfaces)");
 
             logger.LogInformation("Enabling IPv4 preference by disabling IPv6 tunnel interfaces...");
 
             var writeSuccess = registryService.SetIntValue(
-                RegistryPath,
-                DisabledComponentsKey,
-                PreferIPv4Value);
+                RegistryConstants.Tcpip6ParametersKeyPath,
+                RegistryConstants.DisabledComponentsValueName,
+                RegistryConstants.PreferIPv4DisabledComponentsValue);
 
             if (!writeSuccess)
             {
@@ -125,8 +122,8 @@ public class PreferIPv4Fix(
             details.Add("Removing IPv4 preference...");
 
             var currentValue = registryService.GetIntValue(
-                RegistryPath,
-                DisabledComponentsKey);
+                RegistryConstants.Tcpip6ParametersKeyPath,
+                RegistryConstants.DisabledComponentsValueName);
 
             if (currentValue == null || currentValue == 0)
             {
@@ -138,8 +135,8 @@ public class PreferIPv4Fix(
             logger.LogInformation("Removing IPv4 preference...");
 
             var writeSuccess = registryService.SetIntValue(
-                RegistryPath,
-                DisabledComponentsKey,
+                RegistryConstants.Tcpip6ParametersKeyPath,
+                RegistryConstants.DisabledComponentsValueName,
                 0);
 
             if (!writeSuccess)

@@ -21,13 +21,7 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
 {
-    private readonly string[] _commonFolderNames =
-    [
-        "Command and Conquer Generals Data",
-        "Command and Conquer Generals Zero Hour Data",
-        "Command & Conquer Generäle Stunde Null Data",
-        "Command & Conquer Generals - Heure H Data"
-    ];
+    private static readonly IReadOnlyList<string> CommonFolderNames = GameSettingsConstants.FolderNames.AllUserDataFolderNames;
 
     /// <inheritdoc/>
     public override string Id => "OneDriveFix";
@@ -56,7 +50,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
             // If not redirected, not applicable. Return false so it shows as NOT APPLICABLE instead of APPLIED
             if (!IsOneDriveRedirected()) return Task.FromResult(false);
 
-            foreach (var folderName in _commonFolderNames)
+            foreach (var folderName in CommonFolderNames)
             {
                 if (!IsFolderCorrectlySymlinked(folderName))
                 {
@@ -97,7 +91,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
             }
 
             int foldersProcessed = 0;
-            foreach (var folderName in _commonFolderNames)
+            foreach (var folderName in CommonFolderNames)
             {
                 var cloudPath = Path.Combine(cloudDocs, folderName);
                 var localPath = Path.Combine(localDocs, folderName);
@@ -145,12 +139,36 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
                     details.Add($"  ✓ Moved to: {localPath}");
                 }
 
-                // Create symlink
+                // Create symlink or junction
                 if (Directory.Exists(localPath) && !Directory.Exists(cloudPath))
                 {
-                    details.Add($"Creating symlink in OneDrive for '{folderName}'...");
-                    Directory.CreateSymbolicLink(cloudPath, localPath);
-                    details.Add($"  ✓ Symlink created: {cloudPath} -> {localPath}");
+                    details.Add($"Creating link in OneDrive for '{folderName}'...");
+                    try
+                    {
+                        Directory.CreateSymbolicLink(cloudPath, localPath);
+                        details.Add($"  ✓ Symlink created: {cloudPath} -> {localPath}");
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "CreateSymbolicLink failed, falling back to directory junction for {Path}", cloudPath);
+                        var psi = new ProcessStartInfo
+                        {
+                            FileName = "cmd.exe",
+                            Arguments = $"/c mklink /J \"{cloudPath}\" \"{localPath}\"",
+                            CreateNoWindow = true,
+                            UseShellExecute = false,
+                        };
+                        using var p = Process.Start(psi);
+                        p?.WaitForExit();
+                        if (p?.ExitCode == ProcessConstants.ExitCodeSuccess)
+                        {
+                            details.Add($"  ✓ Junction created: {cloudPath} -> {localPath}");
+                        }
+                        else
+                        {
+                            details.Add($"  ✗ Failed to create link: {cloudPath}");
+                        }
+                    }
                 }
 
                 // Apply Pin attribute to local folder
@@ -267,7 +285,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
             // Attrib +P -U
             var psi = new ProcessStartInfo
             {
-                FileName = "powershell.exe",
+                FileName = ProcessConstants.PowerShellExecutable,
                 Arguments = $"-WindowStyle Hidden -NoProfile -NonInteractive -Command \"attrib +P -U '{path.Replace("'", "''")}' /S /D\"",
                 CreateNoWindow = true,
                 UseShellExecute = false,

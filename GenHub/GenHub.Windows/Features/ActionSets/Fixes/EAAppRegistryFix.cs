@@ -155,7 +155,7 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
                 var existingSerial = registryService.GetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty);
                 if (string.IsNullOrEmpty(existingSerial))
                 {
-                    const string defaultSerial = "1234567890";
+                    var defaultSerial = ActionSetConstants.Serials.DefaultEAAppGeneralsSerial;
                     if (!registryService.SetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty, defaultSerial))
                     {
                         allSucceeded = false;
@@ -207,7 +207,7 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
                 var existingSerial = registryService.GetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty);
                 if (string.IsNullOrEmpty(existingSerial))
                 {
-                    const string defaultSerial = "1234567890";
+                    var defaultSerial = ActionSetConstants.Serials.DefaultEAAppZeroHourSerial;
                     if (!registryService.SetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty, defaultSerial))
                     {
                         allSucceeded = false;

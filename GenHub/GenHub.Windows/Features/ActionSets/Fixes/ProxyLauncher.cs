@@ -90,7 +90,18 @@ public class ProxyLauncher(ILogger<ProxyLauncher> logger) : BaseActionSet(logger
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        logger.LogWarning("Proxy Launcher Fix is informational only. No undo action needed.");
-        return Task.FromResult(new ActionSetResult(true));
+        try
+        {
+            if (File.Exists(_markerPath))
+            {
+                File.Delete(_markerPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to delete marker file for ProxyLauncher");
+        }
+
+        return Task.FromResult(new ActionSetResult(true, null, ["Proxy launcher marker removed."]));
     }
 }

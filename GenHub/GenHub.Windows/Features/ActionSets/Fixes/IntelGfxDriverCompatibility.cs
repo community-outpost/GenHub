@@ -126,8 +126,19 @@ public class IntelGfxDriverCompatibility(ILogger<IntelGfxDriverCompatibility> lo
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        logger.LogWarning("Intel Graphics Driver Compatibility Fix is informational only. No undo action needed.");
-        return Task.FromResult(new ActionSetResult(true));
+        try
+        {
+            if (File.Exists(_markerPath))
+            {
+                File.Delete(_markerPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to delete marker file for IntelGfxDriverCompatibility");
+        }
+
+        return Task.FromResult(new ActionSetResult(true, null, ["Intel graphics marker removed."]));
     }
 
     private bool HasIntelGraphics()
@@ -151,10 +162,13 @@ public class IntelGfxDriverCompatibility(ILogger<IntelGfxDriverCompatibility> lo
 
             foreach (ManagementBaseObject result in results)
             {
-                if (result["Name"] is string name && name.Contains("Intel", StringComparison.OrdinalIgnoreCase))
+                using (result)
                 {
-                    logger.LogInformation("Found Intel graphics via WMI: {Name}", name);
-                    return true;
+                    if (result["Name"] is string name && name.Contains("Intel", StringComparison.OrdinalIgnoreCase))
+                    {
+                        logger.LogInformation("Found Intel graphics via WMI: {Name}", name);
+                        return true;
+                    }
                 }
             }
 

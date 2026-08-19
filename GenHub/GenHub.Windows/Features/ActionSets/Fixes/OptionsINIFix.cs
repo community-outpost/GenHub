@@ -308,14 +308,7 @@ public class OptionsINIFix(IGameSettingsService gameSettingsService, ILogger<Opt
 
     private static bool IsBadResolution(int width, int height)
     {
-        return (width == 800 && height == 600) ||
-               (width == 1024 && height == 768) ||
-               (width == 1280 && height == 1024) ||
-               (width == 1600 && height == 1200) ||
-               (width == 1280 && height == 720) ||
-               (width == 1360 && height == 768) ||
-               (width == 1366 && height == 768) ||
-               (width == 1600 && height == 900);
+        return GameSettingsConstants.ProblematicResolutions.KnownBadResolutions.Contains((width, height));
     }
 
     private static new ActionSetResult Success() => new(true);

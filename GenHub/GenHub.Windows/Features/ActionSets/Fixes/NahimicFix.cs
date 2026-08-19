@@ -2,8 +2,10 @@ namespace GenHub.Windows.Features.ActionSets.Fixes;
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
@@ -155,7 +157,27 @@ public class NahimicFix(ILogger<NahimicFix> logger) : BaseActionSet(logger)
                 foreach (var p in p2) p.Dispose();
             }
         }
-        catch (Exception)
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+        catch (Win32Exception)
+        {
+            return false;
+        }
+        catch (PlatformNotSupportedException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (SecurityException)
+        {
+            return false;
+        }
+        catch (IOException)
         {
             return false;
         }

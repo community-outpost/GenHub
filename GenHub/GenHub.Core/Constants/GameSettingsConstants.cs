@@ -160,6 +160,27 @@ public static class GameSettingsConstants
         public const string Replays = "Replays";
 
         /// <summary>
+        /// Folder name for Command and Conquer Generals German settings.
+        /// </summary>
+        public const string GeneralsGerman = "Command and Conquer Generals Daten";
+
+        /// <summary>
+        /// Folder name for Command and Conquer Generals Zero Hour German settings.
+        /// </summary>
+        public const string ZeroHourGerman = "Command and Conquer Generals Zero Hour Daten";
+
+        /// <summary>
+        /// All known user data folder names for Generals and Zero Hour (including localized variants).
+        /// </summary>
+        public static readonly IReadOnlyList<string> AllUserDataFolderNames =
+        [
+            Generals,
+            ZeroHour,
+            GeneralsGerman,
+            ZeroHourGerman,
+        ];
+
+        /// <summary>
         /// Subfolder name for screenshots within the game data directory.
         /// </summary>
         public const string Screenshots = "Screenshots";
@@ -371,5 +392,41 @@ public static class GameSettingsConstants
         /// Gets the use light map setting ("yes").
         /// </summary>
         public const string UseLightMap = "yes";
+
+        /// <summary>
+        /// Gets the scroll edge zone setting ("0").
+        /// </summary>
+        public const string ScrollEdgeZone = "0";
+
+        /// <summary>
+        /// Gets the scroll edge speed setting ("1.0").
+        /// </summary>
+        public const string ScrollEdgeSpeed = "1.0";
+
+        /// <summary>
+        /// Gets the scroll edge acceleration setting ("0.0").
+        /// </summary>
+        public const string ScrollEdgeAcceleration = "0.0";
+    }
+
+    /// <summary>
+    /// Problematic resolutions that crash or distort Generals/Zero Hour.
+    /// </summary>
+    public static class ProblematicResolutions
+    {
+        /// <summary>
+        /// Gets the list of problematic resolution pairs (width, height).
+        /// </summary>
+        public static readonly IReadOnlyList<(int Width, int Height)> KnownBadResolutions =
+        [
+            (0, 0),
+            (320, 240),
+            (400, 300),
+            (512, 384),
+            (640, 480),
+            (1366, 768),
+            (1360, 768),
+            (1280, 768),
+        ];
     }
 }

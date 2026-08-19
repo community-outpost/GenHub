@@ -68,23 +68,32 @@ public partial class MyDocumentsPathCompatibility(ILogger<MyDocumentsPathCompati
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_markerPath)!);
-            File.WriteAllText(_markerPath, DateTime.UtcNow.ToString());
+            File.WriteAllText(_markerPath, DateTime.UtcNow.ToString("O"));
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to create marker file for MyDocumentsPathCompatibility");
         }
 
-        // We still return failure message to warn them, but next time it will be Green.
-        // Actually, if we return Failure, the UI might show Red X.
-        // But IsApplied will be true next check.
-        return Task.FromResult(Failure($"Your 'Documents' path '{documentsPath}' contains incomplete characters. Please move your Documents folder manually. Marked as acknowledged."));
+        return Task.FromResult(new ActionSetResult(true, null, [$"Your 'Documents' path '{documentsPath}' contains non-ASCII or unsupported characters. Please move your Documents folder manually. Marked as acknowledged."]));
     }
 
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
-        return Task.FromResult(Success());
+        try
+        {
+            if (File.Exists(_markerPath))
+            {
+                File.Delete(_markerPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to delete marker file for MyDocumentsPathCompatibility");
+        }
+
+        return Task.FromResult(new ActionSetResult(true, null, ["Documents path compatibility marker removed."]));
     }
 
     private static bool IsValidPath(string path)

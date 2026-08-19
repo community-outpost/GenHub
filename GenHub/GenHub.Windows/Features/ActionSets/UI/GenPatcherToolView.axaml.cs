@@ -33,9 +33,9 @@ public partial class GenPatcherToolView : UserControl
                 {
                     await vm.InitializeAsync();
                 }
-                catch
+                catch (System.Exception ex)
                 {
-                    // Exceptions during initialization are logged in the ViewModel
+                    System.Diagnostics.Debug.WriteLine($"[GenPatcherToolView] Initialization error: {ex.Message}");
                 }
             });
         }

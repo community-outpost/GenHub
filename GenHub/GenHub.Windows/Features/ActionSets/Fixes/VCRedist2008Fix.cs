@@ -36,9 +36,10 @@ public class VCRedist2008Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
     public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
+    /// <inheritdoc/>
     public override Task<bool> IsApplicableAsync(GameInstallation installation)
     {
-        return Task.FromResult(true);
+        return Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
     }
 
     /// <inheritdoc/>
@@ -57,7 +58,7 @@ public class VCRedist2008Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
     /// <inheritdoc/>
     protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        var tempFile = Path.Combine(Path.GetTempPath(), "vcredist_2008_x86.exe");
+        var tempFile = Path.Combine(Path.GetTempPath(), $"vcredist_2008_x86_{Guid.NewGuid():N}.exe");
         var details = new List<string>();
 
         try
@@ -82,7 +83,7 @@ public class VCRedist2008Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
                     using var response = await client.GetAsync(url, cancellationToken);
                     response.EnsureSuccessStatusCode();
 
-                    using (var fs = new FileStream(tempFile, FileMode.Create))
+                    await using (var fs = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
                     {
                         await response.Content.CopyToAsync(fs, cancellationToken);
                     }
@@ -91,6 +92,7 @@ public class VCRedist2008Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
                     if (new FileInfo(tempFile).Length < ActionSetConstants.Validation.VCRedistMinSize)
                     {
                         logger.LogWarning("Downloaded file too small, likely corrupt.");
+                        if (File.Exists(tempFile)) File.Delete(tempFile);
                         continue;
                     }
 
@@ -101,6 +103,7 @@ public class VCRedist2008Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
                 catch (Exception ex)
                 {
                     logger.LogWarning("Failed to download from {Url}: {Error}", url, ex.Message);
+                    if (File.Exists(tempFile)) File.Delete(tempFile);
                 }
             }
 
@@ -123,9 +126,9 @@ public class VCRedist2008Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
 
             await process.WaitForExitAsync(cancellationToken);
 
-            // 3010 = Reboot required
-            if (process.ExitCode == 0 || process.ExitCode == 3010)
+            if (process.ExitCode == ProcessConstants.ExitCodeSuccess || process.ExitCode == ProcessConstants.ExitCodeRebootRequired)
             {
+                details.Add("✓ Visual C++ 2008 installed successfully.");
                 return new ActionSetResult(true, null, details);
             }
 
@@ -137,15 +140,16 @@ public class VCRedist2008Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
         }
         finally
         {
-            if (File.Exists(tempFile))
+            try
             {
-                try
+                if (File.Exists(tempFile))
                 {
                     File.Delete(tempFile);
                 }
-                catch
-                {
-                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Failed to delete temp file {TempFile}", tempFile);
             }
         }
     }

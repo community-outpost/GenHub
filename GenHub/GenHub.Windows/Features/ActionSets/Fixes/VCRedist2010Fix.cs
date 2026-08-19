@@ -39,10 +39,10 @@ public class VCRedist2010Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
     public override bool IsCrucialFix => false; // Network failures shouldn't abort entire sequence
 
     /// <inheritdoc/>
+    /// <inheritdoc/>
     public override Task<bool> IsApplicableAsync(GameInstallation installation)
     {
-        // This fix is applicable regardless of installation path as it's a system dependency
-        return Task.FromResult(true);
+        return Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
     }
 
     /// <inheritdoc/>
@@ -85,7 +85,7 @@ public class VCRedist2010Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
     protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
         var details = new List<string>();
-        var tempPath = Path.Combine(Path.GetTempPath(), "vcredist_x86_2010.exe");
+        var tempPath = Path.Combine(Path.GetTempPath(), $"vcredist_x86_2010_{Guid.NewGuid():N}.exe");
 
         try
         {
@@ -97,16 +97,24 @@ public class VCRedist2010Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
             logger.LogInformation("Downloading VCRedist 2010 from {Url}", ExternalUrls.VCRedist2010DownloadUrl);
 
             using var client = httpClientFactory.CreateClient("Downloader");
-            using var response = await client.GetAsync(ExternalUrls.VCRedist2010DownloadUrl, cancellationToken);
+            using var response = await client.GetAsync(ExternalUrls.VCRedist2010DownloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             response.EnsureSuccessStatusCode();
 
-            var fileSize = response.Content.Headers.ContentLength ?? 0;
-            details.Add($"✓ Downloaded {fileSize / 1024 / 1024:F2} MB");
-
-            using (var fs = new FileStream(tempPath, FileMode.Create))
+            await using (var fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
             {
                 await response.Content.CopyToAsync(fs, cancellationToken);
             }
+
+            var fileInfo = new FileInfo(tempPath);
+            var fileSize = fileInfo.Length;
+            if (fileSize < ActionSetConstants.Validation.VCRedistMinSize)
+            {
+                logger.LogWarning("Downloaded VCRedist 2010 file too small ({Size} bytes), likely corrupt.", fileSize);
+                if (File.Exists(tempPath)) File.Delete(tempPath);
+                return new ActionSetResult(false, "Downloaded VCRedist 2010 is corrupted or incomplete.", details);
+            }
+
+            details.Add($"✓ Downloaded {fileSize / 1024.0 / 1024.0:F2} MB");
 
             details.Add("Installing VCRedist 2010 (silent mode)...");
             details.Add("  ⚠ This may require administrator privileges");
@@ -129,8 +137,7 @@ public class VCRedist2010Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
 
             await process.WaitForExitAsync(cancellationToken);
 
-            // 3010 is restart required
-            if (process.ExitCode != ProcessConstants.ExitCodeSuccess && process.ExitCode != 3010)
+            if (process.ExitCode != ProcessConstants.ExitCodeSuccess && process.ExitCode != ProcessConstants.ExitCodeRebootRequired)
             {
                 logger.LogWarning("VCRedist install exited with code {Code}", process.ExitCode);
                 details.Add($"⚠ VCRedist install exited with code {process.ExitCode}");
@@ -138,7 +145,7 @@ public class VCRedist2010Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
                 return new ActionSetResult(false, $"VCRedist install failed with code {process.ExitCode}", details);
             }
 
-            if (process.ExitCode == 3010)
+            if (process.ExitCode == ProcessConstants.ExitCodeRebootRequired)
             {
                 details.Add("✓ VCRedist 2010 installed successfully");
                 details.Add("  ⚠ System restart may be required");
@@ -161,16 +168,16 @@ public class VCRedist2010Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
         }
         finally
         {
-            if (File.Exists(tempPath))
+            try
             {
-                try
+                if (File.Exists(tempPath))
                 {
                     File.Delete(tempPath);
                 }
-                catch
-                {
-                    // Ignore temp deletion errors
-                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Failed to delete temp file {TempFile}", tempPath);
             }
         }
     }

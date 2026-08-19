@@ -21,8 +21,9 @@ public interface IActionSetOrchestrator
     /// Gets applicable core fixes for a given installation.
     /// </summary>
     /// <param name="installation">The game installation.</param>
+    /// <param name="ct">Cancellation token.</param>
     /// <returns>A task returning the list of applicable core fixes.</returns>
-    Task<IReadOnlyList<IActionSet>> GetApplicableCoreFixesAsync(GameInstallation installation);
+    Task<IReadOnlyList<IActionSet>> GetApplicableCoreFixesAsync(GameInstallation installation, CancellationToken ct = default);
 
     /// <summary>
     /// Applies a collection of action sets to an installation.

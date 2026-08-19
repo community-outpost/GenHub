@@ -54,6 +54,7 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
     {
         var details = new List<string>();
         bool hasFailures = false;
+        int shortcutsCreated = 0;
 
         try
         {
@@ -78,6 +79,7 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
 
                     if (result.Success)
                     {
+                        shortcutsCreated++;
                         details.Add($"✓ Created: {Path.GetFileName(shortcutPath)}");
                     }
                     else
@@ -105,6 +107,7 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
 
                     if (result.Success)
                     {
+                        shortcutsCreated++;
                         details.Add($"✓ Created: {Path.GetFileName(shortcutPath)}");
                     }
                     else
@@ -128,6 +131,7 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
 
                     if (result.Success)
                     {
+                        shortcutsCreated++;
                         details.Add($"✓ Created: {Path.GetFileName(shortcutPath)}");
                     }
                     else
@@ -143,8 +147,14 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
                 return new ActionSetResult(false, "Failed to create one or more Start Menu shortcuts", details);
             }
 
+            if (shortcutsCreated == 0)
+            {
+                details.Add("⚠ No game executables found to create shortcuts for.");
+                return new ActionSetResult(false, "No game executables found to create shortcuts.", details);
+            }
+
             details.Add(string.Empty);
-            details.Add("✓ Start Menu shortcuts created successfully");
+            details.Add($"✓ Start Menu shortcuts created successfully ({shortcutsCreated} shortcuts)");
 
             return new ActionSetResult(true, null, details);
         }

@@ -37,10 +37,10 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
     public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
+    /// <inheritdoc/>
     public override Task<bool> IsApplicableAsync(GameInstallation installation)
     {
-        // Disabled per user request - redundant with GenHub Downloads section
-        return Task.FromResult(false);
+        return Task.FromResult(installation.HasGenerals);
     }
 
     /// <inheritdoc/>
@@ -78,8 +78,8 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
     {
         var details = new List<string>();
 
-        var tempPath = Path.Combine(Path.GetTempPath(), "gn108_patch.zip");
-        var extractPath = Path.Combine(Path.GetTempPath(), "gn108_extract");
+        var tempPath = Path.Combine(Path.GetTempPath(), $"gn108_patch_{Guid.NewGuid():N}.zip");
+        var extractPath = Path.Combine(Path.GetTempPath(), $"gn108_extract_{Guid.NewGuid():N}");
 
         try
         {
@@ -92,22 +92,27 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
             logger.LogInformation("Downloading Generals 1.08 patch from {Url}", ExternalUrls.Generals108PatchUrl);
 
             using var client = httpClientFactory.CreateClient("Downloader");
-            using var response = await client.GetAsync(ExternalUrls.Generals108PatchUrl, cancellationToken);
+            using var response = await client.GetAsync(ExternalUrls.Generals108PatchUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             response.EnsureSuccessStatusCode();
 
-            var fileSize = response.Content.Headers.ContentLength ?? 0;
-            details.Add($"✓ Downloaded {fileSize / 1024 / 1024:F2} MB");
-
-            using (var fs = new FileStream(tempPath, FileMode.Create))
+            await using (var fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
             {
                 await response.Content.CopyToAsync(fs, cancellationToken);
             }
 
+            var fileInfo = new FileInfo(tempPath);
+            var fileSize = fileInfo.Length;
+            if (fileSize < ActionSetConstants.Validation.MinGenerals108PatchSizeBytes)
+            {
+                logger.LogWarning("Downloaded Generals 1.08 patch file too small ({Size} bytes), likely corrupt.", fileSize);
+                if (File.Exists(tempPath)) File.Delete(tempPath);
+                return new ActionSetResult(false, "Downloaded Generals 1.08 patch is corrupted or incomplete.", details);
+            }
+
+            details.Add($"✓ Downloaded {fileSize / 1024.0 / 1024.0:F2} MB");
+
             details.Add("Extracting patch files...");
             logger.LogInformation("Extracting Generals 1.08 patch...");
-
-            if (Directory.Exists(extractPath))
-                Directory.Delete(extractPath, true);
 
             Directory.CreateDirectory(extractPath);
             ZipFile.ExtractToDirectory(tempPath, extractPath);
@@ -159,27 +164,28 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
         }
         finally
         {
-            // Cleanup
-            if (File.Exists(tempPath))
+            try
             {
-                try
+                if (File.Exists(tempPath))
                 {
                     File.Delete(tempPath);
                 }
-                catch
-                {
-                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Failed to delete temp file {TempFile}", tempPath);
             }
 
-            if (Directory.Exists(extractPath))
+            try
             {
-                try
+                if (Directory.Exists(extractPath))
                 {
                     Directory.Delete(extractPath, true);
                 }
-                catch
-                {
-                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Failed to delete extract folder {ExtractPath}", extractPath);
             }
         }
     }

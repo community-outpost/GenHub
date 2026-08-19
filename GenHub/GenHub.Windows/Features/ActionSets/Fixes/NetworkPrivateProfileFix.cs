@@ -4,9 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Management;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
@@ -35,19 +35,19 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
     }
 
     /// <inheritdoc/>
-    public override Task<bool> IsAppliedAsync(GameInstallation installation)
+    public override async Task<bool> IsAppliedAsync(GameInstallation installation)
     {
         try
         {
             // Check if all active network adapters are set to Private
-            var profiles = GetNetworkProfiles();
+            var profiles = await Task.Run(GetNetworkProfiles);
             var isAllPrivate = profiles.Count > 0 && profiles.All(p => p.Equals("Private", StringComparison.OrdinalIgnoreCase));
-            return Task.FromResult(isAllPrivate);
+            return isAllPrivate;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error checking network profile status");
-            return Task.FromResult(false);
+            return false;
         }
     }
 
@@ -58,7 +58,7 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
 
         try
         {
-            var profiles = GetNetworkProfiles();
+            var profiles = await Task.Run(GetNetworkProfiles, cancellationToken);
             details.Add($"Found {profiles.Count} network adapter(s)");
 
             foreach (var profile in profiles)
@@ -82,7 +82,7 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
             {
                 var psi = new ProcessStartInfo
                 {
-                    FileName = "powershell.exe",
+                    FileName = ProcessConstants.PowerShellExecutable,
                     Arguments = "-WindowStyle Hidden -NonInteractive -Command \"Set-NetConnectionProfile -NetworkCategory Private\"",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -96,7 +96,7 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
                     _ = process.StandardOutput.ReadToEnd();
                     _ = process.StandardError.ReadToEnd();
                     process.WaitForExit();
-                    return process.ExitCode == 0;
+                    return process.ExitCode == ProcessConstants.ExitCodeSuccess;
                 }
 
                 return false;
@@ -138,7 +138,7 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
             // Use PowerShell to get network profiles
             var psi = new ProcessStartInfo
             {
-                FileName = "powershell.exe",
+                FileName = ProcessConstants.PowerShellExecutable,
                 Arguments = "-WindowStyle Hidden -NonInteractive -Command \"Get-NetConnectionProfile | Select-Object -ExpandProperty NetworkCategory\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
