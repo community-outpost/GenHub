@@ -102,7 +102,7 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
 
             var fileInfo = new FileInfo(tempPath);
             var fileSize = fileInfo.Length;
-            if (fileSize < ActionSetConstants.Validation.MinGenerals108PatchSizeBytes)
+            if (fileSize < ActionSetConstants.Validation.PatchMinSize)
             {
                 logger.LogWarning("Downloaded Generals 1.08 patch file too small ({Size} bytes), likely corrupt.", fileSize);
                 if (File.Exists(tempPath)) File.Delete(tempPath);

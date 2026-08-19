@@ -170,6 +170,11 @@ public static class GameSettingsConstants
         public const string ZeroHourGerman = "Command and Conquer Generals Zero Hour Daten";
 
         /// <summary>
+        /// Subfolder name for screenshots within the game data directory.
+        /// </summary>
+        public const string Screenshots = "Screenshots";
+
+        /// <summary>
         /// All known user data folder names for Generals and Zero Hour (including localized variants).
         /// </summary>
         public static readonly IReadOnlyList<string> AllUserDataFolderNames =
@@ -179,11 +184,6 @@ public static class GameSettingsConstants
             GeneralsGerman,
             ZeroHourGerman,
         ];
-
-        /// <summary>
-        /// Subfolder name for screenshots within the game data directory.
-        /// </summary>
-        public const string Screenshots = "Screenshots";
     }
 
     /// <summary>

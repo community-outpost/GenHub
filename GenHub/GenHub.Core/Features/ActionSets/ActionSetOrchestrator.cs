@@ -142,6 +142,7 @@ public class ActionSetOrchestrator : IActionSetOrchestrator
                     errors.Add($"Critical fix '{actionSet.Title}' applicability check failed. Remaining fixes were not applied.");
                     return OperationResult<int>.CreateFailure(errors);
                 }
+
                 continue;
             }
 
@@ -172,6 +173,7 @@ public class ActionSetOrchestrator : IActionSetOrchestrator
                     errors.Add($"Critical fix '{actionSet.Title}' applied check failed. Remaining fixes were not applied.");
                     return OperationResult<int>.CreateFailure(errors);
                 }
+
                 isApplied = false;
             }
 
@@ -183,7 +185,7 @@ public class ActionSetOrchestrator : IActionSetOrchestrator
 
             _logger.LogInformation("Applying fix {Current}/{Total}: {Title}", i + 1, totalCount, actionSet.Title);
 
-            ActionSetResult result;
+            ActionSetResult result = new(false);
             try
             {
                 result = await actionSet.ApplyAsync(installation, ct);

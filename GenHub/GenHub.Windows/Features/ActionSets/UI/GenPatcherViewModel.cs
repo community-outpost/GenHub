@@ -258,7 +258,7 @@ public partial class GenPatcherViewModel(
 
                 var fixStartTime = DateTime.UtcNow;
 
-                ActionSetResult fixResult;
+                ActionSetResult fixResult = new(false);
                 try
                 {
                     fixResult = await fix.ApplyAsync(currentInstallation);

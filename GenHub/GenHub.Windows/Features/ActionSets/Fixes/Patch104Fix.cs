@@ -296,7 +296,7 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
         details.Add($"✓ Installed {copiedCount} files");
     }
 
-    private static void CleanupTemp(string downloadPath, string extractPath)
+    private void CleanupTemp(string downloadPath, string extractPath)
     {
         if (File.Exists(downloadPath))
         {
