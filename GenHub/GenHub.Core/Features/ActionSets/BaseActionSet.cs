@@ -35,7 +35,6 @@ public abstract class BaseActionSet : IActionSet
     public abstract bool IsCrucialFix { get; }
 
     /// <inheritdoc/>
-    /// <inheritdoc/>
     public virtual Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
         => IsApplicableAsync(installation);
 

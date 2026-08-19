@@ -111,7 +111,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
                     var fileSize = fileInfo.Length;
 
                     // Validate file size - 200KB for web installer, 1MB for zip
-                    var minSize = isExe ? ActionSetConstants.Validation.MinDirectXExeSizeBytes : ActionSetConstants.Validation.MinDirectXZipSizeBytes;
+                    var minSize = isExe ? ActionSetConstants.Validation.DirectXWebSetupMinSize : ActionSetConstants.Validation.DirectXPackageMinSize;
 
                     if (fileSize < minSize)
                     {
