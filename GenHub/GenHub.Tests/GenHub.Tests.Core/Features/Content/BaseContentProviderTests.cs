@@ -187,6 +187,8 @@ public class BaseContentProviderTests
 
         protected override IContentResolver Resolver => _resolver;
 
+        protected override IContentDeliverer Deliverer => _deliverer;
+
         public override Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
             string contentId,
             CancellationToken cancellationToken = default)
