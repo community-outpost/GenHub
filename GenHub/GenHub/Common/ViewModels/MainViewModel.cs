@@ -249,10 +249,7 @@ public partial class MainViewModel(
                 var artifactUpdate = await velopackUpdateManager.CheckForArtifactUpdatesAsync(cancellationToken);
                 if (artifactUpdate != null)
                 {
-                    var currentAppVersion = velopackUpdateManager.IsInstalled && velopackUpdateManager.CurrentVersion != null
-                        ? velopackUpdateManager.CurrentVersion.ToFullString()
-                        : AppConstants.AppVersion;
-                    var currentVersionBase = currentAppVersion.Split('+')[0];
+                    var currentVersionBase = UpdateNotificationViewModel.CurrentAppVersion.Split('+')[0];
                     var artifactVersionBase = artifactUpdate.Version.Split('+')[0];
 
                     if (AppUpdateVersionHelper.IsArtifactVersionNewer(artifactVersionBase, currentVersionBase) &&
@@ -291,10 +288,7 @@ public partial class MainViewModel(
                 var artifactUpdate = await velopackUpdateManager.CheckForArtifactUpdatesAsync(cancellationToken);
                 if (artifactUpdate != null)
                 {
-                    var currentAppVersion = velopackUpdateManager.IsInstalled && velopackUpdateManager.CurrentVersion != null
-                        ? velopackUpdateManager.CurrentVersion.ToFullString()
-                        : AppConstants.AppVersion;
-                    var currentVersionBase = currentAppVersion.Split('+')[0];
+                    var currentVersionBase = UpdateNotificationViewModel.CurrentAppVersion.Split('+')[0];
                     var artifactVersionBase = artifactUpdate.Version.Split('+')[0];
 
                     if (AppUpdateVersionHelper.IsArtifactVersionNewer(artifactVersionBase, currentVersionBase) &&
