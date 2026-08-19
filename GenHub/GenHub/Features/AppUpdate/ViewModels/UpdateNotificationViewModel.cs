@@ -715,6 +715,29 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
+    /// Opens the specified pull request in the default browser.
+    /// </summary>
+    /// <param name="prNumber">The PR number to open.</param>
+    [RelayCommand]
+    private void OpenPullRequestUrl(int prNumber)
+    {
+        if (prNumber <= 0)
+        {
+            return;
+        }
+
+        var url = $"{AppConstants.GitHubRepositoryUrl}/pull/{prNumber}";
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to open browser for PR #{PrNumber}", prNumber);
+        }
+    }
+
+    /// <summary>
     /// Downloads and applies the update using Velopack.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanDownloadUpdate))]

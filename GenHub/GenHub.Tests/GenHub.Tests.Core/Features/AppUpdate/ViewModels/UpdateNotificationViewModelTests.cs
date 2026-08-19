@@ -360,4 +360,26 @@ public class UpdateNotificationViewModelTests
         Assert.Empty(vm.AvailableVersions);
         Assert.Null(vm.SelectedVersion);
     }
+
+    /// <summary>
+    /// Verifies that OpenPullRequestUrlCommand executes without error for valid and invalid PR numbers.
+    /// </summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(389)]
+    public void OpenPullRequestUrlCommand_ExecutesWithoutException(int prNumber)
+    {
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings());
+
+        var vm = new UpdateNotificationViewModel(
+            Mock.Of<IVelopackUpdateManager>(),
+            Mock.Of<ILogger<UpdateNotificationViewModel>>(),
+            mockUserSettings.Object);
+
+        // verify command execution does not throw
+        vm.OpenPullRequestUrlCommand.Execute(prNumber);
+        Assert.NotNull(vm);
+    }
 }
