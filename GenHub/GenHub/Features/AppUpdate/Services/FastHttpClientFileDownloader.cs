@@ -235,7 +235,7 @@ public class FastHttpClientFileDownloader(
             useAsync: true);
 
         var buffer = new byte[AppUpdateConstants.DefaultStreamBufferSize];
-        int bytesRead;
+        int bytesRead = 0;
 
         while ((bytesRead = await contentStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancelToken).ConfigureAwait(false)) > 0)
         {
@@ -308,7 +308,7 @@ public class FastHttpClientFileDownloader(
 
                 var buffer = new byte[AppUpdateConstants.DefaultStreamBufferSize];
                 var chunkBytesRead = 0L;
-                int bytesRead;
+                int bytesRead = 0;
 
                 while ((bytesRead = await chunkStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancelToken).ConfigureAwait(false)) > 0)
                 {
