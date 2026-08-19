@@ -1,5 +1,6 @@
 using System.Reactive.Linq;
 using GenHub.Common.ViewModels;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -278,14 +279,17 @@ public class MainViewModelTests
         var shownNotifications = new List<NotificationMessage>();
         var notificationShownTcs = new TaskCompletionSource<NotificationMessage>();
 
-        var artifactInfo = new ArtifactUpdateInfo
-        {
-            Version = "99.0.0",
-            DisplayVersion = "v99.0.0",
-            DownloadUrl = "https://example.com/artifact.zip",
-            FileName = "genhub-velopack-linux-99.0.0.zip",
-            BranchName = "main",
-        };
+        var artifactInfo = new ArtifactUpdateInfo(
+            Version: "99.0.0",
+            GitHash: "abcdef1",
+            PullRequestNumber: null,
+            WorkflowRunId: 12345,
+            WorkflowRunUrl: "https://example.com/runs/1",
+            ArtifactId: 67890,
+            ArtifactName: "genhub-velopack-linux-99.0.0",
+            CreatedAt: DateTime.UtcNow,
+            DownloadUrl: "https://example.com/artifact.zip",
+            Size: 1024);
 
         var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
         mockVelopackUpdateManager.Setup(x => x.CheckForArtifactUpdatesAsync(It.IsAny<System.Threading.CancellationToken>()))
