@@ -188,6 +188,86 @@ public class SettingsViewModelTests
         Assert.Equal(3, viewModel.MaxConcurrentDownloads);
         Assert.False(viewModel.EnableDetailedLogging);
         Assert.Equal(WorkspaceConstants.DefaultWorkspaceStrategy, viewModel.DefaultWorkspaceStrategy);
+        Assert.True(viewModel.AutoCheckForUpdatesPeriodically);
+        Assert.Equal(AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalMinutes, viewModel.PeriodicUpdateCheckIntervalMinutes);
+    }
+
+    /// <summary>
+    /// Verifies that periodic update settings are correctly loaded from UserSettings.
+    /// </summary>
+    [Fact]
+    public void Constructor_LoadsPeriodicUpdateSettingsFromUserSettingsService()
+    {
+        // Arrange
+        var customSettings = new UserSettings
+        {
+            AutoCheckForUpdatesPeriodically = false,
+            PeriodicUpdateCheckIntervalMinutes = 15,
+        };
+
+        _mockConfigService.Setup(x => x.Get()).Returns(customSettings);
+
+        // Act
+        var viewModel = new SettingsViewModel(
+            _mockConfigService.Object,
+            _mockLogger.Object,
+            _mockCasService.Object,
+            _mockProfileManager.Object,
+            _mockWorkspaceManager.Object,
+            _mockManifestPool.Object,
+            _mockUpdateManager.Object,
+            _mockNotificationService.Object,
+            _mockConfigurationProvider.Object,
+            _mockInstallationService.Object,
+            _mockStorageLocationService.Object,
+            _mockUserDataTracker.Object);
+
+        // Assert
+        Assert.False(viewModel.AutoCheckForUpdatesPeriodically);
+        Assert.Equal(15, viewModel.PeriodicUpdateCheckIntervalMinutes);
+    }
+
+    /// <summary>
+    /// Verifies that SaveSettingsCommand persists periodic update settings.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task SaveSettingsCommand_UpdatesPeriodicUpdateSettingsAsync()
+    {
+        // Arrange
+        var viewModel = new SettingsViewModel(
+            _mockConfigService.Object,
+            _mockLogger.Object,
+            _mockCasService.Object,
+            _mockProfileManager.Object,
+            _mockWorkspaceManager.Object,
+            _mockManifestPool.Object,
+            _mockUpdateManager.Object,
+            _mockNotificationService.Object,
+            _mockConfigurationProvider.Object,
+            _mockInstallationService.Object,
+            _mockStorageLocationService.Object,
+            _mockUserDataTracker.Object)
+        {
+            AutoCheckForUpdatesPeriodically = false,
+            PeriodicUpdateCheckIntervalMinutes = 45,
+        };
+
+        UserSettings? capturedSettings = null;
+        _mockConfigService.Setup(x => x.Update(It.IsAny<Action<UserSettings>>()))
+            .Callback<Action<UserSettings>>(action =>
+            {
+                capturedSettings = new UserSettings();
+                action(capturedSettings);
+            });
+
+        // Act
+        await Task.Run(() => viewModel.SaveSettingsCommand.Execute(null));
+
+        // Assert
+        Assert.NotNull(capturedSettings);
+        Assert.False(capturedSettings.AutoCheckForUpdatesPeriodically);
+        Assert.Equal(45, capturedSettings.PeriodicUpdateCheckIntervalMinutes);
     }
 
     /// <summary>

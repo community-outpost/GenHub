@@ -11,39 +11,128 @@
     </UserControl.Resources>
 
     <UserControl.Styles>
-        <Style Selector="TabItem">
+        <!-- Tab Navigation Button Styles -->
+        <Style Selector="Button.tab-btn">
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="12,8"/>
-            <Setter Property="Foreground" Value="#AAAAAA"/>
-            <Setter Property="Margin" Value="0,0,0,12"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="Foreground" Value="#888888"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
         </Style>
-        <Style Selector="TabItem:selected">
+        <Style Selector="Button.tab-btn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Foreground" Value="#CCCCCC"/>
+            <Setter Property="Background" Value="#15FFFFFF"/>
+        </Style>
+        <Style Selector="Button.tab-btn.active">
             <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+        </Style>
+        <Style Selector="Button.tab-btn.active:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="#15FFFFFF"/>
+            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+        </Style>
+
+        <!-- Clickable PR Link Style -->
+        <Style Selector="Button.pr-link">
+            <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.pr-link:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
         </Style>
 
         <!-- Subscribe Button Style handling state via Tag binding -->
         <Style Selector="Button.SubscribeState">
             <Setter Property="Content" Value="Subscribe"/>
             <Setter Property="IsEnabled" Value="True"/>
+            <Setter Property="Background" Value="#1A7C3AED"/>
+            <Setter Property="Foreground" Value="#F1F5F9"/>
+            <Setter Property="BorderBrush" Value="#7C3AED"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,5"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.SubscribeState:pointerover">
+            <Setter Property="Background" Value="#7C3AED"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#8B5CF6"/>
+        </Style>
+        <Style Selector="Button.SubscribeState:pressed">
+            <Setter Property="Background" Value="#6D28D9"/>
+            <Setter Property="Foreground" Value="White"/>
         </Style>
         <Style Selector="Button.SubscribeState[Tag=True]">
-            <Setter Property="Content" Value="Subscribed"/>
+            <Setter Property="Content" Value="✓ Subscribed"/>
             <Setter Property="IsEnabled" Value="False"/>
-            <Setter Property="Background" Value="#207C4DFF"/>
-            <Setter Property="Foreground" Value="#CC7C4DFF"/>
-            <Setter Property="BorderBrush" Value="#7C4DFF"/>
+            <Setter Property="Background" Value="#1F22C55E"/>
+            <Setter Property="Foreground" Value="#4ADE80"/>
+            <Setter Property="BorderBrush" Value="#22C55E"/>
             <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,5"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Opacity" Value="1.0"/>
+        </Style>
+        <Style Selector="Button.SubscribeState[Tag=True]:disabled /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#1F22C55E"/>
+            <Setter Property="Foreground" Value="#4ADE80"/>
+            <Setter Property="BorderBrush" Value="#22C55E"/>
         </Style>
     </UserControl.Styles>
 
     <Grid RowDefinitions="Auto,*,Auto" Margin="20,12">
 
-        <!-- Tabs for Update vs Browse -->
-        <TabControl Grid.Row="1" Background="Transparent" Margin="-8,0">
-            <TabItem Header="Update">
-                <StackPanel Spacing="16" Margin="8,0">
+        <!-- Top Header: Tabs on Left, Sort by on Right (Same Row!) -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,16">
+            <!-- Left: Tab Navigation -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
+                <Button Classes="tab-btn"
+                        Classes.active="{Binding !IsBrowseTabSelected}"
+                        Command="{Binding ShowUpdateTabCommand}"
+                        Content="Update"/>
+                <Button Classes="tab-btn"
+                        Classes.active="{Binding IsBrowseTabSelected}"
+                        Command="{Binding ShowBrowseBuildsTabCommand}"
+                        Content="Browse Builds"/>
+            </StackPanel>
+
+            <!-- Right: Sort by Dropdown (Only visible on Browse Builds tab) -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" IsVisible="{Binding IsBrowseTabSelected}">
+                <TextBlock Text="Sort by:" FontSize="12" Foreground="#888888" VerticalAlignment="Center"/>
+                <ComboBox ItemsSource="{Binding AvailableSortOptions}"
+                          SelectedItem="{Binding SelectedSortOption}"
+                          MinWidth="160"
+                          FontSize="12"
+                          Padding="8,4"
+                          CornerRadius="6"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Main Content Area -->
+        <Panel Grid.Row="1">
+            <!-- Tab 0: Update -->
+            <ScrollViewer IsVisible="{Binding !IsBrowseTabSelected}" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="16" Margin="0,0,0,8">
                     <!-- Update Status Card -->
                     <Border Background="#20FFFFFF" CornerRadius="12" Padding="20" IsVisible="{Binding IsUpdateAvailable}">
                         <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
@@ -79,14 +168,18 @@
 
                             <!-- Release Notes Link -->
                             <Button Grid.Row="1" Grid.Column="1" Content="View Release Notes" Command="{Binding ViewReleaseNotesCommand}"
-                                    Background="Transparent" Foreground="#7C4DFF" BorderThickness="0" Padding="0" Margin="0,8,0,0" HorizontalAlignment="Left" Cursor="Hand"/>
+                                     Background="Transparent" Foreground="#7C4DFF" BorderThickness="0" Padding="0" Margin="0,8,0,0" HorizontalAlignment="Left" Cursor="Hand"/>
                         </Grid>
                     </Border>
 
                     <!-- Settings / Subscription Info -->
                     <Border Background="#15FFFFFF" CornerRadius="12" Padding="16">
                         <StackPanel Spacing="12">
-                            <TextBlock Text="Installation Source" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="Installation Source" FontSize="14" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="{Binding InstalledVersionDisplay, StringFormat='Current Version: {0}'}"
+                                           FontSize="12" Foreground="#888888" VerticalAlignment="Center"/>
+                            </Grid>
 
                             <!-- Current Source Display -->
                             <Grid ColumnDefinitions="Auto,*,Auto">
@@ -117,84 +210,147 @@
                         </StackPanel>
                     </Border>
                 </StackPanel>
-            </TabItem>
+            </ScrollViewer>
 
-            <TabItem Header="Browse Builds">
-                <Grid RowDefinitions="Auto,*">
-                    <ScrollViewer Grid.Row="1">
-                        <StackPanel Spacing="16">
-                            <!-- Pull Requests -->
-                            <Expander Header="Open Pull Requests" IsExpanded="True">
-                                <ItemsControl ItemsSource="{Binding AvailablePullRequests}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Background="#10FFFFFF" CornerRadius="6" Padding="12" Margin="0,0,0,8">
-                                                <Grid ColumnDefinitions="*,Auto">
-                                                    <StackPanel Spacing="4">
-                                                        <TextBlock Text="{Binding Title}" FontWeight="Medium" TextTrimming="CharacterEllipsis"/>
-                                                        <StackPanel Orientation="Horizontal" Spacing="6" Opacity="0.6">
-                                                            <TextBlock Text="{Binding Author, StringFormat='by {0}'}" FontSize="12"/>
-                                                            <TextBlock Text="•" FontSize="12"/>
-                                                            <TextBlock Text="{Binding BranchName}" FontSize="12"/>
-                                                        </StackPanel>
+            <!-- Tab 1: Browse Builds -->
+            <Grid IsVisible="{Binding IsBrowseTabSelected}" ColumnDefinitions="3*,2*">
+                <!-- Left Column: Open Pull Requests -->
+                <Border Grid.Column="0" Background="#0AFFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,8,0">
+                    <Grid RowDefinitions="Auto,*">
+                        <!-- Column Header -->
+                        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="4,0,4,12">
+                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <TextBlock Text="Open Pull Requests" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
+                                <Border Background="#207C4DFF" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding AvailablePullRequests.Count}" FontSize="11" FontWeight="Bold" Foreground="#CC7C4DFF"/>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Scrollable PR List -->
+                        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding AvailablePullRequests}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#12FFFFFF" CornerRadius="6" Padding="12" Margin="0,0,6,8">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <!-- Left side: PR Info (bounded for text trimming) -->
+                                                <Grid Grid.Column="0" RowDefinitions="Auto,Auto" Margin="0,0,12,0">
+                                                    <!-- Row 0: PR Number + Title in a 2-column grid so Title trims with ellipsis -->
+                                                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*">
+                                                        <Button Grid.Column="0"
+                                                                Command="{Binding #Root.((vm:UpdateNotificationViewModel)DataContext).OpenPullRequestUrlCommand}"
+                                                                CommandParameter="{Binding Number}"
+                                                                Classes="pr-link"
+                                                                Margin="0,0,6,0"
+                                                                ToolTip.Tip="Open pull request on GitHub">
+                                                            <TextBlock Text="{Binding Number, StringFormat='#{0}'}"
+                                                                       FontWeight="Bold"
+                                                                       Foreground="{DynamicResource SystemAccentColor}"
+                                                                       TextDecorations="Underline"/>
+                                                        </Button>
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text="{Binding Title}"
+                                                                   FontWeight="Medium"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   VerticalAlignment="Center"/>
+                                                    </Grid>
+
+                                                    <!-- Row 1: Author, Branch, Date -->
+                                                    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Opacity="0.6" Margin="0,4,0,0">
+                                                        <TextBlock Text="{Binding Author, StringFormat='by {0}'}" FontSize="12" TextTrimming="CharacterEllipsis" MaxWidth="120"/>
+                                                        <TextBlock Text="•" FontSize="12"/>
+                                                        <TextBlock Text="{Binding BranchName}" FontSize="12" TextTrimming="CharacterEllipsis" MaxWidth="160"/>
+                                                        <TextBlock Text="•" FontSize="12" IsVisible="{Binding UpdatedAt, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                                                        <TextBlock Text="{Binding UpdatedAt, StringFormat='Updated: {0:g}'}" FontSize="12" IsVisible="{Binding UpdatedAt, Converter={x:Static ObjectConverters.IsNotNull}}"/>
                                                     </StackPanel>
-                                                    <Button Grid.Column="1"
-                                                            Command="{Binding #Root.((vm:UpdateNotificationViewModel)DataContext).SubscribeToPrCommand}"
-                                                            CommandParameter="{Binding Number}"
-                                                            Classes="SmallAction SubscribeState">
-                                                        <Button.Tag>
-                                                            <MultiBinding Converter="{StaticResource IsSubscribedConverter}">
-                                                                <Binding Path="." />
-                                                                <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedPr" />
-                                                                <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedBranch" />
-                                                            </MultiBinding>
-                                                        </Button.Tag>
-                                                    </Button>
                                                 </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </Expander>
 
-                            <!-- Branches -->
-                            <Expander Header="Branches">
-                                <ItemsControl ItemsSource="{Binding AvailableBranches}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Background="#10FFFFFF" CornerRadius="6" Padding="12" Margin="0,0,0,8">
-                                                <Grid ColumnDefinitions="*,Auto">
-                                                    <TextBlock Text="{Binding}" VerticalAlignment="Center" FontWeight="Medium"/>
-                                                    <Button Grid.Column="1"
-                                                            Command="{Binding #Root.((vm:UpdateNotificationViewModel)DataContext).SubscribeToBranchCommand}"
-                                                            CommandParameter="{Binding}"
-                                                            Classes="SmallAction SubscribeState">
-                                                        <Button.Tag>
-                                                            <MultiBinding Converter="{StaticResource IsSubscribedConverter}">
-                                                                <Binding Path="." />
-                                                                <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedPr" />
-                                                                <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedBranch" />
-                                                            </MultiBinding>
-                                                        </Button.Tag>
-                                                    </Button>
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </Expander>
-                        </StackPanel>
-                    </ScrollViewer>
-                </Grid>
-            </TabItem>
-        </TabControl>
+                                                <!-- Right side: Subscribe Button -->
+                                                <Button Grid.Column="1"
+                                                        VerticalAlignment="Center"
+                                                        Command="{Binding #Root.((vm:UpdateNotificationViewModel)DataContext).SubscribeToPrCommand}"
+                                                        CommandParameter="{Binding Number}"
+                                                        Classes="SmallAction SubscribeState">
+                                                    <Button.Tag>
+                                                        <MultiBinding Converter="{StaticResource IsSubscribedConverter}">
+                                                            <Binding Path="." />
+                                                            <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedPr" />
+                                                            <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedBranch" />
+                                                        </MultiBinding>
+                                                    </Button.Tag>
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
+                <!-- Right Column: Branches -->
+                <Border Grid.Column="1" Background="#0AFFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1" CornerRadius="8" Padding="12" Margin="8,0,0,0">
+                    <Grid RowDefinitions="Auto,*">
+                        <!-- Column Header -->
+                        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="4,0,4,12">
+                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <TextBlock Text="Branches" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
+                                <Border Background="#207C4DFF" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding AvailableBranches.Count}" FontSize="11" FontWeight="Bold" Foreground="#CC7C4DFF"/>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Scrollable Branches List -->
+                        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding AvailableBranches}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#12FFFFFF" CornerRadius="6" Padding="12" Margin="0,0,6,8">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBlock Grid.Column="0"
+                                                           Text="{Binding}"
+                                                           VerticalAlignment="Center"
+                                                           FontWeight="Medium"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           Margin="0,0,12,0"/>
+                                                <Button Grid.Column="1"
+                                                        VerticalAlignment="Center"
+                                                        Command="{Binding #Root.((vm:UpdateNotificationViewModel)DataContext).SubscribeToBranchCommand}"
+                                                        CommandParameter="{Binding}"
+                                                        Classes="SmallAction SubscribeState">
+                                                    <Button.Tag>
+                                                        <MultiBinding Converter="{StaticResource IsSubscribedConverter}">
+                                                            <Binding Path="." />
+                                                            <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedPr" />
+                                                            <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedBranch" />
+                                                        </MultiBinding>
+                                                    </Button.Tag>
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Panel>
 
         <!-- Footer Actions -->
         <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" Margin="0,16,0,0">
-            <!-- Global Refresh Button -->
-            <Button Grid.Column="0" Command="{Binding ManualRefreshCommand}" Content="Check for Updates"
-                    Background="Transparent" Foreground="#AAAAAA" FontSize="14" Cursor="Hand"
-                    ToolTip.Tip="Manually check for updates and restore dismissed notifications"/>
+            <!-- Global Refresh Button & Current Version -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                <Button Command="{Binding ManualRefreshCommand}" Content="Check for Updates"
+                        Background="Transparent" Foreground="#AAAAAA" FontSize="14" Cursor="Hand"
+                        ToolTip.Tip="Manually check for updates and restore dismissed notifications"/>
+                <Border Background="#15FFFFFF" CornerRadius="4" Padding="8,3" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding InstalledVersionDisplay}"
+                               FontSize="12" Foreground="#888888" VerticalAlignment="Center"/>
+                </Border>
+            </StackPanel>
 
             <!-- Detailed Progress Display -->
             <StackPanel Grid.Column="1" IsVisible="{Binding IsInstalling}" VerticalAlignment="Center" Margin="16,0">

@@ -98,6 +98,10 @@ public class Program
             bootstrapLogger.LogInformation("Multi-instance mode enabled - skipping single-instance check");
         }
 
+        // Register the genhub:// URI scheme with Windows so clicked links open this executable.
+        // Registered for primary instance only; idempotent and per-user (HKCU).
+        Features.Shortcuts.UriSchemeRegistrar.Register(bootstrapLogger);
+
         try
         {
             bootstrapLogger.LogInformation("Starting GenHub Windows application");

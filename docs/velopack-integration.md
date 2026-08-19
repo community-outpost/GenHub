@@ -110,38 +110,52 @@ This allows users to reinstall the same PR build with different commits without 
 
 ## Update Channels
 
-GenHub provides two update channels that users can switch between:
+GenHub provides three update channels that users can switch between:
 
-### Stable Channel
+### 1. Stable Channel (Default)
 
 - **Source**: GitHub Releases
-- **Versions**: `0.0.X` (no PR suffix)
-- **Updates**: Only stable builds from main branch
-- **Recommended for**: Production use
+- **Versions**: `0.0.X` (no branch/PR suffix)
+- **Updates**: Only published releases from the main branch
+- **Recommended for**: General production use
 
-### Artifacts Channel (PR Subscription)
+### 2. PR Artifacts Channel (PR Subscription)
 
-- **Source**: GitHub Actions CI artifacts
+- **Source**: GitHub Actions CI workflow artifacts
 - **Versions**: `0.0.X-prY` format
-- **Updates**: Specific PR builds
-- **Recommended for**: Testing features, bug fixes
+- **Updates**: Specific Pull Request CI builds
+- **Recommended for**: Testing specific feature branches or bug fix pull requests
 - **Requires**: GitHub Personal Access Token (PAT) with `repo` scope
 
 #### Subscribing to PR Builds
 
 1. Navigate to Settings → Updates
 2. Click "Manage Updates & PRs"
-3. Enter GitHub PAT (if not already configured)
-4. Select a PR from the list
-5. Click "Subscribe"
+3. In the "Browse Builds" tab, select a pull request
+4. Click "Subscribe"
 
-The app will now check for updates from that PR instead of stable releases.
+The application will automatically query and notify when newer CI builds are published for that PR.
+
+### 3. Branch Artifacts Channel (Branch Subscription)
+
+- **Source**: GitHub Actions CI workflow artifacts on a branch (e.g., `development`, `main`)
+- **Versions**: `0.0.X-branchname` format
+- **Updates**: Continuous integration builds on the selected branch
+- **Recommended for**: Developers and testers wanting bleeding-edge builds
 
 #### Unsubscribing
 
 1. Open "Manage Updates & PRs"
-2. Click "Unsubscribe" on the currently subscribed PR
-3. App returns to stable channel
+2. Click "Unsubscribe" on the currently subscribed PR or branch
+3. The app returns to the stable release channel
+
+### Periodic Background Update Checks
+
+GenHub supports periodic background update checks configured in **Settings**:
+- **Automatic Background Checks**: Enable or disable periodic checks
+- **Configurable Interval**: Set between 5 minutes and 7 days (default: 30 minutes)
+- **Persistent Notifications & Badges**: Prompts users with a non-intrusive one-click "Update" action in the notification feed
+- **Duplicate Prevention**: Notification records are uniquely tracked per update identity (`pr:{prNumber}:{version}`, `branch:{branch}:{version}`, or `release:{version}`) to avoid notification spam
 
 ## Building Releases
 

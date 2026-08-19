@@ -21,9 +21,15 @@ public static class CommandLineConstants
     public const string LaunchProfileInlinePrefix = "--launch-profile=";
 
     /// <summary>
+    /// <summary>
+    /// Scheme name for custom protocol registration.
+    /// </summary>
+    public const string SchemeName = "genhub";
+
+    /// <summary>
     /// Custom URI scheme registered so OS/browser links can open GenHub.
     /// </summary>
-    public const string UriScheme = "genhub://";
+    public const string UriScheme = SchemeName + "://";
 
     /// <summary>
     /// URI path segment for content subscription (<c>genhub://subscribe?url=...</c>).

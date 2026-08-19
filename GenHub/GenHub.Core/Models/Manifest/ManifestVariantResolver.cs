@@ -200,7 +200,13 @@ public static class ManifestVariantResolver
             || string.Equals(fileName, GameClientConstants.GeneralsOnlineDefaultExecutable, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool PathsMatch(string left, string right) =>
+    /// <summary>
+    /// Determines whether two relative file paths match, normalizing directory separators and leading slashes.
+    /// </summary>
+    /// <param name="left">The first relative path.</param>
+    /// <param name="right">The second relative path.</param>
+    /// <returns><c>true</c> if the paths match; otherwise, <c>false</c>.</returns>
+    public static bool PathsMatch(string left, string right) =>
         string.Equals(
             left.Replace('\\', '/').TrimStart('/'),
             right.Replace('\\', '/').TrimStart('/'),

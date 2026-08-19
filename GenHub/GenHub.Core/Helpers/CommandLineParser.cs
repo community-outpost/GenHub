@@ -49,11 +49,33 @@ public static class CommandLineParser
         {
             if (arg.StartsWith(CommandLineConstants.SubscribeUriPrefix, StringComparison.OrdinalIgnoreCase))
             {
+                string remainder = arg[CommandLineConstants.SubscribeUriPrefix.Length..];
+                if (!remainder.StartsWith('?') && !remainder.StartsWith("/?", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
                 int queryStart = arg.IndexOf(CommandLineConstants.SubscribeUrlParam, StringComparison.OrdinalIgnoreCase);
                 if (queryStart != -1)
                 {
                     string url = arg[(queryStart + CommandLineConstants.SubscribeUrlParam.Length)..];
-                    return Uri.UnescapeDataString(url).Trim('"');
+                    string unescaped = Uri.UnescapeDataString(url)
+                        .Replace("\r", string.Empty)
+                        .Replace("\n", string.Empty)
+                        .Trim('"', '\'', ' ', '\t');
+
+                    if (string.IsNullOrWhiteSpace(unescaped))
+                    {
+                        return null;
+                    }
+
+                    if (Uri.TryCreate(unescaped, UriKind.Absolute, out var uri) &&
+                        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+                    {
+                        return unescaped;
+                    }
+
+                    return null;
                 }
             }
         }

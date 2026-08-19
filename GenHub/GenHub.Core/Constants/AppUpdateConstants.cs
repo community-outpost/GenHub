@@ -11,6 +11,21 @@ public static class AppUpdateConstants
     public const int MaxHttpRetries = 3;
 
     /// <summary>
+    /// Index for the Update tab in update notification views.
+    /// </summary>
+    public const int UpdateTabIndex = 0;
+
+    /// <summary>
+    /// Index for the Browse Builds tab in update notification views.
+    /// </summary>
+    public const int BrowseBuildsTabIndex = 1;
+
+    /// <summary>
+    /// Maximum valid tab index in update notification views.
+    /// </summary>
+    public const int MaxTabIndex = 1;
+
+    /// <summary>
     /// Velopack directory name.
     /// </summary>
     public const string VelopackDirectory = "velopack";
@@ -176,11 +191,102 @@ public static class AppUpdateConstants
     public const string BranchUpdateAvailableMessageFormat = "A new build ({0}) is available on branch '{1}'.";
 
     /// <summary>
+    /// Update available notification title for release channel.
+    /// </summary>
+    public const string UpdateAvailableNotificationTitle = "Update Available";
+
+    /// <summary>
+    /// Update available notification title for branch subscriptions.
+    /// </summary>
+    public const string BranchUpdateAvailableNotificationTitle = "Branch Update Available";
+
+    /// <summary>
+    /// Update available notification title for PR subscriptions.
+    /// </summary>
+    public const string PrUpdateAvailableNotificationTitle = "PR Update Available";
+
+    /// <summary>
+    /// Update action button text.
+    /// </summary>
+    public const string UpdateAction = "Update";
+
+    /// <summary>
+    /// Title for the update in progress notification.
+    /// </summary>
+    public const string UpdatingAppNotificationTitle = "Updating GenHub";
+
+    /// <summary>
+    /// Starting update progress message.
+    /// </summary>
+    public const string UpdateStartingMessage = "Starting update...";
+
+    /// <summary>
+    /// Title for update failed notification.
+    /// </summary>
+    public const string UpdateFailedNotificationTitle = "Update Failed";
+
+    /// <summary>
+    /// Update failed notification body format string ({0}: error message).
+    /// </summary>
+    public const string UpdateFailedNotificationFormat = "Failed to install update: {0}";
+
+    /// <summary>
     /// "View Updates" action text.
     /// </summary>
     public const string ViewUpdatesAction = "View Updates";
 
     /// <summary>
+    /// Release update notification body format string ({0}: version).
+    /// </summary>
+    public const string ReleaseUpdateNotificationFormat = "A new version ({0}) is available.";
+
+    /// <summary>
+    /// Branch update notification body format string ({0}: version, {1}: branch name).
+    /// </summary>
+    public const string BranchUpdateNotificationFormat = "A new build ({0}) is available on branch '{1}'.";
+
+    /// <summary>
+    /// PR update notification body format string ({0}: version, {1}: PR number).
+    /// </summary>
+    public const string PrUpdateNotificationFormat = "A new build ({0}) is available for PR #{1}.";
+
+    /// <summary>
+    /// Sort option: sort by last updated date descending.
+    /// </summary>
+    public const string SortOptionLastUpdated = "Last Updated";
+
+    /// <summary>
+    /// Sort option: sort by pull request number descending.
+    /// </summary>
+    public const string SortOptionPrNumberDesc = "PR Number (Highest)";
+
+    /// <summary>
+    /// Sort option: sort by pull request number ascending.
+    /// </summary>
+    public const string SortOptionPrNumberAsc = "PR Number (Lowest)";
+
+    /// <summary>
+    /// Default interval in minutes for periodic update checks (30 minutes).
+    /// </summary>
+    public const int DefaultPeriodicUpdateCheckIntervalMinutes = 30;
+
+    /// <summary>
+    /// Minimum interval in minutes for periodic update checks (5 minutes).
+    /// </summary>
+    public const int MinPeriodicUpdateCheckIntervalMinutes = 5;
+
+    /// <summary>
+    /// Maximum interval in minutes for periodic update checks (10080 minutes / 7 days).
+    /// </summary>
+    public const int MaxPeriodicUpdateCheckIntervalMinutes = 10080;
+
+    /// <summary>
+    /// Increment step in minutes for periodic update check interval setting (5 minutes).
+    /// </summary>
+    public const int PeriodicUpdateCheckIntervalIncrementMinutes = 5;
+
+    /// <summary>
+>>>>>>> upstream/development
     /// Delay before exit after applying update (5 seconds).
     /// </summary>
     public static readonly TimeSpan PostUpdateExitDelay = TimeSpan.FromSeconds(5);

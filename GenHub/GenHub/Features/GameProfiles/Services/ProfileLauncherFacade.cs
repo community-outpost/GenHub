@@ -1128,99 +1128,25 @@ public class ProfileLauncherFacade(
     {
         logger.LogInformation("[Launch] Detected Tool profile, launching tool directly");
 
-        // Get the tool manifest
-        if (string.IsNullOrWhiteSpace(profile.ToolContentId))
-        {
-            return ProfileOperationResult<GameLaunchInfo>.CreateFailure(ProfileValidationConstants.ToolProfileMissingContentId);
-        }
-
-        if (!ManifestId.TryCreate(profile.ToolContentId, out var toolManifestId))
+        var manifestResult = await ResolveToolManifestAsync(profile, cancellationToken);
+        if (manifestResult.Failed || manifestResult.Data == null)
         {
             return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
-                $"{ProfileValidationConstants.InvalidToolContentId}: {profile.ToolContentId}");
+                manifestResult.FirstError ?? ProfileValidationConstants.FailedToLoadToolManifest);
         }
 
-        var toolManifestResult = await manifestPool.GetManifestAsync(
-            toolManifestId,
-            cancellationToken);
-
-        if (toolManifestResult.Failed || toolManifestResult.Data == null)
-        {
-            return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
-                $"{ProfileValidationConstants.FailedToLoadToolManifest}: {toolManifestResult.FirstError}");
-        }
-
-        var toolManifest = toolManifestResult.Data;
+        var toolManifest = manifestResult.Data;
         logger.LogDebug("[Launch] Tool manifest loaded: {ManifestId}", toolManifest.Id);
 
-        var toolDirectory = await manifestPool.GetContentDirectoryAsync(toolManifest.Id, cancellationToken);
-        string toolWorkspacePath = string.Empty;
-        string? actualWorkspaceId = null;
-
-        if (toolDirectory.Success && !string.IsNullOrEmpty(toolDirectory.Data))
+        var workspaceResult = await ResolveToolWorkspaceAsync(profile, toolManifest, cancellationToken);
+        if (workspaceResult.Failed)
         {
-            toolWorkspacePath = toolDirectory.Data;
-            logger.LogInformation("[Launch] Using existing tool directory: {Path}", toolWorkspacePath);
-        }
-        else
-        {
-            logger.LogInformation("[Launch] Tool content requires hydration, using WorkspaceManager");
-
-            var dummyGameClient = new GenHub.Core.Models.GameClients.GameClient
-            {
-                Name = toolManifest.Name,
-                GameType = toolManifest.TargetGame,
-            };
-
-            var appDataBase = configurationProvider.GetApplicationDataPath();
-            if (!Directory.Exists(appDataBase))
-            {
-                Directory.CreateDirectory(appDataBase);
-            }
-
-            var baseDetails = appDataBase;
-
-            var resolutionResult = await dependencyResolver.ResolveDependenciesWithManifestsAsync(profile.EnabledContentIds ?? [], cancellationToken);
-            var allManifests = resolutionResult.Success ? resolutionResult.ResolvedManifests : [toolManifest];
-
-            var requestedToolStrategy = profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy();
-            var effectiveToolStrategy = ResolveSupportedWorkspaceStrategy(requestedToolStrategy);
-
-            if (effectiveToolStrategy != requestedToolStrategy)
-            {
-                logger.LogInformation(
-                    "[Launch] Tool workspace - Switching from {OriginalStrategy} to HardLink: symlinks are unavailable in this environment",
-                    requestedToolStrategy);
-            }
-
-            actualWorkspaceId = $"{ProfileConstants.ToolProfileWorkspaceIdPrefix}-{profile.Id}";
-            var workspaceConfig = new WorkspaceConfiguration
-            {
-                Id = actualWorkspaceId,
-                Manifests = [.. allManifests],
-                GameClient = dummyGameClient,
-                Strategy = effectiveToolStrategy,
-                ForceRecreate = false,
-                ValidateAfterPreparation = true,
-                BaseInstallationPath = baseDetails,
-                WorkspaceRootPath = Path.Combine(appDataBase, DirectoryNames.ToolWorkspaces),
-                SkipCleanup = false,
-            };
-
-            var prepareResult = await workspaceManager.PrepareWorkspaceAsync(workspaceConfig, progress: null, skipCleanup: false, cancellationToken: cancellationToken);
-            if (prepareResult.Failed)
-            {
-                return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
-                    $"{ProfileValidationConstants.FailedToPrepareToolWorkspace}: {prepareResult.FirstError}");
-            }
-
-            toolWorkspacePath = prepareResult.Data!.WorkspacePath;
-            logger.LogInformation("[Launch] Tool workspace prepared at: {Path}", toolWorkspacePath);
+            return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
+                workspaceResult.FirstError ?? ProfileValidationConstants.FailedToPrepareToolWorkspace);
         }
 
-        var toolDirectoryPath = toolWorkspacePath;
-        var toolExecutable = toolManifest.Files?.FirstOrDefault(f => f.IsExecutable)
-            ?? toolManifest.Files?.FirstOrDefault(f => f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
+        var (toolDirectoryPath, actualWorkspaceId) = workspaceResult.Data;
+        var toolExecutable = ResolveToolExecutable(toolManifest);
 
         if (toolExecutable == null)
         {
@@ -1241,35 +1167,7 @@ public class ProfileLauncherFacade(
 
         try
         {
-            var processStartInfo = new ProcessStartInfo
-            {
-                FileName = toolExecutablePath,
-                WorkingDirectory = toolDirectoryPath,
-                Arguments = profile.CommandLineArguments ?? string.Empty,
-                UseShellExecute = false,
-            };
-
-            if (profile.EnvironmentVariables != null)
-            {
-                foreach (var envVar in profile.EnvironmentVariables)
-                {
-                    processStartInfo.EnvironmentVariables[envVar.Key] = envVar.Value;
-                }
-            }
-
-            Process? process = null;
-            try
-            {
-                process = Process.Start(processStartInfo);
-            }
-            catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 740)
-            {
-                logger.LogWarning("Tool requires elevation (Error 740). Retrying with UseShellExecute=true and Verb='runas'. Environment variables will be ignored.");
-                processStartInfo.UseShellExecute = true;
-                processStartInfo.Verb = "runas";
-                process = Process.Start(processStartInfo);
-            }
-
+            var process = StartToolProcess(toolExecutablePath, toolDirectoryPath, profile);
             if (process == null)
             {
                 return ProfileOperationResult<GameLaunchInfo>.CreateFailure(ProfileValidationConstants.ToolProcessStartFailed);
@@ -1308,12 +1206,181 @@ public class ProfileLauncherFacade(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "[Launch] Tool launch failed");
+            logger.LogError(ex, "[Launch] Unexpected error launching tool for profile {ProfileId}", profileId);
             notificationService.ShowError(
                 ProfileValidationConstants.ToolLaunchFailedTitle,
                 $"Failed to launch '{profile.Name}': {ex.Message}",
                 NotificationDurations.VeryLong);
-            return ProfileOperationResult<GameLaunchInfo>.CreateFailure($"Tool launch failed: {ex.Message}");
+            return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
+                $"Tool launch failed: {ex.Message}");
+        }
+    }
+
+    private async Task<ProfileOperationResult<ContentManifest>> ResolveToolManifestAsync(
+        GameProfile profile,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(profile.ToolContentId))
+        {
+            return ProfileOperationResult<ContentManifest>.CreateFailure(ProfileValidationConstants.ToolProfileMissingContentId);
+        }
+
+        if (!ManifestId.TryCreate(profile.ToolContentId, out var toolManifestId))
+        {
+            return ProfileOperationResult<ContentManifest>.CreateFailure(
+                $"{ProfileValidationConstants.InvalidToolContentId}: {profile.ToolContentId}");
+        }
+
+        var toolManifestResult = await manifestPool.GetManifestAsync(
+            toolManifestId,
+            cancellationToken);
+
+        if (toolManifestResult.Failed || toolManifestResult.Data == null)
+        {
+            return ProfileOperationResult<ContentManifest>.CreateFailure(
+                $"{ProfileValidationConstants.FailedToLoadToolManifest}: {toolManifestResult.FirstError}");
+        }
+
+        return ProfileOperationResult<ContentManifest>.CreateSuccess(toolManifestResult.Data);
+    }
+
+    private async Task<ProfileOperationResult<(string WorkspacePath, string? WorkspaceId)>> ResolveToolWorkspaceAsync(
+        GameProfile profile,
+        ContentManifest toolManifest,
+        CancellationToken cancellationToken)
+    {
+        var toolDirectory = await manifestPool.GetContentDirectoryAsync(toolManifest.Id, cancellationToken);
+        if (toolDirectory.Success && !string.IsNullOrEmpty(toolDirectory.Data))
+        {
+            logger.LogInformation("[Launch] Using existing tool directory: {Path}", toolDirectory.Data);
+            return ProfileOperationResult<(string, string?)>.CreateSuccess((toolDirectory.Data, null));
+        }
+
+        logger.LogInformation("[Launch] Tool content requires hydration, using WorkspaceManager");
+
+        var dummyGameClient = new GenHub.Core.Models.GameClients.GameClient
+        {
+            Name = toolManifest.Name,
+            GameType = toolManifest.TargetGame,
+        };
+
+        var appDataBase = configurationProvider.GetApplicationDataPath();
+        if (!Directory.Exists(appDataBase))
+        {
+            Directory.CreateDirectory(appDataBase);
+        }
+
+        var resolutionResult = await dependencyResolver.ResolveDependenciesWithManifestsAsync(profile.EnabledContentIds ?? [], cancellationToken);
+        var allManifests = resolutionResult.Success ? resolutionResult.ResolvedManifests : [toolManifest];
+
+        var requestedToolStrategy = profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy();
+        var effectiveToolStrategy = ResolveSupportedWorkspaceStrategy(requestedToolStrategy);
+
+        if (effectiveToolStrategy != requestedToolStrategy)
+        {
+            logger.LogInformation(
+                "[Launch] Tool workspace - Switching from {OriginalStrategy} to HardLink: symlinks are unavailable in this environment",
+                requestedToolStrategy);
+        }
+
+        var actualWorkspaceId = $"{ProfileConstants.ToolProfileWorkspaceIdPrefix}-{profile.Id}";
+        var workspaceConfig = new WorkspaceConfiguration
+        {
+            Id = actualWorkspaceId,
+            Manifests = [.. allManifests],
+            GameClient = dummyGameClient,
+            Strategy = effectiveToolStrategy,
+            ForceRecreate = false,
+            ValidateAfterPreparation = true,
+            BaseInstallationPath = appDataBase,
+            WorkspaceRootPath = Path.Combine(appDataBase, DirectoryNames.ToolWorkspaces),
+            SkipCleanup = false,
+        };
+
+        var prepareResult = await workspaceManager.PrepareWorkspaceAsync(workspaceConfig, progress: null, skipCleanup: false, cancellationToken: cancellationToken);
+        if (prepareResult.Failed)
+        {
+            return ProfileOperationResult<(string, string?)>.CreateFailure(
+                $"{ProfileValidationConstants.FailedToPrepareToolWorkspace}: {prepareResult.FirstError}");
+        }
+
+        var toolWorkspacePath = prepareResult.Data!.WorkspacePath;
+        logger.LogInformation("[Launch] Tool workspace prepared at: {Path}", toolWorkspacePath);
+        return ProfileOperationResult<(string, string?)>.CreateSuccess((toolWorkspacePath, actualWorkspaceId));
+    }
+
+    private ManifestFile? ResolveToolExecutable(ContentManifest toolManifest)
+    {
+        var resolvedFiles = ManifestVariantResolver.ResolveFiles(toolManifest);
+        var resolution = ManifestVariantResolver.ResolveEntryPoint(toolManifest);
+
+        if (resolution.Success && resolution.RelativePath != null)
+        {
+            var toolExecutable = resolvedFiles?.FirstOrDefault(f =>
+                ManifestVariantResolver.PathsMatch(f.RelativePath, resolution.RelativePath));
+
+            if (toolExecutable != null)
+            {
+                logger.LogInformation(
+                    "[Launch] Tool executable resolved for manifest {ManifestId}: {RelativePath} ({Reason})",
+                    toolManifest.Id,
+                    toolExecutable.RelativePath,
+                    resolution.Reason);
+            }
+            else
+            {
+                logger.LogWarning(
+                    "[Launch] Entry point '{RelativePath}' resolved for tool manifest {ManifestId} ({Reason}) but not found in resolved files",
+                    resolution.RelativePath,
+                    toolManifest.Id,
+                    resolution.Reason);
+            }
+
+            return toolExecutable;
+        }
+
+        logger.LogWarning(
+            "[Launch] Entry point resolution for tool manifest '{ManifestId}' did not succeed: {Resolution}",
+            toolManifest.Id,
+            resolution);
+
+        return null;
+    }
+
+    private Process? StartToolProcess(string toolExecutablePath, string toolDirectoryPath, GameProfile profile)
+    {
+        var processStartInfo = new ProcessStartInfo
+        {
+            FileName = toolExecutablePath,
+            WorkingDirectory = toolDirectoryPath,
+            Arguments = profile.CommandLineArguments ?? string.Empty,
+            UseShellExecute = false,
+        };
+
+        if (profile.EnvironmentVariables != null)
+        {
+            foreach (var envVar in profile.EnvironmentVariables)
+            {
+                processStartInfo.EnvironmentVariables[envVar.Key] = envVar.Value;
+            }
+        }
+
+        try
+        {
+            return Process.Start(processStartInfo);
+        }
+        catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 740)
+        {
+            logger.LogWarning("Tool requires elevation (Error 740). Retrying with UseShellExecute=true and Verb='runas'. Environment variables will be ignored.");
+            var elevatedStartInfo = new ProcessStartInfo
+            {
+                FileName = toolExecutablePath,
+                WorkingDirectory = toolDirectoryPath,
+                Arguments = profile.CommandLineArguments ?? string.Empty,
+                UseShellExecute = true,
+                Verb = "runas",
+            };
+            return Process.Start(elevatedStartInfo);
         }
     }
 

@@ -14,17 +14,23 @@ public partial class FileTreeItem : ObservableObject
     /// <summary>
     /// Gets or sets the name of the file or directory.
     /// </summary>
-    public string Name { get; set; } = string.Empty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsExecutable))]
+    private string _name = string.Empty;
 
     /// <summary>
     /// Gets or sets a value indicating whether this item is a file.
     /// </summary>
-    public bool IsFile { get; set; }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsExecutable))]
+    private bool _isFile;
 
     /// <summary>
     /// Gets or sets the full path of the file or directory.
     /// </summary>
-    public string FullPath { get; set; } = string.Empty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsExecutable))]
+    private string _fullPath = string.Empty;
 
     /// <summary>
     /// Gets or sets the children of this item (for directories).

@@ -52,10 +52,15 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     private UpdateInfo? _cachedUpdateInfo;
     private DateTime _lastArtifactCheckTime = DateTime.MinValue;
     private ArtifactUpdateInfo? _cachedArtifactUpdateInfo;
+    private int? _cachedArtifactSubscribedPrNumber;
+    private string? _cachedArtifactSubscribedBranch;
     private DateTime _lastPrListCheckTime = DateTime.MinValue;
     private IReadOnlyList<PullRequestInfo>? _cachedPrList;
     private DateTime _lastBranchListCheckTime = DateTime.MinValue;
     private IReadOnlyList<string>? _cachedBranchList;
+
+    private int? _subscribedPrNumber;
+    private string? _subscribedBranch;
 
     /// <inheritdoc/>
     public bool HasArtifactUpdateAvailable => _latestArtifactUpdate != null;
@@ -64,10 +69,34 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     public ArtifactUpdateInfo? LatestArtifactUpdate => _latestArtifactUpdate;
 
     /// <inheritdoc/>
-    public int? SubscribedPrNumber { get; set; }
+    public int? SubscribedPrNumber
+    {
+        get => _subscribedPrNumber;
+        set
+        {
+            if (_subscribedPrNumber != value)
+            {
+                _subscribedPrNumber = value;
+                _cachedArtifactUpdateInfo = null;
+                _lastArtifactCheckTime = DateTime.MinValue;
+            }
+        }
+    }
 
     /// <inheritdoc/>
-    public string? SubscribedBranch { get; set; }
+    public string? SubscribedBranch
+    {
+        get => _subscribedBranch;
+        set
+        {
+            if (!string.Equals(_subscribedBranch, value, StringComparison.OrdinalIgnoreCase))
+            {
+                _subscribedBranch = value;
+                _cachedArtifactUpdateInfo = null;
+                _lastArtifactCheckTime = DateTime.MinValue;
+            }
+        }
+    }
 
     /// <inheritdoc/>
     public bool IsPrMergedOrClosed { get; private set; }
@@ -370,8 +399,13 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     /// <inheritdoc/>
     public async Task<ArtifactUpdateInfo?> CheckForArtifactUpdatesAsync(CancellationToken cancellationToken = default)
     {
-        // Check cache
-        if (DateTime.UtcNow - _lastArtifactCheckTime < AppUpdateConstants.CacheDuration)
+        var targetPrNumber = SubscribedPrNumber;
+        var targetBranch = SubscribedBranch;
+
+        // check cache
+        if (DateTime.UtcNow - _lastArtifactCheckTime < AppUpdateConstants.CacheDuration &&
+            _cachedArtifactSubscribedPrNumber == targetPrNumber &&
+            string.Equals(_cachedArtifactSubscribedBranch, targetBranch, StringComparison.OrdinalIgnoreCase))
         {
             _logger.LogInformation("Returning cached artifact update info (checked {TimeLess} ago)", (DateTime.UtcNow - _lastArtifactCheckTime).ToString(@"mm\:ss"));
             return _cachedArtifactUpdateInfo;
@@ -387,34 +421,44 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         try
         {
-            // Reset latest artifact if switching modes/channels
-            _latestArtifactUpdate = null;
+            ArtifactUpdateInfo? artifactUpdate = null;
 
-            // Priority:
-            // 1. Subscribed PR
-            // 2. Subscribed Branch
-            // 3. Overall latest
-            if (SubscribedPrNumber.HasValue)
+            // priority:
+            // 1. subscribed pr
+            // 2. subscribed branch
+            // 3. overall latest
+            if (targetPrNumber.HasValue)
             {
-                _logger.LogInformation("Checking for artifacts for subscribed PR #{PrNumber}", SubscribedPrNumber.Value);
+                _logger.LogInformation("Checking for artifacts for subscribed PR #{PrNumber}", targetPrNumber.Value);
                 var prs = await GetOpenPullRequestsAsync(cancellationToken);
-                var subscribedPr = prs.FirstOrDefault(p => p.Number == SubscribedPrNumber.Value);
-                _latestArtifactUpdate = subscribedPr?.LatestArtifact;
+                var subscribedPr = prs.FirstOrDefault(p => p.Number == targetPrNumber.Value);
+                artifactUpdate = subscribedPr?.LatestArtifact;
             }
-            else if (!string.IsNullOrEmpty(SubscribedBranch))
+            else if (!string.IsNullOrEmpty(targetBranch))
             {
-                _logger.LogInformation("Checking for artifacts for subscribed branch: {Branch}", SubscribedBranch);
-                _latestArtifactUpdate = await FindLatestArtifactAsync(SubscribedBranch, cancellationToken);
+                _logger.LogInformation("Checking for artifacts for subscribed branch: {Branch}", targetBranch);
+                artifactUpdate = await FindLatestArtifactAsync(targetBranch, cancellationToken);
             }
             else
             {
                 _logger.LogInformation("Checking for overall latest artifact");
-                _latestArtifactUpdate = await FindLatestArtifactAsync(null, cancellationToken);
+                artifactUpdate = await FindLatestArtifactAsync(null, cancellationToken);
             }
 
-            _cachedArtifactUpdateInfo = _latestArtifactUpdate;
+            // verify subscription did not change while awaiting
+            if (SubscribedPrNumber != targetPrNumber ||
+                !string.Equals(SubscribedBranch, targetBranch, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogInformation("Subscription changed during artifact check, discarding result");
+                return null;
+            }
+
+            _latestArtifactUpdate = artifactUpdate;
+            _cachedArtifactUpdateInfo = artifactUpdate;
+            _cachedArtifactSubscribedPrNumber = targetPrNumber;
+            _cachedArtifactSubscribedBranch = targetBranch;
             _lastArtifactCheckTime = DateTime.UtcNow;
-            return _latestArtifactUpdate;
+            return artifactUpdate;
         }
         catch (Exception ex)
         {
@@ -519,7 +563,10 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             }
 
             var prInfos = await Task.WhenAll(prTasks);
-            results.AddRange(prInfos);
+            var sortedPrs = prInfos
+                .OrderByDescending(p => p.UpdatedAt ?? DateTimeOffset.MinValue)
+                .ToList();
+            results.AddRange(sortedPrs);
 
             // Check if subscribed PR is still open
             subscribedPrFound = results.Any(p => p.Number == SubscribedPrNumber);
@@ -859,6 +906,8 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         _cachedUpdateInfo = null;
         _lastArtifactCheckTime = DateTime.MinValue;
         _cachedArtifactUpdateInfo = null;
+        _cachedArtifactSubscribedPrNumber = null;
+        _cachedArtifactSubscribedBranch = null;
         _lastPrListCheckTime = DateTime.MinValue;
         _cachedPrList = null;
         _lastBranchListCheckTime = DateTime.MinValue;
@@ -1529,7 +1578,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 }
             }
 
-            _logger.LogWarning("No suitable artifacts found in the last 10 'push' runs for branch {Branch}", branch ?? "any");
+            _logger.LogWarning("No suitable artifacts found in workflow runs for branch {Branch}", branch ?? "any");
             return null;
         }
         catch (Exception ex)
@@ -1555,15 +1604,17 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         var shortHash = headSha.Length >= AppConstants.GitShortHashLength ? headSha[..AppConstants.GitShortHashLength] : headSha;
         var actualBranch = run.TryGetProperty("head_branch", out var b) ? b.GetString() : branch ?? "unknown";
 
-        if (!string.Equals(eventType, "push", StringComparison.OrdinalIgnoreCase))
+        _logger.LogDebug("Checking run {RunId} ({EventType}) on branch {ActualBranch}", runId, eventType, actualBranch);
+
+        if (!string.IsNullOrEmpty(branch) && !string.Equals(actualBranch, branch, StringComparison.Ordinal))
         {
-            _logger.LogDebug("Skipping run {RunId} ({EventType}) - only 'push' events are valid for branch subscriptions", runId, eventType);
+            _logger.LogDebug("Skipping run {RunId} ({ActualBranch}) - does not match requested branch {Branch}", runId, actualBranch, branch);
             return null;
         }
 
-        if (!string.IsNullOrEmpty(branch) && !string.Equals(actualBranch, branch, StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrEmpty(branch) && !string.Equals(eventType, "push", StringComparison.OrdinalIgnoreCase) && !string.Equals(eventType, "workflow_dispatch", StringComparison.OrdinalIgnoreCase))
         {
-            _logger.LogDebug("Skipping run {RunId} ({ActualBranch}) - does not match requested branch {Branch}", runId, actualBranch, branch);
+            _logger.LogDebug("Skipping run {RunId} ({EventType}) - not a push or workflow_dispatch event for branch {Branch}", runId, eventType, branch);
             return null;
         }
 
@@ -1607,9 +1658,50 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         return null;
     }
 
+    private bool IsMatchingWorkflowRun(JsonElement run, string? branchName, int? prNumber)
+    {
+        var actualBranch = run.TryGetProperty("head_branch", out var b) ? b.GetString() : branchName ?? "unknown";
+        var eventType = run.TryGetProperty("event", out var e) ? e.GetString() : "unknown";
+
+        if (prNumber.HasValue)
+        {
+            if (run.TryGetProperty("pull_requests", out var prs) && prs.ValueKind == JsonValueKind.Array)
+            {
+                var prCount = 0;
+                foreach (var pr in prs.EnumerateArray())
+                {
+                    prCount++;
+                    if (pr.TryGetProperty("number", out var num) && num.GetInt32() == prNumber.Value)
+                    {
+                        return true;
+                    }
+                }
+
+                if (prCount > 0)
+                {
+                    return false;
+                }
+            }
+
+            return string.IsNullOrEmpty(branchName) || string.Equals(actualBranch, branchName, StringComparison.Ordinal);
+        }
+
+        if (!string.IsNullOrEmpty(branchName))
+        {
+            if (!string.Equals(actualBranch, branchName, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            return string.Equals(eventType, "push", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(eventType, "workflow_dispatch", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return true;
+    }
+
     private async Task<IReadOnlyList<ArtifactUpdateInfo>> FindArtifactsAsync(HttpClient client, string? branchName, int? prNumber, CancellationToken cancellationToken)
     {
-        var results = new List<ArtifactUpdateInfo>();
         var owner = AppConstants.GitHubRepositoryOwner;
         var repo = AppConstants.GitHubRepositoryName;
 
@@ -1618,13 +1710,18 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             : string.Format(ApiConstants.GitHubApiWorkflowRunsAllFormat, owner, repo);
 
         var runsResponse = await SendWithRetryAsync(client, runsUrl, cancellationToken);
-        if (runsResponse == null || !runsResponse.IsSuccessStatusCode) return [];
+        if (runsResponse == null || !runsResponse.IsSuccessStatusCode)
+        {
+            return [];
+        }
 
         var runsJson = await runsResponse.Content.ReadAsStringAsync(cancellationToken);
         using var runsDoc = JsonDocument.Parse(runsJson);
-        var workflowRuns = runsDoc.RootElement.GetProperty("workflow_runs");
+        if (!runsDoc.RootElement.TryGetProperty("workflow_runs", out var workflowRuns))
+        {
+            return [];
+        }
 
-        var addedVersions = new HashSet<string>();
         var platformFilter = GetCurrentPlatformFilter();
         if (platformFilter == null)
         {
@@ -1632,64 +1729,116 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             return [];
         }
 
+        var results = new List<ArtifactUpdateInfo>();
+        var addedVersions = new HashSet<string>();
+
         foreach (var run in workflowRuns.EnumerateArray())
         {
-            var runId = run.GetProperty("id").GetInt64();
-            var runNum = run.GetProperty("run_number").GetInt32();
-            var createdAt = run.GetProperty("created_at").GetDateTimeOffset();
-            var headSha = run.GetProperty("head_sha").GetString() ?? string.Empty;
-            var shortHash = headSha.Length >= 7 ? headSha[..7] : headSha;
-
-            var artifactsUrl = run.GetProperty("artifacts_url").GetString();
-            if (string.IsNullOrEmpty(artifactsUrl)) continue;
-
-            var artifactsResponse = await SendWithRetryAsync(client, artifactsUrl, cancellationToken);
-            if (artifactsResponse == null || !artifactsResponse.IsSuccessStatusCode) continue;
-
-            var artifactsJson = await artifactsResponse.Content.ReadAsStringAsync(cancellationToken);
-            using var artifactsDoc = JsonDocument.Parse(artifactsJson);
-            var artifacts = artifactsDoc.RootElement.GetProperty("artifacts");
-
-            foreach (var artifact in artifacts.EnumerateArray())
+            if (!IsMatchingWorkflowRun(run, branchName, prNumber))
             {
-                var name = artifact.GetProperty("name").GetString();
-                if (string.IsNullOrEmpty(name) || !name.Contains("velopack", StringComparison.OrdinalIgnoreCase)) continue;
-
-                if (!name.Contains(platformFilter, StringComparison.OrdinalIgnoreCase))
-                {
-                    _logger.LogDebug("Skipping artifact {Name} - doesn't match platform {Platform}", name, platformFilter);
-                    continue;
-                }
-
-                var version = ExtractVersionFromArtifactName(name) ?? $"0.0.0-ci.{runNum}";
-                var uniqueKey = $"{version}|{shortHash}";
-                if (!addedVersions.Add(uniqueKey))
-                {
-                    _logger.LogDebug("Skipping duplicate artifact: {Version} ({Hash})", version, shortHash);
-                    continue;
-                }
-
-                var id = artifact.GetProperty("id").GetInt64();
-                var size = artifact.GetProperty("size_in_bytes").GetInt64();
-                var downloadUrl = artifact.GetProperty("archive_download_url").GetString();
-                var workflowRunUrl = run.GetProperty("html_url").GetString() ?? string.Empty;
-
-                var info = new ArtifactUpdateInfo(
-                    Version: version,
-                    GitHash: shortHash,
-                    PullRequestNumber: prNumber,
-                    WorkflowRunId: runId,
-                    WorkflowRunUrl: workflowRunUrl,
-                    ArtifactId: id,
-                    ArtifactName: name ?? "Unknown",
-                    CreatedAt: createdAt.UtcDateTime,
-                    DownloadUrl: downloadUrl,
-                    Size: size);
-
-                results.Add(info);
+                continue;
             }
+
+            await ExtractArtifactsFromWorkflowRunAsync(client, run, prNumber, platformFilter, addedVersions, results, cancellationToken);
         }
 
         return [.. results.OrderByDescending(r => r.CreatedAt)];
+    }
+
+    private async Task ExtractArtifactsFromWorkflowRunAsync(
+        HttpClient client,
+        JsonElement run,
+        int? prNumber,
+        string platformFilter,
+        HashSet<string> addedVersions,
+        List<ArtifactUpdateInfo> results,
+        CancellationToken cancellationToken)
+    {
+        var artifactsUrl = run.TryGetProperty("artifacts_url", out var u) ? u.GetString() : null;
+        if (string.IsNullOrEmpty(artifactsUrl))
+        {
+            return;
+        }
+
+        var artifactsResponse = await SendWithRetryAsync(client, artifactsUrl, cancellationToken);
+        if (artifactsResponse == null || !artifactsResponse.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        var artifactsJson = await artifactsResponse.Content.ReadAsStringAsync(cancellationToken);
+        using var artifactsDoc = JsonDocument.Parse(artifactsJson);
+        if (!artifactsDoc.RootElement.TryGetProperty("artifacts", out var artifacts))
+        {
+            return;
+        }
+
+        if (!run.TryGetProperty("id", out var idProp) || !idProp.TryGetInt64(out var runId) ||
+            !run.TryGetProperty("run_number", out var runNumProp) || !runNumProp.TryGetInt32(out var runNum) ||
+            !run.TryGetProperty("created_at", out var createdAtProp) || !createdAtProp.TryGetDateTimeOffset(out var createdAt))
+        {
+            return;
+        }
+
+        var headSha = run.TryGetProperty("head_sha", out var sha) ? sha.GetString() ?? string.Empty : string.Empty;
+        var shortHash = headSha.Length >= AppConstants.GitShortHashLength ? headSha[..AppConstants.GitShortHashLength] : headSha;
+        var workflowRunUrl = run.TryGetProperty("html_url", out var html) ? html.GetString() ?? string.Empty : string.Empty;
+
+        foreach (var artifact in artifacts.EnumerateArray())
+        {
+            var info = TryParseArtifactUpdateInfo(artifact, runId, runNum, createdAt.UtcDateTime, shortHash, workflowRunUrl, prNumber, platformFilter, addedVersions);
+            if (info != null)
+            {
+                results.Add(info);
+            }
+        }
+    }
+
+    private ArtifactUpdateInfo? TryParseArtifactUpdateInfo(
+        JsonElement artifact,
+        long runId,
+        int runNum,
+        DateTime createdAtUtc,
+        string shortHash,
+        string workflowRunUrl,
+        int? prNumber,
+        string platformFilter,
+        HashSet<string> addedVersions)
+    {
+        var name = artifact.TryGetProperty("name", out var n) ? n.GetString() : null;
+        if (string.IsNullOrEmpty(name) || !name.Contains("velopack", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        if (!name.Contains(platformFilter, StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogDebug("Skipping artifact {Name} - doesn't match platform {Platform}", name, platformFilter);
+            return null;
+        }
+
+        var version = ExtractVersionFromArtifactName(name) ?? $"0.0.0-ci.{runNum}";
+        var uniqueKey = $"{version}|{shortHash}";
+        if (!addedVersions.Add(uniqueKey))
+        {
+            _logger.LogDebug("Skipping duplicate artifact: {Version} ({Hash})", version, shortHash);
+            return null;
+        }
+
+        var id = artifact.GetProperty("id").GetInt64();
+        var size = artifact.GetProperty("size_in_bytes").GetInt64();
+        var downloadUrl = artifact.TryGetProperty("archive_download_url", out var dl) ? dl.GetString() : null;
+
+        return new ArtifactUpdateInfo(
+            Version: version,
+            GitHash: shortHash,
+            PullRequestNumber: prNumber,
+            WorkflowRunId: runId,
+            WorkflowRunUrl: workflowRunUrl,
+            ArtifactId: id,
+            ArtifactName: name,
+            CreatedAt: createdAtUtc,
+            DownloadUrl: downloadUrl,
+            Size: size);
     }
 }

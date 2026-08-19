@@ -24,6 +24,7 @@ public class NotificationService : INotificationService, IDisposable
     private readonly Subject<Guid> _dismissSubject = new();
     private readonly Subject<bool> _dismissAllSubject = new();
     private readonly Subject<NotificationMessage> _historySubject = new();
+    private readonly Subject<(Guid Id, string? Title, string Message)> _updateSubject = new();
     private readonly List<NotificationMessage> _notificationHistory = new();
     private readonly object _historyLock = new();
     private readonly object _muteLock = new();
@@ -73,6 +74,9 @@ public class NotificationService : INotificationService, IDisposable
 
     /// <inheritdoc/>
     public IObservable<NotificationMessage> NotificationHistory => _historySubject;
+
+    /// <inheritdoc/>
+    public IObservable<(Guid Id, string? Title, string Message)> UpdateRequests => _updateSubject;
 
     /// <inheritdoc/>
     public NotificationMuteState MuteState
@@ -173,6 +177,35 @@ public class NotificationService : INotificationService, IDisposable
         {
             _notificationSubject.OnNext(notification);
         }
+    }
+
+    /// <inheritdoc/>
+    public void Update(Guid notificationId, string message, string? title = null)
+    {
+        if (_disposed)
+        {
+            _logger.LogWarning("Attempted to update notification after service disposal");
+            return;
+        }
+
+        ArgumentNullException.ThrowIfNull(message);
+
+        lock (_historyLock)
+        {
+            var index = _notificationHistory.FindIndex(n => n.Id == notificationId);
+            if (index >= 0)
+            {
+                var existing = _notificationHistory[index];
+                _notificationHistory[index] = existing with
+                {
+                    Title = title ?? existing.Title,
+                    Message = message,
+                };
+            }
+        }
+
+        _logger.LogDebug("Updating notification {NotificationId}: {Message}", notificationId, message);
+        _updateSubject.OnNext((notificationId, title, message));
     }
 
     /// <inheritdoc/>
@@ -317,6 +350,7 @@ public class NotificationService : INotificationService, IDisposable
         _dismissSubject?.Dispose();
         _dismissAllSubject?.Dispose();
         _historySubject?.Dispose();
+        _updateSubject?.Dispose();
         _disposed = true;
         GC.SuppressFinalize(this);
     }

@@ -57,7 +57,8 @@ public class LocalContentService(
         GameType targetGame,
         string? sourcePath = null,
         IProgress<ContentStorageProgress>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? entryPoint = null)
     {
         try
         {
@@ -101,6 +102,29 @@ public class LocalContentService(
 
             var manifest = builder.Build();
             manifest.SourcePath = !string.IsNullOrEmpty(sourcePath) ? sourcePath : directoryPath;
+
+            if (!string.IsNullOrWhiteSpace(entryPoint))
+            {
+                var normalizedEntryPoint = entryPoint.Replace('\\', '/').TrimStart('/');
+
+                var segments = normalizedEntryPoint.Split('/', StringSplitOptions.RemoveEmptyEntries);
+                if (Path.IsPathRooted(entryPoint) || segments.Any(s => s == ".."))
+                {
+                    return OperationResult<ContentManifest>.CreateFailure(
+                        $"Entry point '{entryPoint}' is invalid. It must be a relative path without parent directory traversal ('..').");
+                }
+
+                var matchedFile = manifest.Files.FirstOrDefault(f =>
+                    ManifestVariantResolver.PathsMatch(f.RelativePath, normalizedEntryPoint));
+
+                if (matchedFile == null)
+                {
+                    return OperationResult<ContentManifest>.CreateFailure(
+                        $"Entry point '{entryPoint}' was not found among the files in the directory.");
+                }
+
+                manifest.EntryPoint = matchedFile.RelativePath.Replace('\\', '/');
+            }
 
             // Auto-add GameInstallation dependency for GameClient content types
             // This ensures auto-resolution logic works correctly for locally added clients
@@ -195,13 +219,14 @@ public class LocalContentService(
         GameType targetGame,
         string? sourcePath = null,
         IProgress<ContentStorageProgress>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? entryPoint = null)
     {
         try
         {
             // 1. Create the new manifest/content
             // We do this FIRST to ensure the new content is valid before deleting the old one
-            var createResult = await CreateLocalContentManifestAsync(directoryPath, name, contentType, targetGame, sourcePath, progress, cancellationToken);
+            var createResult = await CreateLocalContentManifestAsync(directoryPath, name, contentType, targetGame, sourcePath, progress, cancellationToken, entryPoint);
 
             if (!createResult.Success)
             {

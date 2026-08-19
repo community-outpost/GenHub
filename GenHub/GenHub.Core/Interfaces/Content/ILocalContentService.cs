@@ -20,6 +20,7 @@ public interface ILocalContentService
     /// <param name="sourcePath">Optional original source path of the content.</param>
     /// <param name="progress">Optional progress reporter for tracking manifest creation.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="entryPoint">Optional relative path of the main executable entry point.</param>
     /// <returns>A result containing the created manifest or errors.</returns>
     Task<OperationResult<ContentManifest>> CreateLocalContentManifestAsync(
         string directoryPath,
@@ -28,7 +29,8 @@ public interface ILocalContentService
         GameType targetGame,
         string? sourcePath = null,
         IProgress<ContentStorageProgress>? progress = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        string? entryPoint = null);
 
     /// <summary>
     /// Adds local content by creating and storing a manifest.
@@ -66,6 +68,7 @@ public interface ILocalContentService
     /// <param name="sourcePath">Optional original source path of the content.</param>
     /// <param name="progress">Optional progress reporter.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
+    /// <param name="entryPoint">Optional relative path of the main executable entry point.</param>
     /// <returns>A result containing the updated manifest.</returns>
     Task<OperationResult<ContentManifest>> UpdateLocalContentManifestAsync(
         string existingManifestId,
@@ -75,7 +78,8 @@ public interface ILocalContentService
         GameType targetGame,
         string? sourcePath = null,
         IProgress<ContentStorageProgress>? progress = null,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        string? entryPoint = null);
 
     /// <summary>
     /// Gets the allowed content types for local content creation.

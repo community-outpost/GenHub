@@ -12,6 +12,8 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
+using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
@@ -29,7 +31,7 @@ public partial class AddLocalContentViewModel(
     IContentStorageService? contentStorageService,
     IGenLauncherNormalizationService? genLauncherNormalizationService,
     IDialogService? dialogService,
-    ILogger<AddLocalContentViewModel>? logger = null) : ObservableObject
+    ILogger<AddLocalContentViewModel>? logger = null) : ObservableObject, IDisposable
 {
     /// <summary>
     /// Gets the list of available game types.
@@ -56,6 +58,26 @@ public partial class AddLocalContentViewModel(
         ContentType.Mission,
     ];
 
+    /// <summary>
+    /// Counts the total number of executables in the given file tree items recursively.
+    /// </summary>
+    /// <param name="items">The file tree items to inspect.</param>
+    /// <returns>The total number of executable files found.</returns>
+    internal static int CountExecutables(IEnumerable<FileTreeItem> items)
+    {
+        int count = 0;
+        foreach (var item in items)
+        {
+            if (item.IsExecutable) count++;
+            count += CountExecutables(item.Children);
+        }
+
+        return count;
+    }
+
+    private static bool RequiresExecutable(ContentType contentType) =>
+        contentType is ContentType.GameClient or ContentType.ModdingTool or ContentType.Executable;
+
     private static FileTreeItem? FindFirstExecutable(IEnumerable<FileTreeItem> items)
     {
         foreach (var item in items)
@@ -75,21 +97,10 @@ public partial class AddLocalContentViewModel(
         return null;
     }
 
-    private static int CountExecutables(IEnumerable<FileTreeItem> items)
-    {
-        int count = 0;
-        foreach (var item in items)
-        {
-            if (item.IsExecutable) count++;
-            count += CountExecutables(item.Children);
-        }
-
-        return count;
-    }
-
     private readonly string _stagingPath = Path.Combine(Path.GetTempPath(), "GenHub_Staging_" + Guid.NewGuid());
 
     private string? _originalManifestId;
+    private string? _pendingEntryPoint;
 
     /// <summary>
     /// Gets a value indicating whether we are editing existing content.
@@ -177,7 +188,7 @@ public partial class AddLocalContentViewModel(
     private bool _isDemoMode;
 
     /// <summary>
-    /// Gets or sets the selected executable item (for Executable/ModdingTool content type).
+    /// Gets or sets the selected executable item (for GameClient/Executable/ModdingTool content type).
     /// </summary>
     [ObservableProperty]
     private FileTreeItem? _selectedExecutableItem;
@@ -192,7 +203,7 @@ public partial class AddLocalContentViewModel(
     /// <summary>
     /// Gets a value indicating whether the executable selection should be shown.
     /// </summary>
-    public bool ShowExecutableSelection => (SelectedContentType == ContentType.ModdingTool || SelectedContentType == ContentType.Executable) && ExecutableCount > 1;
+    public bool ShowExecutableSelection => RequiresExecutable(SelectedContentType) && ExecutableCount > 0;
 
     /// <summary>
     /// Gets the text to display in the preview area when no content is loaded.
@@ -255,6 +266,7 @@ public partial class AddLocalContentViewModel(
             StatusMessage = "Loading existing content...";
 
             _originalManifestId = item.ManifestId.Value;
+            _pendingEntryPoint = item.Manifest?.EntryPoint;
             ContentName = item.DisplayName ?? string.Empty;
             SelectedContentType = item.ContentType;
             SelectedGameType = item.GameType;
@@ -487,24 +499,81 @@ public partial class AddLocalContentViewModel(
         }
     }
 
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        _cts?.Dispose();
+        _cts = null;
+        CleanupStaging();
+        GC.SuppressFinalize(this);
+    }
+
     private static List<FileTreeItem> BuildDirectoryTree(DirectoryInfo dir)
+        => BuildDirectoryTree(dir, CollectExecutableDirectories(dir));
+
+    private static HashSet<string> CollectExecutableDirectories(DirectoryInfo root)
+    {
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            foreach (var file in root.EnumerateFiles("*", SearchOption.AllDirectories))
+            {
+                if (!ExecutableFileClassifier.IsLegacyLaunchCandidateFromName(file.Name)
+                    && !file.Extension.Equals(".exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                for (var d = file.Directory; d != null; d = d.Parent)
+                {
+                    if (!result.Add(d.FullName))
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // ignore inaccessible directories
+        }
+
+        return result;
+    }
+
+    private static List<FileTreeItem> BuildDirectoryTree(DirectoryInfo dir, HashSet<string> executableDirs)
     {
         var items = new List<FileTreeItem>();
 
-        if (!dir.Exists) return items;
+        if (!dir.Exists)
+        {
+            return items;
+        }
 
-        foreach (var d in dir.GetDirectories().Take(20))
+        var subDirs = dir.GetDirectories();
+        var prioritizedDirs = subDirs
+            .OrderByDescending(d => executableDirs.Contains(d.FullName))
+            .ThenBy(d => d.Name)
+            .Take(20);
+
+        foreach (var d in prioritizedDirs)
         {
             items.Add(new FileTreeItem
             {
                 Name = d.Name,
                 IsFile = false,
                 FullPath = d.FullName,
-                Children = new ObservableCollection<FileTreeItem>(BuildDirectoryTree(d)),
+                Children = new ObservableCollection<FileTreeItem>(BuildDirectoryTree(d, executableDirs)),
             });
         }
 
-        foreach (var f in dir.GetFiles().Take(50))
+        var files = dir.GetFiles();
+        var prioritizedFiles = files
+            .OrderByDescending(f => ExecutableFileClassifier.IsLegacyLaunchCandidateFromName(f.Name) || f.Extension.Equals(".exe", StringComparison.OrdinalIgnoreCase))
+            .ThenBy(f => f.Name)
+            .Take(50);
+
+        foreach (var f in prioritizedFiles)
         {
             items.Add(new FileTreeItem { Name = f.Name, IsFile = true, FullPath = f.FullName });
         }
@@ -640,6 +709,20 @@ public partial class AddLocalContentViewModel(
 
             _cts = new CancellationTokenSource();
 
+            string? entryPoint = null;
+            if (RequiresExecutable(SelectedContentType) && SelectedExecutableItem != null && !string.IsNullOrWhiteSpace(SelectedExecutableItem.FullPath))
+            {
+                try
+                {
+                    entryPoint = Path.GetRelativePath(_stagingPath, SelectedExecutableItem.FullPath).Replace('\\', '/');
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogWarning(ex, "Failed to determine relative path for selected executable '{FullPath}'. Falling back to file name '{Name}'", SelectedExecutableItem.FullPath, SelectedExecutableItem.Name);
+                    entryPoint = SelectedExecutableItem.Name;
+                }
+            }
+
             // Preserve SourcePath metadata if available
             // Note: We no longer write to "source.path" file to avoid polluting the content.
             // Instead we pass the SourcePath directly to the service.
@@ -652,7 +735,8 @@ public partial class AddLocalContentViewModel(
                     targetGame,
                     SourcePath,
                     progress,
-                    _cts.Token)
+                    _cts.Token,
+                    entryPoint)
                 : await localContentService.CreateLocalContentManifestAsync(
                     _stagingPath,
                     ContentName,
@@ -660,7 +744,8 @@ public partial class AddLocalContentViewModel(
                     targetGame,
                     SourcePath,
                     progress,
-                    _cts.Token);
+                    _cts.Token,
+                    entryPoint);
 
             if (result.Success)
             {
@@ -770,12 +855,52 @@ public partial class AddLocalContentViewModel(
         }
     }
 
+    private FileTreeItem? FindFileItemByRelativePath(IEnumerable<FileTreeItem> items, string relativePath)
+    {
+        var normalizedTarget = relativePath.Replace('\\', '/').TrimStart('/');
+        foreach (var item in items)
+        {
+            if (item.IsFile)
+            {
+                var itemRel = Path.GetRelativePath(_stagingPath, item.FullPath).Replace('\\', '/').TrimStart('/');
+                if (ManifestVariantResolver.PathsMatch(itemRel, normalizedTarget))
+                {
+                    return item;
+                }
+            }
+            else
+            {
+                var found = FindFileItemByRelativePath(item.Children, relativePath);
+                if (found != null) return found;
+            }
+        }
+
+        return null;
+    }
+
     private async Task RefreshStagingTreeAsync()
     {
         bool wasBusy = IsBusy;
         try
         {
             if (!wasBusy) IsBusy = true;
+
+            string? previousRelativePath = null;
+            if (SelectedExecutableItem != null && !string.IsNullOrWhiteSpace(SelectedExecutableItem.FullPath))
+            {
+                try
+                {
+                    previousRelativePath = Path.GetRelativePath(_stagingPath, SelectedExecutableItem.FullPath).Replace('\\', '/');
+                }
+                catch
+                {
+                    // Ignore path calculation error
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(_pendingEntryPoint))
+            {
+                previousRelativePath = _pendingEntryPoint;
+            }
 
             FileTree.Clear();
             SelectedExecutableItem = null; // Clear previous selection on refresh
@@ -791,10 +916,29 @@ public partial class AddLocalContentViewModel(
 
             ExecutableCount = CountExecutables(FileTree);
 
-            // Auto-select first executable if content type requires it
-            if (SelectedContentType == ContentType.ModdingTool || SelectedContentType == ContentType.Executable)
+            // Reselect previously selected executable or auto-select first if content type requires it
+            if (RequiresExecutable(SelectedContentType))
             {
-                AutoSelectFirstExecutable();
+                FileTreeItem? matchedItem = null;
+                if (!string.IsNullOrWhiteSpace(previousRelativePath))
+                {
+                    matchedItem = FindFileItemByRelativePath(FileTree, previousRelativePath);
+                }
+
+                if (matchedItem != null && matchedItem.IsExecutable)
+                {
+                    SelectedExecutableItem = matchedItem;
+                    _pendingEntryPoint = null;
+                }
+                else
+                {
+                    _pendingEntryPoint = null;
+                    AutoSelectFirstExecutable();
+                }
+            }
+            else
+            {
+                SelectedExecutableItem = null;
             }
 
             Validate();
@@ -816,8 +960,8 @@ public partial class AddLocalContentViewModel(
         var stagingExists = Directory.Exists(_stagingPath);
         var stagingHasEntries = stagingExists && Directory.EnumerateFileSystemEntries(_stagingPath).Any();
 
-        // For ModdingTool (Tool) and Executable, we also need an executable selected
-        var requiresExecutable = SelectedContentType == ContentType.ModdingTool || SelectedContentType == ContentType.Executable;
+        // For GameClient, ModdingTool (Tool), and Executable, we also need an executable selected
+        var requiresExecutable = RequiresExecutable(SelectedContentType);
         var hasExecutableIfNeeded = !requiresExecutable || SelectedExecutableItem != null;
 
         CanAdd = hasName && (hasFiles || stagingHasEntries) && hasExecutableIfNeeded;
@@ -842,10 +986,44 @@ public partial class AddLocalContentViewModel(
         OnPropertyChanged(nameof(ShowExecutableSelection));
         OnPropertyChanged(nameof(PreviewIdleText));
 
-        // Auto-select first executable if switching to ModdingTool or Executable
-        if ((value == ContentType.ModdingTool || value == ContentType.Executable) && SelectedExecutableItem == null)
+        // Auto-select first executable if switching to a content type that requires it,
+        // or clear selection when switching to a non-executable content type
+        if (RequiresExecutable(value))
         {
-            AutoSelectFirstExecutable();
+            if (SelectedExecutableItem == null)
+            {
+                FileTreeItem? matchedItem = null;
+                if (!string.IsNullOrWhiteSpace(_pendingEntryPoint))
+                {
+                    matchedItem = FindFileItemByRelativePath(FileTree, _pendingEntryPoint);
+                }
+
+                if (matchedItem != null && matchedItem.IsExecutable)
+                {
+                    SelectedExecutableItem = matchedItem;
+                    _pendingEntryPoint = null;
+                }
+                else
+                {
+                    AutoSelectFirstExecutable();
+                }
+            }
+        }
+        else
+        {
+            if (SelectedExecutableItem != null && !string.IsNullOrWhiteSpace(SelectedExecutableItem.FullPath))
+            {
+                try
+                {
+                    _pendingEntryPoint = Path.GetRelativePath(_stagingPath, SelectedExecutableItem.FullPath).Replace('\\', '/');
+                }
+                catch
+                {
+                    // Ignore path calculation error
+                }
+            }
+
+            SelectedExecutableItem = null;
         }
 
         Validate();

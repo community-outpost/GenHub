@@ -147,6 +147,7 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
         };
 
         FileTree.Add(modFolder);
+        ExecutableCount = CountExecutables(FileTree);
 
         // Set status message
         StatusMessage = "Demo content ready. Click buttons to see what they do!";

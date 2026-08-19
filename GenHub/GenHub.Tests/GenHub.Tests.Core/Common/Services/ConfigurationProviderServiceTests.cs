@@ -550,6 +550,58 @@ public class ConfigurationProviderServiceTests
     }
 
     /// <summary>
+    /// Verifies that GetAutoCheckForUpdatesPeriodically returns user setting when explicitly set.
+    /// </summary>
+    /// <param name="userValue">The value to set for AutoCheckForUpdatesPeriodically in user settings.</param>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void GetAutoCheckForUpdatesPeriodically_ReturnsUserSetting(bool userValue)
+    {
+        // Arrange
+        var userSettings = new UserSettings { AutoCheckForUpdatesPeriodically = userValue };
+        userSettings.MarkAsExplicitlySet(nameof(UserSettings.AutoCheckForUpdatesPeriodically));
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetAutoCheckForUpdatesPeriodically();
+
+        // Assert
+        Assert.Equal(userValue, result);
+    }
+
+    /// <summary>
+    /// Verifies that GetPeriodicUpdateCheckIntervalMinutes returns user setting when explicitly set.
+    /// </summary>
+    /// <param name="intervalMinutes">The interval to set in user settings.</param>
+    /// <param name="expectedMinutes">The expected clamped interval.</param>
+    [Theory]
+    [InlineData(60, 60)]
+    [InlineData(0, AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalMinutes)]
+    [InlineData(20000, AppUpdateConstants.MaxPeriodicUpdateCheckIntervalMinutes)]
+    public void GetPeriodicUpdateCheckIntervalMinutes_ReturnsUserSetting(int intervalMinutes, int expectedMinutes)
+    {
+        // Arrange
+        var userSettings = new UserSettings { PeriodicUpdateCheckIntervalMinutes = intervalMinutes };
+        if (intervalMinutes > 0)
+        {
+            userSettings.MarkAsExplicitlySet(nameof(UserSettings.PeriodicUpdateCheckIntervalMinutes));
+        }
+
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetPeriodicUpdateCheckIntervalMinutes();
+
+        // Assert
+        Assert.Equal(expectedMinutes, result);
+    }
+
+    /// <summary>
     /// Verifies that GetEnableDetailedLogging returns user setting when explicitly set.
     /// </summary>
     /// <param name="userValue">The value to set for EnableDetailedLogging in user settings.</param>
@@ -784,7 +836,8 @@ public class ConfigurationProviderServiceTests
 
         // Assert
         Assert.Contains("TheSuperHackers/GeneralsGameCode", result);
-        Assert.Single(result);
+        Assert.Contains("TheSuperHackers/GeneralsGamePatch2", result);
+        Assert.Equal(2, result.Count);
     }
 
     /// <summary>

@@ -11,6 +11,8 @@ using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Models.Enums;
 using GenHub.Features.Content.ViewModels.Catalog;
 using GenHub.Features.Downloads.Views;
 using Microsoft.Extensions.DependencyInjection;
@@ -72,8 +74,8 @@ public partial class App : Application
             // Subscribe to IPC commands from secondary instances (Windows only)
             SubscribeToSingleInstanceCommands(mainWindow);
 
-            // Handle launch profile from startup args (first launch with shortcut)
-            SafeFireAndForget(HandleLaunchProfileArgsAsync(desktop.Args, mainWindow), "HandleLaunchProfileArgsAsync");
+            // Handle startup arguments sequentially (launch profile, then subscription if present)
+            SafeFireAndForget(HandleStartupArgsAsync(desktop.Args, mainWindow), nameof(HandleStartupArgsAsync));
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -254,6 +256,17 @@ public partial class App : Application
         }
     }
 
+    private async Task HandleStartupArgsAsync(string[]? args, MainWindow mainWindow)
+    {
+        if (args == null || args.Length == 0)
+        {
+            return;
+        }
+
+        await HandleLaunchProfileArgsAsync(args, mainWindow);
+        await HandleSubscriptionArgsAsync(args, mainWindow);
+    }
+
     private async Task HandleLaunchProfileArgsAsync(string[]? args, MainWindow mainWindow)
     {
         if (args == null || args.Length == 0)
@@ -277,6 +290,25 @@ public partial class App : Application
             logger?.LogInformation("Startup subscription detected: {Url}", subscriptionUrl);
             await HandleSubscribeCommandAsync(subscriptionUrl);
         }
+    }
+
+    private async Task HandleSubscriptionArgsAsync(string[]? args, MainWindow mainWindow)
+    {
+        if (args == null || args.Length == 0)
+        {
+            return;
+        }
+
+        var subscriptionUrl = CommandLineParser.ExtractSubscriptionUrl(args);
+        if (string.IsNullOrWhiteSpace(subscriptionUrl))
+        {
+            return;
+        }
+
+        var logger = _serviceProvider.GetService<ILogger<App>>();
+        logger?.LogInformation("Startup subscription detected for URL: {Url}", subscriptionUrl);
+
+        await HandleSubscriptionUrlAsync(subscriptionUrl, mainWindow);
     }
 
     private void SubscribeToSingleInstanceCommands(MainWindow mainWindow)
@@ -305,7 +337,15 @@ public partial class App : Application
             logger?.LogInformation("Received IPC launch command for profile: {ProfileId}", profileId);
 
             // Launch the profile
-            SafeFireAndForget(LaunchProfileByIdAsync(profileId, mainWindow), "LaunchProfileByIdAsync");
+            SafeFireAndForget(LaunchProfileByIdAsync(profileId, mainWindow), nameof(LaunchProfileByIdAsync));
+        }
+        else if (command.StartsWith(IpcCommands.SubscribePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var subscriptionUrl = command[IpcCommands.SubscribePrefix.Length..];
+            logger?.LogInformation("Received IPC subscribe command for URL: {Url}", subscriptionUrl);
+
+            // Handle the subscription URL
+            SafeFireAndForget(HandleSubscriptionUrlAsync(subscriptionUrl, mainWindow), nameof(HandleSubscriptionUrlAsync));
         }
         else if (command.StartsWith(IpcCommands.SubscribePrefix, StringComparison.OrdinalIgnoreCase))
         {
@@ -364,6 +404,50 @@ public partial class App : Application
         catch (Exception ex)
         {
             logger?.LogError(ex, "Exception while launching profile {ProfileId}", profileId);
+        }
+    }
+
+    private async Task HandleSubscriptionUrlAsync(string subscriptionUrl, MainWindow mainWindow)
+    {
+        var logger = _serviceProvider.GetService<ILogger<App>>();
+
+        try
+        {
+            var sanitizedUrl = subscriptionUrl.Replace("\r", string.Empty).Replace("\n", string.Empty).Trim('"', '\'', ' ', '\t');
+            if (!Uri.TryCreate(sanitizedUrl, UriKind.Absolute, out var uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            {
+                logger?.LogWarning("Invalid or unsafe subscription URL: {Url}", subscriptionUrl);
+                return;
+            }
+
+            logger?.LogInformation("Handling subscription URL: {Url}", uri.AbsoluteUri);
+
+            var dialogService = _serviceProvider.GetService<IDialogService>();
+            if (dialogService != null)
+            {
+                var confirmed = await dialogService.ShowConfirmationAsync(
+                    "Subscribe to Catalog",
+                    $"Do you want to subscribe to content from:\n{uri.AbsoluteUri}",
+                    "Subscribe",
+                    "Cancel");
+
+                if (confirmed)
+                {
+                    if (mainWindow?.DataContext is MainViewModel mainViewModel)
+                    {
+                        mainViewModel.SelectTab(NavigationTab.Downloads);
+                    }
+
+                    logger?.LogInformation("User confirmed subscription to: {Url}", uri.AbsoluteUri);
+                    var notificationService = _serviceProvider.GetService<INotificationService>();
+                    notificationService?.ShowSuccess("Subscribed", $"Successfully subscribed to: {uri.AbsoluteUri}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Exception while handling subscription URL {Url}", subscriptionUrl);
         }
     }
 }

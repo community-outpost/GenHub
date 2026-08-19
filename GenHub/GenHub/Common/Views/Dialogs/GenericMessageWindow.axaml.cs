@@ -1,6 +1,9 @@
 using System;
 using Avalonia;
 using Avalonia.Controls;
+#if DEBUG
+using Avalonia.Diagnostics;
+#endif
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using GenHub.Common.ViewModels.Dialogs;

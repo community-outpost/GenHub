@@ -101,7 +101,7 @@ public sealed class ReplayImportService(
                     return await ImportFromZipAsync(tempPath, targetVersion, progress, ct);
                 }
 
-                var importedFileName = GetFileNameFromUri(new Uri(directUrl));
+                var importedFileName = ExtractFileName(new Uri(directUrl));
                 using var stream = File.OpenRead(tempPath);
                 return await ImportFromStreamAsync(stream, importedFileName, targetVersion, ct);
             }
@@ -336,7 +336,7 @@ public sealed class ReplayImportService(
         return path;
     }
 
-    private static string GetFileNameFromUri(Uri uri)
+    private static string ExtractFileName(Uri uri)
     {
         try
         {

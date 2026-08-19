@@ -64,6 +64,12 @@ client.Timeout = TimeIntervals.DownloadTimeout;
 
 ---
 
+### Window Styling & OS Animations
+
+GeneralsHub defines a mandatory [Window styling and OS animation standard](./window-styling.md) to ensure all windows achieve smooth, native Desktop Window Manager (DWM) animations, proper client area extension, and reliable title bar drag/maximize handling.
+
+---
+
 ## Architecture
 
 ### Dependency Injection

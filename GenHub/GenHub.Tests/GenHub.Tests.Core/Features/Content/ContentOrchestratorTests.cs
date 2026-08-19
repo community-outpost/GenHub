@@ -541,6 +541,7 @@ public class ContentOrchestratorTests
     }
 
     /// <summary>
+    /// <summary>
     /// Verifies that ResolveManifestAsync successfully resolves manifests with hyphenated and unhyphenated IDs.
     /// </summary>
     /// <param name="registeredResolverId">The resolver ID registered in the container.</param>
@@ -597,6 +598,64 @@ public class ContentOrchestratorTests
         Assert.True(result.Success, $"Resolution failed for lookup '{lookupResolverId}' on registered '{registeredResolverId}': {result.FirstError}");
         Assert.NotNull(result.Data);
         Assert.Equal(manifest.Id, result.Data.Id);
+    }
+
+    /// <summary>
+    /// Verifies that SearchAsync deduplicates results by manifest ID, preferring specialized providers.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SearchAsync_DeduplicatesResultsById_PrefersSpecializedProviderOverGitHubAsync()
+    {
+        // Arrange
+        var specializedProviderMock = new Mock<IContentProvider>();
+        var githubProviderMock = new Mock<IContentProvider>();
+
+        const string duplicateId = "1.0.thesuperhackers.patch.generalsgamepatch2";
+
+        var specializedResult = new ContentSearchResult
+        {
+            Id = duplicateId,
+            Name = "TheSuperHackers Patch 2",
+            ProviderName = "thesuperhackers",
+        };
+
+        var githubResult = new ContentSearchResult
+        {
+            Id = duplicateId,
+            Name = "GeneralsGamePatch2",
+            ProviderName = "GitHub",
+        };
+
+        specializedProviderMock.Setup(p => p.IsEnabled).Returns(true);
+        specializedProviderMock.Setup(p => p.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([specializedResult]));
+
+        githubProviderMock.Setup(p => p.IsEnabled).Returns(true);
+        githubProviderMock.Setup(p => p.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([githubResult]));
+
+        var orchestrator = new ContentOrchestrator(
+            _loggerMock.Object,
+            [githubProviderMock.Object, specializedProviderMock.Object],
+            [],
+            [],
+            _cacheMock.Object,
+            _contentValidatorMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
+
+        // Act
+        var result = await orchestrator.SearchAsync(new ContentSearchQuery());
+
+        // Assert
+        Assert.True(result.Success);
+        var items = result.Data?.ToList();
+        Assert.NotNull(items);
+        Assert.Single(items);
+        Assert.Equal("thesuperhackers", items[0].ProviderName);
+        Assert.Equal("TheSuperHackers Patch 2", items[0].Name);
     }
 
     private sealed class SynchronousProgress<T>(Action<T> report) : IProgress<T>

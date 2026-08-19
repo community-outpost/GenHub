@@ -6,6 +6,7 @@ using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -43,6 +44,7 @@ public class MockNotificationService : INotificationService
     private readonly Subject<Guid> _dismissRequests = new();
     private readonly Subject<bool> _dismissAllRequests = new();
     private readonly Subject<NotificationMessage> _notificationHistory = new();
+    private readonly Subject<(Guid Id, string? Title, string Message)> _updateRequests = new();
 
     /// <inheritdoc/>
     public IObservable<NotificationMessage> Notifications => _notifications.AsObservable();
@@ -55,6 +57,9 @@ public class MockNotificationService : INotificationService
 
     /// <inheritdoc/>
     public IObservable<NotificationMessage> NotificationHistory => _notificationHistory.AsObservable();
+
+    /// <inheritdoc/>
+    public IObservable<(Guid Id, string? Title, string Message)> UpdateRequests => _updateRequests.AsObservable();
 
     /// <inheritdoc/>
     public void Show(NotificationMessage notification) => _notifications.OnNext(notification);
@@ -74,6 +79,10 @@ public class MockNotificationService : INotificationService
     /// <inheritdoc/>
     public void ShowError(string title, string message, int? autoDismissMs = null, bool showInBadge = false)
         => Show(new NotificationMessage(NotificationType.Error, title, message, autoDismissMs, showInBadge: showInBadge));
+
+    /// <inheritdoc/>
+    public void Update(Guid notificationId, string message, string? title = null)
+        => _updateRequests.OnNext((notificationId, title, message));
 
     /// <inheritdoc/>
     public void Dismiss(Guid id) => _dismissRequests.OnNext(id);
@@ -457,7 +466,18 @@ public class MockMapPackService : IMapPackService
 public class MockLocalContentService : ILocalContentService
 {
     /// <inheritdoc/>
-    public IReadOnlyList<ContentType> AllowedContentTypes => [ContentType.Mod, ContentType.Map, ContentType.GameClient];
+    public IReadOnlyList<ContentType> AllowedContentTypes =>
+    [
+        ContentType.Mod,
+        ContentType.GameClient,
+        ContentType.Executable,
+        ContentType.ModdingTool,
+        ContentType.Patch,
+        ContentType.Addon,
+        ContentType.Map,
+        ContentType.MapPack,
+        ContentType.Mission,
+    ];
 
     /// <inheritdoc/>
     public Task<OperationResult<ContentManifest>> AddLocalContentAsync(string name, string directoryPath, ContentType contentType, GameType targetGame, CancellationToken cancellationToken = default)
@@ -466,18 +486,26 @@ public class MockLocalContentService : ILocalContentService
     }
 
     /// <inheritdoc/>
-    public Task<OperationResult<ContentManifest>> CreateLocalContentManifestAsync(string directoryPath, string name, ContentType contentType, GameType targetGame, string? sourcePath = null, IProgress<ContentStorageProgress>? progress = null, CancellationToken cancellationToken = default)
+    public Task<OperationResult<ContentManifest>> CreateLocalContentManifestAsync(string directoryPath, string name, ContentType contentType, GameType targetGame, string? sourcePath = null, IProgress<ContentStorageProgress>? progress = null, CancellationToken cancellationToken = default, string? entryPoint = null)
     {
-         return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = name, ContentType = contentType, TargetGame = targetGame, SourcePath = sourcePath }));
+        var normalizedEntryPoint = !string.IsNullOrWhiteSpace(entryPoint)
+            ? entryPoint.Replace('\\', '/').TrimStart('/')
+            : null;
+
+        return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = name, ContentType = contentType, TargetGame = targetGame, SourcePath = sourcePath, EntryPoint = normalizedEntryPoint }));
     }
 
     /// <inheritdoc/>
     public Task<OperationResult> DeleteLocalContentAsync(string manifestId, CancellationToken cancellationToken = default) => Task.FromResult(OperationResult.CreateSuccess());
 
     /// <inheritdoc/>
-    public Task<OperationResult<ContentManifest>> UpdateLocalContentManifestAsync(string existingManifestId, string name, string directoryPath, ContentType contentType, GameType targetGame, string? sourcePath = null, IProgress<ContentStorageProgress>? progress = null, CancellationToken cancellationToken = default)
+    public Task<OperationResult<ContentManifest>> UpdateLocalContentManifestAsync(string existingManifestId, string name, string directoryPath, ContentType contentType, GameType targetGame, string? sourcePath = null, IProgress<ContentStorageProgress>? progress = null, CancellationToken cancellationToken = default, string? entryPoint = null)
     {
-        return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = name, ContentType = contentType, TargetGame = targetGame, SourcePath = sourcePath }));
+        var normalizedEntryPoint = !string.IsNullOrWhiteSpace(entryPoint)
+            ? entryPoint.Replace('\\', '/').TrimStart('/')
+            : null;
+
+        return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Name = name, ContentType = contentType, TargetGame = targetGame, SourcePath = sourcePath, EntryPoint = normalizedEntryPoint }));
     }
 }
 
@@ -572,6 +600,12 @@ public class MockConfigurationProviderService : IConfigurationProviderService
 
     /// <inheritdoc/>
     public bool GetAutoCheckForUpdatesOnStartup() => true;
+
+    /// <inheritdoc/>
+    public bool GetAutoCheckForUpdatesPeriodically() => true;
+
+    /// <inheritdoc/>
+    public int GetPeriodicUpdateCheckIntervalMinutes() => AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalMinutes;
 
     /// <inheritdoc/>
     public bool GetEnableDetailedLogging() => false;

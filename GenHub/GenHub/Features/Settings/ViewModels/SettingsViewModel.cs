@@ -134,6 +134,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private bool _autoCheckForUpdatesOnStartup = true;
 
     [ObservableProperty]
+    private bool _autoCheckForUpdatesPeriodically = true;
+
+    [ObservableProperty]
+    private int _periodicUpdateCheckIntervalMinutes = AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalMinutes;
+
+    [ObservableProperty]
     private bool _allowBackgroundDownloads = true;
 
     [ObservableProperty]
@@ -201,17 +207,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private string _patStatusMessage = string.Empty;
 
     [ObservableProperty]
-    private bool _isLoadingArtifacts;
-
-    [ObservableProperty]
-    private ObservableCollection<ArtifactUpdateInfo> _availableArtifacts = [];
-
-    [ObservableProperty]
     private ObservableCollection<PublisherSubscription> _subscriptions = [];
 
     [ObservableProperty]
     private bool _isLoadingSubscriptions;
-
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsViewModel"/> class.
     /// </summary>
@@ -506,6 +505,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             WorkspacePath = settings.WorkspacePath;
             MaxConcurrentDownloads = settings.MaxConcurrentDownloads;
             AutoCheckForUpdatesOnStartup = settings.AutoCheckForUpdatesOnStartup;
+            AutoCheckForUpdatesPeriodically = settings.AutoCheckForUpdatesPeriodically;
+            PeriodicUpdateCheckIntervalMinutes = settings.PeriodicUpdateCheckIntervalMinutes;
             AllowBackgroundDownloads = settings.AllowBackgroundDownloads;
             EnableDetailedLogging = settings.EnableDetailedLogging;
             DefaultWorkspaceStrategy = settings.DefaultWorkspaceStrategy;
@@ -560,6 +561,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 settings.WorkspacePath = WorkspacePath;
                 settings.MaxConcurrentDownloads = MaxConcurrentDownloads;
                 settings.AutoCheckForUpdatesOnStartup = AutoCheckForUpdatesOnStartup;
+                settings.AutoCheckForUpdatesPeriodically = AutoCheckForUpdatesPeriodically;
+                settings.PeriodicUpdateCheckIntervalMinutes = PeriodicUpdateCheckIntervalMinutes;
                 settings.AllowBackgroundDownloads = AllowBackgroundDownloads;
                 settings.EnableDetailedLogging = EnableDetailedLogging;
                 settings.DefaultWorkspaceStrategy = DefaultWorkspaceStrategy;
@@ -588,6 +591,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             });
 
             await _userSettingsService.SaveAsync();
+
+            // Notify components of updated update settings
+            WeakReferenceMessenger.Default.Send(new UpdateSettingsChangedMessage(
+                AutoCheckForUpdatesOnStartup,
+                AutoCheckForUpdatesPeriodically,
+                PeriodicUpdateCheckIntervalMinutes));
 
             // Apply log level change immediately without restart
             Infrastructure.DependencyInjection.LoggingModule.SetLogLevel(EnableDetailedLogging);
@@ -620,6 +629,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             WorkspacePath = string.Empty;
             MaxConcurrentDownloads = DownloadDefaults.MaxConcurrentDownloads;
             AutoCheckForUpdatesOnStartup = true;
+            AutoCheckForUpdatesPeriodically = true;
+            PeriodicUpdateCheckIntervalMinutes = AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalMinutes;
             AllowBackgroundDownloads = true;
             EnableDetailedLogging = false;
             DefaultWorkspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy;
@@ -762,6 +773,14 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             _logger.LogWarning("Invalid DownloadBufferSizeKB value: {Value}. Resetting to 80KB.", DownloadBufferSizeKB);
             DownloadBufferSizeKB = DownloadDefaults.BufferSizeKB;
+        }
+
+        // Validate periodic update check interval
+        if (PeriodicUpdateCheckIntervalMinutes < AppUpdateConstants.MinPeriodicUpdateCheckIntervalMinutes ||
+            PeriodicUpdateCheckIntervalMinutes > AppUpdateConstants.MaxPeriodicUpdateCheckIntervalMinutes)
+        {
+            _logger.LogWarning("Invalid PeriodicUpdateCheckIntervalMinutes value: {Value}. Resetting to default.", PeriodicUpdateCheckIntervalMinutes);
+            PeriodicUpdateCheckIntervalMinutes = AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalMinutes;
         }
 
         // Validate game install path if specified
@@ -1027,7 +1046,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             HasGitHubPat = false;
             IsPatValid = false;
             PatStatusMessage = "GitHub PAT removed";
-            AvailableArtifacts.Clear();
         }
         catch (Exception ex)
         {
@@ -1051,45 +1069,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to open update window");
-        }
-    }
-
-    /// <summary>
-    /// Loads available CI artifacts for selection.
-    /// </summary>
-    [RelayCommand]
-    private async Task LoadArtifactsAsync()
-    {
-        if (_updateManager == null || !HasGitHubPat)
-        {
-            PatStatusMessage = "Configure a GitHub PAT to load artifacts";
-            return;
-        }
-
-        IsLoadingArtifacts = true;
-        AvailableArtifacts.Clear();
-
-        try
-        {
-            var artifact = await _updateManager.CheckForArtifactUpdatesAsync();
-            if (artifact != null)
-            {
-                AvailableArtifacts.Add(artifact);
-                PatStatusMessage = $"Found {AvailableArtifacts.Count} artifact(s)";
-            }
-            else
-            {
-                PatStatusMessage = "No artifacts available";
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to load artifacts");
-            PatStatusMessage = $"Error loading artifacts: {ex.Message}";
-        }
-        finally
-        {
-            IsLoadingArtifacts = false;
         }
     }
 

@@ -101,7 +101,7 @@ public partial class MainWindow : Window
     {
         if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
-            if (e.ClickCount == 2)
+            if (e.ClickCount == 2 && CanResize)
             {
                 MaximizeButton_Click(sender, new Avalonia.Interactivity.RoutedEventArgs());
             }

@@ -692,7 +692,7 @@ public partial class GameProfileSettingsViewModel
 
             if (dialogOwner == null) return;
 
-            var vm = new AddLocalContentViewModel(
+            using var vm = new AddLocalContentViewModel(
                 _localContentService,
                 _contentStorageService,
                 _genLauncherNormalizationService,
@@ -760,7 +760,7 @@ public partial class GameProfileSettingsViewModel
 
             if (owner == null) return;
 
-            var vm = new AddLocalContentViewModel(
+            using var vm = new AddLocalContentViewModel(
                 _localContentService,
                 _contentStorageService,
                 _genLauncherNormalizationService,

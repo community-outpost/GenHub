@@ -145,6 +145,23 @@ public class ConfigurationProviderService(
     }
 
     /// <inheritdoc />
+    public bool GetAutoCheckForUpdatesPeriodically()
+    {
+        var settings = _userSettings.Get();
+        return !settings.IsExplicitlySet(nameof(UserSettings.AutoCheckForUpdatesPeriodically)) || settings.AutoCheckForUpdatesPeriodically; // App default
+    }
+
+    /// <inheritdoc />
+    public int GetPeriodicUpdateCheckIntervalMinutes()
+    {
+        var settings = _userSettings.Get();
+        var value = settings.IsExplicitlySet(nameof(UserSettings.PeriodicUpdateCheckIntervalMinutes)) && settings.PeriodicUpdateCheckIntervalMinutes > 0
+            ? settings.PeriodicUpdateCheckIntervalMinutes
+            : AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalMinutes;
+        return Math.Clamp(value, AppUpdateConstants.MinPeriodicUpdateCheckIntervalMinutes, AppUpdateConstants.MaxPeriodicUpdateCheckIntervalMinutes);
+    }
+
+    /// <inheritdoc />
     public bool GetEnableDetailedLogging()
     {
         var settings = _userSettings.Get();
@@ -215,6 +232,8 @@ public class ConfigurationProviderService(
             MaxConcurrentDownloads = GetMaxConcurrentDownloads(),
             AllowBackgroundDownloads = GetAllowBackgroundDownloads(),
             AutoCheckForUpdatesOnStartup = GetAutoCheckForUpdatesOnStartup(),
+            AutoCheckForUpdatesPeriodically = GetAutoCheckForUpdatesPeriodically(),
+            PeriodicUpdateCheckIntervalMinutes = GetPeriodicUpdateCheckIntervalMinutes(),
             LastUpdateCheckTimestamp = _userSettings.Get().LastUpdateCheckTimestamp,
             EnableDetailedLogging = GetEnableDetailedLogging(),
             DefaultWorkspaceStrategy = GetDefaultWorkspaceStrategy(),
@@ -259,7 +278,11 @@ public class ConfigurationProviderService(
             settings.GitHubDiscoveryRepositories != null && settings.GitHubDiscoveryRepositories.Count > 0)
             return settings.GitHubDiscoveryRepositories;
 
-        return ["TheSuperHackers/GeneralsGameCode"];
+        return
+        [
+            $"{SuperHackersConstants.GeneralsGameCodeOwner}/{SuperHackersConstants.GeneralsGameCodeRepo}",
+            $"{SuperHackersConstants.GeneralsGamePatch2Owner}/{SuperHackersConstants.GeneralsGamePatch2Repo}",
+        ];
     }
 
     /// <inheritdoc />

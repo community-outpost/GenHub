@@ -215,6 +215,11 @@ public partial class GitHubResolver(
             }
 
             var builtManifest = manifest.Build();
+            if (!string.IsNullOrEmpty(release.TagName))
+            {
+                builtManifest.Version = release.TagName;
+            }
+
             logger.LogInformation("GitHubResolver: Built manifest with ID: {ManifestId}", builtManifest.Id);
             return OperationResult<ContentManifest>.CreateSuccess(builtManifest);
         }
@@ -402,13 +407,17 @@ public partial class GitHubResolver(
             logger.LogInformation("Successfully resolved single release asset: {AssetName}", asset.Name);
 
             var builtManifest = manifest.Build();
-
             // Propagate variant group identity from the discovery card so the installed
             // manifest retains the grouping information the downloads browser needs.
             if (!string.IsNullOrWhiteSpace(discoveredItem.VariantGroupId))
             {
                 builtManifest.Metadata.VariantGroupId = discoveredItem.VariantGroupId;
                 builtManifest.Metadata.VariantFamilyName = discoveredItem.VariantFamilyName;
+            }
+
+            if (!string.IsNullOrEmpty(tag))
+            {
+                builtManifest.Version = tag;
             }
 
             logger.LogInformation("GitHubResolver (Single Asset): Built manifest with ID: {ManifestId}", builtManifest.Id);

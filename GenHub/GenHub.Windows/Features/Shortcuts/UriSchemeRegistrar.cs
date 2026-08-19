@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using GenHub.Core.Constants;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 
@@ -24,8 +25,8 @@ namespace GenHub.Windows.Features.Shortcuts;
 /// </remarks>
 public static class UriSchemeRegistrar
 {
+    private const string SchemeName = CommandLineConstants.SchemeName;
     private const string ClassesSubKey = @"Software\Classes\" + SchemeName;
-    private const string SchemeName = "genhub";
 
     /// <summary>
     /// Registers the <c>genhub://</c> scheme for the current user, pointing at the running
@@ -43,26 +44,43 @@ public static class UriSchemeRegistrar
 
         try
         {
+            var desiredCommand = $"\"{executablePath}\" \"%1\"";
+            var desiredProtocol = $"URL:{SchemeName} protocol";
+            var desiredIcon = $"{executablePath},0";
+
+            // Check if already registered and up-to-date before performing any writes
+            using (var existingClassesKey = Registry.CurrentUser.OpenSubKey(ClassesSubKey, writable: false))
+            {
+                if (existingClassesKey != null)
+                {
+                    var existingProtocol = existingClassesKey.GetValue(string.Empty) as string;
+                    var existingUrlProtocol = existingClassesKey.GetValue("URL Protocol");
+
+                    using var existingCommandKey = existingClassesKey.OpenSubKey(@"shell\open\command", writable: false);
+                    var existingCommand = existingCommandKey?.GetValue(string.Empty) as string;
+
+                    if (string.Equals(existingProtocol, desiredProtocol, StringComparison.OrdinalIgnoreCase) &&
+                        existingUrlProtocol != null &&
+                        string.Equals(existingCommand, desiredCommand, StringComparison.OrdinalIgnoreCase))
+                    {
+                        logger?.LogDebug("genhub:// scheme is already registered and up-to-date.");
+                        return;
+                    }
+                }
+            }
+
             using var classesKey = Registry.CurrentUser.CreateSubKey(ClassesSubKey, writable: true);
 
             // URL Protocol flag tells the shell this is a URI handler, not a normal file type.
-            classesKey.SetValue(string.Empty, $"URL:{SchemeName} protocol");
+            classesKey.SetValue(string.Empty, desiredProtocol);
             classesKey.SetValue("URL Protocol", string.Empty);
 
             using var iconKey = classesKey.CreateSubKey("DefaultIcon");
-            iconKey.SetValue(string.Empty, $"{executablePath},0");
+            iconKey.SetValue(string.Empty, desiredIcon);
 
             using var commandKey = classesKey.CreateSubKey(@"shell\open\command");
-            var desiredCommand = $"\"{executablePath}\" \"%1\"";
-
-            // Idempotent: skip the write (and the UAC/notify churn) when already correct.
-            if (commandKey.GetValue(string.Empty) is string existing &&
-                string.Equals(existing, desiredCommand, StringComparison.OrdinalIgnoreCase))
-            {
-                return;
-            }
-
             commandKey.SetValue(string.Empty, desiredCommand);
+
             logger?.LogInformation("Registered genhub:// scheme -> {ExecutablePath}", executablePath);
         }
         catch (Exception ex)

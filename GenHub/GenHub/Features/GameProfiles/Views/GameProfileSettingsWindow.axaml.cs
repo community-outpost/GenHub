@@ -3,7 +3,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
-using Avalonia.VisualTree;
 using GenHub.Core.Constants;
 using GenHub.Features.GameProfiles.ViewModels;
 
@@ -18,20 +17,12 @@ public partial class GameProfileSettingsWindow : Window
     private static double? _savedWidth;
     private static double? _savedHeight;
 
-    // Fields for manual drag detection to allow double-click to work
-    private bool _isMouseDown;
-    private Point _mouseDownPosition;
-    private PointerPressedEventArgs? _pressedEventArgs;
-
     /// <summary>
     /// Initializes a new instance of the <see cref="GameProfileSettingsWindow"/> class.
     /// </summary>
     public GameProfileSettingsWindow()
     {
         InitializeComponent();
-
-        // Wire up drag handlers to the header in the shared content view
-        WireUpDragHandlers();
 
         // Subscribe to DataContext changes to handle commands
         DataContextChanged += OnDataContextChanged;
@@ -50,67 +41,17 @@ public partial class GameProfileSettingsWindow : Window
     /// <param name="e">The event arguments.</param>
     public void OnHeaderPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (e.ClickCount == 2)
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
-            WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-            _isMouseDown = false;
-            _pressedEventArgs = null;
-        }
-        else
-        {
-            _isMouseDown = true;
-            _mouseDownPosition = e.GetPosition(this);
-            _pressedEventArgs = e;
-        }
-    }
-
-    /// <summary>
-    /// Handles pointer moved to initiate drag only after a threshold, allowing double-clicks to pass through.
-    /// </summary>
-    /// <param name="sender">The sender.</param>
-    /// <param name="e">The event arguments.</param>
-    public void OnHeaderPointerMoved(object? sender, PointerEventArgs e)
-    {
-        if (!_isMouseDown || _pressedEventArgs == null)
-        {
-            return;
-        }
-
-        var currentPosition = e.GetPosition(this);
-        var distance = Math.Sqrt(Math.Pow(currentPosition.X - _mouseDownPosition.X, 2) + Math.Pow(currentPosition.Y - _mouseDownPosition.Y, 2));
-
-        // Drag threshold of 3 pixels
-        if (distance > 3)
-        {
-            if (WindowState == WindowState.Maximized)
+            if (e.ClickCount == 2 && CanResize)
             {
-                var screenX = Position.X + (currentPosition.X * RenderScaling);
-                var screenY = Position.Y + (currentPosition.Y * RenderScaling);
-
-                WindowState = WindowState.Normal;
-
-                var targetWidth = _savedWidth ?? Width;
-                var newX = screenX - ((targetWidth * RenderScaling) / 2);
-                var newY = screenY - (_mouseDownPosition.Y * RenderScaling);
-
-                Position = new PixelPoint((int)newX, (int)newY);
+                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
             }
-
-            BeginMoveDrag(_pressedEventArgs);
-            _isMouseDown = false;
-            _pressedEventArgs = null;
+            else
+            {
+                BeginMoveDrag(e);
+            }
         }
-    }
-
-    /// <summary>
-    /// Handles pointer released to reset drag state.
-    /// </summary>
-    /// <param name="sender">The sender.</param>
-    /// <param name="e">The event arguments.</param>
-    public void OnHeaderPointerReleased(object? sender, PointerReleasedEventArgs e)
-    {
-        _isMouseDown = false;
-        _pressedEventArgs = null;
     }
 
     /// <summary>
@@ -138,20 +79,6 @@ public partial class GameProfileSettingsWindow : Window
         SaveWindowSize();
 
         base.OnClosed(e);
-    }
-
-    /// <summary>
-    /// Wires up pointer event handlers to the header border in the shared content view.
-    /// </summary>
-    private void WireUpDragHandlers()
-    {
-        // Find the named header border in the shared content view
-        if (this.FindControl<GameProfileSettingsContentView>("ContentView")?.FindControl<Border>("HeaderBorder") is { } headerBorder)
-        {
-            headerBorder.PointerPressed += OnHeaderPointerPressed;
-            headerBorder.PointerMoved += OnHeaderPointerMoved;
-            headerBorder.PointerReleased += OnHeaderPointerReleased;
-        }
     }
 
     private void InitializeComponent()

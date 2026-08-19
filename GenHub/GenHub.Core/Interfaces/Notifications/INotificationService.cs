@@ -29,6 +29,11 @@ public interface INotificationService
     IObservable<NotificationMessage> NotificationHistory { get; }
 
     /// <summary>
+    /// Gets the observable stream of notification update requests.
+    /// </summary>
+    IObservable<(Guid Id, string? Title, string Message)> UpdateRequests { get; }
+
+    /// <summary>
     /// Shows an informational notification.
     /// </summary>
     /// <param name="title">The notification title.</param>
@@ -69,6 +74,14 @@ public interface INotificationService
     /// </summary>
     /// <param name="notification">The notification to show.</param>
     void Show(NotificationMessage notification);
+
+    /// <summary>
+    /// Updates the message and optionally the title of an active notification.
+    /// </summary>
+    /// <param name="notificationId">The ID of the notification to update.</param>
+    /// <param name="message">The new message content.</param>
+    /// <param name="title">Optional new title. If null, the existing title is preserved.</param>
+    void Update(Guid notificationId, string message, string? title = null);
 
     /// <summary>
     /// Dismisses a specific notification.

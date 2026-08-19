@@ -18,6 +18,7 @@
         WindowStartupLocation="CenterOwner"
         Background="#0F0F0F"
         Icon="avares://GenHub/Assets/Icons/generalshub-icon.png"
+        SystemDecorations="Full"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="-1">
@@ -437,9 +438,7 @@
                 <Border Grid.Row="0"
                         Background="Transparent"
                         Height="60"
-                        PointerPressed="OnHeaderPointerPressed"
-                        PointerMoved="OnHeaderPointerMoved"
-                        PointerReleased="OnHeaderPointerReleased">
+                        PointerPressed="OnHeaderPointerPressed">
                     <Grid ColumnDefinitions="Auto,*,Auto" Margin="24,0">
                         <!-- Profile Icon -->
                         <Border Grid.Column="0"

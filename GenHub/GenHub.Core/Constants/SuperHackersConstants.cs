@@ -60,6 +60,21 @@ public static class SuperHackersConstants
     /// </summary>
     public const string GeneralsGameCodeRepo = "GeneralsGameCode";
 
+    /// <summary>
+    /// GitHub owner for Generals game patch 2.
+    /// </summary>
+    public const string GeneralsGamePatch2Owner = "TheSuperHackers";
+
+    /// <summary>
+    /// GitHub repo for Generals game patch 2.
+    /// </summary>
+    public const string GeneralsGamePatch2Repo = "GeneralsGamePatch2";
+
+    /// <summary>
+    /// Display name for Generals game patch 2.
+    /// </summary>
+    public const string GeneralsGamePatch2DisplayName = "Community Patch 2";
+
     // ===== Service Configuration =====
 
     /// <summary>
