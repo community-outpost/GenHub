@@ -204,6 +204,11 @@ public static class AppUpdateConstants
     public const string UpdateFailedNotificationTitle = "Update Failed";
 
     /// <summary>
+    /// Update failed notification body format string ({0}: error message).
+    /// </summary>
+    public const string UpdateFailedNotificationFormat = "Failed to install update: {0}";
+
+    /// <summary>
     /// View updates action button text.
     /// </summary>
     public const string ViewUpdatesAction = "View Updates";
