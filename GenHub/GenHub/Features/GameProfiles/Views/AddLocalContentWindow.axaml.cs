@@ -66,7 +66,7 @@ public partial class AddLocalContentWindow : Window
                 var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
                 {
                     Title = "Select Archive File",
-                    AllowMultiple = false,
+                    AllowMultiple = true,
                     FileTypeFilter =
                     [
                         new FilePickerFileType("Archive Files")
@@ -80,7 +80,7 @@ public partial class AddLocalContentWindow : Window
                     ],
                 });
 
-                return files.Count > 0 ? files[0].Path.LocalPath : null;
+                return files.Count > 0 ? files.Select(f => f.Path.LocalPath).ToList() : null;
             };
         }
     }
