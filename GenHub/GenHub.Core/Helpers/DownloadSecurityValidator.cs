@@ -99,7 +99,7 @@ public static class DownloadSecurityValidator
         }
 
         // 2. Verify SHA-256 hash if specified
-        if (allowedSha256Hashes != null && allowedSha256Hashes.Count > 0)
+        if (allowedSha256Hashes is { Count: > 0 })
         {
             var actualHash = await ComputeSha256Async(filePath, ct);
             bool matched = allowedSha256Hashes.Any(h => string.Equals(h, actualHash, StringComparison.OrdinalIgnoreCase));
