@@ -58,6 +58,23 @@ public partial class AddLocalContentViewModel(
         ContentType.Mission,
     ];
 
+    /// <summary>
+    /// Counts the total number of executables in the given file tree items recursively.
+    /// </summary>
+    /// <param name="items">The file tree items to inspect.</param>
+    /// <returns>The total number of executable files found.</returns>
+    internal static int CountExecutables(IEnumerable<FileTreeItem> items)
+    {
+        int count = 0;
+        foreach (var item in items)
+        {
+            if (item.IsExecutable) count++;
+            count += CountExecutables(item.Children);
+        }
+
+        return count;
+    }
+
     private static bool RequiresExecutable(ContentType contentType) =>
         contentType is ContentType.GameClient or ContentType.ModdingTool or ContentType.Executable;
 
@@ -78,23 +95,6 @@ public partial class AddLocalContentViewModel(
         }
 
         return null;
-    }
-
-    /// <summary>
-    /// Counts the total number of executables in the given file tree items recursively.
-    /// </summary>
-    /// <param name="items">The file tree items to inspect.</param>
-    /// <returns>The total number of executable files found.</returns>
-    internal static int CountExecutables(IEnumerable<FileTreeItem> items)
-    {
-        int count = 0;
-        foreach (var item in items)
-        {
-            if (item.IsExecutable) count++;
-            count += CountExecutables(item.Children);
-        }
-
-        return count;
     }
 
     private readonly string _stagingPath = Path.Combine(Path.GetTempPath(), "GenHub_Staging_" + Guid.NewGuid());
