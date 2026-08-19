@@ -413,6 +413,8 @@ public partial class CommunityOutpostDeliverer(
             logger.LogDebug("Extracting {ArchiveType} to {Path}", isSevenZip ? "7z" : "ZIP", extractPath);
 
             var extractResult = await DownloadAndExtractArchiveAsync(candidateUrls, archivePath, extractPath, cancellationToken);
+            if (!extractResult.Success)
+            {
                 return OperationResult<ContentManifest>.CreateFailure(extractResult);
             }
 
@@ -427,10 +429,6 @@ public partial class CommunityOutpostDeliverer(
 
             await CleanupTemporaryFilesAsync(archivePath, extractPath);
             return OperationResult<ContentManifest>.CreateSuccess(packageManifest);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
         }
         catch (OperationCanceledException)
         {
@@ -568,6 +566,10 @@ public partial class CommunityOutpostDeliverer(
             {
                 await ExtractArchiveAsync(archivePath, extractPath, cancellationToken);
                 return OperationResult<bool>.CreateSuccess(true);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {

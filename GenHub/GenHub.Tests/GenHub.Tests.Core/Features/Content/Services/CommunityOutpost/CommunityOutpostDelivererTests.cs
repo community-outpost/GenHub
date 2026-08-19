@@ -207,17 +207,8 @@ public sealed class CommunityOutpostDelivererTests : IDisposable
         IContentManifestPool manifestPool)
     {
         var converter = new CompressedImageToTgaConverter(NullLogger<CompressedImageToTgaConverter>.Instance);
-        var manifestFactory = new CommunityOutpostManifestFactory(
-            NullLogger<CommunityOutpostManifestFactory>.Instance,
-            new Mock<IFileHashProvider>().Object,
-            converter);
-
         return new CommunityOutpostDeliverer(
             downloadService,
-            manifestPool,
-            manifestFactory,
-            new Mock<IGameInstallationService>().Object,
-            new Mock<IInstallationCasPoolService>().Object,
             converter,
             NullLogger<CommunityOutpostDeliverer>.Instance);
     }

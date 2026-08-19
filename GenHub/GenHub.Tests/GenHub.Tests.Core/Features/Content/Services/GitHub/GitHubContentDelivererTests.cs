@@ -213,13 +213,6 @@ public class GitHubContentDelivererTests
     }
 
     /// <summary>
-    /// Creates the system under test with the mocked dependencies.
-    /// </summary>
-    /// <returns>A configured <see cref="GitHubContentDeliverer"/> instance.</returns>
-    private GitHubContentDeliverer CreateSut() =>
-        new(_downloadService.Object, _factoryResolver, _fileHashProvider.Object, _logger.Object);
-
-    /// <summary>
     /// Surfaces a cancellation that lands part-way through extraction as a cancellation. The
     /// downloaded archive is the only complete copy of the content, so it must survive, and the
     /// truncated file set must never reach the manifest pool.
@@ -467,8 +460,10 @@ public class GitHubContentDelivererTests
         }
     }
 
-    private GitHubContentDeliverer CreateDeliverer() =>
-        new(_downloadService.Object, _manifestPool.Object, _factoryResolver.Object, _logger.Object);
+    private GitHubContentDeliverer CreateSut() =>
+        new(_downloadService.Object, _factoryResolver, _fileHashProvider.Object, _logger.Object);
+
+    private GitHubContentDeliverer CreateDeliverer() => CreateSut();
 
     private sealed class CancelOnFirstReport(CancellationTokenSource cancellation) : IProgress<ContentAcquisitionProgress>
     {
@@ -480,5 +475,4 @@ public class GitHubContentDelivererTests
             }
         }
     }
->>>>>>> upstream/development
 }
