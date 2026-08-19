@@ -19,7 +19,7 @@ public partial class GenericMessageWindow : Window
     {
         InitializeComponent();
 #if DEBUG
-        this.AttachDevTools();
+        AttachDevTools();
 #endif
     }
 

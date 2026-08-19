@@ -442,10 +442,20 @@ public class UpdateNotificationViewModelTests
         vm.SelectTabCommand.Execute(0);
         Assert.Equal(0, vm.SelectedTabIndex);
         Assert.False(vm.IsBrowseTabSelected);
+
+        // Clamping out-of-range inputs
+        vm.SelectTabCommand.Execute(-1);
+        Assert.Equal(0, vm.SelectedTabIndex);
+
+        vm.SelectTabCommand.Execute(5);
+        Assert.Equal(1, vm.SelectedTabIndex);
+
+        vm.SelectTabCommand.Execute("99");
+        Assert.Equal(1, vm.SelectedTabIndex);
     }
 
     /// <summary>
-    /// Verifies that DisplayCurrentVersion returns a valid non-empty version string.
+    /// Verifies that DisplayCurrentVersion and CurrentVersionDisplay return a valid non-empty version string.
     /// </summary>
     [Fact]
     public void DisplayCurrentVersion_ReturnsNonEmptyVersion()
@@ -453,6 +463,13 @@ public class UpdateNotificationViewModelTests
         var displayVersion = UpdateNotificationViewModel.DisplayCurrentVersion;
         Assert.False(string.IsNullOrWhiteSpace(displayVersion));
         Assert.StartsWith("v", displayVersion);
+
+        var vm = new UpdateNotificationViewModel(
+            Mock.Of<IVelopackUpdateManager>(),
+            Mock.Of<ILogger<UpdateNotificationViewModel>>(),
+            Mock.Of<IUserSettingsService>());
+
+        Assert.Equal(displayVersion, vm.CurrentVersionDisplay);
     }
 
     /// <summary>
@@ -475,5 +492,33 @@ public class UpdateNotificationViewModelTests
         Assert.True(vm.IsUpdateAvailable);
         Assert.Equal("0.0.99999-pr389", vm.LatestVersion);
         Assert.Contains("0.0.99999-pr389", vm.StatusMessage);
+    }
+
+    /// <summary>
+    /// Verifies that selecting an artifact matching dismissed version clears IsUpdateAvailable, LatestVersion, and ReleaseNotesUrl.
+    /// </summary>
+    [Fact]
+    public void SelectedVersion_WhenDismissed_ClearsUpdateAvailableState()
+    {
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings { DismissedUpdateVersion = "0.0.99999-pr389" });
+
+        var vm = new UpdateNotificationViewModel(
+            Mock.Of<IVelopackUpdateManager>(),
+            Mock.Of<ILogger<UpdateNotificationViewModel>>(),
+            mockUserSettings.Object)
+        {
+            IsUpdateAvailable = true,
+            LatestVersion = "0.0.88888",
+            ReleaseNotesUrl = "https://example.com/notes",
+        };
+
+        var dismissedArtifact = new ArtifactUpdateInfo("0.0.99999-pr389", "abcdef1", 389, 9999, "https://github.com/test/run/9999", 501, "genhub-linux", DateTime.UtcNow, "https://github.com/test/art/1", 1024);
+        vm.SelectedVersion = dismissedArtifact;
+
+        Assert.False(vm.IsUpdateAvailable);
+        Assert.Empty(vm.LatestVersion);
+        Assert.Empty(vm.ReleaseNotesUrl);
+        Assert.Contains("dismissed", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
     }
 }

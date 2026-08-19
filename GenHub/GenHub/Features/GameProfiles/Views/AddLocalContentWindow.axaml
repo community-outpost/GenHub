@@ -44,7 +44,9 @@
             <Grid RowDefinitions="30,*" Margin="20,10,20,20">
 
                 <!-- Custom Title Bar Drag Area -->
-                <Grid Grid.Row="0" Background="Transparent" IsHitTestVisible="False">
+                <Grid Grid.Row="0"
+                      Background="Transparent"
+                      PointerPressed="OnTitleBarPointerPressed">
                     <TextBlock Text="Add Local Content"
                                HorizontalAlignment="Center"
                                VerticalAlignment="Center"

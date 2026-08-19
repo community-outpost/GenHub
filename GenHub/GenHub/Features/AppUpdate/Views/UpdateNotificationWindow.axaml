@@ -8,7 +8,7 @@
         Title="GenHub Updates"
         Icon="/Assets/Icons/generalshub-icon.png"
         WindowStartupLocation="CenterScreen"
-        SystemDecorations="BorderOnly"
+        SystemDecorations="Full"
         TransparencyLevelHint="AcrylicBlur"
         Background="Transparent"
         ExtendClientAreaToDecorationsHint="True"

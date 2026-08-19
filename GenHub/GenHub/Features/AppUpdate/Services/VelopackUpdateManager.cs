@@ -1685,6 +1685,22 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         foreach (var run in workflowRuns.EnumerateArray())
         {
+            var eventType = run.TryGetProperty("event", out var e) ? e.GetString() : "unknown";
+            var actualBranch = run.TryGetProperty("head_branch", out var b) ? b.GetString() : branchName ?? "unknown";
+
+            if (!string.IsNullOrEmpty(branchName))
+            {
+                if (!string.Equals(actualBranch, branchName, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (!string.Equals(eventType, "push", StringComparison.OrdinalIgnoreCase) && !string.Equals(eventType, "workflow_dispatch", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+            }
+
             var runId = run.GetProperty("id").GetInt64();
             var runNum = run.GetProperty("run_number").GetInt32();
             var createdAt = run.GetProperty("created_at").GetDateTimeOffset();

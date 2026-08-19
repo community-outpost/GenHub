@@ -65,6 +65,11 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Gets the formatted display string of the currently installed application version for instance data binding.
+    /// </summary>
+    public string CurrentVersionDisplay => DisplayCurrentVersion;
+
     private readonly IVelopackUpdateManager _velopackUpdateManager;
     private readonly ILogger<UpdateNotificationViewModel> _logger;
     private readonly IUserSettingsService _userSettingsService;
@@ -635,6 +640,9 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 return;
             }
 
+            IsUpdateAvailable = false;
+            LatestVersion = string.Empty;
+            ReleaseNotesUrl = string.Empty;
             StatusMessage = $"You dismissed update {value.DisplayVersion}";
             return;
         }
@@ -846,11 +854,11 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     {
         if (parameter is int i)
         {
-            SelectedTabIndex = i;
+            SelectedTabIndex = Math.Clamp(i, 0, 1);
         }
         else if (parameter is string s && int.TryParse(s, out var parsed))
         {
-            SelectedTabIndex = parsed;
+            SelectedTabIndex = Math.Clamp(parsed, 0, 1);
         }
     }
 

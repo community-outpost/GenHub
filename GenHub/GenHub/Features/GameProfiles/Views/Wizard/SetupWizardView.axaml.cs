@@ -18,7 +18,7 @@ public partial class SetupWizardView : Window
     {
         InitializeComponent();
 #if DEBUG
-        this.AttachDevTools();
+        AttachDevTools();
 #endif
     }
 

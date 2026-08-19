@@ -24,6 +24,26 @@ public partial class AddLocalContentWindow : Window
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
     }
 
+    /// <summary>
+    /// Handles pointer pressed on the title bar for dragging and maximizing.
+    /// </summary>
+    /// <param name="sender">The sender.</param>
+    /// <param name="e">The event arguments.</param>
+    private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            if (e.ClickCount == 2)
+            {
+                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+            }
+            else
+            {
+                BeginMoveDrag(e);
+            }
+        }
+    }
+
     /// <inheritdoc />
     protected override void OnOpened(EventArgs e)
     {
