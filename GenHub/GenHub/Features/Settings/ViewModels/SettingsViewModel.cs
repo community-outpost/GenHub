@@ -593,6 +593,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to save settings");
+            _notificationService.ShowError(
+                "Settings Not Saved",
+                ex.Message,
+                (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds);
         }
         finally
         {
