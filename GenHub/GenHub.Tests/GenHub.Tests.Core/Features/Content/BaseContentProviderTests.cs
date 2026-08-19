@@ -12,6 +12,7 @@ using GenHub.Features.Content.Services.ContentProviders;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Content;
 

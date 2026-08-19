@@ -423,6 +423,7 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
         var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory);
 
         Assert.True(result.Success);
+
         // Notification should NOT be shown for skipped step
         _notificationServiceMock.Verify(
             n => n.ShowInfo(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
