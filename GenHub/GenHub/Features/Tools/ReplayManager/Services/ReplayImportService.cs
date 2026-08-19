@@ -11,6 +11,7 @@ using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.ReplayManager;
+using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Tools.ReplayManager.Services;
@@ -171,7 +172,7 @@ public sealed class ReplayImportService(
                     skipped++;
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 errors.Add($"Failed to import {Path.GetFileName(path)}: {ex.Message}");
                 skipped++;
@@ -218,24 +219,44 @@ public sealed class ReplayImportService(
             var entries = archive.Entries.Where(e => !string.IsNullOrEmpty(e.Name)).ToList();
             int total = entries.Count;
             int count = 0;
+            long expandedBytes = 0;
+
+            directoryService.EnsureDirectoryExists(targetVersion);
+            var targetDir = directoryService.GetReplayDirectory(targetVersion);
 
             foreach (var entry in entries)
             {
+                ct.ThrowIfCancellationRequested();
+
                 count++;
                 progress?.Report((double)count / total);
 
-                using var stream = entry.Open();
-                var result = await ImportFromStreamAsync(stream, entry.Name, targetVersion, ct);
-                if (result.Success)
+                var targetPath = GetUniquePath(Path.Combine(targetDir, Path.GetFileName(entry.Name)));
+
+                try
                 {
-                    imported.AddRange(result.ImportedFiles);
+                    await using var stream = entry.Open();
+                    expandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(
+                        stream,
+                        targetPath,
+                        entry.FullName,
+                        ReplayManagerConstants.MaxReplaySizeBytes,
+                        ReplayManagerConstants.MaxAggregateUncompressedBytes - expandedBytes,
+                        cancellationToken: ct);
+                    imported.Add(targetPath);
                 }
-                else
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    errors.AddRange(result.Errors);
+                    logger.LogWarning(ex, "Discarding replay entry {Entry} from {ZipPath}", entry.FullName, zipPath);
+                    errors.Add(ex.Message);
                     skipped++;
                 }
             }
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation("Import from ZIP {ZipPath} was cancelled", zipPath);
+            throw;
         }
         catch (Exception ex)
         {
@@ -279,7 +300,7 @@ public sealed class ReplayImportService(
                 ImportedFiles = [targetPath],
             };
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, LogMessages.FailedToImportStream, fileName);
             return new ImportResult { Success = false, FilesImported = 0, FilesSkipped = 1, Errors = [ex.Message] };

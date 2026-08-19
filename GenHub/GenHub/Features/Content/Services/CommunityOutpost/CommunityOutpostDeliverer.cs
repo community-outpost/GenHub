@@ -14,8 +14,6 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using SharpCompress.Archives;
-using SharpCompress.Archives.SevenZip;
-using SharpCompress.Common;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -207,7 +205,9 @@ public partial class CommunityOutpostDeliverer(
 
     /// <summary>
     /// Extracts an archive (ZIP, 7z, etc.) asynchronously using SharpCompress.
-    /// Automatically detects format.
+    /// Automatically detects format. Catalog archives are third-party input, so every entry is
+    /// confined to <paramref name="extractPath"/> and the archive is held to entry-count and
+    /// expansion budgets measured against the bytes actually decompressed.
     /// </summary>
     private static async Task ExtractArchiveAsync(
         string archivePath,
@@ -215,7 +215,7 @@ public partial class CommunityOutpostDeliverer(
         CancellationToken cancellationToken)
     {
         await Task.Run(
-            () =>
+            async () =>
             {
                 var fileInfo = new FileInfo(archivePath);
                 if (!fileInfo.Exists || fileInfo.Length == 0)
@@ -226,17 +226,48 @@ public partial class CommunityOutpostDeliverer(
                 EnsureValidArchivePayload(archivePath);
 
                 using var archive = ArchiveFactory.OpenArchive(archivePath);
-                foreach (var entry in archive.Entries.Where(e => !e.IsDirectory))
+                var fileEntries = archive.Entries.Where(e => !e.IsDirectory).ToList();
+
+                if (fileEntries.Count > CommunityOutpostConstants.MaxArchiveEntries)
+                {
+                    throw new InvalidOperationException(
+                        $"Archive contains too many entries ({fileEntries.Count} > {CommunityOutpostConstants.MaxArchiveEntries}).");
+                }
+
+                long expandedBytes = 0;
+
+                foreach (var entry in fileEntries)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    entry.WriteToDirectory(
-                        extractPath,
-                        new ExtractionOptions
-                        {
-                            ExtractFullPath = true,
-                            Overwrite = true,
-                        });
+                    if (!ArchiveEntryName.IsExtractable(entry.Key))
+                    {
+                        throw new InvalidOperationException(
+                            $"Archive entry '{entry.Key}' has a name that cannot be extracted to a file.");
+                    }
+
+                    var destinationPath = Path.GetFullPath(Path.Combine(extractPath, entry.Key));
+                    if (!PathHelper.IsPathWithinDirectory(extractPath, destinationPath))
+                    {
+                        throw new InvalidOperationException(
+                            $"Zip slip vulnerability detected: entry '{entry.Key}' attempts to extract outside target directory.");
+                    }
+
+                    var destinationDir = Path.GetDirectoryName(destinationPath);
+                    if (!string.IsNullOrEmpty(destinationDir))
+                    {
+                        Directory.CreateDirectory(destinationDir);
+                    }
+
+                    await using var entryStream = entry.OpenEntryStream();
+                    expandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(
+                        entryStream,
+                        destinationPath,
+                        entry.Key,
+                        CommunityOutpostConstants.MaxEntryUncompressedBytes,
+                        CommunityOutpostConstants.MaxAggregateUncompressedBytes - expandedBytes,
+                        overwrite: true,
+                        cancellationToken);
                 }
             },
             cancellationToken);
@@ -382,8 +413,6 @@ public partial class CommunityOutpostDeliverer(
             logger.LogDebug("Extracting {ArchiveType} to {Path}", isSevenZip ? "7z" : "ZIP", extractPath);
 
             var extractResult = await DownloadAndExtractArchiveAsync(candidateUrls, archivePath, extractPath, cancellationToken);
-            if (!extractResult.Success)
-            {
                 return OperationResult<ContentManifest>.CreateFailure(extractResult);
             }
 
@@ -400,6 +429,10 @@ public partial class CommunityOutpostDeliverer(
             return OperationResult<ContentManifest>.CreateSuccess(packageManifest);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
         {
             throw;
         }
@@ -887,7 +920,7 @@ public partial class CommunityOutpostDeliverer(
                     extractPath,
                     cancellationToken);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 logger.LogError(ex, "Failed to process dependency {Name}", dep.Name);
             }

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Manifest;
@@ -14,10 +15,10 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Utilities;
 using GenHub.Features.Content.Services.Publishers;
 using Microsoft.Extensions.Logging;
 using SharpCompress.Archives;
-using SharpCompress.Common;
 
 namespace GenHub.Features.Content.Services.GitHub;
 
@@ -161,50 +162,30 @@ public class GitHubContentDeliverer(
                     }
                     catch (OperationCanceledException)
                     {
-                        logger.LogWarning("Extraction of {ArchiveFile} was cancelled; cleaning up target directory", Path.GetFileName(archiveFile));
-                        try
-                        {
-                            Directory.Delete(targetDirectory, recursive: true);
-                        }
-                        catch
-                        {
-                            // Best-effort cleanup
-                        }
-
+                        logger.LogInformation(
+                            "Extraction of {ArchiveFile} was cancelled; the downloaded archive is left in place",
+                            Path.GetFileName(archiveFile));
                         throw;
                     }
                     catch (Exception ex)
                     {
                         logger.LogError(ex, "Failed to extract {ArchiveFile}", Path.GetFileName(archiveFile));
-                        try
-                        {
-                            Directory.Delete(targetDirectory, recursive: true);
-                        }
-                        catch
-                        {
-                            // Best-effort cleanup
-                        }
-
-                        return OperationResult<ContentManifest>.CreateFailure(
-                            $"Failed to extract {Path.GetFileName(archiveFile)}: {ex.Message}");
+                        return OperationResult<ContentManifest>.CreateFailure($"Failed to extract archive: {ex.Message}");
                     }
                 }
-
-                logger.LogInformation(
-                    "Successfully extracted {Count} archive file(s) for {ManifestId}. Deferring manifest generation to the orchestrator.",
-                    archiveFiles.Count,
-                    packageManifest.Id);
-
-                return OperationResult<ContentManifest>.CreateSuccess(packageManifest);
             }
 
-            // For content without archives, compute hashes directly for downloaded files
-            foreach (var file in filesToDownload)
+            // Update manifest to point to extracted files if any
+            if (packageManifest.Files != null && packageManifest.Files.Count > 0)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var localPath = Path.Combine(targetDirectory, file.RelativePath);
-                if (File.Exists(localPath))
+                foreach (var file in packageManifest.Files)
                 {
+                    var localPath = Path.Combine(targetDirectory, file.RelativePath);
+                    if (!File.Exists(localPath))
+                    {
+                        continue;
+                    }
+
                     file.Hash = await hashProvider.ComputeFileHashAsync(localPath, cancellationToken);
                     file.Size = new FileInfo(localPath).Length;
                     file.SourceType = ContentSourceType.ContentAddressable;
@@ -215,20 +196,7 @@ public class GitHubContentDeliverer(
         }
         catch (OperationCanceledException)
         {
-            logger.LogWarning("GitHub content delivery was cancelled for manifest {ManifestId}", packageManifest.Id);
-            try
-            {
-                if (Directory.Exists(targetDirectory))
-                {
-                    Directory.Delete(targetDirectory, recursive: true);
-                }
-            }
-            catch
-            {
-                // Best-effort cleanup
-            }
-
-            return OperationResult<ContentManifest>.CreateFailure("Content delivery was cancelled.");
+            throw;
         }
         catch (Exception ex)
         {
@@ -305,99 +273,6 @@ public class GitHubContentDeliverer(
                ext == FileTypes.RarFileExtension;
     }
 
-    private static bool IsPathWithinDirectory(string normalizedBase, string fullPath)
-    {
-        var normalizedRoot = Path.GetFullPath(normalizedBase);
-        var normalizedTarget = Path.GetFullPath(fullPath);
-        var relative = Path.GetRelativePath(normalizedRoot, normalizedTarget);
-        return !relative.Equals("..", StringComparison.Ordinal) &&
-               !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) &&
-               !relative.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal) &&
-               !Path.IsPathRooted(relative);
-    }
-
-    /// <summary>
-    /// Extracts an archive file to a target directory with progress reporting and bounds enforcement.
-    /// </summary>
-    /// <param name="archiveFile">Path to the archive file.</param>
-    /// <param name="targetDirectory">Directory to extract files to.</param>
-    /// <param name="progress">Progress reporter for extraction updates.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    private static async Task ExtractArchiveAsync(
-        string archiveFile,
-        string targetDirectory,
-        IProgress<ContentAcquisitionProgress>? progress,
-        CancellationToken cancellationToken)
-    {
-        await Task.Run(
-            () =>
-            {
-                using var archive = ArchiveFactory.OpenArchive(archiveFile);
-                int totalEntries = archive.Entries.Count(e => !e.IsDirectory);
-                int currentEntry = 0;
-                long totalUncompressedSize = 0;
-
-                var rootPath = Path.GetFullPath(targetDirectory) + Path.DirectorySeparatorChar;
-
-                foreach (var entry in archive.Entries.Where(e => !e.IsDirectory))
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    currentEntry++;
-                    if (currentEntry > CatalogConstants.MaxZipEntryCount)
-                    {
-                        throw new InvalidDataException(
-                            $"Archive exceeds maximum entry count of {CatalogConstants.MaxZipEntryCount}");
-                    }
-
-                    totalUncompressedSize += entry.Size;
-                    if (totalUncompressedSize > CatalogConstants.MaxZipUncompressedSizeBytes)
-                    {
-                        throw new InvalidDataException(
-                            $"Archive exceeds maximum uncompressed size of {CatalogConstants.MaxZipUncompressedSizeBytes} bytes");
-                    }
-
-                    var destinationPath = Path.GetFullPath(Path.Combine(targetDirectory, entry.Key ?? string.Empty));
-
-                    // Containment guard: reject entries whose canonical path escapes the target
-                    // directory (zip-slip / absolute entry keys from a remote-controlled archive).
-                    if (!destinationPath.StartsWith(rootPath, StringComparison.OrdinalIgnoreCase))
-                    {
-                        throw new InvalidDataException($"Archive entry has an unsafe path: {entry.Key}");
-                    }
-
-                    var destinationDir = Path.GetDirectoryName(destinationPath);
-                    if (!string.IsNullOrEmpty(destinationDir))
-                    {
-                        Directory.CreateDirectory(destinationDir);
-                    }
-
-                    entry.WriteToFile(
-                        destinationPath,
-                        new ExtractionOptions
-                        {
-                            ExtractFullPath = true,
-                            Overwrite = true,
-                        });
-
-                    double currentPercentage = (double)currentEntry / totalEntries * 100;
-
-                    progress?.Report(
-                        new ContentAcquisitionProgress
-                        {
-                            Phase = ContentAcquisitionPhase.Extracting,
-                            ProgressPercentage = currentPercentage,
-                            CurrentOperation = $"{Path.GetFileName(entry.Key)} ({currentEntry}/{totalEntries})",
-                            FilesProcessed = currentEntry,
-                            TotalFiles = totalEntries,
-                            CurrentFile = Path.GetFileName(entry.Key) ?? string.Empty,
-                        });
-                }
-            },
-            cancellationToken);
-    }
-
     /// <summary>
     /// Handles extracted content by using publisher-specific factories to create manifests.
     /// May return multiple manifests if the publisher factory detects multi-variant content.
@@ -455,5 +330,99 @@ public class GitHubContentDeliverer(
             logger.LogError(ex, "Failed to handle extracted content using factory");
             return OperationResult<ContentManifest>.CreateFailure($"Factory content handling failed: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Extracts an archive file asynchronously to prevent UI blocking. Release archives are remote
+    /// input, so every entry is confined to <paramref name="targetDirectory"/> and the archive is
+    /// held to entry-count and expansion budgets measured against the bytes actually decompressed.
+    /// </summary>
+    /// <param name="archiveFile">Path to the archive file.</param>
+    /// <param name="targetDirectory">Directory to extract files to.</param>
+    /// <param name="progress">Progress reporter for extraction updates.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    private async Task ExtractArchiveAsync(
+        string archiveFile,
+        string targetDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        await Task.Run(
+            async () =>
+            {
+                using var archive = ArchiveFactory.OpenArchive(new FileInfo(archiveFile));
+                var fileEntries = archive.Entries.Where(e => !e.IsDirectory).ToList();
+
+                if (fileEntries.Count > GitHubConstants.MaxArchiveEntries)
+                {
+                    throw new InvalidOperationException(
+                        $"Archive contains too many entries ({fileEntries.Count} > {GitHubConstants.MaxArchiveEntries}).");
+                }
+
+                int totalEntries = fileEntries.Count;
+                int currentEntry = 0;
+                long expandedBytes = 0;
+                long expansionBudget = Math.Min(
+                    GitHubConstants.MaxAggregateUncompressedBytes,
+                    Math.Max(
+                        GitHubConstants.MinArchiveExpansionBudgetBytes,
+                        new FileInfo(archiveFile).Length * GitHubConstants.MaxArchiveExpansionRatio));
+
+                foreach (var entry in fileEntries)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    if (!ArchiveEntryName.IsExtractable(entry.Key))
+                    {
+                        throw new InvalidOperationException(
+                            $"Archive entry '{entry.Key}' has a name that cannot be extracted to a file.");
+                    }
+
+                    var destinationPath = Path.GetFullPath(Path.Combine(targetDirectory, entry.Key));
+                    if (!PathHelper.IsPathWithinDirectory(targetDirectory, destinationPath))
+                    {
+                        throw new InvalidOperationException($"Zip slip vulnerability detected: entry '{entry.Key}' attempts to extract outside target directory.");
+                    }
+
+                    var destinationDir = Path.GetDirectoryName(destinationPath);
+                    if (!string.IsNullOrEmpty(destinationDir))
+                    {
+                        Directory.CreateDirectory(destinationDir);
+                    }
+
+                    await using (var entryStream = entry.OpenEntryStream())
+                    {
+                        expandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(
+                            entryStream,
+                            destinationPath,
+                            entry.Key,
+                            GitHubConstants.MaxEntryUncompressedBytes,
+                            expansionBudget - expandedBytes,
+                            overwrite: true,
+                            cancellationToken);
+                    }
+
+                    currentEntry++;
+
+                    // Map extraction progress from ProgressStepValidatingFiles to ProgressStepExtracting
+                    double extractStart = ContentConstants.ProgressStepValidatingFiles;
+                    double extractEnd = ContentConstants.ProgressStepExtracting;
+                    double progressRange = extractEnd - extractStart;
+                    double currentPercentage = extractStart + ((double)currentEntry / totalEntries * progressRange);
+
+                    progress?.Report(
+                        new ContentAcquisitionProgress
+                        {
+                            Phase = ContentAcquisitionPhase.Extracting,
+                            ProgressPercentage = currentPercentage,
+                            CurrentOperation = $"{Path.GetFileName(entry.Key)} ({currentEntry}/{totalEntries})",
+                            FilesProcessed = currentEntry,
+                            TotalFiles = totalEntries,
+                            CurrentFile = Path.GetFileName(entry.Key) ?? string.Empty,
+                        });
+                }
+            },
+            cancellationToken);
     }
 }
