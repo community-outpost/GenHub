@@ -291,7 +291,37 @@ public class InstallationInstructionsService(
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
     {
-        // 1. Publisher authorization check
+        var authResult = ValidatePublisherAuthorization(manifest, step);
+        if (!authResult.Success)
+        {
+            return authResult;
+        }
+
+        var pathResult = ValidateInstallerTargetPath(step, workingDirectory, out var targetFullPath);
+        if (!pathResult.Success)
+        {
+            return pathResult;
+        }
+
+        var integrityResult = await VerifyInstallerIntegrityAsync(step, manifest, targetFullPath, cancellationToken);
+        if (!integrityResult.Success)
+        {
+            return integrityResult;
+        }
+
+        NotifyStepStarting(step, progress);
+
+        logger.LogInformation(
+            "Executing verified installer '{Target}' (Elevation: {RequiresElevation}) for manifest {ManifestId}",
+            step.TargetRelativePath,
+            step.RequiresElevation,
+            manifest.Id);
+
+        return await RunInstallerProcessAsync(step, targetFullPath, workingDirectory, cancellationToken);
+    }
+
+    private OperationResult ValidatePublisherAuthorization(ContentManifest manifest, InstallationStep step)
+    {
         var publisherType = manifest.Publisher?.PublisherType ?? string.Empty;
         var publisherName = manifest.Publisher?.Name ?? string.Empty;
 
@@ -311,14 +341,20 @@ public class InstallationInstructionsService(
                 $"Publisher '{(!string.IsNullOrEmpty(publisherType) ? publisherType : publisherName)}' is not authorized to execute installation steps.");
         }
 
-        // 2. Target path validation
+        return OperationResult.CreateSuccess();
+    }
+
+    private OperationResult ValidateInstallerTargetPath(InstallationStep step, string workingDirectory, out string targetFullPath)
+    {
+        targetFullPath = string.Empty;
+
         if (string.IsNullOrWhiteSpace(step.TargetRelativePath))
         {
             return OperationResult.CreateFailure($"Target relative path is required for executable step '{step.Name}'.");
         }
 
         var normalizedRelativePath = PathHelper.NormalizeRelativePath(step.TargetRelativePath);
-        var targetFullPath = Path.Combine(workingDirectory, normalizedRelativePath);
+        targetFullPath = Path.Combine(workingDirectory, normalizedRelativePath);
 
         if (!PathHelper.IsPathContainedIn(targetFullPath, workingDirectory))
         {
@@ -332,7 +368,16 @@ public class InstallationInstructionsService(
             return OperationResult.CreateFailure($"Installer executable '{step.TargetRelativePath}' was not found in delivered content.");
         }
 
-        // 3. Manifest file declaration and integrity verification
+        return OperationResult.CreateSuccess();
+    }
+
+    private async Task<OperationResult> VerifyInstallerIntegrityAsync(
+        InstallationStep step,
+        ContentManifest manifest,
+        string targetFullPath,
+        CancellationToken cancellationToken)
+    {
+        var normalizedRelativePath = PathHelper.NormalizeRelativePath(step.TargetRelativePath ?? string.Empty);
         var manifestFile = manifest.Files?.FirstOrDefault(f =>
             string.Equals(
                 PathHelper.NormalizeRelativePath(f.RelativePath),
@@ -366,8 +411,11 @@ public class InstallationInstructionsService(
         }
 
         logger.LogDebug("Integrity verified for installer '{Target}'", step.TargetRelativePath);
+        return OperationResult.CreateSuccess();
+    }
 
-        // 4. User notification
+    private void NotifyStepStarting(InstallationStep step, IProgress<ContentAcquisitionProgress>? progress)
+    {
         var displayTitle = !string.IsNullOrWhiteSpace(step.Name) ? step.Name : "Running Installation Step";
         var displayMessage = !string.IsNullOrWhiteSpace(step.StatusMessage)
             ? step.StatusMessage
@@ -384,14 +432,14 @@ public class InstallationInstructionsService(
             CurrentOperation = displayMessage,
             CurrentFile = step.TargetRelativePath ?? string.Empty,
         });
+    }
 
-        // 5. Process execution
-        logger.LogInformation(
-            "Executing verified installer '{Target}' (Elevation: {RequiresElevation}) for manifest {ManifestId}",
-            step.TargetRelativePath,
-            step.RequiresElevation,
-            manifest.Id);
-
+    private async Task<OperationResult> RunInstallerProcessAsync(
+        InstallationStep step,
+        string targetFullPath,
+        string workingDirectory,
+        CancellationToken cancellationToken)
+    {
         var startInfo = new ProcessStartInfo
         {
             FileName = targetFullPath,
