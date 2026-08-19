@@ -726,10 +726,14 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
             var headers = new Dictionary<string, string>
             {
-                { "Authorization", $"Bearer {token}" },
                 { "User-Agent", AppConstants.AppName },
-                { "Accept", "application/vnd.github+json" },
+                { "Accept", ApiConstants.GitHubApiHeaderAccept },
             };
+
+            UseSecureStringAsPlainText(token, plainText =>
+            {
+                headers["Authorization"] = $"Bearer {plainText}";
+            });
 
             var downloadProgress = new Action<int>(percent =>
             {
