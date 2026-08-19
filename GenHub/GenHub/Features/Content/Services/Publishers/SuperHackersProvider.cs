@@ -75,19 +75,19 @@ public class SuperHackersProvider(
             var results = new List<ContentSearchResult>();
             var errors = new List<string>();
 
-            var targets = new (string Owner, string Repo, ContentType ContentType, GameType TargetGame)[]
+            var targets = new (string Owner, string Repo, ContentType ContentType, GameType? TargetGame, string DisplayName)[]
             {
-                (SuperHackersConstants.GeneralsGameCodeOwner, SuperHackersConstants.GeneralsGameCodeRepo, ContentType.GameClient, GameType.Generals),
-                (SuperHackersConstants.GeneralsGamePatch2Owner, SuperHackersConstants.GeneralsGamePatch2Repo, ContentType.Patch, GameType.ZeroHour),
+                (SuperHackersConstants.GeneralsGameCodeOwner, SuperHackersConstants.GeneralsGameCodeRepo, ContentType.GameClient, GameType.Generals, SuperHackersConstants.PublisherName),
+                (SuperHackersConstants.GeneralsGamePatch2Owner, SuperHackersConstants.GeneralsGamePatch2Repo, ContentType.Patch, null, SuperHackersConstants.GeneralsGamePatch2DisplayName),
             };
 
             var matchingTargets = targets.Where(t =>
                 (!query.ContentType.HasValue || query.ContentType.Value == t.ContentType) &&
-                (!query.TargetGame.HasValue || query.TargetGame.Value == t.TargetGame) &&
+                (!query.TargetGame.HasValue || t.TargetGame == null || query.TargetGame.Value == t.TargetGame.Value) &&
                 (string.IsNullOrWhiteSpace(query.AuthorName) || query.AuthorName.Equals(t.Owner, StringComparison.OrdinalIgnoreCase)) &&
                 (string.IsNullOrWhiteSpace(query.GitHubAuthor) || query.GitHubAuthor.Equals(t.Owner, StringComparison.OrdinalIgnoreCase))).ToList();
 
-            foreach (var (owner, repo, contentType, targetGame) in matchingTargets)
+            foreach (var (owner, repo, contentType, targetGame, displayName) in matchingTargets)
             {
                 try
                 {
@@ -101,7 +101,9 @@ public class SuperHackersProvider(
                     if (latestRelease != null &&
                         (string.IsNullOrWhiteSpace(query.SearchTerm) ||
                          latestRelease.Name?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) == true ||
-                         repo.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase)))
+                         repo.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) ||
+                         displayName.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) ||
+                         latestRelease.Body?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) == true))
                     {
                         var manifestId = ManifestIdGenerator.GenerateGitHubContentId(
                             owner,
@@ -109,15 +111,17 @@ public class SuperHackersProvider(
                             contentType,
                             latestRelease.TagName);
 
+                        var resolvedTargetGame = targetGame ?? query.TargetGame ?? GameType.Unknown;
+
                         var result = new ContentSearchResult
                         {
                             Id = manifestId,
-                            Name = latestRelease.Name ?? $"{SuperHackersConstants.PublisherName} {latestRelease.TagName}",
+                            Name = latestRelease.Name ?? $"{displayName} {latestRelease.TagName}",
                             Description = latestRelease.Body ?? "SuperHackers release - details available after resolution",
                             Version = latestRelease.TagName ?? "latest",
                             AuthorName = owner,
                             ContentType = contentType,
-                            TargetGame = targetGame,
+                            TargetGame = resolvedTargetGame,
                             IsInferred = false,
                             ProviderName = SourceName,
                             RequiresResolution = true,
@@ -147,7 +151,7 @@ public class SuperHackersProvider(
                 }
             }
 
-            if (results.Count == 0 && errors.Count > 0 && errors.Count == matchingTargets.Count)
+            if (results.Count == 0 && errors.Count > 0)
             {
                 return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
                     $"Search failed for SuperHackers targets: {string.Join("; ", errors)}");

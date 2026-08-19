@@ -202,7 +202,7 @@ public class SuperHackersProviderTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task SearchAsync_FiltersByTargetGame_ReturnsOnlyMatchingReleasesAsync()
+    public async Task SearchAsync_FiltersByTargetGame_ReturnsMatchingReleasesAsync()
     {
         // Arrange
         var gameCodeRelease = new GitHubRelease { TagName = "weekly-1", Name = "Weekly 1" };
@@ -220,7 +220,70 @@ public class SuperHackersProviderTests
             It.IsAny<CancellationToken>()))
             .ReturnsAsync(gamePatch2Release);
 
-        var query = new ContentSearchQuery { TargetGame = GameType.Generals };
+        var zeroHourQuery = new ContentSearchQuery { TargetGame = GameType.ZeroHour };
+
+        // Act
+        var result = await _provider.SearchAsync(zeroHourQuery);
+
+        // Assert
+        Assert.True(result.Success);
+        var items = result.Data?.ToList();
+        Assert.NotNull(items);
+        Assert.Single(items);
+        Assert.Equal(ContentType.Patch, items[0].ContentType);
+        Assert.Equal(GameType.ZeroHour, items[0].TargetGame);
+    }
+
+    /// <summary>
+    /// Verifies that SearchAsync filters by author name and github author correctly.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SearchAsync_FiltersByAuthor_ReturnsEmptyWhenAuthorDoesNotMatchAsync()
+    {
+        // Arrange
+        var query = new ContentSearchQuery { AuthorName = "NonExistentAuthor" };
+
+        // Act
+        var result = await _provider.SearchAsync(query);
+
+        // Assert
+        Assert.True(result.Success);
+        var items = result.Data?.ToList();
+        Assert.NotNull(items);
+        Assert.Empty(items);
+    }
+
+    /// <summary>
+    /// Verifies that SearchAsync matches on display name and body text.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SearchAsync_MatchesSearchTerm_OnDisplayNameAndBodyAsync()
+    {
+        // Arrange
+        var gamePatch2Release = new GitHubRelease
+        {
+            TagName = "1.0.0",
+            Name = "Patch Release",
+            Body = "Community patch details",
+            HtmlUrl = "https://github.com/TheSuperHackers/GeneralsGamePatch2/releases/tag/1.0.0",
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+
+        _gitHubApiClientMock.Setup(c => c.GetLatestReleaseAsync(
+            SuperHackersConstants.GeneralsGameCodeOwner,
+            SuperHackersConstants.GeneralsGameCodeRepo,
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GitHubRelease { TagName = "weekly-1", Name = "Weekly 1", Body = "Engine updates" });
+
+        _gitHubApiClientMock.Setup(c => c.GetLatestReleaseAsync(
+            SuperHackersConstants.GeneralsGamePatch2Owner,
+            SuperHackersConstants.GeneralsGamePatch2Repo,
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(gamePatch2Release);
+
+        var query = new ContentSearchQuery { SearchTerm = SuperHackersConstants.GeneralsGamePatch2DisplayName };
 
         // Act
         var result = await _provider.SearchAsync(query);
@@ -230,8 +293,37 @@ public class SuperHackersProviderTests
         var items = result.Data?.ToList();
         Assert.NotNull(items);
         Assert.Single(items);
-        Assert.Equal(ContentType.GameClient, items[0].ContentType);
-        Assert.Equal(GameType.Generals, items[0].TargetGame);
+        Assert.Equal(ContentType.Patch, items[0].ContentType);
+    }
+
+    /// <summary>
+    /// Verifies that SearchAsync returns failure when one target returns null release and the other throws an error.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SearchAsync_WhenOneTargetReturnsNullAndOtherErrors_ReturnsFailureAsync()
+    {
+        // Arrange
+        _gitHubApiClientMock.Setup(c => c.GetLatestReleaseAsync(
+            SuperHackersConstants.GeneralsGameCodeOwner,
+            SuperHackersConstants.GeneralsGameCodeRepo,
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync((GitHubRelease?)null);
+
+        _gitHubApiClientMock.Setup(c => c.GetLatestReleaseAsync(
+            SuperHackersConstants.GeneralsGamePatch2Owner,
+            SuperHackersConstants.GeneralsGamePatch2Repo,
+            It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("API rate limit"));
+
+        var query = new ContentSearchQuery();
+
+        // Act
+        var result = await _provider.SearchAsync(query);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Search failed for SuperHackers targets", result.FirstError);
     }
 
     /// <summary>

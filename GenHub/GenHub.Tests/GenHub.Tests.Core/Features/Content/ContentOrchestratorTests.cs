@@ -487,7 +487,7 @@ public class ContentOrchestratorTests
         var specializedProviderMock = new Mock<IContentProvider>();
         var githubProviderMock = new Mock<IContentProvider>();
 
-        const string duplicateId = "github.0.thesuperhackers.patch.generalsgamepatch2";
+        const string duplicateId = "1.0.thesuperhackers.patch.generalsgamepatch2";
 
         var specializedResult = new ContentSearchResult
         {
@@ -513,7 +513,7 @@ public class ContentOrchestratorTests
 
         var orchestrator = new ContentOrchestrator(
             _loggerMock.Object,
-            [specializedProviderMock.Object, githubProviderMock.Object],
+            [githubProviderMock.Object, specializedProviderMock.Object],
             [],
             [],
             _cacheMock.Object,
