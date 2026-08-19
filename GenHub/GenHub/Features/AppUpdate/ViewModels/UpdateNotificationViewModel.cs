@@ -1146,10 +1146,12 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             _logger.LogInformation("Loading open pull requests with artifacts");
             var prs = await _velopackUpdateManager.GetOpenPullRequestsAsync(_cancellationTokenSource.Token);
 
-            _allPullRequests.Clear();
-            _allPullRequests.AddRange(prs);
-
-            await Dispatcher.UIThread.InvokeAsync(ApplyPullRequestSorting);
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                _allPullRequests.Clear();
+                _allPullRequests.AddRange(prs);
+                ApplyPullRequestSorting();
+            });
 
             if (_velopackUpdateManager.IsPrMergedOrClosed && _velopackUpdateManager.SubscribedPrNumber.HasValue)
             {
@@ -1241,6 +1243,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     private void SubscribeToPr(int prNumber)
     {
         _velopackUpdateManager.SubscribedPrNumber = prNumber;
+        _velopackUpdateManager.SubscribedBranch = null;
         SubscribedBranch = null;
         SubscribedPr = AvailablePullRequests.FirstOrDefault(p => p.Number == prNumber) ?? new PullRequestInfo
         {
@@ -1272,6 +1275,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         if (string.IsNullOrEmpty(branchName)) return;
 
         _velopackUpdateManager.SubscribedPrNumber = null;
+        _velopackUpdateManager.SubscribedBranch = branchName;
         SubscribedPr = null;
         SubscribedBranch = branchName;
         ShowPrMergedWarning = false;
@@ -1292,6 +1296,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
     partial void OnSubscribedBranchChanged(string? value)
     {
+        _velopackUpdateManager.SubscribedBranch = value;
         _ = LoadArtifactsForSubscribedItemAsync();
         OnPropertyChanged(nameof(IsSubscribedToAny));
         UpdateCommandStates();
@@ -1311,6 +1316,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     private void Unsubscribe()
     {
         _velopackUpdateManager.SubscribedPrNumber = null;
+        _velopackUpdateManager.SubscribedBranch = null;
         SubscribedPr = null;
         SubscribedBranch = null;
         ShowPrMergedWarning = false;

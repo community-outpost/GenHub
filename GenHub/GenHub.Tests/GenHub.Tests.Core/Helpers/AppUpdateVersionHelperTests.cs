@@ -17,6 +17,7 @@ public class AppUpdateVersionHelperTests
     [InlineData("0.0.1287-pr265", 1287)]
     [InlineData("0.0.1287-main", 1287)]
     [InlineData("0.0.1287-development", 1287)]
+    [InlineData("0.0.1300-fix-ci.9", 1300)]
     [InlineData("0.0.1287", 1287)]
     [InlineData("0.0.0-ci.500", 500)]
     [InlineData("1.0.42", 0)]

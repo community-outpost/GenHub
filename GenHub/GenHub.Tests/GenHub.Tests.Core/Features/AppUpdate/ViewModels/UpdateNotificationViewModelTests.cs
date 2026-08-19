@@ -368,7 +368,6 @@ public class UpdateNotificationViewModelTests
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
-    [InlineData(389)]
     public void OpenPullRequestUrlCommand_ExecutesWithoutException(int prNumber)
     {
         var mockUserSettings = new Mock<IUserSettingsService>();

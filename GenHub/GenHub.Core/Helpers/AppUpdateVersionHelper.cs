@@ -22,16 +22,16 @@ public static partial class AppUpdateVersionHelper
             return 0;
         }
 
-        var ciMatch = CiMarkerRegex().Match(version);
-        if (ciMatch.Success && int.TryParse(ciMatch.Groups[1].Value, out var ciRunNumber) && ciRunNumber > 0)
-        {
-            return ciRunNumber;
-        }
-
         var match = CiRunNumberRegex().Match(version);
         if (match.Success && int.TryParse(match.Groups[1].Value, out var runNumber) && runNumber > 0)
         {
             return runNumber;
+        }
+
+        var ciMatch = CiMarkerRegex().Match(version);
+        if (ciMatch.Success && int.TryParse(ciMatch.Groups[1].Value, out var ciRunNumber) && ciRunNumber > 0)
+        {
+            return ciRunNumber;
         }
 
         return 0;
