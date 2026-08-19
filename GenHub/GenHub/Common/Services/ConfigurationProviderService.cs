@@ -278,7 +278,11 @@ public class ConfigurationProviderService(
             settings.GitHubDiscoveryRepositories != null && settings.GitHubDiscoveryRepositories.Count > 0)
             return settings.GitHubDiscoveryRepositories;
 
-        return ["TheSuperHackers/GeneralsGameCode"];
+        return
+        [
+            $"{SuperHackersConstants.GeneralsGameCodeOwner}/{SuperHackersConstants.GeneralsGameCodeRepo}",
+            $"{SuperHackersConstants.GeneralsGamePatch2Owner}/{SuperHackersConstants.GeneralsGamePatch2Repo}",
+        ];
     }
 
     /// <inheritdoc />

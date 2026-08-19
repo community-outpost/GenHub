@@ -836,7 +836,8 @@ public class ConfigurationProviderServiceTests
 
         // Assert
         Assert.Contains("TheSuperHackers/GeneralsGameCode", result);
-        Assert.Single(result);
+        Assert.Contains("TheSuperHackers/GeneralsGamePatch2", result);
+        Assert.Equal(2, result.Count);
     }
 
     /// <summary>
