@@ -308,7 +308,7 @@ public class SuperHackersProviderTests
             SuperHackersConstants.GeneralsGameCodeOwner,
             SuperHackersConstants.GeneralsGameCodeRepo,
             It.IsAny<CancellationToken>()))
-            .ReturnsAsync((GitHubRelease?)null);
+            .ReturnsAsync((GitHubRelease)null!);
 
         _gitHubApiClientMock.Setup(c => c.GetLatestReleaseAsync(
             SuperHackersConstants.GeneralsGamePatch2Owner,
@@ -410,6 +410,7 @@ public class SuperHackersProviderTests
     /// <summary>
     /// Verifies that SearchAsync falls back to display name and tag name when release name is blank.
     /// </summary>
+    /// <param name="releaseName">The candidate release name to test.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Theory]
     [InlineData(null)]
@@ -421,7 +422,7 @@ public class SuperHackersProviderTests
         var release = new GitHubRelease
         {
             TagName = "alpha-4",
-            Name = releaseName,
+            Name = releaseName ?? string.Empty,
             Body = "Patch notes",
             HtmlUrl = "https://github.com/TheSuperHackers/GeneralsGamePatch2/releases/tag/alpha-4",
             CreatedAt = DateTimeOffset.UtcNow,
@@ -437,7 +438,7 @@ public class SuperHackersProviderTests
             SuperHackersConstants.GeneralsGameCodeOwner,
             SuperHackersConstants.GeneralsGameCodeRepo,
             It.IsAny<CancellationToken>()))
-            .ReturnsAsync((GitHubRelease?)null);
+            .ReturnsAsync((GitHubRelease)null!);
 
         var query = new ContentSearchQuery { ContentType = ContentType.Patch };
 
@@ -479,7 +480,7 @@ public class SuperHackersProviderTests
             SuperHackersConstants.GeneralsGameCodeOwner,
             SuperHackersConstants.GeneralsGameCodeRepo,
             It.IsAny<CancellationToken>()))
-            .ReturnsAsync((GitHubRelease?)null);
+            .ReturnsAsync((GitHubRelease)null!);
 
         var query = new ContentSearchQuery { ContentType = ContentType.Patch };
 
