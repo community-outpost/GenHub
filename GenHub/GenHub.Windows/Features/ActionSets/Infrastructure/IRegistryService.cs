@@ -17,46 +17,84 @@ public interface IRegistryService
     bool IsRunningAsAdministrator();
 
     /// <summary>
-    /// Gets a string value from the registry.
+    /// Gets a string value from the registry using HKLM.
     /// </summary>
     /// <param name="keyPath">The path to the registry key.</param>
     /// <param name="valueName">The name of the value to retrieve.</param>
     /// <param name="useWow6432Node">Whether to use the Wow6432Node (32-bit registry view).</param>
-    /// <param name="hive">The registry hive to access (defaults to LocalMachine).</param>
     /// <returns>The string value, or null if not found or an error occurred.</returns>
-    string? GetStringValue(string keyPath, string valueName, bool useWow6432Node = true, RegistryHive hive = RegistryHive.LocalMachine);
+    string? GetStringValue(string keyPath, string valueName, bool useWow6432Node = true);
 
     /// <summary>
-    /// Sets a string value in the registry.
-    /// </summary>
-    /// <param name="keyPath">The path to the registry key.</param>
-    /// <param name="valueName">The name of the value to set.</param>
-    /// <param name="value">The value to set.</param>
-    /// <param name="useWow6432Node">Whether to use the Wow6432Node (32-bit registry view).</param>
-    /// <param name="hive">The registry hive to access (defaults to LocalMachine).</param>
-    /// <returns>True if successful, false otherwise.</returns>
-    bool SetStringValue(string keyPath, string valueName, string value, bool useWow6432Node = true, RegistryHive hive = RegistryHive.LocalMachine);
-
-    /// <summary>
-    /// Gets an integer value from the registry.
+    /// Gets a string value from the specified registry hive.
     /// </summary>
     /// <param name="keyPath">The path to the registry key.</param>
     /// <param name="valueName">The name of the value to retrieve.</param>
     /// <param name="useWow6432Node">Whether to use the Wow6432Node (32-bit registry view).</param>
-    /// <param name="hive">The registry hive to access (defaults to LocalMachine).</param>
-    /// <returns>The integer value, or null if not found or an error occurred.</returns>
-    int? GetIntValue(string keyPath, string valueName, bool useWow6432Node = true, RegistryHive hive = RegistryHive.LocalMachine);
+    /// <param name="hive">The registry hive to access.</param>
+    /// <returns>The string value, or null if not found or an error occurred.</returns>
+    string? GetStringValue(string keyPath, string valueName, bool useWow6432Node, RegistryHive hive);
 
     /// <summary>
-    /// Sets an integer value in the registry.
+    /// Sets a string value in the registry using HKLM.
     /// </summary>
     /// <param name="keyPath">The path to the registry key.</param>
     /// <param name="valueName">The name of the value to set.</param>
     /// <param name="value">The value to set.</param>
     /// <param name="useWow6432Node">Whether to use the Wow6432Node (32-bit registry view).</param>
-    /// <param name="hive">The registry hive to access (defaults to LocalMachine).</param>
     /// <returns>True if successful, false otherwise.</returns>
-    bool SetIntValue(string keyPath, string valueName, int value, bool useWow6432Node = true, RegistryHive hive = RegistryHive.LocalMachine);
+    bool SetStringValue(string keyPath, string valueName, string value, bool useWow6432Node = true);
+
+    /// <summary>
+    /// Sets a string value in the specified registry hive.
+    /// </summary>
+    /// <param name="keyPath">The path to the registry key.</param>
+    /// <param name="valueName">The name of the value to set.</param>
+    /// <param name="value">The value to set.</param>
+    /// <param name="useWow6432Node">Whether to use the Wow6432Node (32-bit registry view).</param>
+    /// <param name="hive">The registry hive to access.</param>
+    /// <returns>True if successful, false otherwise.</returns>
+    bool SetStringValue(string keyPath, string valueName, string value, bool useWow6432Node, RegistryHive hive);
+
+    /// <summary>
+    /// Gets an integer value from the registry using HKLM.
+    /// </summary>
+    /// <param name="keyPath">The path to the registry key.</param>
+    /// <param name="valueName">The name of the value to retrieve.</param>
+    /// <param name="useWow6432Node">Whether to use the Wow6432Node (32-bit registry view).</param>
+    /// <returns>The integer value, or null if not found or an error occurred.</returns>
+    int? GetIntValue(string keyPath, string valueName, bool useWow6432Node = true);
+
+    /// <summary>
+    /// Gets an integer value from the specified registry hive.
+    /// </summary>
+    /// <param name="keyPath">The path to the registry key.</param>
+    /// <param name="valueName">The name of the value to retrieve.</param>
+    /// <param name="useWow6432Node">Whether to use the Wow6432Node (32-bit registry view).</param>
+    /// <param name="hive">The registry hive to access.</param>
+    /// <returns>The integer value, or null if not found or an error occurred.</returns>
+    int? GetIntValue(string keyPath, string valueName, bool useWow6432Node, RegistryHive hive);
+
+    /// <summary>
+    /// Sets an integer value in the registry using HKLM.
+    /// </summary>
+    /// <param name="keyPath">The path to the registry key.</param>
+    /// <param name="valueName">The name of the value to set.</param>
+    /// <param name="value">The value to set.</param>
+    /// <param name="useWow6432Node">Whether to use the Wow6432Node (32-bit registry view).</param>
+    /// <returns>True if successful, false otherwise.</returns>
+    bool SetIntValue(string keyPath, string valueName, int value, bool useWow6432Node = true);
+
+    /// <summary>
+    /// Sets an integer value in the specified registry hive.
+    /// </summary>
+    /// <param name="keyPath">The path to the registry key.</param>
+    /// <param name="valueName">The name of the value to set.</param>
+    /// <param name="value">The value to set.</param>
+    /// <param name="useWow6432Node">Whether to use the Wow6432Node (32-bit registry view).</param>
+    /// <param name="hive">The registry hive to access.</param>
+    /// <returns>True if successful, false otherwise.</returns>
+    bool SetIntValue(string keyPath, string valueName, int value, bool useWow6432Node, RegistryHive hive);
 }
 
 /// <summary>
@@ -83,15 +121,12 @@ public class RegistryService(ILogger<RegistryService> logger) : IRegistryService
         }
     }
 
-    /// <summary>
-    /// Gets a string value from the registry.
-    /// </summary>
-    /// <param name="keyPath">The path to the registry key.</param>
-    /// <param name="valueName">The name of the value to retrieve.</param>
-    /// <param name="useWow6432Node">Whether to use the Wow6432Node (32-bit registry view).</param>
-    /// <param name="hive">The registry hive to access (defaults to LocalMachine).</param>
-    /// <returns>The string value, or null if not found or an error occurred.</returns>
-    public string? GetStringValue(string keyPath, string valueName, bool useWow6432Node = true, RegistryHive hive = RegistryHive.LocalMachine)
+    /// <inheritdoc/>
+    public string? GetStringValue(string keyPath, string valueName, bool useWow6432Node = true)
+        => GetStringValue(keyPath, valueName, useWow6432Node, RegistryHive.LocalMachine);
+
+    /// <inheritdoc/>
+    public string? GetStringValue(string keyPath, string valueName, bool useWow6432Node, RegistryHive hive)
     {
         try
         {
@@ -106,16 +141,12 @@ public class RegistryService(ILogger<RegistryService> logger) : IRegistryService
         }
     }
 
-    /// <summary>
-    /// Sets a string value in the registry.
-    /// </summary>
-    /// <param name="keyPath">The path to the registry key.</param>
-    /// <param name="valueName">The name of the value to set.</param>
-    /// <param name="value">The value to set.</param>
-    /// <param name="useWow6432Node">Whether to use the Wow6432Node (32-bit registry view).</param>
-    /// <param name="hive">The registry hive to access (defaults to LocalMachine).</param>
-    /// <returns>True if successful, false otherwise.</returns>
-    public bool SetStringValue(string keyPath, string valueName, string value, bool useWow6432Node = true, RegistryHive hive = RegistryHive.LocalMachine)
+    /// <inheritdoc/>
+    public bool SetStringValue(string keyPath, string valueName, string value, bool useWow6432Node = true)
+        => SetStringValue(keyPath, valueName, value, useWow6432Node, RegistryHive.LocalMachine);
+
+    /// <inheritdoc/>
+    public bool SetStringValue(string keyPath, string valueName, string value, bool useWow6432Node, RegistryHive hive)
     {
         try
         {
@@ -131,15 +162,12 @@ public class RegistryService(ILogger<RegistryService> logger) : IRegistryService
         }
     }
 
-    /// <summary>
-    /// Gets an integer value from the registry.
-    /// </summary>
-    /// <param name="keyPath">The path to the registry key.</param>
-    /// <param name="valueName">The name of the value to retrieve.</param>
-    /// <param name="useWow6432Node">Whether to use the Wow6432Node (32-bit registry view).</param>
-    /// <param name="hive">The registry hive to access (defaults to LocalMachine).</param>
-    /// <returns>The integer value, or null if not found or an error occurred.</returns>
-    public int? GetIntValue(string keyPath, string valueName, bool useWow6432Node = true, RegistryHive hive = RegistryHive.LocalMachine)
+    /// <inheritdoc/>
+    public int? GetIntValue(string keyPath, string valueName, bool useWow6432Node = true)
+        => GetIntValue(keyPath, valueName, useWow6432Node, RegistryHive.LocalMachine);
+
+    /// <inheritdoc/>
+    public int? GetIntValue(string keyPath, string valueName, bool useWow6432Node, RegistryHive hive)
     {
         try
         {
@@ -154,16 +182,12 @@ public class RegistryService(ILogger<RegistryService> logger) : IRegistryService
         }
     }
 
-    /// <summary>
-    /// Sets an integer value in the registry.
-    /// </summary>
-    /// <param name="keyPath">The path to the registry key.</param>
-    /// <param name="valueName">The name of the value to set.</param>
-    /// <param name="value">The value to set.</param>
-    /// <param name="useWow6432Node">Whether to use the Wow6432Node (32-bit registry view).</param>
-    /// <param name="hive">The registry hive to access (defaults to LocalMachine).</param>
-    /// <returns>True if successful, false otherwise.</returns>
-    public bool SetIntValue(string keyPath, string valueName, int value, bool useWow6432Node = true, RegistryHive hive = RegistryHive.LocalMachine)
+    /// <inheritdoc/>
+    public bool SetIntValue(string keyPath, string valueName, int value, bool useWow6432Node = true)
+        => SetIntValue(keyPath, valueName, value, useWow6432Node, RegistryHive.LocalMachine);
+
+    /// <inheritdoc/>
+    public bool SetIntValue(string keyPath, string valueName, int value, bool useWow6432Node, RegistryHive hive)
     {
         try
         {
