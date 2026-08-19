@@ -244,7 +244,10 @@ public partial class MainViewModel(
     // Register for messages
     private void RegisterMessages()
     {
-        WeakReferenceMessenger.Default.RegisterAll(this);
+        if (!WeakReferenceMessenger.Default.IsRegistered<NavigationMessage>(this))
+        {
+            WeakReferenceMessenger.Default.RegisterAll(this);
+        }
     }
 
     /// <summary>
