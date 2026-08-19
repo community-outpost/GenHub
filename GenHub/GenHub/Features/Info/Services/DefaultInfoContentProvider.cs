@@ -788,7 +788,7 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
         {
             Id = "workspaces",
             Title = "Virtual Workspaces",
-            Description = "Technical details of NTFS Hardlink isolation.",
+            Description = "Workspace strategies, file linking techniques, and isolation mechanics.",
             Order = 8,
             Cards =
             [
@@ -800,36 +800,117 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     IsExpandable = true,
                     DetailedContent = """
                     **The "Magic Mirror":**
-                    When you hit Play, GenHub creates a "Virtual Copy" of your game installation instantly.
+                    When you hit Play, GenHub creates an isolated, disposable "Virtual Copy" of your game installation in milliseconds.
 
                     **Why is this cool?**
-                    1.  **Zero Space:** It looks like a full 5GB game, but it takes up 0MB of disk space on your drive.
-                    2.  **Safety:** Any changes made by mods happen in this "Mirror". If a mod breaks the game, your actual installation is perfectly safe.
+                    1.  **Zero Space:** In linked modes, it acts like a full multi-gigabyte game folder while consuming virtually 0 MB of extra disk space.
+                    2.  **Total Safety:** Mods, configuration tweaks, and runtime files live only in this isolated mirror. Your original game installation remains clean and untouched.
+                    3.  **Instant Mod Switching:** Switch between massive total conversions like *Rise of the Reds* and *ShockWave* without reinstalling or moving files.
                     """,
                 },
                 new InfoCard
                 {
-                    Title = "Troubleshooting",
-                    Content = "Resolving common build errors.",
+                    Title = "Workspace Strategies Compared",
+                    Content = "Comparing Hardlink, Symlink, Hybrid, and Full Copy strategies.",
+                    Type = InfoCardType.Concept,
+                    IsExpandable = true,
+                    DetailedContent = """
+                    **Choosing the Right Strategy:**
+                    GenHub supports four file deployment strategies under **Settings -> Game Configuration**:
+
+                    *   **HardLink (Default & Recommended):**
+                        *   *How it works:* Creates direct filesystem pointers (hard links) to the underlying game and mod files.
+                        *   *Disk Space:* **0 bytes** extra storage used.
+                        *   *Speed:* Instant (< 50ms).
+                        *   *Privileges:* No administrator privileges or developer mode needed.
+                        *   *Limitation:* Workspace and game files must be on the **same drive/volume** (e.g. both on `C:` or both on `D:`).
+
+                    *   **SymlinkOnly:**
+                        *   *How it works:* Creates symbolic link pointers referencing target files and directories.
+                        *   *Disk Space:* **Negligible** (~few KB of pointer metadata).
+                        *   *Speed:* Instant (< 50ms).
+                        *   *Advantage:* Can link across **different drives and partitions**.
+                        *   *Limitation:* On Windows, requires **Administrator rights** or **Developer Mode** enabled in Windows Settings.
+
+                    *   **HybridCopySymlink (Balanced Compatibility):**
+                        *   *How it works:* Copies essential mutable files (like `.exe`, `.ini`, and configuration scripts) while symlinking or hardlinking massive immutable asset archives (`.big` files).
+                        *   *Disk Space:* Minimal (~50 MB copied, gigabytes linked).
+                        *   *Speed:* Fast (1-2 seconds).
+                        *   *Advantage:* Prevents engine quirks if a legacy mod tries to modify its executable or config directly in the workspace.
+
+                    *   **FullCopy (Universal Fallback):**
+                        *   *How it works:* Physically duplicates every game and mod file into the workspace directory.
+                        *   *Disk Space:* Uses full game size (**2-5+ GB** per profile).
+                        *   *Speed:* Slower (10-30+ seconds depending on drive speed).
+                        *   *Advantage:* Unconditional compatibility across external drives, network drives, and restricted environments.
+                    """,
+                },
+                new InfoCard
+                {
+                    Title = "Hardlinks vs Symlinks vs Copies: Deep Dive",
+                    Content = "How file linking differs under the hood.",
+                    Type = InfoCardType.Feature,
+                    IsExpandable = true,
+                    DetailedContent = """
+                    **Under the Hood:**
+
+                    *   **Hardlink:**
+                        A hardlink is a directory entry that points directly to an existing file's data cluster on disk (the NTFS file record / inode). The file data is shared, so creating a hardlink takes zero disk space. Because it points directly to physical drive sectors, hardlinks cannot cross drive partitions.
+
+                    *   **Symlink (Symbolic Link):**
+                        A symlink is a special small file that contains a text path pointing to another file or folder (like a transparent shortcut at the operating system level). Because it stores a path, it can point across different drives, but Windows security policies require elevated privileges or Developer Mode to create symlinks.
+
+                    *   **Full Copy:**
+                        A physical byte-for-byte duplicate of the source file. It allocates new disk clusters and writes the entire file contents again.
+
+                    **Automatic Fallback:**
+                    If you configure Symlink mode but run GenHub without administrator rights or Developer Mode, GenHub automatically falls back to hardlinks when files reside on the same drive, ensuring your game launches seamlessly without interruptions.
+                    """,
+                },
+                new InfoCard
+                {
+                    Title = "Troubleshooting & Permissions",
+                    Content = "Resolving common permissions and workspace build errors.",
                     Type = InfoCardType.HowTo,
                     IsExpandable = true,
                     DetailedContent = """
-                    **Common Issues:**
-                    -   **"Access Denied":** GenHub requires Write permissions to `AppData`. Run as Admin if issues persist.
-                    -   **"File In Use":** Ensure the game process is fully terminated before rebuilding.
+                    **Common Issues & Solutions:**
+
+                    *   **"Access Denied" / Privilege Errors:**
+                        *   If using Symlink strategy on Windows, enable **Developer Mode** in *Windows Settings -> System -> For developers*, or run GenHub as Administrator.
+                        *   Alternatively, switch your Default Workspace Strategy to **HardLink** in GenHub Settings.
+                    *   **Cross-Drive Linking Errors:**
+                        *   Hardlinks cannot span across different drives (e.g., CAS pool on `C:` and game on `D:`).
+                        *   Set your CAS pool location or workspace directory on the same drive as your game installation in **Settings -> Data Directories**, or enable Symlink mode with Developer Mode turned on.
+                    *   **"File In Use" / Locked Files:**
+                        *   Ensure all instances of `generals.exe` or `game.dat` are completely closed before switching profiles or rebuilding workspaces.
                     """,
                 },
                 new InfoCard
                 {
                     Title = "Performance Specs",
-                    Content = "Efficiency and integrity metrics.",
+                    Content = "Efficiency, speed, and integrity metrics across strategies.",
                     Type = InfoCardType.Feature,
                     IsExpandable = true,
                     DetailedContent = """
-                    **Hardlinks:**
-                    -   **Speed:** < 50ms creation time (Metadata only).
-                    -   **Space:** 0 bytes additional disk usage (Pointers).
-                    -   **Integrity:** Read-only source files. Modifications in workspace do not corrupt the installation.
+                    **Strategy Metrics:**
+
+                    *   **HardLink:**
+                        *   *Creation Time:* < 50ms (Metadata only)
+                        *   *Disk Overhead:* 0 MB
+                        *   *Integrity:* Read-only source safety; workspace writes do not corrupt base game installation.
+                    *   **SymlinkOnly:**
+                        *   *Creation Time:* < 50ms (Pointer creation)
+                        *   *Disk Overhead:* < 1 MB
+                        *   *Integrity:* Transparent pointer redirection across volumes.
+                    *   **Hybrid:**
+                        *   *Creation Time:* 1-2 seconds
+                        *   *Disk Overhead:* ~50-100 MB
+                        *   *Integrity:* Isolated configs with linked large assets.
+                    *   **Full Copy:**
+                        *   *Creation Time:* 10-30 seconds
+                        *   *Disk Overhead:* Full size (2,000 - 5,000+ MB)
+                        *   *Integrity:* Total physical file isolation.
                     """,
                 },
             ],
