@@ -45,4 +45,14 @@ public static class ProfileSharingConstants
     /// Maximum allowed length for profile names during import.
     /// </summary>
     public const int MaxProfileNameLength = 100;
+
+    /// <summary>
+    /// Maximum allowed decompressed payload size in bytes (2 MB).
+    /// </summary>
+    public const int MaxDecompressedPayloadBytes = 2 * 1024 * 1024;
+
+    /// <summary>
+    /// Maximum allowed file size for .ghprofile packages (5 MB).
+    /// </summary>
+    public const long MaxProfileFileBytes = 5 * 1024 * 1024;
 }

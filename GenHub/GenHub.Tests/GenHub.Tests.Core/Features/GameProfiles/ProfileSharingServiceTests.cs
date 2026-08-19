@@ -311,6 +311,86 @@ public class ProfileSharingServiceTests
         Assert.Contains(shareUri, markdown);
     }
 
+    /// <summary>
+    /// Verifies that inspecting a package with unsupported schema version returns failure.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task InspectSharedProfileAsync_Should_ReturnFailure_WhenSchemaVersionIsUnsupportedAsync()
+    {
+        // Arrange
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = 999,
+            Profile = new SharedProfileMetadata { Name = "Future Profile", GameType = GameType.ZeroHour },
+            RequiredManifests = [],
+        };
+        var json = JsonSerializer.Serialize(package);
+
+        // Act
+        var result = await _service.InspectSharedProfileAsync(json);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Unsupported package schema version", result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies that inspecting a package with invalid manifest ID returns failure.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task InspectSharedProfileAsync_Should_ReturnFailure_WhenManifestIdIsInvalidAsync()
+    {
+        // Arrange
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = ProfileSharingConstants.DefaultSchemaVersion,
+            Profile = new SharedProfileMetadata { Name = "Invalid Manifest Profile", GameType = GameType.ZeroHour },
+            RequiredManifests =
+            [
+                new SharedManifestDependency { ManifestId = "invalid-manifest-id-without-dots", DisplayName = "Invalid", Version = "1.0", ContentType = ContentType.Mod }
+            ],
+        };
+        var json = JsonSerializer.Serialize(package);
+
+        // Act
+        var result = await _service.InspectSharedProfileAsync(json);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Invalid manifest identifier", result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies that importing with a profile name exceeding 100 characters returns failure.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ImportSharedProfileAsync_Should_ReturnFailure_WhenProfileNameExceedsMaxLengthAsync()
+    {
+        // Arrange
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = ProfileSharingConstants.DefaultSchemaVersion,
+            Profile = new SharedProfileMetadata { Name = "Valid Name", GameType = GameType.ZeroHour },
+            RequiredManifests = [],
+        };
+        var request = new SharedProfileImportRequest
+        {
+            Package = package,
+            ProfileName = new string('A', 101),
+            GameInstallationId = "inst-1",
+        };
+
+        // Act
+        var result = await _service.ImportSharedProfileAsync(request);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Profile name must be between 1 and 100 characters", result.FirstError);
+    }
+
     private static GameProfile CreateTestProfile(string id, string name)
     {
         return new GameProfile

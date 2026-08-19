@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -241,7 +242,7 @@ public partial class App : Application
         }
 
         var logger = _serviceProvider.GetService<ILogger<App>>();
-        logger?.LogInformation("Startup profile import detected: {ShareUri}", shareUri);
+        logger?.LogInformation("Startup profile import request received");
 
         await HandleImportProfileUriAsync(shareUri, mainWindow);
     }
@@ -285,7 +286,7 @@ public partial class App : Application
         else if (command.StartsWith(IpcCommands.ImportProfilePrefix, StringComparison.OrdinalIgnoreCase))
         {
             var shareUri = command[IpcCommands.ImportProfilePrefix.Length..];
-            logger?.LogInformation("Received IPC profile import command: {ShareUri}", shareUri);
+            logger?.LogInformation("Received IPC profile import command");
 
             // Handle profile import
             SafeFireAndForget(HandleImportProfileUriAsync(shareUri, mainWindow), nameof(HandleImportProfileUriAsync));
@@ -295,6 +296,8 @@ public partial class App : Application
             logger?.LogWarning("Unknown IPC command received: {Command}", command);
         }
     }
+
+    private static readonly SemaphoreSlim ImportDialogSemaphore = new(1, 1);
 
     private async Task HandleImportProfileUriAsync(string shareUriOrPath, MainWindow mainWindow)
     {
@@ -309,9 +312,15 @@ public partial class App : Application
             return;
         }
 
+        if (!await ImportDialogSemaphore.WaitAsync(0))
+        {
+            logger?.LogWarning("Profile import dialog is already active. Ignoring concurrent request.");
+            return;
+        }
+
         try
         {
-            logger?.LogInformation("Inspecting shared profile for import: {Uri}", shareUriOrPath);
+            logger?.LogInformation("Inspecting shared profile for import");
             var inspectResult = await profileSharingService.InspectSharedProfileAsync(shareUriOrPath);
 
             if (!inspectResult.Success || inspectResult.Data == null)
@@ -347,8 +356,12 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            logger?.LogError(ex, "Exception while inspecting shared profile: {Uri}", shareUriOrPath);
+            logger?.LogError(ex, "Exception while inspecting shared profile.");
             notificationService?.ShowError("Import Error", $"An error occurred while inspecting profile: {ex.Message}");
+        }
+        finally
+        {
+            ImportDialogSemaphore.Release();
         }
     }
 

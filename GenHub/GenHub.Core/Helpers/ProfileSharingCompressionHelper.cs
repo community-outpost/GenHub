@@ -5,6 +5,7 @@ using System.IO.Compression;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 
 namespace GenHub.Core.Helpers;
 
@@ -52,9 +53,23 @@ public static class ProfileSharingCompressionHelper
         byte[] compressedBytes = ConvertFromBase64Url(base64Url.Trim());
         using var inputStream = new MemoryStream(compressedBytes);
         using var brotliStream = new BrotliStream(inputStream, CompressionMode.Decompress);
-        using var reader = new StreamReader(brotliStream, Encoding.UTF8);
+        using var outputStream = new MemoryStream();
 
-        return reader.ReadToEnd();
+        byte[] buffer = new byte[8192];
+        int bytesRead;
+        long totalBytes = 0;
+        while ((bytesRead = brotliStream.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            totalBytes += bytesRead;
+            if (totalBytes > ProfileSharingConstants.MaxDecompressedPayloadBytes)
+            {
+                throw new InvalidDataException("Decompressed profile package exceeds maximum allowed size.");
+            }
+
+            outputStream.Write(buffer, 0, bytesRead);
+        }
+
+        return Encoding.UTF8.GetString(outputStream.ToArray());
     }
 
     /// <summary>
@@ -64,6 +79,7 @@ public static class ProfileSharingCompressionHelper
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>The decompressed JSON string.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="base64Url"/> is null or empty.</exception>
+    /// <exception cref="InvalidDataException">Thrown when decompressed data exceeds the maximum allowed size limit.</exception>
     public static async Task<string> DecodeAndDecompressAsync(string base64Url, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(base64Url))
@@ -74,9 +90,23 @@ public static class ProfileSharingCompressionHelper
         byte[] compressedBytes = ConvertFromBase64Url(base64Url.Trim());
         using var inputStream = new MemoryStream(compressedBytes);
         using var brotliStream = new BrotliStream(inputStream, CompressionMode.Decompress);
-        using var reader = new StreamReader(brotliStream, Encoding.UTF8);
+        using var outputStream = new MemoryStream();
 
-        return await reader.ReadToEndAsync(cancellationToken);
+        byte[] buffer = new byte[8192];
+        int bytesRead;
+        long totalBytes = 0;
+        while ((bytesRead = await brotliStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
+        {
+            totalBytes += bytesRead;
+            if (totalBytes > ProfileSharingConstants.MaxDecompressedPayloadBytes)
+            {
+                throw new InvalidDataException("Decompressed profile package exceeds maximum allowed size.");
+            }
+
+            outputStream.Write(buffer, 0, bytesRead);
+        }
+
+        return Encoding.UTF8.GetString(outputStream.ToArray());
     }
 
     /// <summary>

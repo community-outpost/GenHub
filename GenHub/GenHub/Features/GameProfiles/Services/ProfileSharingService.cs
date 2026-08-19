@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -65,22 +67,20 @@ public class ProfileSharingService(
             }
 
             var json = JsonSerializer.Serialize(packageResult.Data, JsonOptions);
-            var encoded = ProfileSharingCompressionHelper.CompressAndEncode(json);
+            var encodedPayload = ProfileSharingCompressionHelper.CompressAndEncode(json);
 
-            if (encoded.Length > ProfileSharingConstants.MaxInlinePayloadLength)
+            if (encodedPayload.Length > ProfileSharingConstants.MaxInlinePayloadLength)
             {
-                logger.LogWarning("Profile sharing payload length ({Length} chars) exceeds inline maximum ({Max} chars).", encoded.Length, ProfileSharingConstants.MaxInlinePayloadLength);
-                return OperationResult<string>.CreateFailure($"Shared profile payload exceeds the inline URI size limit ({ProfileSharingConstants.MaxInlinePayloadLength / 1024} KB). Please export as a {ProfileSharingConstants.ProfileFileExtension} file instead.");
+                logger.LogWarning("Exported profile {ProfileId} payload ({Length} chars) exceeds inline limit.", profileId, encodedPayload.Length);
             }
 
-            string uri = $"{CommandLineConstants.ProfileImportUriPrefix}?{CommandLineConstants.DataQueryParam}{encoded}";
-            logger.LogInformation("Exported profile {ProfileId} to URI (Payload size: {Length} chars).", profileId, encoded.Length);
-            return OperationResult<string>.CreateSuccess(uri);
+            string shareUri = $"{CommandLineConstants.ProfileImportUriPrefix}?{CommandLineConstants.DataQueryParam}{encodedPayload}";
+            return OperationResult<string>.CreateSuccess(shareUri);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unexpected error exporting profile {ProfileId} to URI.", profileId);
-            return OperationResult<string>.CreateFailure($"Failed to export profile: {ex.Message}");
+            logger.LogError(ex, "Unexpected error generating share URI for profile {ProfileId}.", profileId);
+            return OperationResult<string>.CreateFailure($"Failed to generate share URI: {ex.Message}");
         }
     }
 
@@ -150,17 +150,19 @@ public class ProfileSharingService(
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult<SharedProfileInspectionResult>> InspectSharedProfileAsync(string shareUriOrJsonOrPath, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<SharedProfileInspectionResult>> InspectSharedProfileAsync(
+        string shareUriOrJsonOrPath,
+        CancellationToken cancellationToken = default)
     {
         try
         {
             if (string.IsNullOrWhiteSpace(shareUriOrJsonOrPath))
             {
-                return OperationResult<SharedProfileInspectionResult>.CreateFailure("Share payload or path cannot be empty.");
+                return OperationResult<SharedProfileInspectionResult>.CreateFailure("Shared profile payload or path cannot be empty.");
             }
 
             var rawJsonResult = await ResolvePayloadJsonAsync(shareUriOrJsonOrPath, cancellationToken);
-            if (!rawJsonResult.Success || string.IsNullOrWhiteSpace(rawJsonResult.Data))
+            if (!rawJsonResult.Success || string.IsNullOrEmpty(rawJsonResult.Data))
             {
                 return OperationResult<SharedProfileInspectionResult>.CreateFailure(rawJsonResult.Errors);
             }
@@ -181,6 +183,11 @@ public class ProfileSharingService(
                 return OperationResult<SharedProfileInspectionResult>.CreateFailure("Package does not contain valid profile metadata.");
             }
 
+            if (package.SchemaVersion != ProfileSharingConstants.DefaultSchemaVersion)
+            {
+                return OperationResult<SharedProfileInspectionResult>.CreateFailure($"Unsupported package schema version {package.SchemaVersion}. Expected version {ProfileSharingConstants.DefaultSchemaVersion}.");
+            }
+
             // Sanitize launch arguments
             _ = ProfileSharingCompressionHelper.SanitizeCommandLineArguments(package.Profile.CommandLineArguments, out var securityWarnings);
 
@@ -192,6 +199,11 @@ public class ProfileSharingService(
 
             foreach (var reqManifest in package.RequiredManifests)
             {
+                if (!ManifestId.TryCreate(reqManifest.ManifestId, out _))
+                {
+                    return OperationResult<SharedProfileInspectionResult>.CreateFailure($"Invalid manifest identifier '{reqManifest.ManifestId}'. Manifest IDs must follow the 5-segment schema format.");
+                }
+
                 bool isCached = false;
                 var acquiredResult = await manifestPool.IsManifestAcquiredAsync(reqManifest.ManifestId, cancellationToken);
                 if (acquiredResult.Success && acquiredResult.Data)
@@ -202,10 +214,7 @@ public class ProfileSharingService(
                 else
                 {
                     missingCount++;
-                    long size = reqManifest.DownloadSize > 0
-                        ? reqManifest.DownloadSize
-                        : (reqManifest.Files?.Sum(f => f.Size) ?? 0);
-                    totalMissingDownloadBytes += size;
+                    totalMissingDownloadBytes += reqManifest.DownloadSize;
                 }
 
                 inspectedManifests.Add(new SharedManifestDependency
@@ -219,32 +228,40 @@ public class ProfileSharingService(
                     ManifestUrl = reqManifest.ManifestUrl,
                     DownloadSize = reqManifest.DownloadSize,
                     IsCachedLocally = isCached,
-                    Hash = reqManifest.Hash,
-                    Files = reqManifest.Files ?? [],
+                    Files = reqManifest.Files,
                 });
             }
 
-            // Check game installations on recipient's machine
-            var installationsResult = await installationService.GetAllInstallationsAsync(cancellationToken);
+            // Game installation compatibility matching
             var compatibleInstallations = new List<GameInstallation>();
             string? matchedInstallationId = null;
 
+            var installationsResult = await installationService.GetAllInstallationsAsync(cancellationToken);
             if (installationsResult.Success && installationsResult.Data != null)
             {
-                compatibleInstallations = installationsResult.Data
-                    .Where(i => package.Profile.GameType == GameType.Generals ? i.HasGenerals : i.HasZeroHour)
-                    .ToList();
+                foreach (var inst in installationsResult.Data)
+                {
+                    bool isCompatible = package.Profile.GameType switch
+                    {
+                        GameType.Generals => inst.HasGenerals,
+                        GameType.ZeroHour => inst.HasZeroHour,
+                        _ => inst.HasZeroHour || inst.HasGenerals,
+                    };
+
+                    if (isCompatible)
+                    {
+                        compatibleInstallations.Add(inst);
+                    }
+                }
 
                 matchedInstallationId = compatibleInstallations.FirstOrDefault()?.Id;
             }
 
-            bool hasValidGameInstallation = compatibleInstallations.Count > 0;
-
-            // Check name conflicts
-            var allProfilesResult = await profileRepository.LoadAllProfilesAsync(cancellationToken);
-            bool hasNameConflict = false;
+            // Name conflict resolution
             string suggestedName = package.Profile.Name;
+            bool hasNameConflict = false;
 
+            var allProfilesResult = await profileRepository.LoadAllProfilesAsync(cancellationToken);
             if (allProfilesResult.Success && allProfilesResult.Data != null)
             {
                 var existingNames = allProfilesResult.Data.Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -260,28 +277,28 @@ public class ProfileSharingService(
                 }
             }
 
-            var inspectionResult = new SharedProfileInspectionResult
+            var result = new SharedProfileInspectionResult
             {
                 ProfileMetadata = package.Profile,
                 Manifests = inspectedManifests,
-                HasValidGameInstallation = hasValidGameInstallation,
-                MatchedGameInstallationId = matchedInstallationId,
-                CompatibleInstallations = compatibleInstallations,
                 TotalDownloadBytesRequired = totalMissingDownloadBytes,
                 CachedManifestCount = cachedCount,
                 MissingManifestCount = missingCount,
+                HasValidGameInstallation = compatibleInstallations.Count > 0,
+                MatchedGameInstallationId = matchedInstallationId,
+                CompatibleInstallations = compatibleInstallations,
                 HasNameConflict = hasNameConflict,
                 SuggestedProfileName = suggestedName,
                 SecurityWarnings = securityWarnings,
                 Package = package,
             };
 
-            return OperationResult<SharedProfileInspectionResult>.CreateSuccess(inspectionResult);
+            return OperationResult<SharedProfileInspectionResult>.CreateSuccess(result);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unexpected error inspecting shared profile.");
-            return OperationResult<SharedProfileInspectionResult>.CreateFailure($"Failed to inspect profile: {ex.Message}");
+            logger.LogError(ex, "Unexpected error during profile inspection.");
+            return OperationResult<SharedProfileInspectionResult>.CreateFailure($"Failed to inspect shared profile: {ex.Message}");
         }
     }
 
@@ -293,14 +310,11 @@ public class ProfileSharingService(
     {
         try
         {
-            if (request == null)
-            {
-                return OperationResult<GameProfile>.CreateFailure("Import request cannot be null.");
-            }
+            ArgumentNullException.ThrowIfNull(request);
 
-            if (string.IsNullOrWhiteSpace(request.ProfileName))
+            if (string.IsNullOrWhiteSpace(request.ProfileName) || request.ProfileName.Length > ProfileSharingConstants.MaxProfileNameLength)
             {
-                return OperationResult<GameProfile>.CreateFailure("Profile name cannot be empty.");
+                return OperationResult<GameProfile>.CreateFailure($"Profile name must be between 1 and {ProfileSharingConstants.MaxProfileNameLength} characters.");
             }
 
             var package = request.Package;
@@ -309,121 +323,129 @@ public class ProfileSharingService(
                 return OperationResult<GameProfile>.CreateFailure("Invalid package in import request.");
             }
 
+            if (package.SchemaVersion != ProfileSharingConstants.DefaultSchemaVersion)
+            {
+                return OperationResult<GameProfile>.CreateFailure($"Unsupported package schema version {package.SchemaVersion}. Expected version {ProfileSharingConstants.DefaultSchemaVersion}.");
+            }
+
+            // Validate installation and game type compatibility
+            GameInstallation? selectedInstallation = null;
+            if (!string.IsNullOrEmpty(request.GameInstallationId))
+            {
+                var instResult = await installationService.GetInstallationAsync(request.GameInstallationId, cancellationToken);
+                if (instResult.Success && instResult.Data != null)
+                {
+                    selectedInstallation = instResult.Data;
+                }
+            }
+
+            if (selectedInstallation != null && package.Profile.GameClientManifestId != null)
+            {
+                if (selectedInstallation.AvailableGameClients.FirstOrDefault(c => c.Id == package.Profile.GameClientManifestId) is { } matchedClient)
+                {
+                    if (matchedClient.GameType != package.Profile.GameType)
+                    {
+                        return OperationResult<GameProfile>.CreateFailure($"Client '{matchedClient.Name}' game type ({matchedClient.GameType}) does not match shared profile game type ({package.Profile.GameType}).");
+                    }
+                }
+            }
+
             // Acquire missing dependencies
             var requiredManifestIds = new List<string>();
 
             for (int i = 0; i < package.RequiredManifests.Count; i++)
             {
                 var dep = package.RequiredManifests[i];
+                if (!ManifestId.TryCreate(dep.ManifestId, out _))
+                {
+                    return OperationResult<GameProfile>.CreateFailure($"Invalid dependency manifest ID '{dep.ManifestId}'.");
+                }
+
                 requiredManifestIds.Add(dep.ManifestId);
 
                 var isCachedResult = await manifestPool.IsManifestAcquiredAsync(dep.ManifestId, cancellationToken);
-                if (isCachedResult.Success && isCachedResult.Data)
+                if (!isCachedResult.Success || !isCachedResult.Data)
                 {
-                    logger.LogDebug("Manifest {ManifestId} is already cached locally, skipping download.", dep.ManifestId);
-                    continue;
-                }
-
-                logger.LogInformation("Acquiring missing manifest {ManifestId} for imported profile.", dep.ManifestId);
-                progress?.Report(new ContentAcquisitionProgress
-                {
-                    Phase = ContentAcquisitionPhase.Downloading,
-                    ProgressPercentage = (int)((double)i / package.RequiredManifests.Count * 100),
-                    CurrentOperation = $"Acquiring {dep.DisplayName}...",
-                });
-
-                var acquireResult = await AcquireMissingManifestAsync(dep, progress, cancellationToken);
-                if (!acquireResult.Success)
-                {
-                    logger.LogError("Failed to acquire manifest {ManifestId}: {Error}", dep.ManifestId, acquireResult.FirstError);
-                    return OperationResult<GameProfile>.CreateFailure($"Failed to acquire '{dep.DisplayName}': {acquireResult.FirstError}");
-                }
-            }
-
-            // Resolve target game installation
-            GameInstallation? targetInstallation = null;
-            if (!string.IsNullOrEmpty(request.GameInstallationId))
-            {
-                var instResult = await installationService.GetInstallationAsync(request.GameInstallationId, cancellationToken);
-                if (instResult.Success)
-                {
-                    targetInstallation = instResult.Data;
-                }
-            }
-
-            if (targetInstallation == null)
-            {
-                var allInstallations = await installationService.GetAllInstallationsAsync(cancellationToken);
-                targetInstallation = allInstallations.Data?.FirstOrDefault(i => package.Profile.GameType == GameType.Generals ? i.HasGenerals : i.HasZeroHour);
-            }
-
-            if (targetInstallation == null)
-            {
-                return OperationResult<GameProfile>.CreateFailure($"No compatible game installation found for {package.Profile.GameType}.");
-            }
-
-            // Determine GameClient
-            GameClient? gameClient = null;
-            if (!string.IsNullOrEmpty(package.Profile.GameClientManifestId))
-            {
-                var clientManifestResult = await manifestPool.GetManifestAsync(package.Profile.GameClientManifestId, cancellationToken);
-                if (clientManifestResult.Success && clientManifestResult.Data != null)
-                {
-                    gameClient = new GameClient
+                    logger.LogInformation("Acquiring missing dependency for profile import: {ManifestId}", dep.ManifestId);
+                    progress?.Report(new ContentAcquisitionProgress
                     {
-                        Id = clientManifestResult.Data.Id.ToString(),
-                        Name = clientManifestResult.Data.Name,
-                        Version = clientManifestResult.Data.Version,
-                        GameType = clientManifestResult.Data.TargetGame,
-                        InstallationId = targetInstallation.Id,
-                    };
+                        Phase = ContentAcquisitionPhase.Downloading,
+                        ProgressPercentage = package.RequiredManifests.Count > 0 ? ((double)i / package.RequiredManifests.Count) * 100.0 : 0.0,
+                        CurrentOperation = $"Acquiring {dep.DisplayName}...",
+                        CurrentFile = dep.DisplayName,
+                        FilesProcessed = i,
+                        TotalFiles = package.RequiredManifests.Count,
+                    });
+
+                    var acquireResult = await AcquireMissingManifestAsync(dep, progress, cancellationToken);
+                    if (!acquireResult.Success)
+                    {
+                        return OperationResult<GameProfile>.CreateFailure($"Failed to acquire manifest {dep.DisplayName} ({dep.ManifestId}): {acquireResult.FirstError}");
+                    }
                 }
             }
 
-            gameClient ??= targetInstallation.AvailableGameClients.FirstOrDefault(c => c.GameType == package.Profile.GameType)
-                ?? targetInstallation.AvailableGameClients.FirstOrDefault();
+            // Build GameClient definition
+            GameClient? gameClient = null;
+            if (selectedInstallation != null)
+            {
+                gameClient = selectedInstallation.AvailableGameClients.FirstOrDefault(c => c.Id == package.Profile.GameClientManifestId)
+                    ?? selectedInstallation.AvailableGameClients.FirstOrDefault(c => c.GameType == package.Profile.GameType)
+                    ?? selectedInstallation.AvailableGameClients.FirstOrDefault();
+            }
 
-            // Construct new GameProfile
-            var sanitizedArguments = ProfileSharingCompressionHelper.SanitizeCommandLineArguments(package.Profile.CommandLineArguments, out _);
+            if (gameClient == null && package.Profile.GameClientManifestId != null)
+            {
+                gameClient = new GameClient
+                {
+                    Id = package.Profile.GameClientManifestId,
+                    Name = package.Profile.Name,
+                    Version = package.Profile.GameVersion,
+                    GameType = package.Profile.GameType,
+                    ExecutablePath = string.Empty,
+                };
+            }
+
+            // Build new GameProfile
+            var sanitizedArgs = ProfileSharingCompressionHelper.SanitizeCommandLineArguments(
+                package.Profile.CommandLineArguments,
+                out _);
 
             var newProfile = new GameProfile
             {
                 Id = Guid.NewGuid().ToString("N"),
-                Name = request.ProfileName.Trim(),
-                Description = package.Profile.Description ?? string.Empty,
-                GameInstallationId = targetInstallation.Id,
-                GameClient = gameClient,
-                WorkspaceStrategy = request.WorkspaceStrategy ?? package.Profile.WorkspaceStrategy,
-                EnabledContentIds = requiredManifestIds,
-                ThemeColor = package.Profile.ThemeColor,
+                Name = request.ProfileName,
+                Description = package.Profile.Description,
+                ThemeColor = package.Profile.ThemeColor ?? "#1976D2",
                 IconPath = package.Profile.IconPath,
                 CoverPath = package.Profile.CoverPath,
-                CommandLineArguments = sanitizedArguments,
+                GameInstallationId = request.GameInstallationId,
+                GameClient = gameClient,
+                WorkspaceStrategy = package.Profile.WorkspaceStrategy,
+                CommandLineArguments = sanitizedArgs,
                 UseSteamLaunch = package.Profile.UseSteamLaunch,
-                CreatedAt = DateTime.UtcNow,
+                EnabledContentIds = requiredManifestIds,
             };
 
-            // Apply game settings overrides if requested
             if (request.IncludeGameSettings && package.Profile.GameSettingsOverrides != null)
             {
                 ApplySettingsOverridesToProfile(newProfile, package.Profile.GameSettingsOverrides);
             }
 
             var saveResult = await profileRepository.SaveProfileAsync(newProfile, cancellationToken);
-            if (!saveResult.Success)
+            if (!saveResult.Success || saveResult.Data == null)
             {
                 return OperationResult<GameProfile>.CreateFailure(saveResult.Errors);
             }
 
-            logger.LogInformation("Successfully imported and created shared game profile '{ProfileName}' (ID: {ProfileId}).", newProfile.Name, newProfile.Id);
-            WeakReferenceMessenger.Default.Send(new ProfileCreatedMessage(newProfile));
-
-            return OperationResult<GameProfile>.CreateSuccess(newProfile);
+            logger.LogInformation("Successfully imported profile: {ProfileName} ({ProfileId})", newProfile.Name, newProfile.Id);
+            WeakReferenceMessenger.Default.Send(new ProfileCreatedMessage(saveResult.Data));
+            return OperationResult<GameProfile>.CreateSuccess(saveResult.Data);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unexpected error importing shared profile.");
-            return OperationResult<GameProfile>.CreateFailure($"Failed to import shared profile: {ex.Message}");
+            logger.LogError(ex, "Unexpected error during profile import.");
+            return OperationResult<GameProfile>.CreateFailure($"Failed to import profile: {ex.Message}");
         }
     }
 
@@ -433,35 +455,96 @@ public class ProfileSharingService(
         ArgumentNullException.ThrowIfNull(profile);
         ArgumentNullException.ThrowIfNull(shareUri);
 
-        string gameVersion = !string.IsNullOrEmpty(profile.GameClient?.Version)
-            ? profile.GameClient.Version
-            : profile.Version;
-
-        string titleInfo = $"{profile.GameClient?.GameType ?? GameType.ZeroHour} {gameVersion}".Trim();
-        string description = string.IsNullOrWhiteSpace(profile.Description)
-            ? "Shared game configuration for GenHub."
-            : profile.Description.Trim();
+        string gameTypeName = profile.GameClient?.GameType.ToString() ?? "Game";
+        string version = string.IsNullOrWhiteSpace(profile.GameClient?.Version) ? profile.Version : profile.GameClient.Version;
+        string headerInfo = $"{gameTypeName} {version}".Trim();
+        string desc = string.IsNullOrWhiteSpace(profile.Description) ? "Custom game configuration for GenHub" : profile.Description;
 
         return string.Format(
             ProfileSharingConstants.DiscordMarkdownTemplate,
             profile.Name,
-            titleInfo,
-            description,
+            headerInfo,
+            desc,
             shareUri);
+    }
+
+    private static async Task<bool> IsSafeRemoteUriAsync(Uri uri, CancellationToken cancellationToken)
+    {
+        if (uri.Scheme != Uri.UriSchemeHttps)
+        {
+            return false;
+        }
+
+        try
+        {
+            var hostEntry = await Dns.GetHostEntryAsync(uri.DnsSafeHost, cancellationToken);
+            foreach (var ip in hostEntry.AddressList)
+            {
+                if (IPAddress.IsLoopback(ip) || ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || ip.IsIPv6Multicast)
+                {
+                    return false;
+                }
+
+                byte[] bytes = ip.GetAddressBytes();
+                if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                {
+                    if (bytes[0] == 10) return false;
+                    if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) return false;
+                    if (bytes[0] == 192 && bytes[1] == 168) return false;
+                    if (bytes[0] == 169 && bytes[1] == 254) return false;
+                    if (bytes[0] == 127) return false;
+                    if (bytes[0] == 0) return false;
+                }
+            }
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static Dictionary<string, object?> ExtractSettingsOverridesFromProfile(GameProfile profile)
+    {
+        var dict = new Dictionary<string, object?>();
+
+        // Video settings
+        if (profile.VideoResolutionWidth.HasValue) dict[nameof(profile.VideoResolutionWidth)] = profile.VideoResolutionWidth.Value;
+        if (profile.VideoResolutionHeight.HasValue) dict[nameof(profile.VideoResolutionHeight)] = profile.VideoResolutionHeight.Value;
+        if (profile.VideoWindowed.HasValue) dict[nameof(profile.VideoWindowed)] = profile.VideoWindowed.Value;
+        if (profile.VideoTextureQuality.HasValue) dict[nameof(profile.VideoTextureQuality)] = profile.VideoTextureQuality.Value.ToString();
+        if (profile.EnableVideoShadows.HasValue) dict[nameof(profile.EnableVideoShadows)] = profile.EnableVideoShadows.Value;
+        if (profile.AudioSoundVolume.HasValue) dict[nameof(profile.AudioSoundVolume)] = profile.AudioSoundVolume.Value;
+        if (profile.AudioMusicVolume.HasValue) dict[nameof(profile.AudioMusicVolume)] = profile.AudioMusicVolume.Value;
+        if (profile.AudioSpeechVolume.HasValue) dict[nameof(profile.AudioSpeechVolume)] = profile.AudioSpeechVolume.Value;
+
+        // TSH settings
+        if (profile.TshArchiveReplays.HasValue) dict[nameof(profile.TshArchiveReplays)] = profile.TshArchiveReplays.Value;
+        if (profile.TshRenderFpsFontSize.HasValue) dict[nameof(profile.TshRenderFpsFontSize)] = profile.TshRenderFpsFontSize.Value;
+        if (profile.TshNetworkLatencyFontSize.HasValue) dict[nameof(profile.TshNetworkLatencyFontSize)] = profile.TshNetworkLatencyFontSize.Value;
+        if (profile.TshSystemTimeFontSize.HasValue) dict[nameof(profile.TshSystemTimeFontSize)] = profile.TshSystemTimeFontSize.Value;
+
+        // GO settings
+        if (profile.GoShowFps.HasValue) dict[nameof(profile.GoShowFps)] = profile.GoShowFps.Value;
+        if (profile.GoShowPing.HasValue) dict[nameof(profile.GoShowPing)] = profile.GoShowPing.Value;
+        if (profile.GoShowPlayerRanks.HasValue) dict[nameof(profile.GoShowPlayerRanks)] = profile.GoShowPlayerRanks.Value;
+        if (profile.GoRenderFpsLimit.HasValue) dict[nameof(profile.GoRenderFpsLimit)] = profile.GoRenderFpsLimit.Value;
+
+        return dict;
     }
 
     private async Task<OperationResult<SharedGameProfilePackage>> BuildPackageFromProfileIdAsync(string profileId, CancellationToken cancellationToken)
     {
-        var loadResult = await profileRepository.LoadProfileAsync(profileId, cancellationToken);
-        if (!loadResult.Success || loadResult.Data == null)
+        var profileResult = await profileRepository.LoadProfileAsync(profileId, cancellationToken);
+        if (!profileResult.Success || profileResult.Data == null)
         {
             return OperationResult<SharedGameProfilePackage>.CreateFailure($"Profile not found: {profileId}");
         }
 
-        var profile = loadResult.Data;
+        var profile = profileResult.Data;
         var manifests = new List<SharedManifestDependency>();
 
-        // Gather all enabled content manifests
         foreach (var contentId in profile.EnabledContentIds ?? [])
         {
             var manifestResult = await manifestPool.GetManifestAsync(contentId, cancellationToken);
@@ -484,7 +567,6 @@ public class ProfileSharingService(
             }
             else
             {
-                // Add reference item even if manifest pool did not have full object
                 manifests.Add(new SharedManifestDependency
                 {
                     ManifestId = contentId,
@@ -543,6 +625,11 @@ public class ProfileSharingService(
                         encoded = encoded[..nextParamIdx];
                     }
 
+                    if (encoded.Length > ProfileSharingConstants.MaxInlinePayloadLength)
+                    {
+                        return OperationResult<string>.CreateFailure($"Inline payload length ({encoded.Length}) exceeds maximum permitted size.");
+                    }
+
                     string decompressed = await ProfileSharingCompressionHelper.DecodeAndDecompressAsync(encoded, cancellationToken);
                     return OperationResult<string>.CreateSuccess(decompressed);
                 }
@@ -555,6 +642,11 @@ public class ProfileSharingService(
                     if (nextParamIdx != -1)
                     {
                         url = url[..nextParamIdx];
+                    }
+
+                    if (!Uri.TryCreate(url, UriKind.Absolute, out var profileUri) || !await IsSafeRemoteUriAsync(profileUri, cancellationToken))
+                    {
+                        return OperationResult<string>.CreateFailure($"Remote URL '{url}' is blocked by security policies.");
                     }
 
                     var response = await httpClient.GetStringAsync(url, cancellationToken);
@@ -571,6 +663,12 @@ public class ProfileSharingService(
             if (!File.Exists(input))
             {
                 return OperationResult<string>.CreateFailure($"Specified profile file does not exist: {input}");
+            }
+
+            var fileInfo = new FileInfo(input);
+            if (fileInfo.Length > ProfileSharingConstants.MaxProfileFileBytes)
+            {
+                return OperationResult<string>.CreateFailure($"Profile file size exceeds maximum limit ({ProfileSharingConstants.MaxProfileFileBytes} bytes).");
             }
 
             var fileContent = await File.ReadAllTextAsync(input, cancellationToken);
@@ -608,22 +706,23 @@ public class ProfileSharingService(
     {
         try
         {
+            if (!ManifestId.TryCreate(dependency.ManifestId, out var validatedManifestId))
+            {
+                return OperationResult<bool>.CreateFailure($"Invalid manifest ID '{dependency.ManifestId}'.");
+            }
+
             // 1. Check if manifest has download files
             if (dependency.Files?.Count > 0)
             {
-                var stagingDir = Path.Combine(Path.GetTempPath(), "GenHub", "SharedImportStaging", dependency.ManifestId);
+                var stagingBase = Path.Combine(Path.GetTempPath(), "GenHub", "SharedImportStaging");
+                var stagingDir = Path.Combine(stagingBase, Guid.NewGuid().ToString("N"));
                 Directory.CreateDirectory(stagingDir);
 
                 try
                 {
-                    if (!ManifestId.TryCreate(dependency.ManifestId, out var manifestId))
-                    {
-                        manifestId = ManifestId.Create($"1.0.community.mod.{Guid.NewGuid():N}");
-                    }
-
                     var contentManifest = new ContentManifest
                     {
-                        Id = manifestId,
+                        Id = validatedManifestId,
                         Name = dependency.DisplayName,
                         Version = dependency.Version,
                         ContentType = dependency.ContentType,
@@ -635,6 +734,8 @@ public class ProfileSharingService(
                         Files = [.. dependency.Files],
                     };
 
+                    var canonicalStagingPrefix = Path.GetFullPath(stagingDir) + Path.DirectorySeparatorChar;
+
                     foreach (var file in dependency.Files)
                     {
                         if (string.IsNullOrEmpty(file.DownloadUrl))
@@ -642,15 +743,58 @@ public class ProfileSharingService(
                             continue;
                         }
 
-                        var destination = Path.Combine(stagingDir, file.RelativePath);
+                        if (string.IsNullOrWhiteSpace(file.RelativePath) || Path.IsPathRooted(file.RelativePath) || file.RelativePath.Contains(".."))
+                        {
+                            return OperationResult<bool>.CreateFailure($"Invalid relative path in manifest: {file.RelativePath}");
+                        }
+
+                        var destination = Path.GetFullPath(Path.Combine(stagingDir, file.RelativePath));
+                        if (!destination.StartsWith(canonicalStagingPrefix, StringComparison.Ordinal))
+                        {
+                            return OperationResult<bool>.CreateFailure($"File path escapes staging directory: {file.RelativePath}");
+                        }
+
                         var destinationDir = Path.GetDirectoryName(destination);
                         if (!string.IsNullOrEmpty(destinationDir))
                         {
                             Directory.CreateDirectory(destinationDir);
                         }
 
-                        var bytes = await httpClient.GetByteArrayAsync(file.DownloadUrl, cancellationToken);
-                        await File.WriteAllBytesAsync(destination, bytes, cancellationToken);
+                        if (!Uri.TryCreate(file.DownloadUrl, UriKind.Absolute, out var fileDownloadUri) || !await IsSafeRemoteUriAsync(fileDownloadUri, cancellationToken))
+                        {
+                            return OperationResult<bool>.CreateFailure($"Unsafe download URL blocked: {file.DownloadUrl}");
+                        }
+
+                        using var response = await httpClient.GetAsync(fileDownloadUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                        response.EnsureSuccessStatusCode();
+
+                        using var sha256 = SHA256.Create();
+                        using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+                        using var fileStream = File.Create(destination);
+
+                        byte[] buffer = new byte[16384];
+                        int bytesRead;
+                        long totalDownloaded = 0;
+
+                        while ((bytesRead = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
+                        {
+                            sha256.TransformBlock(buffer, 0, bytesRead, null, 0);
+                            await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+                            totalDownloaded += bytesRead;
+
+                            if (file.Size > 0 && totalDownloaded > (file.Size + (1024 * 1024)))
+                            {
+                                return OperationResult<bool>.CreateFailure($"Download size for {file.RelativePath} exceeded expected size limit.");
+                            }
+                        }
+
+                        sha256.TransformFinalBlock([], 0, 0);
+                        var computedHash = Convert.ToHexString(sha256.Hash ?? []).ToLowerInvariant();
+
+                        if (!string.IsNullOrWhiteSpace(file.Hash) && !string.Equals(computedHash, file.Hash.Replace("-", string.Empty).ToLowerInvariant(), StringComparison.OrdinalIgnoreCase))
+                        {
+                            return OperationResult<bool>.CreateFailure($"SHA-256 hash mismatch for {file.RelativePath}.");
+                        }
                     }
 
                     // Check if a specialized factory applies
@@ -674,7 +818,7 @@ public class ProfileSharingService(
                 {
                     try
                     {
-                        if (Directory.Exists(stagingDir))
+                        if (Directory.Exists(stagingDir) && Path.GetFullPath(stagingDir).StartsWith(Path.GetFullPath(stagingBase), StringComparison.Ordinal))
                         {
                             Directory.Delete(stagingDir, true);
                         }
@@ -686,7 +830,7 @@ public class ProfileSharingService(
                 }
             }
 
-            // 2. Fallback: query orchestrator search for manifest by ID
+            // 2. Fallback: query orchestrator search for manifest by EXACT ID match only
             var searchResult = await contentOrchestrator.SearchAsync(
                 new ContentSearchQuery
                 {
@@ -698,9 +842,7 @@ public class ProfileSharingService(
 
             if (searchResult.Success && searchResult.Data != null)
             {
-                var match = searchResult.Data.FirstOrDefault(r => r.Id.Equals(dependency.ManifestId, StringComparison.OrdinalIgnoreCase))
-                    ?? searchResult.Data.FirstOrDefault();
-
+                var match = searchResult.Data.FirstOrDefault(r => r.Id.Equals(dependency.ManifestId, StringComparison.OrdinalIgnoreCase));
                 if (match != null)
                 {
                     var acquireRes = await contentOrchestrator.AcquireContentAsync(match, progress, cancellationToken);
@@ -712,14 +854,9 @@ public class ProfileSharingService(
             }
 
             // If unable to acquire but manifest definition is known, synthesize a manifest entry
-            if (!ManifestId.TryCreate(dependency.ManifestId, out var fallbackId))
-            {
-                fallbackId = ManifestId.Create($"1.0.community.mod.{Guid.NewGuid():N}");
-            }
-
             var fallbackManifest = new ContentManifest
             {
-                Id = fallbackId,
+                Id = validatedManifestId,
                 Name = dependency.DisplayName,
                 Version = dependency.Version,
                 ContentType = dependency.ContentType,
@@ -738,34 +875,6 @@ public class ProfileSharingService(
             logger.LogError(ex, "Error acquiring missing manifest {ManifestId}", dependency.ManifestId);
             return OperationResult<bool>.CreateFailure($"Failed to acquire manifest: {ex.Message}");
         }
-    }
-
-    private Dictionary<string, object?> ExtractSettingsOverridesFromProfile(GameProfile profile)
-    {
-        var dict = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
-
-        if (profile.VideoResolutionWidth.HasValue) dict[nameof(profile.VideoResolutionWidth)] = profile.VideoResolutionWidth.Value;
-        if (profile.VideoResolutionHeight.HasValue) dict[nameof(profile.VideoResolutionHeight)] = profile.VideoResolutionHeight.Value;
-        if (profile.VideoWindowed.HasValue) dict[nameof(profile.VideoWindowed)] = profile.VideoWindowed.Value;
-        if (profile.VideoTextureQuality.HasValue) dict[nameof(profile.VideoTextureQuality)] = profile.VideoTextureQuality.Value.ToString();
-        if (profile.EnableVideoShadows.HasValue) dict[nameof(profile.EnableVideoShadows)] = profile.EnableVideoShadows.Value;
-        if (profile.AudioSoundVolume.HasValue) dict[nameof(profile.AudioSoundVolume)] = profile.AudioSoundVolume.Value;
-        if (profile.AudioMusicVolume.HasValue) dict[nameof(profile.AudioMusicVolume)] = profile.AudioMusicVolume.Value;
-        if (profile.AudioSpeechVolume.HasValue) dict[nameof(profile.AudioSpeechVolume)] = profile.AudioSpeechVolume.Value;
-
-        // TSH settings
-        if (profile.TshArchiveReplays.HasValue) dict[nameof(profile.TshArchiveReplays)] = profile.TshArchiveReplays.Value;
-        if (profile.TshRenderFpsFontSize.HasValue) dict[nameof(profile.TshRenderFpsFontSize)] = profile.TshRenderFpsFontSize.Value;
-        if (profile.TshNetworkLatencyFontSize.HasValue) dict[nameof(profile.TshNetworkLatencyFontSize)] = profile.TshNetworkLatencyFontSize.Value;
-        if (profile.TshSystemTimeFontSize.HasValue) dict[nameof(profile.TshSystemTimeFontSize)] = profile.TshSystemTimeFontSize.Value;
-
-        // GO settings
-        if (profile.GoShowFps.HasValue) dict[nameof(profile.GoShowFps)] = profile.GoShowFps.Value;
-        if (profile.GoShowPing.HasValue) dict[nameof(profile.GoShowPing)] = profile.GoShowPing.Value;
-        if (profile.GoShowPlayerRanks.HasValue) dict[nameof(profile.GoShowPlayerRanks)] = profile.GoShowPlayerRanks.Value;
-        if (profile.GoRenderFpsLimit.HasValue) dict[nameof(profile.GoRenderFpsLimit)] = profile.GoRenderFpsLimit.Value;
-
-        return dict;
     }
 
     private void ApplySettingsOverridesToProfile(GameProfile profile, Dictionary<string, object?> overrides)

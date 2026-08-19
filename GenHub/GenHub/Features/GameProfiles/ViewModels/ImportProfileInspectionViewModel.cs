@@ -1,11 +1,13 @@
 using System;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using GenHub.Common.ViewModels;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Content;
@@ -15,14 +17,15 @@ using Microsoft.Extensions.Logging;
 namespace GenHub.Features.GameProfiles.ViewModels;
 
 /// <summary>
-/// ViewModel for the rich pre-import shared profile inspection window.
+/// ViewModel for the rich pre-import profile inspection dialog window.
 /// </summary>
-public partial class ImportProfileInspectionViewModel : ViewModelBase
+public partial class ImportProfileInspectionViewModel : ObservableObject
 {
+    private readonly SharedProfileInspectionResult _inspectionResult;
     private readonly IProfileSharingService _profileSharingService;
     private readonly INotificationService? _notificationService;
     private readonly ILogger<ImportProfileInspectionViewModel> _logger;
-    private readonly SharedProfileInspectionResult _inspectionResult;
+    private CancellationTokenSource? _importCts;
 
     [ObservableProperty]
     private string _profileName = string.Empty;
@@ -31,7 +34,7 @@ public partial class ImportProfileInspectionViewModel : ViewModelBase
     private string _gameVersion = string.Empty;
 
     [ObservableProperty]
-    private string _publisher = string.Empty;
+    private string _publisher = "Community";
 
     [ObservableProperty]
     private string _themeColor = "#9575CD";
@@ -46,37 +49,13 @@ public partial class ImportProfileInspectionViewModel : ViewModelBase
     private string _commandLineArguments = string.Empty;
 
     [ObservableProperty]
-    private ObservableCollection<SharedManifestDependency> _manifests = [];
-
-    [ObservableProperty]
-    private ObservableCollection<SharedInstallationOption> _compatibleInstallations = [];
-
-    [ObservableProperty]
-    private SharedInstallationOption? _selectedInstallation;
+    private bool _hasNameConflict;
 
     [ObservableProperty]
     private bool _hasValidGameInstallation;
 
     [ObservableProperty]
-    private long _totalDownloadBytesRequired;
-
-    [ObservableProperty]
-    private string _formattedTotalDownloadSize = string.Empty;
-
-    [ObservableProperty]
-    private int _missingManifestCount;
-
-    [ObservableProperty]
-    private int _cachedManifestCount;
-
-    [ObservableProperty]
-    private ObservableCollection<string> _securityWarnings = [];
-
-    [ObservableProperty]
-    private bool _hasSecurityWarnings;
-
-    [ObservableProperty]
-    private bool _hasNameConflict;
+    private SharedInstallationOption? _selectedInstallation;
 
     [ObservableProperty]
     private bool _includeGameSettings = true;
@@ -91,23 +70,83 @@ public partial class ImportProfileInspectionViewModel : ViewModelBase
     private string _currentOperationName = string.Empty;
 
     [ObservableProperty]
+    private bool _hasError;
+
+    [ObservableProperty]
     private string _errorMessage = string.Empty;
 
     [ObservableProperty]
-    private bool _hasError;
+    private ObservableCollection<SharedManifestDependency> _manifests = [];
+
+    [ObservableProperty]
+    private ObservableCollection<SharedInstallationOption> _compatibleInstallations = [];
+
+    [ObservableProperty]
+    private ObservableCollection<string> _securityWarnings = [];
+
+    [ObservableProperty]
+    private bool _hasSecurityWarnings;
+
+    [ObservableProperty]
+    private long _totalDownloadBytesRequired;
+
+    [ObservableProperty]
+    private string _formattedTotalDownloadSize = "0 MB";
+
+    [ObservableProperty]
+    private int _missingManifestCount;
+
+    [ObservableProperty]
+    private int _cachedManifestCount;
 
     [ObservableProperty]
     private string _actionButtonText = "Import Profile";
 
     /// <summary>
-    /// Gets a value indicating whether there are missing content downloads required.
+    /// Gets a value indicating whether there are dependencies that need to be downloaded.
     /// </summary>
     public bool HasMissingDownloads => MissingManifestCount > 0;
 
     /// <summary>
-    /// Event raised when the modal requests to close.
+    /// Event triggered when the dialog requests to close.
     /// </summary>
     public event EventHandler? CloseRequested;
+
+    private static string? SanitizeArtworkPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        if (path.StartsWith("avares://", StringComparison.OrdinalIgnoreCase))
+        {
+            return path;
+        }
+
+        if (Path.IsPathRooted(path) || path.StartsWith(@"\\", StringComparison.Ordinal) || path.Contains("://", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        return path;
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes <= 0)
+        {
+            return "0 MB";
+        }
+
+        double mb = bytes / (1024.0 * 1024.0);
+        if (mb >= 1024.0)
+        {
+            return $"{mb / 1024.0:F1} GB";
+        }
+
+        return $"{mb:F1} MB";
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ImportProfileInspectionViewModel"/> class.
@@ -134,8 +173,8 @@ public partial class ImportProfileInspectionViewModel : ViewModelBase
         ThemeColor = !string.IsNullOrEmpty(inspectionResult.ProfileMetadata.ThemeColor)
             ? inspectionResult.ProfileMetadata.ThemeColor
             : "#9575CD";
-        CoverPath = inspectionResult.ProfileMetadata.CoverPath;
-        IconPath = inspectionResult.ProfileMetadata.IconPath;
+        CoverPath = SanitizeArtworkPath(inspectionResult.ProfileMetadata.CoverPath);
+        IconPath = SanitizeArtworkPath(inspectionResult.ProfileMetadata.IconPath);
         CommandLineArguments = inspectionResult.ProfileMetadata.CommandLineArguments;
 
         Manifests = new ObservableCollection<SharedManifestDependency>(inspectionResult.Manifests);
@@ -177,6 +216,12 @@ public partial class ImportProfileInspectionViewModel : ViewModelBase
             return;
         }
 
+        if (ProfileName.Trim().Length > ProfileSharingConstants.MaxProfileNameLength)
+        {
+            SetError($"Profile name cannot exceed {ProfileSharingConstants.MaxProfileNameLength} characters.");
+            return;
+        }
+
         if (SelectedInstallation == null)
         {
             SetError("Please select a valid game installation.");
@@ -190,6 +235,8 @@ public partial class ImportProfileInspectionViewModel : ViewModelBase
             ErrorMessage = string.Empty;
             CurrentOperationName = "Starting import...";
             ImportProgressPercentage = 0;
+
+            _importCts = new CancellationTokenSource();
 
             var progress = new Progress<ContentAcquisitionProgress>(p =>
             {
@@ -206,7 +253,7 @@ public partial class ImportProfileInspectionViewModel : ViewModelBase
                 IncludeGameSettings = IncludeGameSettings,
             };
 
-            var result = await _profileSharingService.ImportSharedProfileAsync(request, progress, CancellationToken.None);
+            var result = await _profileSharingService.ImportSharedProfileAsync(request, progress, _importCts.Token);
 
             if (result.Success && result.Data != null)
             {
@@ -218,6 +265,11 @@ public partial class ImportProfileInspectionViewModel : ViewModelBase
             {
                 SetError(result.FirstError ?? "Failed to import profile.");
             }
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("Profile import was cancelled by user.");
+            SetError("Import cancelled.");
         }
         catch (Exception ex)
         {
@@ -233,6 +285,7 @@ public partial class ImportProfileInspectionViewModel : ViewModelBase
     [RelayCommand]
     private void Cancel()
     {
+        _importCts?.Cancel();
         CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 
@@ -240,21 +293,5 @@ public partial class ImportProfileInspectionViewModel : ViewModelBase
     {
         ErrorMessage = message;
         HasError = true;
-    }
-
-    private string FormatBytes(long bytes)
-    {
-        if (bytes <= 0)
-        {
-            return "0 MB";
-        }
-
-        double mb = bytes / (1024.0 * 1024.0);
-        if (mb >= 1024.0)
-        {
-            return $"{mb / 1024.0:F1} GB";
-        }
-
-        return $"{mb:F1} MB";
     }
 }

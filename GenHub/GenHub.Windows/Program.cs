@@ -87,7 +87,7 @@ public class Program
                 // Forward import-profile so the running UI can show the inspection window
                 if (!string.IsNullOrEmpty(profileShareUri))
                 {
-                    bootstrapLogger.LogInformation("Forwarding import-profile command to primary instance: {ShareUri}", profileShareUri);
+                    bootstrapLogger.LogInformation("Forwarding import-profile command to primary instance");
                     SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.ImportProfilePrefix}{profileShareUri}");
                 }
 

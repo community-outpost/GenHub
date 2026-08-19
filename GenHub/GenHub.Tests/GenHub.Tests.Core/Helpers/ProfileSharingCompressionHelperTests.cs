@@ -118,4 +118,20 @@ public class ProfileSharingCompressionHelperTests
         // Act & Assert
         Assert.ThrowsAny<Exception>(() => ProfileSharingCompressionHelper.DecodeAndDecompress(invalidInput));
     }
+
+    /// <summary>
+    /// Verifies that decompression throws InvalidDataException if payload exceeds size limit.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task DecodeAndDecompressAsync_Should_Throw_WhenDecompressedSizeExceedsLimitAsync()
+    {
+        // Arrange: Generate compressible payload that exceeds 2MB
+        var largePayload = new string('x', 3 * 1024 * 1024);
+        var compressed = ProfileSharingCompressionHelper.CompressAndEncode(largePayload);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<System.IO.InvalidDataException>(async () =>
+            await ProfileSharingCompressionHelper.DecodeAndDecompressAsync(compressed));
+    }
 }
