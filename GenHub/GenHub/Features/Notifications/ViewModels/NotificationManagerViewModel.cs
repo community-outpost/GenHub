@@ -173,7 +173,7 @@ public class NotificationManagerViewModel : ViewModelBase, IDisposable
                         var notification = ActiveNotifications.FirstOrDefault(n => n.Id == update.Id);
                         if (notification != null)
                         {
-                            if (!string.IsNullOrEmpty(update.Title))
+                            if (update.Title is not null)
                             {
                                 notification.Title = update.Title;
                             }

@@ -445,6 +445,85 @@ public class MainViewModelTests
     }
 
     /// <summary>
+    /// Tests that background update check does not create duplicate notifications when the same update is detected repeatedly.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeAsync_WhenSameArtifactUpdateCheckedRepeatedly_DeduplicatesNotificationAsync()
+    {
+        // Arrange
+        var (settingsVm, userSettingsMock) = CreateSettingsVm();
+        userSettingsMock.Setup(x => x.Get()).Returns(new UserSettings { SubscribedBranch = "main" });
+        var toolsVm = CreateToolsVm();
+        var configProvider = CreateConfigProviderMock();
+        var shownNotifications = new List<NotificationMessage>();
+        var notificationShownTcs = new TaskCompletionSource<NotificationMessage>();
+
+        var artifactInfo = new ArtifactUpdateInfo(
+            Version: "0.0.99999-main",
+            GitHash: "abcdef1",
+            PullRequestNumber: null,
+            WorkflowRunId: 12345,
+            WorkflowRunUrl: "https://example.com/runs/1",
+            ArtifactId: 67890,
+            ArtifactName: "genhub-velopack-linux-0.0.99999",
+            CreatedAt: DateTime.UtcNow,
+            DownloadUrl: "https://example.com/artifact.zip",
+            Size: 1024);
+
+        var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
+        mockVelopackUpdateManager.Setup(x => x.CheckForArtifactUpdatesAsync(It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync(artifactInfo);
+
+        var mockLogger = new Mock<ILogger<MainViewModel>>();
+        var mockNotificationService = CreateNotificationServiceMock();
+        mockNotificationService.Setup(x => x.Show(It.IsAny<NotificationMessage>()))
+            .Callback<NotificationMessage>(msg =>
+            {
+                shownNotifications.Add(msg);
+                if (msg.Title == AppUpdateConstants.BranchUpdateAvailableNotificationTitle)
+                {
+                    notificationShownTcs.TrySetResult(msg);
+                }
+            });
+
+        var mockNotificationManager = new Mock<NotificationManagerViewModel>(
+            mockNotificationService.Object,
+            Mock.Of<ILogger<NotificationManagerViewModel>>(),
+            Mock.Of<ILogger<NotificationItemViewModel>>());
+        var notificationFeedVm = CreateNotificationFeedViewModel(mockNotificationService.Object);
+
+        using var vm = new MainViewModel(
+            gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
+            downloadsViewModel: CreateDownloadsViewModel(configProvider),
+            toolsViewModel: toolsVm,
+            settingsViewModel: settingsVm,
+            notificationManager: mockNotificationManager.Object,
+            configurationProvider: configProvider,
+            userSettingsService: userSettingsMock.Object,
+            velopackUpdateManager: mockVelopackUpdateManager.Object,
+            notificationService: mockNotificationService.Object,
+            dialogService: new Mock<IDialogService>().Object,
+            notificationFeedViewModel: notificationFeedVm,
+            infoViewModel: CreateInfoViewModel(),
+            logger: mockLogger.Object);
+
+        // Act
+        await vm.InitializeAsync();
+        await notificationShownTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Re-trigger update check via settings changed message
+        vm.Receive(new UpdateSettingsChangedMessage(true, 1));
+        await Task.Delay(200);
+
+        // Assert that branch update notification was shown exactly once
+        var branchUpdateNotifications = shownNotifications
+            .Where(n => n.Title == AppUpdateConstants.BranchUpdateAvailableNotificationTitle)
+            .ToList();
+        Assert.Single(branchUpdateNotifications);
+    }
+
+    /// <summary>
     /// Tests that CurrentTabViewModel returns the correct ViewModel based on SelectedTab.
     /// </summary>
     /// <param name="tab">The tab to select.</param>

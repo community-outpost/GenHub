@@ -67,6 +67,7 @@ public partial class MainViewModel(
 {
     private readonly CancellationTokenSource _initializationCts = new();
     private Timer? _periodicUpdateTimer;
+    private string? _lastNotifiedUpdateIdentity;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MainViewModel"/> class for design-time support.
@@ -216,6 +217,7 @@ public partial class MainViewModel(
         _periodicUpdateTimer?.Dispose();
         _initializationCts?.Cancel();
         _initializationCts?.Dispose();
+        WeakReferenceMessenger.Default.UnregisterAll(this);
         GC.SuppressFinalize(this);
     }
 
@@ -242,7 +244,7 @@ public partial class MainViewModel(
     // Register for messages
     private void RegisterMessages()
     {
-        WeakReferenceMessenger.Default.Register(this);
+        WeakReferenceMessenger.Default.RegisterAll(this);
     }
 
     /// <summary>
@@ -273,6 +275,14 @@ public partial class MainViewModel(
                     if (AppUpdateVersionHelper.IsArtifactVersionNewer(artifactVersionBase, currentVersionBase) &&
                         !string.Equals(artifactVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
                     {
+                        var updateIdentity = $"pr:{prNumber}:{artifactVersionBase}";
+                        if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
+                        {
+                            logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
+                            return;
+                        }
+
+                        _lastNotifiedUpdateIdentity = updateIdentity;
                         logger?.LogInformation("PR #{PrNumber} update available: {Version}", prNumber, artifactUpdate.DisplayVersion);
                         notificationService.Show(new NotificationMessage(
                             NotificationType.Info,
@@ -312,6 +322,14 @@ public partial class MainViewModel(
                     if (AppUpdateVersionHelper.IsArtifactVersionNewer(artifactVersionBase, currentVersionBase) &&
                         !string.Equals(artifactVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
                     {
+                        var updateIdentity = $"branch:{branch}:{artifactVersionBase}";
+                        if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
+                        {
+                            logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
+                            return;
+                        }
+
+                        _lastNotifiedUpdateIdentity = updateIdentity;
                         logger?.LogInformation("Branch '{Branch}' update available: {Version}", branch, artifactUpdate.DisplayVersion);
                         notificationService.Show(new NotificationMessage(
                             NotificationType.Info,
@@ -344,6 +362,14 @@ public partial class MainViewModel(
                 var version = updateInfo.TargetFullRelease.Version.ToString();
                 if (!string.Equals(version, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
                 {
+                    var updateIdentity = $"release:{version}";
+                    if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
+                    {
+                        logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
+                        return;
+                    }
+
+                    _lastNotifiedUpdateIdentity = updateIdentity;
                     logger?.LogInformation("GitHub release update available: {Version}", version);
                     notificationService.Show(new NotificationMessage(
                         NotificationType.Info,
@@ -369,6 +395,14 @@ public partial class MainViewModel(
                 if (!string.IsNullOrWhiteSpace(githubVersion) &&
                     !string.Equals(githubVersion, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
                 {
+                    var updateIdentity = $"github:{githubVersion}";
+                    if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
+                    {
+                        logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
+                        return;
+                    }
+
+                    _lastNotifiedUpdateIdentity = updateIdentity;
                     logger?.LogInformation("GitHub API release update available: {Version}", githubVersion);
                     notificationService.Show(new NotificationMessage(
                         NotificationType.Info,

@@ -1773,11 +1773,15 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             return;
         }
 
-        var runId = run.GetProperty("id").GetInt64();
-        var runNum = run.GetProperty("run_number").GetInt32();
-        var createdAt = run.GetProperty("created_at").GetDateTimeOffset();
+        if (!run.TryGetProperty("id", out var idProp) || !idProp.TryGetInt64(out var runId) ||
+            !run.TryGetProperty("run_number", out var runNumProp) || !runNumProp.TryGetInt32(out var runNum) ||
+            !run.TryGetProperty("created_at", out var createdAtProp) || !createdAtProp.TryGetDateTimeOffset(out var createdAt))
+        {
+            return;
+        }
+
         var headSha = run.TryGetProperty("head_sha", out var sha) ? sha.GetString() ?? string.Empty : string.Empty;
-        var shortHash = headSha.Length >= 7 ? headSha[..7] : headSha;
+        var shortHash = headSha.Length >= AppConstants.GitShortHashLength ? headSha[..AppConstants.GitShortHashLength] : headSha;
         var workflowRunUrl = run.TryGetProperty("html_url", out var html) ? html.GetString() ?? string.Empty : string.Empty;
 
         foreach (var artifact in artifacts.EnumerateArray())
