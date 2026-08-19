@@ -189,6 +189,28 @@ public class VelopackUpdateManagerTests
     }
 
     /// <summary>
+    /// Tests that VelopackUpdateManager accepts a custom FastHttpClientFileDownloader.
+    /// </summary>
+    [Fact]
+    public void Constructor_WithCustomFileDownloader_ShouldInitializeSuccessfully()
+    {
+        // Arrange
+        var customDownloader = new FastHttpClientFileDownloader();
+
+        // Act
+        var manager = new VelopackUpdateManager(
+            _mockLogger.Object,
+            _mockHttpClientFactory.Object,
+            _mockGitHubTokenStorage.Object,
+            _mockUserSettingsService.Object,
+            customDownloader);
+
+        // Assert
+        Assert.NotNull(manager);
+        Assert.False(manager.IsUpdatePendingRestart);
+    }
+
+    /// <summary>
     /// Creates a new VelopackUpdateManager instance with mocked dependencies.
     /// </summary>
     private VelopackUpdateManager CreateManager() =>

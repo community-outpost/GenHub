@@ -92,4 +92,18 @@ public class AppUpdateConstantsTests
         Assert.NotEqual(AppUpdateConstants.SortOptionLastUpdated, AppUpdateConstants.SortOptionPrNumberDesc);
         Assert.NotEqual(AppUpdateConstants.SortOptionPrNumberDesc, AppUpdateConstants.SortOptionPrNumberAsc);
     }
+
+    /// <summary>
+    /// Tests that parallel download constants have valid positive values.
+    /// </summary>
+    [Fact]
+    public void ParallelDownload_Constants_ShouldHaveExpectedValues()
+    {
+        Assert.Equal(65536, AppUpdateConstants.DefaultStreamBufferSize);
+        Assert.Equal(8 * 1024 * 1024, AppUpdateConstants.DownloadChunkSizeBytes);
+        Assert.Equal(6, AppUpdateConstants.ParallelDownloadConcurrency);
+        Assert.Equal(8 * 1024 * 1024, AppUpdateConstants.ParallelDownloadThresholdBytes);
+        Assert.True(AppUpdateConstants.ParallelDownloadConcurrency > 0);
+        Assert.True(AppUpdateConstants.DownloadChunkSizeBytes > 0);
+    }
 }

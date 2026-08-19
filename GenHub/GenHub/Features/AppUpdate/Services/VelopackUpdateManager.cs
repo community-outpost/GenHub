@@ -40,6 +40,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IGitHubTokenStorage? _gitHubTokenStorage;
     private readonly IUserSettingsService? _userSettingsService;
+    private readonly FastHttpClientFileDownloader _fileDownloader;
     private readonly UpdateManager? _updateManager;
     private readonly GithubSource _githubSource;
 
@@ -108,19 +109,22 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     /// <param name="httpClientFactory">The HTTP client factory for creating HttpClient instances.</param>
     /// <param name="gitHubTokenStorage">The GitHub token storage (optional).</param>
     /// <param name="userSettingsService">The user settings service (optional).</param>
+    /// <param name="fileDownloader">The high-performance file downloader (optional).</param>
     public VelopackUpdateManager(
         ILogger<VelopackUpdateManager> logger,
         IHttpClientFactory httpClientFactory,
         IGitHubTokenStorage? gitHubTokenStorage = null,
-        IUserSettingsService? userSettingsService = null)
+        IUserSettingsService? userSettingsService = null,
+        FastHttpClientFileDownloader? fileDownloader = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
         _gitHubTokenStorage = gitHubTokenStorage;
         _userSettingsService = userSettingsService;
+        _fileDownloader = fileDownloader ?? new FastHttpClientFileDownloader();
 
-        // Always initialize GithubSource for update checking
-        _githubSource = new GithubSource(AppConstants.GitHubRepositoryUrl, string.Empty, true);
+        // Always initialize GithubSource for update checking with high-performance downloader
+        _githubSource = new GithubSource(AppConstants.GitHubRepositoryUrl, string.Empty, true, _fileDownloader);
 
         try
         {
@@ -809,7 +813,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             progress?.Report(new UpdateProgress { Status = "Downloading update...", PercentComplete = 70 });
 
             // Point Velopack to localhost
-            var source = new SimpleWebSource($"http://localhost:{port}/{server.SecretToken}/");
+            var source = new SimpleWebSource($"http://localhost:{port}/{server.SecretToken}/", _fileDownloader);
             var localUpdateManager = new UpdateManager(source);
 
             try
@@ -1122,10 +1126,10 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         }
 
         using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using var fileStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true);
+        using var fileStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, AppUpdateConstants.DefaultStreamBufferSize, true);
 
         var totalRead = 0L;
-        var buffer = new byte[8192];
+        var buffer = new byte[AppUpdateConstants.DefaultStreamBufferSize];
         var isMoreToRead = true;
 
         var stopwatch = Stopwatch.StartNew();

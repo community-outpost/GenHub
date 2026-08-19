@@ -20,6 +20,9 @@ public static class AppUpdateModule
         // Register HTTP client factory for proper HttpClient lifecycle management
         services.AddHttpClient();
 
+        // Register high-performance file downloader for Velopack
+        services.AddSingleton<FastHttpClientFileDownloader>();
+
         // Register Velopack update manager (only update system needed)
         services.AddSingleton<IVelopackUpdateManager, VelopackUpdateManager>();
 

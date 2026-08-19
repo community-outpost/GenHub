@@ -272,4 +272,24 @@ public static class AppUpdateConstants
     /// Cache duration for update checks (1 hour).
     /// </summary>
     public static readonly TimeSpan CacheDuration = TimeSpan.FromHours(1);
+
+    /// <summary>
+    /// Default buffer size for stream operations (64KB).
+    /// </summary>
+    public const int DefaultStreamBufferSize = 65536;
+
+    /// <summary>
+    /// Chunk size in bytes for parallel range downloads (8MB).
+    /// </summary>
+    public const long DownloadChunkSizeBytes = 8 * 1024 * 1024;
+
+    /// <summary>
+    /// Maximum number of concurrent connections for parallel downloads.
+    /// </summary>
+    public const int ParallelDownloadConcurrency = 6;
+
+    /// <summary>
+    /// Minimum file size threshold in bytes to trigger parallel chunked downloading (8MB).
+    /// </summary>
+    public const long ParallelDownloadThresholdBytes = 8 * 1024 * 1024;
 }
