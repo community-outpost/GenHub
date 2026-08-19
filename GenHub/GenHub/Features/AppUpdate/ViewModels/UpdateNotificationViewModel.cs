@@ -47,6 +47,24 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// </summary>
     public static string CurrentAppVersion => CachedCurrentAppVersion.Value;
 
+    /// <summary>
+    /// Gets the formatted display string of the currently installed application version.
+    /// </summary>
+    public static string DisplayCurrentVersion
+    {
+        get
+        {
+            var version = CurrentAppVersion;
+            if (string.IsNullOrWhiteSpace(version))
+            {
+                return "0.0.0";
+            }
+
+            var cleanVersion = version.Split('+')[0].TrimStart('v', 'V');
+            return $"v{cleanVersion}";
+        }
+    }
+
     private readonly IVelopackUpdateManager _velopackUpdateManager;
     private readonly ILogger<UpdateNotificationViewModel> _logger;
     private readonly IUserSettingsService _userSettingsService;
@@ -554,6 +572,98 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         StatusMessage = $"You are on the latest build for PR #{prNumber}";
     }
 
+    private void ProcessBranchArtifactUpdate(ArtifactUpdateInfo artifact, string branch)
+    {
+        var currentVersionBase = CurrentAppVersion.Split('+')[0];
+        var branchVersionBase = artifact.Version.Split('+')[0];
+
+        if (AppUpdateVersionHelper.IsArtifactVersionNewer(branchVersionBase, currentVersionBase))
+        {
+            var settings = _userSettingsService.Get();
+            if (!string.Equals(branchVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
+            {
+                IsUpdateAvailable = true;
+                LatestVersion = branchVersionBase;
+                ReleaseNotesUrl = $"{AppConstants.GitHubRepositoryUrl}/tree/{branch}";
+                StatusMessage = $"New {branch} build available: {artifact.DisplayVersion}";
+                _logger.LogInformation("Branch '{Branch}' has new build: {Version}", branch, LatestVersion);
+                return;
+            }
+
+            StatusMessage = $"You dismissed the update for branch '{branch}'";
+            return;
+        }
+
+        IsUpdateAvailable = false;
+        StatusMessage = $"You are on the latest build for {branch}";
+    }
+
+    partial void OnSelectedVersionChanged(ArtifactUpdateInfo? value)
+    {
+        UpdateCommandStates();
+
+        if (value == null)
+        {
+            return;
+        }
+
+        var currentVersionBase = CurrentAppVersion.Split('+')[0];
+        var selectedVersionBase = value.Version.Split('+')[0];
+
+        if (AppUpdateVersionHelper.IsArtifactVersionNewer(selectedVersionBase, currentVersionBase))
+        {
+            var settings = _userSettingsService.Get();
+            if (!string.Equals(selectedVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
+            {
+                IsUpdateAvailable = true;
+                LatestVersion = selectedVersionBase;
+                if (value.PullRequestNumber.HasValue)
+                {
+                    ReleaseNotesUrl = $"{AppConstants.GitHubRepositoryUrl}/pull/{value.PullRequestNumber.Value}";
+                    StatusMessage = $"New PR build available: {value.DisplayVersion}";
+                }
+                else if (!string.IsNullOrEmpty(SubscribedBranch))
+                {
+                    ReleaseNotesUrl = $"{AppConstants.GitHubRepositoryUrl}/tree/{SubscribedBranch}";
+                    StatusMessage = $"New {SubscribedBranch} build available: {value.DisplayVersion}";
+                }
+                else
+                {
+                    StatusMessage = $"New build available: {value.DisplayVersion}";
+                }
+                return;
+            }
+
+            StatusMessage = $"You dismissed update {value.DisplayVersion}";
+            return;
+        }
+
+        var currentRun = AppUpdateVersionHelper.ExtractRunNumber(currentVersionBase);
+        var selectedRun = AppUpdateVersionHelper.ExtractRunNumber(selectedVersionBase);
+
+        if (currentRun > 0 && selectedRun > 0 && currentRun == selectedRun)
+        {
+            IsUpdateAvailable = false;
+            if (value.PullRequestNumber.HasValue)
+            {
+                StatusMessage = $"You are on the latest build for PR #{value.PullRequestNumber.Value}";
+            }
+            else if (!string.IsNullOrEmpty(SubscribedBranch))
+            {
+                StatusMessage = $"You are on the latest build for {SubscribedBranch}";
+            }
+            else
+            {
+                StatusMessage = $"You are on the latest build ({value.DisplayVersion})";
+            }
+        }
+        else
+        {
+            IsUpdateAvailable = false;
+            StatusMessage = $"Selected build: {value.DisplayVersion}";
+        }
+    }
+
     /// <summary>
     /// Checks for updates asynchronously using Velopack.
     /// </summary>
@@ -608,28 +718,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
                 if (branchArtifact != null)
                 {
-                    var currentVersionBase = CurrentAppVersion.Split('+')[0];
-                    var artifactVersionBase = branchArtifact.Version.Split('+')[0];
-
-                    if (AppUpdateVersionHelper.IsArtifactVersionNewer(artifactVersionBase, currentVersionBase))
-                    {
-                        var settings = _userSettingsService.Get();
-                        if (!string.Equals(artifactVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
-                        {
-                            IsUpdateAvailable = true;
-                            LatestVersion = artifactVersionBase;
-                            ReleaseNotesUrl = $"{AppConstants.GitHubRepositoryUrl}/tree/{SubscribedBranch}";
-                            StatusMessage = $"New {SubscribedBranch} build available: {branchArtifact.Version}";
-                            _logger.LogInformation("Branch '{Branch}' has new build: {Version}", SubscribedBranch, LatestVersion);
-                            return;
-                        }
-
-                        StatusMessage = $"You dismissed the update for branch '{SubscribedBranch}'";
-                        return;
-                    }
-
-                    IsUpdateAvailable = false;
-                    StatusMessage = $"You are on the latest build for {SubscribedBranch}";
+                    ProcessBranchArtifactUpdate(branchArtifact, SubscribedBranch);
                     return;
                 }
 

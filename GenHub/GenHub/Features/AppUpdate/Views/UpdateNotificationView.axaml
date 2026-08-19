@@ -175,7 +175,11 @@
                     <!-- Settings / Subscription Info -->
                     <Border Background="#15FFFFFF" CornerRadius="12" Padding="16">
                         <StackPanel Spacing="12">
-                            <TextBlock Text="Installation Source" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="Installation Source" FontSize="14" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="{Binding DisplayCurrentVersion, StringFormat='Current Version: {0}'}"
+                                           FontSize="12" Foreground="#888888" VerticalAlignment="Center"/>
+                            </Grid>
 
                             <!-- Current Source Display -->
                             <Grid ColumnDefinitions="Auto,*,Auto">
@@ -337,10 +341,16 @@
 
         <!-- Footer Actions -->
         <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" Margin="0,16,0,0">
-            <!-- Global Refresh Button -->
-            <Button Grid.Column="0" Command="{Binding ManualRefreshCommand}" Content="Check for Updates"
-                    Background="Transparent" Foreground="#AAAAAA" FontSize="14" Cursor="Hand"
-                    ToolTip.Tip="Manually check for updates and restore dismissed notifications"/>
+            <!-- Global Refresh Button & Current Version -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                <Button Command="{Binding ManualRefreshCommand}" Content="Check for Updates"
+                        Background="Transparent" Foreground="#AAAAAA" FontSize="14" Cursor="Hand"
+                        ToolTip.Tip="Manually check for updates and restore dismissed notifications"/>
+                <Border Background="#15FFFFFF" CornerRadius="4" Padding="8,3" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding DisplayCurrentVersion}"
+                               FontSize="12" Foreground="#888888" VerticalAlignment="Center"/>
+                </Border>
+            </StackPanel>
 
             <!-- Detailed Progress Display -->
             <StackPanel Grid.Column="1" IsVisible="{Binding IsInstalling}" VerticalAlignment="Center" Margin="16,0">

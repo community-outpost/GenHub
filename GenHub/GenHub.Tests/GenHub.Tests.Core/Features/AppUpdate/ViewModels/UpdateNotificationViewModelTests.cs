@@ -443,4 +443,37 @@ public class UpdateNotificationViewModelTests
         Assert.Equal(0, vm.SelectedTabIndex);
         Assert.False(vm.IsBrowseTabSelected);
     }
+
+    /// <summary>
+    /// Verifies that DisplayCurrentVersion returns a valid non-empty version string.
+    /// </summary>
+    [Fact]
+    public void DisplayCurrentVersion_ReturnsNonEmptyVersion()
+    {
+        var displayVersion = UpdateNotificationViewModel.DisplayCurrentVersion;
+        Assert.False(string.IsNullOrWhiteSpace(displayVersion));
+        Assert.StartsWith("v", displayVersion);
+    }
+
+    /// <summary>
+    /// Verifies that setting SelectedVersion to a newer artifact updates StatusMessage and sets IsUpdateAvailable to true.
+    /// </summary>
+    [Fact]
+    public void SelectedVersion_WhenNewer_UpdatesStatusMessageAndIsUpdateAvailable()
+    {
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings());
+
+        var vm = new UpdateNotificationViewModel(
+            Mock.Of<IVelopackUpdateManager>(),
+            Mock.Of<ILogger<UpdateNotificationViewModel>>(),
+            mockUserSettings.Object);
+
+        var newerArtifact = new ArtifactUpdateInfo("99.99.99", "abcdef1", 389, 9999, "https://github.com/test/run/9999", 501, "genhub-linux", DateTime.UtcNow, "https://github.com/test/art/1", 1024);
+        vm.SelectedVersion = newerArtifact;
+
+        Assert.True(vm.IsUpdateAvailable);
+        Assert.Equal("99.99.99", vm.LatestVersion);
+        Assert.Contains("99.99.99", vm.StatusMessage);
+    }
 }
