@@ -115,6 +115,40 @@ public sealed class PathHelperTests
     }
 
     /// <summary>
+    /// Rejects a candidate that leaves the base directory through an intermediate symbolic link
+    /// when the target file on the outside destination already exists on disk.
+    /// </summary>
+    [Fact]
+    public void IsPathWithinDirectory_RejectsCandidateLeavingThroughASymbolicLink_WhenOutsideTargetFileExists()
+    {
+        var root = CreateWorkingDirectory();
+
+        try
+        {
+            var baseDirectory = Path.Combine(root, "extract");
+            var outside = Path.Combine(root, "outside");
+            Directory.CreateDirectory(baseDirectory);
+            Directory.CreateDirectory(outside);
+
+            var outsideFile = Path.Combine(outside, "installer.exe");
+            File.WriteAllText(outsideFile, "payload");
+
+            if (!TryCreateDirectorySymbolicLink(Path.Combine(baseDirectory, "link"), outside))
+            {
+                return;
+            }
+
+            var candidate = Path.Combine(baseDirectory, "link", "installer.exe");
+
+            Assert.False(PathHelper.IsPathWithinDirectory(baseDirectory, candidate));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Accepts a candidate beneath a symbolic link that stays inside the base directory, so
     /// following links tightens the check without refusing content a link merely reorganizes.
     /// </summary>

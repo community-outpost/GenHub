@@ -28,30 +28,10 @@ public class SuperHackersProvider(
     IEnumerable<IContentResolver> resolvers,
     IEnumerable<IContentDeliverer> deliverers,
     IContentValidator contentValidator,
-    IInstallationInstructionsService? installationInstructionsService,
-    ILogger<SuperHackersProvider> logger)
+    ILogger<SuperHackersProvider> logger,
+    IInstallationInstructionsService? installationInstructionsService = null)
     : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
-    /// <summary>
-    /// Initializes a new instance of the <see cref="SuperHackersProvider"/> class without an installation instructions service.
-    /// </summary>
-    /// <param name="providerDefinitionLoader">The provider definition loader.</param>
-    /// <param name="gitHubApiClient">The GitHub API client.</param>
-    /// <param name="resolvers">The content resolvers.</param>
-    /// <param name="deliverers">The content deliverers.</param>
-    /// <param name="contentValidator">The content validator.</param>
-    /// <param name="logger">The logger.</param>
-    public SuperHackersProvider(
-        IProviderDefinitionLoader providerDefinitionLoader,
-        IGitHubApiClient gitHubApiClient,
-        IEnumerable<IContentResolver> resolvers,
-        IEnumerable<IContentDeliverer> deliverers,
-        IContentValidator contentValidator,
-        ILogger<SuperHackersProvider> logger)
-        : this(providerDefinitionLoader, gitHubApiClient, resolvers, deliverers, contentValidator, null, logger)
-    {
-    }
-
     private readonly IContentResolver _resolver = resolvers.FirstOrDefault(r =>
             r.ResolverId?.Equals(SuperHackersConstants.ResolverId, StringComparison.OrdinalIgnoreCase) == true)
         ?? throw new InvalidOperationException("No GitHub resolver found for SuperHackers");

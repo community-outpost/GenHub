@@ -127,41 +127,45 @@ public static class PathHelper
     {
         try
         {
-            var existing = fullPath;
-            var remainder = string.Empty;
-
-            while (!Directory.Exists(existing) && !File.Exists(existing))
+            var normalized = Path.GetFullPath(fullPath);
+            var root = Path.GetPathRoot(normalized);
+            if (string.IsNullOrEmpty(root))
             {
-                var parent = Path.GetDirectoryName(existing);
-                if (string.IsNullOrEmpty(parent))
-                {
-                    return fullPath;
-                }
-
-                remainder = Path.Combine(Path.GetFileName(existing), remainder);
-                existing = parent;
+                return normalized;
             }
 
-            FileSystemInfo info = Directory.Exists(existing)
-                ? new DirectoryInfo(existing)
-                : new FileInfo(existing);
-            var resolved = info.ResolveLinkTarget(returnFinalTarget: true)?.FullName ?? existing;
+            var relativeFromRoot = Path.GetRelativePath(root, normalized);
+            if (relativeFromRoot == "." || relativeFromRoot.Length == 0)
+            {
+                return root;
+            }
 
-            return remainder.Length == 0 ? resolved : Path.GetFullPath(Path.Combine(resolved, remainder));
+            var segments = relativeFromRoot.Split(
+                [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                StringSplitOptions.RemoveEmptyEntries);
+
+            var current = root;
+            foreach (var segment in segments)
+            {
+                current = Path.Combine(current, segment);
+
+                if (Directory.Exists(current) || File.Exists(current))
+                {
+                    FileSystemInfo info = Directory.Exists(current)
+                        ? new DirectoryInfo(current)
+                        : new FileInfo(current);
+
+                    var target = info.ResolveLinkTarget(returnFinalTarget: true);
+                    if (target != null)
+                    {
+                        current = target.FullName;
+                    }
+                }
+            }
+
+            return Path.GetFullPath(current);
         }
-        catch (IOException)
-        {
-            return fullPath;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return fullPath;
-        }
-        catch (NotSupportedException)
-        {
-            return fullPath;
-        }
-        catch (ArgumentException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException or SecurityException)
         {
             return fullPath;
         }

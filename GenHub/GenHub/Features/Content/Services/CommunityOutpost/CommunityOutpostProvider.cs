@@ -37,8 +37,6 @@ public class CommunityOutpostProvider(
     ILogger<CommunityOutpostProvider> logger)
     : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
-    private readonly IProviderDefinitionLoader _providerDefinitionLoader = providerDefinitionLoader;
-
     private readonly IContentDiscoverer _discoverer = discoverers.FirstOrDefault(d =>
             d.SourceName.Contains(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
             ?? throw new InvalidOperationException("No Community Outpost discoverer found");
@@ -129,7 +127,7 @@ public class CommunityOutpostProvider(
         }
 
         // Try to get from the loader (it should already be loaded at startup)
-        _cachedProviderDefinition = _providerDefinitionLoader.GetProvider(CommunityOutpostConstants.PublisherId);
+        _cachedProviderDefinition = providerDefinitionLoader.GetProvider(CommunityOutpostConstants.PublisherId);
 
         if (_cachedProviderDefinition == null)
         {
