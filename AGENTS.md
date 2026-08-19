@@ -86,9 +86,9 @@ This repository uses **GitNexus** to maintain an AST-parsed structural knowledge
      ```
    - Confirm that changes touching cross-platform abstractions (CAS, launcher, file handlers) stay intact.
 
-3. **Phase 3 — Gatekeeping (Pre-PR & CI):**
+3. **Phase 3 — CI Verification & PR Reporting:**
    - CI builds, indexes, and validates the `.gitnexus/` knowledge graph on push to `development` and `main`.
-   - PR CI runs `pnpm exec gitnexus detect-changes --scope compare --base-ref "$BASE_SHA"` to surface blast radius in GitHub Step Summaries.
+   - PR CI runs `pnpm exec gitnexus detect-changes --scope compare --base-ref "$BASE_SHA"` to surface blast radius and affected execution flows in GitHub Step Summaries.
    - If the local graph is stale after pulling `development`:
 
      ```bash

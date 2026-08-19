@@ -10,8 +10,22 @@ on:
     branches: [development, main, 'release/**']
   workflow_dispatch:
 
+# A release branch is normally the head of an open release PR, so a push to it would otherwise
+# start a second workflow run under a different key. Same-repository pull requests therefore share
+# a group with pushes describing the same branch, and collapse.
+#
+# Only same-repository heads are keyed by branch name. A fork's head ref is contributor-controlled,
+# so keying on it unconditionally would let a fork branch named `development`, `main` or
+# `release/*` land in a protected branch's group — and because cancel-in-progress is on for pull
+# requests, each push to that PR would cancel the protected branch's running CI. Fork pull requests
+# fall back to github.ref_name, which is `<pr-number>/merge` and therefore unique per PR.
 concurrency:
-  group: gitnexus-${{ github.event.pull_request.number || github.ref }}
+  group: >-
+    ${{ github.workflow }}-${{
+      github.event.pull_request.head.repo.full_name == github.repository
+        && github.event.pull_request.head.ref
+        || github.ref_name
+    }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -56,13 +70,13 @@ jobs:
           retention-days: 14
           overwrite: true
 
-      - name: PR Impact Analysis
+      - name: PR Impact Analysis (Informational)
         if: github.event_name == 'pull_request'
         shell: bash
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          echo "### 🔍 GitNexus Blast Radius & Change Impact" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔍 GitNexus Blast Radius & Change Impact (Informational)" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           set +e
           pnpm exec gitnexus detect-changes --scope compare --base-ref "$BASE_SHA" 2>&1 | tee -a $GITHUB_STEP_SUMMARY
