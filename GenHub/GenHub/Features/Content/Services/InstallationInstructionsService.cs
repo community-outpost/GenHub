@@ -53,11 +53,21 @@ public class InstallationInstructionsService(
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> ExecutePreInstallStepsAsync(
+    public Task<OperationResult> ExecutePreInstallStepsAsync(
         ContentManifest manifest,
         string workingDirectory,
         IProgress<ContentAcquisitionProgress>? progress = null,
-        bool force = false,
+        CancellationToken cancellationToken = default)
+    {
+        return ExecutePreInstallStepsAsync(manifest, workingDirectory, force: false, progress, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<OperationResult> ExecutePreInstallStepsAsync(
+        ContentManifest manifest,
+        string workingDirectory,
+        bool force,
+        IProgress<ContentAcquisitionProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(manifest);
@@ -84,11 +94,21 @@ public class InstallationInstructionsService(
     }
 
     /// <inheritdoc />
-    public async Task<OperationResult> ExecutePostInstallStepsAsync(
+    public Task<OperationResult> ExecutePostInstallStepsAsync(
         ContentManifest manifest,
         string workingDirectory,
         IProgress<ContentAcquisitionProgress>? progress = null,
-        bool force = false,
+        CancellationToken cancellationToken = default)
+    {
+        return ExecutePostInstallStepsAsync(manifest, workingDirectory, force: false, progress, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<OperationResult> ExecutePostInstallStepsAsync(
+        ContentManifest manifest,
+        string workingDirectory,
+        bool force,
+        IProgress<ContentAcquisitionProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(manifest);

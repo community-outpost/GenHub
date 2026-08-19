@@ -216,7 +216,7 @@ public class ContentManifestBuilderTests
     {
         var instructions = new InstallationInstructions
         {
-            WorkspaceStrategy = WorkspaceStrategy.IsolatedDirectory,
+            WorkspaceStrategy = WorkspaceStrategy.FullCopy,
             DownloadHash = "abc123hash",
             PostInstallSteps =
             [
@@ -235,7 +235,7 @@ public class ContentManifestBuilderTests
             .Build();
 
         Assert.NotNull(result.InstallationInstructions);
-        Assert.Equal(WorkspaceStrategy.IsolatedDirectory, result.InstallationInstructions.WorkspaceStrategy);
+        Assert.Equal(WorkspaceStrategy.FullCopy, result.InstallationInstructions.WorkspaceStrategy);
         Assert.Equal("abc123hash", result.InstallationInstructions.DownloadHash);
         Assert.Single(result.InstallationInstructions.PostInstallSteps);
         Assert.Equal("Step 1", result.InstallationInstructions.PostInstallSteps[0].Name);

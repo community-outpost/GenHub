@@ -18,14 +18,28 @@ public interface IInstallationInstructionsService
     /// <param name="manifest">The content manifest declaring pre-installation steps.</param>
     /// <param name="workingDirectory">The working directory containing the content files.</param>
     /// <param name="progress">Optional progress reporter for acquisition status.</param>
-    /// <param name="force">Whether to force execution of steps marked as run-once even if already executed.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A result indicating whether all pre-installation steps succeeded.</returns>
     Task<OperationResult> ExecutePreInstallStepsAsync(
         ContentManifest manifest,
         string workingDirectory,
         IProgress<ContentAcquisitionProgress>? progress = null,
-        bool force = false,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Executes pre-installation steps for the specified manifest, optionally forcing run-once steps.
+    /// </summary>
+    /// <param name="manifest">The content manifest declaring pre-installation steps.</param>
+    /// <param name="workingDirectory">The working directory containing the content files.</param>
+    /// <param name="force">Whether to force execution of steps marked as run-once even if already executed.</param>
+    /// <param name="progress">Optional progress reporter for acquisition status.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A result indicating whether all pre-installation steps succeeded.</returns>
+    Task<OperationResult> ExecutePreInstallStepsAsync(
+        ContentManifest manifest,
+        string workingDirectory,
+        bool force,
+        IProgress<ContentAcquisitionProgress>? progress = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -34,13 +48,27 @@ public interface IInstallationInstructionsService
     /// <param name="manifest">The content manifest declaring post-installation steps.</param>
     /// <param name="workingDirectory">The working directory containing the content files.</param>
     /// <param name="progress">Optional progress reporter for acquisition status.</param>
-    /// <param name="force">Whether to force execution of steps marked as run-once even if already executed.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A result indicating whether all post-installation steps succeeded.</returns>
     Task<OperationResult> ExecutePostInstallStepsAsync(
         ContentManifest manifest,
         string workingDirectory,
         IProgress<ContentAcquisitionProgress>? progress = null,
-        bool force = false,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Executes post-installation steps for the specified manifest, optionally forcing run-once steps.
+    /// </summary>
+    /// <param name="manifest">The content manifest declaring post-installation steps.</param>
+    /// <param name="workingDirectory">The working directory containing the content files.</param>
+    /// <param name="force">Whether to force execution of steps marked as run-once even if already executed.</param>
+    /// <param name="progress">Optional progress reporter for acquisition status.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A result indicating whether all post-installation steps succeeded.</returns>
+    Task<OperationResult> ExecutePostInstallStepsAsync(
+        ContentManifest manifest,
+        string workingDirectory,
+        bool force,
+        IProgress<ContentAcquisitionProgress>? progress = null,
         CancellationToken cancellationToken = default);
 }

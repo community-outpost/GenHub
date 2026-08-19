@@ -20,10 +20,22 @@ namespace GenHub.Features.Content.Services.ContentProviders;
 /// </summary>
 public abstract class BaseContentProvider(
     IContentValidator contentValidator,
-    IInstallationInstructionsService installationInstructionsService,
+    IInstallationInstructionsService? installationInstructionsService,
     ILogger logger
 ) : IContentProvider
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="BaseContentProvider"/> class without an installation instructions service.
+    /// </summary>
+    /// <param name="contentValidator">The content validator.</param>
+    /// <param name="logger">The logger.</param>
+    public BaseContentProvider(
+        IContentValidator contentValidator,
+        ILogger logger)
+        : this(contentValidator, null, logger)
+    {
+    }
+
     /// <inheritdoc />
     public abstract string SourceName { get; }
 
@@ -144,17 +156,20 @@ public abstract class BaseContentProvider(
 
             if (result.Success && result.Data != null)
             {
-                // Execute post-installation steps if declared on the delivered manifest
-                var stepExecutionResult = await installationInstructionsService.ExecutePostInstallStepsAsync(
-                    result.Data,
-                    workingDirectory,
-                    progress: progress,
-                    cancellationToken: cancellationToken);
-
-                if (!stepExecutionResult.Success)
+                if (installationInstructionsService != null)
                 {
-                    Logger.LogError("Post-installation steps failed for manifest {ManifestId}: {Error}", manifest.Id, stepExecutionResult.FirstError);
-                    return OperationResult<ContentManifest>.CreateFailure(stepExecutionResult.Errors);
+                    // Execute post-installation steps if declared on the delivered manifest
+                    var stepExecutionResult = await installationInstructionsService.ExecutePostInstallStepsAsync(
+                        result.Data,
+                        workingDirectory,
+                        progress: progress,
+                        cancellationToken: cancellationToken);
+
+                    if (!stepExecutionResult.Success)
+                    {
+                        Logger.LogError("Post-installation steps failed for manifest {ManifestId}: {Error}", manifest.Id, stepExecutionResult.FirstError);
+                        return OperationResult<ContentManifest>.CreateFailure(stepExecutionResult.Errors);
+                    }
                 }
 
                 // Final validation of prepared content
@@ -221,7 +236,7 @@ public abstract class BaseContentProvider(
     /// <summary>
     /// Gets the installation instructions service for post-install execution.
     /// </summary>
-    protected IInstallationInstructionsService InstallationInstructionsService => installationInstructionsService;
+    protected IInstallationInstructionsService? InstallationInstructionsService => installationInstructionsService;
 
     /// <summary>
     /// Gets the discoverer for this provider.
