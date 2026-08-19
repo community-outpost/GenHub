@@ -636,11 +636,10 @@ public class ProfileLauncherFacade(
     {
         var resolvedFiles = ManifestVariantResolver.ResolveFiles(toolManifest);
         var resolution = ManifestVariantResolver.ResolveEntryPoint(toolManifest);
-        ManifestFile? toolExecutable = null;
 
         if (resolution.Success && resolution.RelativePath != null)
         {
-            toolExecutable = resolvedFiles?.FirstOrDefault(f =>
+            var toolExecutable = resolvedFiles?.FirstOrDefault(f =>
                 ManifestVariantResolver.PathsMatch(f.RelativePath, resolution.RelativePath));
 
             if (toolExecutable != null)
@@ -659,18 +658,16 @@ public class ProfileLauncherFacade(
                     toolManifest.Id,
                     resolution.Reason);
             }
-        }
-        else
-        {
-            logger.LogWarning(
-                "[Launch] Entry point resolution for tool manifest '{ManifestId}' did not succeed: {Resolution}",
-                toolManifest.Id,
-                resolution);
+
+            return toolExecutable;
         }
 
-        return toolExecutable
-            ?? resolvedFiles?.FirstOrDefault(f => f.IsExecutable)
-            ?? resolvedFiles?.FirstOrDefault(f => f.RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
+        logger.LogWarning(
+            "[Launch] Entry point resolution for tool manifest '{ManifestId}' did not succeed: {Resolution}",
+            toolManifest.Id,
+            resolution);
+
+        return null;
     }
 
     private Process? StartToolProcess(string toolExecutablePath, string toolDirectoryPath, GameProfile profile)
@@ -698,9 +695,15 @@ public class ProfileLauncherFacade(
         catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 740)
         {
             logger.LogWarning("Tool requires elevation (Error 740). Retrying with UseShellExecute=true and Verb='runas'. Environment variables will be ignored.");
-            processStartInfo.UseShellExecute = true;
-            processStartInfo.Verb = "runas";
-            return Process.Start(processStartInfo);
+            var elevatedStartInfo = new ProcessStartInfo
+            {
+                FileName = toolExecutablePath,
+                WorkingDirectory = toolDirectoryPath,
+                Arguments = profile.CommandLineArguments ?? string.Empty,
+                UseShellExecute = true,
+                Verb = "runas",
+            };
+            return Process.Start(elevatedStartInfo);
         }
     }
 

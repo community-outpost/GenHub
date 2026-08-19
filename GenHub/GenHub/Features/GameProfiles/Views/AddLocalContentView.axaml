@@ -199,6 +199,7 @@
                                                 Classes="icon-btn"
                                                 Padding="4,2"
                                                 Margin="5,0,0,0"
+                                                AutomationProperties.Name="Select as main executable"
                                                 ToolTip.Tip="Select as main executable">
                                             <Button.IsVisible>
                                                 <MultiBinding Converter="{x:Static conv:MultiBooleanAndConverter.Instance}">

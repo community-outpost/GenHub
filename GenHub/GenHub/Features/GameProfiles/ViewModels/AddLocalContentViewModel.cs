@@ -509,14 +509,50 @@ public partial class AddLocalContentViewModel(
     }
 
     private static List<FileTreeItem> BuildDirectoryTree(DirectoryInfo dir)
+        => BuildDirectoryTree(dir, CollectExecutableDirectories(dir));
+
+    private static HashSet<string> CollectExecutableDirectories(DirectoryInfo root)
+    {
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            foreach (var file in root.EnumerateFiles("*", SearchOption.AllDirectories))
+            {
+                if (!ExecutableFileClassifier.IsLegacyLaunchCandidateFromName(file.Name)
+                    && !file.Extension.Equals(".exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                for (var d = file.Directory; d != null; d = d.Parent)
+                {
+                    if (!result.Add(d.FullName))
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // ignore inaccessible directories
+        }
+
+        return result;
+    }
+
+    private static List<FileTreeItem> BuildDirectoryTree(DirectoryInfo dir, HashSet<string> executableDirs)
     {
         var items = new List<FileTreeItem>();
 
-        if (!dir.Exists) return items;
+        if (!dir.Exists)
+        {
+            return items;
+        }
 
         var subDirs = dir.GetDirectories();
         var prioritizedDirs = subDirs
-            .OrderByDescending(DirectoryContainsExecutable)
+            .OrderByDescending(d => executableDirs.Contains(d.FullName))
             .ThenBy(d => d.Name)
             .Take(20);
 
@@ -527,7 +563,7 @@ public partial class AddLocalContentViewModel(
                 Name = d.Name,
                 IsFile = false,
                 FullPath = d.FullName,
-                Children = new ObservableCollection<FileTreeItem>(BuildDirectoryTree(d)),
+                Children = new ObservableCollection<FileTreeItem>(BuildDirectoryTree(d, executableDirs)),
             });
         }
 
@@ -543,19 +579,6 @@ public partial class AddLocalContentViewModel(
         }
 
         return items;
-    }
-
-    private static bool DirectoryContainsExecutable(DirectoryInfo dir)
-    {
-        try
-        {
-            return dir.EnumerateFiles("*", SearchOption.AllDirectories)
-                .Any(f => ExecutableFileClassifier.IsLegacyLaunchCandidateFromName(f.Name) || f.Extension.Equals(".exe", StringComparison.OrdinalIgnoreCase));
-        }
-        catch
-        {
-            return false;
-        }
     }
 
     private static void CopyDirectory(DirectoryInfo source, DirectoryInfo target)

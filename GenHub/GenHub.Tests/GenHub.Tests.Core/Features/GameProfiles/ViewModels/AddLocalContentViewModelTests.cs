@@ -519,11 +519,11 @@ public class AddLocalContentViewModelTests : IDisposable
             Name = "ZH Client",
             ContentType = ContentType.GameClient,
             TargetGame = GameType.ZeroHour,
-            EntryPoint = "bin/tool.exe",
+            EntryPoint = "special.exe",
             Files =
             [
                 new ManifestFile { RelativePath = "special.exe", IsExecutable = true },
-                new ManifestFile { RelativePath = "bin/tool.exe", IsExecutable = true },
+                new ManifestFile { RelativePath = "bin/decoy.exe", IsExecutable = true },
             ],
         };
 
@@ -538,7 +538,7 @@ public class AddLocalContentViewModelTests : IDisposable
                 File.WriteAllText(Path.Combine(targetPath, "special.exe"), "exe");
                 var targetSub = Path.Combine(targetPath, "bin");
                 Directory.CreateDirectory(targetSub);
-                File.WriteAllText(Path.Combine(targetSub, "tool.exe"), "tool");
+                File.WriteAllText(Path.Combine(targetSub, "decoy.exe"), "decoy");
             })
             .ReturnsAsync((ManifestId _, string targetPath, CancellationToken _) => OperationResult<string>.CreateSuccess(targetPath));
 
@@ -573,10 +573,10 @@ public class AddLocalContentViewModelTests : IDisposable
         await vm.LoadFromManifestAsync(item);
 
         Assert.NotNull(vm.SelectedExecutableItem);
-        Assert.Equal("tool.exe", vm.SelectedExecutableItem.Name);
+        Assert.Equal("special.exe", vm.SelectedExecutableItem.Name);
 
         await vm.AddContentCommand.ExecuteAsync(null);
-        Assert.Equal("bin/tool.exe", capturedEntryPoint);
+        Assert.Equal("special.exe", capturedEntryPoint);
     }
 
     /// <summary>
