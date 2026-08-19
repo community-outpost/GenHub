@@ -90,34 +90,6 @@ public class FastHttpClientFileDownloader(ILogger<FastHttpClientFileDownloader>?
         }
     }
 
-    /// <inheritdoc/>
-    protected override async Task DownloadToStreamInternal(
-        HttpClient client,
-        string requestUri,
-        Stream destination,
-        IProgress<long> progress,
-        CancellationToken cancelToken)
-    {
-        using var response = await client.GetAsync(
-            requestUri,
-            HttpCompletionOption.ResponseHeadersRead,
-            cancelToken).ConfigureAwait(false);
-
-        response.EnsureSuccessStatusCode();
-
-        await using var contentStream = await response.Content.ReadAsStreamAsync(cancelToken).ConfigureAwait(false);
-        var buffer = new byte[AppUpdateConstants.DefaultStreamBufferSize];
-        var totalRead = 0L;
-        int bytesRead;
-
-        while ((bytesRead = await contentStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancelToken).ConfigureAwait(false)) > 0)
-        {
-            await destination.WriteAsync(buffer.AsMemory(0, bytesRead), cancelToken).ConfigureAwait(false);
-            totalRead += bytesRead;
-            progress.Report(totalRead);
-        }
-    }
-
     private static async Task DownloadSingleStreamAsync(
         HttpResponseMessage response,
         string targetFile,
@@ -136,7 +108,7 @@ public class FastHttpClientFileDownloader(ILogger<FastHttpClientFileDownloader>?
 
         var buffer = new byte[AppUpdateConstants.DefaultStreamBufferSize];
         var totalRead = 0L;
-        int bytesRead;
+        int bytesRead = 0;
 
         while ((bytesRead = await contentStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancelToken).ConfigureAwait(false)) > 0)
         {
@@ -209,7 +181,7 @@ public class FastHttpClientFileDownloader(ILogger<FastHttpClientFileDownloader>?
                 fileStream.Seek(start, SeekOrigin.Begin);
 
                 var buffer = new byte[AppUpdateConstants.DefaultStreamBufferSize];
-                int bytesRead;
+                int bytesRead = 0;
 
                 while ((bytesRead = await chunkStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancelToken).ConfigureAwait(false)) > 0)
                 {

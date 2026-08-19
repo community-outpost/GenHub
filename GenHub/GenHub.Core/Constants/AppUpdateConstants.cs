@@ -264,16 +264,6 @@ public static class AppUpdateConstants
     public const int PeriodicUpdateCheckIntervalIncrementMinutes = 5;
 
     /// <summary>
-    /// Delay before exit after applying update (5 seconds).
-    /// </summary>
-    public static readonly TimeSpan PostUpdateExitDelay = TimeSpan.FromSeconds(5);
-
-    /// <summary>
-    /// Cache duration for update checks (1 hour).
-    /// </summary>
-    public static readonly TimeSpan CacheDuration = TimeSpan.FromHours(1);
-
-    /// <summary>
     /// Default buffer size for stream operations (64KB).
     /// </summary>
     public const int DefaultStreamBufferSize = 65536;
@@ -292,4 +282,14 @@ public static class AppUpdateConstants
     /// Minimum file size threshold in bytes to trigger parallel chunked downloading (8MB).
     /// </summary>
     public const long ParallelDownloadThresholdBytes = 8 * 1024 * 1024;
+
+    /// <summary>
+    /// Delay before exit after applying update (5 seconds).
+    /// </summary>
+    public static readonly TimeSpan PostUpdateExitDelay = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// Cache duration for update checks (1 hour).
+    /// </summary>
+    public static readonly TimeSpan CacheDuration = TimeSpan.FromHours(1);
 }
