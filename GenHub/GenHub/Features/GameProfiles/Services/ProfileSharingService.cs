@@ -310,127 +310,29 @@ public class ProfileSharingService(
     {
         try
         {
-            ArgumentNullException.ThrowIfNull(request);
-
-            if (string.IsNullOrWhiteSpace(request.ProfileName) || request.ProfileName.Length > ProfileSharingConstants.MaxProfileNameLength)
+            var validationResult = ValidateImportRequest(request);
+            if (!validationResult.Success)
             {
-                return OperationResult<GameProfile>.CreateFailure($"Profile name must be between 1 and {ProfileSharingConstants.MaxProfileNameLength} characters.");
+                return OperationResult<GameProfile>.CreateFailure(validationResult.Errors);
             }
 
             var package = request.Package;
-            if (package?.Profile == null)
+            var selectedInstallation = await ResolveSelectedInstallationAsync(request.GameInstallationId, cancellationToken);
+
+            var compatibilityResult = ValidateClientCompatibility(selectedInstallation, package);
+            if (!compatibilityResult.Success)
             {
-                return OperationResult<GameProfile>.CreateFailure("Invalid package in import request.");
+                return OperationResult<GameProfile>.CreateFailure(compatibilityResult.Errors);
             }
 
-            if (package.SchemaVersion != ProfileSharingConstants.DefaultSchemaVersion)
+            var dependenciesResult = await AcquireAllDependenciesAsync(package, progress, cancellationToken);
+            if (!dependenciesResult.Success || dependenciesResult.Data == null)
             {
-                return OperationResult<GameProfile>.CreateFailure($"Unsupported package schema version {package.SchemaVersion}. Expected version {ProfileSharingConstants.DefaultSchemaVersion}.");
+                return OperationResult<GameProfile>.CreateFailure(dependenciesResult.Errors);
             }
 
-            // Validate installation and game type compatibility
-            GameInstallation? selectedInstallation = null;
-            if (!string.IsNullOrEmpty(request.GameInstallationId))
-            {
-                var instResult = await installationService.GetInstallationAsync(request.GameInstallationId, cancellationToken);
-                if (instResult.Success && instResult.Data != null)
-                {
-                    selectedInstallation = instResult.Data;
-                }
-            }
-
-            if (selectedInstallation != null && package.Profile.GameClientManifestId != null)
-            {
-                if (selectedInstallation.AvailableGameClients.FirstOrDefault(c => c.Id == package.Profile.GameClientManifestId) is { } matchedClient)
-                {
-                    if (matchedClient.GameType != package.Profile.GameType)
-                    {
-                        return OperationResult<GameProfile>.CreateFailure($"Client '{matchedClient.Name}' game type ({matchedClient.GameType}) does not match shared profile game type ({package.Profile.GameType}).");
-                    }
-                }
-            }
-
-            // Acquire missing dependencies
-            var requiredManifestIds = new List<string>();
-
-            for (int i = 0; i < package.RequiredManifests.Count; i++)
-            {
-                var dep = package.RequiredManifests[i];
-                if (!ManifestId.TryCreate(dep.ManifestId, out _))
-                {
-                    return OperationResult<GameProfile>.CreateFailure($"Invalid dependency manifest ID '{dep.ManifestId}'.");
-                }
-
-                requiredManifestIds.Add(dep.ManifestId);
-
-                var isCachedResult = await manifestPool.IsManifestAcquiredAsync(dep.ManifestId, cancellationToken);
-                if (!isCachedResult.Success || !isCachedResult.Data)
-                {
-                    logger.LogInformation("Acquiring missing dependency for profile import: {ManifestId}", dep.ManifestId);
-                    progress?.Report(new ContentAcquisitionProgress
-                    {
-                        Phase = ContentAcquisitionPhase.Downloading,
-                        ProgressPercentage = package.RequiredManifests.Count > 0 ? ((double)i / package.RequiredManifests.Count) * 100.0 : 0.0,
-                        CurrentOperation = $"Acquiring {dep.DisplayName}...",
-                        CurrentFile = dep.DisplayName,
-                        FilesProcessed = i,
-                        TotalFiles = package.RequiredManifests.Count,
-                    });
-
-                    var acquireResult = await AcquireMissingManifestAsync(dep, progress, cancellationToken);
-                    if (!acquireResult.Success)
-                    {
-                        return OperationResult<GameProfile>.CreateFailure($"Failed to acquire manifest {dep.DisplayName} ({dep.ManifestId}): {acquireResult.FirstError}");
-                    }
-                }
-            }
-
-            // Build GameClient definition
-            GameClient? gameClient = null;
-            if (selectedInstallation != null)
-            {
-                gameClient = selectedInstallation.AvailableGameClients.FirstOrDefault(c => c.Id == package.Profile.GameClientManifestId)
-                    ?? selectedInstallation.AvailableGameClients.FirstOrDefault(c => c.GameType == package.Profile.GameType)
-                    ?? selectedInstallation.AvailableGameClients.FirstOrDefault();
-            }
-
-            if (gameClient == null && package.Profile.GameClientManifestId != null)
-            {
-                gameClient = new GameClient
-                {
-                    Id = package.Profile.GameClientManifestId,
-                    Name = package.Profile.Name,
-                    Version = package.Profile.GameVersion,
-                    GameType = package.Profile.GameType,
-                    ExecutablePath = string.Empty,
-                };
-            }
-
-            // Build new GameProfile
-            var sanitizedArgs = ProfileSharingCompressionHelper.SanitizeCommandLineArguments(
-                package.Profile.CommandLineArguments,
-                out _);
-
-            var newProfile = new GameProfile
-            {
-                Id = Guid.NewGuid().ToString("N"),
-                Name = request.ProfileName,
-                Description = package.Profile.Description,
-                ThemeColor = package.Profile.ThemeColor ?? "#1976D2",
-                IconPath = package.Profile.IconPath,
-                CoverPath = package.Profile.CoverPath,
-                GameInstallationId = request.GameInstallationId,
-                GameClient = gameClient,
-                WorkspaceStrategy = package.Profile.WorkspaceStrategy,
-                CommandLineArguments = sanitizedArgs,
-                UseSteamLaunch = package.Profile.UseSteamLaunch,
-                EnabledContentIds = requiredManifestIds,
-            };
-
-            if (request.IncludeGameSettings && package.Profile.GameSettingsOverrides != null)
-            {
-                ApplySettingsOverridesToProfile(newProfile, package.Profile.GameSettingsOverrides);
-            }
+            var gameClient = ResolveGameClient(selectedInstallation, package);
+            var newProfile = BuildImportedProfile(request, gameClient, dependenciesResult.Data);
 
             var saveResult = await profileRepository.SaveProfileAsync(newProfile, cancellationToken);
             if (!saveResult.Success || saveResult.Data == null)
@@ -532,6 +434,160 @@ public class ProfileSharingService(
         if (profile.GoRenderFpsLimit.HasValue) dict[nameof(profile.GoRenderFpsLimit)] = profile.GoRenderFpsLimit.Value;
 
         return dict;
+    }
+
+    private static OperationResult<bool> ValidateImportRequest(SharedProfileImportRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (string.IsNullOrWhiteSpace(request.ProfileName) || request.ProfileName.Length > ProfileSharingConstants.MaxProfileNameLength)
+        {
+            return OperationResult<bool>.CreateFailure($"Profile name must be between 1 and {ProfileSharingConstants.MaxProfileNameLength} characters.");
+        }
+
+        if (request.Package?.Profile == null)
+        {
+            return OperationResult<bool>.CreateFailure("Invalid package in import request.");
+        }
+
+        if (request.Package.SchemaVersion != ProfileSharingConstants.DefaultSchemaVersion)
+        {
+            return OperationResult<bool>.CreateFailure($"Unsupported package schema version {request.Package.SchemaVersion}. Expected version {ProfileSharingConstants.DefaultSchemaVersion}.");
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static OperationResult<bool> ValidateClientCompatibility(GameInstallation? installation, SharedGameProfilePackage package)
+    {
+        if (installation == null || package.Profile.GameClientManifestId == null)
+        {
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+
+        var matchedClient = installation.AvailableGameClients.FirstOrDefault(c => c.Id == package.Profile.GameClientManifestId);
+        if (matchedClient != null && matchedClient.GameType != package.Profile.GameType)
+        {
+            return OperationResult<bool>.CreateFailure($"Client '{matchedClient.Name}' game type ({matchedClient.GameType}) does not match shared profile game type ({package.Profile.GameType}).");
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static GameClient? ResolveGameClient(GameInstallation? installation, SharedGameProfilePackage package)
+    {
+        if (installation != null)
+        {
+            var matched = installation.AvailableGameClients.FirstOrDefault(c => c.Id == package.Profile.GameClientManifestId)
+                ?? installation.AvailableGameClients.FirstOrDefault(c => c.GameType == package.Profile.GameType)
+                ?? installation.AvailableGameClients.FirstOrDefault();
+
+            if (matched != null)
+            {
+                return matched;
+            }
+        }
+
+        if (package.Profile.GameClientManifestId != null)
+        {
+            return new GameClient
+            {
+                Id = package.Profile.GameClientManifestId,
+                Name = package.Profile.Name,
+                Version = package.Profile.GameVersion,
+                GameType = package.Profile.GameType,
+                ExecutablePath = string.Empty,
+            };
+        }
+
+        return null;
+    }
+
+    private async Task<GameInstallation?> ResolveSelectedInstallationAsync(string? installationId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(installationId))
+        {
+            return null;
+        }
+
+        var instResult = await installationService.GetInstallationAsync(installationId, cancellationToken);
+        return instResult.Success ? instResult.Data : null;
+    }
+
+    private async Task<OperationResult<List<string>>> AcquireAllDependenciesAsync(
+        SharedGameProfilePackage package,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var requiredManifestIds = new List<string>();
+
+        for (int i = 0; i < package.RequiredManifests.Count; i++)
+        {
+            var dep = package.RequiredManifests[i];
+            if (!ManifestId.TryCreate(dep.ManifestId, out _))
+            {
+                return OperationResult<List<string>>.CreateFailure($"Invalid dependency manifest ID '{dep.ManifestId}'.");
+            }
+
+            requiredManifestIds.Add(dep.ManifestId);
+
+            var isCachedResult = await manifestPool.IsManifestAcquiredAsync(dep.ManifestId, cancellationToken);
+            if (!isCachedResult.Success || !isCachedResult.Data)
+            {
+                logger.LogInformation("Acquiring missing dependency for profile import: {ManifestId}", dep.ManifestId);
+                progress?.Report(new ContentAcquisitionProgress
+                {
+                    Phase = ContentAcquisitionPhase.Downloading,
+                    ProgressPercentage = package.RequiredManifests.Count > 0 ? ((double)i / package.RequiredManifests.Count) * 100.0 : 0.0,
+                    CurrentOperation = $"Acquiring {dep.DisplayName}...",
+                    CurrentFile = dep.DisplayName,
+                    FilesProcessed = i,
+                    TotalFiles = package.RequiredManifests.Count,
+                });
+
+                var acquireResult = await AcquireMissingManifestAsync(dep, progress, cancellationToken);
+                if (!acquireResult.Success)
+                {
+                    return OperationResult<List<string>>.CreateFailure($"Failed to acquire manifest {dep.DisplayName} ({dep.ManifestId}): {acquireResult.FirstError}");
+                }
+            }
+        }
+
+        return OperationResult<List<string>>.CreateSuccess(requiredManifestIds);
+    }
+
+    private GameProfile BuildImportedProfile(
+        SharedProfileImportRequest request,
+        GameClient? gameClient,
+        List<string> requiredManifestIds)
+    {
+        var package = request.Package;
+        var sanitizedArgs = ProfileSharingCompressionHelper.SanitizeCommandLineArguments(
+            package.Profile.CommandLineArguments,
+            out _);
+
+        var newProfile = new GameProfile
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Name = request.ProfileName,
+            Description = package.Profile.Description,
+            ThemeColor = package.Profile.ThemeColor ?? "#1976D2",
+            IconPath = package.Profile.IconPath,
+            CoverPath = package.Profile.CoverPath,
+            GameInstallationId = request.GameInstallationId,
+            GameClient = gameClient,
+            WorkspaceStrategy = package.Profile.WorkspaceStrategy,
+            CommandLineArguments = sanitizedArgs,
+            UseSteamLaunch = package.Profile.UseSteamLaunch,
+            EnabledContentIds = requiredManifestIds,
+        };
+
+        if (request.IncludeGameSettings && package.Profile.GameSettingsOverrides != null)
+        {
+            ApplySettingsOverridesToProfile(newProfile, package.Profile.GameSettingsOverrides);
+        }
+
+        return newProfile;
     }
 
     private async Task<OperationResult<SharedGameProfilePackage>> BuildPackageFromProfileIdAsync(string profileId, CancellationToken cancellationToken)
@@ -711,150 +767,32 @@ public class ProfileSharingService(
                 return OperationResult<bool>.CreateFailure($"Invalid manifest ID '{dependency.ManifestId}'.");
             }
 
-            // 1. Check if manifest has download files
             if (dependency.Files?.Count > 0)
             {
-                var stagingBase = Path.Combine(Path.GetTempPath(), "GenHub", "SharedImportStaging");
-                var stagingDir = Path.Combine(stagingBase, Guid.NewGuid().ToString("N"));
-                Directory.CreateDirectory(stagingDir);
-
-                try
-                {
-                    var contentManifest = new ContentManifest
-                    {
-                        Id = validatedManifestId,
-                        Name = dependency.DisplayName,
-                        Version = dependency.Version,
-                        ContentType = dependency.ContentType,
-                        Publisher = new PublisherInfo
-                        {
-                            Name = dependency.Publisher ?? "Community",
-                            PublisherType = dependency.PublisherType ?? PublisherTypeConstants.Unknown,
-                        },
-                        Files = [.. dependency.Files],
-                    };
-
-                    var canonicalStagingPrefix = Path.GetFullPath(stagingDir) + Path.DirectorySeparatorChar;
-
-                    foreach (var file in dependency.Files)
-                    {
-                        if (string.IsNullOrEmpty(file.DownloadUrl))
-                        {
-                            continue;
-                        }
-
-                        if (string.IsNullOrWhiteSpace(file.RelativePath) || Path.IsPathRooted(file.RelativePath) || file.RelativePath.Contains(".."))
-                        {
-                            return OperationResult<bool>.CreateFailure($"Invalid relative path in manifest: {file.RelativePath}");
-                        }
-
-                        var destination = Path.GetFullPath(Path.Combine(stagingDir, file.RelativePath));
-                        if (!destination.StartsWith(canonicalStagingPrefix, StringComparison.Ordinal))
-                        {
-                            return OperationResult<bool>.CreateFailure($"File path escapes staging directory: {file.RelativePath}");
-                        }
-
-                        var destinationDir = Path.GetDirectoryName(destination);
-                        if (!string.IsNullOrEmpty(destinationDir))
-                        {
-                            Directory.CreateDirectory(destinationDir);
-                        }
-
-                        if (!Uri.TryCreate(file.DownloadUrl, UriKind.Absolute, out var fileDownloadUri) || !await IsSafeRemoteUriAsync(fileDownloadUri, cancellationToken))
-                        {
-                            return OperationResult<bool>.CreateFailure($"Unsafe download URL blocked: {file.DownloadUrl}");
-                        }
-
-                        using var response = await httpClient.GetAsync(fileDownloadUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-                        response.EnsureSuccessStatusCode();
-
-                        using var sha256 = SHA256.Create();
-                        using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-                        using var fileStream = File.Create(destination);
-
-                        byte[] buffer = new byte[16384];
-                        int bytesRead;
-                        long totalDownloaded = 0;
-
-                        while ((bytesRead = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
-                        {
-                            sha256.TransformBlock(buffer, 0, bytesRead, null, 0);
-                            await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
-                            totalDownloaded += bytesRead;
-
-                            if (file.Size > 0 && totalDownloaded > (file.Size + (1024 * 1024)))
-                            {
-                                return OperationResult<bool>.CreateFailure($"Download size for {file.RelativePath} exceeded expected size limit.");
-                            }
-                        }
-
-                        sha256.TransformFinalBlock([], 0, 0);
-                        var computedHash = Convert.ToHexString(sha256.Hash ?? []).ToLowerInvariant();
-
-                        if (!string.IsNullOrWhiteSpace(file.Hash) && !string.Equals(computedHash, file.Hash.Replace("-", string.Empty).ToLowerInvariant(), StringComparison.OrdinalIgnoreCase))
-                        {
-                            return OperationResult<bool>.CreateFailure($"SHA-256 hash mismatch for {file.RelativePath}.");
-                        }
-                    }
-
-                    // Check if a specialized factory applies
-                    var factory = publisherManifestFactoryResolver.ResolveFactory(contentManifest);
-                    if (factory != null)
-                    {
-                        var createdManifests = await factory.CreateManifestsFromExtractedContentAsync(contentManifest, stagingDir, cancellationToken);
-                        foreach (var m in createdManifests)
-                        {
-                            await manifestPool.AddManifestAsync(m, stagingDir, cancellationToken: cancellationToken);
-                        }
-                    }
-                    else
-                    {
-                        await manifestPool.AddManifestAsync(contentManifest, stagingDir, cancellationToken: cancellationToken);
-                    }
-
-                    return OperationResult<bool>.CreateSuccess(true);
-                }
-                finally
-                {
-                    try
-                    {
-                        if (Directory.Exists(stagingDir) && Path.GetFullPath(stagingDir).StartsWith(Path.GetFullPath(stagingBase), StringComparison.Ordinal))
-                        {
-                            Directory.Delete(stagingDir, true);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "Failed to clean up staging directory {StagingDir}", stagingDir);
-                    }
-                }
+                return await DownloadAndRegisterManifestFilesAsync(dependency, validatedManifestId, cancellationToken);
             }
 
-            // 2. Fallback: query orchestrator search for manifest by EXACT ID match only
-            var searchResult = await contentOrchestrator.SearchAsync(
-                new ContentSearchQuery
-                {
-                    SearchTerm = dependency.DisplayName,
-                    ContentType = dependency.ContentType,
-                    Take = 10,
-                },
-                cancellationToken);
+            return await SearchAndAcquireFallbackManifestAsync(dependency, validatedManifestId, progress, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error acquiring missing manifest {ManifestId}", dependency.ManifestId);
+            return OperationResult<bool>.CreateFailure($"Failed to acquire manifest: {ex.Message}");
+        }
+    }
 
-            if (searchResult.Success && searchResult.Data != null)
-            {
-                var match = searchResult.Data.FirstOrDefault(r => r.Id.Equals(dependency.ManifestId, StringComparison.OrdinalIgnoreCase));
-                if (match != null)
-                {
-                    var acquireRes = await contentOrchestrator.AcquireContentAsync(match, progress, cancellationToken);
-                    if (acquireRes.Success)
-                    {
-                        return OperationResult<bool>.CreateSuccess(true);
-                    }
-                }
-            }
+    private async Task<OperationResult<bool>> DownloadAndRegisterManifestFilesAsync(
+        SharedManifestDependency dependency,
+        ManifestId validatedManifestId,
+        CancellationToken cancellationToken)
+    {
+        var stagingBase = Path.Combine(Path.GetTempPath(), "GenHub", "SharedImportStaging");
+        var stagingDir = Path.Combine(stagingBase, Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(stagingDir);
 
-            // If unable to acquire but manifest definition is known, synthesize a manifest entry
-            var fallbackManifest = new ContentManifest
+        try
+        {
+            var contentManifest = new ContentManifest
             {
                 Id = validatedManifestId,
                 Name = dependency.DisplayName,
@@ -865,16 +803,162 @@ public class ProfileSharingService(
                     Name = dependency.Publisher ?? "Community",
                     PublisherType = dependency.PublisherType ?? PublisherTypeConstants.Unknown,
                 },
+                Files = [.. dependency.Files!],
             };
 
-            await manifestPool.AddManifestAsync(fallbackManifest, cancellationToken);
+            var canonicalStagingPrefix = Path.GetFullPath(stagingDir) + Path.DirectorySeparatorChar;
+
+            foreach (var file in dependency.Files!)
+            {
+                var downloadResult = await DownloadAndVerifyFileAsync(file, stagingDir, canonicalStagingPrefix, cancellationToken);
+                if (!downloadResult.Success)
+                {
+                    return downloadResult;
+                }
+            }
+
+            var factory = publisherManifestFactoryResolver.ResolveFactory(contentManifest);
+            if (factory != null)
+            {
+                var createdManifests = await factory.CreateManifestsFromExtractedContentAsync(contentManifest, stagingDir, cancellationToken);
+                foreach (var m in createdManifests)
+                {
+                    await manifestPool.AddManifestAsync(m, stagingDir, cancellationToken: cancellationToken);
+                }
+            }
+            else
+            {
+                await manifestPool.AddManifestAsync(contentManifest, stagingDir, cancellationToken: cancellationToken);
+            }
+
             return OperationResult<bool>.CreateSuccess(true);
         }
-        catch (Exception ex)
+        finally
         {
-            logger.LogError(ex, "Error acquiring missing manifest {ManifestId}", dependency.ManifestId);
-            return OperationResult<bool>.CreateFailure($"Failed to acquire manifest: {ex.Message}");
+            try
+            {
+                if (Directory.Exists(stagingDir) && Path.GetFullPath(stagingDir).StartsWith(Path.GetFullPath(stagingBase), StringComparison.Ordinal))
+                {
+                    Directory.Delete(stagingDir, true);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to clean up staging directory {StagingDir}", stagingDir);
+            }
         }
+    }
+
+    private async Task<OperationResult<bool>> DownloadAndVerifyFileAsync(
+        ManifestFile file,
+        string stagingDir,
+        string canonicalStagingPrefix,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(file.DownloadUrl))
+        {
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+
+        if (string.IsNullOrWhiteSpace(file.RelativePath) || Path.IsPathRooted(file.RelativePath) || file.RelativePath.Contains(".."))
+        {
+            return OperationResult<bool>.CreateFailure($"Invalid relative path in manifest: {file.RelativePath}");
+        }
+
+        var destination = Path.GetFullPath(Path.Combine(stagingDir, file.RelativePath));
+        if (!destination.StartsWith(canonicalStagingPrefix, StringComparison.Ordinal))
+        {
+            return OperationResult<bool>.CreateFailure($"File path escapes staging directory: {file.RelativePath}");
+        }
+
+        var destinationDir = Path.GetDirectoryName(destination);
+        if (!string.IsNullOrEmpty(destinationDir))
+        {
+            Directory.CreateDirectory(destinationDir);
+        }
+
+        if (!Uri.TryCreate(file.DownloadUrl, UriKind.Absolute, out var fileDownloadUri) || !await IsSafeRemoteUriAsync(fileDownloadUri, cancellationToken))
+        {
+            return OperationResult<bool>.CreateFailure($"Unsafe download URL blocked: {file.DownloadUrl}");
+        }
+
+        using var response = await httpClient.GetAsync(fileDownloadUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        using var sha256 = SHA256.Create();
+        using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var fileStream = File.Create(destination);
+
+        byte[] buffer = new byte[16384];
+        int bytesRead = 0;
+        long totalDownloaded = 0;
+
+        while ((bytesRead = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
+        {
+            sha256.TransformBlock(buffer, 0, bytesRead, null, 0);
+            await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+            totalDownloaded += bytesRead;
+
+            if (file.Size > 0 && totalDownloaded > (file.Size + (1024 * 1024)))
+            {
+                return OperationResult<bool>.CreateFailure($"Download size for {file.RelativePath} exceeded expected size limit.");
+            }
+        }
+
+        sha256.TransformFinalBlock([], 0, 0);
+        var computedHash = Convert.ToHexString(sha256.Hash ?? []).ToLowerInvariant();
+
+        if (!string.IsNullOrWhiteSpace(file.Hash) && !string.Equals(computedHash, file.Hash.Replace("-", string.Empty).ToLowerInvariant(), StringComparison.OrdinalIgnoreCase))
+        {
+            return OperationResult<bool>.CreateFailure($"SHA-256 hash mismatch for {file.RelativePath}.");
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private async Task<OperationResult<bool>> SearchAndAcquireFallbackManifestAsync(
+        SharedManifestDependency dependency,
+        ManifestId validatedManifestId,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var searchResult = await contentOrchestrator.SearchAsync(
+            new ContentSearchQuery
+            {
+                SearchTerm = dependency.DisplayName,
+                ContentType = dependency.ContentType,
+                Take = 10,
+            },
+            cancellationToken);
+
+        if (searchResult.Success && searchResult.Data != null)
+        {
+            var match = searchResult.Data.FirstOrDefault(r => r.Id.Equals(dependency.ManifestId, StringComparison.OrdinalIgnoreCase));
+            if (match != null)
+            {
+                var acquireRes = await contentOrchestrator.AcquireContentAsync(match, progress, cancellationToken);
+                if (acquireRes.Success)
+                {
+                    return OperationResult<bool>.CreateSuccess(true);
+                }
+            }
+        }
+
+        var fallbackManifest = new ContentManifest
+        {
+            Id = validatedManifestId,
+            Name = dependency.DisplayName,
+            Version = dependency.Version,
+            ContentType = dependency.ContentType,
+            Publisher = new PublisherInfo
+            {
+                Name = dependency.Publisher ?? "Community",
+                PublisherType = dependency.PublisherType ?? PublisherTypeConstants.Unknown,
+            },
+        };
+
+        await manifestPool.AddManifestAsync(fallbackManifest, cancellationToken);
+        return OperationResult<bool>.CreateSuccess(true);
     }
 
     private void ApplySettingsOverridesToProfile(GameProfile profile, Dictionary<string, object?> overrides)

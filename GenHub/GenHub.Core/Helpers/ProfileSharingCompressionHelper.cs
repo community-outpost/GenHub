@@ -56,7 +56,7 @@ public static class ProfileSharingCompressionHelper
         using var outputStream = new MemoryStream();
 
         byte[] buffer = new byte[8192];
-        int bytesRead;
+        int bytesRead = 0;
         long totalBytes = 0;
         while ((bytesRead = brotliStream.Read(buffer, 0, buffer.Length)) > 0)
         {
@@ -93,7 +93,7 @@ public static class ProfileSharingCompressionHelper
         using var outputStream = new MemoryStream();
 
         byte[] buffer = new byte[8192];
-        int bytesRead;
+        int bytesRead = 0;
         long totalBytes = 0;
         while ((bytesRead = await brotliStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
         {
