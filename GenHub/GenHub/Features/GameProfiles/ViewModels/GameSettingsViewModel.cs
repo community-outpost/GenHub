@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -895,8 +896,16 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     }
 
     /// <summary>
-    /// Saves the current settings to options.ini.
+    /// Saves the current settings to Options.ini and, for a GeneralsOnline profile, to the client's
+    /// settings.json.
     /// </summary>
+    /// <remarks>
+    /// The two files are separate writes with no transaction between them, so either one can land
+    /// while the other does not: the settings.json rewrite can be refused after Options.ini is
+    /// written, and Options.ini can fail after settings.json has been rewritten. Reordering the
+    /// writes only moves which half is exposed, so the status message names the halves separately
+    /// instead of reporting a total failure over a file that was written.
+    /// </remarks>
     [RelayCommand]
     private async Task SaveSettings()
     {
@@ -933,25 +942,47 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
                 }
             }
 
-            if (result?.Success == true && (!writeGeneralsOnlineSettings || goResult?.Success == true))
+            var optionsSaved = result?.Success == true;
+            var generalsOnlineWritten = goResult?.Success == true;
+            var generalsOnlineBlocked = writeGeneralsOnlineSettings && !generalsOnlineWritten;
+
+            if (optionsSaved)
             {
                 _currentOptions = options;
-
                 OptionsFileExists = true;
+            }
+
+            var optionsErrors = new List<string>();
+            if (result == null) optionsErrors.Add("SaveOptions result was null");
+            if (result?.Success == false) optionsErrors.AddRange(result.Errors);
+
+            var generalsOnlineErrors = new List<string>();
+            if (goLoadError != null) generalsOnlineErrors.Add(goLoadError);
+            if (goResult?.Success == false) generalsOnlineErrors.AddRange(goResult.Errors);
+            if (generalsOnlineBlocked && goLoadError == null && goResult == null) generalsOnlineErrors.Add("SaveGeneralsOnlineSettings result was null");
+
+            if (optionsSaved && !generalsOnlineBlocked)
+            {
                 StatusMessage = $"{SelectedGameType} settings saved successfully";
                 _logger.LogInformation("Saved settings for {GameType}", SelectedGameType);
             }
+            else if (optionsSaved)
+            {
+                var goErrors = string.Join(", ", generalsOnlineErrors);
+                StatusMessage = $"Options.ini saved; GeneralsOnline settings not written: {goErrors}";
+                _logger.LogWarning("Saved Options.ini for {GameType} but did not write GeneralsOnline settings: {Errors}", SelectedGameType, goErrors);
+            }
+            else if (generalsOnlineWritten)
+            {
+                var iniErrors = string.Join(", ", optionsErrors);
+                StatusMessage = $"GeneralsOnline settings saved; Options.ini not saved: {iniErrors}";
+                _logger.LogWarning("Wrote GeneralsOnline settings but failed to save Options.ini for {GameType}: {Errors}", SelectedGameType, iniErrors);
+            }
             else
             {
-                var errors = new List<string>();
-                if (result?.Success == false) errors.AddRange(result.Errors);
-                if (goResult?.Success == false) errors.AddRange(goResult.Errors);
-                if (result == null) errors.Add("SaveOptions result was null");
-                if (goLoadError != null) errors.Add(goLoadError);
-                if (writeGeneralsOnlineSettings && goLoadError == null && goResult == null) errors.Add("SaveGeneralsOnlineSettings result was null");
-
-                StatusMessage = $"Failed to save settings: {string.Join(", ", errors)}";
-                _logger.LogWarning("Failed to save settings: {Errors}", string.Join(", ", errors));
+                var errors = string.Join(", ", optionsErrors.Concat(generalsOnlineErrors));
+                StatusMessage = $"Failed to save settings: {errors}";
+                _logger.LogWarning("Failed to save settings: {Errors}", errors);
             }
         }
         catch (Exception ex)

@@ -590,7 +590,112 @@ public class GameSettingsViewModelTests
         _gameSettingsServiceMock.Verify(
             x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()),
             Times.Never);
+        Assert.Contains("Options.ini saved", _viewModel.StatusMessage);
+        Assert.Contains("GeneralsOnline settings not written", _viewModel.StatusMessage);
+    }
+
+    /// <summary>
+    /// Should never report that nothing was saved once Options.ini has been written, because the
+    /// Options.ini write happens before the settings.json rewrite is gated and a user told the save
+    /// failed outright would redo work that is already on disk.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_NotReportTotalFailure_WhenOnlyTheGeneralsOnlineWriteIsSkippedAsync()
+    {
+        // Arrange - seeding fails, so the save may not rewrite settings.json
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateFailure("settings.json is locked"));
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("go-profile", CreateGeneralsOnlineProfile());
+        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.DoesNotContain("Failed to save settings", _viewModel.StatusMessage);
+        Assert.Contains("Options.ini saved", _viewModel.StatusMessage);
+        Assert.Contains("never read", _viewModel.StatusMessage);
+        Assert.True(_viewModel.OptionsFileExists);
+    }
+
+    /// <summary>
+    /// Should report Options.ini as written when the settings.json rewrite itself is refused, which
+    /// is the same split outcome as a refused read reached through a later step.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_ReportOptionsIniSaved_WhenTheGeneralsOnlineWriteFailsAsync()
+    {
+        // Arrange
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()));
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("settings.json is read-only"));
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("go-profile", CreateGeneralsOnlineProfile());
+        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.DoesNotContain("Failed to save settings", _viewModel.StatusMessage);
+        Assert.Contains("Options.ini saved", _viewModel.StatusMessage);
+        Assert.Contains("settings.json is read-only", _viewModel.StatusMessage);
+    }
+
+    /// <summary>
+    /// Should report settings.json as written when it is the Options.ini write that fails, because
+    /// the rewrite is attempted regardless of how the Options.ini write went.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_ReportGeneralsOnlineSaved_WhenTheOptionsIniWriteFailsAsync()
+    {
+        // Arrange
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()));
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("Options.ini is read-only"));
+        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("go-profile", CreateGeneralsOnlineProfile());
+        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.DoesNotContain("Failed to save settings", _viewModel.StatusMessage);
+        Assert.Contains("GeneralsOnline settings saved", _viewModel.StatusMessage);
+        Assert.Contains("Options.ini is read-only", _viewModel.StatusMessage);
+    }
+
+    /// <summary>
+    /// Should still report a plain failure when neither file was written, so the split reporting
+    /// does not soften an outcome where nothing landed.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_ReportTotalFailure_WhenNeitherFileIsWrittenAsync()
+    {
+        // Arrange
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()));
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(GameType.ZeroHour, It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("Options.ini is read-only"));
+        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
+            .ReturnsAsync(OperationResult<bool>.CreateFailure("settings.json is read-only"));
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("go-profile", CreateGeneralsOnlineProfile());
+        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+
+        // Assert
         Assert.Contains("Failed to save settings", _viewModel.StatusMessage);
+        Assert.Contains("Options.ini is read-only", _viewModel.StatusMessage);
+        Assert.Contains("settings.json is read-only", _viewModel.StatusMessage);
     }
 
     /// <summary>
