@@ -123,8 +123,13 @@ public static class PathHelper
                !Path.IsPathRooted(relative);
     }
 
-    private static string FollowLinks(string fullPath)
+    private static string FollowLinks(string fullPath, int maxDepth = 32)
     {
+        if (maxDepth <= 0)
+        {
+            return fullPath;
+        }
+
         try
         {
             var normalized = Path.GetFullPath(fullPath);
@@ -158,7 +163,7 @@ public static class PathHelper
                     var target = info.ResolveLinkTarget(returnFinalTarget: true);
                     if (target != null)
                     {
-                        current = target.FullName;
+                        current = FollowLinks(target.FullName, maxDepth - 1);
                     }
                 }
             }
