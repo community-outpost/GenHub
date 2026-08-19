@@ -39,15 +39,15 @@ When communicating and reasoning about GenHub, use this language:
 - **you** means the agent reading this file and changing GenHub.
 - **we, us, and maintainers** mean Community Outpost and the people building GenHub.
 - **user** means the player using GenHub to install, mod, and launch Generals / Zero Hour.
-- **CAS (Content-Addressable Storage)** means our content-addressable storage pool (`CasService`) where assets are deduplicated by hash.
+- **CAS (Content-Addressable Storage)** means our content-addressable storage pool (`ICasService`, `CasService`) where assets are deduplicated by hash.
 - **manifest** means the JSON descriptor (`ContentManifest`, `ManifestId`) defining content components, files, hashes, launch targets, and dependencies.
-- **reconciliation** means the atomic process (`ReconciliationService`) of turning a clean game installation into a desired profile workspace.
+- **reconciliation** means the atomic process (`ContentReconciliationService`, `IContentReconciliationService`) of turning a clean game installation into a desired profile workspace.
 - **workspace** means the active, materialized directory containing linked/deployed game files where the game executable actually runs.
 - **profile** means a player-configured setup of game version, active mods, maps, and configuration settings.
 
 ## The three ways to hurt yourself
 
-1. **Blind symbol edits.** Never modify core interfaces, storage services, or launcher models without checking caller chains via `gitnexus_impact`. Modifying a signature in `CasService`, `IContentService`, or `IReconciliationService` can break Windows launch receipts, Linux symlink handlers, and macOS composition roots simultaneously.
+1. **Blind symbol edits.** Never modify core interfaces, storage services, or launcher models without checking caller chains via `gitnexus_impact`. Modifying a signature in `ICasService`, `IContentService`, or `IContentReconciliationService` can break Windows launch receipts, Linux symlink handlers, and macOS composition roots simultaneously.
 2. **Throwing exceptions for control flow.** Never throw exceptions for predictable failure states (file missing, validation failure, hash mismatch, cancelled task). Return `OperationResult<T>.CreateFailure(...)`. Reserve exceptions solely for fatal runtime invariants.
 3. **Hardcoding paths and magic strings.** Never hardcode backslashes `\`, magic constants, URLs, or regexes inline. Always use `Path.Combine` and centralized constants from `GenHub.Core.Constants`.
 
@@ -66,7 +66,7 @@ The most common defect in this repository is a change that works on one platform
 
 This repository uses **GitNexus** to maintain an AST-parsed structural knowledge graph of components, symbols, dependencies, and execution flows in `.gitnexus/`.
 
-### The Three-Phase Cadence:
+### The Three-Phase Cadence
 
 1. **Phase 1 — Discovery (Before Modifying Core Symbols / Interfaces):**
    - Run `gitnexus_impact` to inspect upstream callers and downstream dependents:
@@ -83,7 +83,7 @@ This repository uses **GitNexus** to maintain an AST-parsed structural knowledge
    - Confirm that changes touching cross-platform abstractions (CAS, launcher, file handlers) stay intact.
 
 3. **Phase 3 — Gatekeeping (Pre-PR & CI):**
-   - CI builds, caches, and validates the `.gitnexus/` knowledge graph on push to `development` and `main`.
+   - CI builds, indexes, and validates the `.gitnexus/` knowledge graph on push to `development` and `main`.
    - PR CI runs `gitnexus detect-changes` to surface blast radius in GitHub Step Summaries.
    - If the local graph is stale after pulling `development`:
 
@@ -143,8 +143,8 @@ This repository uses **GitNexus** to maintain an AST-parsed structural knowledge
 
 ## Where code lives
 
-- `GenHub/GenHub.Core/` — Domain logic, CAS storage (`CasService`), manifest models, atomic reconciliation (`ReconciliationService`), launchers, game detectors, and tool plugin abstractions (`IToolPlugin`).
-- `GenHub/GenHub/` — Avalonia MVVM application, ViewModels, Views, Converters, Dialogs.
+- `GenHub/GenHub.Core/` — Core interfaces (`ICasService`, `IContentReconciliationService`, `IToolPlugin`), domain models (`ContentManifest`, `ManifestId`), launcher/detector contracts, constants, and utilities.
+- `GenHub/GenHub/` — Avalonia MVVM application, ViewModels, Views, Converters, Dialogs, and feature implementations (`CasService`, `ContentReconciliationService`, `GameLauncher`, `GameProcessManager`).
 - `GenHub/GenHub.Windows/` — Windows platform host, composition root, registry discovery, Win32 shortcuts.
 - `GenHub/GenHub.Linux/` — Linux platform host, composition root, desktop entries, Wine/Proton runner.
 - `GenHub/GenHub.MacOS/` — macOS platform host, composition root, `.app` bundle hooks, quarantine `xattr` removal.
