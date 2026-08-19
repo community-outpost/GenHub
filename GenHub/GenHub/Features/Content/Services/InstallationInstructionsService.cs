@@ -437,6 +437,18 @@ public class InstallationInstructionsService(
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
                 logger.LogError("Installer step '{StepName}' timed out", step.Name);
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill(entireProcessTree: true);
+                    }
+                }
+                catch (Exception killEx)
+                {
+                    logger.LogWarning(killEx, "Failed to terminate timed-out installer step '{StepName}'", step.Name);
+                }
+
                 notificationService.ShowError("Installation Step Failed", $"Step '{step.Name}' timed out.");
                 return OperationResult.CreateFailure($"Installation step '{step.Name}' timed out.");
             }

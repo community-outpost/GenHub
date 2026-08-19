@@ -716,16 +716,26 @@ public class GeneralsOnlineManifestFactory(
         ContentManifest manifest,
         List<ExtractedFileInfo> filesWithHashes)
     {
+        var hasEacSetup = filesWithHashes.Any(file =>
+            !file.IsMap && !file.IsGameData &&
+            IsArchiveRootFile(file.RelativePath, GameClientConstants.GeneralsOnlineEacSetupExecutable));
+
+        var inheritedPostSteps = (manifest.InstallationInstructions?.PostInstallSteps ?? [])
+            .Where(s => hasEacSetup || !string.Equals(
+                s.TargetRelativePath,
+                GameClientConstants.GeneralsOnlineEacSetupExecutable,
+                StringComparison.OrdinalIgnoreCase));
+
         var instructions = new InstallationInstructions
         {
             WorkspaceStrategy = manifest.InstallationInstructions?.WorkspaceStrategy ?? WorkspaceConstants.DefaultWorkspaceStrategy,
             DownloadHash = manifest.InstallationInstructions?.DownloadHash,
             PreInstallSteps = [.. manifest.InstallationInstructions?.PreInstallSteps ?? []],
-            PostInstallSteps = [.. manifest.InstallationInstructions?.PostInstallSteps ?? []],
+            PostInstallSteps = [.. inheritedPostSteps],
         };
 
         if (manifest.ContentType == ContentType.GameClient &&
-            filesWithHashes.Any(file => !file.IsMap && !file.IsGameData && IsArchiveRootFile(file.RelativePath, GameClientConstants.GeneralsOnlineEacSetupExecutable)) &&
+            hasEacSetup &&
             instructions.PostInstallSteps.All(s => !string.Equals(s.TargetRelativePath, GameClientConstants.GeneralsOnlineEacSetupExecutable, StringComparison.OrdinalIgnoreCase)))
         {
             instructions.PostInstallSteps.Add(new InstallationStep
