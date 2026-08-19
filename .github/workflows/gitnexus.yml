@@ -37,6 +37,16 @@ jobs:
           npx -y gitnexus@1.6.9 analyze --force --index-only
           npx -y gitnexus@1.6.9 status
 
+      - name: Upload GitNexus Knowledge Graph Artifact
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: gitnexus-graph-${{ github.sha }}
+          path: .gitnexus/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: PR Impact Analysis
         if: github.event_name == 'pull_request'
         shell: bash
@@ -49,12 +59,3 @@ jobs:
           set -e
           echo '```' >> $GITHUB_STEP_SUMMARY
           exit $EXIT_CODE
-
-      - name: Upload GitNexus Knowledge Graph Artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: gitnexus-graph-${{ github.sha }}
-          path: .gitnexus/
-          include-hidden-files: true
-          if-no-files-found: warn
-          retention-days: 14
