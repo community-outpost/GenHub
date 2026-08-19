@@ -349,8 +349,7 @@ public class GameLauncherTests : IDisposable
         {
             Id = clientManifestId,
             Name = "Contra EXE",
-            ContentType = ContentType.GameClient,
-            SourceType = ContentSourceType.ContentAddressable,
+            ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
         };
 
         var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = TestWorkspacePath, ExecutablePath = TestExecutablePath };

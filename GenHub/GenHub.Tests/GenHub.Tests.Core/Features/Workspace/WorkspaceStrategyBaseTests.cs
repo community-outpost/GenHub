@@ -174,7 +174,7 @@ public class WorkspaceStrategyBaseTests : IDisposable
             [
                 new()
                 {
-                    ContentType = ContentType.GameClient,
+                    ContentType = GenHub.Core.Models.Enums.ContentType.GameClient,
                     EntryPoint = "generals.ctr",
                     Files =
                     [
