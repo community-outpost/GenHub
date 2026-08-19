@@ -100,6 +100,22 @@ public class GeneralsOnlineManifestFactory(
                 },
             ],
             Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesFor60Hz(userVersion),
+            InstallationInstructions = new InstallationInstructions
+            {
+                WorkspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy,
+                PostInstallSteps =
+                [
+                    new InstallationStep
+                    {
+                        Name = GeneralsOnlineConstants.EacStepName,
+                        Kind = InstallationStepKind.RunVerifiedInstaller,
+                        TargetRelativePath = GameClientConstants.GeneralsOnlineEacSetupExecutable,
+                        Arguments = [GeneralsOnlineConstants.EacInstallCommand, GeneralsOnlineConstants.EacProductId],
+                        RequiresElevation = true,
+                        StatusMessage = GeneralsOnlineConstants.EacStatusMessage,
+                    },
+                ],
+            },
         };
     }
 
@@ -323,6 +339,7 @@ public class GeneralsOnlineManifestFactory(
             // Files will be populated during extraction
             Files = [],
             Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesForGameData(userVersion),
+            InstallationInstructions = new InstallationInstructions(),
         };
     }
 
@@ -378,18 +395,19 @@ public class GeneralsOnlineManifestFactory(
                 // MapPack requires Zero Hour installation
                 GeneralsOnlineDependencyBuilder.CreateZeroHourDependencyForGeneralsOnline(),
             ],
+            InstallationInstructions = new InstallationInstructions(),
         };
     }
 
     /// <summary>
-    /// Creates all variant manifests (60Hz, MapPack, and GameData Patch) from the original manifest.
-    /// This is called AFTER extraction - we use the original manifest's metadata to create variants.
+    /// Creates variant manifests (60Hz, QuickMatch MapPack, and GeneralsOnlineGameData data patch) from an original manifest.
+    /// This is used after downloading and extracting the portable ZIP.
     /// </summary>
-    /// <param name="originalManifest">The manifest from the Resolver (contains version, publisher info, etc.).</param>
-    /// <returns>List of variant manifests ready for file hash population.</returns>
+    /// <param name="originalManifest">The original manifest (can be 60Hz or generic).</param>
+    /// <returns>List of variant manifests with basic information populated.</returns>
     private List<ContentManifest> CreateVariantManifestsFromOriginal(ContentManifest originalManifest)
     {
-        var manifests = new List<ContentManifest>();
+        List<ContentManifest> manifests = [];
         var version = originalManifest.Version ?? GeneralsOnlineConstants.UnknownVersion;
         var userVersion = ParseVersionForManifestId(version);
 
@@ -440,6 +458,22 @@ public class GeneralsOnlineManifestFactory(
             },
             Files = [],
             Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesFor60Hz(userVersion),
+            InstallationInstructions = originalManifest.InstallationInstructions ?? new InstallationInstructions
+            {
+                WorkspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy,
+                PostInstallSteps =
+                [
+                    new InstallationStep
+                    {
+                        Name = GeneralsOnlineConstants.EacStepName,
+                        Kind = InstallationStepKind.RunVerifiedInstaller,
+                        TargetRelativePath = GameClientConstants.GeneralsOnlineEacSetupExecutable,
+                        Arguments = [GeneralsOnlineConstants.EacInstallCommand, GeneralsOnlineConstants.EacProductId],
+                        RequiresElevation = true,
+                        StatusMessage = GeneralsOnlineConstants.EacStatusMessage,
+                    },
+                ],
+            },
         });
 
         // Create QuickMatch MapPack
@@ -469,6 +503,7 @@ public class GeneralsOnlineManifestFactory(
             [
                 GeneralsOnlineDependencyBuilder.CreateZeroHourDependencyForGeneralsOnline(),
             ],
+            InstallationInstructions = new InstallationInstructions(),
         });
 
         // Create GeneralsOnlineGameData data patch
@@ -495,6 +530,7 @@ public class GeneralsOnlineManifestFactory(
             },
             Files = [],
             Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesForGameData(userVersion),
+            InstallationInstructions = new InstallationInstructions(),
         });
 
         return manifests;
@@ -662,6 +698,29 @@ public class GeneralsOnlineManifestFactory(
                     $"Manifest '{manifest.Name}' of type {manifest.ContentType} has no files in extract path '{extractPath}'.");
             }
 
+            var instructions = new InstallationInstructions
+            {
+                WorkspaceStrategy = manifest.InstallationInstructions?.WorkspaceStrategy ?? WorkspaceConstants.DefaultWorkspaceStrategy,
+                DownloadHash = manifest.InstallationInstructions?.DownloadHash,
+                PreInstallSteps = [.. manifest.InstallationInstructions?.PreInstallSteps ?? []],
+                PostInstallSteps = [.. manifest.InstallationInstructions?.PostInstallSteps ?? []],
+            };
+
+            if (manifest.ContentType == ContentType.GameClient &&
+                filesWithHashes.Any(file => !file.IsMap && !file.IsGameData && IsArchiveRootFile(file.RelativePath, GameClientConstants.GeneralsOnlineEacSetupExecutable)) &&
+                !instructions.PostInstallSteps.Any(s => string.Equals(s.TargetRelativePath, GameClientConstants.GeneralsOnlineEacSetupExecutable, StringComparison.OrdinalIgnoreCase)))
+            {
+                instructions.PostInstallSteps.Add(new InstallationStep
+                {
+                    Name = GeneralsOnlineConstants.EacStepName,
+                    Kind = InstallationStepKind.RunVerifiedInstaller,
+                    TargetRelativePath = GameClientConstants.GeneralsOnlineEacSetupExecutable,
+                    Arguments = [GeneralsOnlineConstants.EacInstallCommand, GeneralsOnlineConstants.EacProductId],
+                    RequiresElevation = true,
+                    StatusMessage = GeneralsOnlineConstants.EacStatusMessage,
+                });
+            }
+
             updatedManifests.Add(new ContentManifest
             {
                 Id = manifest.Id,
@@ -673,6 +732,7 @@ public class GeneralsOnlineManifestFactory(
                 Metadata = manifest.Metadata,
                 Files = manifestFiles,
                 Dependencies = manifest.Dependencies,
+                InstallationInstructions = instructions,
             });
         }
 

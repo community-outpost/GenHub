@@ -64,6 +64,42 @@ public static class PathHelper
     }
 
     /// <summary>
+    /// Determines whether the candidate path is contained within the specified container directory.
+    /// Prevents directory traversal and sibling prefix false positives.
+    /// </summary>
+    /// <param name="candidatePath">The candidate file or directory path to check.</param>
+    /// <param name="containerDirectory">The directory that must contain the candidate path.</param>
+    /// <returns><see langword="true"/> if candidatePath resolves inside containerDirectory; otherwise, <see langword="false"/>.</returns>
+    public static bool IsPathContainedIn(string candidatePath, string containerDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(candidatePath) || string.IsNullOrWhiteSpace(containerDirectory))
+        {
+            return false;
+        }
+
+        try
+        {
+            var fullCandidate = Path.GetFullPath(candidatePath);
+            var fullContainer = Path.GetFullPath(containerDirectory);
+
+            if (!fullContainer.EndsWith(Path.DirectorySeparatorChar) && !fullContainer.EndsWith(Path.AltDirectorySeparatorChar))
+            {
+                fullContainer += Path.DirectorySeparatorChar;
+            }
+
+            return fullCandidate.StartsWith(fullContainer, PathComparison) ||
+                   string.Equals(
+                       fullCandidate.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                       fullContainer.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                       PathComparison);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
     /// Determines whether a candidate path resolves to a location inside a base directory.
     /// Both paths are fully normalized first, so <c>..</c> segments, redundant separators and
     /// rooted candidates cannot escape the base directory. Because normalization is textual and a
@@ -81,6 +117,24 @@ public static class PathHelper
 
         return IsContained(normalizedRoot, normalizedTarget) &&
                IsContained(FollowLinks(normalizedRoot), FollowLinks(normalizedTarget));
+    }
+
+    /// <summary>
+    /// Normalizes a relative path by standardizing directory separators and removing leading separators.
+    /// </summary>
+    /// <param name="relativePath">The relative path to normalize.</param>
+    /// <returns>The normalized relative path.</returns>
+    public static string NormalizeRelativePath(string relativePath)
+    {
+        if (string.IsNullOrWhiteSpace(relativePath))
+        {
+            return string.Empty;
+        }
+
+        return relativePath
+            .Replace('\\', '/')
+            .TrimStart('/')
+            .Replace('/', Path.DirectorySeparatorChar);
     }
 
     private static bool IsContained(string normalizedRoot, string normalizedTarget)

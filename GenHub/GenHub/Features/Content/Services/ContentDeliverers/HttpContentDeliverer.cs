@@ -158,7 +158,7 @@ public class HttpContentDeliverer(IDownloadService downloadService, IContentMani
             // Add installation instructions if present
             if (packageManifest.InstallationInstructions != null)
             {
-                deliveredManifest.WithInstallationInstructions(packageManifest.InstallationInstructions.WorkspaceStrategy);
+                deliveredManifest.WithInstallationInstructions(packageManifest.InstallationInstructions);
             }
 
             return OperationResult<ContentManifest>.CreateSuccess(deliveredManifest.Build());

@@ -20,12 +20,10 @@ namespace GenHub.Features.Content.Services.ContentProviders;
 /// </summary>
 public abstract class BaseContentProvider(
     IContentValidator contentValidator,
+    IInstallationInstructionsService installationInstructionsService,
     ILogger logger
 ) : IContentProvider
 {
-    private readonly ILogger logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    private readonly IContentValidator _contentValidator = contentValidator ?? throw new ArgumentNullException(nameof(contentValidator));
-
     /// <inheritdoc />
     public abstract string SourceName { get; }
 
@@ -58,86 +56,86 @@ public abstract class BaseContentProvider(
                 $"Discovery failed: {discoveryResult.FirstError}");
         }
 
-        var resolvedResults = new List<ContentSearchResult>();
-
-        // Step 2: Resolution & Validation
-        foreach (var discovered in discoveryResult.Data.Items)
+        // Step 2: Resolution for each discovered item
+        var results = new List<ContentSearchResult>();
+        foreach (var manifest in discoveryResult.Data)
         {
-            if (discovered.RequiresResolution)
-            {
-                var resolutionResult = await Resolver.ResolveAsync(providerDefinition, discovered, cancellationToken);
-                if (resolutionResult.Success && resolutionResult.Data != null)
-                {
-                    var validationResult = await ContentValidator.ValidateManifestAsync(
-                        resolutionResult.Data, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
-                    if (validationResult.IsValid)
-                    {
-                        var resolvedSearchResult = CreateResolvedSearchResult(discovered, resolutionResult.Data);
-                        resolvedResults.Add(resolvedSearchResult);
-                    }
-                    else
-                    {
-                        Logger.LogWarning(
-                            "Manifest validation failed for {ContentName}: {Errors}",
-                            discovered.Name,
-                            string.Join(", ", validationResult.Issues.Select(i => i.Message)));
-                    }
-                }
-                else
+            var resolveResult = await Resolver.ResolveAsync(manifest, cancellationToken);
+            if (resolveResult.Success && resolveResult.Data != null)
+            {
+                results.Add(new ContentSearchResult
                 {
-                    Logger.LogWarning(
-                        "Resolution failed for {ContentName}: {Error}",
-                        discovered.Name,
-                        resolutionResult.FirstError ?? "Unknown error");
-                }
+                    Manifest = resolveResult.Data,
+                    SourceName = SourceName,
+                    Score = CalculateRelevanceScore(query.SearchTerm, resolveResult.Data),
+                });
             }
             else
             {
-                resolvedResults.Add(discovered);
+                Logger.LogWarning("Failed to resolve manifest {ManifestId}: {Error}", manifest.Id, resolveResult.FirstError);
             }
         }
 
-        return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(resolvedResults);
+        Logger.LogInformation("Found {Count} items matching '{SearchTerm}' from {ProviderName}", results.Count, query.SearchTerm, SourceName);
+        return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results);
     }
 
-    /// <summary>
-    /// Gets the manifest for the specified content ID.
-    /// </summary>
-    /// <param name="contentId">The content identifier.</param>
-    /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A result containing the game manifest.</returns>
-    public abstract Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
+    /// <inheritdoc />
+    public virtual async Task<OperationResult<ContentManifest>> GetByIdAsync(
         string contentId,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default)
+    {
+        Logger.LogDebug("Fetching content by ID: {ContentId} from {ProviderName}", contentId, SourceName);
 
-    /// <inheritdoc/>
+        var query = new ContentSearchQuery { SearchTerm = contentId };
+        var searchResult = await SearchAsync(query, cancellationToken);
+
+        if (!searchResult.Success || searchResult.Data == null)
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Failed to fetch content: {searchResult.FirstError}");
+        }
+
+        var match = searchResult.Data.FirstOrDefault(r => r.Manifest.Id.Value == contentId);
+        if (match?.Manifest == null)
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                $"Content with ID '{contentId}' not found in {SourceName}");
+        }
+
+        return OperationResult<ContentManifest>.CreateSuccess(match.Manifest);
+    }
+
+    /// <inheritdoc />
     public virtual async Task<OperationResult<ContentManifest>> PrepareContentAsync(
         ContentManifest manifest,
         string workingDirectory,
         IProgress<ContentAcquisitionProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(manifest);
+        ArgumentNullException.ThrowIfNull(workingDirectory);
+
+        Logger.LogInformation("Starting content preparation for manifest: {ManifestId} in {Directory}", manifest.Id, workingDirectory);
+
         try
         {
-            Logger.LogDebug("Preparing content for manifest {ManifestId}", manifest.Id);
-
-            // Validate manifest before preparation
+            // Initial manifest structure validation
             progress?.Report(new ContentAcquisitionProgress
             {
-                Phase = ContentAcquisitionPhase.ValidatingManifest,
+                Phase = ContentAcquisitionPhase.ValidatingFiles,
                 CurrentOperation = "Validating manifest structure...",
             });
 
-            var validationResult = await ContentValidator.ValidateManifestAsync(manifest, cancellationToken);
-            if (!validationResult.IsValid)
+            var manifestValidationResult = await ContentValidator.ValidateManifestAsync(manifest, cancellationToken);
+            if (manifestValidationResult.HasErrors)
             {
-                var errors = validationResult.Issues.Where(i => i.Severity == ValidationSeverity.Error).ToList();
-                if (errors.Count > 0)
-                {
-                    return OperationResult<ContentManifest>.CreateFailure(
-                        errors.Select(e => $"Manifest validation failed: {e.Message}"));
-                }
+                var errors = string.Join("; ", manifestValidationResult.Issues.Where(i => i.Severity == ValidationSeverity.Error).Select(i => i.Message));
+                Logger.LogError("Manifest validation failed for {ManifestId}: {Errors}", manifest.Id, errors);
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"Manifest validation failed: {errors}");
             }
 
             progress?.Report(new ContentAcquisitionProgress
@@ -149,8 +147,21 @@ public abstract class BaseContentProvider(
             // Delegate to implementation-specific preparation
             var result = await PrepareContentInternalAsync(manifest, workingDirectory, progress, cancellationToken);
 
-            if (result.Success)
+            if (result.Success && result.Data != null)
             {
+                // Execute post-installation steps if declared on the delivered manifest
+                var stepExecutionResult = await installationInstructionsService.ExecutePostInstallStepsAsync(
+                    result.Data,
+                    workingDirectory,
+                    progress,
+                    cancellationToken);
+
+                if (!stepExecutionResult.Success)
+                {
+                    Logger.LogError("Post-installation steps failed for manifest {ManifestId}: {Error}", manifest.Id, stepExecutionResult.FirstError);
+                    return OperationResult<ContentManifest>.CreateFailure(stepExecutionResult.Errors);
+                }
+
                 // Final validation of prepared content
                 progress?.Report(new ContentAcquisitionProgress
                 {
@@ -178,7 +189,7 @@ public abstract class BaseContentProvider(
 
                 var fullResult = await ContentValidator.ValidateAllAsync(
                     workingDirectory,
-                    result.Data!,
+                    result.Data,
                     validationProgress,
                     cancellationToken: cancellationToken);
 
@@ -216,7 +227,12 @@ public abstract class BaseContentProvider(
     /// <summary>
     /// Gets the content validator for manifest validation.
     /// </summary>
-    protected IContentValidator ContentValidator => _contentValidator;
+    protected IContentValidator ContentValidator => contentValidator;
+
+    /// <summary>
+    /// Gets the installation instructions service.
+    /// </summary>
+    protected IInstallationInstructionsService InstallationInstructionsService => installationInstructionsService;
 
     /// <summary>
     /// Gets the discoverer for this provider.
@@ -234,85 +250,59 @@ public abstract class BaseContentProvider(
     protected abstract IContentDeliverer Deliverer { get; }
 
     /// <summary>
-    /// Gets the provider definition for data-driven configuration.
-    /// Override this method to provide a ProviderDefinition loaded from JSON configuration.
-    /// </summary>
-    /// <returns>The provider definition, or null if the provider uses hardcoded configuration.</returns>
-    protected virtual ProviderDefinition? GetProviderDefinition() => null;
-
-    /// <summary>
     /// Implementation-specific content preparation logic.
+    /// Override this method to provide custom delivery orchestration.
+    /// Default implementation uses the Deliverer component.
     /// </summary>
-    /// <param name="manifest">The manifest to prepare.</param>
-    /// <param name="workingDirectory">Working directory for content preparation.</param>
-    /// <param name="progress">Progress reporter.</param>
+    /// <param name="manifest">The content manifest to prepare.</param>
+    /// <param name="workingDirectory">The working directory for preparation.</param>
+    /// <param name="progress">Progress reporter for tracking progress.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The prepared manifest.</returns>
-    protected abstract Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
+    /// <returns>A result containing the prepared manifest with updated file details.</returns>
+    protected virtual async Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
         ContentManifest manifest,
         string workingDirectory,
         IProgress<ContentAcquisitionProgress>? progress,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken)
+    {
+        return await Deliverer.DeliverContentAsync(manifest, workingDirectory, progress, cancellationToken);
+    }
 
     /// <summary>
-    /// Creates a resolved <see cref="ContentSearchResult"/> from a discovered item and manifest.
+    /// Gets the provider definition for data-driven configuration.
+    /// Override in derived classes to provide provider definition from loader.
     /// </summary>
-    /// <param name="discovered">The discovered search result.</param>
-    /// <param name="manifest">The resolved manifest.</param>
-    /// <returns>A resolved <see cref="ContentSearchResult"/>.</returns>
-    private ContentSearchResult CreateResolvedSearchResult(ContentSearchResult discovered, ContentManifest manifest)
+    /// <returns>The provider definition, or null if not available.</returns>
+    protected virtual ProviderDefinition? GetProviderDefinition() => null;
+
+    /// <summary>
+    /// Calculates a simple relevance score for search results.
+    /// </summary>
+    private static double CalculateRelevanceScore(string searchTerm, ContentManifest manifest)
     {
-        var resolved = new ContentSearchResult
+        if (string.IsNullOrWhiteSpace(searchTerm))
         {
-            Id = discovered.Id,
-            Name = manifest.Name,
-            Description = manifest.Metadata?.Description ?? discovered.Description,
-            Version = manifest.Version,
-            ContentType = manifest.ContentType,
-            TargetGame = manifest.TargetGame,
-            ProviderName = SourceName,
-            AuthorName = manifest.Publisher?.Name ?? discovered.AuthorName,
-            IconUrl = manifest.Metadata?.IconUrl ?? discovered.IconUrl,
-            LastUpdated = manifest.Metadata?.ReleaseDate ?? discovered.LastUpdated,
-            DownloadSize = manifest.Files?.Sum(f => f.Size) ?? discovered.DownloadSize,
-            RequiresResolution = false,
-            SourceUrl = discovered.SourceUrl,
-        };
-
-        // Copy screenshots and tags
-        resolved.ScreenshotUrls.Clear();
-        if (manifest.Metadata?.ScreenshotUrls != null && manifest.Metadata.ScreenshotUrls.Count > 0)
-        {
-            foreach (var s in manifest.Metadata.ScreenshotUrls)
-            {
-                resolved.ScreenshotUrls.Add(s);
-            }
-        }
-        else
-        {
-            foreach (var s in discovered.ScreenshotUrls)
-            {
-                resolved.ScreenshotUrls.Add(s);
-            }
+            return 1.0;
         }
 
-        resolved.Tags.Clear();
-        if (manifest.Metadata?.Tags != null && manifest.Metadata.Tags.Count > 0)
+        var score = 0.0;
+        var term = searchTerm.ToLowerInvariant();
+
+        if (manifest.Name.Contains(term, StringComparison.OrdinalIgnoreCase))
         {
-            foreach (var t in manifest.Metadata.Tags)
-            {
-                resolved.Tags.Add(t);
-            }
-        }
-        else
-        {
-            foreach (var t in discovered.Tags)
-            {
-                resolved.Tags.Add(t);
-            }
+            score += 10.0;
         }
 
-        resolved.SetData(manifest);
-        return resolved;
+        if (manifest.Metadata?.Description?.Contains(term, StringComparison.OrdinalIgnoreCase) == true)
+        {
+            score += 5.0;
+        }
+
+        if (manifest.Metadata?.Tags?.Any(t => t.Contains(term, StringComparison.OrdinalIgnoreCase)) == true)
+        {
+            score += 3.0;
+        }
+
+        return score;
     }
 }

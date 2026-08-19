@@ -28,9 +28,10 @@ public class GeneralsOnlineProvider(
     IEnumerable<IContentResolver> resolvers,
     IEnumerable<IContentDeliverer> deliverers,
     IContentValidator contentValidator,
+    IInstallationInstructionsService installationInstructionsService,
     IContentManifestPool manifestPool,
     ILogger<GeneralsOnlineProvider> logger)
-    : BaseContentProvider(contentValidator, logger)
+    : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
     private ProviderDefinition? _cachedProviderDefinition;
 

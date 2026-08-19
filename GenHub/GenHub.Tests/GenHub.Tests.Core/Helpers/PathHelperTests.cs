@@ -144,6 +144,62 @@ public sealed class PathHelperTests
         }
     }
 
+    /// <summary>
+    /// Verifies that IsPathContainedIn correctly identifies paths inside a container directory.
+    /// </summary>
+    [Fact]
+    public void IsPathContainedIn_ReturnsTrue_ForValidDescendants()
+    {
+        var container = Path.Combine(Path.GetTempPath(), "GenHubWorkspace");
+        var childFile = Path.Combine(container, "subfolder", "file.exe");
+
+        var result = PathHelper.IsPathContainedIn(childFile, container);
+
+        Assert.True(result);
+    }
+
+    /// <summary>
+    /// Verifies that IsPathContainedIn returns false when a path attempts directory traversal outside container.
+    /// </summary>
+    [Fact]
+    public void IsPathContainedIn_ReturnsFalse_ForPathTraversal()
+    {
+        var container = Path.Combine(Path.GetTempPath(), "GenHubWorkspace");
+        var escapedFile = Path.Combine(container, "..", "escaped.exe");
+
+        var result = PathHelper.IsPathContainedIn(escapedFile, container);
+
+        Assert.False(result);
+    }
+
+    /// <summary>
+    /// Verifies that IsPathContainedIn returns false for sibling directory with common prefix.
+    /// </summary>
+    [Fact]
+    public void IsPathContainedIn_ReturnsFalse_ForSiblingDirectoryWithSharedPrefix()
+    {
+        var temp = Path.GetTempPath();
+        var container = Path.Combine(temp, "GenHubWorkspace");
+        var sibling = Path.Combine(temp, "GenHubWorkspaceSibling", "file.exe");
+
+        var result = PathHelper.IsPathContainedIn(sibling, container);
+
+        Assert.False(result);
+    }
+
+    /// <summary>
+    /// Verifies that NormalizeRelativePath standardizes path separators.
+    /// </summary>
+    [Fact]
+    public void NormalizeRelativePath_StandardizesSeparators()
+    {
+        var input = @"folder\subfolder/file.exe";
+        var normalized = PathHelper.NormalizeRelativePath(input);
+
+        var expected = Path.Combine("folder", "subfolder", "file.exe");
+        Assert.Equal(expected, normalized);
+    }
+
     private static string CreateWorkingDirectory()
     {
         var root = Path.Combine(Path.GetTempPath(), "GenHubContainmentLinks", Guid.NewGuid().ToString("N"));

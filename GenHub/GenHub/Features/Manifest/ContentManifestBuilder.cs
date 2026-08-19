@@ -614,69 +614,87 @@ public partial class ContentManifestBuilder(
     public IContentManifestBuilder WithInstallationInstructions(
         WorkspaceStrategy workspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy)
     {
-        _manifest.InstallationInstructions = new InstallationInstructions
-        {
-            WorkspaceStrategy = workspaceStrategy,
-        };
+        _manifest.InstallationInstructions ??= new InstallationInstructions();
+        _manifest.InstallationInstructions.WorkspaceStrategy = workspaceStrategy;
         logger.LogDebug("Set workspace strategy: {Strategy}", workspaceStrategy);
         return this;
     }
 
-    /// <summary>
-    /// Adds a pre-installation step to the manifest.
-    /// </summary>
-    /// <param name="name">Step name.</param>
-    /// <param name="command">Command.</param>
-    /// <param name="arguments">Arguments.</param>
-    /// <param name="workingDirectory">Working directory.</param>
-    /// <param name="requiresElevation">Requires elevation.</param>
-    /// <returns>The builder instance.</returns>
-    public IContentManifestBuilder AddPreInstallStep(
-        string name,
-        string command,
-        List<string>? arguments = null,
-        string workingDirectory = "",
-        bool requiresElevation = false)
+    /// <inheritdoc />
+    public IContentManifestBuilder WithInstallationInstructions(InstallationInstructions installationInstructions)
     {
-        var step = new InstallationStep
-        {
-            Name = name,
-            Command = command,
-            Arguments = arguments ?? [],
-            WorkingDirectory = workingDirectory,
-            RequiresElevation = requiresElevation,
-        };
-        _manifest.InstallationInstructions.PreInstallSteps.Add(step);
-        logger.LogDebug("Added pre-install step: {StepName}", name);
+        _manifest.InstallationInstructions = installationInstructions ?? new InstallationInstructions();
+        logger.LogDebug(
+            "Set installation instructions with strategy {Strategy}, {PreCount} pre-install steps, {PostCount} post-install steps",
+            _manifest.InstallationInstructions.WorkspaceStrategy,
+            _manifest.InstallationInstructions.PreInstallSteps.Count,
+            _manifest.InstallationInstructions.PostInstallSteps.Count);
         return this;
     }
 
-    /// <summary>
-    /// Adds a post-installation step to the manifest.
-    /// </summary>
-    /// <param name="name">Step name.</param>
-    /// <param name="command">Command.</param>
-    /// <param name="arguments">Arguments.</param>
-    /// <param name="workingDirectory">Working directory.</param>
-    /// <param name="requiresElevation">Requires elevation.</param>
-    /// <returns>The builder instance.</returns>
-    public IContentManifestBuilder AddPostInstallStep(
+    /// <inheritdoc />
+    public IContentManifestBuilder AddPreInstallStep(
         string name,
-        string command,
+        InstallationStepKind kind,
+        string? targetRelativePath = null,
         List<string>? arguments = null,
-        string workingDirectory = "",
-        bool requiresElevation = false)
+        string? destinationRelativePath = null,
+        bool requiresElevation = false,
+        string? statusMessage = null)
     {
         var step = new InstallationStep
         {
             Name = name,
-            Command = command,
-            Arguments = arguments ?? [],
-            WorkingDirectory = workingDirectory,
+            Kind = kind,
+            TargetRelativePath = targetRelativePath,
+            Arguments = arguments,
+            DestinationRelativePath = destinationRelativePath,
             RequiresElevation = requiresElevation,
+            StatusMessage = statusMessage,
         };
+        return AddPreInstallStep(step);
+    }
+
+    /// <inheritdoc />
+    public IContentManifestBuilder AddPreInstallStep(InstallationStep step)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+        _manifest.InstallationInstructions ??= new InstallationInstructions();
+        _manifest.InstallationInstructions.PreInstallSteps.Add(step);
+        logger.LogDebug("Added pre-install step: {StepName} (Kind: {Kind})", step.Name, step.Kind);
+        return this;
+    }
+
+    /// <inheritdoc />
+    public IContentManifestBuilder AddPostInstallStep(
+        string name,
+        InstallationStepKind kind,
+        string? targetRelativePath = null,
+        List<string>? arguments = null,
+        string? destinationRelativePath = null,
+        bool requiresElevation = false,
+        string? statusMessage = null)
+    {
+        var step = new InstallationStep
+        {
+            Name = name,
+            Kind = kind,
+            TargetRelativePath = targetRelativePath,
+            Arguments = arguments,
+            DestinationRelativePath = destinationRelativePath,
+            RequiresElevation = requiresElevation,
+            StatusMessage = statusMessage,
+        };
+        return AddPostInstallStep(step);
+    }
+
+    /// <inheritdoc />
+    public IContentManifestBuilder AddPostInstallStep(InstallationStep step)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+        _manifest.InstallationInstructions ??= new InstallationInstructions();
         _manifest.InstallationInstructions.PostInstallSteps.Add(step);
-        logger.LogDebug("Added post-install step: {StepName}", name);
+        logger.LogDebug("Added post-install step: {StepName} (Kind: {Kind})", step.Name, step.Kind);
         return this;
     }
 

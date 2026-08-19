@@ -24,8 +24,9 @@ public class LocalFileSystemContentProvider(
     IEnumerable<IContentDeliverer> deliverers,
     ILogger<LocalFileSystemContentProvider> logger,
     IContentValidator contentValidator,
+    IInstallationInstructionsService installationInstructionsService,
     IConfigurationProviderService configurationProvider)
-    : BaseContentProvider(contentValidator, logger)
+    : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
     private readonly IContentDiscoverer _fileSystemDiscoverer = discoverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.FileSystemDiscoverer, StringComparison.OrdinalIgnoreCase) == true)
         ?? throw new InvalidOperationException("No FileSystem discoverer found");

@@ -207,26 +207,65 @@ public interface IContentManifestBuilder
     IContentManifestBuilder WithInstallationInstructions(WorkspaceStrategy workspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy);
 
     /// <summary>
+    /// Sets the complete installation instructions object for the manifest.
+    /// </summary>
+    /// <param name="installationInstructions">The installation instructions object.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder WithInstallationInstructions(InstallationInstructions installationInstructions);
+
+    /// <summary>
     /// Adds a pre-installation step.
     /// </summary>
     /// <param name="name">Step name.</param>
-    /// <param name="command">Command to execute.</param>
-    /// <param name="arguments">Command arguments.</param>
-    /// <param name="workingDirectory">Working directory for the command.</param>
+    /// <param name="kind">The kind of installation step to execute.</param>
+    /// <param name="targetRelativePath">Target relative path within workspace.</param>
+    /// <param name="arguments">Command arguments for executable steps.</param>
+    /// <param name="destinationRelativePath">Destination relative path for rename operations.</param>
     /// <param name="requiresElevation">Whether elevation is required.</param>
+    /// <param name="statusMessage">Optional user-facing status message.</param>
     /// <returns>The builder instance for chaining.</returns>
-    IContentManifestBuilder AddPreInstallStep(string name, string command, List<string>? arguments = null, string workingDirectory = "", bool requiresElevation = false);
+    IContentManifestBuilder AddPreInstallStep(
+        string name,
+        InstallationStepKind kind,
+        string? targetRelativePath = null,
+        List<string>? arguments = null,
+        string? destinationRelativePath = null,
+        bool requiresElevation = false,
+        string? statusMessage = null);
+
+    /// <summary>
+    /// Adds a pre-installation step using an existing <see cref="InstallationStep"/> instance.
+    /// </summary>
+    /// <param name="step">The installation step to add.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder AddPreInstallStep(InstallationStep step);
 
     /// <summary>
     /// Adds a post-installation step.
     /// </summary>
     /// <param name="name">Step name.</param>
-    /// <param name="command">Command to execute.</param>
-    /// <param name="arguments">Command arguments.</param>
-    /// <param name="workingDirectory">Working directory for the command.</param>
+    /// <param name="kind">The kind of installation step to execute.</param>
+    /// <param name="targetRelativePath">Target relative path within workspace.</param>
+    /// <param name="arguments">Command arguments for executable steps.</param>
+    /// <param name="destinationRelativePath">Destination relative path for rename operations.</param>
     /// <param name="requiresElevation">Whether elevation is required.</param>
+    /// <param name="statusMessage">Optional user-facing status message.</param>
     /// <returns>The builder instance for chaining.</returns>
-    IContentManifestBuilder AddPostInstallStep(string name, string command, List<string>? arguments = null, string workingDirectory = "", bool requiresElevation = false);
+    IContentManifestBuilder AddPostInstallStep(
+        string name,
+        InstallationStepKind kind,
+        string? targetRelativePath = null,
+        List<string>? arguments = null,
+        string? destinationRelativePath = null,
+        bool requiresElevation = false,
+        string? statusMessage = null);
+
+    /// <summary>
+    /// Adds a post-installation step using an existing <see cref="InstallationStep"/> instance.
+    /// </summary>
+    /// <param name="step">The installation step to add.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder AddPostInstallStep(InstallationStep step);
 
     /// <summary>
     /// Adds a content reference for cross-publisher linking.

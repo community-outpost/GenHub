@@ -46,12 +46,21 @@ public class GitHubContentProviderTests
         _validatorMock.Setup(v => v.ValidateAllAsync(It.IsAny<string>(), It.IsAny<ContentManifest>(), It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult("test", []));
 
+        var instructionsMock = new Mock<IInstallationInstructionsService>();
+        instructionsMock.Setup(i => i.ExecutePostInstallStepsAsync(
+                It.IsAny<ContentManifest>(),
+                It.IsAny<string>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult.CreateSuccess());
+
         _provider = new GitHubContentProvider(
             [_discovererMock.Object],
             [_resolverMock.Object],
             [_delivererMock.Object],
             _loggerMock.Object,
-            _validatorMock.Object);
+            _validatorMock.Object,
+            instructionsMock.Object);
     }
 
     /// <summary>

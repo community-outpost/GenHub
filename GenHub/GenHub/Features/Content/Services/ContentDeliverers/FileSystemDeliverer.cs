@@ -173,7 +173,7 @@ public class FileSystemDeliverer(
             // Add installation instructions if present
             if (packageManifest.InstallationInstructions != null)
             {
-                manifestBuilder.WithInstallationInstructions(packageManifest.InstallationInstructions.WorkspaceStrategy);
+                manifestBuilder.WithInstallationInstructions(packageManifest.InstallationInstructions);
             }
 
             var deliveredManifest = manifestBuilder.Build();

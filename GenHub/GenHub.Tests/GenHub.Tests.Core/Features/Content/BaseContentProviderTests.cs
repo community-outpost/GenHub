@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Manifest;
@@ -6,6 +10,7 @@ using GenHub.Core.Models.Validation;
 using GenHub.Features.Content.Services.ContentProviders;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Xunit;
 
 namespace GenHub.Tests.Core.Features.Content;
 
@@ -15,14 +20,15 @@ namespace GenHub.Tests.Core.Features.Content;
 public class BaseContentProviderTests
 {
     /// <summary>
-    /// Verifies that PrepareContentAsync validates manifest before preparation.
+    /// Verifies that PrepareContentAsync validates manifest before preparation and executes post-install steps.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task PrepareContentAsync_ValidatesManifestBeforePreparationAsync()
+    public async Task PrepareContentAsync_ValidatesManifestAndExecutesPostInstallStepsAsync()
     {
         // Arrange
         var validatorMock = new Mock<IContentValidator>();
+        var instructionsMock = new Mock<IInstallationInstructionsService>();
         var loggerMock = new Mock<ILogger>();
         var discovererMock = new Mock<IContentDiscoverer>();
         var resolverMock = new Mock<IContentResolver>();
@@ -40,7 +46,20 @@ public class BaseContentProviderTests
             })
             .ReturnsAsync(validationResult);
 
-        var provider = new TestContentProvider(validatorMock.Object, loggerMock.Object, discovererMock.Object, resolverMock.Object, delivererMock.Object);
+        instructionsMock.Setup(i => i.ExecutePostInstallStepsAsync(
+                It.IsAny<ContentManifest>(),
+                It.IsAny<string>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult.CreateSuccess());
+
+        var provider = new TestContentProvider(
+            validatorMock.Object,
+            instructionsMock.Object,
+            loggerMock.Object,
+            discovererMock.Object,
+            resolverMock.Object,
+            delivererMock.Object);
 
         // Act
         var result = await provider.PrepareContentAsync(manifest, "/tmp/test");
@@ -48,7 +67,52 @@ public class BaseContentProviderTests
         // Assert
         Assert.True(result.Success);
         validatorMock.Verify(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()), Times.Once);
+        instructionsMock.Verify(i => i.ExecutePostInstallStepsAsync(manifest, "/tmp/test", It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
         validatorMock.Verify(v => v.ValidateAllAsync(It.IsAny<string>(), manifest, It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that PrepareContentAsync fails when post-install steps fail.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PrepareContentAsync_FailsWhenPostInstallStepsFailAsync()
+    {
+        // Arrange
+        var validatorMock = new Mock<IContentValidator>();
+        var instructionsMock = new Mock<IInstallationInstructionsService>();
+        var loggerMock = new Mock<ILogger>();
+        var discovererMock = new Mock<IContentDiscoverer>();
+        var resolverMock = new Mock<IContentResolver>();
+        var delivererMock = new Mock<IContentDeliverer>();
+
+        var manifest = new ContentManifest { Id = "1.0.genhub.mod.content", Name = "Test" };
+        var validationResult = new ValidationResult(manifest.Id, new List<ValidationIssue>());
+
+        validatorMock.Setup(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(validationResult);
+
+        instructionsMock.Setup(i => i.ExecutePostInstallStepsAsync(
+                It.IsAny<ContentManifest>(),
+                It.IsAny<string>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult.CreateFailure("Post-install step execution error"));
+
+        var provider = new TestContentProvider(
+            validatorMock.Object,
+            instructionsMock.Object,
+            loggerMock.Object,
+            discovererMock.Object,
+            resolverMock.Object,
+            delivererMock.Object);
+
+        // Act
+        var result = await provider.PrepareContentAsync(manifest, "/tmp/test");
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Post-install step execution error", result.FirstError);
     }
 
     /// <summary>
@@ -60,6 +124,7 @@ public class BaseContentProviderTests
     {
         // Arrange
         var validatorMock = new Mock<IContentValidator>();
+        var instructionsMock = new Mock<IInstallationInstructionsService>();
         var loggerMock = new Mock<ILogger>();
         var discovererMock = new Mock<IContentDiscoverer>();
         var resolverMock = new Mock<IContentResolver>();
@@ -75,7 +140,13 @@ public class BaseContentProviderTests
         validatorMock.Setup(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
             .ReturnsAsync(validationResult);
 
-        var provider = new TestContentProvider(validatorMock.Object, loggerMock.Object, discovererMock.Object, resolverMock.Object, delivererMock.Object);
+        var provider = new TestContentProvider(
+            validatorMock.Object,
+            instructionsMock.Object,
+            loggerMock.Object,
+            discovererMock.Object,
+            resolverMock.Object,
+            delivererMock.Object);
 
         // Act
         var result = await provider.PrepareContentAsync(manifest, "/tmp/test");
@@ -96,11 +167,12 @@ public class BaseContentProviderTests
 
         public TestContentProvider(
             IContentValidator validator,
+            IInstallationInstructionsService instructionsService,
             ILogger logger,
             IContentDiscoverer discoverer,
             IContentResolver resolver,
             IContentDeliverer deliverer)
-            : base(validator, logger)
+            : base(validator, instructionsService, logger)
         {
             _discoverer = discoverer;
             _resolver = resolver;
@@ -116,12 +188,6 @@ public class BaseContentProviderTests
         protected override IContentResolver Resolver => _resolver;
 
         protected override IContentDeliverer Deliverer => _deliverer;
-
-        public override Task<OperationResult<ContentManifest>> GetValidatedContentAsync(string contentId, CancellationToken cancellationToken = default)
-        {
-            var manifest = new ContentManifest { Id = contentId, Name = $"Content {contentId}" };
-            return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
-        }
 
         protected override Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
             ContentManifest manifest, string workingDirectory, IProgress<ContentAcquisitionProgress>? progress, CancellationToken cancellationToken)

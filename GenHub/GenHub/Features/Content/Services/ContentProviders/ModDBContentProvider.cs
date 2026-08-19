@@ -21,8 +21,9 @@ public class ModDBContentProvider(
     IEnumerable<IContentResolver> resolvers,
     IEnumerable<IContentDeliverer> deliverers,
     ILogger<ModDBContentProvider> logger,
-    IContentValidator contentValidator)
-    : BaseContentProvider(contentValidator, logger)
+    IContentValidator contentValidator,
+    IInstallationInstructionsService installationInstructionsService)
+    : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
     private readonly IContentDiscoverer _moddbDiscoverer = discoverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.ModDBDiscoverer, StringComparison.OrdinalIgnoreCase) == true)
         ?? throw new ArgumentException("ModDB discoverer not found", nameof(discoverers));

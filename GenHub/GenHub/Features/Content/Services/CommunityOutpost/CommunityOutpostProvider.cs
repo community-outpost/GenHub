@@ -32,8 +32,9 @@ public class CommunityOutpostProvider(
     IEnumerable<IContentResolver> resolvers,
     IEnumerable<IContentDeliverer> deliverers,
     IContentValidator contentValidator,
+    IInstallationInstructionsService installationInstructionsService,
     ILogger<CommunityOutpostProvider> logger)
-    : BaseContentProvider(contentValidator, logger)
+    : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
     private readonly IProviderDefinitionLoader _providerDefinitionLoader = providerDefinitionLoader;
 

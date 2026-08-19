@@ -129,6 +129,50 @@ public class GeneralsOnlineManifestFactoryEacTests : IDisposable
             ignoreCase: true);
     }
 
+    /// <summary>
+    /// Verifies that EAC portable layout configures a post-install step to run the verified EAC setup executable.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_EacLayout_ConfiguresEacPostInstallStepAsync()
+    {
+        WriteEacPortableLayout();
+
+        var gameClient = await CreateGameClientManifestAsync();
+
+        Assert.NotNull(gameClient.InstallationInstructions);
+        var postSteps = gameClient.InstallationInstructions.PostInstallSteps;
+        var eacStep = Assert.Single(postSteps);
+
+        Assert.Equal(GeneralsOnlineConstants.EacStepName, eacStep.Name);
+        Assert.Equal(InstallationStepKind.RunVerifiedInstaller, eacStep.Kind);
+        Assert.Equal(GameClientConstants.GeneralsOnlineEacSetupExecutable, eacStep.TargetRelativePath);
+        Assert.True(eacStep.RequiresElevation);
+        Assert.Equal(GeneralsOnlineConstants.EacStatusMessage, eacStep.StatusMessage);
+        Assert.NotNull(eacStep.Arguments);
+        Assert.Equal(
+            [GeneralsOnlineConstants.EacInstallCommand, GeneralsOnlineConstants.EacProductId],
+            eacStep.Arguments);
+    }
+
+    /// <summary>
+    /// Verifies that Pre-EAC portable layout does not configure an EAC post-install step when setup executable is absent.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_PreEacLayout_DoesNotConfigureEacPostInstallStepAsync()
+    {
+        WriteFile(GameClientConstants.GeneralsOnline60HzExecutable);
+        WriteFile("libcurl.dll");
+
+        var gameClient = await CreateGameClientManifestAsync();
+
+        Assert.NotNull(gameClient.InstallationInstructions);
+        var eacStep = gameClient.InstallationInstructions.PostInstallSteps.FirstOrDefault(s =>
+            string.Equals(s.TargetRelativePath, GameClientConstants.GeneralsOnlineEacSetupExecutable, StringComparison.OrdinalIgnoreCase));
+        Assert.Null(eacStep);
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {
