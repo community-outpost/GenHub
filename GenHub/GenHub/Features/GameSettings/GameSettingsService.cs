@@ -70,245 +70,251 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
     /// <inheritdoc/>
     public async Task<OperationResult<IniOptions>> LoadOptionsAsync(GameType gameType)
     {
-        using var scope = _logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = "OptionsIni" });
-
-        // Acquire semaphore to prevent reading while writing
-        await _optionsIniWriteSemaphore.WaitAsync();
-        try
+        using (_logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = "OptionsIni" }))
         {
-            var filePath = GetOptionsFilePath(gameType);
-            _logger.LogDebug("Loading from path: {FilePath}", filePath);
-
-            if (!File.Exists(filePath))
+            // Acquire semaphore to prevent reading while writing
+            await _optionsIniWriteSemaphore.WaitAsync();
+            try
             {
-                _logger.LogWarning("File not found at {FilePath}, returning defaults", filePath);
-                return OperationResult<IniOptions>.CreateSuccess(new IniOptions());
+                var filePath = GetOptionsFilePath(gameType);
+                _logger.LogDebug("Loading from path: {FilePath}", filePath);
+
+                if (!File.Exists(filePath))
+                {
+                    _logger.LogWarning("File not found at {FilePath}, returning defaults", filePath);
+                    return OperationResult<IniOptions>.CreateSuccess(new IniOptions());
+                }
+
+                _logger.LogDebug("Reading file");
+                var lines = await File.ReadAllLinesAsync(filePath);
+                _logger.LogDebug("Parsing {LineCount} lines", lines.Length);
+                var options = ParseOptionsIni(lines);
+
+                _logger.LogInformation("Loaded successfully from {FilePath}", filePath);
+                return OperationResult<IniOptions>.CreateSuccess(options);
             }
-
-            _logger.LogDebug("Reading file");
-            var lines = await File.ReadAllLinesAsync(filePath);
-            _logger.LogDebug("Parsing {LineCount} lines", lines.Length);
-            var options = ParseOptionsIni(lines);
-
-            _logger.LogInformation("Loaded successfully from {FilePath}", filePath);
-            return OperationResult<IniOptions>.CreateSuccess(options);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to load Options.ini for {GameType}", gameType);
-            return OperationResult<IniOptions>.CreateFailure($"Failed to load options: {ex.Message}");
-        }
-        finally
-        {
-            _optionsIniWriteSemaphore.Release();
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to load Options.ini for {GameType}", gameType);
+                return OperationResult<IniOptions>.CreateFailure($"Failed to load options: {ex.Message}");
+            }
+            finally
+            {
+                _optionsIniWriteSemaphore.Release();
+            }
         }
     }
 
     /// <inheritdoc/>
     public async Task<OperationResult<bool>> SaveOptionsAsync(GameType gameType, IniOptions options)
     {
-        using var scope = _logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = "OptionsIni" });
-
-        // Acquire semaphore to serialize Options.ini writes
-        await _optionsIniWriteSemaphore.WaitAsync();
-        try
+        using (_logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = "OptionsIni" }))
         {
-            var filePath = GetOptionsFilePath(gameType);
-            _logger.LogDebug("Saving to path: {FilePath}", filePath);
-
-            var directory = Path.GetDirectoryName(filePath);
-
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            // Acquire semaphore to serialize Options.ini writes
+            await _optionsIniWriteSemaphore.WaitAsync();
+            try
             {
-                _logger.LogDebug("Creating directory: {Directory}", directory);
-                Directory.CreateDirectory(directory);
-                _logger.LogInformation("Created directory {Directory}", directory);
-            }
+                var filePath = GetOptionsFilePath(gameType);
+                _logger.LogDebug("Saving to path: {FilePath}", filePath);
 
-            // Safety check: Don't overwrite existing non-empty file with empty options
-            // This prevents data loss if a load failed but Save was called with defaults
-            if (File.Exists(filePath) && new FileInfo(filePath).Length > 0)
-            {
-                bool isDefault = options.Video.ResolutionWidth == 0 && options.Video.ResolutionHeight == 0;
-                if (isDefault)
+                var directory = Path.GetDirectoryName(filePath);
+
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
                 {
-                    _logger.LogWarning("Attempted to overwrite existing Options.ini with default empty settings. Aborting save to prevent data loss.");
-                    return OperationResult<bool>.CreateFailure("Prevented overwriting Options.ini with default settings.");
+                    _logger.LogDebug("Creating directory: {Directory}", directory);
+                    Directory.CreateDirectory(directory);
+                    _logger.LogInformation("Created directory {Directory}", directory);
                 }
+
+                // Safety check: Don't overwrite existing non-empty file with empty options
+                // This prevents data loss if a load failed but Save was called with defaults
+                if (File.Exists(filePath) && new FileInfo(filePath).Length > 0)
+                {
+                    bool isDefault = options.Video.ResolutionWidth == 0 && options.Video.ResolutionHeight == 0;
+                    if (isDefault)
+                    {
+                        _logger.LogWarning("Attempted to overwrite existing Options.ini with default empty settings. Aborting save to prevent data loss.");
+                        return OperationResult<bool>.CreateFailure("Prevented overwriting Options.ini with default settings.");
+                    }
+                }
+
+                _logger.LogDebug("Serializing options");
+                var lines = SerializeOptionsIni(options);
+                _logger.LogDebug("Writing {LineCount} lines to file", lines.Length);
+                await File.WriteAllLinesAsync(filePath, lines, Encoding.UTF8);
+
+                _logger.LogInformation("Saved successfully to {FilePath}", filePath);
+                return OperationResult<bool>.CreateSuccess(true);
             }
-
-            _logger.LogDebug("Serializing options");
-            var lines = SerializeOptionsIni(options);
-            _logger.LogDebug("Writing {LineCount} lines to file", lines.Length);
-            await File.WriteAllLinesAsync(filePath, lines, Encoding.UTF8);
-
-            _logger.LogInformation("Saved successfully to {FilePath}", filePath);
-            return OperationResult<bool>.CreateSuccess(true);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to save Options.ini for {GameType}", gameType);
-            return OperationResult<bool>.CreateFailure($"Failed to save options: {ex.Message}");
-        }
-        finally
-        {
-            // Always release the semaphore
-            _optionsIniWriteSemaphore.Release();
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to save Options.ini for {GameType}", gameType);
+                return OperationResult<bool>.CreateFailure($"Failed to save options: {ex.Message}");
+            }
+            finally
+            {
+                // Always release the semaphore
+                _optionsIniWriteSemaphore.Release();
+            }
         }
     }
 
     /// <inheritdoc/>
     public async Task<OperationResult<TheSuperHackersSettings>> LoadTheSuperHackersSettingsAsync(GameType gameType)
     {
-        using var scope = _logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = "TheSuperHackers" });
-
-        try
+        using (_logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = "TheSuperHackers" }))
         {
-            var optionsResult = await LoadOptionsAsync(gameType);
-            if (!optionsResult.Success || optionsResult.Data == null)
+            try
             {
-                return OperationResult<TheSuperHackersSettings>.CreateFailure(optionsResult.Errors);
+                var optionsResult = await LoadOptionsAsync(gameType);
+                if (!optionsResult.Success || optionsResult.Data == null)
+                {
+                    return OperationResult<TheSuperHackersSettings>.CreateFailure(optionsResult.Errors);
+                }
+
+                var settings = new TheSuperHackersSettings();
+                var options = optionsResult.Data;
+
+                if (options.AdditionalSections.TryGetValue("TheSuperHackers", out var tshSection))
+                {
+                    ParseTheSuperHackersSection(settings, tshSection);
+                }
+
+                _logger.LogInformation("Loaded TheSuperHackers settings for {GameType}", gameType);
+                return OperationResult<TheSuperHackersSettings>.CreateSuccess(settings);
             }
-
-            var settings = new TheSuperHackersSettings();
-            var options = optionsResult.Data;
-
-            if (options.AdditionalSections.TryGetValue("TheSuperHackers", out var tshSection))
+            catch (Exception ex)
             {
-                ParseTheSuperHackersSection(settings, tshSection);
+                _logger.LogError(ex, "Failed to load TheSuperHackers settings for {GameType}", gameType);
+                return OperationResult<TheSuperHackersSettings>.CreateFailure($"Failed to load TheSuperHackers settings: {ex.Message}");
             }
-
-            _logger.LogInformation("Loaded TheSuperHackers settings for {GameType}", gameType);
-            return OperationResult<TheSuperHackersSettings>.CreateSuccess(settings);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to load TheSuperHackers settings for {GameType}", gameType);
-            return OperationResult<TheSuperHackersSettings>.CreateFailure($"Failed to load TheSuperHackers settings: {ex.Message}");
         }
     }
 
     /// <inheritdoc/>
     public async Task<OperationResult<bool>> SaveTheSuperHackersSettingsAsync(GameType gameType, TheSuperHackersSettings settings)
     {
-        using var scope = _logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = "TheSuperHackers" });
-
-        try
+        using (_logger.BeginScope(new Dictionary<string, object> { ["GameType"] = gameType, ["Section"] = "TheSuperHackers" }))
         {
-            var optionsResult = await LoadOptionsAsync(gameType);
-            if (!optionsResult.Success || optionsResult.Data == null)
+            try
             {
-                return OperationResult<bool>.CreateFailure(optionsResult.Errors);
-            }
+                var optionsResult = await LoadOptionsAsync(gameType);
+                if (!optionsResult.Success || optionsResult.Data == null)
+                {
+                    return OperationResult<bool>.CreateFailure(optionsResult.Errors);
+                }
 
-            var options = optionsResult.Data;
-            Dictionary<string, string> tshSection = [];
-            if (options.AdditionalSections.TryGetValue("TheSuperHackers", out var existingTsh) && existingTsh != null)
+                var options = optionsResult.Data;
+                Dictionary<string, string> tshSection = [];
+                if (options.AdditionalSections.TryGetValue("TheSuperHackers", out var existingTsh) && existingTsh != null)
+                {
+                    tshSection = new Dictionary<string, string>(existingTsh, StringComparer.OrdinalIgnoreCase);
+                }
+
+                var serializedTsh = SerializeTheSuperHackersSettings(settings);
+                foreach (var kvp in serializedTsh)
+                {
+                    tshSection[kvp.Key] = kvp.Value;
+                }
+
+                options.AdditionalSections["TheSuperHackers"] = tshSection;
+
+                var saveResult = await SaveOptionsAsync(gameType, options);
+                return saveResult;
+            }
+            catch (Exception ex)
             {
-                tshSection = new Dictionary<string, string>(existingTsh, StringComparer.OrdinalIgnoreCase);
+                _logger.LogError(ex, "Failed to save TheSuperHackers settings for {GameType}", gameType);
+                return OperationResult<bool>.CreateFailure($"Failed to save TheSuperHackers settings: {ex.Message}");
             }
-
-            var serializedTsh = SerializeTheSuperHackersSettings(settings);
-            foreach (var kvp in serializedTsh)
-            {
-                tshSection[kvp.Key] = kvp.Value;
-            }
-
-            options.AdditionalSections["TheSuperHackers"] = tshSection;
-
-            var saveResult = await SaveOptionsAsync(gameType, options);
-            return saveResult;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to save TheSuperHackers settings for {GameType}", gameType);
-            return OperationResult<bool>.CreateFailure($"Failed to save TheSuperHackers settings: {ex.Message}");
         }
     }
 
     /// <inheritdoc/>
     public async Task<OperationResult<GeneralsOnlineSettings>> LoadGeneralsOnlineSettingsAsync()
     {
-        using var scope = _logger.BeginScope(new Dictionary<string, object> { ["Section"] = "GeneralsOnline" });
-
-        await _generalsOnlineSettingsSemaphore.WaitAsync();
-        try
+        using (_logger.BeginScope(new Dictionary<string, object> { ["Section"] = "GeneralsOnline" }))
         {
-            var settingsPath = GetGeneralsOnlineSettingsPath();
-            _logger.LogDebug("Loading GeneralsOnline settings from: {SettingsPath}", settingsPath);
-
-            if (!File.Exists(settingsPath))
+            await _generalsOnlineSettingsSemaphore.WaitAsync();
+            try
             {
-                _logger.LogWarning("GeneralsOnline settings file not found at {SettingsPath}, returning defaults", settingsPath);
-                return OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings());
+                var settingsPath = GetGeneralsOnlineSettingsPath();
+                _logger.LogDebug("Loading GeneralsOnline settings from: {SettingsPath}", settingsPath);
+
+                if (!File.Exists(settingsPath))
+                {
+                    _logger.LogWarning("GeneralsOnline settings file not found at {SettingsPath}, returning defaults", settingsPath);
+                    return OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings());
+                }
+
+                var json = await File.ReadAllTextAsync(settingsPath);
+                var settings = JsonSerializer.Deserialize<GeneralsOnlineSettings>(json, _jsonSerializerOptions);
+
+                if (settings == null)
+                {
+                    _logger.LogWarning("Failed to deserialize GeneralsOnline settings, returning defaults");
+                    return OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings());
+                }
+
+                settings.EnsureNestedSectionsInitialized();
+
+                _logger.LogInformation("Loaded GeneralsOnline settings from {SettingsPath}", settingsPath);
+                return OperationResult<GeneralsOnlineSettings>.CreateSuccess(settings);
             }
-
-            var json = await File.ReadAllTextAsync(settingsPath);
-            var settings = JsonSerializer.Deserialize<GeneralsOnlineSettings>(json, _jsonSerializerOptions);
-
-            if (settings == null)
+            catch (Exception ex)
             {
-                _logger.LogWarning("Failed to deserialize GeneralsOnline settings, returning defaults");
-                return OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings());
+                _logger.LogError(ex, "Failed to load GeneralsOnline settings");
+                return OperationResult<GeneralsOnlineSettings>.CreateFailure($"Failed to load GeneralsOnline settings: {ex.Message}");
             }
-
-            settings.EnsureNestedSectionsInitialized();
-
-            _logger.LogInformation("Loaded GeneralsOnline settings from {SettingsPath}", settingsPath);
-            return OperationResult<GeneralsOnlineSettings>.CreateSuccess(settings);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to load GeneralsOnline settings");
-            return OperationResult<GeneralsOnlineSettings>.CreateFailure($"Failed to load GeneralsOnline settings: {ex.Message}");
-        }
-        finally
-        {
-            _generalsOnlineSettingsSemaphore.Release();
+            finally
+            {
+                _generalsOnlineSettingsSemaphore.Release();
+            }
         }
     }
 
     /// <inheritdoc/>
     public async Task<OperationResult<bool>> SaveGeneralsOnlineSettingsAsync(GeneralsOnlineSettings settings)
     {
-        using var scope = _logger.BeginScope(new Dictionary<string, object> { ["Section"] = "GeneralsOnline" });
-
-        string? temporaryPath = null;
-        await _generalsOnlineSettingsSemaphore.WaitAsync();
-        try
+        using (_logger.BeginScope(new Dictionary<string, object> { ["Section"] = "GeneralsOnline" }))
         {
-            var settingsPath = GetGeneralsOnlineSettingsPath();
-            var directory = Path.GetDirectoryName(settingsPath);
-
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            string? temporaryPath = null;
+            await _generalsOnlineSettingsSemaphore.WaitAsync();
+            try
             {
-                _logger.LogDebug("Creating directory: {Directory}", directory);
-                Directory.CreateDirectory(directory);
+                var settingsPath = GetGeneralsOnlineSettingsPath();
+                var directory = Path.GetDirectoryName(settingsPath);
+
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                {
+                    _logger.LogDebug("Creating directory: {Directory}", directory);
+                    Directory.CreateDirectory(directory);
+                }
+
+                var json = JsonSerializer.Serialize(settings, _jsonSerializerOptions);
+
+                // Written beside settings.json under a name of its own and then moved over it. This
+                // file belongs to the GeneralsOnline client and holds keys GenHub cannot reconstruct,
+                // so a truncating write that is interrupted, or that overlaps a second launch writing
+                // the same path, would leave the client with a settings.json it cannot read.
+                temporaryPath = $"{settingsPath}.{Guid.NewGuid():N}{GameSettingsGeneralsOnlineConstants.TemporarySettingsFileExtension}";
+                await File.WriteAllTextAsync(temporaryPath, json, Encoding.UTF8);
+                await ReplaceSettingsFileAsync(temporaryPath, settingsPath);
+                temporaryPath = null;
+
+                _logger.LogInformation("Saved GeneralsOnline settings to {SettingsPath}", settingsPath);
+                return OperationResult<bool>.CreateSuccess(true);
             }
-
-            var json = JsonSerializer.Serialize(settings, _jsonSerializerOptions);
-
-            // Written beside settings.json under a name of its own and then moved over it. This
-            // file belongs to the GeneralsOnline client and holds keys GenHub cannot reconstruct,
-            // so a truncating write that is interrupted, or that overlaps a second launch writing
-            // the same path, would leave the client with a settings.json it cannot read.
-            temporaryPath = $"{settingsPath}.{Guid.NewGuid():N}{GameSettingsGeneralsOnlineConstants.TemporarySettingsFileExtension}";
-            await File.WriteAllTextAsync(temporaryPath, json, Encoding.UTF8);
-            await ReplaceSettingsFileAsync(temporaryPath, settingsPath);
-            temporaryPath = null;
-
-            _logger.LogInformation("Saved GeneralsOnline settings to {SettingsPath}", settingsPath);
-            return OperationResult<bool>.CreateSuccess(true);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to save GeneralsOnline settings");
-            return OperationResult<bool>.CreateFailure($"Failed to save GeneralsOnline settings: {ex.Message}");
-        }
-        finally
-        {
-            DiscardTemporarySettingsFile(temporaryPath);
-            _generalsOnlineSettingsSemaphore.Release();
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to save GeneralsOnline settings");
+                return OperationResult<bool>.CreateFailure($"Failed to save GeneralsOnline settings: {ex.Message}");
+            }
+            finally
+            {
+                DiscardTemporarySettingsFile(temporaryPath);
+                _generalsOnlineSettingsSemaphore.Release();
+            }
         }
     }
 
