@@ -165,10 +165,26 @@
             </TabItem>
 
             <TabItem Header="Browse Builds">
-                <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                    <Grid ColumnDefinitions="*,*" Margin="0,0,0,8">
-                        <!-- Pull Requests Column -->
-                        <Expander Grid.Column="0" Header="Open Pull Requests" IsExpanded="True" Margin="0,0,6,0" VerticalAlignment="Top">
+                <Grid RowDefinitions="Auto,*">
+                    <!-- Top Toolbar with Sort Options -->
+                    <Grid Grid.Row="0" Margin="0,0,0,12" ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Text="Select a pull request or branch build to install."
+                                   FontSize="13" Foreground="#AAAAAA" VerticalAlignment="Center"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Text="Sort by:" FontSize="12" Foreground="#888888" VerticalAlignment="Center"/>
+                            <ComboBox ItemsSource="{Binding AvailableSortOptions}"
+                                      SelectedItem="{Binding SelectedSortOption}"
+                                      MinWidth="160"
+                                      FontSize="12"
+                                      Padding="8,4"
+                                      CornerRadius="6"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                        <Grid ColumnDefinitions="*,*" Margin="0,0,0,8">
+                            <!-- Pull Requests Column -->
+                            <Expander Grid.Column="0" Header="Open Pull Requests" IsExpanded="True" Margin="0,0,6,0" VerticalAlignment="Top">
                             <ItemsControl ItemsSource="{Binding AvailablePullRequests}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
@@ -242,6 +258,7 @@
                         </Expander>
                     </Grid>
                 </ScrollViewer>
+                </Grid>
             </TabItem>
         </TabControl>
 

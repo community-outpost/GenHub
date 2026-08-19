@@ -51,6 +51,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     private readonly ILogger<UpdateNotificationViewModel> _logger;
     private readonly IUserSettingsService _userSettingsService;
     private readonly CancellationTokenSource _cancellationTokenSource;
+    private readonly List<PullRequestInfo> _allPullRequests = [];
     private CancellationTokenSource? _loadArtifactsCts;
     private UpdateInfo? _currentUpdateInfo;
 
@@ -126,6 +127,27 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// </summary>
     [ObservableProperty]
     private ObservableCollection<PullRequestInfo> _availablePullRequests = [];
+
+    /// <summary>
+    /// Gets the list of available sort options for pull requests.
+    /// </summary>
+    public IReadOnlyList<string> AvailableSortOptions { get; } =
+    [
+        AppUpdateConstants.SortOptionLastUpdated,
+        AppUpdateConstants.SortOptionPrNumberDesc,
+        AppUpdateConstants.SortOptionPrNumberAsc,
+    ];
+
+    /// <summary>
+    /// Gets or sets the selected sort option for pull requests.
+    /// </summary>
+    [ObservableProperty]
+    private string _selectedSortOption = AppUpdateConstants.SortOptionLastUpdated;
+
+    partial void OnSelectedSortOptionChanged(string value)
+    {
+        ApplyPullRequestSorting();
+    }
 
     /// <summary>
     /// Gets or sets the currently subscribed PR.
@@ -1102,13 +1124,10 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             _logger.LogInformation("Loading open pull requests with artifacts");
             var prs = await _velopackUpdateManager.GetOpenPullRequestsAsync(_cancellationTokenSource.Token);
 
-            await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                foreach (var pr in prs.OrderByDescending(p => p.UpdatedAt ?? DateTimeOffset.MinValue))
-                {
-                    AvailablePullRequests.Add(pr);
-                }
-            });
+            _allPullRequests.Clear();
+            _allPullRequests.AddRange(prs);
+
+            await Dispatcher.UIThread.InvokeAsync(ApplyPullRequestSorting);
 
             if (_velopackUpdateManager.IsPrMergedOrClosed && _velopackUpdateManager.SubscribedPrNumber.HasValue)
             {
@@ -1134,6 +1153,33 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         finally
         {
             IsLoadingPullRequests = false;
+        }
+    }
+
+    private void ApplyPullRequestSorting()
+    {
+        if (_allPullRequests.Count == 0 && AvailablePullRequests.Count == 0)
+        {
+            return;
+        }
+
+        if (_allPullRequests.Count == 0 && AvailablePullRequests.Count > 0)
+        {
+            _allPullRequests.AddRange(AvailablePullRequests);
+        }
+
+        IEnumerable<PullRequestInfo> sorted = SelectedSortOption switch
+        {
+            AppUpdateConstants.SortOptionPrNumberDesc => _allPullRequests.OrderByDescending(p => p.Number),
+            AppUpdateConstants.SortOptionPrNumberAsc => _allPullRequests.OrderBy(p => p.Number),
+            _ => _allPullRequests.OrderByDescending(p => p.UpdatedAt ?? DateTimeOffset.MinValue),
+        };
+
+        var sortedList = sorted.ToList();
+        AvailablePullRequests.Clear();
+        foreach (var pr in sortedList)
+        {
+            AvailablePullRequests.Add(pr);
         }
     }
 

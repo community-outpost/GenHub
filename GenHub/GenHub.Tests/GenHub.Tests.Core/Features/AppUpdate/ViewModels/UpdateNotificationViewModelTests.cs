@@ -364,6 +364,7 @@ public class UpdateNotificationViewModelTests
     /// <summary>
     /// Verifies that OpenPullRequestUrlCommand executes without error for valid and invalid PR numbers.
     /// </summary>
+    /// <param name="prNumber">The PR number under test.</param>
     [Theory]
     [InlineData(0)]
     [InlineData(-1)]
@@ -381,5 +382,47 @@ public class UpdateNotificationViewModelTests
         // verify command execution does not throw
         vm.OpenPullRequestUrlCommand.Execute(prNumber);
         Assert.NotNull(vm);
+    }
+
+    /// <summary>
+    /// Verifies that changing the sort option reorders available pull requests accordingly.
+    /// </summary>
+    [Fact]
+    public void SelectedSortOption_ReordersAvailablePullRequests()
+    {
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings());
+
+        var vm = new UpdateNotificationViewModel(
+            Mock.Of<IVelopackUpdateManager>(),
+            Mock.Of<ILogger<UpdateNotificationViewModel>>(),
+            mockUserSettings.Object);
+
+        var now = DateTimeOffset.UtcNow;
+        var pr100 = new PullRequestInfo { Number = 100, Title = "PR 100", BranchName = "b1", Author = "a1", State = "open", UpdatedAt = now.AddDays(-2) };
+        var pr200 = new PullRequestInfo { Number = 200, Title = "PR 200", BranchName = "b2", Author = "a2", State = "open", UpdatedAt = now.AddDays(-10) };
+        var pr300 = new PullRequestInfo { Number = 300, Title = "PR 300", BranchName = "b3", Author = "a3", State = "open", UpdatedAt = now };
+
+        vm.AvailablePullRequests.Add(pr100);
+        vm.AvailablePullRequests.Add(pr200);
+        vm.AvailablePullRequests.Add(pr300);
+
+        // sort by PR number descending
+        vm.SelectedSortOption = GenHub.Core.Constants.AppUpdateConstants.SortOptionPrNumberDesc;
+        Assert.Equal(300, vm.AvailablePullRequests[0].Number);
+        Assert.Equal(200, vm.AvailablePullRequests[1].Number);
+        Assert.Equal(100, vm.AvailablePullRequests[2].Number);
+
+        // sort by PR number ascending
+        vm.SelectedSortOption = GenHub.Core.Constants.AppUpdateConstants.SortOptionPrNumberAsc;
+        Assert.Equal(100, vm.AvailablePullRequests[0].Number);
+        Assert.Equal(200, vm.AvailablePullRequests[1].Number);
+        Assert.Equal(300, vm.AvailablePullRequests[2].Number);
+
+        // sort by last updated (newest first)
+        vm.SelectedSortOption = GenHub.Core.Constants.AppUpdateConstants.SortOptionLastUpdated;
+        Assert.Equal(300, vm.AvailablePullRequests[0].Number);
+        Assert.Equal(100, vm.AvailablePullRequests[1].Number);
+        Assert.Equal(200, vm.AvailablePullRequests[2].Number);
     }
 }

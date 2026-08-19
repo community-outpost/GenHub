@@ -189,6 +189,21 @@ public static class AppUpdateConstants
     public const string PrUpdateNotificationFormat = "A new build ({0}) is available for PR #{1}.";
 
     /// <summary>
+    /// Sort option: sort by last updated date descending.
+    /// </summary>
+    public const string SortOptionLastUpdated = "Last Updated";
+
+    /// <summary>
+    /// Sort option: sort by pull request number descending.
+    /// </summary>
+    public const string SortOptionPrNumberDesc = "PR Number (Highest)";
+
+    /// <summary>
+    /// Sort option: sort by pull request number ascending.
+    /// </summary>
+    public const string SortOptionPrNumberAsc = "PR Number (Lowest)";
+
+    /// <summary>
     /// Delay before exit after applying update (5 seconds).
     /// </summary>
     public static readonly TimeSpan PostUpdateExitDelay = TimeSpan.FromSeconds(5);
