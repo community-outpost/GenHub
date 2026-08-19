@@ -56,6 +56,77 @@ public class PlaywrightService(
         "Upgrade",
     };
 
+    private const string StealthInitScript = """
+        // 1. Mask navigator.webdriver
+        try {
+            Object.defineProperty(navigator, 'webdriver', {
+                get: () => undefined,
+                configurable: true,
+            });
+        } catch (e) {}
+
+        // 2. Ensure window.chrome runtime object exists
+        try {
+            if (!window.chrome) {
+                window.chrome = {
+                    app: {
+                        isInstalled: false,
+                        InstallState: { DISABLED: 'disabled', INSTALLED: 'installed', NOT_INSTALLED: 'not_installed' },
+                        RunningState: { CANNOT_RUN: 'cannot_run', READY_TO_RUN: 'ready_to_run', RUNNING: 'running' }
+                    },
+                    runtime: {
+                        OnInstalledReason: { CHROME_UPDATE: 'chrome_update', INSTALL: 'install', SHARED_MODULE_UPDATE: 'shared_module_update', UPDATE: 'update' },
+                        OnRestartRequiredReason: { APP_UPDATE: 'app_update', OS_UPDATE: 'os_update', PERIODIC: 'periodic' },
+                        PlatformArch: { ARM: 'arm', ARM64: 'arm64', MIPS: 'mips', MIPS64: 'mips64', X86_32: 'x86-32', X86_64: 'x86-64' },
+                        PlatformNaclArch: { ARM: 'arm', MIPS: 'mips', MIPS64: 'mips64', X86_32: 'x86-32', X86_64: 'x86-64' },
+                        PlatformOs: { ANDROID: 'android', CROS: 'cros', LINUX: 'linux', MAC: 'mac', OPENBSD: 'openbsd', WIN: 'win' },
+                        RequestUpdateCheckStatus: { NO_UPDATE: 'no_update', THROTTLED: 'throttled', UPDATE_AVAILABLE: 'update_available' }
+                    },
+                    loadTimes: function() {},
+                    csi: function() {}
+                };
+            }
+        } catch (e) {}
+
+        // 3. Ensure navigator.plugins is non-empty
+        try {
+            if (!navigator.plugins || navigator.plugins.length === 0) {
+                const dummyPlugin = {
+                    name: 'PDF Viewer',
+                    filename: 'internal-pdf-viewer',
+                    description: 'Portable Document Format'
+                };
+                Object.defineProperty(navigator, 'plugins', {
+                    get: () => [dummyPlugin],
+                    configurable: true,
+                });
+            }
+        } catch (e) {}
+
+        // 4. Ensure navigator.languages is properly populated
+        try {
+            if (!navigator.languages || navigator.languages.length === 0) {
+                Object.defineProperty(navigator, 'languages', {
+                    get: () => ['en-US', 'en'],
+                    configurable: true,
+                });
+            }
+        } catch (e) {}
+
+        // 5. Mock notification permissions
+        try {
+            if (navigator.permissions && navigator.permissions.query) {
+                const originalQuery = navigator.permissions.query;
+                navigator.permissions.query = function(parameters) {
+                    if (parameters && parameters.name === 'notifications') {
+                        return Promise.resolve({ state: Notification.permission });
+                    }
+                    return originalQuery.apply(this, arguments);
+                };
+            }
+        } catch (e) {}
+        """;
+
     private static IPlaywright? _playwright;
     private static IBrowser? _browser;
     private static IBrowserContext? _persistentContext;
@@ -84,6 +155,7 @@ public class PlaywrightService(
         };
 
         var context = await _browser.NewContextAsync(contextOptions);
+        await context.AddInitScriptAsync(StealthInitScript);
 
         try
         {
@@ -1021,6 +1093,8 @@ public class PlaywrightService(
                     Locale = "en-US",
                     IgnoreDefaultArgs = ["--enable-automation"],
                 });
+
+            await context.AddInitScriptAsync(StealthInitScript);
 
             var ctx = context;
             context.Close += (_, _) =>

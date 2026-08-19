@@ -29,7 +29,7 @@ public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
         IContentStorageService? contentStorageService,
         INotificationService? notificationService,
         ILogger<AddLocalContentViewModel>? logger = null)
-        : base(localContentService ?? new MockLocalContentService(), contentStorageService, null, null, logger)
+        : base(localContentService ?? new MockLocalContentService(), contentStorageService, null, null, null, logger)
     {
         _notificationService = notificationService;
 

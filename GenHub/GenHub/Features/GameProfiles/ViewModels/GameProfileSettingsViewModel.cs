@@ -217,6 +217,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private readonly ILocalContentService? _localContentService;
     private readonly IGenLauncherNormalizationService? _genLauncherNormalizationService;
     private readonly IDialogService? _dialogService;
+    private readonly IArchivePayloadProcessor? _archivePayloadProcessor;
     private readonly ILogger<GameProfileSettingsViewModel>? _logger;
     private readonly ILogger<GameSettingsViewModel>? _gameSettingsLogger;
     private readonly NotificationService _localNotificationService = new(NullLogger<NotificationService>.Instance);
@@ -256,6 +257,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// <param name="dialogService">The dialog service.</param>
     /// <param name="logger">The logger for this view model.</param>
     /// <param name="gameSettingsLogger">The logger for the game settings view model.</param>
+    /// <param name="archivePayloadProcessor">The archive payload processor service.</param>
     public GameProfileSettingsViewModel(
         IGameProfileManager? gameProfileManager,
         IGameSettingsService? gameSettingsService,
@@ -269,7 +271,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         IGenLauncherNormalizationService? genLauncherNormalizationService,
         IDialogService? dialogService,
         ILogger<GameProfileSettingsViewModel>? logger,
-        ILogger<GameSettingsViewModel>? gameSettingsLogger)
+        ILogger<GameSettingsViewModel>? gameSettingsLogger,
+        IArchivePayloadProcessor? archivePayloadProcessor = null)
     {
         _gameProfileManager = gameProfileManager;
         _gameSettingsService = gameSettingsService;
@@ -282,6 +285,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         _localContentService = localContentService;
         _genLauncherNormalizationService = genLauncherNormalizationService;
         _dialogService = dialogService;
+        _archivePayloadProcessor = archivePayloadProcessor;
         _logger = logger;
         _gameSettingsLogger = gameSettingsLogger;
 

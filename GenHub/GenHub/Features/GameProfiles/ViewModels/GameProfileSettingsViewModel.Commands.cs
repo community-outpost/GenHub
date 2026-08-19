@@ -697,6 +697,7 @@ public partial class GameProfileSettingsViewModel
                 _contentStorageService,
                 _genLauncherNormalizationService,
                 _dialogService,
+                _archivePayloadProcessor,
                 null);
             var window = new Views.AddLocalContentWindow
             {
@@ -765,6 +766,7 @@ public partial class GameProfileSettingsViewModel
                 _contentStorageService,
                 _genLauncherNormalizationService,
                 _dialogService,
+                _archivePayloadProcessor,
                 null);
             await vm.LoadFromManifestAsync(contentItem);
 

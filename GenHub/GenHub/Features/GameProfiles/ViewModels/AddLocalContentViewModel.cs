@@ -25,12 +25,14 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// <param name="contentStorageService">Service for content storage operations.</param>
 /// <param name="genLauncherNormalizationService">Service for GenLauncher file normalization.</param>
 /// <param name="dialogService">Service for showing dialogs.</param>
+/// <param name="archivePayloadProcessor">Service for archive extraction and payload structure normalization.</param>
 /// <param name="logger">Logger instance.</param>
 public partial class AddLocalContentViewModel(
     ILocalContentService localContentService,
     IContentStorageService? contentStorageService,
     IGenLauncherNormalizationService? genLauncherNormalizationService,
     IDialogService? dialogService,
+    IArchivePayloadProcessor? archivePayloadProcessor = null,
     ILogger<AddLocalContentViewModel>? logger = null) : ObservableObject, IDisposable
 {
     /// <summary>
@@ -219,94 +221,82 @@ public partial class AddLocalContentViewModel(
         ContentType.Map => "Import map files",
         ContentType.MapPack => "Import map pack files",
         ContentType.Mission => "Import mission content",
-        _ => "Drag and drop content to begin",
+        _ => "Import files",
     };
 
     /// <summary>
-    /// Event triggered when the window should be closed.
+    /// Gets a value indicating whether the loading overlay should be shown.
+    /// Subclasses can override to customize loading overlay behavior.
     /// </summary>
-    public event EventHandler<bool>? RequestClose;
+    public virtual bool ShowLoadingOverlay => IsBusy;
 
     /// <summary>
-    /// Event triggered when content has been successfully added.
+    /// Initializes the view model from an existing manifest for editing.
     /// </summary>
-    public event EventHandler? ContentAdded;
-
-    /// <summary>
-    /// Gets the created content item after successful import.
-    /// </summary>
-    public ContentDisplayItem? CreatedContentItem { get; private set; }
-
-    /// <summary>
-    /// Gets or sets the action to browse for a folder.
-    /// </summary>
-    public Func<Task<string?>>? BrowseFolderAction { get; set; }
-
-    /// <summary>
-    /// Gets or sets the action to browse for files.
-    /// </summary>
-    public Func<Task<IReadOnlyList<string>?>>? BrowseFileAction { get; set; }
-
-    /// <summary>
-    /// Loads existing content for editing.
-    /// </summary>
-    /// <param name="item">The item to load.</param>
+    /// <param name="contentItem">The content item to edit.</param>
     /// <returns>A task representing the operation.</returns>
-    public async Task LoadFromManifestAsync(ContentDisplayItem item)
+    public async Task LoadFromManifestAsync(ContentDisplayItem contentItem)
     {
-        if (contentStorageService == null)
+        ArgumentNullException.ThrowIfNull(contentItem);
+
+        IsEditing = true;
+        _originalManifestId = contentItem.ManifestId.Value;
+        DialogTitle = "Edit Local Content";
+        ActionButtonText = "Save Changes";
+
+        ContentName = contentItem.DisplayName;
+        SelectedContentType = contentItem.ContentType;
+        SelectedGameType = contentItem.GameType;
+        SourcePath = contentItem.SourcePath ?? string.Empty;
+
+        // Retrieve content files to staging for editing
+        if (contentStorageService != null)
         {
-            StatusMessage = "Storage service unavailable.";
-            return;
-        }
-
-        try
-        {
-            IsBusy = true;
-            StatusMessage = "Loading existing content...";
-
-            _originalManifestId = item.ManifestId.Value;
-            _pendingEntryPoint = item.Manifest?.EntryPoint;
-            ContentName = item.DisplayName ?? string.Empty;
-            SelectedContentType = item.ContentType;
-            SelectedGameType = item.GameType;
-            SourcePath = item.SourcePath ?? string.Empty;
-
-            OnPropertyChanged(nameof(IsEditing));
-            OnPropertyChanged(nameof(DialogTitle));
-            OnPropertyChanged(nameof(ActionButtonText));
-
-            // Prepare staging directory
-            if (Directory.Exists(_stagingPath))
+            try
             {
-                Directory.Delete(_stagingPath, true);
+                IsBusy = true;
+                StatusMessage = "Loading content files...";
+
+                var result = await contentStorageService.RetrieveContentAsync(
+                    contentItem.ManifestId,
+                    _stagingPath);
+
+                if (result.Success)
+                {
+                    await RefreshStagingTreeAsync();
+
+                    // Restore selected executable from manifest entry point if available
+                    var entryPoint = contentItem.Manifest?.EntryPoint;
+                    if (!string.IsNullOrWhiteSpace(entryPoint))
+                    {
+                        var normalizedEntryPoint = entryPoint.Replace('\\', '/');
+                        var matchedItem = FindInTree(
+                            FileTree,
+                            item => item.IsExecutable &&
+                                    !string.IsNullOrWhiteSpace(item.FullPath) &&
+                                    Path.GetRelativePath(_stagingPath, item.FullPath).Replace('\\', '/').Equals(normalizedEntryPoint, StringComparison.OrdinalIgnoreCase));
+
+                        if (matchedItem != null)
+                        {
+                            SelectedExecutableItem = matchedItem;
+                            logger?.LogInformation("Restored selected executable from manifest EntryPoint: {EntryPoint}", entryPoint);
+                        }
+                    }
+                }
+                else
+                {
+                    StatusMessage = $"Failed to load content files: {result.FirstError}";
+                }
             }
-
-            Directory.CreateDirectory(_stagingPath);
-
-            // Retrieve content from CAS to staging
-            var result = await contentStorageService.RetrieveContentAsync(
-                Core.Models.Manifest.ManifestId.Create(_originalManifestId),
-                _stagingPath);
-
-            if (result.Success)
+            catch (Exception ex)
             {
-                StatusMessage = "Success!";
-                await RefreshStagingTreeAsync();
+                logger?.LogError(ex, "Error loading content files for editing");
+                StatusMessage = "Error loading content files.";
             }
-            else
+            finally
             {
-                StatusMessage = $"Failed to load content: {result.FirstError}";
+                IsBusy = false;
             }
-        }
-        catch (Exception ex)
-        {
-            logger?.LogError(ex, "Error loading content for editing");
-            StatusMessage = $"Error loading content: {ex.Message}";
-        }
-        finally
-        {
-            IsBusy = false;
         }
     }
 
@@ -342,6 +332,15 @@ public partial class AddLocalContentViewModel(
             ContentName = Path.GetFileNameWithoutExtension(path);
         }
 
+        _cts ??= new CancellationTokenSource();
+        if (_cts.IsCancellationRequested)
+        {
+            _cts.Dispose();
+            _cts = new CancellationTokenSource();
+        }
+
+        var cancellationToken = _cts.Token;
+
         try
         {
             IsBusy = true;
@@ -356,46 +355,54 @@ public partial class AddLocalContentViewModel(
             if (File.Exists(path))
             {
                 var extension = Path.GetExtension(path);
-                if (extension.Equals(".zip", StringComparison.OrdinalIgnoreCase))
+                var destFile = Path.Combine(_stagingPath, Path.GetFileName(path));
+                File.Copy(path, destFile, true);
+
+                if (archivePayloadProcessor != null)
                 {
-                    await Task.Run(() => ZipFile.ExtractToDirectory(path, _stagingPath, true));
+                    await archivePayloadProcessor.ProcessPayloadAsync(
+                        _stagingPath,
+                        SelectedContentType,
+                        SelectedGameType,
+                        cancellationToken);
                 }
-                else
+                else if (extension.Equals(".zip", StringComparison.OrdinalIgnoreCase))
                 {
-                    var destFile = Path.Combine(_stagingPath, Path.GetFileName(path));
-                    File.Copy(path, destFile, true);
+                    await Task.Run(() =>
+                    {
+                        ZipFile.ExtractToDirectory(destFile, _stagingPath, true);
+                        try
+                        {
+                            File.Delete(destFile);
+                        }
+                        catch
+                        {
+                            // Best effort cleanup of source zip in staging
+                        }
+                    });
                 }
             }
             else if (Directory.Exists(path))
             {
-                // Preserve directory structure by copying the folder itself into staging
                 var dirInfo = new DirectoryInfo(path);
-                var dirName = dirInfo.Name;
+                logger?.LogDebug("ImportContentAsync: Copying folder contents from source {Source} to staging root {Staging}", path, _stagingPath);
 
-                // Ensure we don't try to copy to the staging root itself if Name is somehow empty
-                if (string.IsNullOrWhiteSpace(dirName))
+                await Task.Run(() => CopyDirectory(dirInfo, new DirectoryInfo(_stagingPath)));
+
+                if (archivePayloadProcessor != null)
                 {
-                    dirName = "Imported_Folder";
+                    await archivePayloadProcessor.ProcessPayloadAsync(
+                        _stagingPath,
+                        SelectedContentType,
+                        SelectedGameType,
+                        cancellationToken);
                 }
-
-                var targetSubDir = Path.Combine(_stagingPath, dirName);
-                logger?.LogDebug("ImportContentAsync: Preserving directory structure. Source: {Source}, Target: {Target}", path, targetSubDir);
-
-                await Task.Run(() => CopyDirectory(dirInfo, new DirectoryInfo(targetSubDir)));
             }
 
             // Auto-organization: If we have .map files at the root level, move them into subdirectories
             CreateMapFoldersIfNeeded();
 
             // Detect and normalize GenLauncher files
-            _cts ??= new CancellationTokenSource();
-            if (_cts.IsCancellationRequested)
-            {
-                _cts.Dispose();
-                _cts = new CancellationTokenSource();
-            }
-
-            var cancellationToken = _cts.Token;
             var normalizationSetStatus = false;
             try
             {

@@ -319,7 +319,7 @@ public static class DemoViewModelFactory
         var mockService = new MockLocalContentService();
         var mockLogger = new MockLogger<AddLocalContentViewModel>();
 
-        return new AddLocalContentViewModel(mockService, null, null, null, mockLogger);
+        return new AddLocalContentViewModel(mockService, null, null, null, null, mockLogger);
     }
 
     /// <summary>
