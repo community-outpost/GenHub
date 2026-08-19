@@ -80,7 +80,12 @@ public partial class AddLocalContentViewModel(
         return null;
     }
 
-    protected static int CountExecutables(IEnumerable<FileTreeItem> items)
+    /// <summary>
+    /// Counts the total number of executables in the given file tree items recursively.
+    /// </summary>
+    /// <param name="items">The file tree items to inspect.</param>
+    /// <returns>The total number of executable files found.</returns>
+    internal static int CountExecutables(IEnumerable<FileTreeItem> items)
     {
         int count = 0;
         foreach (var item in items)
