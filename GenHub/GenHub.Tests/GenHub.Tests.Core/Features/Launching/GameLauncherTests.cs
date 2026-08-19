@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Text.Json;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -92,6 +94,10 @@ public class GameLauncherTests : IDisposable
         _gameSettingsServiceMock.Setup(x => x.LoadOptionsAsync(It.IsAny<GameType>()))
             .ReturnsAsync(OperationResult<IniOptions>.CreateSuccess(new IniOptions()));
         _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(It.IsAny<GameType>(), It.IsAny<IniOptions>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(new GeneralsOnlineSettings()));
+        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         // Setup storage location service mock
@@ -900,6 +906,155 @@ public class GameLauncherTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that a Zero Hour profile running some other client leaves the GeneralsOnline
+    /// client's settings.json alone, even when its name would match the heuristic that
+    /// identifies profiles with no recorded publisher.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithNonGeneralsOnlineZeroHourProfile_ShouldNotWriteGeneralsOnlineSettingsAsync()
+    {
+        // Arrange
+        var profile = CreateZeroHourProfile(PublisherTypeConstants.TheSuperHackers, "GeneralsOnline-compatible TheSuperHackers");
+        ArrangeSuccessfulLaunch(profile);
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
+
+        // Assert
+        Assert.True(result.Success, result.FirstError);
+        _gameSettingsServiceMock.Verify(
+            x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Tests that a GeneralsOnline profile does write its client settings.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithGeneralsOnlineProfile_ShouldWriteGeneralsOnlineSettingsAsync()
+    {
+        // Arrange
+        var profile = CreateZeroHourProfile(PublisherTypeConstants.GeneralsOnline, "GeneralsOnline");
+        profile.GoShowFps = true;
+        ArrangeSuccessfulLaunch(profile);
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
+
+        // Assert
+        Assert.True(result.Success, result.FirstError);
+        _gameSettingsServiceMock.Verify(
+            x => x.SaveGeneralsOnlineSettingsAsync(It.Is<GeneralsOnlineSettings>(s => s.ShowFps)),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that settings.json is left alone when it could not be read. A missing file reads as
+    /// defaults and reports success, so a failed read means the client's own file exists and is
+    /// unreadable, and rewriting it from defaults would discard everything the client owns.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithUnreadableGeneralsOnlineSettings_ShouldNotRewriteThemAsync()
+    {
+        // Arrange
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateFailure("settings.json is locked"));
+
+        var profile = CreateZeroHourProfile(PublisherTypeConstants.GeneralsOnline, "GeneralsOnline");
+        profile.GoShowFps = true;
+        ArrangeSuccessfulLaunch(profile);
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
+
+        // Assert
+        Assert.True(result.Success, result.FirstError);
+        _gameSettingsServiceMock.Verify(
+            x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Tests that a settings.json spelling a nested section as an explicit null, which is valid
+    /// JSON, does not break the merge the launch performs.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithNullGeneralsOnlineSection_ShouldStillWriteSettingsAsync()
+    {
+        // Arrange
+        var existing = new GeneralsOnlineSettings { Camera = null! };
+
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(existing));
+
+        var profile = CreateZeroHourProfile(PublisherTypeConstants.GeneralsOnline, "GeneralsOnline");
+        profile.GoCameraMinHeight = 200.0f;
+        ArrangeSuccessfulLaunch(profile);
+
+        GeneralsOnlineSettings? saved = null;
+        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
+            .Callback<GeneralsOnlineSettings>(s => saved = s)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
+
+        // Assert
+        Assert.True(result.Success, result.FirstError);
+        Assert.NotNull(saved);
+        Assert.Equal(200.0f, saved.Camera.MinHeight);
+    }
+
+    /// <summary>
+    /// Tests that the values a user configured inside the GeneralsOnline client survive a launch
+    /// of a profile that says nothing about them.
+    /// </summary>
+    /// <returns>The async task.</returns>
+    [Fact]
+    public async Task LaunchProfileAsync_WithGeneralsOnlineProfile_ShouldPreserveSettingsTheProfileDoesNotSpecifyAsync()
+    {
+        // Arrange - every seeded value is the opposite of the GenHub default
+        var existing = new GeneralsOnlineSettings
+        {
+            ShowPing = false,
+            ChatFontSize = 24,
+            RememberUsername = false,
+        };
+        existing.Render.FpsLimit = 60;
+        existing.AdditionalSettings["auth_token"] = JsonSerializer.Deserialize<JsonElement>("\"preserve-me\"");
+
+        _gameSettingsServiceMock.Setup(x => x.LoadGeneralsOnlineSettingsAsync())
+            .ReturnsAsync(OperationResult<GeneralsOnlineSettings>.CreateSuccess(existing));
+
+        var profile = CreateZeroHourProfile(PublisherTypeConstants.GeneralsOnline, "GeneralsOnline");
+        profile.GoShowFps = true;
+        ArrangeSuccessfulLaunch(profile);
+
+        GeneralsOnlineSettings? saved = null;
+        _gameSettingsServiceMock.Setup(x => x.SaveGeneralsOnlineSettingsAsync(It.IsAny<GeneralsOnlineSettings>()))
+            .Callback<GeneralsOnlineSettings>(s => saved = s)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        // Act
+        var result = await _gameLauncher.LaunchProfileAsync(profile.Id);
+
+        // Assert
+        Assert.True(result.Success, result.FirstError);
+        Assert.NotNull(saved);
+        Assert.True(saved.ShowFps);
+        Assert.False(saved.ShowPing);
+        Assert.Equal(24, saved.ChatFontSize);
+        Assert.False(saved.RememberUsername);
+        Assert.Equal(60, saved.Render.FpsLimit);
+        Assert.True(saved.AdditionalSettings.ContainsKey("auth_token"), "client-owned key was dropped");
+        Assert.Equal("preserve-me", saved.AdditionalSettings["auth_token"].GetString());
+    }
+
+    /// <summary>
     /// Removes the temporary retail root.
     /// </summary>
     public void Dispose()
@@ -933,6 +1088,31 @@ public class GameLauncherTests : IDisposable
                 ExecutablePath = TestExecutablePath,
                 WorkingDirectory = TestWorkspacePath,
                 GameType = GameType.Generals,
+            },
+            EnabledContentIds = ["1.0.genhub.mod.test"],
+        };
+    }
+
+    /// <summary>
+    /// Creates a Zero Hour <see cref="GameProfile"/> attributed to a specific publisher.
+    /// </summary>
+    /// <param name="publisherType">The publisher the profile's client belongs to.</param>
+    /// <param name="clientName">The client name, which is also consulted when identifying the publisher.</param>
+    /// <returns>A valid Zero Hour <see cref="GameProfile"/>.</returns>
+    private static GameProfile CreateZeroHourProfile(string publisherType, string clientName)
+    {
+        return new GameProfile
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = "Test Profile",
+            GameInstallationId = "install-1",
+            GameClient = new GameClient
+            {
+                Id = "version-1",
+                Name = clientName,
+                ExecutablePath = @"C:\Games\generals.exe",
+                GameType = GameType.ZeroHour,
+                PublisherType = publisherType,
             },
             EnabledContentIds = ["1.0.genhub.mod.test"],
         };
@@ -981,4 +1161,38 @@ public class GameLauncherTests : IDisposable
         config?.Arguments != null &&
         config.Arguments.TryGetValue("-win", out var value) &&
         value == string.Empty;
+
+    /// <summary>
+    /// Wires the mocks a launch needs to reach the settings-writing step and succeed.
+    /// </summary>
+    /// <param name="profile">The profile being launched.</param>
+    private void ArrangeSuccessfulLaunch(GameProfile profile)
+    {
+        var manifest = new ContentManifest { Id = "1.0.genhub.mod.test", Name = "Test Content" };
+        var workspaceInfo = new WorkspaceInfo { Id = profile.Id, WorkspacePath = @"C:\workspace" };
+        var processInfo = new GameProcessInfo { ProcessId = 123, ProcessName = "generals.exe" };
+
+        // Zero Hour launches resolve their own installation path, so both roots are declared.
+        var installation = new GameInstallation(_retailRoot, GameInstallationType.Steam);
+        installation.SetPaths(_retailRoot, _retailRoot);
+        _gameInstallationServiceMock.Setup(x => x.GetInstallationAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(installation));
+
+        _profileManagerMock.Setup(x => x.GetProfileAsync(profile.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        _manifestPoolMock.Setup(x => x.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(manifest));
+
+        _dependencyResolverMock.Setup(x => x.ResolveDependenciesWithManifestsAsync(
+                It.Is<IEnumerable<string>>(ids => ids.SequenceEqual(TestContentIds)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DependencyResolutionResult.CreateSuccess(TestContentIds, [manifest], []));
+
+        _workspaceManagerMock.Setup(x => x.PrepareWorkspaceAsync(It.IsAny<WorkspaceConfiguration>(), It.IsAny<IProgress<WorkspacePreparationProgress>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo));
+
+        _processManagerMock.Setup(x => x.StartProcessAsync(It.IsAny<GameLaunchConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameProcessInfo>.CreateSuccess(processInfo));
+    }
 }
