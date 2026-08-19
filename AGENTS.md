@@ -47,7 +47,7 @@ When communicating and reasoning about GenHub, use this language:
 
 ## The three ways to hurt yourself
 
-1. **Blind symbol edits.** Never modify core interfaces, storage services, or launcher models without checking caller chains via `gitnexus_impact`. Modifying a signature in `ICasService`, `IContentService`, or `IContentReconciliationService` can break Windows launch receipts, Linux symlink handlers, and macOS composition roots simultaneously.
+1. **Blind symbol edits.** Never modify core interfaces, storage services, or launcher models without checking caller chains via `gitnexus_impact`. Modifying a signature in `ICasService`, `IProfileContentService`, or `IContentReconciliationService` can break Windows launch receipts, Linux symlink handlers, and macOS composition roots simultaneously.
 2. **Throwing exceptions for control flow.** Never throw custom exceptions for predictable domain failure states (file missing, validation failure, hash mismatch, network failure). Return `OperationResult<T>.CreateFailure(...)`. Cooperative cancellation (`OperationCanceledException`) and contract invariant violations (`ArgumentNullException`, invalid arguments) should follow standard .NET exception semantics.
 3. **Hardcoding paths and magic strings.** Never hardcode backslashes `\`, magic constants, URLs, or regexes inline. Always use `Path.Combine` and centralized constants from `GenHub.Core.Constants`.
 
@@ -56,8 +56,8 @@ When communicating and reasoning about GenHub, use this language:
 The most common defect in this repository is a change that works on one platform or layer and silently breaks another. Before calling your work done, walk this list:
 
 - **Platforms:** If you change launcher behavior, file materialization, or OS hooks, verify compatibility across Windows (`GenHub.Windows`), Linux (`GenHub.Linux`), and macOS (`GenHub.MacOS`).
-- **Composition Roots:** Any new service registered in `GenHub.Core` or UI must be registered across `App.axaml.cs` and each platform host's `Program.cs`.
-- **Result Pattern:** Adhere strictly to `docs/dev/result-pattern.md`. All public service methods return `OperationResult<T>` or `ResultBase`.
+- **Composition Roots:** Register shared services in the applicable module under `GenHub/GenHub/Infrastructure/DependencyInjection/` and ensure that module is invoked by `AppServices.ConfigureApplicationServices`. Register platform-specific implementations in the applicable Windows (`WindowsServicesModule`), Linux (`LinuxServicesModule`), and macOS (`MacOSServicesModule`) service modules, and verify each host composes them through its `Program.cs`.
+- **Result Pattern:** Adhere strictly to `docs/dev/result-pattern.md`. All fallible operations (I/O, network, reconciliation, launch, validation) return `OperationResult<T>` or specialized domain result types (`LaunchResult`, `ValidationResult`, `DetectionResult<T>`) rather than throwing exceptions for control flow. Infallible lookups, getters, and predicates return direct types.
 - **Constants:** Adhere strictly to `docs/dev/constants.md`. Put constants in `GenHub.Core.Constants` static classes.
 - **Cancellation & Async:** Every long-running I/O, download, hashing, or reconciliation task must accept and propagate a `CancellationToken`. Never block the UI thread.
 - **Reverse states:** If you add a workspace materializer, add its cleanup/reversion path. If you add a cache entry, handle its eviction.
@@ -79,16 +79,20 @@ This repository uses **GitNexus** to maintain an AST-parsed structural knowledge
    - Check affected flows via `gitnexus://repo/{name}/processes` or `gitnexus_query(...)`.
 
 2. **Phase 2 — Change Detection (Pre-Commit / Batch Verification):**
-   - Run `gitnexus_detect_changes()` on modified/staged files to map diffs against execution flows.
+   - Run `gitnexus_detect_changes({ scope: "staged" })` or `pnpm exec gitnexus detect-changes --scope staged` on staged files to map diffs against execution flows.
+   - For pull request verification against the target base branch:
+     ```bash
+     pnpm exec gitnexus detect-changes --scope compare --base-ref origin/development
+     ```
    - Confirm that changes touching cross-platform abstractions (CAS, launcher, file handlers) stay intact.
 
 3. **Phase 3 — Gatekeeping (Pre-PR & CI):**
    - CI builds, indexes, and validates the `.gitnexus/` knowledge graph on push to `development` and `main`.
-   - PR CI runs `gitnexus detect-changes` to surface blast radius in GitHub Step Summaries.
+   - PR CI runs `pnpm exec gitnexus detect-changes --scope compare --base-ref "$BASE_SHA"` to surface blast radius in GitHub Step Summaries.
    - If the local graph is stale after pulling `development`:
 
      ```bash
-     npx -y gitnexus@1.6.9 analyze --index-only
+     pnpm exec gitnexus analyze --index-only
      ```
 
 ## Code Conventions & Taste
@@ -135,10 +139,11 @@ This repository uses **GitNexus** to maintain an AST-parsed structural knowledge
 - **GitNexus CLI:**
 
   ```bash
-  npx -y gitnexus@1.6.9 analyze --index-only   # Build/refresh graph
-  npx -y gitnexus@1.6.9 status                 # Inspect status
-  npx -y gitnexus@1.6.9 detect-changes         # Map git diff to affected flows
-  npx -y gitnexus@1.6.9 impact <Symbol>        # Symbol blast radius
+  pnpm exec gitnexus analyze --index-only                        # Build/refresh graph
+  pnpm exec gitnexus status                                     # Inspect status
+  pnpm exec gitnexus detect-changes --scope staged              # Map staged diff to affected flows
+  pnpm exec gitnexus detect-changes --scope compare --base-ref origin/development # Map branch diff against base
+  pnpm exec gitnexus impact <Symbol>                             # Symbol blast radius
   ```
 
 ## Where code lives

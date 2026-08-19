@@ -125,10 +125,17 @@ Before committing or pushing fixes:
 
 ### Step 6: Single Consolidated Push
 
-Group all fixes into a single commit to prevent multiple CI triggers:
+Group all fixes into a single commit to prevent multiple CI triggers. Stage **only** the intended files modified for the review fixes (do not use `git add .` to avoid committing unrelated or untracked changes, and preserve any unrelated local working tree changes):
 
 ```bash
-git add .
+# Check modified files and stage ONLY intended fix files
+git status
+git add <path/to/modified_file1> <path/to/modified_file2>
+
+# Verify staged changes before committing
+git diff --cached --stat
+
+# Commit and push in a single pass
 git commit -m "fix(review): address review feedback and CI check findings"
 git push origin HEAD
 ```
