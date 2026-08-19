@@ -406,4 +406,91 @@ public class SuperHackersProviderTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => _provider.SearchAsync(new ContentSearchQuery(), cts.Token));
     }
+
+    /// <summary>
+    /// Verifies that SearchAsync falls back to display name and tag name when release name is blank.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task SearchAsync_UsesFallbackName_WhenReleaseNameIsBlankAsync(string? releaseName)
+    {
+        // Arrange
+        var release = new GitHubRelease
+        {
+            TagName = "alpha-4",
+            Name = releaseName,
+            Body = "Patch notes",
+            HtmlUrl = "https://github.com/TheSuperHackers/GeneralsGamePatch2/releases/tag/alpha-4",
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+
+        _gitHubApiClientMock.Setup(c => c.GetLatestReleaseAsync(
+            SuperHackersConstants.GeneralsGamePatch2Owner,
+            SuperHackersConstants.GeneralsGamePatch2Repo,
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(release);
+
+        _gitHubApiClientMock.Setup(c => c.GetLatestReleaseAsync(
+            SuperHackersConstants.GeneralsGameCodeOwner,
+            SuperHackersConstants.GeneralsGameCodeRepo,
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync((GitHubRelease?)null);
+
+        var query = new ContentSearchQuery { ContentType = ContentType.Patch };
+
+        // Act
+        var result = await _provider.SearchAsync(query);
+
+        // Assert
+        Assert.True(result.Success);
+        var items = result.Data?.ToList();
+        Assert.NotNull(items);
+        Assert.Single(items);
+        Assert.Equal($"{SuperHackersConstants.GeneralsGamePatch2DisplayName} alpha-4", items[0].Name);
+    }
+
+    /// <summary>
+    /// Verifies that SearchAsync preserves the original release name when it is not blank.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SearchAsync_PreservesReleaseName_WhenReleaseNameIsNonBlankAsync()
+    {
+        // Arrange
+        var release = new GitHubRelease
+        {
+            TagName = "alpha-4",
+            Name = "Community Patch 2.0 Alpha 4",
+            Body = "Patch notes",
+            HtmlUrl = "https://github.com/TheSuperHackers/GeneralsGamePatch2/releases/tag/alpha-4",
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+
+        _gitHubApiClientMock.Setup(c => c.GetLatestReleaseAsync(
+            SuperHackersConstants.GeneralsGamePatch2Owner,
+            SuperHackersConstants.GeneralsGamePatch2Repo,
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(release);
+
+        _gitHubApiClientMock.Setup(c => c.GetLatestReleaseAsync(
+            SuperHackersConstants.GeneralsGameCodeOwner,
+            SuperHackersConstants.GeneralsGameCodeRepo,
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync((GitHubRelease?)null);
+
+        var query = new ContentSearchQuery { ContentType = ContentType.Patch };
+
+        // Act
+        var result = await _provider.SearchAsync(query);
+
+        // Assert
+        Assert.True(result.Success);
+        var items = result.Data?.ToList();
+        Assert.NotNull(items);
+        Assert.Single(items);
+        Assert.Equal("Community Patch 2.0 Alpha 4", items[0].Name);
+    }
 }

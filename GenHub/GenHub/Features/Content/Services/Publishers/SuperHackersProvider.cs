@@ -116,7 +116,7 @@ public class SuperHackersProvider(
                         var result = new ContentSearchResult
                         {
                             Id = manifestId,
-                            Name = latestRelease.Name ?? $"{displayName} {latestRelease.TagName}",
+                            Name = !string.IsNullOrWhiteSpace(latestRelease.Name) ? latestRelease.Name : $"{displayName} {latestRelease.TagName}",
                             Description = latestRelease.Body ?? "SuperHackers release - details available after resolution",
                             Version = latestRelease.TagName ?? "latest",
                             AuthorName = owner,
