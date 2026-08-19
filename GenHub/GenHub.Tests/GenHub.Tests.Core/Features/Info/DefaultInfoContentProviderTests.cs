@@ -29,7 +29,7 @@ public class DefaultInfoContentProviderTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task GetAllSectionsAsync_ReturnsOrderedSections()
+    public async Task GetAllSectionsAsync_ReturnsOrderedSectionsAsync()
     {
         var sections = (await _provider.GetAllSectionsAsync()).ToList();
 
@@ -43,7 +43,7 @@ public class DefaultInfoContentProviderTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task GetSectionAsync_WorkspaceSection_ContainsComprehensiveStrategyExplanations()
+    public async Task GetSectionAsync_WorkspaceSection_ContainsComprehensiveStrategyExplanationsAsync()
     {
         var section = await _provider.GetSectionAsync("workspaces");
 

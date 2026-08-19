@@ -800,11 +800,11 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     IsExpandable = true,
                     DetailedContent = """
                     **The "Magic Mirror":**
-                    When you hit Play, GenHub creates an isolated, disposable "Virtual Copy" of your game installation in milliseconds.
+                    When you hit Play, GenHub creates an isolated virtual workspace for your profile (taking milliseconds in linked modes).
 
                     **Why is this cool?**
-                    1.  **Zero Space:** In linked modes, it acts like a full multi-gigabyte game folder while consuming virtually 0 MB of extra disk space.
-                    2.  **Total Safety:** Mods, configuration tweaks, and runtime files live only in this isolated mirror. Your original game installation remains clean and untouched.
+                    1.  **Zero Space:** In linked modes (HardLink and SymlinkOnly), it acts like a full multi-gigabyte game folder while consuming virtually 0 MB of extra disk space.
+                    2.  **Profile Isolation:** Mods and configurations live in dedicated profile workspaces without manually shuffling files in your main game directory. (Note: In direct linked modes, file data is shared with the underlying source; choose Hybrid or Full Copy if mods modify game binaries in-place).
                     3.  **Instant Mod Switching:** Switch between massive total conversions like *Rise of the Reds* and *ShockWave* without reinstalling or moving files.
                     """,
                 },
@@ -898,7 +898,7 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     *   **HardLink:**
                         *   *Creation Time:* < 50ms (Metadata only)
                         *   *Disk Overhead:* 0 MB
-                        *   *Integrity:* Read-only source safety; workspace writes do not corrupt base game installation.
+                        *   *Integrity:* Shared data clusters (CAS objects remain immutable in CAS pool; direct writes affect linked file).
                     *   **SymlinkOnly:**
                         *   *Creation Time:* < 50ms (Pointer creation)
                         *   *Disk Overhead:* < 1 MB
@@ -906,7 +906,7 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     *   **Hybrid:**
                         *   *Creation Time:* 1-2 seconds
                         *   *Disk Overhead:* ~50-100 MB
-                        *   *Integrity:* Isolated configs with linked large assets.
+                        *   *Integrity:* Physical copies for mutable configs, shared links for immutable large assets.
                     *   **Full Copy:**
                         *   *Creation Time:* 10-30 seconds
                         *   *Disk Overhead:* Full size (2,000 - 5,000+ MB)
