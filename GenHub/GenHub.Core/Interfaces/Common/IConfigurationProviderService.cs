@@ -167,4 +167,10 @@ public interface IConfigurationProviderService
     /// </summary>
     /// <returns>The logs directory path.</returns>
     string GetLogsPath();
+
+    /// <summary>
+    /// Gets the CSV catalog configuration.
+    /// </summary>
+    /// <returns>The CSV catalog configuration.</returns>
+    GenHub.Core.Models.Content.CsvCatalogConfiguration? GetCsvCatalogConfiguration();
 }

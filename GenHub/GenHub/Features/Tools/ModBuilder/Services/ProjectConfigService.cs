@@ -213,6 +213,8 @@ public sealed class ProjectConfigService : IProjectConfigService
                     sw.Elapsed);
             }
 
+            project.ProjectDir = Path.GetDirectoryName(projectPath) ?? string.Empty;
+
             // Validate integrity if requested
             if (validateIntegrity)
             {
@@ -334,6 +336,11 @@ public sealed class ProjectConfigService : IProjectConfigService
                     sw.Elapsed);
             }
 
+            if (string.IsNullOrWhiteSpace(projectPath) || !FileExistsCached(projectPath))
+            {
+                validationErrors.Add($"Project file not found at: {projectPath}");
+            }
+
             var projectDir = Path.GetDirectoryName(projectPath);
             if (string.IsNullOrEmpty(projectDir))
             {
@@ -341,31 +348,40 @@ public sealed class ProjectConfigService : IProjectConfigService
             }
             else
             {
-                // Validate directory structure
-                var requiredDirs = new[]
+                // Ensure and normalize Configs directory
+                var configsDir = Path.Combine(projectDir, project.Directories.Configs);
+                if (!Directory.Exists(configsDir))
                 {
-                    Path.Combine(projectDir, project.Directories.Configs),
-                    Path.Combine(projectDir, project.Directories.GameFilesEdited),
-                    Path.Combine(projectDir, project.Directories.Build),
-                    Path.Combine(projectDir, project.Directories.Release),
-                };
-
-                foreach (var dir in requiredDirs)
-                {
-                    if (!Directory.Exists(dir))
+                    var fallbackConfigDir = Path.Combine(projectDir, "config");
+                    if (Directory.Exists(fallbackConfigDir))
                     {
-                        validationErrors.Add($"Missing directory: {Path.GetFileName(dir)}");
+                        project.Directories.Configs = "config";
+                        configsDir = fallbackConfigDir;
+                    }
+                    else
+                    {
+                        Directory.CreateDirectory(configsDir);
                     }
                 }
 
-                // Validate bundle configs exist
-                foreach (var bundleConfig in project.BundleConfigs)
+                // Ensure GameFilesEdited directory
+                var gameFilesDir = Path.Combine(projectDir, project.Directories.GameFilesEdited);
+                if (!Directory.Exists(gameFilesDir))
                 {
-                    var configPath = Path.Combine(projectDir, project.Directories.Configs, bundleConfig);
-                    if (!FileExistsCached(configPath))
-                    {
-                        validationErrors.Add($"Missing bundle config: {bundleConfig}");
-                    }
+                    Directory.CreateDirectory(gameFilesDir);
+                }
+
+                // Ensure Build and Release directories exist (or create them)
+                var buildDir = Path.Combine(projectDir, project.Directories.Build);
+                if (!Directory.Exists(buildDir))
+                {
+                    Directory.CreateDirectory(buildDir);
+                }
+
+                var releaseDir = Path.Combine(projectDir, project.Directories.Release);
+                if (!Directory.Exists(releaseDir))
+                {
+                    Directory.CreateDirectory(releaseDir);
                 }
             }
 
@@ -400,19 +416,79 @@ public sealed class ProjectConfigService : IProjectConfigService
 
         try
         {
-            if (!FileExistsCached(_recentProjectsPath))
+            var discoveredProjects = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // 1. Read stored recent projects
+            if (FileExistsCached(_recentProjectsPath))
             {
-                sw.Stop();
-                return ProjectOperationResult<List<string>>.CreateSuccess(new List<string>(), sw.Elapsed);
+                try
+                {
+                    var jsonContent = await File.ReadAllTextAsync(_recentProjectsPath, cancellationToken).ConfigureAwait(false);
+                    var recentProjects = JsonSerializer.Deserialize<List<string>>(jsonContent, _jsonOptions);
+                    if (recentProjects != null)
+                    {
+                        foreach (var path in recentProjects)
+                        {
+                            if (File.Exists(path))
+                            {
+                                discoveredProjects.Add(path);
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to parse recent projects file");
+                }
             }
 
-            var jsonContent = await File.ReadAllTextAsync(_recentProjectsPath, cancellationToken).ConfigureAwait(false);
-            var recentProjects = JsonSerializer.Deserialize<List<string>>(jsonContent, _jsonOptions)
-                ?? new List<string>();
+            // 2. Discover in common folders (Documents, ModBuilder directories, Desktop)
+            await Task.Run(() =>
+            {
+                var searchLocations = new List<string>();
 
-            // Filter out non-existent projects and limit count
-            var validProjects = recentProjects
-                .Where(FileExistsCached)
+                var myDocs = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                if (!string.IsNullOrEmpty(myDocs) && Directory.Exists(myDocs))
+                {
+                    searchLocations.Add(myDocs);
+                    searchLocations.Add(Path.Combine(myDocs, "ModBuilder"));
+                    searchLocations.Add(Path.Combine(myDocs, "GenHub"));
+                    searchLocations.Add(Path.Combine(myDocs, "GenHub", "ModBuilder"));
+                    searchLocations.Add(Path.Combine(myDocs, "GenHub", "Projects"));
+                }
+
+                var desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                if (!string.IsNullOrEmpty(desktop) && Directory.Exists(desktop))
+                {
+                    searchLocations.Add(Path.Combine(desktop, "ModBuilder"));
+                }
+
+                var sampleDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SampleProjects");
+                if (Directory.Exists(sampleDir))
+                {
+                    searchLocations.Add(sampleDir);
+                }
+
+                foreach (var loc in searchLocations.Where(Directory.Exists).Distinct(StringComparer.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        var files = Directory.GetFiles(loc, "*.mbproj", SearchOption.AllDirectories);
+                        foreach (var f in files)
+                        {
+                            discoveredProjects.Add(f);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogTrace(ex, "Error scanning directory {Location} for projects", loc);
+                    }
+                }
+            }, cancellationToken).ConfigureAwait(false);
+
+            var validProjects = discoveredProjects
+                .Where(File.Exists)
+                .OrderByDescending(File.GetLastWriteTimeUtc)
                 .Take(maxCount)
                 .ToList();
 

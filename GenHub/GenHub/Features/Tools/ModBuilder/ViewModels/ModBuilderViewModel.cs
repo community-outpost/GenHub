@@ -447,6 +447,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task NewProjectAsync()
     {
+        _logger.LogInformation("NewProjectAsync requested");
         var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
         var topLevel = TopLevel.GetTopLevel(lifetime?.MainWindow);
         if (topLevel == null)
@@ -454,10 +455,30 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return;
         }
 
+        var defaultFolder = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            "ModBuilder");
+        if (!Directory.Exists(defaultFolder))
+        {
+            try
+            {
+                Directory.CreateDirectory(defaultFolder);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not create default ModBuilder directory at {Folder}", defaultFolder);
+            }
+        }
+
+        var suggestedFolder = Directory.Exists(defaultFolder)
+            ? await topLevel.StorageProvider.TryGetFolderFromPathAsync(defaultFolder).ConfigureAwait(false)
+            : null;
+
         var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = "Create New ModBuilder Project",
             SuggestedFileName = "MyMod.mbproj",
+            SuggestedStartLocation = suggestedFolder,
             FileTypeChoices =
             [
                 new FilePickerFileType("ModBuilder Project") { Patterns = ["*.mbproj",], }
@@ -477,6 +498,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             }
 
             var projectName = Path.GetFileNameWithoutExtension(projectPath);
+            _logger.LogInformation("Creating new project '{ProjectName}' at {ProjectPath}", projectName, projectPath);
 
             try
             {
@@ -499,21 +521,24 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
                     await LoadProjectDataAsync().ConfigureAwait(false);
                     await _projectConfigService.AddToRecentProjectsAsync(projectPath).ConfigureAwait(false);
+                    await LoadRecentProjectsAsync().ConfigureAwait(false);
 
                     _notificationService.ShowSuccess(
                         "Project Created",
                         $"Created project: {projectName}\nProject structure ready. Edit files in GameFilesEdited folder.");
                     AppendBuildLog($"Created new project: {projectPath}");
                     AppendBuildLog("Generated project structure with folders and config files");
+                    _logger.LogInformation("Project created successfully at {ProjectPath}", projectPath);
                 }
                 else
                 {
                     _notificationService.ShowError("Creation Failed", result.FirstError ?? "Unknown error");
+                    _logger.LogWarning("Project creation failed: {Error}", result.FirstError);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to create project");
+                _logger.LogError(ex, "Failed to create project at {ProjectPath}", projectPath);
                 _notificationService.ShowError("Creation Error", ex.Message);
             }
         }
@@ -525,6 +550,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task OpenProjectAsync()
     {
+        _logger.LogInformation("OpenProjectAsync requested");
         var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
         var topLevel = TopLevel.GetTopLevel(lifetime?.MainWindow);
         if (topLevel == null)
@@ -532,10 +558,18 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             return;
         }
 
+        var defaultFolder = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            "ModBuilder");
+        var suggestedFolder = Directory.Exists(defaultFolder)
+            ? await topLevel.StorageProvider.TryGetFolderFromPathAsync(defaultFolder).ConfigureAwait(false)
+            : null;
+
         var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
             Title = "Open ModBuilder Project",
             AllowMultiple = false,
+            SuggestedStartLocation = suggestedFolder,
             FileTypeFilter =
             [
                 new FilePickerFileType("ModBuilder Project") { Patterns = ["*.mbproj",], }
@@ -544,6 +578,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         if (files.Any())
         {
+            _logger.LogInformation("Selected project to open: {Path}", files[0].Path.LocalPath);
             await LoadProjectFromPathAsync(files[0].Path.LocalPath).ConfigureAwait(false);
         }
     }
@@ -556,6 +591,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task OpenRecentProjectAsync(string? path)
     {
+        _logger.LogInformation("OpenRecentProjectAsync requested for: {Path}", path);
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
         {
             _notificationService.ShowWarning("Project Not Found", $"Could not find project file at: {path}");
@@ -571,23 +607,31 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task LoadSampleProjectAsync()
     {
+        _logger.LogInformation("LoadSampleProjectAsync requested");
         try
         {
-            var samplePath = Path.Combine(
-                AppDomain.CurrentDomain.BaseDirectory,
-                "SampleProjects",
-                "ModBuilder",
-                "BasicMod",
-                "BasicMod.mbproj");
+            var candidatePaths = new[]
+            {
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SampleProjects", "ModBuilder", "BasicMod", "BasicMod.mbproj"),
+                Path.Combine(AppContext.BaseDirectory, "SampleProjects", "ModBuilder", "BasicMod", "BasicMod.mbproj"),
+                Path.Combine(Directory.GetCurrentDirectory(), "SampleProjects", "ModBuilder", "BasicMod", "BasicMod.mbproj"),
+                Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "SampleProjects", "ModBuilder", "BasicMod", "BasicMod.mbproj")),
+                Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "SampleProjects", "ModBuilder", "BasicMod", "BasicMod.mbproj")),
+            };
 
-            if (!File.Exists(samplePath))
+            var samplePath = candidatePaths.FirstOrDefault(File.Exists);
+
+            if (samplePath == null)
             {
                 _notificationService.ShowWarning(
                     "Sample Not Found",
                     "Sample project not found. It may not be included in this build.");
-                AppendBuildLog($"Sample project not found at: {samplePath}");
+                AppendBuildLog($"Sample project not found in search paths: {string.Join(", ", candidatePaths)}");
+                _logger.LogWarning("Sample project not found in candidate paths");
                 return;
             }
+
+            _logger.LogInformation("Found sample project at: {SamplePath}", samplePath);
 
             // Ensure sample TGA exists
             await EnsureSampleTgaExistsAsync(Path.GetDirectoryName(samplePath)!).ConfigureAwait(false);
@@ -604,6 +648,50 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             _notificationService.ShowError("Load Failed", $"Failed to load sample project: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// Opens the dedicated File and Asset Manager dialog.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanOpenFileManager))]
+    private async Task OpenFileManagerAsync()
+    {
+        _logger.LogInformation("OpenFileManagerAsync requested");
+        if (CurrentProject == null)
+        {
+            _notificationService.ShowWarning("No Project", "Please load or create a project first");
+            return;
+        }
+
+        try
+        {
+            var projectDir = Path.GetDirectoryName(ProjectPath) ?? CurrentProject.ProjectDir;
+            if (!string.IsNullOrEmpty(projectDir))
+            {
+                await FileManager.InitializeAsync(projectDir).ConfigureAwait(false);
+            }
+
+            await InvokeOnUIThreadAsync(async () =>
+            {
+                var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+                var mainWindow = lifetime?.MainWindow;
+                if (mainWindow == null)
+                {
+                    return;
+                }
+
+                var dialog = new Views.FileManagerDialog(FileManager);
+                await dialog.ShowDialog(mainWindow).ConfigureAwait(false);
+                await RefreshFileCountAsync().ConfigureAwait(false);
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to open File Manager dialog");
+            _notificationService.ShowError("File Manager Error", ex.Message);
+        }
+    }
+
+    private bool CanOpenFileManager() => CurrentProject != null && !IsBuildRunning;
 
     /// <summary>
     /// Ensures the sample TGA file exists by creating it if needed.
@@ -713,6 +801,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanSaveProject))]
     private async Task SaveProjectAsync()
     {
+        _logger.LogInformation("SaveProjectAsync requested for: {Path}", ProjectPath);
         if (CurrentProject == null || string.IsNullOrEmpty(ProjectPath))
         {
             return;
@@ -736,10 +825,12 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 _notificationService.ShowSuccess("Project Saved", "Project saved successfully");
                 AppendBuildLog($"Saved project: {ProjectPath}");
                 StatusMessage = "Project saved";
+                _logger.LogInformation("Project saved successfully to {Path}", ProjectPath);
             }
             else
             {
                 _notificationService.ShowError("Save Failed", result.FirstError ?? "Unknown error");
+                _logger.LogWarning("Failed to save project: {Error}", result.FirstError);
             }
         }
         catch (Exception ex)
@@ -757,6 +848,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanOpenConfigEditor))]
     private async Task OpenConfigEditorAsync()
     {
+        _logger.LogInformation("OpenConfigEditorAsync requested");
         if (CurrentProject == null)
         {
             return;
@@ -838,6 +930,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanCloseProject))]
     private async Task CloseProjectAsync()
     {
+        _logger.LogInformation("CloseProjectAsync requested for: {Name}", CurrentProject?.Name);
         if (CurrentProject == null)
         {
             return;
@@ -851,7 +944,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         BuildLog.Clear();
         StatusMessage = "Ready";
 
-        _logger.LogInformation("Project closed");
+        _logger.LogInformation("Project closed successfully");
         await Task.CompletedTask;
     }
 
@@ -863,6 +956,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanAddBundle))]
     private async Task AddBundleAsync()
     {
+        _logger.LogInformation("AddBundleAsync requested");
         if (CurrentProject?.Configuration == null)
         {
             return;
@@ -900,6 +994,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanRemoveBundle))]
     private async Task RemoveBundleAsync()
     {
+        _logger.LogInformation("RemoveBundleAsync requested for: {BundleName}", SelectedBundle?.Name);
         if (SelectedBundle == null || CurrentProject?.Configuration == null)
         {
             return;
@@ -1195,6 +1290,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanClean))]
     private async Task CleanAsync()
     {
+        _logger.LogInformation("CleanAsync requested for project: {Name}", CurrentProject?.Name);
         if (CurrentProject == null)
         {
             return;
@@ -1209,6 +1305,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 AppendBuildLog($"Cleaned build directory: {buildDir}");
                 _notificationService.ShowSuccess("Clean Complete", "Build directory cleaned");
                 StatusMessage = "Build directory cleaned";
+                _logger.LogInformation("Cleaned build directory: {Dir}", buildDir);
             }
 
             _buildEngineService.InvalidateBuildStructureCache();
@@ -1228,6 +1325,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanAbortBuild))]
     private void AbortBuild()
     {
+        _logger.LogInformation("AbortBuild requested");
         _buildCancellationTokenSource?.Cancel();
         AppendBuildLog("\nAborting build...");
         StatusMessage = "Aborting build...";
@@ -1241,6 +1339,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void OpenProjectFolder()
     {
+        _logger.LogInformation("OpenProjectFolder requested for: {Path}", ProjectPath);
         if (string.IsNullOrEmpty(ProjectPath))
         {
             _notificationService.ShowWarning("No Project", "Please load or create a project first");
@@ -1281,6 +1380,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void OpenEditFolder()
     {
+        _logger.LogInformation("OpenEditFolder requested for project: {Path}", ProjectPath);
         if (string.IsNullOrEmpty(ProjectPath))
         {
             _notificationService.ShowWarning("No Project", "Please load or create a project first");
@@ -1296,19 +1396,16 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             }
 
             var editFolder = Path.Combine(projectDir, "GameFilesEdited");
-            if (Directory.Exists(editFolder))
+            if (!Directory.Exists(editFolder))
             {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = editFolder,
-                    UseShellExecute = true,
-                });
+                Directory.CreateDirectory(editFolder);
             }
-            else
+
+            Process.Start(new ProcessStartInfo
             {
-                _notificationService.ShowWarning("Folder Not Found",
-                    "GameFilesEdited folder does not exist. It will be created during the first build.");
-            }
+                FileName = editFolder,
+                UseShellExecute = true,
+            });
         }
         catch (Exception ex)
         {
@@ -1323,6 +1420,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void OpenBuildFolder()
     {
+        _logger.LogInformation("OpenBuildFolder requested for: {Path}", ProjectPath);
         if (CurrentProject == null || string.IsNullOrEmpty(ProjectPath))
         {
             _notificationService.ShowWarning("No Project", "Please load or create a project first");
@@ -1337,20 +1435,18 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            var buildPath = Path.Combine(projectDir, CurrentProject.Directories.Build);
-            if (Directory.Exists(buildPath))
+            var buildDir = CurrentProject.Directories.Build ?? ModBuilderConstants.DefaultBuildDir;
+            var buildPath = Path.IsPathRooted(buildDir) ? buildDir : Path.Combine(projectDir, buildDir);
+            if (!Directory.Exists(buildPath))
             {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = buildPath,
-                    UseShellExecute = true,
-                });
+                Directory.CreateDirectory(buildPath);
             }
-            else
+
+            Process.Start(new ProcessStartInfo
             {
-                _notificationService.ShowWarning("Folder Not Found",
-                    "Build folder does not exist. Run a build first to create it.");
-            }
+                FileName = buildPath,
+                UseShellExecute = true,
+            });
         }
         catch (Exception ex)
         {
@@ -1365,6 +1461,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void OpenReleaseFolder()
     {
+        _logger.LogInformation("OpenReleaseFolder requested for: {Path}", ProjectPath);
         if (CurrentProject == null || string.IsNullOrEmpty(ProjectPath))
         {
             return;
@@ -1379,15 +1476,17 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         try
         {
             var releaseDir = CurrentProject.Directories.Release ?? ModBuilderConstants.DefaultReleaseDir;
-            var releasePath = Path.Combine(projectDir, releaseDir);
-            if (Directory.Exists(releasePath))
+            var releasePath = Path.IsPathRooted(releaseDir) ? releaseDir : Path.Combine(projectDir, releaseDir);
+            if (!Directory.Exists(releasePath))
             {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = releasePath,
-                    UseShellExecute = true,
-                });
+                Directory.CreateDirectory(releasePath);
             }
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = releasePath,
+                UseShellExecute = true,
+            });
         }
         catch (Exception ex)
         {
@@ -1402,6 +1501,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void ClearOutput()
     {
+        _logger.LogInformation("ClearOutput requested");
         PostToUIThread(() =>
         {
             BuildLog.Clear();

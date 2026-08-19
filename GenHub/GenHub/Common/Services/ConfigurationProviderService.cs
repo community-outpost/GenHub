@@ -371,6 +371,13 @@ public class ConfigurationProviderService(
             DirectoryNames.Logs.ToLowerInvariant());
     }
 
+    /// <inheritdoc />
+    public GenHub.Core.Models.Content.CsvCatalogConfiguration? GetCsvCatalogConfiguration()
+    {
+        var settings = _userSettings.Get();
+        return settings.CsvCatalogConfiguration;
+    }
+
     /// <summary>
     /// Moves the data written by releases that stored everything under the roaming application data
     /// folder into the current data root, so upgrading users keep their profiles, manifests, tracked

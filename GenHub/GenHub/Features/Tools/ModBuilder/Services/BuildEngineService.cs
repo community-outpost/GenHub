@@ -37,6 +37,7 @@ public sealed class BuildEngineService(
     private int _filesProcessed;
     private int _filesSkipped;
     private int _filesFailed;
+    private string? _lastErrorMessage;
 
     /// <summary>
     /// Event triggered when a bundle event occurs during the build process.
@@ -71,6 +72,7 @@ public sealed class BuildEngineService(
             _filesProcessed = 0;
             _filesSkipped = 0;
             _filesFailed = 0;
+            _lastErrorMessage = null;
 
             // get or create cached build structure
             var buildStructure = await GetOrCreateBuildStructureAsync(project, configuration, buildSteps, cancellationToken)
@@ -95,7 +97,7 @@ public sealed class BuildEngineService(
 
             return success
                 ? BuildOperationResult.CreateSuccess(_filesProcessed, _filesSkipped, _filesFailed, sw.Elapsed)
-                : BuildOperationResult.CreateFailure("Build failed", _filesProcessed, _filesSkipped, _filesFailed, sw.Elapsed);
+                : BuildOperationResult.CreateFailure(_lastErrorMessage ?? "Build failed", _filesProcessed, _filesSkipped, _filesFailed, sw.Elapsed);
         }
         catch (Exception ex)
         {
@@ -183,46 +185,55 @@ public sealed class BuildEngineService(
             }
 
             var success = true;
+            _lastErrorMessage = null;
 
             // execute build pipeline stages
             if (success && (steps & BuildStep.PreBuild) != 0)
             {
                 success &= await PreBuildAsync(buildStructure, progress, _abortTokenSource.Token).ConfigureAwait(false);
+                if (!success && string.IsNullOrEmpty(_lastErrorMessage)) _lastErrorMessage = "PreBuild stage failed";
             }
 
             if (success && (steps & BuildStep.Clean) != 0)
             {
                 success &= await CleanAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
+                if (!success && string.IsNullOrEmpty(_lastErrorMessage)) _lastErrorMessage = "Clean stage failed";
             }
 
             if (success && (steps & BuildStep.Build) != 0)
             {
                 success &= await BuildAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
+                if (!success && string.IsNullOrEmpty(_lastErrorMessage)) _lastErrorMessage = "Build stage failed";
             }
 
             if (success && (steps & BuildStep.PostBuild) != 0)
             {
                 success &= await PostBuildAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
+                if (!success && string.IsNullOrEmpty(_lastErrorMessage)) _lastErrorMessage = "PostBuild stage failed";
             }
 
             if (success && (steps & BuildStep.Release) != 0)
             {
                 success &= await ReleaseAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
+                if (!success && string.IsNullOrEmpty(_lastErrorMessage)) _lastErrorMessage = "Release stage failed";
             }
 
             if (success && (steps & BuildStep.Uninstall) != 0)
             {
                 success &= await UninstallAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
+                if (!success && string.IsNullOrEmpty(_lastErrorMessage)) _lastErrorMessage = "Uninstall stage failed";
             }
 
             if (success && (steps & BuildStep.Install) != 0)
             {
                 success &= await InstallAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
+                if (!success && string.IsNullOrEmpty(_lastErrorMessage)) _lastErrorMessage = "Install stage failed";
             }
 
             if (success && (steps & BuildStep.Run) != 0)
             {
                 success &= await RunGameAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
+                if (!success && string.IsNullOrEmpty(_lastErrorMessage)) _lastErrorMessage = "Run Game stage failed";
             }
 
             logger.LogInformation("Build pipeline completed with success={Success}", success);
@@ -231,11 +242,13 @@ public sealed class BuildEngineService(
         catch (OperationCanceledException)
         {
             logger.LogWarning("Build was cancelled");
+            _lastErrorMessage = "Build was cancelled by user";
             return false;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Build pipeline failed with exception");
+            _lastErrorMessage = ex.Message;
             return false;
         }
         finally

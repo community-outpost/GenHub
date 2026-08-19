@@ -144,6 +144,7 @@ public sealed partial class ProjectDashboardViewModel(
     {
         try
         {
+            _logger.LogInformation("NewProjectAsync requested from Dashboard");
             if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
             {
                 return;
@@ -155,15 +156,34 @@ public sealed partial class ProjectDashboardViewModel(
                 return;
             }
 
+            var defaultFolder = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                "ModBuilder");
+            if (!Directory.Exists(defaultFolder))
+            {
+                try
+                {
+                    Directory.CreateDirectory(defaultFolder);
+                }
+                catch
+                {
+                }
+            }
+
+            var suggestedFolder = Directory.Exists(defaultFolder)
+                ? await mainWindow.StorageProvider.TryGetFolderFromPathAsync(defaultFolder).ConfigureAwait(false)
+                : null;
+
             var file = await mainWindow.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
             {
                 Title = "Create New ModBuilder Project",
-                SuggestedFileName = "project.json",
+                SuggestedFileName = "MyMod.mbproj",
+                SuggestedStartLocation = suggestedFolder,
                 FileTypeChoices =
                 [
                     new FilePickerFileType("ModBuilder Project")
                     {
-                        Patterns = ["*.json"]
+                        Patterns = ["*.mbproj"]
                     }
                 ]
             });
@@ -173,12 +193,28 @@ public sealed partial class ProjectDashboardViewModel(
                 var projectPath = file.Path.LocalPath;
                 _logger.LogInformation("Creating new project at: {ProjectPath}", projectPath);
 
-                // Raise event to notify parent that a new project should be created
-                NewProjectRequested?.Invoke(this, EventArgs.Empty);
+                var projectName = Path.GetFileNameWithoutExtension(projectPath);
+                var result = await _projectConfigService.CreateProjectAsync(
+                    projectPath,
+                    projectName,
+                    cancellationToken: System.Threading.CancellationToken.None).ConfigureAwait(false);
 
-                _notificationService.ShowSuccess(
-                    "Project Created",
-                    $"New project created at {Path.GetFileName(projectPath)}");
+                if (result.Success && result.Data != null)
+                {
+                    await _projectConfigService.AddToRecentProjectsAsync(projectPath).ConfigureAwait(false);
+                    await LoadRecentProjectsAsync().ConfigureAwait(false);
+                    NewProjectRequested?.Invoke(this, EventArgs.Empty);
+                    ProjectSelected?.Invoke(this, projectPath);
+                    _notificationService.ShowSuccess(
+                        "Project Created",
+                        $"New project created at {Path.GetFileName(projectPath)}");
+                }
+                else
+                {
+                    _notificationService.ShowError(
+                        "Project Creation Failed",
+                        result.FirstError ?? "Failed to create project.");
+                }
             }
         }
         catch (Exception ex)
@@ -198,6 +234,7 @@ public sealed partial class ProjectDashboardViewModel(
     {
         try
         {
+            _logger.LogInformation("OpenProjectAsync requested from Dashboard");
             if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
             {
                 return;
@@ -209,15 +246,23 @@ public sealed partial class ProjectDashboardViewModel(
                 return;
             }
 
+            var defaultFolder = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                "ModBuilder");
+            var suggestedFolder = Directory.Exists(defaultFolder)
+                ? await mainWindow.StorageProvider.TryGetFolderFromPathAsync(defaultFolder).ConfigureAwait(false)
+                : null;
+
             var files = await mainWindow.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
                 Title = "Open ModBuilder Project",
                 AllowMultiple = false,
+                SuggestedStartLocation = suggestedFolder,
                 FileTypeFilter =
                 [
                     new FilePickerFileType("ModBuilder Project")
                     {
-                        Patterns = ["*.json"]
+                        Patterns = ["*.mbproj"]
                     }
                 ]
             });

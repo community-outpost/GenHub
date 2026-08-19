@@ -7,11 +7,28 @@ namespace GenHub.Core.Models.Tools.ModBuilder;
 /// </summary>
 public class ProjectDirectories
 {
+    private string _configs = "Configs";
+    private string _release = ".Release";
+
     /// <summary>
     /// Gets or sets the relative path to the configs directory.
     /// </summary>
     [JsonPropertyName("configs")]
-    public string Configs { get; set; } = "Configs";
+    public string Configs
+    {
+        get => _configs;
+        set => _configs = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the relative path to the configs directory (alias for compatibility).
+    /// </summary>
+    [JsonPropertyName("config")]
+    public string Config
+    {
+        get => _configs;
+        set => _configs = value;
+    }
 
     /// <summary>
     /// Gets or sets the relative path to the game files edited directory.
@@ -29,5 +46,19 @@ public class ProjectDirectories
     /// Gets or sets the relative path to the release directory.
     /// </summary>
     [JsonPropertyName("release")]
-    public string Release { get; set; } = ".Release";
+    public string Release
+    {
+        get => _release;
+        set => _release = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the relative path to the release directory (alias for compatibility).
+    /// </summary>
+    [JsonPropertyName("output")]
+    public string Output
+    {
+        get => _release;
+        set => _release = value;
+    }
 }
