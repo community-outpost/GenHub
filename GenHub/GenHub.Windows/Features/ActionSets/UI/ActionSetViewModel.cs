@@ -87,9 +87,9 @@ public partial class ActionSetViewModel(
     /// </summary>
     public string StatusBackground => (IsApplied, IsApplicable) switch
     {
-        (true, _) => "#2200FF00",
-        (false, true) => "#22FFFFFF",
-        (false, false) => "#11FFFFFF",
+        (true, _) => "#2228A745",
+        (false, true) => "#22FFC107",
+        (false, false) => "#15FFFFFF",
     };
 
     /// <summary>
@@ -97,9 +97,9 @@ public partial class ActionSetViewModel(
     /// </summary>
     public string StatusBorder => (IsApplied, IsApplicable) switch
     {
-        (true, _) => "#4400FF00",
-        (false, true) => "#44FFFFFF",
-        (false, false) => "#22FFFFFF",
+        (true, _) => "#4428A745",
+        (false, true) => "#44FFC107",
+        (false, false) => "#25FFFFFF",
     };
 
     /// <summary>

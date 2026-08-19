@@ -30,7 +30,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
     public override string Title => "Prevent OneDrive Sync (Move & Symlink)";
 
     /// <inheritdoc/>
-    public override bool IsCoreFix => true;
+    public override bool IsCoreFix => false;
 
     /// <inheritdoc/>
     public override bool IsCrucialFix => false;
@@ -80,7 +80,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
                 return new ActionSetResult(true, null, details);
             }
 
-            details.Add("Starting OneDrive folder relocation...");
+            details.Add("Starting transactional OneDrive folder relocation...");
             var cloudDocs = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
             var localDocs = GetLocalDocumentsPath();
 
@@ -90,9 +90,13 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
                 details.Add($"Created local Documents folder: {localDocs}");
             }
 
+            var backupBaseDir = Path.Combine(localDocs, "_GenHub_OneDrive_Backups", $"Backup_{DateTime.UtcNow:yyyyMMdd_HHmmss}");
+
             int foldersProcessed = 0;
             foreach (var folderName in CommonFolderNames)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 var cloudPath = Path.Combine(cloudDocs, folderName);
                 var localPath = Path.Combine(localDocs, folderName);
 
@@ -104,42 +108,40 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
                     continue;
                 }
 
-                // Handle merge scenario: If both exist and cloud is not a symlink
-                if (Directory.Exists(cloudPath) && !IsSymbolicLink(cloudPath) && Directory.Exists(localPath))
+                // If cloud folder exists and is a real directory (not symlink)
+                if (Directory.Exists(cloudPath) && !IsSymbolicLink(cloudPath))
                 {
-                    details.Add($"⚠ Both cloud and local versions of '{folderName}' exist.");
-                    details.Add("  Attempting to merge cloud files into local folder...");
-                    try
-                    {
-                        MergeDirectories(cloudPath, localPath);
-                        if (Directory.Exists(cloudPath))
-                        {
-                            Directory.Delete(cloudPath, true);
-                        }
+                    var backupFolder = Path.Combine(backupBaseDir, folderName);
+                    details.Add($"Creating safety backup of '{folderName}' to {backupFolder}...");
+                    Directory.CreateDirectory(backupFolder);
 
-                        details.Add("  ✓ Cloud folder contents merged and original removed.");
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "Failed to merge {Cloud} into {Local}", cloudPath, localPath);
-                        details.Add($"  ⚠ Failed to fully merge: {ex.Message}");
+                    // Step 1: Create complete safety backup
+                    CopyDirectoryRecursive(cloudPath, backupFolder);
+                    details.Add($"  ✓ Backup created ({CountFiles(backupFolder)} files)");
 
-                        // Rename cloud folder to avoid conflict for symlink creation
-                        var bakPath = cloudPath + ".bak_" + DateTime.UtcNow.Ticks;
-                        Directory.Move(cloudPath, bakPath);
-                        details.Add($"  ✓ Cloud folder renamed to: {Path.GetFileName(bakPath)}");
+                    // Step 2: Merge or move into local destination with verification
+                    if (!Directory.Exists(localPath))
+                    {
+                        Directory.CreateDirectory(localPath);
                     }
+
+                    details.Add($"  Copying and verifying files into '{localPath}'...");
+                    var (copied, totalBytes) = CopyDirectoryWithVerification(cloudPath, localPath);
+                    details.Add($"  ✓ Copied and verified {copied} files ({totalBytes / 1024.0 / 1024.0:F2} MB)");
+
+                    // Step 3: Verify destination integrity before unlinking source
+                    if (!VerifyDirectoryIntegrity(cloudPath, localPath))
+                    {
+                        throw new IOException($"Integrity check failed between '{cloudPath}' and '{localPath}'. Aborting to prevent data loss.");
+                    }
+
+                    // Step 4: Safely move cloud folder to backup location instead of permanently deleting
+                    var cloudArchive = cloudPath + ".archived_" + DateTime.UtcNow.Ticks;
+                    Directory.Move(cloudPath, cloudArchive);
+                    details.Add($"  ✓ Original cloud folder archived to {Path.GetFileName(cloudArchive)}");
                 }
 
-                // If folder exists in cloud but not local, move it
-                if (Directory.Exists(cloudPath) && !IsSymbolicLink(cloudPath) && !Directory.Exists(localPath))
-                {
-                    details.Add($"Moving '{folderName}' from OneDrive to local Documents...");
-                    Directory.Move(cloudPath, localPath);
-                    details.Add($"  ✓ Moved to: {localPath}");
-                }
-
-                // Create symlink or junction
+                // Create symlink or junction in OneDrive pointing to local
                 if (Directory.Exists(localPath) && !Directory.Exists(cloudPath))
                 {
                     details.Add($"Creating link in OneDrive for '{folderName}'...");
@@ -177,7 +179,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
             }
 
             details.Add(string.Empty);
-            details.Add($"✓ Processed {foldersProcessed} folders for OneDrive compatibility");
+            details.Add($"✓ Processed {foldersProcessed} folders for OneDrive compatibility with full safety backup");
             details.Add("✓ OneDrive relocation completed successfully");
 
             return new ActionSetResult(true, null, details);
@@ -197,7 +199,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
         return Task.FromResult(new ActionSetResult(true));
     }
 
-    private static void MergeDirectories(string source, string target)
+    private static void CopyDirectoryRecursive(string source, string target)
     {
         foreach (var dirPath in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
         {
@@ -209,22 +211,71 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
         {
             var relative = Path.GetRelativePath(source, filePath);
             var targetFile = Path.Combine(target, relative);
-            if (!File.Exists(targetFile))
-            {
-                File.Move(filePath, targetFile);
-            }
-            else
-            {
-                var srcInfo = new FileInfo(filePath);
-                var tgtInfo = new FileInfo(targetFile);
-                if (srcInfo.LastWriteTimeUtc > tgtInfo.LastWriteTimeUtc)
-                {
-                    File.Copy(filePath, targetFile, overwrite: true);
-                }
-
-                File.Delete(filePath);
-            }
+            var targetDir = Path.GetDirectoryName(targetFile);
+            if (!string.IsNullOrEmpty(targetDir)) Directory.CreateDirectory(targetDir);
+            File.Copy(filePath, targetFile, overwrite: true);
         }
+    }
+
+    private static (int Copied, long TotalBytes) CopyDirectoryWithVerification(string source, string target)
+    {
+        int count = 0;
+        long bytes = 0;
+
+        foreach (var dirPath in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(source, dirPath);
+            Directory.CreateDirectory(Path.Combine(target, relative));
+        }
+
+        foreach (var filePath in Directory.GetFiles(source, "*.*", SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(source, filePath);
+            var targetFile = Path.Combine(target, relative);
+            var targetDir = Path.GetDirectoryName(targetFile);
+            if (!string.IsNullOrEmpty(targetDir)) Directory.CreateDirectory(targetDir);
+
+            var srcInfo = new FileInfo(filePath);
+            if (!File.Exists(targetFile) || srcInfo.LastWriteTimeUtc > new FileInfo(targetFile).LastWriteTimeUtc)
+            {
+                File.Copy(filePath, targetFile, overwrite: true);
+            }
+
+            var tgtInfo = new FileInfo(targetFile);
+            if (!tgtInfo.Exists || tgtInfo.Length != srcInfo.Length)
+            {
+                throw new IOException($"Copy verification failed for file '{relative}'. Source size: {srcInfo.Length}, Target size: {tgtInfo.Length}");
+            }
+
+            count++;
+            bytes += srcInfo.Length;
+        }
+
+        return (count, bytes);
+    }
+
+    private static bool VerifyDirectoryIntegrity(string source, string target)
+    {
+        var sourceFiles = Directory.GetFiles(source, "*.*", SearchOption.AllDirectories);
+        foreach (var srcFile in sourceFiles)
+        {
+            var relative = Path.GetRelativePath(source, srcFile);
+            var tgtFile = Path.Combine(target, relative);
+            if (!File.Exists(tgtFile)) return false;
+
+            var srcInfo = new FileInfo(srcFile);
+            var tgtInfo = new FileInfo(tgtFile);
+            if (srcInfo.Length != tgtInfo.Length) return false;
+        }
+
+        return true;
+    }
+
+    private static int CountFiles(string directory)
+    {
+        return Directory.Exists(directory)
+            ? Directory.GetFiles(directory, "*.*", SearchOption.AllDirectories).Length
+            : 0;
     }
 
     private static bool IsOneDriveRedirected()

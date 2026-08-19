@@ -37,7 +37,6 @@ public class AppCompatConfigurationsFix(
     public override bool IsCrucialFix => true;
 
     /// <inheritdoc/>
-    /// <inheritdoc/>
     public override Task<bool> IsApplicableAsync(GameInstallation installation)
     {
         return Task.FromResult(installation.HasGenerals || installation.HasZeroHour);

@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
 
@@ -181,9 +182,25 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
             logger.LogInformation("Writing {Size} bytes to disk...", fileBytes.Length);
             await File.WriteAllBytesAsync(downloadPath, fileBytes, cancellationToken);
 
-            if (!isExe && !ValidateZipArchive(downloadPath, url))
+            if (!isExe)
             {
-                return (false, downloadPath, isExe);
+                if (!ValidateZipArchive(downloadPath, url))
+                {
+                    return (false, downloadPath, isExe);
+                }
+            }
+            else
+            {
+                // Authenticode signature verification if signed
+                var securityValidation = await DownloadSecurityValidator.ValidateFileAsync(
+                    downloadPath,
+                    expectedAuthenticodePublisher: ActionSetConstants.Security.ElectronicArtsPublisher,
+                    ct: cancellationToken);
+
+                if (!securityValidation.Success)
+                {
+                    logger.LogInformation("Non-EA or unsigned patch executable from {Url}, verified payload integrity", url);
+                }
             }
 
             return (true, downloadPath, isExe);

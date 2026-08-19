@@ -118,6 +118,10 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
             var userPath = GetUserDataPath(GameType.ZeroHour);
             if (Directory.Exists(userPath))
             {
+                // check for marker file
+                var markerPath = Path.Combine(userPath, MarkerFileName);
+                if (!File.Exists(markerPath)) return Task.FromResult(false);
+
                 if (IsReadOnly(userPath)) return Task.FromResult(false);
                 if (IsReadOnly(Path.Combine(userPath, "Options.ini"))) return Task.FromResult(false);
                 if (IsReadOnly(Path.Combine(userPath, "Maps"))) return Task.FromResult(false);
@@ -154,6 +158,17 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
                     (int uFiles, int uDirs) = await ProcessDirectoryAsync(userPath, details, ct);
                     totalFilesProcessed += uFiles;
                     totalDirsProcessed += uDirs;
+
+                    // Write marker file for Generals
+                    try
+                    {
+                        var markerPath = Path.Combine(userPath, MarkerFileName);
+                        await File.WriteAllTextAsync(markerPath, DateTime.UtcNow.ToString("O"), ct);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Failed to create Generals marker file for RemoveReadOnlyFix");
+                    }
                 }
             }
 
@@ -171,26 +186,23 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
                     (int uFiles, int uDirs) = await ProcessDirectoryAsync(userPath, details, ct);
                     totalFilesProcessed += uFiles;
                     totalDirsProcessed += uDirs;
+
+                    // Write marker file for Zero Hour
+                    try
+                    {
+                        var markerPath = Path.Combine(userPath, MarkerFileName);
+                        await File.WriteAllTextAsync(markerPath, DateTime.UtcNow.ToString("O"), ct);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Failed to create Zero Hour marker file for RemoveReadOnlyFix");
+                    }
                 }
             }
 
             details.Add($"✓ Processed {totalFilesProcessed} files and {totalDirsProcessed} directories");
             details.Add("✓ Read-only attributes removed successfully");
             details.Add("✓ OneDrive pin attributes applied");
-
-            try
-            {
-                var userPath = GetUserDataPath(installation.HasZeroHour ? GameType.ZeroHour : GameType.Generals);
-                if (Directory.Exists(userPath))
-                {
-                    var markerPath = Path.Combine(userPath, MarkerFileName);
-                    await File.WriteAllTextAsync(markerPath, DateTime.UtcNow.ToString(), ct);
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to create marker file for RemoveReadOnlyFix");
-            }
 
             logger.LogInformation("RemoveReadOnlyFix completed: {Files} files, {Dirs} directories", totalFilesProcessed, totalDirsProcessed);
             return new ActionSetResult(true, null, details);

@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
@@ -35,7 +36,6 @@ public class VCRedist2008Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
     /// <inheritdoc/>
     public override bool IsCrucialFix => false;
 
-    /// <inheritdoc/>
     /// <inheritdoc/>
     public override Task<bool> IsApplicableAsync(GameInstallation installation)
     {
@@ -88,7 +88,7 @@ public class VCRedist2008Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
                         await response.Content.CopyToAsync(fs, cancellationToken);
                     }
 
-                    // Simple size validation check
+                    // Size validation check
                     if (new FileInfo(tempFile).Length < ActionSetConstants.Validation.VCRedistMinSize)
                     {
                         logger.LogWarning("Downloaded file too small, likely corrupt.");
@@ -96,7 +96,21 @@ public class VCRedist2008Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
                         continue;
                     }
 
-                    details.Add($"✓ Downloaded from {new Uri(url).Host}");
+                    // Security signature validation (Authenticode publisher verification)
+                    var securityValidation = await DownloadSecurityValidator.ValidateFileAsync(
+                        tempFile,
+                        expectedAuthenticodePublisher: ActionSetConstants.Security.MicrosoftPublisher,
+                        ct: cancellationToken);
+
+                    if (!securityValidation.Success)
+                    {
+                        var errorSummary = string.Join("; ", securityValidation.Errors);
+                        logger.LogWarning("Security validation failed for download from {Url}: {Error}", url, errorSummary);
+                        if (File.Exists(tempFile)) File.Delete(tempFile);
+                        continue;
+                    }
+
+                    details.Add($"✓ Downloaded and verified from {new Uri(url).Host}");
                     downloaded = true;
                     break;
                 }
