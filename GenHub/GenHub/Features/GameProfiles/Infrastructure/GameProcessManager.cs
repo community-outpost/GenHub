@@ -1184,7 +1184,7 @@ public class GameProcessManager(
         return FindGameProcess(
             executableName,
             candidates => GameProcessSelector.SelectAdoptableGameProcess(
-                candidates, executableName, workingDirectory, DateTime.UtcNow, launcherStartTime.Value.ToUniversalTime()));
+                candidates, executableName, workingDirectory, launcherStartTime.Value.ToUniversalTime()));
     }
 
     /// <summary>

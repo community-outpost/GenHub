@@ -32,29 +32,85 @@ public static class GameProcessSelector
     }
 
     /// <summary>
-    /// Selects the process matching <paramref name="processName"/> that this launch spawned.
+    /// Selects the process matching <paramref name="processName"/> that this launch spawned, with
+    /// no launcher of ours to date the launch by — the storefront started the game itself. A
+    /// recency window is all that separates the new process from an instance of the same game that
+    /// was already running, so it is this path's only bound on age.
     /// </summary>
     /// <param name="candidates">The processes currently observed on the machine. Each candidate's <see cref="GameProcessCandidate.StartTime"/> must be a UTC <see cref="DateTime"/> with <see cref="DateTimeKind.Utc"/>.</param>
     /// <param name="processName">The expected process name, without extension.</param>
     /// <param name="workingDirectory">The directory the game must run from, or <see langword="null"/> to skip the check.</param>
     /// <param name="now">The current time, used to apply the recency window. Must be a UTC <see cref="DateTime"/> with <see cref="DateTimeKind.Utc"/>.</param>
-    /// <param name="launcherStartTime">The start time of the launcher process, if known. Must be a UTC <see cref="DateTime"/> with <see cref="DateTimeKind.Utc"/> when supplied.</param>
     /// <returns>The selected candidate, or <see langword="null"/> when none qualifies.</returns>
     public static GameProcessCandidate? SelectSpawnedGameProcess(
         IEnumerable<GameProcessCandidate> candidates,
         string processName,
         string? workingDirectory,
-        DateTime now,
-        DateTime? launcherStartTime = null)
+        DateTime now)
+    {
+        return Select(
+            candidates,
+            processName,
+            workingDirectory,
+            candidate => (now - candidate.StartTime).TotalSeconds < ProcessConstants.EarlyExitThresholdSeconds);
+    }
+
+    /// <summary>
+    /// Selects the process a launcher spawned, to be tracked and eventually terminated in the
+    /// launcher's place. Unlike <see cref="SelectSpawnedGameProcess"/> this refuses to answer at all
+    /// when the launcher's start time is unknown: without it, a process that started before this
+    /// launch and merely shares the name and the workspace cannot be told apart from the child, and
+    /// adopting it means killing somebody else's game when this launch is stopped.
+    /// <para>
+    /// That start time also replaces the recency window rather than joining it. It dates this
+    /// launch exactly, so anything at or after it started during the launch however long discovery
+    /// took, while a window measured against the clock expires a child that is genuinely ours the
+    /// moment the launcher is slow to produce it — and the discovery timeout the caller polls with
+    /// is configurable well past any fixed window. Keeping both would only turn a legitimate slow
+    /// adoption into an abandoned game that is still running.
+    /// </para>
+    /// </summary>
+    /// <param name="candidates">The processes currently observed on the machine. Each candidate's <see cref="GameProcessCandidate.StartTime"/> must be a UTC <see cref="DateTime"/> with <see cref="DateTimeKind.Utc"/>.</param>
+    /// <param name="processName">The expected process name, without extension.</param>
+    /// <param name="workingDirectory">The directory the game must run from, or <see langword="null"/> to skip the check.</param>
+    /// <param name="launcherStartTime">The start time of the launcher process. Must be a UTC <see cref="DateTime"/> with <see cref="DateTimeKind.Utc"/> when supplied.</param>
+    /// <returns>The candidate to adopt, or <see langword="null"/> when none qualifies or the launcher's start time is unknown.</returns>
+    public static GameProcessCandidate? SelectAdoptableGameProcess(
+        IEnumerable<GameProcessCandidate> candidates,
+        string processName,
+        string? workingDirectory,
+        DateTime? launcherStartTime)
+    {
+        if (!launcherStartTime.HasValue)
+        {
+            return null;
+        }
+
+        return Select(
+            candidates,
+            processName,
+            workingDirectory,
+            candidate => candidate.StartTime >= launcherStartTime.Value);
+    }
+
+    /// <summary>
+    /// Applies the checks both paths share and lets the caller supply the one that decides whether
+    /// a candidate belongs to this launch.
+    /// </summary>
+    /// <param name="candidates">The processes currently observed on the machine.</param>
+    /// <param name="processName">The expected process name, without extension.</param>
+    /// <param name="workingDirectory">The directory the game must run from, or <see langword="null"/> to skip the check.</param>
+    /// <param name="startedWithThisLaunch">The caller's test for a candidate having started as part of this launch.</param>
+    /// <returns>The selected candidate, or <see langword="null"/> when none qualifies.</returns>
+    private static GameProcessCandidate? Select(
+        IEnumerable<GameProcessCandidate> candidates,
+        string processName,
+        string? workingDirectory,
+        Func<GameProcessCandidate, bool> startedWithThisLaunch)
     {
         var matches = candidates
             .Where(candidate => NameMatches(candidate, processName))
-            .Where(candidate => (now - candidate.StartTime).TotalSeconds < ProcessConstants.EarlyExitThresholdSeconds);
-
-        if (launcherStartTime.HasValue)
-        {
-            matches = matches.Where(candidate => candidate.StartTime >= launcherStartTime.Value);
-        }
+            .Where(startedWithThisLaunch);
 
         // Residence is required whenever a working directory is known, including for a lone match:
         // a same-named process elsewhere on the machine is somebody else's.
@@ -66,34 +122,6 @@ public static class GameProcessSelector
         return matches
             .OrderByDescending(candidate => candidate.StartTime)
             .FirstOrDefault();
-    }
-
-    /// <summary>
-    /// Selects the process a launcher spawned, to be tracked and eventually terminated in the
-    /// launcher's place. Unlike <see cref="SelectSpawnedGameProcess"/> this refuses to answer at all
-    /// when the launcher's start time is unknown: without it, a process that started before this
-    /// launch and merely shares the name and the workspace cannot be told apart from the child, and
-    /// adopting it means killing somebody else's game when this launch is stopped.
-    /// </summary>
-    /// <param name="candidates">The processes currently observed on the machine. Each candidate's <see cref="GameProcessCandidate.StartTime"/> must be a UTC <see cref="DateTime"/> with <see cref="DateTimeKind.Utc"/>.</param>
-    /// <param name="processName">The expected process name, without extension.</param>
-    /// <param name="workingDirectory">The directory the game must run from, or <see langword="null"/> to skip the check.</param>
-    /// <param name="now">The current time, used to apply the recency window. Must be a UTC <see cref="DateTime"/> with <see cref="DateTimeKind.Utc"/>.</param>
-    /// <param name="launcherStartTime">The start time of the launcher process. Must be a UTC <see cref="DateTime"/> with <see cref="DateTimeKind.Utc"/> when supplied.</param>
-    /// <returns>The candidate to adopt, or <see langword="null"/> when none qualifies or the launcher's start time is unknown.</returns>
-    public static GameProcessCandidate? SelectAdoptableGameProcess(
-        IEnumerable<GameProcessCandidate> candidates,
-        string processName,
-        string? workingDirectory,
-        DateTime now,
-        DateTime? launcherStartTime)
-    {
-        if (!launcherStartTime.HasValue)
-        {
-            return null;
-        }
-
-        return SelectSpawnedGameProcess(candidates, processName, workingDirectory, now, launcherStartTime);
     }
 
     /// <summary>

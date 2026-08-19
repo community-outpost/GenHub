@@ -54,40 +54,6 @@ public class GameProcessSelectorTests
     }
 
     /// <summary>
-    /// A process that was already running when the launcher started cannot be the child it
-    /// spawned. On Unix this filter is the only thing separating an adoptable child from an
-    /// instance of the same game the user started earlier from the same workspace.
-    /// </summary>
-    [Fact]
-    public void SelectSpawnedGameProcess_RejectsCandidatesStartedBeforeTheLauncher()
-    {
-        var launcherStartTime = Now.AddSeconds(-2);
-        var candidates = new[] { Candidate(1, "GeneralsOnlineZH_60", launcherStartTime.AddSeconds(-1), Workspace) };
-
-        var selected = GameProcessSelector.SelectSpawnedGameProcess(
-            candidates, "GeneralsOnlineZH_60", Workspace, Now, launcherStartTime);
-
-        Assert.Null(selected);
-    }
-
-    /// <summary>
-    /// A child can be recorded as starting in the same clock tick as the launcher that spawned it,
-    /// so the launcher's own start time has to qualify rather than disqualify.
-    /// </summary>
-    [Fact]
-    public void SelectSpawnedGameProcess_AcceptsACandidateStartedAtTheLauncherStartTime()
-    {
-        var launcherStartTime = Now.AddSeconds(-2);
-        var candidates = new[] { Candidate(1, "GeneralsOnlineZH_60", launcherStartTime, Workspace) };
-
-        var selected = GameProcessSelector.SelectSpawnedGameProcess(
-            candidates, "GeneralsOnlineZH_60", Workspace, Now, launcherStartTime);
-
-        Assert.NotNull(selected);
-        Assert.Equal(1, selected.ProcessId);
-    }
-
-    /// <summary>
     /// Workspace residence must be required even when only one candidate matches the name — a lone
     /// same-named process anywhere on the machine used to be accepted unconditionally.
     /// </summary>
@@ -349,7 +315,7 @@ public class GameProcessSelectorTests
         var candidates = new[] { Candidate(1, LongClientName, Now, Workspace) };
 
         var selected = GameProcessSelector.SelectAdoptableGameProcess(
-            candidates, LongClientName, Workspace, Now, launcherStartTime: null);
+            candidates, LongClientName, Workspace, launcherStartTime: null);
 
         Assert.Null(selected);
     }
@@ -365,7 +331,7 @@ public class GameProcessSelectorTests
         var candidates = new[] { Candidate(1, LongClientName, launcherStartTime.AddSeconds(-1), Workspace) };
 
         var selected = GameProcessSelector.SelectAdoptableGameProcess(
-            candidates, LongClientName, Workspace, Now, launcherStartTime);
+            candidates, LongClientName, Workspace, launcherStartTime);
 
         Assert.Null(selected);
     }
@@ -384,10 +350,47 @@ public class GameProcessSelectorTests
         };
 
         var selected = GameProcessSelector.SelectAdoptableGameProcess(
-            candidates, LongClientName, Workspace, Now, launcherStartTime);
+            candidates, LongClientName, Workspace, launcherStartTime);
 
         Assert.NotNull(selected);
         Assert.Equal(2, selected.ProcessId);
+    }
+
+    /// <summary>
+    /// A child can be recorded as starting in the same clock tick as the launcher that spawned it,
+    /// so the launcher's own start time has to qualify rather than disqualify.
+    /// </summary>
+    [Fact]
+    public void SelectAdoptableGameProcess_AcceptsACandidateStartedAtTheLauncherStartTime()
+    {
+        var launcherStartTime = Now.AddSeconds(-2);
+        var candidates = new[] { Candidate(1, LongClientName, launcherStartTime, Workspace) };
+
+        var selected = GameProcessSelector.SelectAdoptableGameProcess(
+            candidates, LongClientName, Workspace, launcherStartTime);
+
+        Assert.NotNull(selected);
+        Assert.Equal(1, selected.ProcessId);
+    }
+
+    /// <summary>
+    /// A launcher may take longer than <see cref="ProcessConstants.EarlyExitThresholdSeconds"/> to
+    /// make its child enumerable, and the discovery timeout the caller polls with is configurable
+    /// well past that. The child still started with this launch, so it must be adopted rather than
+    /// left running with nothing tracking it. Anchored to the real clock: the adoption path takes
+    /// no time of its own, so any recency window reintroduced here would have to read that clock.
+    /// </summary>
+    [Fact]
+    public void SelectAdoptableGameProcess_AdoptsAChildOlderThanTheRecencyWindow()
+    {
+        var launcherStartTime = DateTime.UtcNow.AddSeconds(-(ProcessConstants.EarlyExitThresholdSeconds + 20));
+        var candidates = new[] { Candidate(1, LongClientName, launcherStartTime.AddSeconds(1), Workspace) };
+
+        var selected = GameProcessSelector.SelectAdoptableGameProcess(
+            candidates, LongClientName, Workspace, launcherStartTime);
+
+        Assert.NotNull(selected);
+        Assert.Equal(1, selected.ProcessId);
     }
 
     private static GameProcessCandidate Candidate(int id, string name, DateTime startTime, string directory) =>
