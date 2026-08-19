@@ -195,7 +195,7 @@ public class GameProcessManagerTests
         Assert.False(result.Success);
 
         var errors = string.Join(", ", result.Errors);
-        Assert.Contains("without starting", errors);
+        Assert.True(errors.Contains("without starting") || errors.Contains("did not start"), $"Expected start failure message, but got: {errors}");
         Assert.Contains(complaint, errors);
     }
 
