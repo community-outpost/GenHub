@@ -304,6 +304,29 @@ public class ManifestVariantResolverTests
         Assert.Equal("game.dat", resolution.RelativePath);
     }
 
+    /// <summary>
+    /// Manifests containing generals.ctr resolve generals.ctr as the primary executable.
+    /// </summary>
+    [Fact]
+    public void Manifest_WithGeneralsCtr_ResolvesGeneralsCtr()
+    {
+        var manifest = new ContentManifest
+        {
+            Files =
+            [
+                File("generals.ctr", true),
+                File("d3d8.enb", false),
+                File("generals.lcf", false),
+                File("generals.dat", false),
+            ],
+        };
+
+        var resolution = ManifestVariantResolver.ResolveEntryPoint(manifest);
+
+        Assert.True(resolution.Success);
+        Assert.Equal("generals.ctr", resolution.RelativePath);
+    }
+
     private static ManifestFile File(string path, bool isExecutable = false) =>
         new() { RelativePath = path, IsExecutable = isExecutable };
 }

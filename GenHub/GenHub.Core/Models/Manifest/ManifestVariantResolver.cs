@@ -209,6 +209,7 @@ public static class ManifestVariantResolver
             || string.Equals(fileName, GameClientConstants.SteamGameDatExecutable, StringComparison.OrdinalIgnoreCase)
             || string.Equals(fileName, GameClientConstants.GameExecutable, StringComparison.OrdinalIgnoreCase)
             || string.Equals(fileName, GameClientConstants.GeneralsOnline60HzExecutable, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(fileName, GameClientConstants.GeneralsOnlineDefaultExecutable, StringComparison.OrdinalIgnoreCase);
+            || string.Equals(fileName, GameClientConstants.GeneralsOnlineDefaultExecutable, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(fileName, GameClientConstants.ContraExecutable, StringComparison.OrdinalIgnoreCase);
     }
 }

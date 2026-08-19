@@ -1392,14 +1392,6 @@ public class GameLauncher(
                 continue;
             }
 
-            if (manifest.ContentType == ContentType.GameClient &&
-                !string.IsNullOrEmpty(profile.GameClient?.WorkingDirectory))
-            {
-                manifestSourcePaths[manifest.Id.Value] = profile.GameClient.WorkingDirectory;
-                logger.LogDebug("[GameLauncher] Source path for GameClient {ManifestId}: {SourcePath}", manifest.Id.Value, profile.GameClient.WorkingDirectory);
-                continue;
-            }
-
             var contentDirResult = await manifestPool.GetContentDirectoryAsync(manifest.Id, cancellationToken);
             if (contentDirResult.Success && !string.IsNullOrEmpty(contentDirResult.Data))
             {
@@ -1409,6 +1401,14 @@ public class GameLauncher(
                     manifest.Id.Value,
                     manifest.ContentType,
                     contentDirResult.Data);
+            }
+            else if (manifest.ContentType == ContentType.GameClient && !string.IsNullOrEmpty(profile.GameClient?.WorkingDirectory))
+            {
+                manifestSourcePaths[manifest.Id.Value] = profile.GameClient.WorkingDirectory;
+                logger.LogDebug(
+                    "[GameLauncher] Source path for GameClient {ManifestId} resolved from profile working directory: {SourcePath}",
+                    manifest.Id.Value,
+                    profile.GameClient.WorkingDirectory);
             }
             else
             {

@@ -537,7 +537,7 @@ public partial class AddLocalContentViewModel(
         {
             foreach (var file in root.EnumerateFiles("*", SearchOption.AllDirectories))
             {
-                if (!ExecutableFileClassifier.IsLegacyLaunchCandidateFromName(file.Name)
+                if (!ExecutableFileClassifier.IsLegacyLaunchCandidate(file.Name, file.FullName)
                     && !file.Extension.Equals(".exe", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
@@ -588,7 +588,7 @@ public partial class AddLocalContentViewModel(
 
         var files = dir.GetFiles();
         var prioritizedFiles = files
-            .OrderByDescending(f => ExecutableFileClassifier.IsLegacyLaunchCandidateFromName(f.Name) || f.Extension.Equals(".exe", StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(f => ExecutableFileClassifier.IsLegacyLaunchCandidate(f.Name, f.FullName) || f.Extension.Equals(".exe", StringComparison.OrdinalIgnoreCase))
             .ThenBy(f => f.Name)
             .Take(50);
 

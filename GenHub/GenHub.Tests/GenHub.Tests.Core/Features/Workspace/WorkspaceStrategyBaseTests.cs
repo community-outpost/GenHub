@@ -153,6 +153,49 @@ public class WorkspaceStrategyBaseTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that UpdateWorkspaceInfo creates a generals.exe alias when the GameClient entry point is generals.ctr.
+    /// </summary>
+    [Fact]
+    public void UpdateWorkspaceInfo_WithCustomContraExecutable_CreatesGeneralsExeAlias()
+    {
+        // Arrange
+        var workspaceInfo = new WorkspaceInfo
+        {
+            Id = "contra-workspace",
+            WorkspacePath = _tempDir,
+        };
+
+        var contraExePath = Path.Combine(_tempDir, "generals.ctr");
+        File.WriteAllBytes(contraExePath, [0x4D, 0x5A, 0x90, 0x00]);
+
+        var config = new WorkspaceConfiguration
+        {
+            Manifests =
+            [
+                new()
+                {
+                    ContentType = ContentType.GameClient,
+                    EntryPoint = "generals.ctr",
+                    Files =
+                    [
+                        new() { RelativePath = "generals.ctr", Size = 1000, IsExecutable = true },
+                        new() { RelativePath = "generals.dat", Size = 500 },
+                    ],
+                },
+            ],
+            GameClient = new GameClient { ExecutablePath = "generals.ctr" },
+        };
+
+        // Act
+        _strategy.TestUpdateWorkspaceInfo(workspaceInfo, 2, 1500L, config);
+
+        // Assert
+        var expectedAliasPath = Path.Combine(_tempDir, "generals.exe");
+        Assert.True(File.Exists(expectedAliasPath));
+        Assert.Equal(expectedAliasPath, workspaceInfo.ExecutablePath);
+    }
+
+    /// <summary>
     /// Tests that GetFileSizeSafe handles missing files gracefully.
     /// </summary>
     [Fact]

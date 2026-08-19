@@ -267,9 +267,32 @@ public abstract class WorkspaceStrategyBase<T>(
 
             if (resolution.Success)
             {
-                workspaceInfo.ExecutablePath = Path.Combine(
-                    workspaceInfo.WorkspacePath,
-                    resolution.RelativePath!.Replace('/', Path.DirectorySeparatorChar));
+                var resolvedRelativePath = resolution.RelativePath!.Replace('/', Path.DirectorySeparatorChar);
+                var resolvedFullPath = Path.Combine(workspaceInfo.WorkspacePath, resolvedRelativePath);
+                var resolvedFileName = Path.GetFileName(resolvedRelativePath);
+
+                // If the resolved binary is a custom non-.exe entry point (e.g. generals.ctr),
+                // create generals.exe alias in workspace if generals.exe is missing
+                if (!resolvedFileName.Equals(GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase) &&
+                    !resolvedFileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    var aliasPath = Path.Combine(workspaceInfo.WorkspacePath, GameClientConstants.GeneralsExecutable);
+                    if (File.Exists(resolvedFullPath) && !File.Exists(aliasPath))
+                    {
+                        try
+                        {
+                            File.Copy(resolvedFullPath, aliasPath, overwrite: true);
+                            logger.LogInformation("Created '{Alias}' alias for custom entry point '{Target}' in workspace", GameClientConstants.GeneralsExecutable, resolvedFullPath);
+                            resolvedFullPath = aliasPath;
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogWarning(ex, "Failed to create generals.exe alias for {Target}", resolvedFullPath);
+                        }
+                    }
+                }
+
+                workspaceInfo.ExecutablePath = resolvedFullPath;
 
                 logger.LogInformation(
                     "Executable resolved from GameClient manifest: {ExecutablePath} ({Reason})",
@@ -286,7 +309,52 @@ public abstract class WorkspaceStrategyBase<T>(
                     resolution);
             }
         }
-        else if (!string.IsNullOrEmpty(configuration.GameClient.ExecutablePath))
+        else
+        {
+            var executableManifest = configuration.Manifests
+                .FirstOrDefault(m => m.ContentType == ContentType.Executable || !string.IsNullOrWhiteSpace(m.EntryPoint));
+
+            if (executableManifest != null)
+            {
+                var resolution = ManifestVariantResolver.ResolveEntryPoint(executableManifest);
+                if (resolution.Success)
+                {
+                    var resolvedRelativePath = resolution.RelativePath!.Replace('/', Path.DirectorySeparatorChar);
+                    var resolvedFullPath = Path.Combine(workspaceInfo.WorkspacePath, resolvedRelativePath);
+                    var resolvedFileName = Path.GetFileName(resolvedRelativePath);
+
+                    if (!resolvedFileName.Equals(GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase) &&
+                        !resolvedFileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var aliasPath = Path.Combine(workspaceInfo.WorkspacePath, GameClientConstants.GeneralsExecutable);
+                        if (File.Exists(resolvedFullPath) && !File.Exists(aliasPath))
+                        {
+                            try
+                            {
+                                File.Copy(resolvedFullPath, aliasPath, overwrite: true);
+                                logger.LogInformation("Created '{Alias}' alias for custom entry point '{Target}' in workspace", GameClientConstants.GeneralsExecutable, resolvedFullPath);
+                                resolvedFullPath = aliasPath;
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.LogWarning(ex, "Failed to create generals.exe alias for {Target}", resolvedFullPath);
+                            }
+                        }
+                    }
+
+                    workspaceInfo.ExecutablePath = resolvedFullPath;
+
+                    logger.LogInformation(
+                        "Executable resolved from {ContentType} manifest '{ManifestId}': {ExecutablePath} ({Reason})",
+                        executableManifest.ContentType,
+                        executableManifest.Id,
+                        workspaceInfo.ExecutablePath,
+                        resolution.Reason);
+                }
+            }
+        }
+
+        if (string.IsNullOrEmpty(workspaceInfo.ExecutablePath) && !string.IsNullOrEmpty(configuration.GameClient.ExecutablePath))
         {
             // Fallback: Search for executable by filename in any manifest
             // This supports legacy scenarios and simple workspaces
@@ -310,7 +378,7 @@ public abstract class WorkspaceStrategyBase<T>(
                     executableFileName);
             }
         }
-        else
+        else if (string.IsNullOrEmpty(workspaceInfo.ExecutablePath))
         {
             logger.LogDebug("No GameClient configuration or manifest available - executable path not set");
         }
