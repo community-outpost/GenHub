@@ -411,10 +411,10 @@ public class UpdateNotificationViewModelTests
     }
 
     /// <summary>
-    /// Verifies that SelectTabCommand correctly switches between Update and Browse Builds tabs.
+    /// Verifies that tab commands correctly switch between Update and Browse Builds tabs.
     /// </summary>
     [Fact]
-    public void SelectTabCommand_UpdatesSelectedTabIndexAndIsBrowseTabSelected()
+    public void TabCommands_UpdatesSelectedTabIndexAndIsBrowseTabSelected()
     {
         var mockUserSettings = new Mock<IUserSettingsService>();
         mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings());
@@ -427,7 +427,15 @@ public class UpdateNotificationViewModelTests
         Assert.Equal(0, vm.SelectedTabIndex);
         Assert.False(vm.IsBrowseTabSelected);
 
-        vm.SelectTabCommand.Execute(1);
+        vm.ShowBrowseBuildsTabCommand.Execute(null);
+        Assert.Equal(1, vm.SelectedTabIndex);
+        Assert.True(vm.IsBrowseTabSelected);
+
+        vm.ShowUpdateTabCommand.Execute(null);
+        Assert.Equal(0, vm.SelectedTabIndex);
+        Assert.False(vm.IsBrowseTabSelected);
+
+        vm.SelectTabCommand.Execute("1");
         Assert.Equal(1, vm.SelectedTabIndex);
         Assert.True(vm.IsBrowseTabSelected);
 

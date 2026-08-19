@@ -730,13 +730,38 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
+    /// Shows the update tab.
+    /// </summary>
+    [RelayCommand]
+    private void ShowUpdateTab()
+    {
+        SelectedTabIndex = 0;
+    }
+
+    /// <summary>
+    /// Shows the browse builds tab.
+    /// </summary>
+    [RelayCommand]
+    private void ShowBrowseBuildsTab()
+    {
+        SelectedTabIndex = 1;
+    }
+
+    /// <summary>
     /// Selects the specified tab by index (0 = Update, 1 = Browse Builds).
     /// </summary>
-    /// <param name="tabIndex">The tab index to select.</param>
+    /// <param name="parameter">The tab index to select.</param>
     [RelayCommand]
-    private void SelectTab(int tabIndex)
+    private void SelectTab(object? parameter)
     {
-        SelectedTabIndex = tabIndex;
+        if (parameter is int i)
+        {
+            SelectedTabIndex = i;
+        }
+        else if (parameter is string s && int.TryParse(s, out var parsed))
+        {
+            SelectedTabIndex = parsed;
+        }
     }
 
     /// <summary>

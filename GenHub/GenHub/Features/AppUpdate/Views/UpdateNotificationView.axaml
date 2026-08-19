@@ -23,9 +23,9 @@
             <Setter Property="CornerRadius" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
-        <Style Selector="Button.tab-btn:pointerover">
+        <Style Selector="Button.tab-btn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Foreground" Value="#CCCCCC"/>
-            <Setter Property="Background" Value="#0AFFFFFF"/>
+            <Setter Property="Background" Value="#15FFFFFF"/>
         </Style>
         <Style Selector="Button.tab-btn.active">
             <Setter Property="Foreground" Value="White"/>
@@ -33,9 +33,9 @@
             <Setter Property="BorderThickness" Value="0,0,0,2"/>
             <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
         </Style>
-        <Style Selector="Button.tab-btn.active:pointerover">
+        <Style Selector="Button.tab-btn.active:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Background" Value="#0AFFFFFF"/>
+            <Setter Property="Background" Value="#15FFFFFF"/>
             <Setter Property="BorderThickness" Value="0,0,0,2"/>
             <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
         </Style>
@@ -108,13 +108,11 @@
             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
                 <Button Classes="tab-btn"
                         Classes.active="{Binding !IsBrowseTabSelected}"
-                        Command="{Binding SelectTabCommand}"
-                        CommandParameter="0"
+                        Command="{Binding ShowUpdateTabCommand}"
                         Content="Update"/>
                 <Button Classes="tab-btn"
                         Classes.active="{Binding IsBrowseTabSelected}"
-                        Command="{Binding SelectTabCommand}"
-                        CommandParameter="1"
+                        Command="{Binding ShowBrowseBuildsTabCommand}"
                         Content="Browse Builds"/>
             </StackPanel>
 
