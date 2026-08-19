@@ -459,4 +459,3 @@ public class FastHttpClientFileDownloaderTests : IDisposable
             () => downloader.DownloadFile("https://example.com/file.bin", targetFile, _ => { }, null, 30, cts.Token));
     }
 }
-

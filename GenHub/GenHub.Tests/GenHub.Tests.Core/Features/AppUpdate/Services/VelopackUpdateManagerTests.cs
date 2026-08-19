@@ -3,6 +3,7 @@ using GenHub.Core.Interfaces.GitHub;
 using GenHub.Features.AppUpdate.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Velopack.Sources;
 
 namespace GenHub.Tests.Core.Features.AppUpdate.Services;
 
