@@ -97,7 +97,7 @@ public class GameProcessManager(
 
                 if (process.HasExited)
                 {
-                    return await HandleImmediateProcessExitAsync(process, configuration, capturedErrors);
+                    return HandleImmediateProcessExit(process, configuration, capturedErrors);
                 }
             }
 
@@ -767,7 +767,7 @@ public class GameProcessManager(
         return processStartInfo;
     }
 
-    private async Task<OperationResult<GameProcessInfo>> HandleImmediateProcessExitAsync(
+    private OperationResult<GameProcessInfo> HandleImmediateProcessExit(
         Process process,
         GameLaunchConfiguration configuration,
         BoundedErrorBuffer capturedErrors)

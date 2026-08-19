@@ -543,7 +543,14 @@ public class UpdateNotificationViewModelTests
             Mock.Of<ILogger<UpdateNotificationViewModel>>(),
             mockUserSettings.Object)
         {
-            SubscribedPr = 389,
+            SubscribedPr = new PullRequestInfo
+            {
+                Number = 389,
+                Title = "Test PR",
+                BranchName = "feature/test",
+                Author = "testuser",
+                State = "open"
+            },
             SelectedVersion = new ArtifactUpdateInfo("0.0.99999-pr389", "abcdef1", 389, 9999, "https://github.com/test/run/9999", 501, "genhub-linux", DateTime.UtcNow, "https://github.com/test/art/1", 1024),
             IsUpdateAvailable = true,
             LatestVersion = "0.0.99999-pr389",

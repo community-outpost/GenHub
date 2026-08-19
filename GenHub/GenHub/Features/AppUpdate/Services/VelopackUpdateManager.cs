@@ -1658,7 +1658,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         return null;
     }
 
-    private static bool IsMatchingWorkflowRun(JsonElement run, string? branchName, int? prNumber)
+    private bool IsMatchingWorkflowRun(JsonElement run, string? branchName, int? prNumber)
     {
         var actualBranch = run.TryGetProperty("head_branch", out var b) ? b.GetString() : branchName ?? "unknown";
         var eventType = run.TryGetProperty("event", out var e) ? e.GetString() : "unknown";
