@@ -48,16 +48,20 @@ jobs:
 
       - name: Analyze Codebase
         run: |
-          npx -y gitnexus analyze --force --index-only
-          npx -y gitnexus status
+          npx -y gitnexus@1.6.9 analyze --force --index-only
+          npx -y gitnexus@1.6.9 status
 
       - name: PR Impact Analysis
         if: github.event_name == 'pull_request'
+        shell: bash
         run: |
           echo "### 🔍 GitNexus Blast Radius & Change Impact" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          npx -y gitnexus detect-changes >> $GITHUB_STEP_SUMMARY 2>&1 || true
+          set -o pipefail
+          npx -y gitnexus@1.6.9 detect-changes 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          EXIT_CODE=${PIPESTATUS[0]}
           echo '```' >> $GITHUB_STEP_SUMMARY
+          exit $EXIT_CODE
 
       - name: Upload GitNexus Knowledge Graph Artifact
         uses: actions/upload-artifact@v4

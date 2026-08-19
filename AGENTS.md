@@ -110,6 +110,11 @@ This repository uses **GitNexus** to maintain an AST-parsed structural knowledge
   ```bash
   # Core tests
   dotnet test GenHub/GenHub.Tests/GenHub.Tests.Core/GenHub.Tests.Core.csproj -c Release
+
+  # Platform-specific tests (on matching OS host)
+  dotnet test GenHub/GenHub.Tests/GenHub.Tests.Windows/GenHub.Tests.Windows.csproj -c Release
+  dotnet test GenHub/GenHub.Tests/GenHub.Tests.Linux/GenHub.Tests.Linux.csproj -c Release
+  dotnet test GenHub/GenHub.Tests/GenHub.Tests.MacOS/GenHub.Tests.MacOS.csproj -c Release
   ```
 - **Do not run repo-wide checks unprompted.** CI owns the full multi-platform matrix.
 - **Solution build:**
