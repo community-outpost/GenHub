@@ -18,12 +18,28 @@ namespace GenHub.Features.Content.Services.ContentProviders;
 /// <summary>
 /// Base class for content providers with common pipeline orchestration logic.
 /// </summary>
-public abstract class BaseContentProvider(
-    IContentValidator contentValidator,
-    IInstallationInstructionsService? installationInstructionsService,
-    ILogger logger
-) : IContentProvider
+public abstract class BaseContentProvider : IContentProvider
 {
+    private readonly IContentValidator _contentValidator;
+    private readonly IInstallationInstructionsService? _installationInstructionsService;
+    private readonly ILogger _logger;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="BaseContentProvider"/> class.
+    /// </summary>
+    /// <param name="contentValidator">The content validator.</param>
+    /// <param name="installationInstructionsService">The optional installation instructions service.</param>
+    /// <param name="logger">The logger.</param>
+    protected BaseContentProvider(
+        IContentValidator contentValidator,
+        IInstallationInstructionsService? installationInstructionsService,
+        ILogger logger)
+    {
+        _contentValidator = contentValidator;
+        _installationInstructionsService = installationInstructionsService;
+        _logger = logger;
+    }
+
     /// <summary>
     /// Initializes a new instance of the <see cref="BaseContentProvider"/> class without an installation instructions service.
     /// </summary>
@@ -156,12 +172,12 @@ public abstract class BaseContentProvider(
 
             if (result.Success && result.Data != null)
             {
-                if (installationInstructionsService != null)
+                if (_installationInstructionsService != null)
                 {
                     try
                     {
                         // Execute post-installation steps if declared on the delivered manifest
-                        var stepExecutionResult = await installationInstructionsService.ExecutePostInstallStepsAsync(
+                        var stepExecutionResult = await _installationInstructionsService.ExecutePostInstallStepsAsync(
                             result.Data,
                             workingDirectory,
                             providerSource: SourceName,
@@ -260,17 +276,17 @@ public abstract class BaseContentProvider(
     /// <summary>
     /// Gets the logger for this provider.
     /// </summary>
-    protected ILogger Logger => logger;
+    protected ILogger Logger => _logger;
 
     /// <summary>
     /// Gets the content validator for manifest validation.
     /// </summary>
-    protected IContentValidator ContentValidator => contentValidator;
+    protected IContentValidator ContentValidator => _contentValidator;
 
     /// <summary>
     /// Gets the installation instructions service for post-install execution.
     /// </summary>
-    protected IInstallationInstructionsService? InstallationInstructionsService => installationInstructionsService;
+    protected IInstallationInstructionsService? InstallationInstructionsService => _installationInstructionsService;
 
     /// <summary>
     /// Gets the discoverer for this provider.

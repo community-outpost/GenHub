@@ -658,14 +658,12 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
         using var cts = new CancellationTokenSource();
         cts.CancelAfter(TimeSpan.FromMilliseconds(200));
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
-        {
-            await _service.ExecutePostInstallStepsAsync(
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            _service.ExecutePostInstallStepsAsync(
                 manifest,
                 _tempDirectory,
                 providerSource: PublisherTypeConstants.GeneralsOnline,
-                cancellationToken: cts.Token);
-        });
+                cancellationToken: cts.Token));
     }
 
     private static ContentManifest CreateBaseManifest() => new()

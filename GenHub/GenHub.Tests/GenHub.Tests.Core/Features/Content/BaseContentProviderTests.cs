@@ -158,10 +158,7 @@ public class BaseContentProviderTests
             delivererMock.Object);
 
         // Act & Assert
-        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-        {
-            await provider.PrepareContentAsync(manifest, "/tmp/test");
-        });
+        await Assert.ThrowsAsync<OperationCanceledException>(() => provider.PrepareContentAsync(manifest, "/tmp/test"));
 
         Assert.True(provider.RollbackCalled);
     }
