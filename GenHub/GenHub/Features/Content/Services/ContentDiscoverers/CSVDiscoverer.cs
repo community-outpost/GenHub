@@ -281,7 +281,7 @@ public class CSVDiscoverer : IContentDiscoverer, IDisposable
             yield return CsvCatalogSource.FromIndex(indexSource);
         }
 
-        if (_config.CsvValidationCatalogs != null && _config.CsvValidationCatalogs.Count > 0)
+        if (_config.CsvValidationCatalogs is { Count: > 0 })
         {
             yield return CsvCatalogSource.FromConfiguredCatalogs(_config.CsvValidationCatalogs);
         }

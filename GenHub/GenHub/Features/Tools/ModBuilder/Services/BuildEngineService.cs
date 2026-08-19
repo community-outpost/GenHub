@@ -158,83 +158,15 @@ public sealed class BuildEngineService(
 
             logger.LogInformation("Starting ModBuilder build pipeline");
 
-            var setup = buildStructure.Setup;
-            var steps = setup.Step;
-
-            // validate setup
+            var steps = ResolveBuildSteps(buildStructure.Setup.Step);
             if (steps == BuildStep.Zero)
             {
                 logger.LogWarning("BuildStep is Zero, nothing to do");
                 return true;
             }
 
-            // auto-enable dependent steps
-            if ((steps & BuildStep.Release) != 0)
-            {
-                steps |= BuildStep.Build;
-            }
-
-            if ((steps & BuildStep.Build) != 0)
-            {
-                steps |= BuildStep.PostBuild;
-            }
-
-            if ((steps & (BuildStep.Clean | BuildStep.Build | BuildStep.Install | BuildStep.Uninstall | BuildStep.Run)) != 0)
-            {
-                steps |= BuildStep.PreBuild;
-            }
-
-            var success = true;
             _lastErrorMessage = null;
-
-            // execute build pipeline stages
-            if (success && (steps & BuildStep.PreBuild) != 0)
-            {
-                success &= await PreBuildAsync(buildStructure, progress, _abortTokenSource.Token).ConfigureAwait(false);
-                if (!success && string.IsNullOrEmpty(_lastErrorMessage)) _lastErrorMessage = "PreBuild stage failed";
-            }
-
-            if (success && (steps & BuildStep.Clean) != 0)
-            {
-                success &= await CleanAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
-                if (!success && string.IsNullOrEmpty(_lastErrorMessage)) _lastErrorMessage = "Clean stage failed";
-            }
-
-            if (success && (steps & BuildStep.Build) != 0)
-            {
-                success &= await BuildAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
-                if (!success && string.IsNullOrEmpty(_lastErrorMessage)) _lastErrorMessage = "Build stage failed";
-            }
-
-            if (success && (steps & BuildStep.PostBuild) != 0)
-            {
-                success &= await PostBuildAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
-                if (!success && string.IsNullOrEmpty(_lastErrorMessage)) _lastErrorMessage = "PostBuild stage failed";
-            }
-
-            if (success && (steps & BuildStep.Release) != 0)
-            {
-                success &= await ReleaseAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
-                if (!success && string.IsNullOrEmpty(_lastErrorMessage)) _lastErrorMessage = "Release stage failed";
-            }
-
-            if (success && (steps & BuildStep.Uninstall) != 0)
-            {
-                success &= await UninstallAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
-                if (!success && string.IsNullOrEmpty(_lastErrorMessage)) _lastErrorMessage = "Uninstall stage failed";
-            }
-
-            if (success && (steps & BuildStep.Install) != 0)
-            {
-                success &= await InstallAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
-                if (!success && string.IsNullOrEmpty(_lastErrorMessage)) _lastErrorMessage = "Install stage failed";
-            }
-
-            if (success && (steps & BuildStep.Run) != 0)
-            {
-                success &= await RunGameAsync(setup, progress, _abortTokenSource.Token).ConfigureAwait(false);
-                if (!success && string.IsNullOrEmpty(_lastErrorMessage)) _lastErrorMessage = "Run Game stage failed";
-            }
+            var success = await ExecutePipelineStagesAsync(buildStructure, steps, progress, _abortTokenSource.Token).ConfigureAwait(false);
 
             logger.LogInformation("Build pipeline completed with success={Success}", success);
             return success;
@@ -257,6 +189,71 @@ public sealed class BuildEngineService(
             _abortTokenSource?.Dispose();
             _abortTokenSource = null;
         }
+    }
+
+    private static BuildStep ResolveBuildSteps(BuildStep steps)
+    {
+        if (steps == BuildStep.Zero)
+        {
+            return BuildStep.Zero;
+        }
+
+        if ((steps & BuildStep.Release) != 0)
+        {
+            steps |= BuildStep.Build;
+        }
+
+        if ((steps & BuildStep.Build) != 0)
+        {
+            steps |= BuildStep.PostBuild;
+        }
+
+        if ((steps & (BuildStep.Clean | BuildStep.Build | BuildStep.Install | BuildStep.Uninstall | BuildStep.Run)) != 0)
+        {
+            steps |= BuildStep.PreBuild;
+        }
+
+        return steps;
+    }
+
+    private async Task<bool> ExecutePipelineStagesAsync(
+        BuildStructure buildStructure,
+        BuildStep steps,
+        IProgress<BuildProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var setup = buildStructure.Setup;
+
+        var stages = new (BuildStep Step, Func<Task<bool>> Action, string ErrorName)[]
+        {
+            (BuildStep.PreBuild, () => PreBuildAsync(buildStructure, progress, cancellationToken), "PreBuild stage failed"),
+            (BuildStep.Clean, () => CleanAsync(setup, progress, cancellationToken), "Clean stage failed"),
+            (BuildStep.Build, () => BuildAsync(setup, progress, cancellationToken), "Build stage failed"),
+            (BuildStep.PostBuild, () => PostBuildAsync(setup, progress, cancellationToken), "PostBuild stage failed"),
+            (BuildStep.Release, () => ReleaseAsync(setup, progress, cancellationToken), "Release stage failed"),
+            (BuildStep.Uninstall, () => UninstallAsync(setup, progress, cancellationToken), "Uninstall stage failed"),
+            (BuildStep.Install, () => InstallAsync(setup, progress, cancellationToken), "Install stage failed"),
+            (BuildStep.Run, () => RunGameAsync(setup, progress, cancellationToken), "Run Game stage failed"),
+        };
+
+        foreach (var (step, action, errorName) in stages)
+        {
+            if ((steps & step) != 0)
+            {
+                var success = await action().ConfigureAwait(false);
+                if (!success)
+                {
+                    if (string.IsNullOrEmpty(_lastErrorMessage))
+                    {
+                        _lastErrorMessage = errorName;
+                    }
+
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     /// <summary>

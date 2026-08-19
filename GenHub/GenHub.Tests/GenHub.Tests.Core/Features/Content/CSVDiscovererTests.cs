@@ -45,7 +45,7 @@ public class CSVDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_WithGeneralsQuery_ReturnsValidResult()
+    public async Task DiscoverAsync_WithGeneralsQuery_ReturnsValidResultAsync()
     {
         using var indexFile = CreateIndexFile(CreateEntry("https://example.com/generals.csv", "Generals", "1.08", "EN"));
         var discoverer = CreateDiscoverer(new CsvCatalogConfiguration { IndexFilePath = indexFile.FilePath });
@@ -63,7 +63,7 @@ public class CSVDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_WithNonGameInstallationContentType_ReturnsEmptyResult()
+    public async Task DiscoverAsync_WithNonGameInstallationContentType_ReturnsEmptyResultAsync()
     {
         var discoverer = CreateDiscoverer(new CsvCatalogConfiguration());
 
@@ -82,7 +82,7 @@ public class CSVDiscovererTests
     [Theory]
     [InlineData("de")]
     [InlineData("DE")]
-    public async Task DiscoverAsync_WithLanguageFilter_MatchesCaseInsensitively(string filterLanguage)
+    public async Task DiscoverAsync_WithLanguageFilter_MatchesCaseInsensitivelyAsync(string filterLanguage)
     {
         using var indexFile = CreateIndexFile(CreateEntry("https://example.com/de.csv", "Generals", "1.0", "DE"));
         var discoverer = CreateDiscoverer(new CsvCatalogConfiguration { IndexFilePath = indexFile.FilePath });
@@ -98,7 +98,7 @@ public class CSVDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_WithAllLanguagesFilter_ReturnsAllLanguages()
+    public async Task DiscoverAsync_WithAllLanguagesFilter_ReturnsAllLanguagesAsync()
     {
         using var indexFile = CreateIndexFile(CreateEntry("https://example.com/multi.csv", "Generals", "1.0", "en", "de"));
         var discoverer = CreateDiscoverer(new CsvCatalogConfiguration { IndexFilePath = indexFile.FilePath });
@@ -113,7 +113,7 @@ public class CSVDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_WithUnifiedCatalog_PreservesCanonicalAllLanguage()
+    public async Task DiscoverAsync_WithUnifiedCatalog_PreservesCanonicalAllLanguageAsync()
     {
         using var indexFile = CreateIndexFile(CreateEntry("https://example.com/unified.csv", "ZeroHour", "1.04", "All"));
         var discoverer = CreateDiscoverer(new CsvCatalogConfiguration { IndexFilePath = indexFile.FilePath });
@@ -130,7 +130,7 @@ public class CSVDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_MultipleLanguagesInCatalog_ReturnsOneItemPerLanguage()
+    public async Task DiscoverAsync_MultipleLanguagesInCatalog_ReturnsOneItemPerLanguageAsync()
     {
         using var indexFile = CreateIndexFile(CreateEntry("https://example.com/multi.csv", "Generals", "1.0", "EN", "DE", "FR"));
         var discoverer = CreateDiscoverer(new CsvCatalogConfiguration { IndexFilePath = indexFile.FilePath });
@@ -148,7 +148,7 @@ public class CSVDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_WhenConfigurationServiceReturnsNull_DoesNotFail()
+    public async Task DiscoverAsync_WhenConfigurationServiceReturnsNull_DoesNotFailAsync()
     {
         var discoverer = CreateDiscoverer(null);
 
@@ -163,7 +163,7 @@ public class CSVDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_WithCanceledToken_RespectsCancellation()
+    public async Task DiscoverAsync_WithCanceledToken_RespectsCancellationAsync()
     {
         var discoverer = CreateDiscoverer(new CsvCatalogConfiguration());
         var cts = new CancellationTokenSource();
@@ -178,7 +178,7 @@ public class CSVDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_WhenIndexFileIsMissing_ReturnsEmptyResult()
+    public async Task DiscoverAsync_WhenIndexFileIsMissing_ReturnsEmptyResultAsync()
     {
         var discoverer = CreateDiscoverer(new CsvCatalogConfiguration { IndexFilePath = "non-existent-index.json" });
 
@@ -194,7 +194,7 @@ public class CSVDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_WhenDefaultGitHubIndexHasEntries_UsesItBeforeConfiguredIndex()
+    public async Task DiscoverAsync_WhenDefaultGitHubIndexHasEntries_UsesItBeforeConfiguredIndexAsync()
     {
         var configuredUrl = "https://example.com/custom-index.json";
         var githubJson = JsonSerializer.Serialize(new CsvCatalogRegistryIndex
@@ -238,7 +238,7 @@ public class CSVDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_WithIndexFilePath_UsesIndexFileEntries()
+    public async Task DiscoverAsync_WithIndexFilePath_UsesIndexFileEntriesAsync()
     {
         using var indexFile = CreateIndexFile(CreateEntry("https://index.com/file.csv", "Generals", "1.0", "EN"));
         var discoverer = CreateDiscoverer(new CsvCatalogConfiguration { IndexFilePath = indexFile.FilePath });
@@ -254,7 +254,7 @@ public class CSVDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_WithRemoteIndexUrl_UsesRemoteEntries()
+    public async Task DiscoverAsync_WithRemoteIndexUrl_UsesRemoteEntriesAsync()
     {
         var remoteIndexUrl = "https://example.com/index.json";
         var remoteIndexJson = JsonSerializer.Serialize(new CsvCatalogRegistryIndex
@@ -280,7 +280,7 @@ public class CSVDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_WhenIndexSourcesHaveNoEntries_UsesConfiguredCatalogs()
+    public async Task DiscoverAsync_WhenIndexSourcesHaveNoEntries_UsesConfiguredCatalogsAsync()
     {
         var discoverer = CreateDiscoverer(new CsvCatalogConfiguration
         {
@@ -308,7 +308,7 @@ public class CSVDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_WithUnsupportedTargetGame_ReturnsEmpty()
+    public async Task DiscoverAsync_WithUnsupportedTargetGame_ReturnsEmptyAsync()
     {
         using var indexFile = CreateIndexFile(CreateEntry("https://example.com/generals.csv", "Generals", "1.08", "EN"));
         var discoverer = CreateDiscoverer(new CsvCatalogConfiguration { IndexFilePath = indexFile.FilePath });
@@ -325,7 +325,7 @@ public class CSVDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_WithZeroHourQuery_ReturnsValidResult()
+    public async Task DiscoverAsync_WithZeroHourQuery_ReturnsValidResultAsync()
     {
         using var indexFile = CreateIndexFile(CreateEntry("https://example.com/zerohour.csv", "ZeroHour", "1.04", "EN"));
         var discoverer = CreateDiscoverer(new CsvCatalogConfiguration { IndexFilePath = indexFile.FilePath });
@@ -343,7 +343,7 @@ public class CSVDiscovererTests
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DiscoverAsync_WithNonMatchingGameType_ReturnsEmpty()
+    public async Task DiscoverAsync_WithNonMatchingGameType_ReturnsEmptyAsync()
     {
         using var indexFile = CreateIndexFile(CreateEntry("https://example.com/generals.csv", "Generals", "1.08", "EN"));
         var discoverer = CreateDiscoverer(new CsvCatalogConfiguration { IndexFilePath = indexFile.FilePath });
