@@ -29,7 +29,7 @@ public abstract class BaseContentProvider(
     /// </summary>
     /// <param name="contentValidator">The content validator.</param>
     /// <param name="logger">The logger.</param>
-    public BaseContentProvider(
+    protected BaseContentProvider(
         IContentValidator contentValidator,
         ILogger logger)
         : this(contentValidator, null, logger)
