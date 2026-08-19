@@ -129,6 +129,18 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     private ObservableCollection<PullRequestInfo> _availablePullRequests = [];
 
     /// <summary>
+    /// Gets or sets the selected tab index (0 = Update, 1 = Browse Builds).
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsBrowseTabSelected))]
+    private int _selectedTabIndex;
+
+    /// <summary>
+    /// Gets a value indicating whether the browse builds tab is selected.
+    /// </summary>
+    public bool IsBrowseTabSelected => SelectedTabIndex == 1;
+
+    /// <summary>
     /// Gets the list of available sort options for pull requests.
     /// </summary>
     public IReadOnlyList<string> AvailableSortOptions { get; } =
@@ -715,6 +727,16 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         }
 
         await CheckForUpdatesAsync();
+    }
+
+    /// <summary>
+    /// Selects the specified tab by index (0 = Update, 1 = Browse Builds).
+    /// </summary>
+    /// <param name="tabIndex">The tab index to select.</param>
+    [RelayCommand]
+    private void SelectTab(int tabIndex)
+    {
+        SelectedTabIndex = tabIndex;
     }
 
     /// <summary>

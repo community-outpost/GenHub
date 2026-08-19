@@ -425,4 +425,30 @@ public class UpdateNotificationViewModelTests
         Assert.Equal(100, vm.AvailablePullRequests[1].Number);
         Assert.Equal(200, vm.AvailablePullRequests[2].Number);
     }
+
+    /// <summary>
+    /// Verifies that SelectTabCommand correctly switches between Update and Browse Builds tabs.
+    /// </summary>
+    [Fact]
+    public void SelectTabCommand_UpdatesSelectedTabIndexAndIsBrowseTabSelected()
+    {
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings());
+
+        var vm = new UpdateNotificationViewModel(
+            Mock.Of<IVelopackUpdateManager>(),
+            Mock.Of<ILogger<UpdateNotificationViewModel>>(),
+            mockUserSettings.Object);
+
+        Assert.Equal(0, vm.SelectedTabIndex);
+        Assert.False(vm.IsBrowseTabSelected);
+
+        vm.SelectTabCommand.Execute(1);
+        Assert.Equal(1, vm.SelectedTabIndex);
+        Assert.True(vm.IsBrowseTabSelected);
+
+        vm.SelectTabCommand.Execute(0);
+        Assert.Equal(0, vm.SelectedTabIndex);
+        Assert.False(vm.IsBrowseTabSelected);
+    }
 }
