@@ -84,6 +84,8 @@ jobs:
               - '**/*.axaml'
               - '**/*.csproj'
               - '**/*.sln'
+              - '**/*.props'
+              - '**/*.targets'
               - '.github/workflows/**'
 
       - name: Changes Summary
