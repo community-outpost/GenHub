@@ -42,7 +42,7 @@ public sealed class MapImportService(
             var response = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
             response.EnsureSuccessStatusCode();
 
-            var fileName = GetFileNameFromUri(new Uri(url), response);
+            var fileName = ExtractFileName(new Uri(url), response);
             Directory.CreateDirectory(tempDir);
             var tempPath = Path.Combine(tempDir, fileName);
 
@@ -512,7 +512,7 @@ public sealed class MapImportService(
         }
     }
 
-    private static string GetFileNameFromUri(Uri uri, HttpResponseMessage response)
+    private static string ExtractFileName(Uri uri, HttpResponseMessage response)
     {
         var rawName = response.Content.Headers.ContentDisposition?.FileNameStar
             ?? response.Content.Headers.ContentDisposition?.FileName;
