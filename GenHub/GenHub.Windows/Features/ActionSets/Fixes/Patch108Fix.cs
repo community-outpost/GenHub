@@ -98,9 +98,10 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
             var fileSize = response.Content.Headers.ContentLength ?? 0;
             details.Add($"✓ Downloaded {fileSize / 1024 / 1024:F2} MB");
 
-            using var fs = new FileStream(tempPath, FileMode.Create);
-            await response.Content.CopyToAsync(fs, cancellationToken);
-            fs.Close();
+            using (var fs = new FileStream(tempPath, FileMode.Create))
+            {
+                await response.Content.CopyToAsync(fs, cancellationToken);
+            }
 
             details.Add("Extracting patch files...");
             logger.LogInformation("Extracting Generals 1.08 patch...");
@@ -119,10 +120,17 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
             logger.LogInformation("Copying patch files to {Path}", installation.GeneralsPath);
 
             int copiedCount = 0;
+            var canonicalGamePath = Path.GetFullPath(installation.GeneralsPath);
             foreach (var file in extractedFiles)
             {
                 var relativePath = file[extractPath.Length..].TrimStart(Path.DirectorySeparatorChar);
-                var destPath = Path.Combine(installation.GeneralsPath, relativePath);
+                var destPath = Path.GetFullPath(Path.Combine(canonicalGamePath, relativePath));
+
+                if (!destPath.StartsWith(canonicalGamePath, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.LogWarning("Potential path traversal detected in patch archive: {Path}", relativePath);
+                    continue;
+                }
 
                 var destDir = Path.GetDirectoryName(destPath);
                 if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))

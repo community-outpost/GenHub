@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
@@ -15,8 +16,16 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public class HDIconsFix(ILogger<HDIconsFix> logger) : BaseActionSet(logger)
 {
-    private readonly ILogger<HDIconsFix> _logger = logger;
-    private readonly string _markerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", "sub_markers", "HDIconsFix.done");
+    private static readonly IReadOnlyList<string> HdIconFiles =
+    [
+        "generals.ico",
+        "game.ico",
+        "zh.ico",
+        "generals_hd.ico",
+        "game_hd.ico",
+    ];
+
+    private readonly string _markerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", ActionSetConstants.Paths.SubActionSetMarkers, "HDIconsFix.done");
 
     /// <inheritdoc/>
     public override string Id => "HDIconsFix";
@@ -39,8 +48,8 @@ public class HDIconsFix(ILogger<HDIconsFix> logger) : BaseActionSet(logger)
     /// <inheritdoc/>
     public override Task<bool> IsAppliedAsync(GameInstallation installation)
     {
-         if (File.Exists(_markerPath)) return Task.FromResult(true);
-         return Task.FromResult(AreHDIconsPresent(installation));
+        if (File.Exists(_markerPath)) return Task.FromResult(true);
+        return Task.FromResult(AreHDIconsPresent(installation));
     }
 
     /// <inheritdoc/>
@@ -74,9 +83,9 @@ public class HDIconsFix(ILogger<HDIconsFix> logger) : BaseActionSet(logger)
                 details.Add("  Use GenHub's Content system to download icon packs");
             }
 
-            _logger.LogInformation("HD Icons are typically provided by mods or community content.");
-            _logger.LogInformation("Use GenHub's Content system to download HD icon packs.");
-            _logger.LogInformation("HD Icons can be found in the Downloads section under 'Icons' category.");
+            logger.LogInformation("HD Icons are typically provided by mods or community content.");
+            logger.LogInformation("Use GenHub's Content system to download HD icon packs.");
+            logger.LogInformation("HD Icons can be found in the Downloads section under 'Icons' category.");
 
             try
             {
@@ -85,14 +94,14 @@ public class HDIconsFix(ILogger<HDIconsFix> logger) : BaseActionSet(logger)
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to create marker file for HDIconsFix");
+                logger.LogWarning(ex, "Failed to create marker file for HDIconsFix");
             }
 
-            return Task.FromResult(new ActionSetResult(true, "HD Icons are available through GenHub's Content system.", details));
+            return Task.FromResult(new ActionSetResult(true, null, details));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error applying HD icons fix");
+            logger.LogError(ex, "Error applying HD icons fix");
             details.Add($"✗ Error: {ex.Message}");
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
@@ -101,7 +110,7 @@ public class HDIconsFix(ILogger<HDIconsFix> logger) : BaseActionSet(logger)
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        _logger.LogWarning("HD Icons Fix is informational only. No undo action needed.");
+        logger.LogWarning("HD Icons Fix is informational only. No undo action needed.");
         return Task.FromResult(new ActionSetResult(true));
     }
 
@@ -109,25 +118,15 @@ public class HDIconsFix(ILogger<HDIconsFix> logger) : BaseActionSet(logger)
     {
         try
         {
-            // Check for HD icon files in game directories
-            var hdIconFiles = new[]
-            {
-                "generals.ico",
-                "game.ico",
-                "zh.ico",
-                "generals_hd.ico",
-                "game_hd.ico",
-            };
-
             var foundHDIcons = false;
 
             if (installation.HasGenerals)
             {
-                foreach (var iconFile in hdIconFiles)
+                foreach (var iconFile in HdIconFiles)
                 {
                     if (File.Exists(Path.Combine(installation.GeneralsPath, iconFile)))
                     {
-                        _logger.LogInformation("Found HD icon: {Icon}", iconFile);
+                        logger.LogInformation("Found HD icon: {Icon}", iconFile);
                         foundHDIcons = true;
                         break;
                     }
@@ -136,11 +135,11 @@ public class HDIconsFix(ILogger<HDIconsFix> logger) : BaseActionSet(logger)
 
             if (installation.HasZeroHour && !foundHDIcons)
             {
-                foreach (var iconFile in hdIconFiles)
+                foreach (var iconFile in HdIconFiles)
                 {
                     if (File.Exists(Path.Combine(installation.ZeroHourPath, iconFile)))
                     {
-                        _logger.LogInformation("Found HD icon: {Icon}", iconFile);
+                        logger.LogInformation("Found HD icon: {Icon}", iconFile);
                         foundHDIcons = true;
                         break;
                     }
@@ -151,7 +150,7 @@ public class HDIconsFix(ILogger<HDIconsFix> logger) : BaseActionSet(logger)
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error checking for HD icons");
+            logger.LogWarning(ex, "Error checking for HD icons");
             return false;
         }
     }

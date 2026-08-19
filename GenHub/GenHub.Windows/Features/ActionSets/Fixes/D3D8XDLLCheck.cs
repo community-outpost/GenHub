@@ -17,14 +17,12 @@ using Microsoft.Extensions.Logging;
 public class D3D8XDLLCheck(ILogger<D3D8XDLLCheck> logger) : BaseActionSet(logger)
 {
     // DirectX 8/9 DLLs that Generals and Zero Hour may require (Retail only)
-    private static readonly string[] RequiredDLLs =
+    private static readonly IReadOnlyList<string> RequiredDLLs =
     [
         "d3d8.dll",
         "d3d8thk.dll",
         "d3dx9_43.dll",
     ];
-
-    private readonly ILogger<D3D8XDLLCheck> _logger = logger;
 
     /// <inheritdoc/>
     public override string Id => "D3D8XDLLCheck";
@@ -72,18 +70,18 @@ public class D3D8XDLLCheck(ILogger<D3D8XDLLCheck> logger) : BaseActionSet(logger
 
             if (allPresent)
             {
-                _logger.LogInformation("All required DirectX 8 DLLs are present");
+                logger.LogInformation("All required DirectX 8 DLLs are present");
             }
             else
             {
-                _logger.LogWarning("Missing DirectX 8 DLLs: {DLLs}", string.Join(", ", missingDLLs));
+                logger.LogWarning("Missing DirectX 8 DLLs: {DLLs}", string.Join(", ", missingDLLs));
             }
 
             return Task.FromResult(allPresent);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking DirectX 8 DLLs");
+            logger.LogError(ex, "Error checking DirectX 8 DLLs");
             return Task.FromResult(false);
         }
     }
@@ -113,26 +111,26 @@ public class D3D8XDLLCheck(ILogger<D3D8XDLLCheck> logger) : BaseActionSet(logger
 
             if (missingDLLs.Count == 0)
             {
-                _logger.LogInformation("All required DirectX 8 DLLs are present. No action needed.");
+                logger.LogInformation("All required DirectX 8 DLLs are present. No action needed.");
                 return Task.FromResult(new ActionSetResult(true));
             }
 
-            _logger.LogWarning("The following DirectX 8 DLLs are missing:");
+            logger.LogWarning("The following DirectX 8 DLLs are missing:");
             foreach (var dll in missingDLLs)
             {
-                _logger.LogWarning("  - {DLL}", dll);
+                logger.LogWarning("  - {DLL}", dll);
             }
 
-            _logger.LogInformation("To fix this issue:");
-            _logger.LogInformation("1. Run DirectXRuntimeFix to install DirectX 8.1/9.0c runtime");
-            _logger.LogInformation("2. This will install all required DirectX 8 DLLs");
-            _logger.LogInformation("3. Restart your computer after installation");
+            logger.LogInformation("To fix this issue:");
+            logger.LogInformation("1. Run DirectXRuntimeFix to install DirectX 8.1/9.0c runtime");
+            logger.LogInformation("2. This will install all required DirectX 8 DLLs");
+            logger.LogInformation("3. Restart your computer after installation");
 
             return Task.FromResult(new ActionSetResult(true, null, [$"Missing {missingDLLs.Count} DirectX 8 DLLs in system directories. Please run DirectXRuntimeFix."]));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking DirectX 8 DLLs");
+            logger.LogError(ex, "Error checking DirectX 8 DLLs");
             return Task.FromResult(new ActionSetResult(false, ex.Message));
         }
     }
@@ -140,7 +138,7 @@ public class D3D8XDLLCheck(ILogger<D3D8XDLLCheck> logger) : BaseActionSet(logger
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        _logger.LogWarning("D3D8XDLLCheck is informational only. No undo action needed.");
+        logger.LogWarning("D3D8XDLLCheck is informational only. No undo action needed.");
         return Task.FromResult(new ActionSetResult(true));
     }
 }

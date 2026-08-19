@@ -21,8 +21,6 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
 {
-    private readonly ILogger<OneDriveFix> _logger = logger;
-
     private readonly string[] _commonFolderNames =
     [
         "Command and Conquer Generals Data",
@@ -70,7 +68,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking OneDrive protection status");
+            logger.LogError(ex, "Error checking OneDrive protection status");
             return Task.FromResult(false);
         }
     }
@@ -120,12 +118,16 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
                     try
                     {
                         MergeDirectories(cloudPath, localPath);
-                        Directory.Delete(cloudPath, true);
+                        if (Directory.Exists(cloudPath))
+                        {
+                            Directory.Delete(cloudPath, true);
+                        }
+
                         details.Add("  ✓ Cloud folder contents merged and original removed.");
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "Failed to merge {Cloud} into {Local}", cloudPath, localPath);
+                        logger.LogWarning(ex, "Failed to merge {Cloud} into {Local}", cloudPath, localPath);
                         details.Add($"  ⚠ Failed to fully merge: {ex.Message}");
 
                         // Rename cloud folder to avoid conflict for symlink creation
@@ -164,7 +166,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error applying OneDrive protection");
+            logger.LogError(ex, "Error applying OneDrive protection");
             details.Add($"✗ Error: {ex.Message}");
             return new ActionSetResult(false, ex.Message, details);
         }
@@ -173,7 +175,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        _logger.LogWarning("Undoing OneDrive folder relocation is not supported automatically.");
+        logger.LogWarning("Undoing OneDrive folder relocation is not supported automatically.");
         return Task.FromResult(new ActionSetResult(true));
     }
 
@@ -181,15 +183,28 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
     {
         foreach (var dirPath in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
         {
-            Directory.CreateDirectory(dirPath.Replace(source, target));
+            var relative = Path.GetRelativePath(source, dirPath);
+            Directory.CreateDirectory(Path.Combine(target, relative));
         }
 
-        foreach (var newPath in Directory.GetFiles(source, "*.*", SearchOption.AllDirectories))
+        foreach (var filePath in Directory.GetFiles(source, "*.*", SearchOption.AllDirectories))
         {
-            var targetFile = newPath.Replace(source, target);
+            var relative = Path.GetRelativePath(source, filePath);
+            var targetFile = Path.Combine(target, relative);
             if (!File.Exists(targetFile))
             {
-                File.Move(newPath, targetFile);
+                File.Move(filePath, targetFile);
+            }
+            else
+            {
+                var srcInfo = new FileInfo(filePath);
+                var tgtInfo = new FileInfo(targetFile);
+                if (srcInfo.LastWriteTimeUtc > tgtInfo.LastWriteTimeUtc)
+                {
+                    File.Copy(filePath, targetFile, overwrite: true);
+                }
+
+                File.Delete(filePath);
             }
         }
     }
@@ -266,7 +281,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to apply pin attributes to {Path}", path);
+            logger.LogWarning(ex, "Failed to apply pin attributes to {Path}", path);
         }
     }
 }

@@ -22,8 +22,6 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
     // Marker file to definitively track if GenPatcher applied this fix
     private const string MarkerFileName = ".gp_ro_fix";
 
-    private readonly ILogger<RemoveReadOnlyFix> _logger = logger;
-
     private static string GetUserDataPath(GameType gameType)
     {
         var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
@@ -191,15 +189,15 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to create marker file for RemoveReadOnlyFix");
+                logger.LogWarning(ex, "Failed to create marker file for RemoveReadOnlyFix");
             }
 
-            _logger.LogInformation("RemoveReadOnlyFix completed: {Files} files, {Dirs} directories", totalFilesProcessed, totalDirsProcessed);
+            logger.LogInformation("RemoveReadOnlyFix completed: {Files} files, {Dirs} directories", totalFilesProcessed, totalDirsProcessed);
             return new ActionSetResult(true, null, details);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to remove read-only attributes");
+            logger.LogError(ex, "Failed to remove read-only attributes");
             details.Add($"✗ Error: {ex.Message}");
             return new ActionSetResult(false, ex.Message, details);
         }
@@ -208,7 +206,7 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        _logger.LogWarning("Undoing Remove Read-Only Attributes is not supported via GenHub.");
+        logger.LogWarning("Undoing Remove Read-Only Attributes is not supported via GenHub.");
         return Task.FromResult(new ActionSetResult(true));
     }
 
@@ -223,7 +221,7 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Could not check attributes for {Path}", path);
+            logger.LogError(ex, "Could not check attributes for {Path}", path);
             return false;
         }
     }
@@ -232,7 +230,7 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
     {
         if (!Directory.Exists(path)) return (0, 0);
 
-        _logger.LogInformation("Removing read-only and pinning files in: {Path}", path);
+        logger.LogInformation("Removing read-only and pinning files in: {Path}", path);
 
         int filesProcessed = 0;
         int dirsProcessed = 0;
@@ -241,7 +239,7 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
         try
         {
             var dirInfo = new DirectoryInfo(path);
-            var (f, d) = await RemoveReadOnlyRecursiveAsync(dirInfo, _logger, ct);
+            var (f, d) = await RemoveReadOnlyRecursiveAsync(dirInfo, logger, ct);
             filesProcessed += f;
             dirsProcessed += d;
 
@@ -249,7 +247,7 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error removing read-only attributes for {Path}", path);
+            logger.LogWarning(ex, "Error removing read-only attributes for {Path}", path);
             details.Add($"  ⚠ Warning: {ex.Message}");
         }
 
@@ -262,7 +260,7 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to apply pin attributes to {Path}", path);
+            logger.LogWarning(ex, "Failed to apply pin attributes to {Path}", path);
             details.Add($"  ⚠ Could not apply pin attributes: {ex.Message}");
         }
 
@@ -287,11 +285,15 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
             if (process != null)
             {
                 await process.WaitForExitAsync(ct);
+                if (process.ExitCode != 0)
+                {
+                    logger.LogWarning("attrib command exited with code {Code} for {Path}", process.ExitCode, path);
+                }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to apply pin attributes to {Path}", path);
+            logger.LogWarning(ex, "Failed to apply pin attributes to {Path}", path);
         }
     }
 }

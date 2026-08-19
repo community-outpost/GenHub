@@ -21,9 +21,6 @@ public class PreferIPv4Fix(
     private const string DisabledComponentsKey = "DisabledComponents";
     private const int PreferIPv4Value = 32; // Disable IPv6 tunnel interfaces
 
-    private readonly IRegistryService _registryService = registryService;
-    private readonly ILogger<PreferIPv4Fix> _logger = logger;
-
     /// <inheritdoc/>
     public override string Id => "PreferIPv4Fix";
 
@@ -47,7 +44,7 @@ public class PreferIPv4Fix(
     {
         try
         {
-            var currentValue = _registryService.GetIntValue(
+            var currentValue = registryService.GetIntValue(
                 RegistryPath,
                 DisabledComponentsKey);
 
@@ -56,7 +53,7 @@ public class PreferIPv4Fix(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking IPv4 preference status");
+            logger.LogError(ex, "Error checking IPv4 preference status");
             return Task.FromResult(false);
         }
     }
@@ -70,7 +67,7 @@ public class PreferIPv4Fix(
         {
             details.Add("Checking current IPv6 configuration...");
 
-            var currentValue = _registryService.GetIntValue(
+            var currentValue = registryService.GetIntValue(
                 RegistryPath,
                 DisabledComponentsKey);
 
@@ -79,7 +76,7 @@ public class PreferIPv4Fix(
             if (currentValue == PreferIPv4Value)
             {
                 details.Add("✓ IPv4 preference is already enabled (IPv6 tunnels disabled)");
-                _logger.LogInformation("IPv4 preference is already enabled. No action needed.");
+                logger.LogInformation("IPv4 preference is already enabled. No action needed.");
                 return Task.FromResult(new ActionSetResult(true, null, details));
             }
 
@@ -88,25 +85,31 @@ public class PreferIPv4Fix(
             details.Add($"Key: {DisabledComponentsKey}");
             details.Add($"New value: {PreferIPv4Value} (0x20 - Disable IPv6 tunnel interfaces)");
 
-            _logger.LogInformation("Enabling IPv4 preference by disabling IPv6 tunnel interfaces...");
+            logger.LogInformation("Enabling IPv4 preference by disabling IPv6 tunnel interfaces...");
 
-            _registryService.SetIntValue(
+            var writeSuccess = registryService.SetIntValue(
                 RegistryPath,
                 DisabledComponentsKey,
                 PreferIPv4Value);
+
+            if (!writeSuccess)
+            {
+                details.Add("✗ Failed to set DisabledComponents registry key (permissions?)");
+                return Task.FromResult(new ActionSetResult(false, "Failed to write DisabledComponents registry key", details));
+            }
 
             details.Add("✓ IPv4 preference enabled successfully");
             details.Add("⚠ IMPORTANT: Computer restart required for changes to take effect");
             details.Add("  After restart, IPv4 will be preferred for all network connections");
 
-            _logger.LogInformation("IPv4 preference fix applied with {Count} actions", details.Count);
-            _logger.LogInformation("NOTE: You may need to restart your computer for this change to take effect.");
+            logger.LogInformation("IPv4 preference fix applied with {Count} actions", details.Count);
+            logger.LogInformation("NOTE: You may need to restart your computer for this change to take effect.");
 
-            return Task.FromResult(new ActionSetResult(true, "IPv4 preference enabled. Restart required.", details));
+            return Task.FromResult(new ActionSetResult(true, null, details));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error applying IPv4 preference fix");
+            logger.LogError(ex, "Error applying IPv4 preference fix");
             details.Add($"✗ Error: {ex.Message}");
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
@@ -121,35 +124,41 @@ public class PreferIPv4Fix(
         {
             details.Add("Removing IPv4 preference...");
 
-            var currentValue = _registryService.GetStringValue(
+            var currentValue = registryService.GetIntValue(
                 RegistryPath,
                 DisabledComponentsKey);
 
-            if (currentValue == null)
+            if (currentValue == null || currentValue == 0)
             {
                 details.Add("✓ IPv4 preference is not set. No undo action needed.");
-                _logger.LogInformation("IPv4 preference is not set. No undo action needed.");
+                logger.LogInformation("IPv4 preference is not set. No undo action needed.");
                 return Task.FromResult(new ActionSetResult(true, null, details));
             }
 
-            _logger.LogInformation("Removing IPv4 preference...");
+            logger.LogInformation("Removing IPv4 preference...");
 
-            _registryService.SetIntValue(
+            var writeSuccess = registryService.SetIntValue(
                 RegistryPath,
                 DisabledComponentsKey,
                 0);
 
+            if (!writeSuccess)
+            {
+                details.Add("✗ Failed to reset DisabledComponents registry key");
+                return Task.FromResult(new ActionSetResult(false, "Failed to reset DisabledComponents registry key", details));
+            }
+
             details.Add("✓ IPv4 preference removed successfully");
             details.Add("⚠ Computer restart required for changes to take effect");
 
-            _logger.LogInformation("IPv4 preference removed successfully.");
-            _logger.LogInformation("NOTE: You may need to restart your computer for this change to take effect.");
+            logger.LogInformation("IPv4 preference removed successfully.");
+            logger.LogInformation("NOTE: You may need to restart your computer for this change to take effect.");
 
-            return Task.FromResult(new ActionSetResult(true, "IPv4 preference removed. Restart required.", details));
+            return Task.FromResult(new ActionSetResult(true, null, details));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error undoing IPv4 preference fix");
+            logger.LogError(ex, "Error undoing IPv4 preference fix");
             details.Add($"✗ Error: {ex.Message}");
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }

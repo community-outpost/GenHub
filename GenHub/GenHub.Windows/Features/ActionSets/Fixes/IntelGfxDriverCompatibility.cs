@@ -17,7 +17,6 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public class IntelGfxDriverCompatibility(ILogger<IntelGfxDriverCompatibility> logger) : BaseActionSet(logger)
 {
-    private readonly ILogger<IntelGfxDriverCompatibility> _logger = logger;
     private readonly string _markerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", ActionSetConstants.Paths.SubActionSetMarkers, "IntelGfxDriverCompatibility.done");
 
     /// <inheritdoc/>
@@ -63,7 +62,7 @@ public class IntelGfxDriverCompatibility(ILogger<IntelGfxDriverCompatibility> lo
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking Intel graphics driver status");
+            logger.LogError(ex, "Error checking Intel graphics driver status");
             return Task.FromResult(false);
         }
     }
@@ -77,31 +76,31 @@ public class IntelGfxDriverCompatibility(ILogger<IntelGfxDriverCompatibility> lo
 
             if (!hasIntelGfx)
             {
-                _logger.LogInformation("Intel graphics not detected. No action needed.");
+                logger.LogInformation("Intel graphics not detected. No action needed.");
                 return Task.FromResult(new ActionSetResult(true));
             }
 
             // Check if driver is up to date
             if (IsIntelDriverUpToDate())
             {
-                _logger.LogInformation("Intel graphics driver is up to date. No action needed.");
+                logger.LogInformation("Intel graphics driver is up to date. No action needed.");
                 return Task.FromResult(new ActionSetResult(true));
             }
 
             // Provide guidance for Intel graphics driver
-            _logger.LogWarning("Intel graphics driver detected. May need update for best compatibility.");
-            _logger.LogInformation("To update Intel graphics driver:");
-            _logger.LogInformation("1. Open Intel Driver & Support Assistant");
-            _logger.LogInformation("2. Go to 'Drivers' tab");
-            _logger.LogInformation("3. Click 'Check for updates'");
-            _logger.LogInformation("4. Follow prompts to install latest driver");
-            _logger.LogInformation(string.Empty);
-            _logger.LogInformation("Alternatively, download from Intel website:");
-            _logger.LogInformation("{Url}", ExternalUrls.IntelDriverDownloadUrl);
-            _logger.LogInformation(string.Empty);
-            _logger.LogInformation("Note: After updating driver, you may need to:");
-            _logger.LogInformation("- Restart your computer");
-            _logger.LogInformation("- Run GenHub fixes again");
+            logger.LogWarning("Intel graphics driver detected. May need update for best compatibility.");
+            logger.LogInformation("To update Intel graphics driver:");
+            logger.LogInformation("1. Open Intel Driver & Support Assistant");
+            logger.LogInformation("2. Go to 'Drivers' tab");
+            logger.LogInformation("3. Click 'Check for updates'");
+            logger.LogInformation("4. Follow prompts to install latest driver");
+            logger.LogInformation(string.Empty);
+            logger.LogInformation("Alternatively, download from Intel website:");
+            logger.LogInformation("{Url}", ExternalUrls.IntelDriverDownloadUrl);
+            logger.LogInformation(string.Empty);
+            logger.LogInformation("Note: After updating driver, you may need to:");
+            logger.LogInformation("- Restart your computer");
+            logger.LogInformation("- Run GenHub fixes again");
 
             try
             {
@@ -110,16 +109,16 @@ public class IntelGfxDriverCompatibility(ILogger<IntelGfxDriverCompatibility> lo
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to create marker file for IntelGfxDriverCompatibility");
+                logger.LogWarning(ex, "Failed to create marker file for IntelGfxDriverCompatibility");
             }
 
-            _logger.LogInformation("- Test game performance");
+            logger.LogInformation("- Test game performance");
 
-            return Task.FromResult(new ActionSetResult(true, "Please update Intel graphics driver. See logs for details."));
+            return Task.FromResult(new ActionSetResult(true, null, ["Please update Intel graphics driver. See logs for details."]));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error applying Intel graphics driver compatibility fix");
+            logger.LogError(ex, "Error applying Intel graphics driver compatibility fix");
             return Task.FromResult(new ActionSetResult(false, ex.Message));
         }
     }
@@ -127,7 +126,7 @@ public class IntelGfxDriverCompatibility(ILogger<IntelGfxDriverCompatibility> lo
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        _logger.LogWarning("Intel Graphics Driver Compatibility Fix is informational only. No undo action needed.");
+        logger.LogWarning("Intel Graphics Driver Compatibility Fix is informational only. No undo action needed.");
         return Task.FromResult(new ActionSetResult(true));
     }
 
@@ -142,7 +141,7 @@ public class IntelGfxDriverCompatibility(ILogger<IntelGfxDriverCompatibility> lo
 
             if (key?.GetValue("DriverDesc") is string driverDesc && driverDesc.Contains("Intel", StringComparison.OrdinalIgnoreCase))
             {
-                _logger.LogInformation("Found Intel graphics: {Driver}", driverDesc);
+                logger.LogInformation("Found Intel graphics: {Driver}", driverDesc);
                 return true;
             }
 
@@ -154,7 +153,7 @@ public class IntelGfxDriverCompatibility(ILogger<IntelGfxDriverCompatibility> lo
             {
                 if (result["Name"] is string name && name.Contains("Intel", StringComparison.OrdinalIgnoreCase))
                 {
-                    _logger.LogInformation("Found Intel graphics via WMI: {Name}", name);
+                    logger.LogInformation("Found Intel graphics via WMI: {Name}", name);
                     return true;
                 }
             }
@@ -163,7 +162,7 @@ public class IntelGfxDriverCompatibility(ILogger<IntelGfxDriverCompatibility> lo
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error checking for Intel graphics");
+            logger.LogWarning(ex, "Error checking for Intel graphics");
             return false;
         }
     }
@@ -180,7 +179,7 @@ public class IntelGfxDriverCompatibility(ILogger<IntelGfxDriverCompatibility> lo
 
             if (key?.GetValue("Version") is string version)
             {
-                _logger.LogInformation("Intel Driver & Support Assistant version: {Version}", version);
+                logger.LogInformation("Intel Driver & Support Assistant version: {Version}", version);
 
                 // Assume recent version means driver is reasonably up to date
                 return true;
@@ -191,7 +190,7 @@ public class IntelGfxDriverCompatibility(ILogger<IntelGfxDriverCompatibility> lo
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error checking Intel driver version");
+            logger.LogWarning(ex, "Error checking Intel driver version");
             return false;
         }
     }

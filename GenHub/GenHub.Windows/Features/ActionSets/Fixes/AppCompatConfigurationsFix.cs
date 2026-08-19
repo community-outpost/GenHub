@@ -21,11 +21,8 @@ public class AppCompatConfigurationsFix(
     IRegistryService registryService,
     ILogger<AppCompatConfigurationsFix> logger) : BaseActionSet(logger)
 {
-    private static readonly string[] GeneralsExecutables = ["Generals.exe", "generals.exe", "generalsv.exe"];
-    private static readonly string[] ZeroHourExecutables = ["Generals.exe", "generals.exe", "generalszh.exe", "GeneralsOnlineZH.exe", "GeneralsOnlineZH_30.exe", "GeneralsOnlineZH_60.exe"];
-
-    private readonly IRegistryService _registryService = registryService ?? throw new ArgumentNullException(nameof(registryService));
-    private readonly ILogger<AppCompatConfigurationsFix> _logger = logger;
+    private static readonly IReadOnlyList<string> GeneralsExecutables = ["Generals.exe", "generals.exe", "generalsv.exe"];
+    private static readonly IReadOnlyList<string> ZeroHourExecutables = ["Generals.exe", "generals.exe", "generalszh.exe", "GeneralsOnlineZH.exe", "GeneralsOnlineZH_30.exe", "GeneralsOnlineZH_60.exe"];
 
     /// <inheritdoc/>
     public override string Id => "AppCompatConfigurationsFix";
@@ -56,7 +53,7 @@ public class AppCompatConfigurationsFix(
                 var fullPath = Path.Combine(installation.GeneralsPath, exe);
                 if (File.Exists(fullPath))
                 {
-                    var current = _registryService.GetStringValue(RegistryConstants.AppCompatLayersKeyPath, fullPath);
+                    var current = registryService.GetStringValue(RegistryConstants.AppCompatLayersKeyPath, fullPath);
                     if (current != expectedFlag) return Task.FromResult(false);
                 }
             }
@@ -69,7 +66,7 @@ public class AppCompatConfigurationsFix(
                 var fullPath = Path.Combine(installation.ZeroHourPath, exe);
                 if (File.Exists(fullPath))
                 {
-                    var current = _registryService.GetStringValue(RegistryConstants.AppCompatLayersKeyPath, fullPath);
+                    var current = registryService.GetStringValue(RegistryConstants.AppCompatLayersKeyPath, fullPath);
                     if (current != expectedFlag) return Task.FromResult(false);
                 }
             }
@@ -112,7 +109,7 @@ public class AppCompatConfigurationsFix(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to apply AppCompat configurations");
+            logger.LogError(ex, "Failed to apply AppCompat configurations");
             details.Add($"✗ Error: {ex.Message}");
             return new ActionSetResult(false, ex.Message, details);
         }
@@ -121,11 +118,11 @@ public class AppCompatConfigurationsFix(
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        _logger.LogWarning("Undoing Windows Compatibility Configurations is not supported via GenHub.");
+        logger.LogWarning("Undoing Windows Compatibility Configurations is not supported via GenHub.");
         return Task.FromResult(new ActionSetResult(true));
     }
 
-    private async Task ProcessExecutablesAsync(string installPath, string[] executables, string flag, List<string> details, CancellationToken ct)
+    private async Task ProcessExecutablesAsync(string installPath, IReadOnlyList<string> executables, string flag, List<string> details, CancellationToken ct)
     {
         int processedCount = 0;
         int defenderCount = 0;
@@ -140,13 +137,19 @@ public class AppCompatConfigurationsFix(
             // 1. Set Registry AppCompat Flag
             try
             {
-                _registryService.SetStringValue(RegistryConstants.AppCompatLayersKeyPath, fullPath, flag);
-                details.Add($"  ✓ Set compatibility flags for: {exe}");
-                processedCount++;
+                if (registryService.SetStringValue(RegistryConstants.AppCompatLayersKeyPath, fullPath, flag))
+                {
+                    details.Add($"  ✓ Set compatibility flags for: {exe}");
+                    processedCount++;
+                }
+                else
+                {
+                    details.Add($"  ✗ Failed to set flags for: {exe}");
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to set registry flag for {Path}", fullPath);
+                logger.LogWarning(ex, "Failed to set registry flag for {Path}", fullPath);
                 details.Add($"  ✗ Failed to set flags for: {exe}");
             }
 
@@ -191,7 +194,7 @@ public class AppCompatConfigurationsFix(
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to add Defender exclusion for {Path}", path);
+            logger.LogWarning(ex, "Failed to add Defender exclusion for {Path}", path);
             return false;
         }
     }

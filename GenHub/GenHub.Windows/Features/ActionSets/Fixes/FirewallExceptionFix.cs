@@ -27,8 +27,6 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
     private const string ZeroHourRule = ActionSetConstants.FirewallRules.ZeroHourRule;
     private const string ZeroHourGameDatRule = ActionSetConstants.FirewallRules.ZeroHourGameDatRule;
 
-    private readonly ILogger<FirewallExceptionFix> _logger = logger;
-
     /// <inheritdoc/>
     public override string Id => "FirewallExceptionFix";
 
@@ -55,12 +53,12 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
             // Check for GenPatcher's primary rule - if this exists, fix is applied
             // This matches GenPatcher's PerformIsApplied() which checks "GP Open UDP Port 16000"
             var hasPortRule = IsFirewallRuleExists(PortRuleUdp16000);
-            _logger.LogInformation("Firewall rule '{RuleName}' exists: {Exists}", PortRuleUdp16000, hasPortRule);
+            logger.LogInformation("Firewall rule '{RuleName}' exists: {Exists}", PortRuleUdp16000, hasPortRule);
             return Task.FromResult(hasPortRule);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking firewall rules status");
+            logger.LogError(ex, "Error checking firewall rules status");
             return Task.FromResult(false);
         }
     }
@@ -76,9 +74,11 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
             if (IsFirewallRuleExists(PortRuleUdp16000))
             {
                 details.Add("✓ Firewall rules already applied (found GP Open UDP Port 16000)");
-                _logger.LogInformation("Firewall rules already applied");
+                logger.LogInformation("Firewall rules already applied");
                 return new ActionSetResult(true, null, details);
             }
+
+            var hasFailures = false;
 
             // Run firewall commands asynchronously to avoid UI blocking
             await Task.Run(
@@ -91,6 +91,7 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
                 }
                 else
                 {
+                    hasFailures = true;
                     details.Add($"⚠ Failed: {PortRuleUdp16000}");
                 }
 
@@ -100,6 +101,7 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
                 }
                 else
                 {
+                    hasFailures = true;
                     details.Add($"⚠ Failed: {PortRuleUdp16001}");
                 }
 
@@ -112,6 +114,7 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
                 }
                 else
                 {
+                    hasFailures = true;
                     details.Add($"⚠ Failed: {PortRuleTcp16001}");
                 }
 
@@ -129,6 +132,7 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
                         }
                         else
                         {
+                            hasFailures = true;
                             details.Add($"⚠ Failed: {GeneralsRule}");
                         }
                     }
@@ -141,6 +145,7 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
                         }
                         else
                         {
+                            hasFailures = true;
                             details.Add($"⚠ Failed: {GeneralsGameDatRule}");
                         }
                     }
@@ -163,6 +168,7 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
                         }
                         else
                         {
+                            hasFailures = true;
                             details.Add($"⚠ Failed: {ZeroHourRule}");
                         }
                     }
@@ -175,6 +181,7 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
                         }
                         else
                         {
+                            hasFailures = true;
                             details.Add($"⚠ Failed: {ZeroHourGameDatRule}");
                         }
                     }
@@ -182,12 +189,18 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
             },
                 cancellationToken);
 
-            _logger.LogInformation("Firewall rules applied. Details: {Details}", string.Join("; ", details));
+            if (hasFailures)
+            {
+                logger.LogWarning("Firewall rules applied with one or more failures: {Details}", string.Join("; ", details));
+                return new ActionSetResult(false, "Failed to create one or more firewall rules", details);
+            }
+
+            logger.LogInformation("Firewall rules applied. Details: {Details}", string.Join("; ", details));
             return new ActionSetResult(true, null, details);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error applying firewall exception fix");
+            logger.LogError(ex, "Error applying firewall exception fix");
             details.Add($"✗ Error: {ex.Message}");
             return new ActionSetResult(false, ex.Message, details);
         }
@@ -228,12 +241,12 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
             },
                 cancellationToken);
 
-            _logger.LogInformation("Firewall rules removed");
+            logger.LogInformation("Firewall rules removed");
             return new ActionSetResult(true, null, details);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error undoing firewall exception fix");
+            logger.LogError(ex, "Error undoing firewall exception fix");
             details.Add($"✗ Error: {ex.Message}");
             return new ActionSetResult(false, ex.Message, details);
         }
@@ -257,6 +270,7 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
             if (process != null)
             {
                 var output = process.StandardOutput.ReadToEnd();
+                _ = process.StandardError.ReadToEnd();
                 process.WaitForExit();
 
                 // GenPatcher checks: if output contains "No rules", rule doesn't exist
@@ -267,7 +281,7 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error checking if firewall rule exists: {RuleName}", ruleName);
+            logger.LogWarning(ex, "Error checking if firewall rule exists: {RuleName}", ruleName);
             return false;
         }
     }
@@ -287,11 +301,13 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
                 CreateNoWindow = true,
             };
 
-            _logger.LogInformation("Running: netsh {Args}", psi.Arguments);
+            logger.LogInformation("Running: netsh {Args}", psi.Arguments);
 
             using var process = Process.Start(psi);
             if (process != null)
             {
+                _ = process.StandardOutput.ReadToEnd();
+                _ = process.StandardError.ReadToEnd();
                 process.WaitForExit();
                 return process.ExitCode == 0;
             }
@@ -300,7 +316,7 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error adding port firewall rule: {RuleName}", ruleName);
+            logger.LogError(ex, "Error adding port firewall rule: {RuleName}", ruleName);
             return false;
         }
     }
@@ -320,11 +336,13 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
                 CreateNoWindow = true,
             };
 
-            _logger.LogInformation("Running: netsh {Args}", psi.Arguments);
+            logger.LogInformation("Running: netsh {Args}", psi.Arguments);
 
             using var process = Process.Start(psi);
             if (process != null)
             {
+                _ = process.StandardOutput.ReadToEnd();
+                _ = process.StandardError.ReadToEnd();
                 process.WaitForExit();
                 return process.ExitCode == 0;
             }
@@ -333,7 +351,7 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error adding program firewall rule: {RuleName}", ruleName);
+            logger.LogError(ex, "Error adding program firewall rule: {RuleName}", ruleName);
             return false;
         }
     }
@@ -355,6 +373,8 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
             using var process = Process.Start(psi);
             if (process != null)
             {
+                _ = process.StandardOutput.ReadToEnd();
+                _ = process.StandardError.ReadToEnd();
                 process.WaitForExit();
                 return process.ExitCode == 0;
             }
@@ -363,7 +383,7 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error removing firewall rule: {RuleName}", ruleName);
+            logger.LogWarning(ex, "Error removing firewall rule: {RuleName}", ruleName);
             return false;
         }
     }

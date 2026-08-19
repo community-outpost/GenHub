@@ -16,7 +16,6 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public class DisableOriginInGame(ILogger<DisableOriginInGame> logger) : BaseActionSet(logger)
 {
-    private readonly ILogger<DisableOriginInGame> _logger = logger;
     private readonly string _markerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", ActionSetConstants.Paths.SubActionSetMarkers, "DisableOriginInGame.done");
 
     /// <inheritdoc/>
@@ -42,7 +41,7 @@ public class DisableOriginInGame(ILogger<DisableOriginInGame> logger) : BaseActi
     /// <inheritdoc/>
     public override Task<bool> IsAppliedAsync(GameInstallation installation)
     {
-         return Task.FromResult(File.Exists(_markerPath));
+        return Task.FromResult(File.Exists(_markerPath));
     }
 
     /// <inheritdoc/>
@@ -54,31 +53,31 @@ public class DisableOriginInGame(ILogger<DisableOriginInGame> logger) : BaseActi
 
             if (!originInstalled)
             {
-                _logger.LogInformation("Origin is not installed. No action needed.");
+                logger.LogInformation("Origin is not installed. No action needed.");
                 return Task.FromResult(new ActionSetResult(true));
             }
 
             // Check if overlay is already disabled
             if (IsOriginOverlayDisabled())
             {
-                _logger.LogInformation("Origin in-game overlay is already disabled.");
+                logger.LogInformation("Origin in-game overlay is already disabled.");
                 return Task.FromResult(new ActionSetResult(true));
             }
 
             // Provide guidance for disabling Origin overlay
-            _logger.LogWarning("Origin in-game overlay is enabled. This may cause performance issues.");
-            _logger.LogInformation("To disable Origin in-game overlay:");
-            _logger.LogInformation("1. Open Origin client");
-            _logger.LogInformation("2. Go to 'Application Settings' (gear icon)");
-            _logger.LogInformation("3. Select 'Origin In-Game'");
-            _logger.LogInformation("4. Uncheck 'Enable Origin In-Game'");
-            _logger.LogInformation("5. Click 'Save'");
-            _logger.LogInformation(string.Empty);
-            _logger.LogInformation("Alternatively, you can disable it per game:");
-            _logger.LogInformation("1. Right-click on Generals or Zero Hour in Origin");
-            _logger.LogInformation("2. Select 'Game Properties'");
-            _logger.LogInformation("3. Uncheck 'Enable Origin In-Game for this game'");
-            _logger.LogInformation("4. Click 'Save'");
+            logger.LogWarning("Origin in-game overlay is enabled. This may cause performance issues.");
+            logger.LogInformation("To disable Origin in-game overlay:");
+            logger.LogInformation("1. Open Origin client");
+            logger.LogInformation("2. Go to 'Application Settings' (gear icon)");
+            logger.LogInformation("3. Select 'Origin In-Game'");
+            logger.LogInformation("4. Uncheck 'Enable Origin In-Game'");
+            logger.LogInformation("5. Click 'Save'");
+            logger.LogInformation(string.Empty);
+            logger.LogInformation("Alternatively, you can disable it per game:");
+            logger.LogInformation("1. Right-click on Generals or Zero Hour in Origin");
+            logger.LogInformation("2. Select 'Game Properties'");
+            logger.LogInformation("3. Uncheck 'Enable Origin In-Game for this game'");
+            logger.LogInformation("4. Click 'Save'");
 
             try
             {
@@ -87,14 +86,14 @@ public class DisableOriginInGame(ILogger<DisableOriginInGame> logger) : BaseActi
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to create marker file for DisableOriginInGame");
+                logger.LogWarning(ex, "Failed to create marker file for DisableOriginInGame");
             }
 
-            return Task.FromResult(new ActionSetResult(true, "Please manually disable Origin in-game overlay. See logs for details."));
+            return Task.FromResult(new ActionSetResult(true, null, ["Please manually disable Origin in-game overlay. See logs for details."]));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error applying Origin overlay disable fix");
+            logger.LogError(ex, "Error applying Origin overlay disable fix");
             return Task.FromResult(new ActionSetResult(false, ex.Message));
         }
     }
@@ -102,7 +101,7 @@ public class DisableOriginInGame(ILogger<DisableOriginInGame> logger) : BaseActi
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        _logger.LogWarning("Disable Origin In-Game Fix is informational only. No undo action needed.");
+        logger.LogWarning("Disable Origin In-Game Fix is informational only. No undo action needed.");
         return Task.FromResult(new ActionSetResult(true));
     }
 
@@ -122,11 +121,18 @@ public class DisableOriginInGame(ILogger<DisableOriginInGame> logger) : BaseActi
 
             // Check for Origin processes
             var processes = Process.GetProcessesByName("Origin");
-            return processes.Length > 0;
+            try
+            {
+                return processes.Length > 0;
+            }
+            finally
+            {
+                foreach (var p in processes) p.Dispose();
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error checking for Origin installation");
+            logger.LogWarning(ex, "Error checking for Origin installation");
             return false;
         }
     }
@@ -153,7 +159,7 @@ public class DisableOriginInGame(ILogger<DisableOriginInGame> logger) : BaseActi
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error checking Origin overlay configuration");
+            logger.LogWarning(ex, "Error checking Origin overlay configuration");
             return false;
         }
     }

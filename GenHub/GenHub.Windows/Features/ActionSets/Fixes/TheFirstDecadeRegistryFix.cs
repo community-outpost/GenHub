@@ -19,9 +19,6 @@ public class TheFirstDecadeRegistryFix(
     IRegistryService registryService,
     ILogger<TheFirstDecadeRegistryFix> logger) : BaseActionSet(logger)
 {
-    private readonly IRegistryService _registryService = registryService;
-    private readonly ILogger<TheFirstDecadeRegistryFix> _logger = logger;
-
     /// <inheritdoc/>
     public override string Id => "TheFirstDecadeRegistryFix";
 
@@ -46,7 +43,7 @@ public class TheFirstDecadeRegistryFix(
         try
         {
             // Check if TFD registry entries exist
-            var tfdInstalled = _registryService.GetStringValue(
+            var tfdInstalled = registryService.GetStringValue(
                 RegistryConstants.TheFirstDecadeKeyPath,
                 RegistryConstants.InstallPathValueName);
 
@@ -54,7 +51,7 @@ public class TheFirstDecadeRegistryFix(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking TFD registry status");
+            logger.LogError(ex, "Error checking TFD registry status");
             return Task.FromResult(false);
         }
     }
@@ -81,7 +78,7 @@ public class TheFirstDecadeRegistryFix(
             {
                 details.Add("✗ Could not determine TFD installation path");
                 details.Add("  Game may not be installed as part of The First Decade");
-                _logger.LogWarning("Could not determine TFD installation path");
+                logger.LogWarning("Could not determine TFD installation path");
                 return Task.FromResult(new ActionSetResult(false, "Could not determine TFD installation path", details));
             }
 
@@ -89,28 +86,34 @@ public class TheFirstDecadeRegistryFix(
             details.Add("Creating TFD registry entries...");
 
             // Create TFD registry entries
-            _registryService.SetStringValue(
+            var s1 = registryService.SetStringValue(
                 RegistryConstants.TheFirstDecadeKeyPath,
                 RegistryConstants.InstallPathValueName,
                 tfdPath);
 
-            _registryService.SetStringValue(
+            var s2 = registryService.SetStringValue(
                 RegistryConstants.TheFirstDecadeKeyPath,
                 RegistryConstants.VersionValueName,
-                RegistryConstants.TfdVersionValue);
+                RegistryConstants.TfdVersionData);
 
-            details.Add("✓ Created: HKCU\\SOFTWARE\\EA Games\\Command & Conquer The First Decade");
+            if (!s1 || !s2)
+            {
+                details.Add("✗ Failed to write The First Decade registry entries (permissions?)");
+                return Task.FromResult(new ActionSetResult(false, "Failed to write The First Decade registry entries", details));
+            }
+
+            details.Add("✓ Created: HKLM\\SOFTWARE\\EA Games\\Command & Conquer The First Decade");
             details.Add($"  • InstallPath = {tfdPath}");
-            details.Add($"  • Version = {RegistryConstants.TfdVersionValue}");
+            details.Add($"  • Version = {RegistryConstants.TfdVersionData}");
             details.Add("✓ The First Decade registry configuration completed successfully");
 
-            _logger.LogInformation("Successfully created TFD registry entries at {Path} with {Count} actions", tfdPath, details.Count);
+            logger.LogInformation("Successfully created TFD registry entries at {Path} with {Count} actions", tfdPath, details.Count);
 
             return Task.FromResult(new ActionSetResult(true, null, details));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error applying TFD registry fix");
+            logger.LogError(ex, "Error applying TFD registry fix");
             details.Add($"✗ Error: {ex.Message}");
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
@@ -119,7 +122,7 @@ public class TheFirstDecadeRegistryFix(
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        _logger.LogWarning("Undoing TFD Registry Fix is not recommended as it may break game detection.");
+        logger.LogWarning("Undoing TFD Registry Fix is not recommended as it may break game detection.");
         return Task.FromResult(new ActionSetResult(true));
     }
 
@@ -129,26 +132,25 @@ public class TheFirstDecadeRegistryFix(
         {
             var directory = new DirectoryInfo(gamePath);
 
-            // Check if we're already in a TFD structure
-            // TFD typically has structure: TFD\Command & Conquer Generals\...
-            if (directory.Parent?.Parent?.Name.Equals("Command & Conquer The First Decade", StringComparison.OrdinalIgnoreCase) == true)
+            // Direct parent is TFD (e.g. C:\TFD\Command & Conquer Generals Zero Hour)
+            if (directory.Parent?.Name.Contains("The First Decade", StringComparison.OrdinalIgnoreCase) == true ||
+                directory.Parent?.Name.Contains("First Decade", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return directory.Parent.FullName;
+            }
+
+            // Grandparent is TFD (e.g. C:\TFD\Command & Conquer Generals\...)
+            if (directory.Parent?.Parent?.Name.Contains("The First Decade", StringComparison.OrdinalIgnoreCase) == true ||
+                directory.Parent?.Parent?.Name.Contains("First Decade", StringComparison.OrdinalIgnoreCase) == true)
             {
                 return directory.Parent.Parent.FullName;
             }
 
-            // Check if parent is "Command & Conquer Generals" and grandparent is TFD
-            if (directory.Parent?.Name.Contains("Generals", StringComparison.OrdinalIgnoreCase) == true &&
-                directory.Parent.Parent?.Name.Contains("First Decade", StringComparison.OrdinalIgnoreCase) == true)
-            {
-                return directory.Parent.Parent.FullName;
-            }
-
-            // Default to current path if we can't determine TFD structure
-            return gamePath;
+            return directory.Parent?.FullName ?? gamePath;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error finding TFD path");
+            logger.LogWarning(ex, "Error finding TFD path");
             return null;
         }
     }

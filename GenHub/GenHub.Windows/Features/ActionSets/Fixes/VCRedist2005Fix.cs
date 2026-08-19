@@ -22,10 +22,7 @@ public class VCRedist2005Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
 {
     // Product Code for VC++ 2005 SP1 Redistributable (x86)
     // Common code: {7299052b-02a4-4627-81f2-1818da5d550d}
-    // But checking multiple reliable keys is safer.
     private const string Vc2005ProductCode = "{7299052b-02a4-4627-81f2-1818da5d550d}";
-
-    private readonly ILogger<VCRedist2005Fix> _logger = logger;
 
     /// <inheritdoc/>
     public override string Id => "VCRedist2005Fix";
@@ -50,9 +47,22 @@ public class VCRedist2005Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
     {
         if (IsProductInstalled(Vc2005ProductCode)) return Task.FromResult(true);
 
-        // Also check registry key existence generally
-        var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Classes\Installer\Products\b25099274a207264182f8181ad555dd0"); // Compressed GUID
-        return Task.FromResult(key != null);
+        try
+        {
+            using var key1 = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Classes\Installer\Products\b25099274a207264182f8181ad555dd0");
+            if (key1 != null) return Task.FromResult(true);
+
+            using var key2 = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Classes\Installer\Products\b25099274a207264182f8181add555d0");
+            if (key2 != null) return Task.FromResult(true);
+
+            using var key3 = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\Classes\Installer\Products\b25099274a207264182f8181ad555dd0");
+            if (key3 != null) return Task.FromResult(true);
+        }
+        catch
+        {
+        }
+
+        return Task.FromResult(false);
     }
 
     /// <inheritdoc/>
@@ -75,7 +85,7 @@ public class VCRedist2005Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
             {
                 try
                 {
-                    _logger.LogInformation("Attempting download from {Url}", url);
+                    logger.LogInformation("Attempting download from {Url}", url);
                     using var response = await client.GetAsync(url, cancellationToken);
                     response.EnsureSuccessStatusCode();
 
@@ -87,8 +97,8 @@ public class VCRedist2005Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
                     // Simple size validation check (Should be ~2.6MB)
                     if (new FileInfo(tempFile).Length < ActionSetConstants.Validation.VCRedistMinSize)
                     {
-                         _logger.LogWarning("Downloaded file too small, likely corrupt.");
-                         continue;
+                        logger.LogWarning("Downloaded file too small, likely corrupt.");
+                        continue;
                     }
 
                     details.Add($"✓ Downloaded from {new Uri(url).Host}");
@@ -97,7 +107,7 @@ public class VCRedist2005Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning("Failed to download from {Url}: {Error}", url, ex.Message);
+                    logger.LogWarning("Failed to download from {Url}: {Error}", url, ex.Message);
                 }
             }
 
@@ -123,7 +133,8 @@ public class VCRedist2005Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
             // 3010 = Reboot required
             if (process.ExitCode == 0 || process.ExitCode == 3010)
             {
-                return new ActionSetResult(true, "Visual C++ 2005 installed successfully.", details);
+                details.Add("✓ Visual C++ 2005 installed successfully.");
+                return new ActionSetResult(true, null, details);
             }
 
             return new ActionSetResult(false, $"Installer exited with code {process.ExitCode}", details);
@@ -150,7 +161,7 @@ public class VCRedist2005Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        return Task.FromResult(new ActionSetResult(true, "Uninstalling runtime not supported automatically. Use Control Panel."));
+        return Task.FromResult(new ActionSetResult(true, null, ["Uninstalling runtime not supported automatically. Use Control Panel."]));
     }
 
     private static bool IsProductInstalled(string productCode)
@@ -158,7 +169,10 @@ public class VCRedist2005Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
         try
         {
             using var key = Registry.LocalMachine.OpenSubKey($@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{productCode}");
-            return key != null;
+            if (key != null) return true;
+
+            using var wowKey = Registry.LocalMachine.OpenSubKey($@"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\{productCode}");
+            return wowKey != null;
         }
         catch
         {

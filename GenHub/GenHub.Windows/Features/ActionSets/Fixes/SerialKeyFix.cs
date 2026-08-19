@@ -22,9 +22,6 @@ public class SerialKeyFix(
     private const string PlaceholderSerialZero = "00000000000000000000";
     private const string PlaceholderSerialDashes = "0000-0000-0000-0000-0000";
 
-    private readonly IRegistryService _registryService = registryService;
-    private readonly ILogger<SerialKeyFix> _logger = logger;
-
     /// <inheritdoc/>
     public override string Id => "SerialKeyFix";
 
@@ -42,13 +39,13 @@ public class SerialKeyFix(
     {
         if (installation.HasGenerals)
         {
-            var serial = _registryService.GetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty);
+            var serial = registryService.GetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty);
             if (IsPlaceholder(serial)) return Task.FromResult(true);
         }
 
         if (installation.HasZeroHour)
         {
-            var serial = _registryService.GetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty);
+            var serial = registryService.GetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty);
             if (IsPlaceholder(serial)) return Task.FromResult(true);
         }
 
@@ -62,25 +59,21 @@ public class SerialKeyFix(
         {
             if (installation.HasGenerals)
             {
-                var serial = _registryService.GetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty);
+                var serial = registryService.GetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty);
                 if (IsPlaceholder(serial)) return Task.FromResult(false);
             }
 
             if (installation.HasZeroHour)
             {
-                var serial = _registryService.GetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty);
+                var serial = registryService.GetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty);
                 if (IsPlaceholder(serial)) return Task.FromResult(false);
             }
 
-            // If we get here, keys are valid, so IsApplied is false (because it's Not Applicable)
-            // But if we return false here, and IsApplicable is false, it shows "NOT APPLICABLE" (Gray)
-            // If we return true here, and IsApplicable is false, it shows "APPLIED" (Green)
-            // We want "NOT APPLICABLE" if keys are already good.
             return Task.FromResult(false);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking serial key status");
+            logger.LogError(ex, "Error checking serial key status");
             return Task.FromResult(false);
         }
     }
@@ -94,19 +87,21 @@ public class SerialKeyFix(
         {
             details.Add("Checking game serial keys...");
             var randomSerial = GenerateRandomSerial();
+            bool writeFailed = false;
 
             if (installation.HasGenerals)
             {
-                var serial = _registryService.GetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty);
+                var serial = registryService.GetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty);
                 if (IsPlaceholder(serial))
                 {
                     details.Add("  Found placeholder serial for Generals. Generating new one...");
-                    if (_registryService.SetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty, randomSerial))
+                    if (registryService.SetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty, randomSerial))
                     {
                         details.Add($"  ✓ Applied new serial to {RegistryConstants.EAAppGeneralsErgcKeyPath}");
                     }
                     else
                     {
+                        writeFailed = true;
                         details.Add("  ✗ Failed to apply new serial for Generals (permissions?)");
                     }
                 }
@@ -118,18 +113,19 @@ public class SerialKeyFix(
 
             if (installation.HasZeroHour)
             {
-                var serial = _registryService.GetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty);
+                var serial = registryService.GetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty);
                 if (IsPlaceholder(serial))
                 {
                     details.Add("  Found placeholder serial for Zero Hour. Generating new one...");
 
                     // We can use the same or different serial. GenPatcher uses same for both if applied together.
-                    if (_registryService.SetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty, randomSerial))
+                    if (registryService.SetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty, randomSerial))
                     {
                         details.Add($"  ✓ Applied new serial to {RegistryConstants.EAAppZeroHourErgcKeyPath}");
                     }
                     else
                     {
+                        writeFailed = true;
                         details.Add("  ✗ Failed to apply new serial for Zero Hour (permissions?)");
                     }
                 }
@@ -139,12 +135,17 @@ public class SerialKeyFix(
                 }
             }
 
+            if (writeFailed)
+            {
+                return Task.FromResult(new ActionSetResult(false, "Failed to apply one or more serial keys.", details));
+            }
+
             details.Add("✓ Serial key fix completed successfully");
             return Task.FromResult(new ActionSetResult(true, null, details));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error applying serial key fix");
+            logger.LogError(ex, "Error applying serial key fix");
             details.Add($"✗ Error: {ex.Message}");
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
@@ -153,7 +154,7 @@ public class SerialKeyFix(
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        _logger.LogWarning("Undoing Serial Key Fix is not supported.");
+        logger.LogWarning("Undoing Serial Key Fix is not supported.");
         return Task.FromResult(new ActionSetResult(true));
     }
 

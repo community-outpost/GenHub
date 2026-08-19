@@ -108,7 +108,7 @@ public partial class GenPatcherViewModel(
                 currentInstallation.InstallationPath);
 
             var fixes = orchestrator.GetAllActionSets();
-            logger.LogInformation("Loading {Count} action sets...", fixes.Count());
+            logger.LogInformation("Loading {Count} action sets...", fixes.Count);
             ActionSets.Clear();
 
             var installation = currentInstallation;
@@ -276,7 +276,14 @@ public partial class GenPatcherViewModel(
         logger.LogInformation("Refreshing fix status after batch application...");
         foreach (var vm in ActionSets)
         {
-            await vm.CheckStatusAsync();
+            try
+            {
+                await vm.CheckStatusAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Error refreshing status for {Title}", vm.ActionSet.Title);
+            }
         }
 
         // Provide detailed summary

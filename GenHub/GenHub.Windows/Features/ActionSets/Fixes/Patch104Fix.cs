@@ -181,9 +181,14 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
                     await process.WaitForExitAsync(cancellationToken);
 
                     if (process.ExitCode == 0)
+                    {
                         details.Add("✓ Patch installer completed successfully");
+                    }
                     else
-                        details.Add($"⚠ Patch installer exited with code {process.ExitCode}");
+                    {
+                        details.Add($"✗ Patch installer exited with code {process.ExitCode}");
+                        return new ActionSetResult(false, $"Patch installer exited with code {process.ExitCode}", details);
+                    }
                 }
                 else
                 {
@@ -209,22 +214,24 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
                 details.Add($"Installing to: {installation.ZeroHourPath}");
                 logger.LogInformation("Copying patch files to {Path}", installation.ZeroHourPath);
 
+                var zeroHourFullPath = Path.GetFullPath(installation.ZeroHourPath);
                 int copiedCount = 0;
                 foreach (var file in extractedFiles)
                 {
                     var relativePath = file[extractPath.Length..].TrimStart(Path.DirectorySeparatorChar);
-                    var destPath = Path.Combine(installation.ZeroHourPath, relativePath);
+                    var destPath = Path.GetFullPath(Path.Combine(installation.ZeroHourPath, relativePath));
+
+                    if (!destPath.StartsWith(zeroHourFullPath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) &&
+                        !destPath.Equals(zeroHourFullPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        logger.LogWarning("Skipping file {File} due to path traversal detected.", relativePath);
+                        continue;
+                    }
 
                     var destDir = Path.GetDirectoryName(destPath);
                     if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
                     {
                         Directory.CreateDirectory(destDir);
-                    }
-
-                    if (!Path.GetFullPath(destPath).StartsWith(Path.GetFullPath(installation.ZeroHourPath), StringComparison.OrdinalIgnoreCase))
-                    {
-                         logger.LogWarning("Skipping file {File} due to path traversal detected.", relativePath);
-                         continue;
                     }
 
                     File.Copy(file, destPath, true);

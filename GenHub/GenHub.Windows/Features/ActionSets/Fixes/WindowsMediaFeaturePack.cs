@@ -15,7 +15,6 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : BaseActionSet(logger)
 {
-    private readonly ILogger<WindowsMediaFeaturePack> _logger = logger;
     private readonly string _markerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", ActionSetConstants.Paths.SubActionSetMarkers, "WindowsMediaFeaturePack.done");
 
     /// <inheritdoc/>
@@ -54,7 +53,7 @@ public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : 
 
             if (mediaPackInstalled)
             {
-                _logger.LogInformation("Windows Media Feature Pack is already installed. No action needed.");
+                logger.LogInformation("Windows Media Feature Pack is already installed. No action needed.");
                 return Task.FromResult(new ActionSetResult(true));
             }
 
@@ -64,22 +63,22 @@ public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : 
 
             if (!isWindows10OrLater)
             {
-                _logger.LogInformation("Windows Media Feature Pack is only available for Windows 10 and later.");
-                _logger.LogInformation("Your Windows version: {Version}", osVersion);
-                return Task.FromResult(new ActionSetResult(true, "Media Feature Pack not available for your Windows version."));
+                logger.LogInformation("Windows Media Feature Pack is only available for Windows 10 and later.");
+                logger.LogInformation("Your Windows version: {Version}", osVersion);
+                return Task.FromResult(new ActionSetResult(true, null, ["Media Feature Pack not available for your Windows version."]));
             }
 
             // Provide guidance for installing Media Feature Pack
-            _logger.LogWarning("Windows Media Feature Pack is not installed.");
-            _logger.LogInformation("To install Windows Media Feature Pack:");
-            _logger.LogInformation("1. Open Windows Settings");
-            _logger.LogInformation("2. Go to 'Apps' > 'Optional features'");
-            _logger.LogInformation("3. Click 'Add a feature'");
-            _logger.LogInformation("4. Search for 'Media Feature Pack'");
-            _logger.LogInformation("5. Click 'Install'");
-            _logger.LogInformation(string.Empty);
-            _logger.LogInformation("Alternatively, you can download it from Microsoft website:");
-            _logger.LogInformation("https://support.microsoft.com/en-us/help/4033582/windows-media-feature-pack");
+            logger.LogWarning("Windows Media Feature Pack is not installed.");
+            logger.LogInformation("To install Windows Media Feature Pack:");
+            logger.LogInformation("1. Open Windows Settings");
+            logger.LogInformation("2. Go to 'Apps' > 'Optional features'");
+            logger.LogInformation("3. Click 'Add a feature'");
+            logger.LogInformation("4. Search for 'Media Feature Pack'");
+            logger.LogInformation("5. Click 'Install'");
+            logger.LogInformation(string.Empty);
+            logger.LogInformation("Alternatively, you can download it from Microsoft website:");
+            logger.LogInformation("https://support.microsoft.com/en-us/help/4033582/windows-media-feature-pack");
 
             try
             {
@@ -88,14 +87,14 @@ public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : 
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to create marker file.");
+                logger.LogError(ex, "Failed to create marker file.");
             }
 
-            return Task.FromResult(new ActionSetResult(true, "Please manually install Windows Media Feature Pack. See logs for details."));
+            return Task.FromResult(new ActionSetResult(true, null, ["Please manually install Windows Media Feature Pack. See logs for details."]));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error applying Media Feature Pack fix");
+            logger.LogError(ex, "Error applying Media Feature Pack fix");
             return Task.FromResult(new ActionSetResult(false, ex.Message));
         }
     }
@@ -103,7 +102,7 @@ public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : 
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        _logger.LogWarning("Windows Media Feature Pack Fix is informational only. No undo action needed.");
+        logger.LogWarning("Windows Media Feature Pack Fix is informational only. No undo action needed.");
         return Task.FromResult(new ActionSetResult(true));
     }
 
@@ -125,10 +124,16 @@ public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : 
                         using var subKey = key.OpenSubKey(subKeyName, false);
                         if (subKey != null)
                         {
-                            var installState = subKey.GetValue("InstallState") as string;
-                            if (installState == "Installed")
+                            var installStateVal = subKey.GetValue("InstallState");
+                            if (installStateVal is int stateInt && (stateInt == 112 || stateInt == 7 || stateInt == 128))
                             {
-                                _logger.LogInformation("Found Media Feature Pack: {Package}", subKeyName);
+                                logger.LogInformation("Found Media Feature Pack: {Package}", subKeyName);
+                                return true;
+                            }
+
+                            if (installStateVal is string installState && installState.Equals("Installed", StringComparison.OrdinalIgnoreCase))
+                            {
+                                logger.LogInformation("Found Media Feature Pack: {Package}", subKeyName);
                                 return true;
                             }
                         }
@@ -144,7 +149,7 @@ public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : 
 
             if (File.Exists(wmpPath))
             {
-                _logger.LogInformation("Found Windows Media Player: {Path}", wmpPath);
+                logger.LogInformation("Found Windows Media Player: {Path}", wmpPath);
                 return true;
             }
 
@@ -152,7 +157,7 @@ public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : 
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error checking for Media Feature Pack");
+            logger.LogWarning(ex, "Error checking for Media Feature Pack");
             return false;
         }
     }

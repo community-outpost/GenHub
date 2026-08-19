@@ -4,6 +4,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
@@ -14,8 +15,7 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public class ProxyLauncher(ILogger<ProxyLauncher> logger) : BaseActionSet(logger)
 {
-    private readonly ILogger<ProxyLauncher> _logger = logger;
-    private readonly string _markerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", "sub_markers", "ProxyLauncher.done");
+    private readonly string _markerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", ActionSetConstants.Paths.SubActionSetMarkers, "ProxyLauncher.done");
 
     /// <inheritdoc/>
     public override string Id => "ProxyLauncher";
@@ -44,7 +44,7 @@ public class ProxyLauncher(ILogger<ProxyLauncher> logger) : BaseActionSet(logger
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking proxy launcher status");
+            logger.LogError(ex, "Error checking proxy launcher status");
             return Task.FromResult(false);
         }
     }
@@ -55,18 +55,18 @@ public class ProxyLauncher(ILogger<ProxyLauncher> logger) : BaseActionSet(logger
         try
         {
             // Provide information about proxy launcher
-            _logger.LogInformation("Proxy Launcher Information:");
-            _logger.LogInformation("GenHub uses a proxy launcher system for game execution.");
-            _logger.LogInformation(string.Empty);
-            _logger.LogInformation("Benefits of Proxy Launcher:");
-            _logger.LogInformation("- Improved compatibility with modern Windows versions");
-            _logger.LogInformation("- Better process isolation");
-            _logger.LogInformation("- Enhanced error handling and logging");
-            _logger.LogInformation("- Support for custom launch parameters");
-            _logger.LogInformation("- Integration with GenHub's ActionSet framework");
-            _logger.LogInformation(string.Empty);
-            _logger.LogInformation("The proxy launcher is automatically used when launching games through GenHub.");
-            _logger.LogInformation("No manual configuration is required.");
+            logger.LogInformation("Proxy Launcher Information:");
+            logger.LogInformation("GenHub uses a proxy launcher system for game execution.");
+            logger.LogInformation(string.Empty);
+            logger.LogInformation("Benefits of Proxy Launcher:");
+            logger.LogInformation("- Improved compatibility with modern Windows versions");
+            logger.LogInformation("- Better process isolation");
+            logger.LogInformation("- Enhanced error handling and logging");
+            logger.LogInformation("- Support for custom launch parameters");
+            logger.LogInformation("- Integration with GenHub's ActionSet framework");
+            logger.LogInformation(string.Empty);
+            logger.LogInformation("The proxy launcher is automatically used when launching games through GenHub.");
+            logger.LogInformation("No manual configuration is required.");
 
             try
             {
@@ -75,14 +75,14 @@ public class ProxyLauncher(ILogger<ProxyLauncher> logger) : BaseActionSet(logger
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to create marker file for ProxyLauncher");
+                logger.LogWarning(ex, "Failed to create marker file for ProxyLauncher");
             }
 
-            return Task.FromResult(new ActionSetResult(true, "Proxy launcher is built into GenHub and automatically used."));
+            return Task.FromResult(new ActionSetResult(true, null, ["Proxy launcher is built into GenHub and automatically used."]));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error applying proxy launcher fix");
+            logger.LogError(ex, "Error applying proxy launcher fix");
             return Task.FromResult(new ActionSetResult(false, ex.Message));
         }
     }
@@ -90,7 +90,7 @@ public class ProxyLauncher(ILogger<ProxyLauncher> logger) : BaseActionSet(logger
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        _logger.LogWarning("Proxy Launcher Fix is informational only. No undo action needed.");
+        logger.LogWarning("Proxy Launcher Fix is informational only. No undo action needed.");
         return Task.FromResult(new ActionSetResult(true));
     }
 }

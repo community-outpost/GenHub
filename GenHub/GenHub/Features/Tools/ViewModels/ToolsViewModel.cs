@@ -94,7 +94,7 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         {
             if (!WeakReferenceMessenger.Default.IsRegistered<ToolStatusMessage>(this))
             {
-                WeakReferenceMessenger.Default.Register<ToolStatusMessage>(this, (r, m) => ((ToolsViewModel)r).ShowStatusMessage(m.Message, m.Type));
+                WeakReferenceMessenger.Default.Register(this);
             }
 
             IsLoading = true;

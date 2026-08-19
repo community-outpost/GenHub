@@ -16,8 +16,6 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) : BaseActionSet(logger)
 {
-    private readonly ILogger<NetworkPrivateProfileFix> _logger = logger;
-
     /// <inheritdoc/>
     public override string Id => "NetworkPrivateProfileFix";
 
@@ -41,14 +39,14 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
     {
         try
         {
-            // Check if at least one network adapter is set to Private
+            // Check if all active network adapters are set to Private
             var profiles = GetNetworkProfiles();
-            var hasPrivate = profiles.Any(p => p.Equals("Private", StringComparison.OrdinalIgnoreCase));
-            return Task.FromResult(hasPrivate);
+            var isAllPrivate = profiles.Count > 0 && profiles.All(p => p.Equals("Private", StringComparison.OrdinalIgnoreCase));
+            return Task.FromResult(isAllPrivate);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking network profile status");
+            logger.LogError(ex, "Error checking network profile status");
             return Task.FromResult(false);
         }
     }
@@ -68,14 +66,14 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
                 details.Add($"• Adapter profile: {profile}");
             }
 
-            if (profiles.All(p => p.Equals("Private", StringComparison.OrdinalIgnoreCase)))
+            if (profiles.Count > 0 && profiles.All(p => p.Equals("Private", StringComparison.OrdinalIgnoreCase)))
             {
                 details.Add("✓ All network profiles are already set to Private.");
-                _logger.LogInformation("Network profile is already set to Private. No action needed.");
+                logger.LogInformation("Network profile is already set to Private. No action needed.");
                 return new ActionSetResult(true, null, details);
             }
 
-            _logger.LogInformation("Setting network profile to Private (Home)...");
+            logger.LogInformation("Setting network profile to Private (Home)...");
             details.Add("Setting network profile to Private...");
 
             // Use PowerShell to set network profile - run asynchronously to avoid blocking UI
@@ -95,6 +93,8 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
                 using var process = Process.Start(psi);
                 if (process != null)
                 {
+                    _ = process.StandardOutput.ReadToEnd();
+                    _ = process.StandardError.ReadToEnd();
                     process.WaitForExit();
                     return process.ExitCode == 0;
                 }
@@ -106,18 +106,18 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
             if (success)
             {
                 details.Add("✓ Network profile successfully set to Private (Home).");
-                _logger.LogInformation("Network profile successfully set to Private (Home).");
+                logger.LogInformation("Network profile successfully set to Private (Home).");
                 return new ActionSetResult(true, null, details);
             }
 
             details.Add("✗ Failed to set network profile.");
-            _logger.LogError("Failed to set network profile");
+            logger.LogError("Failed to set network profile");
             return new ActionSetResult(false, "Failed to set network profile", details);
         }
         catch (Exception ex)
         {
             details.Add($"✗ Error: {ex.Message}");
-            _logger.LogError(ex, "Error applying network private profile fix");
+            logger.LogError(ex, "Error applying network private profile fix");
             return new ActionSetResult(false, ex.Message, details);
         }
     }
@@ -125,7 +125,7 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        _logger.LogWarning("Network Private Profile Fix cannot be easily undone. Network profile must be manually changed through Windows Settings.");
+        logger.LogWarning("Network Private Profile Fix cannot be easily undone. Network profile must be manually changed through Windows Settings.");
         return Task.FromResult(new ActionSetResult(true, null, ["To undo, manually change network profile in Windows Settings > Network & Internet > Network and Sharing Center"]));
     }
 
@@ -141,6 +141,7 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
                 FileName = "powershell.exe",
                 Arguments = "-WindowStyle Hidden -NonInteractive -Command \"Get-NetConnectionProfile | Select-Object -ExpandProperty NetworkCategory\"",
                 RedirectStandardOutput = true,
+                RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
@@ -149,6 +150,7 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
             if (process != null)
             {
                 var output = process.StandardOutput.ReadToEnd();
+                _ = process.StandardError.ReadToEnd();
                 process.WaitForExit();
 
                 // Split by newlines and trim each line
@@ -162,12 +164,12 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
                     }
                 }
 
-                _logger.LogInformation("Current network profiles: {Profiles}", string.Join(", ", profiles));
+                logger.LogInformation("Current network profiles: {Profiles}", string.Join(", ", profiles));
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error checking network profile");
+            logger.LogWarning(ex, "Error checking network profile");
         }
 
         return profiles;

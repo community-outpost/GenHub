@@ -16,7 +16,15 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public class GenArial(ILogger<GenArial> logger) : BaseActionSet(logger)
 {
-    private readonly ILogger<GenArial> _logger = logger;
+    private static readonly IReadOnlyList<string> ArialFiles =
+    [
+        "arial.ttf",
+        "arialbd.ttf",
+        "ariali.ttf",
+        "arialbi.ttf",
+        "ARIAL.TTF",
+    ];
+
     private readonly string _markerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", ActionSetConstants.Paths.SubActionSetMarkers, "GenArial.done");
 
     /// <inheritdoc/>
@@ -55,24 +63,24 @@ public class GenArial(ILogger<GenArial> logger) : BaseActionSet(logger)
 
             if (arialInstalled)
             {
-                _logger.LogInformation("Arial font is already installed. No action needed.");
+                logger.LogInformation("Arial font is already installed. No action needed.");
                 return Task.FromResult(new ActionSetResult(true));
             }
 
             // Provide guidance for installing Arial font
-            _logger.LogWarning("Arial font is not installed. This may cause text rendering issues.");
-            _logger.LogInformation("Arial font is typically included with Windows.");
-            _logger.LogInformation("To install Arial font:");
-            _logger.LogInformation("1. Open Windows Settings");
-            _logger.LogInformation("2. Go to 'Apps' > 'Optional features'");
-            _logger.LogInformation("3. Click 'View features' next to 'Add a font'");
-            _logger.LogInformation("4. Click 'Get more fonts in Microsoft Store'");
-            _logger.LogInformation("5. Search for 'Arial' and install");
-            _logger.LogInformation(string.Empty);
-            _logger.LogInformation("Alternatively, you can:");
-            _logger.LogInformation("- Copy Arial font files from another Windows computer");
-            _logger.LogInformation("- Download Arial font from a trusted source");
-            _logger.LogInformation("- Install the font by right-clicking and selecting 'Install for all users'");
+            logger.LogWarning("Arial font is not installed. This may cause text rendering issues.");
+            logger.LogInformation("Arial font is typically included with Windows.");
+            logger.LogInformation("To install Arial font:");
+            logger.LogInformation("1. Open Windows Settings");
+            logger.LogInformation("2. Go to 'Apps' > 'Optional features'");
+            logger.LogInformation("3. Click 'View features' next to 'Add a font'");
+            logger.LogInformation("4. Click 'Get more fonts in Microsoft Store'");
+            logger.LogInformation("5. Search for 'Arial' and install");
+            logger.LogInformation(string.Empty);
+            logger.LogInformation("Alternatively, you can:");
+            logger.LogInformation("- Copy Arial font files from another Windows computer");
+            logger.LogInformation("- Download Arial font from a trusted source");
+            logger.LogInformation("- Install the font by right-clicking and selecting 'Install for all users'");
 
             try
             {
@@ -81,14 +89,14 @@ public class GenArial(ILogger<GenArial> logger) : BaseActionSet(logger)
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to create marker file.");
+                logger.LogError(ex, "Failed to create marker file.");
             }
 
-            return Task.FromResult(new ActionSetResult(true, "Please manually install Arial font. See logs for details."));
+            return Task.FromResult(new ActionSetResult(true, null, ["Please manually install Arial font. See logs for details."]));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error applying Arial font fix");
+            logger.LogError(ex, "Error applying Arial font fix");
             return Task.FromResult(new ActionSetResult(false, ex.Message));
         }
     }
@@ -96,7 +104,7 @@ public class GenArial(ILogger<GenArial> logger) : BaseActionSet(logger)
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        _logger.LogWarning("GenArial Fix is informational only. No undo action needed.");
+        logger.LogWarning("GenArial Fix is informational only. No undo action needed.");
         return Task.FromResult(new ActionSetResult(true));
     }
 
@@ -109,20 +117,11 @@ public class GenArial(ILogger<GenArial> logger) : BaseActionSet(logger)
                 Environment.GetFolderPath(Environment.SpecialFolder.Windows),
                 "Fonts");
 
-            var arialFiles = new[]
-            {
-                "arial.ttf",
-                "arialbd.ttf",
-                "ariali.ttf",
-                "arialbi.ttf",
-                "ARIAL.TTF",
-            };
-
-            foreach (var fontFile in arialFiles)
+            foreach (var fontFile in ArialFiles)
             {
                 if (File.Exists(Path.Combine(fontsPath, fontFile)))
                 {
-                    _logger.LogInformation("Found Arial font: {Font}", fontFile);
+                    logger.LogInformation("Found Arial font: {Font}", fontFile);
                     return true;
                 }
             }
@@ -138,7 +137,7 @@ public class GenArial(ILogger<GenArial> logger) : BaseActionSet(logger)
                 {
                     if (valueName.Contains("Arial", StringComparison.OrdinalIgnoreCase))
                     {
-                        _logger.LogInformation("Found Arial font in registry: {Font}", valueName);
+                        logger.LogInformation("Found Arial font in registry: {Font}", valueName);
                         return true;
                     }
                 }
@@ -148,7 +147,7 @@ public class GenArial(ILogger<GenArial> logger) : BaseActionSet(logger)
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error checking for Arial font");
+            logger.LogWarning(ex, "Error checking for Arial font");
             return false;
         }
     }

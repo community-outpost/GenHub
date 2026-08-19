@@ -9,6 +9,7 @@ using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Windows.Features.ActionSets.Infrastructure;
 using Microsoft.Extensions.Logging;
+using Microsoft.Win32;
 
 /// <summary>
 /// Fix that creates registry entries for C&amp;C Online (Revora) multiplayer service.
@@ -18,9 +19,6 @@ public class CncOnlineLauncherFix(
     IRegistryService registryService,
     ILogger<CncOnlineLauncherFix> logger) : BaseActionSet(logger)
 {
-    private readonly IRegistryService _registryService = registryService;
-    private readonly ILogger<CncOnlineLauncherFix> _logger = logger;
-
     /// <inheritdoc/>
     public override string Id => "CncOnlineLauncherFix";
 
@@ -44,16 +42,18 @@ public class CncOnlineLauncherFix(
     {
         try
         {
-            // Check if C&C Online registry entries exist
-            var cncOnlineInstalled = _registryService.GetStringValue(
+            // Check if C&C Online registry entries exist in HKCU
+            var cncOnlineInstalled = registryService.GetStringValue(
                 RegistryConstants.CncOnlineKeyPath,
-                RegistryConstants.InstallPathValueName);
+                RegistryConstants.InstallPathValueName,
+                useWow6432Node: true,
+                hive: RegistryHive.CurrentUser);
 
             return Task.FromResult(!string.IsNullOrEmpty(cncOnlineInstalled));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking C&C Online registry status");
+            logger.LogError(ex, "Error checking C&C Online registry status");
             return Task.FromResult(false);
         }
     }
@@ -72,21 +72,25 @@ public class CncOnlineLauncherFix(
             {
                 details.Add($"Configuring C&C Online for Generals at: {installation.GeneralsPath}");
 
-                _registryService.SetStringValue(
+                registryService.SetStringValue(
                     RegistryConstants.CncOnlineGeneralsKeyPath,
                     RegistryConstants.InstallPathValueName,
-                    installation.GeneralsPath);
+                    installation.GeneralsPath,
+                    useWow6432Node: true,
+                    hive: RegistryHive.CurrentUser);
 
-                _registryService.SetStringValue(
+                registryService.SetStringValue(
                     RegistryConstants.CncOnlineGeneralsKeyPath,
                     RegistryConstants.VersionValueName,
-                    RegistryConstants.CncOnlineGeneralsVersion);
+                    RegistryConstants.CncOnlineGeneralsVersion,
+                    useWow6432Node: true,
+                    hive: RegistryHive.CurrentUser);
 
                 details.Add("✓ Created: HKCU\\SOFTWARE\\Revora\\CNCOnline\\Generals");
                 details.Add($"  • InstallPath = {installation.GeneralsPath}");
                 details.Add("  • Version = 1.08");
 
-                _logger.LogInformation("Created C&C Online registry entries for Generals");
+                logger.LogInformation("Created C&C Online registry entries for Generals");
             }
 
             // Create C&C Online registry entries for Zero Hour
@@ -94,21 +98,25 @@ public class CncOnlineLauncherFix(
             {
                 details.Add($"Configuring C&C Online for Zero Hour at: {installation.ZeroHourPath}");
 
-                _registryService.SetStringValue(
+                registryService.SetStringValue(
                     RegistryConstants.CncOnlineZeroHourKeyPath,
                     RegistryConstants.InstallPathValueName,
-                    installation.ZeroHourPath);
+                    installation.ZeroHourPath,
+                    useWow6432Node: true,
+                    hive: RegistryHive.CurrentUser);
 
-                _registryService.SetStringValue(
+                registryService.SetStringValue(
                     RegistryConstants.CncOnlineZeroHourKeyPath,
                     RegistryConstants.VersionValueName,
-                    RegistryConstants.CncOnlineZeroHourVersion);
+                    RegistryConstants.CncOnlineZeroHourVersion,
+                    useWow6432Node: true,
+                    hive: RegistryHive.CurrentUser);
 
                 details.Add("✓ Created: HKCU\\SOFTWARE\\Revora\\CNCOnline\\ZeroHour");
                 details.Add($"  • InstallPath = {installation.ZeroHourPath}");
                 details.Add("  • Version = 1.04");
 
-                _logger.LogInformation("Created C&C Online registry entries for Zero Hour");
+                logger.LogInformation("Created C&C Online registry entries for Zero Hour");
             }
 
             // Create main C&C Online entry
@@ -118,27 +126,31 @@ public class CncOnlineLauncherFix(
 
             details.Add("Creating main C&C Online registry entry...");
 
-            _registryService.SetStringValue(
+            registryService.SetStringValue(
                 RegistryConstants.CncOnlineKeyPath,
                 RegistryConstants.InstallPathValueName,
-                basePath);
+                basePath,
+                useWow6432Node: true,
+                hive: RegistryHive.CurrentUser);
 
-            _registryService.SetStringValue(
+            registryService.SetStringValue(
                 RegistryConstants.CncOnlineKeyPath,
                 RegistryConstants.VersionValueName,
-                RegistryConstants.CncOnlineVersion);
+                RegistryConstants.CncOnlineVersion,
+                useWow6432Node: true,
+                hive: RegistryHive.CurrentUser);
 
             details.Add("✓ Created: HKCU\\SOFTWARE\\Revora\\CNCOnline");
             details.Add($"  • InstallPath = {basePath}");
             details.Add("  • Version = 1.0");
             details.Add("✓ C&C Online registry configuration completed successfully");
 
-            _logger.LogInformation("C&C Online registry fix applied with {DetailCount} actions", details.Count);
+            logger.LogInformation("C&C Online registry fix applied with {DetailCount} actions", details.Count);
             return Task.FromResult(new ActionSetResult(true, null, details));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error applying C&C Online registry fix");
+            logger.LogError(ex, "Error applying C&C Online registry fix");
             details.Add($"✗ Error: {ex.Message}");
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
@@ -147,7 +159,7 @@ public class CncOnlineLauncherFix(
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        _logger.LogWarning("Undoing C&C Online Registry Fix is not recommended as it may break multiplayer functionality.");
+        logger.LogWarning("Undoing C&C Online Registry Fix is not recommended as it may break multiplayer functionality.");
         return Task.FromResult(new ActionSetResult(true));
     }
 }

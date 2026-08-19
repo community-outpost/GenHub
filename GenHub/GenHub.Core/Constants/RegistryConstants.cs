@@ -56,8 +56,11 @@ public static class RegistryConstants
     /// <summary>Registry key path for The First Decade.</summary>
     public const string TheFirstDecadeKeyPath = @"SOFTWARE\EA Games\Command & Conquer The First Decade";
 
-    /// <summary>Registry value name for TFD Version.</summary>
-    public const string TfdVersionValue = "1.03";
+    /// <summary>The First Decade registry version data string ("1.03").</summary>
+    public const string TfdVersionData = "1.03";
+
+    /// <summary>Registry value data for TFD Version (alias for backward compatibility).</summary>
+    public const string TfdVersionValue = TfdVersionData;
 
     // ===== C&C Online (Revora) Keys =====
 
