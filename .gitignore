@@ -7,10 +7,8 @@
 !.gitignore
 !.gitattributes
 !**/.gitattributes
-AGENTS.md
-CLAUDE.md
-
-
+!.agents/
+!.claude/
 
 *.suo
 *.user

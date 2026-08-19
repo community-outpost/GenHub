@@ -14,10 +14,20 @@
     "mermaid": "^11.12.2"
   },
   "devDependencies": {
+    "gitnexus": "1.6.9",
     "vitepress": "^1.6.4",
     "vitepress-plugin-mermaid": "^2.0.17"
   },
   "pnpm": {
+    "onlyBuiltDependencies": [
+      "@ladybugdb/core",
+      "esbuild",
+      "gitnexus",
+      "onnxruntime-node",
+      "sharp",
+      "tree-sitter",
+      "tree-sitter-c-sharp"
+    ],
     "overrides": {
       "esbuild": ">=0.25.0",
       "lodash-es": ">=4.17.23"
