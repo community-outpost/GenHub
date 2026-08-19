@@ -34,6 +34,7 @@ public class ApplicationDataPathConventionTests
     {
         // The implementation of the convention itself has to start somewhere.
         ["ConfigurationProviderService.cs"] = "Defines the canonical path.",
+        ["AppConfiguration.cs"] = "Resolves the legacy roaming root the upgrade migration reads from.",
         ["UserSettingsService.cs"] = "Loads the settings file that stores the override; cannot depend on it.",
 
         // Displays the built-in default next to the user's override in the UI.

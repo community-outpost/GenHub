@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Storage;
@@ -35,7 +36,7 @@ public class WorkspaceManager(
     private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
 
     // Stores workspace metadata in the application data directory
-    private readonly string _workspaceMetadataPath = Path.Combine(configurationProvider.GetApplicationDataPath(), "workspaces.json");
+    private readonly string _workspaceMetadataPath = Path.Combine(configurationProvider.GetApplicationDataPath(), FileTypes.WorkspaceMetadataFileName);
 
     /// <summary>
     /// Prepares a workspace using the specified configuration and strategy.

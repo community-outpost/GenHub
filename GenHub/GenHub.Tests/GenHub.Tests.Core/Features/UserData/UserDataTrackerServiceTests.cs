@@ -83,12 +83,38 @@ public sealed class UserDataTrackerServiceTests : IDisposable
             })
             .ReturnsAsync(true);
 
+        // Default mock for CAS copying: user-writable destinations are always copied, never linked
+        _fileOperationsMock
+            .Setup(f => f.CopyFromCasAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<ContentType?>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<string, string, ContentType?, CancellationToken>((hash, targetPath, contentType, token) =>
+            {
+                var dir = Path.GetDirectoryName(targetPath);
+                if (!string.IsNullOrEmpty(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                File.WriteAllText(targetPath, "cas-content-" + hash);
+            })
+            .ReturnsAsync(true);
+
         _fileOperationsMock
             .Setup(f => f.VerifyFileHashAsync(
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
+
+        _fileOperationsMock
+            .Setup(f => f.CheckFileHashAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(FileHashVerification.Match);
 
         _trackerService = new UserDataTrackerService(
             _configProviderMock.Object,

@@ -133,6 +133,25 @@ public static class AppConstants
     public const string TokenFileName = ".ghtoken";
 
     /// <summary>
+    /// Title of the confirmation prompt shown before all application data is deleted.
+    /// </summary>
+    public const string DeleteAllDataConfirmationTitle = "Delete All Application Data";
+
+    /// <summary>
+    /// Body of the confirmation prompt shown before all application data is deleted.
+    /// </summary>
+    public const string DeleteAllDataConfirmationMessage =
+        "This permanently deletes every profile, workspace, manifest, CAS object and tracked user data " +
+        "installation. The pristine backups GenHub keeps of your original game data will be discarded " +
+        "as part of this, so anything GenHub replaced cannot be recovered afterwards.\n\n" +
+        "This action is irreversible. Continue?";
+
+    /// <summary>
+    /// Confirm button text for the delete-all-application-data prompt.
+    /// </summary>
+    public const string DeleteAllDataConfirmText = "Delete Everything";
+
+    /// <summary>
     /// Gets assembly metadata by key.
     /// </summary>
     private static string? GetAssemblyMetadata(string key)

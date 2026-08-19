@@ -152,24 +152,20 @@ public class FileOperationsService(
         const int MaxRetries = 3;
         const int InitialDelayMs = 50;
 
+        if (WouldCopyOntoItself(sourcePath, destinationPath))
+        {
+            logger.LogDebug("Skipped copy because source and destination are the same file: {Source}", sourcePath);
+            return;
+        }
+
         for (int attempt = 0; attempt <= MaxRetries; attempt++)
         {
             try
             {
                 EnsureDirectoryExists(destinationPath);
 
-                // If destination exists and is a symlink/reparse point, delete it first
-                // This prevents issues when switching from Symlink strategy to FullCopy strategy
-                if (File.Exists(destinationPath))
-                {
-                    var destInfo = new FileInfo(destinationPath);
-                    if (destInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
-                    {
-                        logger.LogDebug("Removing existing symlink at {Destination} before copying", destinationPath);
-                        destInfo.Delete();
-                    }
-                }
-
+                // Open the source before touching the destination: a missing or unreadable source
+                // must fail without having destroyed a valid file already sitting at the destination.
                 await using var source = new FileStream(
                     sourcePath,
                     FileMode.Open,
@@ -177,6 +173,15 @@ public class FileOperationsService(
                     FileShare.Read,
                     BufferSize,
                     useAsync: true);
+
+                // Always unlink an existing destination rather than truncating it. A symlink left by
+                // the Symlink strategy, or a hard link to a CAS object, would otherwise receive the
+                // write through to its target instead of yielding an independent copy here.
+                if (DeleteFileIfExists(destinationPath))
+                {
+                    logger.LogDebug("Removed existing destination at {Destination} before copying", destinationPath);
+                }
+
                 await using var destination = new FileStream(
                     destinationPath,
                     FileMode.Create,
@@ -422,15 +427,35 @@ public class FileOperationsService(
     {
         try
         {
+            return await CheckFileHashAsync(filePath, expectedHash, cancellationToken) == FileHashVerification.Match;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to verify hash for {File}", filePath);
+            return false;
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<FileHashVerification> CheckFileHashAsync(
+        string filePath,
+        string expectedHash,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
             if (!File.Exists(filePath))
             {
-                return false;
+                // No hash was computed, so nothing is known about the content that used to be here.
+                // Reporting a mismatch would invite a caller to act on a change it never observed.
+                logger.LogDebug("Hash verification for {File}: file does not exist", filePath);
+                return FileHashVerification.Failed;
             }
 
             var actualHash = await downloadService.ComputeFileHashAsync(
                 filePath,
                 cancellationToken);
-            var result = string.Equals(
+            var matches = string.Equals(
                 actualHash,
                 expectedHash,
                 StringComparison.OrdinalIgnoreCase);
@@ -438,13 +463,17 @@ public class FileOperationsService(
             logger.LogDebug(
                 "Hash verification for {File}: {Result}",
                 filePath,
-                result);
-            return result;
+                matches);
+            return matches ? FileHashVerification.Match : FileHashVerification.Mismatch;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to verify hash for {File}", filePath);
-            return false;
+            logger.LogError(ex, "Failed to compute hash for {File}", filePath);
+            return FileHashVerification.Failed;
         }
     }
 
@@ -654,6 +683,97 @@ public class FileOperationsService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Exception opening CAS content stream for hash {Hash}", hash);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Determines whether a copy would do nothing but unlink the file it is reading, in which case
+    /// there is nothing to copy and the file must be left alone.
+    /// <para>
+    /// A destination that is itself a symbolic link never qualifies, even when it resolves to the
+    /// source. Callers copy precisely to replace such a link with an independent file, and unlinking
+    /// a link leaves the file it points at untouched. Only a destination that is a real file naming
+    /// the same file as the source qualifies - the identical path, or the file a source link points
+    /// at - because unlinking that would destroy the only copy.
+    /// </para>
+    /// <para>
+    /// Hard links and Windows 8.3 short names have no resolvable target and are not detected here;
+    /// opening the source before unlinking the destination is what makes those cases fail safely
+    /// rather than destructively.
+    /// </para>
+    /// </summary>
+    /// <param name="sourcePath">The file being read.</param>
+    /// <param name="destinationPath">The path being written.</param>
+    /// <returns>True when the copy must be skipped.</returns>
+    private static bool WouldCopyOntoItself(string sourcePath, string destinationPath)
+    {
+        var source = TryGetFullPath(sourcePath);
+        var destination = TryGetFullPath(destinationPath);
+
+        if (source is null || destination is null)
+        {
+            return false;
+        }
+
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+
+        if (string.Equals(source, destination, comparison))
+        {
+            return true;
+        }
+
+        if (TryResolveLinkTarget(destination) is not null)
+        {
+            return false;
+        }
+
+        return string.Equals(TryResolveLinkTarget(source) ?? source, destination, comparison);
+    }
+
+    /// <summary>
+    /// Normalizes a path without consulting the file system.
+    /// </summary>
+    /// <param name="path">The path to normalize.</param>
+    /// <returns>The normalized path, or <c>null</c> when the path cannot be normalized.</returns>
+    private static string? TryGetFullPath(string path)
+    {
+        try
+        {
+            return Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
+        {
+            return null;
+        }
+        catch (PathTooLongException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Follows a symbolic link or junction to its final target.
+    /// </summary>
+    /// <param name="fullPath">The normalized path to inspect.</param>
+    /// <returns>The final target, or <c>null</c> when the path is not a link or cannot be read.</returns>
+    private static string? TryResolveLinkTarget(string fullPath)
+    {
+        try
+        {
+            var target = File.ResolveLinkTarget(fullPath, returnFinalTarget: true);
+            return target is null ? null : Path.TrimEndingDirectorySeparator(target.FullName);
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
             return null;
         }
     }

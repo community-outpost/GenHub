@@ -61,6 +61,9 @@ Application-wide constants for GenHub.
 | `DefaultTheme`            | `Theme.Dark`        | Default UI theme                                 |
 | `DefaultThemeName`        | `"Dark"`            | Default theme name as string                     |
 | `TokenFileName`           | `".ghtoken"`        | Default GitHub token file name                   |
+| `DeleteAllDataConfirmationTitle`   | `"Delete All Application Data"` | Title of the confirmation prompt shown before all application data is deleted |
+| `DeleteAllDataConfirmationMessage` | string              | Body of that prompt, warning that the deletion is irreversible and that pristine game data backups are discarded |
+| `DeleteAllDataConfirmText`         | `"Delete Everything"` | Confirm button text for the delete-all-application-data prompt |
 
 ---
 
@@ -220,14 +223,21 @@ Constants for unit conversions used throughout the application.
 
 Directory names used for organizing content storage.
 
-| Constant  | Value        | Description                   |
-| --------- | ------------ | ----------------------------- |
-| `Data`    | `"Data"`     | Directory for content data    |
-| `Cache`   | `"Cache"`    | Directory for cache files     |
-| `CasPool` | `"cas-pool"` | Directory for CAS pool        |
-| `Temp`    | `"Temp"`     | Directory for temporary files |
-| `Logs`    | `"Logs"`     | Directory for log files       |
-| `Backups` | `"Backups"`  | Directory for backup files    |
+| Constant            | Value          | Description                                                              |
+| ------------------- | -------------- | ------------------------------------------------------------------------ |
+| `Data`              | `"Data"`       | Directory for content data                                               |
+| `Cache`             | `"Cache"`      | Directory for cache files                                                |
+| `CasPool`           | `"cas-pool"`   | Directory for CAS pool                                                   |
+| `Temp`              | `"Temp"`       | Directory for temporary files                                            |
+| `Logs`              | `"Logs"`       | Directory for log files                                                  |
+| `Backups`           | `"Backups"`    | Directory for backup files                                               |
+| `Profiles`          | `"Profiles"`   | Directory for game profiles                                              |
+| `UserData`          | `"UserData"`   | Directory for tracked user data                                          |
+| `UserDataManifests` | `"manifests"`  | Manifests of tracked user data, nested in `UserData` (exact on-disk case) |
+| `UserDataBackups`   | `"backups"`    | Backups of replaced user data files, nested in `UserData` (exact on-disk case) |
+| `Workspaces`        | `"Workspaces"` | Directory for workspaces                                                 |
+| `ToolWorkspaces`    | `"ToolWorkspaces"` | Directory for tool workspaces                                        |
+| `LegacyContent`     | `"Content"`    | Sub-layout used up to v0.0.3; probed only by the upgrade migration       |
 
 ---
 
@@ -261,11 +271,14 @@ File and directory name constants to prevent typos and ensure consistency.
 
 ### JSON Files
 
-| Constant            | Value             | Description                   |
-| ------------------- | ----------------- | ----------------------------- |
-| `JsonFileExtension` | `".json"`         | File extension for JSON files |
-| `JsonFilePattern`   | `"*.json"`        | File pattern for JSON files   |
-| `SettingsFileName`  | `"settings.json"` | Default settings file name    |
+| Constant                     | Value               | Description                                                           |
+| ---------------------------- | ------------------- | --------------------------------------------------------------------- |
+| `JsonFileExtension`          | `".json"`           | File extension for JSON files                                         |
+| `JsonFilePattern`            | `"*.json"`          | File pattern for JSON files                                           |
+| `SettingsFileName`           | `"settings.json"`   | Default settings file name                                            |
+| `LegacySettingsFileName`     | `".json"`           | Settings file name written up to v0.0.3; probed only by the upgrade migration |
+| `WorkspaceMetadataFileName`  | `"workspaces.json"` | File holding the persisted workspace metadata                         |
+| `UserDataIndexFileName`      | `"index.json"`      | Index of installed user data, nested in `UserData`                    |
 
 ---
 
@@ -1380,6 +1393,7 @@ Constants for content pipeline component identifiers used in dependency injectio
 - **StorageConstants**: Storage and CAS operation constants
 - **TimeIntervals**: Time spans and intervals
 - **UiConstants**: User interface sizing and behavior
+- **UserDataConstants**: Tracked user data installation constants
 - **ValidationLimits**: Input validation boundaries
 
 ### Best Practices
@@ -1724,6 +1738,17 @@ CSS selectors for the `ModDBPageParser`.
 | `HeaderBoxSelector`   | `".headerbox"`                                |
 | `TitleSelector`       | `"h1, h2, .title"`                            |
 | `DeveloperSelector`   | `"a[href*='/members/'], a[href*='/company/']"` |
+
+---
+
+## UserDataConstants Class
+
+Constants for tracked user data installations — content GenHub deploys into the user's game data
+folder under `Documents`.
+
+| Constant             | Value              | Description                                                                                                       |
+| -------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `UserModifiedSuffix` | `".user-modified"` | Suffix appended to a deployed file that no longer matches its recorded hash when it is moved aside so the pristine backup can be restored over it |
 
 ---
 

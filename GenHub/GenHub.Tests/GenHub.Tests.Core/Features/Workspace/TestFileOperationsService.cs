@@ -81,6 +81,10 @@ public partial class TestFileOperationsService(
         => _innerService.VerifyFileHashAsync(filePath, expectedHash, cancellationToken);
 
     /// <inheritdoc/>
+    public Task<FileHashVerification> CheckFileHashAsync(string filePath, string expectedHash, CancellationToken cancellationToken = default)
+        => _innerService.CheckFileHashAsync(filePath, expectedHash, cancellationToken);
+
+    /// <inheritdoc/>
     public Task ApplyPatchAsync(string targetPath, string patchPath, CancellationToken cancellationToken = default)
         => _innerService.ApplyPatchAsync(targetPath, patchPath, cancellationToken);
 
