@@ -34,6 +34,13 @@ public partial class AddLocalContentView : UserControl
         InitializeBrowseActions();
     }
 
+    /// <inheritdoc />
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+        (DataContext as IDisposable)?.Dispose();
+    }
+
     /// <summary>
     /// Called when the data context changes.
     /// </summary>

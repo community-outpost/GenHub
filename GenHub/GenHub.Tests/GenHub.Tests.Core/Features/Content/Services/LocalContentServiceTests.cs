@@ -154,6 +154,30 @@ public class LocalContentServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that CreateLocalContentManifestAsync accepts entry points with double dots in file or folder names.
+    /// </summary>
+    /// <param name="validEntryPoint">The valid entry point path with dots in name.</param>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Theory]
+    [InlineData("game..exe")]
+    [InlineData("backup..old/tool.exe")]
+    public async Task CreateLocalContentManifestAsync_WithDoubleDotsInName_ReturnsSuccess(string validEntryPoint)
+    {
+        SetupManifestBuilder(ContentType.Executable, GameType.ZeroHour, "Tool", validEntryPoint);
+
+        var result = await _service.CreateLocalContentManifestAsync(
+            directoryPath: _tempDir,
+            name: "Tool",
+            contentType: ContentType.Executable,
+            targetGame: GameType.ZeroHour,
+            entryPoint: validEntryPoint);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(validEntryPoint, result.Data!.EntryPoint);
+    }
+
+    /// <summary>
     /// Verifies that CreateLocalContentManifestAsync rejects an entry point that does not exist in manifest files.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>

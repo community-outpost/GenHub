@@ -542,6 +542,22 @@ public class AddLocalContentViewModelTests : IDisposable
             })
             .ReturnsAsync((ManifestId _, string targetPath, CancellationToken _) => OperationResult<string>.CreateSuccess(targetPath));
 
+        string? capturedEntryPoint = null;
+        _localContentServiceMock
+            .Setup(x => x.UpdateLocalContentManifestAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<ContentType>(),
+                It.IsAny<GameType>(),
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<string?>()))
+            .Callback<string, string, string, ContentType, GameType, string?, IProgress<ContentStorageProgress>?, CancellationToken, string?>(
+                (_, _, _, _, _, _, _, _, entryPoint) => capturedEntryPoint = entryPoint)
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+
         var item = new GenHub.Features.GameProfiles.ViewModels.ContentDisplayItem
         {
             Id = manifestId.Value,
@@ -558,6 +574,9 @@ public class AddLocalContentViewModelTests : IDisposable
 
         Assert.NotNull(vm.SelectedExecutableItem);
         Assert.Equal("tool.exe", vm.SelectedExecutableItem.Name);
+
+        await vm.AddContentCommand.ExecuteAsync(null);
+        Assert.Equal("bin/tool.exe", capturedEntryPoint);
     }
 
     /// <summary>
@@ -588,6 +607,99 @@ public class AddLocalContentViewModelTests : IDisposable
 
         Assert.NotNull(vm.SelectedExecutableItem);
         Assert.Equal("second.exe", vm.SelectedExecutableItem.Name);
+    }
+
+    /// <summary>
+    /// Verifies that deleting the currently selected executable falls back to auto-selecting the remaining executable.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task DeleteItemAsync_WhenSelectedExecutableDeleted_FallsBackToRemainingExecutable()
+    {
+        var tempDir = CreateTempDirectory();
+        File.WriteAllText(Path.Combine(tempDir, "first.exe"), "first");
+        File.WriteAllText(Path.Combine(tempDir, "second.exe"), "second");
+        File.WriteAllText(Path.Combine(tempDir, "readme.txt"), "readme");
+
+        var vm = CreateViewModel();
+        vm.SelectedContentType = ContentType.GameClient;
+        vm.ContentName = "Test Client";
+        await vm.ImportContentAsync(tempDir);
+
+        var secondExe = FindInTree(vm.FileTree, f => f.Name == "second.exe");
+        Assert.NotNull(secondExe);
+        vm.SelectExecutableCommand.Execute(secondExe);
+        Assert.Equal("second.exe", vm.SelectedExecutableItem?.Name);
+
+        await vm.DeleteItemCommand.ExecuteAsync(secondExe);
+
+        Assert.NotNull(vm.SelectedExecutableItem);
+        Assert.Equal("first.exe", vm.SelectedExecutableItem.Name);
+    }
+
+    /// <summary>
+    /// Verifies that switching content type away from executable and back preserves the selected entry point.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ContentTypeChanged_SwitchAwayAndBack_PreservesSelectedExecutable()
+    {
+        var tempDir = CreateTempDirectory();
+        File.WriteAllText(Path.Combine(tempDir, "first.exe"), "first");
+        File.WriteAllText(Path.Combine(tempDir, "second.exe"), "second");
+
+        var vm = CreateViewModel();
+        vm.SelectedContentType = ContentType.GameClient;
+        vm.ContentName = "Test Client";
+        await vm.ImportContentAsync(tempDir);
+
+        var secondExe = FindInTree(vm.FileTree, f => f.Name == "second.exe");
+        Assert.NotNull(secondExe);
+        vm.SelectExecutableCommand.Execute(secondExe);
+        Assert.Equal("second.exe", vm.SelectedExecutableItem?.Name);
+
+        // Switch to Mod (non-executable type)
+        vm.SelectedContentType = ContentType.Mod;
+        Assert.Null(vm.SelectedExecutableItem);
+
+        // Switch back to GameClient (executable type)
+        vm.SelectedContentType = ContentType.GameClient;
+        Assert.NotNull(vm.SelectedExecutableItem);
+        Assert.Equal("second.exe", vm.SelectedExecutableItem.Name);
+    }
+
+    /// <summary>
+    /// Verifies that BuildDirectoryTree prioritizes directories containing executables over non-executable directories.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task BuildDirectoryTree_PrioritizesDirectoriesWithExecutables()
+    {
+        var tempDir = CreateTempDirectory();
+
+        // Create 25 directories named folder01 to folder25
+        for (var i = 1; i <= 25; i++)
+        {
+            var folder = Path.Combine(tempDir, $"folder{i:D2}");
+            Directory.CreateDirectory(folder);
+            File.WriteAllText(Path.Combine(folder, "data.txt"), "content");
+        }
+
+        // Put an executable only in the 25th folder
+        var targetFolder = Path.Combine(tempDir, "folder25");
+        File.WriteAllText(Path.Combine(targetFolder, "game.exe"), "executable");
+
+        var vm = CreateViewModel();
+        vm.SelectedContentType = ContentType.GameClient;
+        vm.ContentName = "Test Client";
+        await vm.ImportContentAsync(tempDir);
+
+        var folder25 = FindInTree(vm.FileTree, f => f.Name == "folder25");
+        Assert.NotNull(folder25);
+
+        var exe = FindInTree(folder25.Children, f => f.Name == "game.exe");
+        Assert.NotNull(exe);
+        Assert.True(exe.IsExecutable);
     }
 
     /// <summary>

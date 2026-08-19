@@ -107,7 +107,8 @@ public class LocalContentService(
             {
                 var normalizedEntryPoint = entryPoint.Replace('\\', '/').TrimStart('/');
 
-                if (Path.IsPathRooted(entryPoint) || normalizedEntryPoint.Contains(".."))
+                var segments = normalizedEntryPoint.Split('/', StringSplitOptions.RemoveEmptyEntries);
+                if (Path.IsPathRooted(entryPoint) || segments.Any(s => s == ".."))
                 {
                     return OperationResult<ContentManifest>.CreateFailure(
                         $"Entry point '{entryPoint}' is invalid. It must be a relative path without parent directory traversal ('..').");

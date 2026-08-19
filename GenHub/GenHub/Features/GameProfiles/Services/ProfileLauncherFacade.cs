@@ -523,13 +523,17 @@ public class ProfileLauncherFacade(
             notificationService.ShowSuccess(
                 ProfileValidationConstants.ToolLaunchSuccessTitle,
                 $"Successfully launched '{profile.Name}'",
-                NotificationDurations.Short);
+                NotificationDurations.Medium);
 
             return ProfileOperationResult<GameLaunchInfo>.CreateSuccess(toolLaunchInfo);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "[Launch] Unexpected error launching tool for profile {ProfileId}", profileId);
+            notificationService.ShowError(
+                ProfileValidationConstants.ToolLaunchFailedTitle,
+                $"Failed to launch '{profile.Name}': {ex.Message}",
+                NotificationDurations.VeryLong);
             return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
                 $"Tool launch failed: {ex.Message}");
         }

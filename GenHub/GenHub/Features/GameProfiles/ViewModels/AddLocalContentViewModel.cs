@@ -80,7 +80,7 @@ public partial class AddLocalContentViewModel(
         return null;
     }
 
-    private static int CountExecutables(IEnumerable<FileTreeItem> items)
+    protected static int CountExecutables(IEnumerable<FileTreeItem> items)
     {
         int count = 0;
         foreach (var item in items)
@@ -509,7 +509,13 @@ public partial class AddLocalContentViewModel(
 
         if (!dir.Exists) return items;
 
-        foreach (var d in dir.GetDirectories().Take(20))
+        var subDirs = dir.GetDirectories();
+        var prioritizedDirs = subDirs
+            .OrderByDescending(DirectoryContainsExecutable)
+            .ThenBy(d => d.Name)
+            .Take(20);
+
+        foreach (var d in prioritizedDirs)
         {
             items.Add(new FileTreeItem
             {
@@ -532,6 +538,19 @@ public partial class AddLocalContentViewModel(
         }
 
         return items;
+    }
+
+    private static bool DirectoryContainsExecutable(DirectoryInfo dir)
+    {
+        try
+        {
+            return dir.EnumerateFiles("*", SearchOption.AllDirectories)
+                .Any(f => ExecutableFileClassifier.IsLegacyLaunchCandidateFromName(f.Name) || f.Extension.Equals(".exe", StringComparison.OrdinalIgnoreCase));
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static void CopyDirectory(DirectoryInfo source, DirectoryInfo target)
@@ -885,6 +904,7 @@ public partial class AddLocalContentViewModel(
                 }
                 else
                 {
+                    _pendingEntryPoint = null;
                     AutoSelectFirstExecutable();
                 }
             }
@@ -944,11 +964,37 @@ public partial class AddLocalContentViewModel(
         {
             if (SelectedExecutableItem == null)
             {
-                AutoSelectFirstExecutable();
+                FileTreeItem? matchedItem = null;
+                if (!string.IsNullOrWhiteSpace(_pendingEntryPoint))
+                {
+                    matchedItem = FindFileItemByRelativePath(FileTree, _pendingEntryPoint);
+                }
+
+                if (matchedItem != null && matchedItem.IsExecutable)
+                {
+                    SelectedExecutableItem = matchedItem;
+                    _pendingEntryPoint = null;
+                }
+                else
+                {
+                    AutoSelectFirstExecutable();
+                }
             }
         }
         else
         {
+            if (SelectedExecutableItem != null && !string.IsNullOrWhiteSpace(SelectedExecutableItem.FullPath))
+            {
+                try
+                {
+                    _pendingEntryPoint = Path.GetRelativePath(_stagingPath, SelectedExecutableItem.FullPath).Replace('\\', '/');
+                }
+                catch
+                {
+                    // Ignore path calculation error
+                }
+            }
+
             SelectedExecutableItem = null;
         }
 
