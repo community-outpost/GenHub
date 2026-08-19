@@ -43,7 +43,7 @@ jobs:
 
       - name: Analyze Codebase
         run: |
-          npx -y gitnexus@1.6.9 analyze --index-only
+          npx -y gitnexus@1.6.9 analyze --force --index-only
           npx -y gitnexus@1.6.9 status
 
       - name: PR Impact Analysis
