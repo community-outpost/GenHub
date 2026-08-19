@@ -49,7 +49,7 @@ public class PublisherManifestFactoryResolverTests
 
         var manifest = new ContentManifest
         {
-            Id = ManifestId.Create("publisher.thesuperhackers.gameclient.generals"),
+            Id = ManifestId.Create("1.0.thesuperhackers.gameclient.generals"),
             ContentType = ContentType.GameClient,
             Publisher = new PublisherInfo
             {
@@ -87,7 +87,7 @@ public class PublisherManifestFactoryResolverTests
 
         var patchManifest = new ContentManifest
         {
-            Id = ManifestId.Create("github.0.thesuperhackers.patch.generalsgamepatch2"),
+            Id = ManifestId.Create("1.0.thesuperhackers.patch.generalsgamepatch2"),
             ContentType = ContentType.Patch,
             Publisher = new PublisherInfo
             {
@@ -121,7 +121,7 @@ public class PublisherManifestFactoryResolverTests
 
         var patchManifest = new ContentManifest
         {
-            Id = ManifestId.Create("unknown.0.publisher.mod.sample"),
+            Id = ManifestId.Create("1.0.testpublisher.mod.sample"),
             ContentType = ContentType.Mod,
             Publisher = new PublisherInfo
             {
@@ -132,6 +132,40 @@ public class PublisherManifestFactoryResolverTests
 
         // Act
         var result = resolver.ResolveFactory(patchManifest);
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    /// <summary>
+    /// Verifies that ResolveFactory returns null when a GameClient manifest has no specialized factory,
+    /// rather than falling back to GitHubManifestFactory.
+    /// </summary>
+    [Fact]
+    public void ResolveFactory_ReturnsNull_WhenGameClientHasNoSpecializedFactory()
+    {
+        // Arrange
+        var gitHubFactory = new GitHubManifestFactory(
+            NullLogger<GitHubManifestFactory>.Instance,
+            _hashProviderMock.Object);
+
+        var resolver = new PublisherManifestFactoryResolver(
+            [gitHubFactory],
+            NullLogger<PublisherManifestFactoryResolver>.Instance);
+
+        var gameClientManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.0.unknownpublisher.gameclient.generals"),
+            ContentType = ContentType.GameClient,
+            Publisher = new PublisherInfo
+            {
+                Name = "UnknownPublisher",
+                PublisherType = "unknownpublisher",
+            },
+        };
+
+        // Act
+        var result = resolver.ResolveFactory(gameClientManifest);
 
         // Assert
         Assert.Null(result);
