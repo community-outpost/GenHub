@@ -87,11 +87,37 @@ public static class PathHelper
                 fullContainer += Path.DirectorySeparatorChar;
             }
 
-            return fullCandidate.StartsWith(fullContainer, PathComparison) ||
+            var isContained = fullCandidate.StartsWith(fullContainer, PathComparison) ||
                    string.Equals(
                        fullCandidate.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
                        fullContainer.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
                        PathComparison);
+
+            if (!isContained)
+            {
+                return false;
+            }
+
+            if (File.Exists(fullCandidate))
+            {
+                var fileInfo = new FileInfo(fullCandidate);
+                var target = fileInfo.ResolveLinkTarget(returnFinalTarget: true);
+                if (target != null)
+                {
+                    return IsPathContainedIn(target.FullName, fullContainer);
+                }
+            }
+            else if (Directory.Exists(fullCandidate))
+            {
+                var dirInfo = new DirectoryInfo(fullCandidate);
+                var target = dirInfo.ResolveLinkTarget(returnFinalTarget: true);
+                if (target != null)
+                {
+                    return IsPathContainedIn(target.FullName, fullContainer);
+                }
+            }
+
+            return true;
         }
         catch
         {

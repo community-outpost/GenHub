@@ -187,7 +187,21 @@ public class BaseContentProviderTests
 
         protected override IContentResolver Resolver => _resolver;
 
-        protected override IContentDeliverer Deliverer => _deliverer;
+        public override Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
+            string contentId,
+            CancellationToken cancellationToken = default)
+        {
+            var manifest = new ContentManifest
+            {
+                Id = ManifestId.Create(contentId),
+                Name = "Test Content",
+                Version = "1.0.0",
+                ContentType = ContentType.Map,
+                TargetGame = GameType.Generals,
+            };
+
+            return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
+        }
 
         protected override Task<OperationResult<ContentManifest>> PrepareContentInternalAsync(
             ContentManifest manifest, string workingDirectory, IProgress<ContentAcquisitionProgress>? progress, CancellationToken cancellationToken)

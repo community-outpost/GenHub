@@ -25,13 +25,33 @@ namespace GenHub.Features.Content.Services;
 /// <param name="hashProvider">The file hash provider for integrity verification.</param>
 /// <param name="notificationService">The notification service for user awareness.</param>
 /// <param name="userSettingsService">The user settings service for tracking executed installation steps across updates.</param>
+/// <param name="preconditions">Optional installation step preconditions for environment detection.</param>
 /// <param name="logger">The logger instance.</param>
 public class InstallationInstructionsService(
     IFileHashProvider hashProvider,
     INotificationService notificationService,
     IUserSettingsService? userSettingsService,
+    IEnumerable<IInstallationStepPrecondition>? preconditions,
     ILogger<InstallationInstructionsService> logger) : IInstallationInstructionsService
 {
+    private static readonly TimeSpan InstallerStepTimeout = TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="InstallationInstructionsService"/> class.
+    /// </summary>
+    /// <param name="hashProvider">The file hash provider for integrity verification.</param>
+    /// <param name="notificationService">The notification service for user awareness.</param>
+    /// <param name="userSettingsService">The user settings service for tracking executed installation steps across updates.</param>
+    /// <param name="logger">The logger instance.</param>
+    public InstallationInstructionsService(
+        IFileHashProvider hashProvider,
+        INotificationService notificationService,
+        IUserSettingsService? userSettingsService,
+        ILogger<InstallationInstructionsService> logger)
+        : this(hashProvider, notificationService, userSettingsService, null, logger)
+    {
+    }
+
     /// <inheritdoc />
     public async Task<OperationResult> ExecutePreInstallStepsAsync(
         ContentManifest manifest,
@@ -137,7 +157,7 @@ public class InstallationInstructionsService(
     {
         var stepKey = GetStepKey(step, manifest);
 
-        if (!force && step.RunOnce && ShouldSkipStep(step, stepKey))
+        if (!force && step.RunOnce && await ShouldSkipStepAsync(step, stepKey, manifest, cancellationToken))
         {
             logger.LogInformation(
                 "Skipping installation step '{StepName}' for manifest {ManifestId} because it has already been executed (key: {StepKey})",
@@ -155,7 +175,7 @@ public class InstallationInstructionsService(
             return OperationResult.CreateSuccess();
         }
 
-        OperationResult result;
+        var result = OperationResult.CreateFailure("Uninitialized step result");
         switch (step.Kind)
         {
             case InstallationStepKind.RunVerifiedInstaller:
@@ -175,7 +195,7 @@ public class InstallationInstructionsService(
                 return OperationResult.CreateFailure($"Unsupported installation step kind '{step.Kind}' for step '{step.Name}'.");
         }
 
-        if (result.Success && userSettingsService != null && !string.IsNullOrWhiteSpace(stepKey))
+        if (result.Success && step.RunOnce && userSettingsService != null && !string.IsNullOrWhiteSpace(stepKey))
         {
             userSettingsService.Update(s => s.RecordInstallationStepExecuted(stepKey));
             try
@@ -191,65 +211,39 @@ public class InstallationInstructionsService(
         return result;
     }
 
-    private bool ShouldSkipStep(InstallationStep step, string stepKey)
+    private async Task<bool> ShouldSkipStepAsync(
+        InstallationStep step,
+        string stepKey,
+        ContentManifest manifest,
+        CancellationToken cancellationToken)
     {
         if (userSettingsService?.Get().IsInstallationStepExecuted(stepKey) == true)
         {
             return true;
         }
 
-        if (OperatingSystem.IsWindows() && IsEacAlreadyInstalled(step))
+        if (preconditions != null)
         {
-            userSettingsService?.Update(s => s.RecordInstallationStepExecuted(stepKey));
-            return true;
-        }
-
-        return false;
-    }
-
-    private bool IsEacAlreadyInstalled(InstallationStep step)
-    {
-        if (!OperatingSystem.IsWindows())
-        {
-            return false;
-        }
-
-        if (step.Kind != InstallationStepKind.RunVerifiedInstaller)
-        {
-            return false;
-        }
-
-        var fileName = Path.GetFileName(step.TargetRelativePath ?? string.Empty);
-        if (!string.Equals(fileName, GameClientConstants.GeneralsOnlineEacSetupExecutable, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        try
-        {
-            var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-            if (!string.IsNullOrEmpty(programFilesX86))
+            foreach (var precondition in preconditions)
             {
-                var serviceExe = Path.Combine(programFilesX86, "EasyAntiCheat_EOS", "EasyAntiCheat_EOS.exe");
-                if (File.Exists(serviceExe))
+                if (precondition.CanHandle(step, manifest) && precondition.IsAlreadyFulfilled(step, manifest))
                 {
+                    if (userSettingsService != null && !string.IsNullOrWhiteSpace(stepKey))
+                    {
+                        userSettingsService.Update(s => s.RecordInstallationStepExecuted(stepKey));
+                        try
+                        {
+                            await userSettingsService.SaveAsync(cancellationToken);
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogWarning(ex, "Failed to persist detected installation step key '{StepKey}'", stepKey);
+                        }
+                    }
+
                     return true;
                 }
             }
-
-            var commonProgramFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.CommonProgramFilesX86);
-            if (!string.IsNullOrEmpty(commonProgramFilesX86))
-            {
-                var commonExe = Path.Combine(commonProgramFilesX86, "EasyAntiCheat", "EasyAntiCheat_EOS.exe");
-                if (File.Exists(commonExe))
-                {
-                    return true;
-                }
-            }
-        }
-        catch
-        {
-            return false;
         }
 
         return false;
@@ -331,23 +325,27 @@ public class InstallationInstructionsService(
             return OperationResult.CreateFailure($"Installer executable '{step.TargetRelativePath}' is not declared in manifest files.");
         }
 
-        if (!string.IsNullOrWhiteSpace(manifestFile.Hash))
+        if (string.IsNullOrWhiteSpace(manifestFile.Hash))
         {
-            var computedHash = await hashProvider.ComputeFileHashAsync(targetFullPath, cancellationToken);
-            if (!string.Equals(computedHash, manifestFile.Hash, StringComparison.OrdinalIgnoreCase))
-            {
-                logger.LogError(
-                    "Integrity verification failed for installer '{Target}'. Expected: {Expected}, Computed: {Computed}",
-                    step.TargetRelativePath,
-                    manifestFile.Hash,
-                    computedHash);
-
-                return OperationResult.CreateFailure(
-                    $"Integrity verification failed for installer '{step.TargetRelativePath}'.");
-            }
-
-            logger.LogDebug("Integrity verified for installer '{Target}'", step.TargetRelativePath);
+            logger.LogError("Installer '{Target}' has no declared hash in manifest {ManifestId}", step.TargetRelativePath, manifest.Id);
+            return OperationResult.CreateFailure(
+                $"Installer '{step.TargetRelativePath}' has no declared hash and cannot be verified.");
         }
+
+        var computedHash = await hashProvider.ComputeFileHashAsync(targetFullPath, cancellationToken);
+        if (!string.Equals(computedHash, manifestFile.Hash, StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogError(
+                "Integrity verification failed for installer '{Target}'. Expected: {Expected}, Computed: {Computed}",
+                step.TargetRelativePath,
+                manifestFile.Hash,
+                computedHash);
+
+            return OperationResult.CreateFailure(
+                $"Integrity verification failed for installer '{step.TargetRelativePath}'.");
+        }
+
+        logger.LogDebug("Integrity verified for installer '{Target}'", step.TargetRelativePath);
 
         // 4. User notification
         var displayTitle = !string.IsNullOrWhiteSpace(step.Name) ? step.Name : "Running Installation Step";
@@ -409,7 +407,19 @@ public class InstallationInstructionsService(
                 return OperationResult.CreateFailure($"Failed to start installer '{step.TargetRelativePath}'.");
             }
 
-            await process.WaitForExitAsync(cancellationToken);
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(InstallerStepTimeout);
+
+            try
+            {
+                await process.WaitForExitAsync(timeoutCts.Token);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                logger.LogError("Installer step '{StepName}' timed out", step.Name);
+                notificationService.ShowError("Installation Step Failed", $"Step '{step.Name}' timed out.");
+                return OperationResult.CreateFailure($"Installation step '{step.Name}' timed out.");
+            }
 
             if (process.ExitCode != 0)
             {

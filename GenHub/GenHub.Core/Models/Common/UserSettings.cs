@@ -208,6 +208,7 @@ public class UserSettings
             UseInstallationAdjacentStorage = UseInstallationAdjacentStorage,
             ExplicitlySetProperties = [.. ExplicitlySetProperties],
             CasConfiguration = (CasConfiguration?)CasConfiguration?.Clone() ?? new CasConfiguration(),
+            ExecutedInstallationSteps = ExecutedInstallationSteps != null ? [.. ExecutedInstallationSteps] : [],
             SkippedUpdateVersions = SkippedUpdateVersions != null ? new Dictionary<string, string>(SkippedUpdateVersions) : [],
             PreferredUpdateStrategy = PreferredUpdateStrategy,
             PublisherSubscriptions = PublisherSubscriptions != null

@@ -463,20 +463,6 @@ public class GeneralsOnlineManifestFactory(
             InstallationInstructions = originalManifest.InstallationInstructions ?? new InstallationInstructions
             {
                 WorkspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy,
-                PostInstallSteps =
-                [
-                    new InstallationStep
-                    {
-                        Name = GeneralsOnlineConstants.EacStepName,
-                        Kind = InstallationStepKind.RunVerifiedInstaller,
-                        TargetRelativePath = GameClientConstants.GeneralsOnlineEacSetupExecutable,
-                        Arguments = [GeneralsOnlineConstants.EacInstallCommand, GeneralsOnlineConstants.EacProductId],
-                        RequiresElevation = true,
-                        StatusMessage = GeneralsOnlineConstants.EacStatusMessage,
-                        StepKey = GeneralsOnlineConstants.EacStepKey,
-                        RunOnce = true,
-                    },
-                ],
             },
         });
 
@@ -712,7 +698,7 @@ public class GeneralsOnlineManifestFactory(
 
             if (manifest.ContentType == ContentType.GameClient &&
                 filesWithHashes.Any(file => !file.IsMap && !file.IsGameData && IsArchiveRootFile(file.RelativePath, GameClientConstants.GeneralsOnlineEacSetupExecutable)) &&
-                !instructions.PostInstallSteps.Any(s => string.Equals(s.TargetRelativePath, GameClientConstants.GeneralsOnlineEacSetupExecutable, StringComparison.OrdinalIgnoreCase)))
+                instructions.PostInstallSteps.All(s => !string.Equals(s.TargetRelativePath, GameClientConstants.GeneralsOnlineEacSetupExecutable, StringComparison.OrdinalIgnoreCase)))
             {
                 instructions.PostInstallSteps.Add(new InstallationStep
                 {

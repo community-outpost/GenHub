@@ -125,21 +125,6 @@ public static class GeneralsOnlineConstants
     /// <summary>Description for Generals Online deliverer.</summary>
     public const string DelivererDescription = "Delivers Generals Online content via ZIP extraction and CAS storage";
 
-    // ===== Content Tags =====
-
-    /// <summary>Content tags for search and categorization.</summary>
-    public static readonly string[] Tags = ["multiplayer", "online", "community", "enhancement"];
-
-    /// <summary>
-    /// Default tags for MapPack manifests.
-    /// </summary>
-    public static readonly string[] MapPackTags = ["mappack", "generalsonline", "quickmatch", "competitive"];
-
-    /// <summary>
-    /// Default tags for GameData patch manifests.
-    /// </summary>
-    public static readonly string[] GameDataTags = ["patch", "generalsonline"];
-
     // ===== Easy Anti-Cheat Installation =====
 
     /// <summary>Product ID registered with Epic Online Services Easy Anti-Cheat for Generals Online.</summary>
@@ -156,4 +141,19 @@ public static class GeneralsOnlineConstants
 
     /// <summary>Unique step key identifying Easy Anti-Cheat installation for Generals Online.</summary>
     public const string EacStepKey = "generalsonline:eac:fc1cc0d936424212b645105f084d08b0";
+
+    // ===== Content Tags =====
+
+    /// <summary>Content tags for search and categorization.</summary>
+    public static readonly string[] Tags = ["multiplayer", "online", "community", "enhancement"];
+
+    /// <summary>
+    /// Default tags for MapPack manifests.
+    /// </summary>
+    public static readonly string[] MapPackTags = ["mappack", "generalsonline", "quickmatch", "competitive"];
+
+    /// <summary>
+    /// Default tags for GameData patch manifests.
+    /// </summary>
+    public static readonly string[] GameDataTags = ["patch", "generalsonline"];
 }

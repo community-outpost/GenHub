@@ -68,7 +68,8 @@ public class HttpContentDeliverer(IDownloadService downloadService, IContentMani
                     packageManifest.Publisher?.Name ?? string.Empty,
                     packageManifest.Publisher?.Website ?? string.Empty,
                     packageManifest.Publisher?.SupportUrl ?? string.Empty,
-                    packageManifest.Publisher?.ContactEmail ?? string.Empty)
+                    packageManifest.Publisher?.ContactEmail ?? string.Empty,
+                    packageManifest.Publisher?.PublisherType ?? string.Empty)
                 .WithMetadata(
                     packageManifest.Metadata?.Description ?? string.Empty,
                     packageManifest.Metadata?.Tags,
@@ -130,13 +131,26 @@ public class HttpContentDeliverer(IDownloadService downloadService, IContentMani
                         $"Failed to download {file.RelativePath}: {downloadResult.FirstError}");
                 }
 
-                // Add the delivered file using the builder
-                await deliveredManifest.AddRemoteFileAsync(
-                    file.RelativePath,
-                    file.DownloadUrl ?? string.Empty,
-                    ContentSourceType.ContentAddressable,
-                    isExecutable: file.IsExecutable,
-                    permissions: file.Permissions);
+                // Add the delivered file using the builder preserving hash
+                if (!string.IsNullOrEmpty(file.Hash))
+                {
+                    var fileInfo = new FileInfo(localPath);
+                    await deliveredManifest.AddContentAddressableFileAsync(
+                        file.RelativePath,
+                        file.Hash,
+                        fileInfo.Exists ? fileInfo.Length : file.Size,
+                        isExecutable: file.IsExecutable,
+                        permissions: file.Permissions);
+                }
+                else
+                {
+                    await deliveredManifest.AddRemoteFileAsync(
+                        file.RelativePath,
+                        file.DownloadUrl ?? string.Empty,
+                        ContentSourceType.ContentAddressable,
+                        isExecutable: file.IsExecutable,
+                        permissions: file.Permissions);
+                }
 
                 processedFiles++;
             }

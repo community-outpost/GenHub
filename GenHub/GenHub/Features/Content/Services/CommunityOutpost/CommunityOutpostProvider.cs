@@ -25,6 +25,7 @@ namespace GenHub.Features.Content.Services.CommunityOutpost;
 /// <param name="resolvers">Available content resolvers.</param>
 /// <param name="deliverers">Available content deliverers.</param>
 /// <param name="contentValidator">The content validator.</param>
+/// <param name="installationInstructionsService">The installation instructions service.</param>
 /// <param name="logger">The logger.</param>
 public class CommunityOutpostProvider(
     IProviderDefinitionLoader providerDefinitionLoader,

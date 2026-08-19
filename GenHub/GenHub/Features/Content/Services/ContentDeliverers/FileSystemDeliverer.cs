@@ -122,7 +122,8 @@ public class FileSystemDeliverer(
                     packageManifest.Publisher?.Name ?? string.Empty,
                     packageManifest.Publisher?.Website ?? string.Empty,
                     packageManifest.Publisher?.SupportUrl ?? string.Empty,
-                    packageManifest.Publisher?.ContactEmail ?? string.Empty)
+                    packageManifest.Publisher?.ContactEmail ?? string.Empty,
+                    packageManifest.Publisher?.PublisherType ?? string.Empty)
                 .WithMetadata(
                     packageManifest.Metadata?.Description ?? string.Empty,
                     packageManifest.Metadata?.Tags,

@@ -29,6 +29,9 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
     private readonly UserSettings _userSettings;
     private readonly InstallationInstructionsService _service;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="InstallationInstructionsServiceTests"/> class.
+    /// </summary>
     public InstallationInstructionsServiceTests()
     {
         _tempDirectory = Path.Combine(Path.GetTempPath(), $"genhub-inst-tests-{Guid.NewGuid():N}");
@@ -50,6 +53,9 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
             NullLogger<InstallationInstructionsService>.Instance);
     }
 
+    /// <summary>
+    /// Cleans up temporary resources after test execution.
+    /// </summary>
     public void Dispose()
     {
         if (Directory.Exists(_tempDirectory))
@@ -65,6 +71,10 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Verifies that executing post-install steps succeeds when no steps are declared.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
     public async Task ExecutePostInstallStepsAsync_NullOrEmptySteps_ReturnsSuccess()
     {
@@ -76,6 +86,10 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
         Assert.True(result.Success);
     }
 
+    /// <summary>
+    /// Verifies that executing installer steps from an untrusted publisher fails.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
     public async Task ExecutePostInstallStepsAsync_UntrustedPublisher_FailsExecution()
     {
@@ -104,6 +118,10 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
         Assert.Contains("not authorized to execute installation steps", result.FirstError);
     }
 
+    /// <summary>
+    /// Verifies that paths attempting directory traversal are rejected.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
     public async Task ExecutePostInstallStepsAsync_PathTraversalTarget_FailsExecution()
     {
@@ -132,6 +150,10 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
         Assert.Contains("escapes the working directory", result.FirstError);
     }
 
+    /// <summary>
+    /// Verifies that installer executables not declared in the manifest files list fail.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
     public async Task ExecutePostInstallStepsAsync_FileNotInManifest_FailsExecution()
     {
@@ -165,6 +187,10 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
         Assert.Contains("not declared in manifest files", result.FirstError);
     }
 
+    /// <summary>
+    /// Verifies that hash mismatch during installer integrity check fails execution.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
     public async Task ExecutePostInstallStepsAsync_HashMismatch_FailsExecution()
     {
@@ -209,6 +235,10 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
         Assert.Contains("Integrity verification failed", result.FirstError);
     }
 
+    /// <summary>
+    /// Verifies that remove file steps successfully delete the target file.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
     public async Task ExecutePostInstallStepsAsync_RemoveFile_DeletesTargetFile()
     {
@@ -236,6 +266,10 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
         Assert.False(File.Exists(fullPath));
     }
 
+    /// <summary>
+    /// Verifies that rename file steps successfully move target files.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
     public async Task ExecutePostInstallStepsAsync_RenameFile_MovesTargetFile()
     {
@@ -258,6 +292,7 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
                     TargetRelativePath = sourceFile,
                     DestinationRelativePath = destFile,
                     StepKey = "test_rename_step",
+                    RunOnce = true,
                 },
             ],
         };
@@ -271,18 +306,31 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
         Assert.True(_userSettings.IsInstallationStepExecuted("test_rename_step"));
     }
 
+    /// <summary>
+    /// Verifies that verified installer execution runs and dispatches user notifications.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
     public async Task ExecutePostInstallStepsAsync_RunsInstallerAndDispatchesNotification()
     {
-        var scriptName = OperatingSystem.IsWindows() ? "test_installer.bat" : "test_installer.sh";
+        var scriptName = OperatingSystem.IsWindows() ? "test_installer.exe" : "test_installer.sh";
         var fullPath = Path.Combine(_tempDirectory, scriptName);
-        var scriptContent = OperatingSystem.IsWindows() ? "@exit 0" : "#!/bin/sh\nexit 0\n";
-        File.WriteAllText(fullPath, scriptContent);
 
-        if (!OperatingSystem.IsWindows())
+        if (OperatingSystem.IsWindows())
         {
+            var systemCmd = Path.Combine(Environment.SystemDirectory, "cmd.exe");
+            File.Copy(systemCmd, fullPath, overwrite: true);
+        }
+        else
+        {
+            File.WriteAllText(fullPath, "#!/bin/sh\nexit 0\n");
             File.SetUnixFileMode(fullPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         }
+
+        const string expectedHash = "test_installer_hash";
+        _hashProviderMock
+            .Setup(h => h.ComputeFileHashAsync(fullPath, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedHash);
 
         var manifest = CreateBaseManifest();
         manifest.Publisher = new PublisherInfo
@@ -295,6 +343,7 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
             new ManifestFile
             {
                 RelativePath = scriptName,
+                Hash = expectedHash,
             },
         ];
         manifest.InstallationInstructions = new InstallationInstructions
@@ -306,6 +355,7 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
                     Name = GeneralsOnlineConstants.EacStepName,
                     Kind = InstallationStepKind.RunVerifiedInstaller,
                     TargetRelativePath = scriptName,
+                    Arguments = OperatingSystem.IsWindows() ? ["/c", "exit", "0"] : [],
                     StatusMessage = GeneralsOnlineConstants.EacStatusMessage,
                     StepKey = GeneralsOnlineConstants.EacStepKey,
                     RunOnce = true,
@@ -333,6 +383,10 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
             Times.Once);
     }
 
+    /// <summary>
+    /// Verifies that run-once steps already recorded in user settings are skipped.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
     public async Task ExecutePostInstallStepsAsync_RunOnceStepAlreadyExecuted_SkipsExecution()
     {
@@ -374,18 +428,31 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
             Times.Never);
     }
 
+    /// <summary>
+    /// Verifies that forcing execution re-runs run-once steps even if recorded in settings.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
     public async Task ExecutePostInstallStepsAsync_RunOnceStepWithForceTrue_ExecutesEvenIfRecorded()
     {
-        var scriptName = OperatingSystem.IsWindows() ? "test_force_installer.bat" : "test_force_installer.sh";
+        var scriptName = OperatingSystem.IsWindows() ? "test_force_installer.exe" : "test_force_installer.sh";
         var fullPath = Path.Combine(_tempDirectory, scriptName);
-        var scriptContent = OperatingSystem.IsWindows() ? "@exit 0" : "#!/bin/sh\nexit 0\n";
-        File.WriteAllText(fullPath, scriptContent);
 
-        if (!OperatingSystem.IsWindows())
+        if (OperatingSystem.IsWindows())
         {
+            var systemCmd = Path.Combine(Environment.SystemDirectory, "cmd.exe");
+            File.Copy(systemCmd, fullPath, overwrite: true);
+        }
+        else
+        {
+            File.WriteAllText(fullPath, "#!/bin/sh\nexit 0\n");
             File.SetUnixFileMode(fullPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         }
+
+        const string expectedHash = "test_force_hash";
+        _hashProviderMock
+            .Setup(h => h.ComputeFileHashAsync(fullPath, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedHash);
 
         var manifest = CreateBaseManifest();
         manifest.Publisher = new PublisherInfo
@@ -395,7 +462,11 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
         };
         manifest.Files =
         [
-            new ManifestFile { RelativePath = scriptName },
+            new ManifestFile
+            {
+                RelativePath = scriptName,
+                Hash = expectedHash,
+            },
         ];
         manifest.InstallationInstructions = new InstallationInstructions
         {
@@ -406,6 +477,7 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
                     Name = GeneralsOnlineConstants.EacStepName,
                     Kind = InstallationStepKind.RunVerifiedInstaller,
                     TargetRelativePath = scriptName,
+                    Arguments = OperatingSystem.IsWindows() ? ["/c", "exit", "0"] : [],
                     StatusMessage = GeneralsOnlineConstants.EacStatusMessage,
                     StepKey = GeneralsOnlineConstants.EacStepKey,
                     RunOnce = true,
@@ -429,6 +501,10 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
             Times.Once);
     }
 
+    /// <summary>
+    /// Verifies that unknown installation step kinds return failure.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
     public async Task ExecutePostInstallStepsAsync_UnknownKind_ReturnsFailure()
     {
