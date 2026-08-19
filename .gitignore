@@ -5,6 +5,8 @@
 .*
 !.github/
 !.gitignore
+!.agents/
+!.claude/
 
 *.suo
 *.user
