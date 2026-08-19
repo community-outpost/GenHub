@@ -17,8 +17,54 @@ namespace GenHub.Features.AppUpdate.Services;
 /// High-performance file downloader for Velopack and application updates.
 /// Supports parallel range chunk downloading for large assets from GitHub Releases and CDN origins.
 /// </summary>
-public class FastHttpClientFileDownloader(ILogger<FastHttpClientFileDownloader>? logger = null) : HttpClientFileDownloader
+public class FastHttpClientFileDownloader(
+    ILogger<FastHttpClientFileDownloader>? logger = null,
+    HttpMessageHandler? httpMessageHandler = null) : HttpClientFileDownloader
 {
+    private sealed class MonotonicProgressReporter(Action<int>? progressCallback, long totalBytes)
+    {
+        private int _lastReportedPercent = -1;
+        private long _totalBytesDownloaded;
+
+        public void ReportBytesRead(int bytesRead)
+        {
+            if (progressCallback is null || totalBytes <= 0)
+            {
+                return;
+            }
+
+            var currentTotal = Interlocked.Add(ref _totalBytesDownloaded, bytesRead);
+            var currentPercent = (int)Math.Clamp((double)currentTotal / totalBytes * 100, 0, 99);
+
+            var initialLast = Volatile.Read(ref _lastReportedPercent);
+            while (currentPercent > initialLast)
+            {
+                var prev = Interlocked.CompareExchange(ref _lastReportedPercent, currentPercent, initialLast);
+                if (prev == initialLast)
+                {
+                    progressCallback(currentPercent);
+                    break;
+                }
+
+                initialLast = prev;
+            }
+        }
+
+        public void Complete()
+        {
+            if (progressCallback is null)
+            {
+                return;
+            }
+
+            var prev = Interlocked.Exchange(ref _lastReportedPercent, 100);
+            if (prev < 100)
+            {
+                progressCallback(100);
+            }
+        }
+    }
+
     /// <inheritdoc/>
     public override async Task DownloadFile(
         string url,
@@ -53,12 +99,20 @@ public class FastHttpClientFileDownloader(ILogger<FastHttpClientFileDownloader>?
             probeResponse.EnsureSuccessStatusCode();
 
             var resolvedUri = probeResponse.RequestMessage?.RequestUri ?? new Uri(url);
+            var contentRange = probeResponse.Content.Headers.ContentRange;
 
-            // If range is supported (206) and file exceeds threshold, download in parallel
-            if (probeResponse.StatusCode == HttpStatusCode.PartialContent &&
-                probeResponse.Content.Headers.ContentRange?.Length is { } totalLength &&
-                totalLength >= AppUpdateConstants.ParallelDownloadThresholdBytes)
+            // Validate that probe returned 206 Partial Content with valid byte range (bytes 0-0/totalLength)
+            var hasValidProbeRange = probeResponse.StatusCode == HttpStatusCode.PartialContent &&
+                contentRange is not null &&
+                string.Equals(contentRange.Unit, "bytes", StringComparison.OrdinalIgnoreCase) &&
+                contentRange.From == 0 &&
+                contentRange.To == 0 &&
+                contentRange.Length is { } probeTotalLength &&
+                probeTotalLength >= AppUpdateConstants.ParallelDownloadThresholdBytes;
+
+            if (hasValidProbeRange)
             {
+                var totalLength = contentRange!.Length!.Value;
                 probeResponse.Dispose();
 
                 logger?.LogInformation(
@@ -85,7 +139,7 @@ public class FastHttpClientFileDownloader(ILogger<FastHttpClientFileDownloader>?
                 return;
             }
 
-            // Fallback to single-stream GET
+            // Fallback to single-stream GET (e.g. for files below parallel threshold)
             using var fullResponse = await client.GetAsync(
                 url,
                 HttpCompletionOption.ResponseHeadersRead,
@@ -106,6 +160,31 @@ public class FastHttpClientFileDownloader(ILogger<FastHttpClientFileDownloader>?
         }
     }
 
+    /// <inheritdoc/>
+    protected override HttpClient CreateHttpClient(IDictionary<string, string>? headers, double timeout)
+    {
+        if (httpMessageHandler is not null)
+        {
+            var client = new HttpClient(httpMessageHandler, disposeHandler: false);
+            if (timeout > 0)
+            {
+                client.Timeout = TimeSpan.FromSeconds(timeout);
+            }
+
+            if (headers != null)
+            {
+                foreach (var header in headers)
+                {
+                    client.DefaultRequestHeaders.TryAddWithoutValidation(header.Key, header.Value);
+                }
+            }
+
+            return client;
+        }
+
+        return base.CreateHttpClient(headers, timeout);
+    }
+
     private static async Task DownloadSingleStreamAsync(
         HttpResponseMessage response,
         string targetFile,
@@ -113,6 +192,8 @@ public class FastHttpClientFileDownloader(ILogger<FastHttpClientFileDownloader>?
         Action<int>? progress,
         CancellationToken cancelToken)
     {
+        var progressReporter = new MonotonicProgressReporter(progress, totalBytes);
+
         await using var contentStream = await response.Content.ReadAsStreamAsync(cancelToken).ConfigureAwait(false);
         await using var fileStream = new FileStream(
             targetFile,
@@ -123,22 +204,15 @@ public class FastHttpClientFileDownloader(ILogger<FastHttpClientFileDownloader>?
             useAsync: true);
 
         var buffer = new byte[AppUpdateConstants.DefaultStreamBufferSize];
-        var totalRead = 0L;
         int bytesRead = 0;
 
         while ((bytesRead = await contentStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancelToken).ConfigureAwait(false)) > 0)
         {
             await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancelToken).ConfigureAwait(false);
-            totalRead += bytesRead;
-
-            if (progress != null && totalBytes > 0)
-            {
-                var percent = (int)((double)totalRead / totalBytes * 100);
-                progress(Math.Clamp(percent, 0, 100));
-            }
+            progressReporter.ReportBytesRead(bytesRead);
         }
 
-        progress?.Invoke(100);
+        progressReporter.Complete();
     }
 
     private static async Task DownloadParallelAsync(
@@ -163,7 +237,7 @@ public class FastHttpClientFileDownloader(ILogger<FastHttpClientFileDownloader>?
 
         var chunkSize = AppUpdateConstants.DownloadChunkSizeBytes;
         var chunkCount = (int)Math.Ceiling((double)totalBytes / chunkSize);
-        var totalDownloaded = 0L;
+        var progressReporter = new MonotonicProgressReporter(progress, totalBytes);
 
         using var semaphore = new SemaphoreSlim(AppUpdateConstants.ParallelDownloadConcurrency);
 
@@ -186,7 +260,19 @@ public class FastHttpClientFileDownloader(ILogger<FastHttpClientFileDownloader>?
 
                 if (chunkResponse.StatusCode != HttpStatusCode.PartialContent)
                 {
-                    throw new InvalidOperationException($"Origin server returned {chunkResponse.StatusCode} instead of 206 Partial Content for range {start}-{end}");
+                    throw new InvalidOperationException(
+                        $"Origin server returned status code {chunkResponse.StatusCode} instead of 206 Partial Content for range {start}-{end}.");
+                }
+
+                var chunkRange = chunkResponse.Content.Headers.ContentRange;
+                if (chunkRange is null ||
+                    !string.Equals(chunkRange.Unit, "bytes", StringComparison.OrdinalIgnoreCase) ||
+                    chunkRange.From != start ||
+                    chunkRange.To != end ||
+                    (chunkRange.Length.HasValue && chunkRange.Length.Value != totalBytes))
+                {
+                    throw new InvalidOperationException(
+                        $"Origin server returned invalid Content-Range ({chunkRange}) for requested range {start}-{end} with total size {totalBytes}.");
                 }
 
                 await using var chunkStream = await chunkResponse.Content.ReadAsStreamAsync(cancelToken).ConfigureAwait(false);
@@ -208,18 +294,13 @@ public class FastHttpClientFileDownloader(ILogger<FastHttpClientFileDownloader>?
                 {
                     await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancelToken).ConfigureAwait(false);
                     chunkBytesRead += bytesRead;
-
-                    var currentTotal = Interlocked.Add(ref totalDownloaded, bytesRead);
-                    if (progress != null && totalBytes > 0)
-                    {
-                        var percent = (int)((double)currentTotal / totalBytes * 100);
-                        progress(Math.Clamp(percent, 0, 100));
-                    }
+                    progressReporter.ReportBytesRead(bytesRead);
                 }
 
                 if (chunkBytesRead != expectedChunkBytes)
                 {
-                    throw new InvalidOperationException($"Chunk range {start}-{end} received {chunkBytesRead} bytes, expected {expectedChunkBytes}");
+                    throw new InvalidOperationException(
+                        $"Chunk range {start}-{end} received {chunkBytesRead} bytes, expected {expectedChunkBytes}.");
                 }
             }
             finally
@@ -229,6 +310,6 @@ public class FastHttpClientFileDownloader(ILogger<FastHttpClientFileDownloader>?
         });
 
         await Task.WhenAll(tasks).ConfigureAwait(false);
-        progress?.Invoke(100);
+        progressReporter.Complete();
     }
 }
