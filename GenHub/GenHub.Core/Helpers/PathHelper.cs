@@ -43,7 +43,23 @@ public static class PathHelper
                 Path.TrimEndingDirectorySeparator(Path.GetFullPath(second)),
                 PathComparison);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
+        catch (IOException)
+        {
+            return string.Equals(first, second, PathComparison);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return string.Equals(first, second, PathComparison);
+        }
+        catch (SecurityException)
+        {
+            return string.Equals(first, second, PathComparison);
+        }
+        catch (NotSupportedException)
+        {
+            return string.Equals(first, second, PathComparison);
+        }
+        catch (ArgumentException)
         {
             return string.Equals(first, second, PathComparison);
         }
@@ -170,7 +186,23 @@ public static class PathHelper
 
             return Path.GetFullPath(current);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException or SecurityException)
+        catch (IOException)
+        {
+            return fullPath;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return fullPath;
+        }
+        catch (SecurityException)
+        {
+            return fullPath;
+        }
+        catch (NotSupportedException)
+        {
+            return fullPath;
+        }
+        catch (ArgumentException)
         {
             return fullPath;
         }

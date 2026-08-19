@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -19,12 +20,11 @@ namespace GenHub.Features.Content.Services.ContentDeliverers;
 /// Delivers remote HTTP content.
 /// Pure delivery - downloads and extracts content.
 /// </summary>
-public class HttpContentDeliverer(IDownloadService downloadService, IContentManifestBuilder manifestBuilder, ILogger<HttpContentDeliverer> logger) : IContentDeliverer
+public class HttpContentDeliverer(
+    IDownloadService downloadService,
+    IContentManifestBuilder manifestBuilder,
+    ILogger<HttpContentDeliverer> logger) : IContentDeliverer
 {
-    private readonly IDownloadService _downloadService = downloadService;
-    private readonly IContentManifestBuilder _manifestBuilder = manifestBuilder;
-    private readonly ILogger<HttpContentDeliverer> _logger = logger;
-
     /// <inheritdoc />
     public string SourceName => ContentSourceNames.HttpDeliverer;
 
@@ -56,121 +56,25 @@ public class HttpContentDeliverer(IDownloadService downloadService, IContentMani
     {
         try
         {
-            // Extract publisher from the manifest ID (3rd segment)
-            var idSegments = packageManifest.Id.Value.Split('.');
-            var publisherId = idSegments.Length >= 3 ? idSegments[2] : "unknown";
-
-            var manifestVersionInt = int.TryParse(packageManifest.Version, out var parsedVersion) ? parsedVersion : 0;
-            var deliveredManifest = _manifestBuilder
-                .WithBasicInfo(publisherId, packageManifest.Name, manifestVersionInt)
-                .WithContentType(packageManifest.ContentType, packageManifest.TargetGame)
-                .WithPublisher(
-                    packageManifest.Publisher?.Name ?? string.Empty,
-                    packageManifest.Publisher?.Website ?? string.Empty,
-                    packageManifest.Publisher?.SupportUrl ?? string.Empty,
-                    packageManifest.Publisher?.ContactEmail ?? string.Empty,
-                    packageManifest.Publisher?.PublisherType ?? string.Empty)
-                .WithMetadata(
-                    packageManifest.Metadata?.Description ?? string.Empty,
-                    packageManifest.Metadata?.Tags,
-                    packageManifest.Metadata?.IconUrl ?? string.Empty,
-                    packageManifest.Metadata?.ScreenshotUrls,
-                    packageManifest.Metadata?.ChangelogUrl ?? string.Empty);
-
-            // Add dependencies
-            foreach (var dep in packageManifest.Dependencies)
-            {
-                deliveredManifest.AddDependency(
-                    dep.Id,
-                    dep.Name,
-                    dep.DependencyType,
-                    dep.InstallBehavior,
-                    dep.MinVersion ?? string.Empty,
-                    dep.MaxVersion ?? string.Empty,
-                    dep.CompatibleVersions,
-                    dep.IsExclusive,
-                    dep.ConflictsWith);
-            }
+            var deliveredManifest = InitializeManifestBuilder(packageManifest);
 
             var filesToDownload = packageManifest.Files.Where(f => !string.IsNullOrEmpty(f.DownloadUrl)).ToList();
-            var totalFiles = filesToDownload.Count;
-            var processedFiles = 0;
+            var downloadResult = await DownloadDeliveredFilesAsync(
+                deliveredManifest,
+                filesToDownload,
+                targetDirectory,
+                progress,
+                cancellationToken);
 
-            // Download and add files
-            foreach (var file in filesToDownload)
+            if (!downloadResult.Success)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var localPath = Path.Combine(targetDirectory, file.RelativePath);
-
-                // Ensure directory exists
-                var directory = Path.GetDirectoryName(localPath);
-                if (!string.IsNullOrEmpty(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-
-                // Report progress
-                progress?.Report(new ContentAcquisitionProgress
-                {
-                    Phase = ContentAcquisitionPhase.Downloading,
-                    ProgressPercentage = (double)processedFiles / totalFiles * 100,
-                    CurrentOperation = $"Downloading {file.RelativePath}",
-                    CurrentFile = file.RelativePath,
-                    FilesProcessed = processedFiles,
-                    TotalFiles = totalFiles,
-                });
-
-                // Download the file
-                var downloadResult = await _downloadService.DownloadFileAsync(
-                    new Uri(file.DownloadUrl!), localPath, file.Hash, null, cancellationToken);
-
-                if (!downloadResult.Success)
-                {
-                    return OperationResult<ContentManifest>.CreateFailure(
-                        $"Failed to download {file.RelativePath}: {downloadResult.FirstError}");
-                }
-
-                // Add the delivered file preserving InstallTarget, DownloadUrl, and hash
-                var fileInfo = new FileInfo(localPath);
-                var deliveredFile = new ManifestFile
-                {
-                    RelativePath = file.RelativePath,
-                    SourceType = ContentSourceType.ContentAddressable,
-                    InstallTarget = file.InstallTarget,
-                    IsExecutable = file.IsExecutable,
-                    Hash = !string.IsNullOrEmpty(file.Hash) ? file.Hash : string.Empty,
-                    DownloadUrl = file.DownloadUrl,
-                    Size = fileInfo.Exists ? fileInfo.Length : file.Size,
-                    Permissions = file.Permissions ?? new FilePermissions { UnixPermissions = file.IsExecutable ? "755" : "644" },
-                };
-                deliveredManifest.AddFile(deliveredFile);
-
-                processedFiles++;
+                return OperationResult<ContentManifest>.CreateFailure(downloadResult.Errors);
             }
 
-            // Add any other files (without DownloadUrl) preserving metadata
-            foreach (var file in packageManifest.Files.Where(f => string.IsNullOrEmpty(f.DownloadUrl)))
-            {
-                var otherFile = new ManifestFile
-                {
-                    RelativePath = file.RelativePath,
-                    SourcePath = file.SourcePath ?? string.Empty,
-                    SourceType = ContentSourceType.ContentAddressable,
-                    InstallTarget = file.InstallTarget,
-                    IsExecutable = file.IsExecutable,
-                    Hash = file.Hash,
-                    DownloadUrl = file.DownloadUrl,
-                    Size = file.Size,
-                    Permissions = file.Permissions ?? new FilePermissions { UnixPermissions = file.IsExecutable ? "755" : "644" },
-                };
-                deliveredManifest.AddFile(otherFile);
-            }
+            AddNonDownloadFiles(deliveredManifest, packageManifest.Files.Where(f => string.IsNullOrEmpty(f.DownloadUrl)));
 
-            // Add required directories
             deliveredManifest.AddRequiredDirectories([.. packageManifest.RequiredDirectories]);
 
-            // Add installation instructions if present
             if (packageManifest.InstallationInstructions != null)
             {
                 deliveredManifest.WithInstallationInstructions(packageManifest.InstallationInstructions);
@@ -178,9 +82,13 @@ public class HttpContentDeliverer(IDownloadService downloadService, IContentMani
 
             return OperationResult<ContentManifest>.CreateSuccess(deliveredManifest.Build());
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to deliver HTTP content for manifest {ManifestId}", packageManifest.Id);
+            logger.LogError(ex, "Failed to deliver HTTP content for manifest {ManifestId}", packageManifest.Id);
             return OperationResult<ContentManifest>.CreateFailure($"Content delivery failed: {ex.Message}");
         }
     }
@@ -205,8 +113,136 @@ public class HttpContentDeliverer(IDownloadService downloadService, IContentMani
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Validation failed for HTTP content manifest {ManifestId}", manifest.Id);
+            logger.LogError(ex, "Validation failed for HTTP content manifest {ManifestId}", manifest.Id);
             return Task.FromResult(OperationResult<bool>.CreateFailure($"Validation failed: {ex.Message}"));
         }
+    }
+
+    private static void AddDeliveredFile(
+        IContentManifestBuilder deliveredManifest,
+        ManifestFile file,
+        string localPath)
+    {
+        var fileInfo = new FileInfo(localPath);
+        var deliveredFile = new ManifestFile
+        {
+            RelativePath = file.RelativePath,
+            SourceType = ContentSourceType.ContentAddressable,
+            InstallTarget = file.InstallTarget,
+            IsExecutable = file.IsExecutable,
+            Hash = !string.IsNullOrEmpty(file.Hash) ? file.Hash : string.Empty,
+            DownloadUrl = file.DownloadUrl,
+            Size = fileInfo.Exists ? fileInfo.Length : file.Size,
+            Permissions = file.Permissions ?? new FilePermissions { UnixPermissions = file.IsExecutable ? "755" : "644" },
+        };
+        deliveredManifest.AddFile(deliveredFile);
+    }
+
+    private static void AddNonDownloadFiles(
+        IContentManifestBuilder deliveredManifest,
+        IEnumerable<ManifestFile> files)
+    {
+        foreach (var file in files)
+        {
+            var otherFile = new ManifestFile
+            {
+                RelativePath = file.RelativePath,
+                SourcePath = file.SourcePath ?? string.Empty,
+                SourceType = ContentSourceType.ContentAddressable,
+                InstallTarget = file.InstallTarget,
+                IsExecutable = file.IsExecutable,
+                Hash = file.Hash,
+                DownloadUrl = file.DownloadUrl,
+                Size = file.Size,
+                Permissions = file.Permissions ?? new FilePermissions { UnixPermissions = file.IsExecutable ? "755" : "644" },
+            };
+            deliveredManifest.AddFile(otherFile);
+        }
+    }
+
+    private IContentManifestBuilder InitializeManifestBuilder(ContentManifest packageManifest)
+    {
+        var idSegments = packageManifest.Id.Value.Split('.');
+        var publisherId = idSegments.Length >= 3 ? idSegments[2] : "unknown";
+        var manifestVersionInt = int.TryParse(packageManifest.Version, out var parsedVersion) ? parsedVersion : 0;
+
+        var builder = manifestBuilder
+            .WithBasicInfo(publisherId, packageManifest.Name, manifestVersionInt)
+            .WithContentType(packageManifest.ContentType, packageManifest.TargetGame)
+            .WithPublisher(
+                packageManifest.Publisher?.Name ?? string.Empty,
+                packageManifest.Publisher?.Website ?? string.Empty,
+                packageManifest.Publisher?.SupportUrl ?? string.Empty,
+                packageManifest.Publisher?.ContactEmail ?? string.Empty,
+                packageManifest.Publisher?.PublisherType ?? string.Empty)
+            .WithMetadata(
+                packageManifest.Metadata?.Description ?? string.Empty,
+                packageManifest.Metadata?.Tags,
+                packageManifest.Metadata?.IconUrl ?? string.Empty,
+                packageManifest.Metadata?.ScreenshotUrls,
+                packageManifest.Metadata?.ChangelogUrl ?? string.Empty);
+
+        foreach (var dep in packageManifest.Dependencies)
+        {
+            builder.AddDependency(
+                dep.Id,
+                dep.Name,
+                dep.DependencyType,
+                dep.InstallBehavior,
+                dep.MinVersion ?? string.Empty,
+                dep.MaxVersion ?? string.Empty,
+                dep.CompatibleVersions,
+                dep.IsExclusive,
+                dep.ConflictsWith);
+        }
+
+        return builder;
+    }
+
+    private async Task<OperationResult<bool>> DownloadDeliveredFilesAsync(
+        IContentManifestBuilder deliveredManifest,
+        IReadOnlyList<ManifestFile> filesToDownload,
+        string targetDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var totalFiles = filesToDownload.Count;
+        var processedFiles = 0;
+
+        foreach (var file in filesToDownload)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var localPath = Path.Combine(targetDirectory, file.RelativePath);
+            var directory = Path.GetDirectoryName(localPath);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            progress?.Report(new ContentAcquisitionProgress
+            {
+                Phase = ContentAcquisitionPhase.Downloading,
+                ProgressPercentage = totalFiles > 0 ? (double)processedFiles / totalFiles * 100 : 100,
+                CurrentOperation = $"Downloading {file.RelativePath}",
+                CurrentFile = file.RelativePath,
+                FilesProcessed = processedFiles,
+                TotalFiles = totalFiles,
+            });
+
+            var downloadResult = await downloadService.DownloadFileAsync(
+                new Uri(file.DownloadUrl!), localPath, file.Hash, null, cancellationToken);
+
+            if (!downloadResult.Success)
+            {
+                return OperationResult<bool>.CreateFailure(
+                    $"Failed to download {file.RelativePath}: {downloadResult.FirstError}");
+            }
+
+            AddDeliveredFile(deliveredManifest, file, localPath);
+            processedFiles++;
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
     }
 }
