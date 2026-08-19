@@ -173,19 +173,22 @@ public class GitHubContentDeliverer(
                         return OperationResult<ContentManifest>.CreateFailure($"Failed to extract archive: {ex.Message}");
                     }
                 }
+
+                logger.LogInformation(
+                    "Successfully extracted {Count} archive file(s) for {ManifestId}. Deferring manifest generation to the orchestrator.",
+                    archiveFiles.Count,
+                    packageManifest.Id);
+
+                return OperationResult<ContentManifest>.CreateSuccess(packageManifest);
             }
 
-            // Update manifest to point to extracted files if any
-            if (packageManifest.Files != null && packageManifest.Files.Count > 0)
+            // For content without archives, compute hashes directly for downloaded files
+            foreach (var file in filesToDownload)
             {
-                foreach (var file in packageManifest.Files)
+                cancellationToken.ThrowIfCancellationRequested();
+                var localPath = Path.Combine(targetDirectory, file.RelativePath);
+                if (File.Exists(localPath))
                 {
-                    var localPath = Path.Combine(targetDirectory, file.RelativePath);
-                    if (!File.Exists(localPath))
-                    {
-                        continue;
-                    }
-
                     file.Hash = await hashProvider.ComputeFileHashAsync(localPath, cancellationToken);
                     file.Size = new FileInfo(localPath).Length;
                     file.SourceType = ContentSourceType.ContentAddressable;
