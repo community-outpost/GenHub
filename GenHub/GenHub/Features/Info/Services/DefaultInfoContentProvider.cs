@@ -819,24 +819,24 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     GenHub supports four file deployment strategies under **Settings -> Game Configuration**:
 
                     *   **HardLink (Default & Recommended):**
-                        *   *How it works:* Creates direct filesystem pointers (hard links) to the underlying game and mod files.
-                        *   *Disk Space:* **0 bytes** extra storage used.
-                        *   *Speed:* Instant (< 50ms).
+                        *   *How it works:* Creates direct filesystem pointers (hard links) on the same drive. If the workspace is on a different drive than the game installation, it automatically falls back to copying files.
+                        *   *Disk Space:* **0 bytes** extra storage when on the same drive (full file size if copying across drives).
+                        *   *Speed:* Instant (< 50ms) on the same volume.
                         *   *Privileges:* No administrator privileges or developer mode needed.
-                        *   *Limitation:* Workspace and game files must be on the **same drive/volume** (e.g. both on `C:` or both on `D:`).
+                        *   *Recommendation:* Place workspaces and game files on the **same drive/volume** (e.g. both on `C:` or both on `D:`) for optimal zero-space operation.
 
                     *   **SymlinkOnly:**
                         *   *How it works:* Creates symbolic link pointers referencing target files and directories.
                         *   *Disk Space:* **Negligible** (~few KB of pointer metadata).
                         *   *Speed:* Instant (< 50ms).
-                        *   *Advantage:* Can link across **different drives and partitions**.
+                        *   *Advantage:* Links seamlessly across **different drives and partitions**.
                         *   *Limitation:* On Windows, requires **Administrator rights** or **Developer Mode** enabled in Windows Settings.
 
                     *   **HybridCopySymlink (Balanced Compatibility):**
-                        *   *How it works:* Copies essential mutable files (like `.exe`, `.ini`, and configuration scripts) while symlinking or hardlinking massive immutable asset archives (`.big` files).
-                        *   *Disk Space:* Minimal (~50 MB copied, gigabytes linked).
+                        *   *How it works:* Copies essential engine files, scripts, and mod configurations into the workspace while symlinking non-essential media assets (such as textures, audio, and video).
+                        *   *Disk Space:* Balanced (copies essential assets, links media assets).
                         *   *Speed:* Fast (1-2 seconds).
-                        *   *Advantage:* Prevents engine quirks if a legacy mod tries to modify its executable or config directly in the workspace.
+                        *   *Advantage:* Protects essential configs from cross-profile conflicts while reducing overall workspace footprint.
 
                     *   **FullCopy (Universal Fallback):**
                         *   *How it works:* Physically duplicates every game and mod file into the workspace directory.
@@ -879,9 +879,9 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     *   **"Access Denied" / Privilege Errors:**
                         *   If using Symlink strategy on Windows, enable **Developer Mode** in *Windows Settings -> System -> For developers*, or run GenHub as Administrator.
                         *   Alternatively, switch your Default Workspace Strategy to **HardLink** in GenHub Settings.
-                    *   **Cross-Drive Linking Errors:**
-                        *   Hardlinks cannot span across different drives (e.g., CAS pool on `C:` and game on `D:`).
-                        *   Set your CAS pool location or workspace directory on the same drive as your game installation in **Settings -> Data Directories**, or enable Symlink mode with Developer Mode turned on.
+                    *   **Cross-Drive Linking & Storage:**
+                        *   Hardlinks require the same drive/volume to achieve zero-space linking; across different drives, HardLink strategy falls back to copying files.
+                        *   To maintain instant, zero-space workspaces, keep your CAS pool and workspace directories on the same drive as your game installation in **Settings -> Data Directories**, or enable Symlink mode with Developer Mode turned on.
                     *   **"File In Use" / Locked Files:**
                         *   Ensure all instances of `generals.exe` or `game.dat` are completely closed before switching profiles or rebuilding workspaces.
                     """,
@@ -896,8 +896,8 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                     **Strategy Metrics:**
 
                     *   **HardLink:**
-                        *   *Creation Time:* < 50ms (Metadata only)
-                        *   *Disk Overhead:* 0 MB
+                        *   *Creation Time:* < 50ms on same volume (Metadata only)
+                        *   *Disk Overhead:* 0 MB on same volume (copies on cross-volume)
                         *   *Integrity:* Shared data clusters (CAS objects remain immutable in CAS pool; direct writes affect linked file).
                     *   **SymlinkOnly:**
                         *   *Creation Time:* < 50ms (Pointer creation)
@@ -905,8 +905,8 @@ public class DefaultInfoContentProvider(IGeneralsOnlinePatchNotesService patchNo
                         *   *Integrity:* Transparent pointer redirection across volumes.
                     *   **Hybrid:**
                         *   *Creation Time:* 1-2 seconds
-                        *   *Disk Overhead:* ~50-100 MB
-                        *   *Integrity:* Physical copies for mutable configs, shared links for immutable large assets.
+                        *   *Disk Overhead:* Copies essential configs, links media assets
+                        *   *Integrity:* Physical copies for essential configs, shared links for media assets.
                     *   **Full Copy:**
                         *   *Creation Time:* 10-30 seconds
                         *   *Disk Overhead:* Full size (2,000 - 5,000+ MB)
