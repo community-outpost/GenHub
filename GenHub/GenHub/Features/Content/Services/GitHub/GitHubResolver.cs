@@ -186,6 +186,11 @@ public partial class GitHubResolver(
             }
 
             var builtManifest = manifest.Build();
+            if (!string.IsNullOrEmpty(release.TagName))
+            {
+                builtManifest.Version = release.TagName;
+            }
+
             logger.LogInformation("GitHubResolver: Built manifest with ID: {ManifestId}", builtManifest.Id);
             return OperationResult<ContentManifest>.CreateSuccess(builtManifest);
         }
@@ -373,6 +378,11 @@ public partial class GitHubResolver(
             logger.LogInformation("Successfully resolved single release asset: {AssetName}", asset.Name);
 
             var builtManifest = manifest.Build();
+            if (!string.IsNullOrEmpty(tag))
+            {
+                builtManifest.Version = tag;
+            }
+
             logger.LogInformation("GitHubResolver (Single Asset): Built manifest with ID: {ManifestId}", builtManifest.Id);
             return OperationResult<ContentManifest>.CreateSuccess(builtManifest);
         }
