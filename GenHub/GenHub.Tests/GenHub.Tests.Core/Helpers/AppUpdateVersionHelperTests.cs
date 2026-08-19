@@ -10,6 +10,8 @@ public class AppUpdateVersionHelperTests
     /// <summary>
     /// Tests that ExtractRunNumber extracts expected run numbers.
     /// </summary>
+    /// <param name="version">The version string to extract the run number from.</param>
+    /// <param name="expectedRun">The expected run number.</param>
     [Theory]
     [InlineData("0.0.1282-pr265", 1282)]
     [InlineData("0.0.1287-pr265", 1287)]
