@@ -71,7 +71,9 @@ public class SuperHackersProvider(
     {
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var results = new List<ContentSearchResult>();
+            var errors = new List<string>();
 
             var targets = new (string Owner, string Repo, ContentType ContentType, GameType TargetGame)[]
             {
@@ -79,55 +81,83 @@ public class SuperHackersProvider(
                 (SuperHackersConstants.GeneralsGamePatch2Owner, SuperHackersConstants.GeneralsGamePatch2Repo, ContentType.Patch, GameType.ZeroHour),
             };
 
-            foreach (var (owner, repo, contentType, targetGame) in targets)
-            {
-                var latestRelease = await gitHubApiClient.GetLatestReleaseAsync(
-                    owner,
-                    repo,
-                    cancellationToken);
+            var matchingTargets = targets.Where(t =>
+                (!query.ContentType.HasValue || query.ContentType.Value == t.ContentType) &&
+                (!query.TargetGame.HasValue || query.TargetGame.Value == t.TargetGame) &&
+                (string.IsNullOrWhiteSpace(query.AuthorName) || query.AuthorName.Equals(t.Owner, StringComparison.OrdinalIgnoreCase)) &&
+                (string.IsNullOrWhiteSpace(query.GitHubAuthor) || query.GitHubAuthor.Equals(t.Owner, StringComparison.OrdinalIgnoreCase))).ToList();
 
-                if (latestRelease != null &&
-                    (string.IsNullOrWhiteSpace(query.AuthorName) ||
-                     query.AuthorName.Equals(owner, StringComparison.OrdinalIgnoreCase)) &&
-                    (string.IsNullOrWhiteSpace(query.SearchTerm) ||
-                     latestRelease.Name?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) == true ||
-                     repo.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase)))
+            foreach (var (owner, repo, contentType, targetGame) in matchingTargets)
+            {
+                try
                 {
-                    var manifestId = ManifestIdGenerator.GenerateGitHubContentId(
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    var latestRelease = await gitHubApiClient.GetLatestReleaseAsync(
                         owner,
                         repo,
-                        contentType,
-                        latestRelease.TagName);
+                        cancellationToken);
 
-                    var result = new ContentSearchResult
+                    if (latestRelease != null &&
+                        (string.IsNullOrWhiteSpace(query.SearchTerm) ||
+                         latestRelease.Name?.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase) == true ||
+                         repo.Contains(query.SearchTerm, StringComparison.OrdinalIgnoreCase)))
                     {
-                        Id = manifestId,
-                        Name = latestRelease.Name ?? $"{SuperHackersConstants.PublisherName} {latestRelease.TagName}",
-                        Description = latestRelease.Body ?? "SuperHackers release - details available after resolution",
-                        Version = latestRelease.TagName ?? "latest",
-                        AuthorName = owner,
-                        ContentType = contentType,
-                        TargetGame = targetGame,
-                        IsInferred = false,
-                        ProviderName = SourceName,
-                        RequiresResolution = true,
-                        ResolverId = SuperHackersConstants.ResolverId,
-                        SourceUrl = latestRelease.HtmlUrl,
-                        LastUpdated = latestRelease.PublishedAt?.DateTime ?? latestRelease.CreatedAt.DateTime,
-                        ResolverMetadata =
-                        {
-                            [GitHubConstants.OwnerMetadataKey] = owner,
-                            [GitHubConstants.RepoMetadataKey] = repo,
-                            [GitHubConstants.TagMetadataKey] = latestRelease.TagName ?? "latest",
-                        },
-                    };
+                        var manifestId = ManifestIdGenerator.GenerateGitHubContentId(
+                            owner,
+                            repo,
+                            contentType,
+                            latestRelease.TagName);
 
-                    result.SetData(latestRelease);
-                    results.Add(result);
+                        var result = new ContentSearchResult
+                        {
+                            Id = manifestId,
+                            Name = latestRelease.Name ?? $"{SuperHackersConstants.PublisherName} {latestRelease.TagName}",
+                            Description = latestRelease.Body ?? "SuperHackers release - details available after resolution",
+                            Version = latestRelease.TagName ?? "latest",
+                            AuthorName = owner,
+                            ContentType = contentType,
+                            TargetGame = targetGame,
+                            IsInferred = false,
+                            ProviderName = SourceName,
+                            RequiresResolution = true,
+                            ResolverId = SuperHackersConstants.ResolverId,
+                            SourceUrl = latestRelease.HtmlUrl,
+                            LastUpdated = latestRelease.PublishedAt?.DateTime ?? latestRelease.CreatedAt.DateTime,
+                            ResolverMetadata =
+                            {
+                                [GitHubConstants.OwnerMetadataKey] = owner,
+                                [GitHubConstants.RepoMetadataKey] = repo,
+                                [GitHubConstants.TagMetadataKey] = latestRelease.TagName ?? "latest",
+                            },
+                        };
+
+                        result.SetData(latestRelease);
+                        results.Add(result);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "Failed to fetch SuperHackers release for {Owner}/{Repo}", owner, repo);
+                    errors.Add($"{owner}/{repo}: {ex.Message}");
                 }
             }
 
+            if (results.Count == 0 && errors.Count > 0 && errors.Count == matchingTargets.Count)
+            {
+                return OperationResult<IEnumerable<ContentSearchResult>>.CreateFailure(
+                    $"Search failed for SuperHackers targets: {string.Join("; ", errors)}");
+            }
+
             return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(results);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

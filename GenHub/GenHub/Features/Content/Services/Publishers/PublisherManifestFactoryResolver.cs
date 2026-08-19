@@ -32,6 +32,19 @@ public class PublisherManifestFactoryResolver(IEnumerable<IPublisherManifestFact
             return factory;
         }
 
+        // Fallback to generic GitHub manifest factory for non-GameClient publisher content or generic releases
+        var fallbackFactory = factories.OfType<GitHubManifestFactory>().FirstOrDefault();
+        if (fallbackFactory != null)
+        {
+            logger.LogInformation(
+                "Resolved fallback {FactoryType} for manifest {ManifestId} (Publisher: {Publisher}, ContentType: {ContentType})",
+                fallbackFactory.GetType().Name,
+                manifest.Id,
+                manifest.Publisher?.PublisherType ?? GameClientConstants.UnknownVersion,
+                manifest.ContentType);
+            return fallbackFactory;
+        }
+
         logger.LogWarning(
             "No factory found for manifest {ManifestId} (Publisher: {Publisher}, ContentType: {ContentType})",
             manifest.Id,

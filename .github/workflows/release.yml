@@ -235,7 +235,9 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Install Linux Dependencies
-        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libx11-dev
+        run: |
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update -o Acquire::Retries=3
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libgtk-3-dev libx11-dev
 
       - name: Extract Build Info
         id: buildinfo

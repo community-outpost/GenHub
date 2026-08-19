@@ -475,4 +475,62 @@ public class ContentOrchestratorTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => orchestrator.AcquireContentAsync(searchResult, progress: null, cts.Token));
     }
+
+    /// <summary>
+    /// Verifies that SearchAsync deduplicates results by manifest ID, preferring specialized providers.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SearchAsync_DeduplicatesResultsById_PrefersSpecializedProviderOverGitHubAsync()
+    {
+        // Arrange
+        var specializedProviderMock = new Mock<IContentProvider>();
+        var githubProviderMock = new Mock<IContentProvider>();
+
+        const string duplicateId = "github.0.thesuperhackers.patch.generalsgamepatch2";
+
+        var specializedResult = new ContentSearchResult
+        {
+            Id = duplicateId,
+            Name = "TheSuperHackers Patch 2",
+            ProviderName = "thesuperhackers",
+        };
+
+        var githubResult = new ContentSearchResult
+        {
+            Id = duplicateId,
+            Name = "GeneralsGamePatch2",
+            ProviderName = "GitHub",
+        };
+
+        specializedProviderMock.Setup(p => p.IsEnabled).Returns(true);
+        specializedProviderMock.Setup(p => p.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([specializedResult]));
+
+        githubProviderMock.Setup(p => p.IsEnabled).Returns(true);
+        githubProviderMock.Setup(p => p.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([githubResult]));
+
+        var orchestrator = new ContentOrchestrator(
+            _loggerMock.Object,
+            [specializedProviderMock.Object, githubProviderMock.Object],
+            [],
+            [],
+            _cacheMock.Object,
+            _contentValidatorMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
+
+        // Act
+        var result = await orchestrator.SearchAsync(new ContentSearchQuery());
+
+        // Assert
+        Assert.True(result.Success);
+        var items = result.Data?.ToList();
+        Assert.NotNull(items);
+        Assert.Single(items);
+        Assert.Equal("thesuperhackers", items[0].ProviderName);
+        Assert.Equal("TheSuperHackers Patch 2", items[0].Name);
+    }
 }

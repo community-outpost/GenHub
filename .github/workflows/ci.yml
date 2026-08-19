@@ -100,6 +100,7 @@ jobs:
     needs: detect-changes
     if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.any == 'true' || needs.detect-changes.outputs.core == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.windows == 'true' }}
     runs-on: windows-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout Code
@@ -254,6 +255,7 @@ jobs:
     needs: detect-changes
     if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.any == 'true' || needs.detect-changes.outputs.core == 'true' || needs.detect-changes.outputs.ui == 'true' || needs.detect-changes.outputs.linux == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout Code
@@ -266,8 +268,8 @@ jobs:
 
       - name: Install Linux Dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libx11-dev
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update -o Acquire::Retries=3
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libgtk-3-dev libx11-dev
 
       - name: Cache NuGet Packages
         uses: actions/cache@v3

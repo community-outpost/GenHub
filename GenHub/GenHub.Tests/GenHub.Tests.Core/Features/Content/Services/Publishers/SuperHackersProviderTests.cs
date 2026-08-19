@@ -159,4 +159,159 @@ public class SuperHackersProviderTests
         Assert.Single(items);
         Assert.Equal(ContentType.Patch, items[0].ContentType);
     }
+
+    /// <summary>
+    /// Verifies that SearchAsync filters by ContentType correctly.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SearchAsync_FiltersByContentType_ReturnsOnlyMatchingReleasesAsync()
+    {
+        // Arrange
+        var gameCodeRelease = new GitHubRelease { TagName = "weekly-1", Name = "Weekly 1" };
+        var gamePatch2Release = new GitHubRelease { TagName = "1.0.0", Name = "Release 1.0.0" };
+
+        _gitHubApiClientMock.Setup(c => c.GetLatestReleaseAsync(
+            SuperHackersConstants.GeneralsGameCodeOwner,
+            SuperHackersConstants.GeneralsGameCodeRepo,
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(gameCodeRelease);
+
+        _gitHubApiClientMock.Setup(c => c.GetLatestReleaseAsync(
+            SuperHackersConstants.GeneralsGamePatch2Owner,
+            SuperHackersConstants.GeneralsGamePatch2Repo,
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(gamePatch2Release);
+
+        var query = new ContentSearchQuery { ContentType = ContentType.Patch };
+
+        // Act
+        var result = await _provider.SearchAsync(query);
+
+        // Assert
+        Assert.True(result.Success);
+        var items = result.Data?.ToList();
+        Assert.NotNull(items);
+        Assert.Single(items);
+        Assert.Equal(ContentType.Patch, items[0].ContentType);
+        Assert.Equal("1.0.0", items[0].Version);
+    }
+
+    /// <summary>
+    /// Verifies that SearchAsync filters by TargetGame correctly.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SearchAsync_FiltersByTargetGame_ReturnsOnlyMatchingReleasesAsync()
+    {
+        // Arrange
+        var gameCodeRelease = new GitHubRelease { TagName = "weekly-1", Name = "Weekly 1" };
+        var gamePatch2Release = new GitHubRelease { TagName = "1.0.0", Name = "Release 1.0.0" };
+
+        _gitHubApiClientMock.Setup(c => c.GetLatestReleaseAsync(
+            SuperHackersConstants.GeneralsGameCodeOwner,
+            SuperHackersConstants.GeneralsGameCodeRepo,
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(gameCodeRelease);
+
+        _gitHubApiClientMock.Setup(c => c.GetLatestReleaseAsync(
+            SuperHackersConstants.GeneralsGamePatch2Owner,
+            SuperHackersConstants.GeneralsGamePatch2Repo,
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(gamePatch2Release);
+
+        var query = new ContentSearchQuery { TargetGame = GameType.Generals };
+
+        // Act
+        var result = await _provider.SearchAsync(query);
+
+        // Assert
+        Assert.True(result.Success);
+        var items = result.Data?.ToList();
+        Assert.NotNull(items);
+        Assert.Single(items);
+        Assert.Equal(ContentType.GameClient, items[0].ContentType);
+        Assert.Equal(GameType.Generals, items[0].TargetGame);
+    }
+
+    /// <summary>
+    /// Verifies that SearchAsync returns successful results when one repository fails.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SearchAsync_ReturnsRemainingReleases_WhenOneRepositoryFailsAsync()
+    {
+        // Arrange
+        var gameCodeRelease = new GitHubRelease { TagName = "weekly-1", Name = "Weekly 1" };
+
+        _gitHubApiClientMock.Setup(c => c.GetLatestReleaseAsync(
+            SuperHackersConstants.GeneralsGameCodeOwner,
+            SuperHackersConstants.GeneralsGameCodeRepo,
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(gameCodeRelease);
+
+        _gitHubApiClientMock.Setup(c => c.GetLatestReleaseAsync(
+            SuperHackersConstants.GeneralsGamePatch2Owner,
+            SuperHackersConstants.GeneralsGamePatch2Repo,
+            It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("API error"));
+
+        var query = new ContentSearchQuery();
+
+        // Act
+        var result = await _provider.SearchAsync(query);
+
+        // Assert
+        Assert.True(result.Success);
+        var items = result.Data?.ToList();
+        Assert.NotNull(items);
+        Assert.Single(items);
+        Assert.Equal(ContentType.GameClient, items[0].ContentType);
+    }
+
+    /// <summary>
+    /// Verifies that SearchAsync returns failure when all matching repositories fail.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SearchAsync_ReturnsFailure_WhenAllRepositoriesFailAsync()
+    {
+        // Arrange
+        _gitHubApiClientMock.Setup(c => c.GetLatestReleaseAsync(
+            SuperHackersConstants.GeneralsGameCodeOwner,
+            SuperHackersConstants.GeneralsGameCodeRepo,
+            It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Network failure 1"));
+
+        _gitHubApiClientMock.Setup(c => c.GetLatestReleaseAsync(
+            SuperHackersConstants.GeneralsGamePatch2Owner,
+            SuperHackersConstants.GeneralsGamePatch2Repo,
+            It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Network failure 2"));
+
+        var query = new ContentSearchQuery();
+
+        // Act
+        var result = await _provider.SearchAsync(query);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Search failed for SuperHackers targets", result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies that SearchAsync propagates cancellation.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SearchAsync_PropagatesCancellation_WhenCancellationRequestedAsync()
+    {
+        // Arrange
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act & Assert
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => _provider.SearchAsync(new ContentSearchQuery(), cts.Token));
+    }
 }
