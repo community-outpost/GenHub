@@ -36,8 +36,8 @@ public class InstallationInstructionsService(
     public async Task<OperationResult> ExecutePreInstallStepsAsync(
         ContentManifest manifest,
         string workingDirectory,
-        bool force = false,
         IProgress<ContentAcquisitionProgress>? progress = null,
+        bool force = false,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(manifest);
@@ -67,8 +67,8 @@ public class InstallationInstructionsService(
     public async Task<OperationResult> ExecutePostInstallStepsAsync(
         ContentManifest manifest,
         string workingDirectory,
-        bool force = false,
         IProgress<ContentAcquisitionProgress>? progress = null,
+        bool force = false,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(manifest);
@@ -149,7 +149,7 @@ public class InstallationInstructionsService(
             {
                 Phase = ContentAcquisitionPhase.Extracting,
                 CurrentOperation = $"Skipping {step.Name} (already installed)",
-                CurrentFile = step.TargetRelativePath,
+                CurrentFile = step.TargetRelativePath ?? string.Empty,
             });
 
             return OperationResult.CreateSuccess();
@@ -207,7 +207,7 @@ public class InstallationInstructionsService(
         return false;
     }
 
-    private static bool IsEacAlreadyInstalled(InstallationStep step)
+    private bool IsEacAlreadyInstalled(InstallationStep step)
     {
         if (!OperatingSystem.IsWindows())
         {
@@ -255,7 +255,7 @@ public class InstallationInstructionsService(
         return false;
     }
 
-    private static string GetStepKey(InstallationStep step, ContentManifest manifest)
+    private string GetStepKey(InstallationStep step, ContentManifest manifest)
     {
         if (!string.IsNullOrWhiteSpace(step.StepKey))
         {
@@ -364,7 +364,7 @@ public class InstallationInstructionsService(
         {
             Phase = ContentAcquisitionPhase.Extracting,
             CurrentOperation = displayMessage,
-            CurrentFile = step.TargetRelativePath,
+            CurrentFile = step.TargetRelativePath ?? string.Empty,
         });
 
         // 5. Process execution
