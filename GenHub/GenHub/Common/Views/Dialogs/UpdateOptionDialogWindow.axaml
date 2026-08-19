@@ -10,6 +10,7 @@
         Width="500" SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         SystemDecorations="None"
+        CanResize="False"
         TransparencyLevelHint="AcrylicBlur"
         Background="Transparent"
         ExtendClientAreaToDecorationsHint="True">

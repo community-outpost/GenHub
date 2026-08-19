@@ -177,7 +177,7 @@
                         <StackPanel Spacing="12">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Text="Installation Source" FontSize="14" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="1" Text="{Binding CurrentVersionDisplay, StringFormat='Current Version: {0}'}"
+                                <TextBlock Grid.Column="1" Text="{Binding InstalledVersionDisplay, StringFormat='Current Version: {0}'}"
                                            FontSize="12" Foreground="#888888" VerticalAlignment="Center"/>
                             </Grid>
 
@@ -347,7 +347,7 @@
                         Background="Transparent" Foreground="#AAAAAA" FontSize="14" Cursor="Hand"
                         ToolTip.Tip="Manually check for updates and restore dismissed notifications"/>
                 <Border Background="#15FFFFFF" CornerRadius="4" Padding="8,3" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding CurrentVersionDisplay}"
+                    <TextBlock Text="{Binding InstalledVersionDisplay}"
                                FontSize="12" Foreground="#888888" VerticalAlignment="Center"/>
                 </Border>
             </StackPanel>

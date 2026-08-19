@@ -11,6 +11,21 @@ public static class AppUpdateConstants
     public const int MaxHttpRetries = 3;
 
     /// <summary>
+    /// Index for the Update tab in update notification views.
+    /// </summary>
+    public const int UpdateTabIndex = 0;
+
+    /// <summary>
+    /// Index for the Browse Builds tab in update notification views.
+    /// </summary>
+    public const int BrowseBuildsTabIndex = 1;
+
+    /// <summary>
+    /// Maximum valid tab index in update notification views.
+    /// </summary>
+    public const int MaxTabIndex = 1;
+
+    /// <summary>
     /// Velopack directory name.
     /// </summary>
     public const string VelopackDirectory = "velopack";

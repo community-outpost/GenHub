@@ -68,7 +68,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets the formatted display string of the currently installed application version for instance data binding.
     /// </summary>
-    public string CurrentVersionDisplay => DisplayCurrentVersion;
+    public string InstalledVersionDisplay => DisplayCurrentVersion;
 
     private readonly IVelopackUpdateManager _velopackUpdateManager;
     private readonly ILogger<UpdateNotificationViewModel> _logger;
@@ -161,7 +161,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets a value indicating whether the browse builds tab is selected.
     /// </summary>
-    public bool IsBrowseTabSelected => SelectedTabIndex == 1;
+    public bool IsBrowseTabSelected => SelectedTabIndex == AppUpdateConstants.BrowseBuildsTabIndex;
 
     /// <summary>
     /// Gets the list of available sort options for pull requests.
@@ -833,7 +833,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void ShowUpdateTab()
     {
-        SelectedTabIndex = 0;
+        SelectedTabIndex = AppUpdateConstants.UpdateTabIndex;
     }
 
     /// <summary>
@@ -842,7 +842,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void ShowBrowseBuildsTab()
     {
-        SelectedTabIndex = 1;
+        SelectedTabIndex = AppUpdateConstants.BrowseBuildsTabIndex;
     }
 
     /// <summary>
@@ -854,11 +854,11 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     {
         if (parameter is int i)
         {
-            SelectedTabIndex = Math.Clamp(i, 0, 1);
+            SelectedTabIndex = Math.Clamp(i, AppUpdateConstants.UpdateTabIndex, AppUpdateConstants.MaxTabIndex);
         }
         else if (parameter is string s && int.TryParse(s, out var parsed))
         {
-            SelectedTabIndex = Math.Clamp(parsed, 0, 1);
+            SelectedTabIndex = Math.Clamp(parsed, AppUpdateConstants.UpdateTabIndex, AppUpdateConstants.MaxTabIndex);
         }
     }
 
@@ -1442,7 +1442,12 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         _velopackUpdateManager.SubscribedBranch = null;
         SubscribedPr = null;
         SubscribedBranch = null;
+        SelectedVersion = null;
         ShowPrMergedWarning = false;
+        IsUpdateAvailable = false;
+        LatestVersion = string.Empty;
+        ReleaseNotesUrl = string.Empty;
+        _currentUpdateInfo = null;
         StatusMessage = "Switched to MAIN branch updates";
 
         _userSettingsService.Update(settings =>
@@ -1453,6 +1458,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         _ = _userSettingsService.SaveAsync();
 
         _logger.LogInformation("Unsubscribed from dev builds, switched to MAIN");
+        _ = CheckForUpdatesAsync();
     }
 
     [RelayCommand]

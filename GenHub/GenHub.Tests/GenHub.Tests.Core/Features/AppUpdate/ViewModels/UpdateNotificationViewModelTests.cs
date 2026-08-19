@@ -455,7 +455,7 @@ public class UpdateNotificationViewModelTests
     }
 
     /// <summary>
-    /// Verifies that DisplayCurrentVersion and CurrentVersionDisplay return a valid non-empty version string.
+    /// Verifies that DisplayCurrentVersion and InstalledVersionDisplay return a valid non-empty version string.
     /// </summary>
     [Fact]
     public void DisplayCurrentVersion_ReturnsNonEmptyVersion()
@@ -464,12 +464,15 @@ public class UpdateNotificationViewModelTests
         Assert.False(string.IsNullOrWhiteSpace(displayVersion));
         Assert.StartsWith("v", displayVersion);
 
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings());
+
         var vm = new UpdateNotificationViewModel(
             Mock.Of<IVelopackUpdateManager>(),
             Mock.Of<ILogger<UpdateNotificationViewModel>>(),
-            Mock.Of<IUserSettingsService>());
+            mockUserSettings.Object);
 
-        Assert.Equal(displayVersion, vm.CurrentVersionDisplay);
+        Assert.Equal(displayVersion, vm.InstalledVersionDisplay);
     }
 
     /// <summary>
@@ -520,5 +523,42 @@ public class UpdateNotificationViewModelTests
         Assert.Empty(vm.LatestVersion);
         Assert.Empty(vm.ReleaseNotesUrl);
         Assert.Contains("dismissed", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Verifies that Unsubscribe resets subscription fields, clears update available state, and updates status message.
+    /// </summary>
+    [Fact]
+    public void Unsubscribe_ClearsArtifactUpdateStateAndSwitchesToMain()
+    {
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings { SubscribedPrNumber = 389 });
+
+        var mockVelopack = new Mock<IVelopackUpdateManager>();
+        mockVelopack.SetupProperty(x => x.SubscribedPrNumber, 389);
+        mockVelopack.SetupProperty(x => x.SubscribedBranch, null);
+
+        var vm = new UpdateNotificationViewModel(
+            mockVelopack.Object,
+            Mock.Of<ILogger<UpdateNotificationViewModel>>(),
+            mockUserSettings.Object)
+        {
+            SubscribedPr = 389,
+            SelectedVersion = new ArtifactUpdateInfo("0.0.99999-pr389", "abcdef1", 389, 9999, "https://github.com/test/run/9999", 501, "genhub-linux", DateTime.UtcNow, "https://github.com/test/art/1", 1024),
+            IsUpdateAvailable = true,
+            LatestVersion = "0.0.99999-pr389",
+            ReleaseNotesUrl = "https://example.com/notes",
+        };
+
+        vm.UnsubscribeCommand.Execute(null);
+
+        Assert.Null(vm.SubscribedPr);
+        Assert.Null(vm.SubscribedBranch);
+        Assert.Null(vm.SelectedVersion);
+        Assert.False(vm.IsUpdateAvailable);
+        Assert.Empty(vm.LatestVersion);
+        Assert.Empty(vm.ReleaseNotesUrl);
+        Assert.Contains("MAIN", vm.StatusMessage);
+        Assert.Null(mockVelopack.Object.SubscribedPrNumber);
     }
 }

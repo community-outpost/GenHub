@@ -110,6 +110,8 @@ private void MaximizeButton_Click(object? sender, RoutedEventArgs e)
 > 
 > **Solution:** Always call `BeginMoveDrag(e)` directly on pointer press. Avalonia and the OS window manager will handle dragging off maximized state smoothly.
 
+---
+
 > [!CAUTION]
 > **NEVER USE `SystemDecorations="BorderOnly"` ON RESIZABLE/MAXIMIZABLE WINDOWS**
 > 
@@ -125,8 +127,8 @@ private void MaximizeButton_Click(object? sender, RoutedEventArgs e)
 | `GameProfileSettingsWindow` | Profile configuration editor | `Full` | `True` | `OnHeaderPointerPressed` |
 | `UpdateNotificationWindow` | Velopack update dialog | `Full` | `True` | `TitleBar_PointerPressed` |
 | `AddLocalContentWindow` | Content importer dialog | `Full` | `True` | `OnTitleBarPointerPressed` |
-| `GenericMessageWindow` | Modal message/announcement dialog | `None` | `False` | Modal centered |
-| `ConfirmationDialogWindow` | Modal confirmation dialog | `None` | `False` | Modal centered |
+| `GenericMessageWindow` | Modal message/announcement dialog | `None` | `False` | Drag anywhere (`OnPointerPressed`) |
+| `ConfirmationDialogWindow` | Modal confirmation dialog | `None` | `False` | Drag anywhere (`OnPointerPressed`) |
 | `UpdateOptionDialogWindow` | Modal update option dialog | `None` | `False` | Modal centered |
 | `SetupWizardView` | First-run wizard dialog | `None` | `False` | Modal centered |
 | `GitHubTokenDialogView` | GitHub PAT configuration dialog | `BorderOnly` | `False` | Modal centered |

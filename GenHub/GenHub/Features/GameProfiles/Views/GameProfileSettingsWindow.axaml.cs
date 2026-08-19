@@ -43,7 +43,7 @@ public partial class GameProfileSettingsWindow : Window
     {
         if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
         {
-            if (e.ClickCount == 2)
+            if (e.ClickCount == 2 && CanResize)
             {
                 WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
             }
