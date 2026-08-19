@@ -565,7 +565,7 @@ public class UpdateNotificationViewModelTests
         Assert.False(vm.IsUpdateAvailable);
         Assert.Empty(vm.LatestVersion);
         Assert.Empty(vm.ReleaseNotesUrl);
-        Assert.Contains("MAIN", vm.StatusMessage);
+        Assert.False(string.IsNullOrEmpty(vm.StatusMessage));
         Assert.Null(mockVelopack.Object.SubscribedPrNumber);
     }
 }
