@@ -469,11 +469,11 @@ public class UpdateNotificationViewModelTests
             Mock.Of<ILogger<UpdateNotificationViewModel>>(),
             mockUserSettings.Object);
 
-        var newerArtifact = new ArtifactUpdateInfo("99.99.99", "abcdef1", 389, 9999, "https://github.com/test/run/9999", 501, "genhub-linux", DateTime.UtcNow, "https://github.com/test/art/1", 1024);
+        var newerArtifact = new ArtifactUpdateInfo("0.0.99999-pr389", "abcdef1", 389, 9999, "https://github.com/test/run/9999", 501, "genhub-linux", DateTime.UtcNow, "https://github.com/test/art/1", 1024);
         vm.SelectedVersion = newerArtifact;
 
         Assert.True(vm.IsUpdateAvailable);
-        Assert.Equal("99.99.99", vm.LatestVersion);
-        Assert.Contains("99.99.99", vm.StatusMessage);
+        Assert.Equal("0.0.99999-pr389", vm.LatestVersion);
+        Assert.Contains("0.0.99999-pr389", vm.StatusMessage);
     }
 }

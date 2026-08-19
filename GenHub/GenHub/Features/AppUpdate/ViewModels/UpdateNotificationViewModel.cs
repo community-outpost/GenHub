@@ -631,6 +631,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 {
                     StatusMessage = $"New build available: {value.DisplayVersion}";
                 }
+
                 return;
             }
 
