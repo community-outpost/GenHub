@@ -1665,6 +1665,24 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
         if (prNumber.HasValue)
         {
+            if (run.TryGetProperty("pull_requests", out var prs) && prs.ValueKind == JsonValueKind.Array)
+            {
+                var prCount = 0;
+                foreach (var pr in prs.EnumerateArray())
+                {
+                    prCount++;
+                    if (pr.TryGetProperty("number", out var num) && num.GetInt32() == prNumber.Value)
+                    {
+                        return true;
+                    }
+                }
+
+                if (prCount > 0)
+                {
+                    return false;
+                }
+            }
+
             return string.IsNullOrEmpty(branchName) || string.Equals(actualBranch, branchName, StringComparison.Ordinal);
         }
 
