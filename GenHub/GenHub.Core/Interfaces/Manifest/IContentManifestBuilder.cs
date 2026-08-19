@@ -214,37 +214,6 @@ public interface IContentManifestBuilder
     IContentManifestBuilder WithInstallationInstructions(InstallationInstructions installationInstructions);
 
     /// <summary>
-    /// Adds a pre-installation step.
-    /// </summary>
-    /// <param name="name">Step name.</param>
-    /// <param name="kind">The kind of installation step to execute.</param>
-    /// <param name="targetRelativePath">Target relative path within workspace.</param>
-    /// <param name="arguments">Command arguments for executable steps.</param>
-    /// <param name="destinationRelativePath">Destination relative path for rename operations.</param>
-    /// <param name="requiresElevation">Whether elevation is required.</param>
-    /// <param name="statusMessage">Optional user-facing status message.</param>
-    /// <param name="runOnce">Whether to execute only once and skip on future updates.</param>
-    /// <param name="stepKey">Optional unique step key for tracking execution.</param>
-    /// <returns>The builder instance for chaining.</returns>
-    IContentManifestBuilder AddPreInstallStep(
-        string name,
-        InstallationStepKind kind,
-        string? targetRelativePath = null,
-        List<string>? arguments = null,
-        string? destinationRelativePath = null,
-        bool requiresElevation = false,
-        string? statusMessage = null,
-        bool runOnce = false,
-        string? stepKey = null);
-
-    /// <summary>
-    /// Adds a pre-installation step using an existing <see cref="InstallationStep"/> instance.
-    /// </summary>
-    /// <param name="step">The installation step to add.</param>
-    /// <returns>The builder instance for chaining.</returns>
-    IContentManifestBuilder AddPreInstallStep(InstallationStep step);
-
-    /// <summary>
     /// Adds a post-installation step.
     /// </summary>
     /// <param name="name">Step name.</param>

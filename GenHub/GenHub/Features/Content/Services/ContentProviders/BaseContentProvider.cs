@@ -158,17 +158,34 @@ public abstract class BaseContentProvider(
             {
                 if (installationInstructionsService != null)
                 {
-                    // Execute post-installation steps if declared on the delivered manifest
-                    var stepExecutionResult = await installationInstructionsService.ExecutePostInstallStepsAsync(
-                        result.Data,
-                        workingDirectory,
-                        progress: progress,
-                        cancellationToken: cancellationToken);
-
-                    if (!stepExecutionResult.Success)
+                    try
                     {
-                        Logger.LogError("Post-installation steps failed for manifest {ManifestId}: {Error}", manifest.Id, stepExecutionResult.FirstError);
-                        return OperationResult<ContentManifest>.CreateFailure(stepExecutionResult.Errors);
+                        // Execute post-installation steps if declared on the delivered manifest
+                        var stepExecutionResult = await installationInstructionsService.ExecutePostInstallStepsAsync(
+                            result.Data,
+                            workingDirectory,
+                            providerSource: SourceName,
+                            progress: progress,
+                            cancellationToken: cancellationToken);
+
+                        if (!stepExecutionResult.Success)
+                        {
+                            Logger.LogError("Post-installation steps failed for manifest {ManifestId}: {Error}", manifest.Id, stepExecutionResult.FirstError);
+                            await RollbackPreparedContentAsync(manifest, result.Data, workingDirectory, CancellationToken.None);
+                            return OperationResult<ContentManifest>.CreateFailure(stepExecutionResult.Errors);
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        Logger.LogInformation("Post-installation execution was canceled for manifest {ManifestId}; rolling back prepared content", manifest.Id);
+                        await RollbackPreparedContentAsync(manifest, result.Data, workingDirectory, CancellationToken.None);
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogError(ex, "Unexpected error executing post-installation steps for manifest {ManifestId}; rolling back prepared content", manifest.Id);
+                        await RollbackPreparedContentAsync(manifest, result.Data, workingDirectory, CancellationToken.None);
+                        return OperationResult<ContentManifest>.CreateFailure($"Post-installation execution failed: {ex.Message}");
                     }
                 }
 
@@ -221,6 +238,23 @@ public abstract class BaseContentProvider(
             Logger.LogError(ex, "Failed to prepare content for manifest {ManifestId}", manifest.Id);
             return OperationResult<ContentManifest>.CreateFailure($"Content preparation failed: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Rolls back prepared content and registered manifests when post-preparation steps fail.
+    /// </summary>
+    /// <param name="originalManifest">The original requested manifest.</param>
+    /// <param name="preparedManifest">The prepared manifest returned by PrepareContentInternalAsync.</param>
+    /// <param name="workingDirectory">The working directory where content was prepared.</param>
+    /// <param name="cancellationToken">A token to cancel rollback operations.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    protected virtual Task RollbackPreparedContentAsync(
+        ContentManifest originalManifest,
+        ContentManifest preparedManifest,
+        string workingDirectory,
+        CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
     }
 
     /// <summary>

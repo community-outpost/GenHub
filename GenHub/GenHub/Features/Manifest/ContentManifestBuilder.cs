@@ -625,47 +625,9 @@ public partial class ContentManifestBuilder(
     {
         _manifest.InstallationInstructions = installationInstructions ?? new InstallationInstructions();
         logger.LogDebug(
-            "Set installation instructions with strategy {Strategy}, {PreCount} pre-install steps, {PostCount} post-install steps",
+            "Set installation instructions with strategy {Strategy}, {PostCount} post-install steps",
             _manifest.InstallationInstructions.WorkspaceStrategy,
-            _manifest.InstallationInstructions.PreInstallSteps.Count,
             _manifest.InstallationInstructions.PostInstallSteps.Count);
-        return this;
-    }
-
-    /// <inheritdoc />
-    public IContentManifestBuilder AddPreInstallStep(
-        string name,
-        InstallationStepKind kind,
-        string? targetRelativePath = null,
-        List<string>? arguments = null,
-        string? destinationRelativePath = null,
-        bool requiresElevation = false,
-        string? statusMessage = null,
-        bool runOnce = false,
-        string? stepKey = null)
-    {
-        var step = new InstallationStep
-        {
-            Name = name,
-            Kind = kind,
-            TargetRelativePath = targetRelativePath,
-            Arguments = arguments,
-            DestinationRelativePath = destinationRelativePath,
-            RequiresElevation = requiresElevation,
-            StatusMessage = statusMessage,
-            RunOnce = runOnce,
-            StepKey = stepKey,
-        };
-        return AddPreInstallStep(step);
-    }
-
-    /// <inheritdoc />
-    public IContentManifestBuilder AddPreInstallStep(InstallationStep step)
-    {
-        ArgumentNullException.ThrowIfNull(step);
-        _manifest.InstallationInstructions ??= new InstallationInstructions();
-        _manifest.InstallationInstructions.PreInstallSteps.Add(step);
-        logger.LogDebug("Added pre-install step: {StepName} (Kind: {Kind}, RunOnce: {RunOnce})", step.Name, step.Kind, step.RunOnce);
         return this;
     }
 

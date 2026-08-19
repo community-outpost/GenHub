@@ -242,4 +242,43 @@ public class GeneralsOnlineProvider(
                 $"Content preparation failed: {ex.Message}");
         }
     }
+
+    /// <inheritdoc />
+    protected override async Task RollbackPreparedContentAsync(
+        ContentManifest originalManifest,
+        ContentManifest preparedManifest,
+        string workingDirectory,
+        CancellationToken cancellationToken)
+    {
+        Logger.LogWarning("Rolling back Generals Online manifest registration for version {Version}", preparedManifest.Version);
+
+        try
+        {
+            var allManifestsResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
+            if (allManifestsResult.Success && allManifestsResult.Data != null)
+            {
+                var matchingManifests = allManifestsResult.Data
+                    .Where(m => string.Equals(m.Version, preparedManifest.Version, StringComparison.OrdinalIgnoreCase) &&
+                                string.Equals(m.Publisher?.PublisherType, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                foreach (var manifest in matchingManifests)
+                {
+                    var removeResult = await manifestPool.RemoveManifestAsync(manifest.Id, cancellationToken: cancellationToken);
+                    if (!removeResult.Success)
+                    {
+                        Logger.LogWarning("Failed to remove manifest {ManifestId} during rollback: {Error}", manifest.Id, removeResult.FirstError);
+                    }
+                    else
+                    {
+                        Logger.LogInformation("Unregistered manifest {ManifestId} during rollback", manifest.Id);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Exception occurred during Generals Online manifest rollback for version {Version}", preparedManifest.Version);
+        }
+    }
 }

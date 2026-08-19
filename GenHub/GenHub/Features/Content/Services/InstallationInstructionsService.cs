@@ -53,60 +53,21 @@ public class InstallationInstructionsService(
     }
 
     /// <inheritdoc />
-    public Task<OperationResult> ExecutePreInstallStepsAsync(
-        ContentManifest manifest,
-        string workingDirectory,
-        IProgress<ContentAcquisitionProgress>? progress = null,
-        CancellationToken cancellationToken = default)
-    {
-        return ExecutePreInstallStepsAsync(manifest, workingDirectory, force: false, progress, cancellationToken);
-    }
-
-    /// <inheritdoc />
-    public async Task<OperationResult> ExecutePreInstallStepsAsync(
-        ContentManifest manifest,
-        string workingDirectory,
-        bool force,
-        IProgress<ContentAcquisitionProgress>? progress = null,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(manifest);
-
-        if (manifest.InstallationInstructions?.PreInstallSteps == null ||
-            manifest.InstallationInstructions.PreInstallSteps.Count == 0)
-        {
-            return OperationResult.CreateSuccess();
-        }
-
-        logger.LogInformation(
-            "Executing {Count} pre-install step(s) for manifest {ManifestId} (force: {Force})",
-            manifest.InstallationInstructions.PreInstallSteps.Count,
-            manifest.Id,
-            force);
-
-        return await ExecuteStepsAsync(
-            manifest.InstallationInstructions.PreInstallSteps,
-            manifest,
-            workingDirectory,
-            force,
-            progress,
-            cancellationToken);
-    }
-
-    /// <inheritdoc />
     public Task<OperationResult> ExecutePostInstallStepsAsync(
         ContentManifest manifest,
         string workingDirectory,
+        string? providerSource = null,
         IProgress<ContentAcquisitionProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        return ExecutePostInstallStepsAsync(manifest, workingDirectory, force: false, progress, cancellationToken);
+        return ExecutePostInstallStepsAsync(manifest, workingDirectory, providerSource, force: false, progress, cancellationToken);
     }
 
     /// <inheritdoc />
     public async Task<OperationResult> ExecutePostInstallStepsAsync(
         ContentManifest manifest,
         string workingDirectory,
+        string? providerSource,
         bool force,
         IProgress<ContentAcquisitionProgress>? progress = null,
         CancellationToken cancellationToken = default)
@@ -120,15 +81,17 @@ public class InstallationInstructionsService(
         }
 
         logger.LogInformation(
-            "Executing {Count} post-install step(s) for manifest {ManifestId} (force: {Force})",
+            "Executing {Count} post-install step(s) for manifest {ManifestId} from provider {Provider} (force: {Force})",
             manifest.InstallationInstructions.PostInstallSteps.Count,
             manifest.Id,
+            providerSource ?? "unspecified",
             force);
 
         return await ExecuteStepsAsync(
             manifest.InstallationInstructions.PostInstallSteps,
             manifest,
             workingDirectory,
+            providerSource,
             force,
             progress,
             cancellationToken);
@@ -138,6 +101,7 @@ public class InstallationInstructionsService(
         IReadOnlyList<InstallationStep> steps,
         ContentManifest manifest,
         string workingDirectory,
+        string? providerSource,
         bool force,
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
@@ -157,7 +121,7 @@ public class InstallationInstructionsService(
                 continue;
             }
 
-            var stepResult = await ExecuteSingleStepAsync(step, manifest, workingDirectory, force, progress, cancellationToken);
+            var stepResult = await ExecuteSingleStepAsync(step, manifest, workingDirectory, providerSource, force, progress, cancellationToken);
             if (!stepResult.Success)
             {
                 return stepResult;
@@ -171,10 +135,17 @@ public class InstallationInstructionsService(
         InstallationStep step,
         ContentManifest manifest,
         string workingDirectory,
+        string? providerSource,
         bool force,
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
     {
+        var authResult = ValidateProviderAuthorization(providerSource, manifest, step);
+        if (!authResult.Success)
+        {
+            return authResult;
+        }
+
         var stepKey = GetStepKey(step, manifest);
 
         if (!force && step.RunOnce && await ShouldSkipStepAsync(step, stepKey, manifest, cancellationToken))
@@ -291,12 +262,6 @@ public class InstallationInstructionsService(
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
     {
-        var authResult = ValidatePublisherAuthorization(manifest, step);
-        if (!authResult.Success)
-        {
-            return authResult;
-        }
-
         var pathResult = ValidateInstallerTargetPath(step, workingDirectory, out var targetFullPath);
         if (!pathResult.Success)
         {
@@ -320,25 +285,25 @@ public class InstallationInstructionsService(
         return await RunInstallerProcessAsync(step, targetFullPath, workingDirectory, cancellationToken);
     }
 
-    private OperationResult ValidatePublisherAuthorization(ContentManifest manifest, InstallationStep step)
+    private OperationResult ValidateProviderAuthorization(string? providerSource, ContentManifest manifest, InstallationStep step)
     {
-        var publisherType = manifest.Publisher?.PublisherType ?? string.Empty;
-        var publisherName = manifest.Publisher?.Name ?? string.Empty;
+        var effectiveSource = !string.IsNullOrWhiteSpace(providerSource)
+            ? providerSource
+            : string.Empty;
 
-        var isTrusted = PublisherTypeConstants.TrustedExecutablePublishers.Contains(publisherType) ||
-                        PublisherTypeConstants.TrustedExecutablePublishers.Contains(publisherName);
+        var isTrusted = PublisherTypeConstants.TrustedExecutablePublishers.Contains(effectiveSource);
 
         if (!isTrusted)
         {
             logger.LogError(
-                "Untrusted publisher '{PublisherType}' ({PublisherName}) attempted to execute installer step '{StepName}' for manifest {ManifestId}",
-                publisherType,
-                publisherName,
+                "Untrusted provider '{ProviderSource}' attempted to execute step '{StepName}' (Kind: {Kind}) for manifest {ManifestId}",
+                effectiveSource,
                 step.Name,
+                step.Kind,
                 manifest.Id);
 
             return OperationResult.CreateFailure(
-                $"Publisher '{(!string.IsNullOrEmpty(publisherType) ? publisherType : publisherName)}' is not authorized to execute installation steps.");
+                $"Provider '{(!string.IsNullOrEmpty(effectiveSource) ? effectiveSource : "unknown")}' is not authorized to execute installation steps.");
         }
 
         return OperationResult.CreateSuccess();
@@ -356,7 +321,7 @@ public class InstallationInstructionsService(
         var normalizedRelativePath = PathHelper.NormalizeRelativePath(step.TargetRelativePath);
         targetFullPath = Path.Combine(workingDirectory, normalizedRelativePath);
 
-        if (!PathHelper.IsPathContainedIn(targetFullPath, workingDirectory))
+        if (!PathHelper.IsPathWithinDirectory(workingDirectory, targetFullPath))
         {
             logger.LogError("Target installer path '{Target}' escapes working directory '{Dir}'", step.TargetRelativePath, workingDirectory);
             return OperationResult.CreateFailure($"Installer path '{step.TargetRelativePath}' escapes the working directory.");
@@ -454,8 +419,15 @@ public class InstallationInstructionsService(
             }
         }
 
-        if (step.RequiresElevation && OperatingSystem.IsWindows())
+        if (step.RequiresElevation)
         {
+            if (!OperatingSystem.IsWindows())
+            {
+                logger.LogError("Installation step '{StepName}' requires administrator elevation, which is only supported on Windows", step.Name);
+                return OperationResult.CreateFailure(
+                    $"Installation step '{step.Name}' requires administrator elevation, which is only supported on Windows.");
+            }
+
             startInfo.UseShellExecute = true;
             startInfo.Verb = "runas";
         }
@@ -499,6 +471,23 @@ public class InstallationInstructionsService(
 
                 notificationService.ShowError("Installation Step Failed", $"Step '{step.Name}' timed out.");
                 return OperationResult.CreateFailure($"Installation step '{step.Name}' timed out.");
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                logger.LogInformation("Installation step '{StepName}' was canceled by caller, killing process tree", step.Name);
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill(entireProcessTree: true);
+                    }
+                }
+                catch (Exception killEx)
+                {
+                    logger.LogWarning(killEx, "Failed to terminate canceled installer step '{StepName}'", step.Name);
+                }
+
+                throw;
             }
 
             if (process.ExitCode != 0)
@@ -549,7 +538,7 @@ public class InstallationInstructionsService(
         var normalizedRelativePath = PathHelper.NormalizeRelativePath(step.TargetRelativePath);
         var targetFullPath = Path.Combine(workingDirectory, normalizedRelativePath);
 
-        if (!PathHelper.IsPathContainedIn(targetFullPath, workingDirectory))
+        if (!PathHelper.IsPathWithinDirectory(workingDirectory, targetFullPath))
         {
             logger.LogError("Target remove path '{Target}' escapes working directory '{Dir}'", step.TargetRelativePath, workingDirectory);
             return OperationResult.CreateFailure($"Target file '{step.TargetRelativePath}' escapes the working directory.");
@@ -594,13 +583,13 @@ public class InstallationInstructionsService(
         var sourceFullPath = Path.Combine(workingDirectory, normalizedSourcePath);
         var destFullPath = Path.Combine(workingDirectory, normalizedDestPath);
 
-        if (!PathHelper.IsPathContainedIn(sourceFullPath, workingDirectory))
+        if (!PathHelper.IsPathWithinDirectory(workingDirectory, sourceFullPath))
         {
             logger.LogError("Source path '{Source}' escapes working directory '{Dir}'", step.TargetRelativePath, workingDirectory);
             return OperationResult.CreateFailure($"Source path '{step.TargetRelativePath}' escapes the working directory.");
         }
 
-        if (!PathHelper.IsPathContainedIn(destFullPath, workingDirectory))
+        if (!PathHelper.IsPathWithinDirectory(workingDirectory, destFullPath))
         {
             logger.LogError("Destination path '{Dest}' escapes working directory '{Dir}'", step.DestinationRelativePath, workingDirectory);
             return OperationResult.CreateFailure($"Destination path '{step.DestinationRelativePath}' escapes the working directory.");

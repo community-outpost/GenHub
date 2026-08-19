@@ -50,6 +50,7 @@ public class GitHubContentProviderTests
         instructionsMock.Setup(i => i.ExecutePostInstallStepsAsync(
                 It.IsAny<ContentManifest>(),
                 It.IsAny<string>(),
+                It.IsAny<string?>(),
                 It.IsAny<IProgress<ContentAcquisitionProgress>>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult.CreateSuccess());

@@ -263,24 +263,6 @@ public class ContentManifestBuilderTests
     }
 
     /// <summary>
-    /// Tests that AddPreInstallStep adds a structured installation step.
-    /// </summary>
-    [Fact]
-    public void AddPreInstallStep_AddsStepCorrectly()
-    {
-        var result = _builder
-            .WithBasicInfo("Test Publisher", "Test Name", "1")
-            .AddPreInstallStep("Clean Old File", InstallationStepKind.RemoveFile, "old_file.tmp")
-            .Build();
-
-        Assert.NotNull(result.InstallationInstructions);
-        var step = Assert.Single(result.InstallationInstructions.PreInstallSteps);
-        Assert.Equal("Clean Old File", step.Name);
-        Assert.Equal(InstallationStepKind.RemoveFile, step.Kind);
-        Assert.Equal("old_file.tmp", step.TargetRelativePath);
-    }
-
-    /// <summary>
     /// Tests that Build returns a valid manifest with minimal configuration.
     /// </summary>
     [Fact]

@@ -88,17 +88,17 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that executing installer steps from an untrusted publisher fails.
+    /// Verifies that executing installer steps from an untrusted provider fails even if manifest metadata claims to be trusted.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ExecutePostInstallStepsAsync_UntrustedPublisher_FailsExecution()
+    public async Task ExecutePostInstallStepsAsync_UntrustedProvider_FailsExecution()
     {
         var manifest = CreateBaseManifest();
         manifest.Publisher = new PublisherInfo
         {
-            Name = "Untrusted Publisher",
-            PublisherType = "untrusted_source",
+            Name = GeneralsOnlineConstants.PublisherName,
+            PublisherType = PublisherTypeConstants.GeneralsOnline,
         };
         manifest.InstallationInstructions = new InstallationInstructions
         {
@@ -113,7 +113,35 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
             ],
         };
 
-        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory);
+        // Manifest claims GeneralsOnline, but providerSource is untrusted
+        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory, providerSource: "untrusted_source");
+
+        Assert.False(result.Success);
+        Assert.Contains("not authorized to execute installation steps", result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies that mutating steps like RemoveFile and RenameFile fail when provider is untrusted.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExecutePostInstallStepsAsync_UntrustedProvider_MutatingSteps_FailExecution()
+    {
+        var manifest = CreateBaseManifest();
+        manifest.InstallationInstructions = new InstallationInstructions
+        {
+            PostInstallSteps =
+            [
+                new InstallationStep
+                {
+                    Name = "Delete Something",
+                    Kind = InstallationStepKind.RemoveFile,
+                    TargetRelativePath = "important.dat",
+                },
+            ],
+        };
+
+        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory, providerSource: "untrusted_source");
 
         Assert.False(result.Success);
         Assert.Contains("not authorized to execute installation steps", result.FirstError);
@@ -145,7 +173,7 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
             ],
         };
 
-        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory);
+        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory, providerSource: PublisherTypeConstants.GeneralsOnline);
 
         Assert.False(result.Success);
         Assert.Contains("escapes the working directory", result.FirstError);
@@ -182,7 +210,7 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
             ],
         };
 
-        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory);
+        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory, providerSource: PublisherTypeConstants.GeneralsOnline);
 
         Assert.False(result.Success);
         Assert.Contains("not declared in manifest files", result.FirstError);
@@ -230,7 +258,7 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
             ],
         };
 
-        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory);
+        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory, providerSource: PublisherTypeConstants.GeneralsOnline);
 
         Assert.False(result.Success);
         Assert.Contains("Integrity verification failed", result.FirstError);
@@ -261,7 +289,7 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
             ],
         };
 
-        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory);
+        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory, providerSource: PublisherTypeConstants.GeneralsOnline);
 
         Assert.True(result.Success);
         Assert.False(File.Exists(fullPath));
@@ -298,7 +326,7 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
             ],
         };
 
-        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory);
+        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory, providerSource: PublisherTypeConstants.GeneralsOnline);
 
         Assert.True(result.Success);
         Assert.False(File.Exists(sourceFullPath));
@@ -364,7 +392,7 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
             ],
         };
 
-        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory);
+        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory, providerSource: PublisherTypeConstants.GeneralsOnline);
 
         Assert.True(result.Success);
         Assert.True(_userSettings.IsInstallationStepExecuted(GeneralsOnlineConstants.EacStepKey));
@@ -420,7 +448,7 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
         // Mark as already executed
         _userSettings.RecordInstallationStepExecuted(GeneralsOnlineConstants.EacStepKey);
 
-        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory);
+        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory, providerSource: PublisherTypeConstants.GeneralsOnline);
 
         Assert.True(result.Success);
 
@@ -491,7 +519,7 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
         _userSettings.RecordInstallationStepExecuted(GeneralsOnlineConstants.EacStepKey);
 
         // Force execution
-        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory, force: true);
+        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory, providerSource: PublisherTypeConstants.GeneralsOnline, force: true);
 
         Assert.True(result.Success);
         _notificationServiceMock.Verify(
@@ -523,10 +551,121 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
             ],
         };
 
-        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory);
+        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory, providerSource: PublisherTypeConstants.GeneralsOnline);
 
         Assert.False(result.Success);
         Assert.Contains("Unsupported installation step kind", result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies that elevated steps fail with an unsupported result on non-Windows platforms.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExecutePostInstallStepsAsync_ElevationOnNonWindows_ReturnsFailure()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var scriptName = "elevated_script.sh";
+        var fullPath = Path.Combine(_tempDirectory, scriptName);
+        File.WriteAllText(fullPath, "#!/bin/sh\nexit 0\n");
+        File.SetUnixFileMode(fullPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+        const string expectedHash = "elevated_hash";
+        _hashProviderMock
+            .Setup(h => h.ComputeFileHashAsync(fullPath, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedHash);
+
+        var manifest = CreateBaseManifest();
+        manifest.Files =
+        [
+            new ManifestFile
+            {
+                RelativePath = scriptName,
+                Hash = expectedHash,
+            },
+        ];
+        manifest.InstallationInstructions = new InstallationInstructions
+        {
+            PostInstallSteps =
+            [
+                new InstallationStep
+                {
+                    Name = "Elevated Step",
+                    Kind = InstallationStepKind.RunVerifiedInstaller,
+                    TargetRelativePath = scriptName,
+                    RequiresElevation = true,
+                },
+            ],
+        };
+
+        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory, providerSource: PublisherTypeConstants.GeneralsOnline);
+
+        Assert.False(result.Success);
+        Assert.Contains("requires administrator elevation, which is only supported on Windows", result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies that caller cancellation terminates the running child installer process.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExecutePostInstallStepsAsync_CallerCancellation_TerminatesProcessAndThrows()
+    {
+        var scriptName = OperatingSystem.IsWindows() ? "sleep_installer.bat" : "sleep_installer.sh";
+        var fullPath = Path.Combine(_tempDirectory, scriptName);
+
+        if (OperatingSystem.IsWindows())
+        {
+            File.WriteAllText(fullPath, "@echo off\r\nping -n 30 127.0.0.1 > nul\r\n");
+        }
+        else
+        {
+            File.WriteAllText(fullPath, "#!/bin/sh\nsleep 30\n");
+            File.SetUnixFileMode(fullPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+
+        const string expectedHash = "sleep_hash";
+        _hashProviderMock
+            .Setup(h => h.ComputeFileHashAsync(fullPath, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedHash);
+
+        var manifest = CreateBaseManifest();
+        manifest.Files =
+        [
+            new ManifestFile
+            {
+                RelativePath = scriptName,
+                Hash = expectedHash,
+            },
+        ];
+        manifest.InstallationInstructions = new InstallationInstructions
+        {
+            PostInstallSteps =
+            [
+                new InstallationStep
+                {
+                    Name = "Long Running Step",
+                    Kind = InstallationStepKind.RunVerifiedInstaller,
+                    TargetRelativePath = scriptName,
+                },
+            ],
+        };
+
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(TimeSpan.FromMilliseconds(200));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            await _service.ExecutePostInstallStepsAsync(
+                manifest,
+                _tempDirectory,
+                providerSource: PublisherTypeConstants.GeneralsOnline,
+                cancellationToken: cts.Token);
+        });
     }
 
     private static ContentManifest CreateBaseManifest() => new()

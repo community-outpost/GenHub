@@ -64,60 +64,30 @@ public static class PathHelper
     }
 
     /// <summary>
-    /// Determines whether the candidate path is contained within the specified container directory.
-    /// Prevents directory traversal and sibling prefix false positives.
+    /// Determines whether a candidate path resolves to a location inside a base directory.
+    /// Both paths are fully normalized first, so <c>..</c> segments, redundant separators and
+    /// rooted candidates cannot escape the base directory. Because normalization is textual and a
+    /// symbolic link or junction redirects a path that reads as contained, both sides are also
+    /// compared after their links are followed; a path that cannot be resolved — because it does
+    /// not exist yet, or the filesystem refuses the query — is compared as written.
     /// </summary>
-    /// <param name="candidatePath">The candidate file or directory path to check.</param>
-    /// <param name="containerDirectory">The directory that must contain the candidate path.</param>
-    /// <returns><see langword="true"/> if candidatePath resolves inside containerDirectory; otherwise, <see langword="false"/>.</returns>
-    public static bool IsPathContainedIn(string candidatePath, string containerDirectory)
+    /// <param name="baseDirectory">The directory that must contain the candidate path.</param>
+    /// <param name="candidatePath">The path to test for containment.</param>
+    /// <returns><see langword="true"/> when the candidate resolves inside the base directory; otherwise, <see langword="false"/>.</returns>
+    public static bool IsPathWithinDirectory(string baseDirectory, string candidatePath)
     {
-        if (string.IsNullOrWhiteSpace(candidatePath) || string.IsNullOrWhiteSpace(containerDirectory))
+        if (string.IsNullOrWhiteSpace(baseDirectory) || string.IsNullOrWhiteSpace(candidatePath))
         {
             return false;
         }
 
         try
         {
-            var fullCandidate = Path.GetFullPath(candidatePath);
-            var fullContainer = Path.GetFullPath(containerDirectory);
+            var normalizedRoot = Path.GetFullPath(baseDirectory);
+            var normalizedTarget = Path.GetFullPath(candidatePath);
 
-            if (!fullContainer.EndsWith(Path.DirectorySeparatorChar) && !fullContainer.EndsWith(Path.AltDirectorySeparatorChar))
-            {
-                fullContainer += Path.DirectorySeparatorChar;
-            }
-
-            var isContained = fullCandidate.StartsWith(fullContainer, PathComparison) ||
-                   string.Equals(
-                       fullCandidate.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-                       fullContainer.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-                       PathComparison);
-
-            if (!isContained)
-            {
-                return false;
-            }
-
-            if (File.Exists(fullCandidate))
-            {
-                var fileInfo = new FileInfo(fullCandidate);
-                var target = fileInfo.ResolveLinkTarget(returnFinalTarget: true);
-                if (target != null)
-                {
-                    return IsPathContainedIn(target.FullName, fullContainer);
-                }
-            }
-            else if (Directory.Exists(fullCandidate))
-            {
-                var dirInfo = new DirectoryInfo(fullCandidate);
-                var target = dirInfo.ResolveLinkTarget(returnFinalTarget: true);
-                if (target != null)
-                {
-                    return IsPathContainedIn(target.FullName, fullContainer);
-                }
-            }
-
-            return true;
+            return IsContained(normalizedRoot, normalizedTarget) &&
+                   IsContained(FollowLinks(normalizedRoot), FollowLinks(normalizedTarget));
         }
         catch
         {

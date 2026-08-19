@@ -51,6 +51,7 @@ public class BaseContentProviderTests
         instructionsMock.Setup(i => i.ExecutePostInstallStepsAsync(
                 It.IsAny<ContentManifest>(),
                 It.IsAny<string>(),
+                It.IsAny<string?>(),
                 It.IsAny<IProgress<ContentAcquisitionProgress>>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult.CreateSuccess());
@@ -69,12 +70,12 @@ public class BaseContentProviderTests
         // Assert
         Assert.True(result.Success);
         validatorMock.Verify(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()), Times.Once);
-        instructionsMock.Verify(i => i.ExecutePostInstallStepsAsync(manifest, "/tmp/test", It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
+        instructionsMock.Verify(i => i.ExecutePostInstallStepsAsync(manifest, "/tmp/test", "Test Provider", It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
         validatorMock.Verify(v => v.ValidateAllAsync(It.IsAny<string>(), manifest, It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>
-    /// Verifies that PrepareContentAsync fails when post-install steps fail.
+    /// Verifies that PrepareContentAsync fails and triggers rollback when post-install steps fail.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
@@ -97,6 +98,7 @@ public class BaseContentProviderTests
         instructionsMock.Setup(i => i.ExecutePostInstallStepsAsync(
                 It.IsAny<ContentManifest>(),
                 It.IsAny<string>(),
+                It.IsAny<string?>(),
                 It.IsAny<IProgress<ContentAcquisitionProgress>>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult.CreateFailure("Post-install step execution error"));
@@ -115,6 +117,53 @@ public class BaseContentProviderTests
         // Assert
         Assert.False(result.Success);
         Assert.Contains("Post-install step execution error", result.FirstError);
+        Assert.True(provider.RollbackCalled);
+    }
+
+    /// <summary>
+    /// Verifies that PrepareContentAsync triggers rollback when post-install steps are canceled.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PrepareContentAsync_CancelsAndTriggersRollbackAsync()
+    {
+        // Arrange
+        var validatorMock = new Mock<IContentValidator>();
+        var instructionsMock = new Mock<IInstallationInstructionsService>();
+        var loggerMock = new Mock<ILogger>();
+        var discovererMock = new Mock<IContentDiscoverer>();
+        var resolverMock = new Mock<IContentResolver>();
+        var delivererMock = new Mock<IContentDeliverer>();
+
+        var manifest = new ContentManifest { Id = "1.0.genhub.mod.content", Name = "Test" };
+        var validationResult = new ValidationResult(manifest.Id, new List<ValidationIssue>());
+
+        validatorMock.Setup(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(validationResult);
+
+        instructionsMock.Setup(i => i.ExecutePostInstallStepsAsync(
+                It.IsAny<ContentManifest>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+
+        var provider = new TestContentProvider(
+            validatorMock.Object,
+            instructionsMock.Object,
+            loggerMock.Object,
+            discovererMock.Object,
+            resolverMock.Object,
+            delivererMock.Object);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        {
+            await provider.PrepareContentAsync(manifest, "/tmp/test");
+        });
+
+        Assert.True(provider.RollbackCalled);
     }
 
     /// <summary>
@@ -167,6 +216,8 @@ public class BaseContentProviderTests
         private readonly IContentResolver _resolver;
         private readonly IContentDeliverer _deliverer;
 
+        public bool RollbackCalled { get; private set; }
+
         public TestContentProvider(
             IContentValidator validator,
             IInstallationInstructionsService instructionsService,
@@ -211,6 +262,16 @@ public class BaseContentProviderTests
             ContentManifest manifest, string workingDirectory, IProgress<ContentAcquisitionProgress>? progress, CancellationToken cancellationToken)
         {
             return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
+        }
+
+        protected override Task RollbackPreparedContentAsync(
+            ContentManifest originalManifest,
+            ContentManifest preparedManifest,
+            string workingDirectory,
+            CancellationToken cancellationToken)
+        {
+            RollbackCalled = true;
+            return Task.CompletedTask;
         }
     }
 }

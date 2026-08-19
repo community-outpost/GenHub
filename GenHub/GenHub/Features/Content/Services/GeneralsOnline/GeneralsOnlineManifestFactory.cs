@@ -730,7 +730,6 @@ public class GeneralsOnlineManifestFactory(
         {
             WorkspaceStrategy = manifest.InstallationInstructions?.WorkspaceStrategy ?? WorkspaceConstants.DefaultWorkspaceStrategy,
             DownloadHash = manifest.InstallationInstructions?.DownloadHash,
-            PreInstallSteps = [.. manifest.InstallationInstructions?.PreInstallSteps ?? []],
             PostInstallSteps = [.. inheritedPostSteps],
         };
 
