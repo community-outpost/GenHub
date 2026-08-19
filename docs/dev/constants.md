@@ -68,15 +68,60 @@ Application-wide constants for GenHub.
 
 Constants related to application updates and Velopack.
 
-| Constant                                | Value/Type                  | Description                                      |
-| --------------------------------------- | --------------------------- | ------------------------------------------------ |
-| `DefaultPeriodicUpdateCheckIntervalMinutes`   | `30`                        | Default interval in minutes for periodic update checks (30 minutes) |
-| `MinPeriodicUpdateCheckIntervalMinutes`       | `5`                         | Minimum interval in minutes for periodic update checks (5 minutes)   |
-| `MaxPeriodicUpdateCheckIntervalMinutes`       | `10080`                     | Maximum interval in minutes for periodic update checks (10080 minutes / 7 days) |
-| `PeriodicUpdateCheckIntervalIncrementMinutes` | `5`                         | Increment step in minutes for periodic update check interval setting (5 minutes) |
-| `PostUpdateExitDelay`                         | `TimeSpan.FromSeconds(5)`   | Delay before exit after applying update          |
-| `CacheDuration`                               | `TimeSpan.FromHours(1)`     | Cache duration for update checks                 |
-| `MaxHttpRetries`                              | `3`                         | Maximum number of HTTP retries for failed requests |
+| Constant | Value/Type | Description |
+| --------------------------------------------- | --------------------------- | --------------------------------------------------------------------------------- |
+| `MaxHttpRetries`                              | `3`                         | Maximum number of HTTP retries for failed requests                                |
+| `UpdateTabIndex`                              | `0`                         | Index for the Update tab in update notification views                             |
+| `BrowseBuildsTabIndex`                        | `1`                         | Index for the Browse Builds tab in update notification views                      |
+| `MaxTabIndex`                                 | `1`                         | Maximum valid tab index in update notification views                              |
+| `VelopackDirectory`                          | `"velopack"`                | Velopack directory name                                                           |
+| `ArtifactPrefixWindows`                       | `"genhub-velopack-windows-"`| Artifact name prefix for Windows builds                                           |
+| `ArtifactPrefixLinux`                         | `"genhub-velopack-linux-"`  | Artifact name prefix for Linux builds                                             |
+| `ArtifactNameRelease`                         | `"GenHub-Release"`          | Artifact name for release builds                                                  |
+| `PlatformWindows`                             | `"windows"`                 | Platform string for Windows                                                       |
+| `PlatformLinux`                               | `"linux"`                   | Platform string for Linux                                                         |
+| `CheckingForUpdatesMessage`                   | `"Checking..."`             | Update checking message                                                           |
+| `UpdateAvailableTitleFormat`                  | `"Update available: v{0}"`  | Update available title format string                                              |
+| `UpdateUpToDateMessage`                       | `"You're up to date!"`      | Update up to date message                                                         |
+| `UpdateCheckFailedMessage`                    | `"Update check failed"`     | Update check failed message                                                       |
+| `InstallingMessage`                           | `"Installing..."`           | Installing message                                                                |
+| `InstallUpdateAction`                         | `"Install Update"`          | Install update action text                                                        |
+| `InitializingMessage`                         | `"Initializing..."`         | Initializing message                                                              |
+| `ReadyToRestartMessage`                       | `"Ready to restart"`        | Ready to restart message                                                          |
+| `DownloadingFormat`                           | `"Downloading... {0}%"`     | Downloading format string                                                         |
+| `UpdateDownloadedRestartingMessage`           | `"Update downloaded! Restarting application..."` | Update downloaded and restarting message                     |
+| `UpdateCompleteRestartingMessage`             | `"Update complete! Restarting..."` | Update complete and restarting message                                     |
+| `DownloadingUpdateMessage`                    | `"Downloading update..."`   | Downloading update status message                                                 |
+| `CannotInstallFromLocationMessage`            | `"Cannot install from this location"` | Cannot install from location status message                               |
+| `UpdateFailedMessage`                         | `"Update failed"`           | Update failed status message                                                      |
+| `InstallationFailedMessage`                   | `"Installation failed"`     | Installation failed status message                                                |
+| `NoArtifactAvailableMessage`                  | `"No artifact available"`   | No artifact available status message                                              |
+| `NoVersionsFoundMessage`                      | `"No versions found"`       | No versions found dropdown placeholder                                            |
+| `LoadingVersionsMessage`                      | `"Loading versions..."`     | Loading versions dropdown placeholder                                             |
+| `SelectVersionMessage`                        | `"Select a version"`        | Select a version dropdown placeholder                                             |
+| `NotAvailable`                                | `"N/A"`                     | Not available string                                                              |
+| `UpdateInstallationRequiresAppInstalledMessage` | Format string             | Message format when trying to install update from uninstalled debug directory      |
+| `UpdateAvailableNotificationTitle`            | `"Update Available"`        | Update available notification title for release channel                           |
+| `BranchUpdateAvailableNotificationTitle`      | `"Branch Update Available"` | Update available notification title for branch subscriptions                      |
+| `PrUpdateAvailableNotificationTitle`          | `"PR Update Available"`     | Update available notification title for PR subscriptions                          |
+| `UpdateAction`                                | `"Update"`                  | Update action button text                                                         |
+| `UpdatingAppNotificationTitle`                | `"Updating GenHub"`         | Title for update in progress notification                                         |
+| `UpdateStartingMessage`                       | `"Starting update..."`      | Starting update progress message                                                  |
+| `UpdateFailedNotificationTitle`               | `"Update Failed"`           | Title for update failed notification                                              |
+| `UpdateFailedNotificationFormat`              | `"Failed to install update: {0}"` | Update failed notification body format string                               |
+| `ViewUpdatesAction`                           | `"View Updates"`            | View updates action button text                                                   |
+| `ReleaseUpdateNotificationFormat`             | `"A new version ({0}) is available."` | Release update notification body format string                            |
+| `BranchUpdateNotificationFormat`              | `"A new build ({0}) is available on branch '{1}'."` | Branch update notification body format string        |
+| `PrUpdateNotificationFormat`                  | `"A new build ({0}) is available for PR #{1}."` | PR update notification body format string                |
+| `SortOptionLastUpdated`                       | `"Last Updated"`            | Sort option: sort by last updated date descending                                 |
+| `SortOptionPrNumberDesc`                      | `"PR Number (Highest)"`     | Sort option: sort by pull request number descending                               |
+| `SortOptionPrNumberAsc`                       | `"PR Number (Lowest)"`      | Sort option: sort by pull request number ascending                                |
+| `DefaultPeriodicUpdateCheckIntervalMinutes`   | `30`                        | Default interval in minutes for periodic update checks (30 minutes)               |
+| `MinPeriodicUpdateCheckIntervalMinutes`       | `5`                         | Minimum interval in minutes for periodic update checks (5 minutes)                 |
+| `MaxPeriodicUpdateCheckIntervalMinutes`       | `10080`                     | Maximum interval in minutes for periodic update checks (10080 minutes / 7 days)   |
+| `PeriodicUpdateCheckIntervalIncrementMinutes` | `5`                         | Increment step in minutes for periodic update check interval setting (5 minutes)  |
+| `PostUpdateExitDelay`                         | `TimeSpan.FromSeconds(5)`   | Delay before exit after applying update (5 seconds)                               |
+| `CacheDuration`                               | `TimeSpan.FromHours(1)`     | Cache duration for update checks (1 hour)                                         |
 
 ---
 
