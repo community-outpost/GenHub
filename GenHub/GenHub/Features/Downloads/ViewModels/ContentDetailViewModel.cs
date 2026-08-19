@@ -709,64 +709,6 @@ public partial class ContentDetailViewModel(
         }
     }
 
-    private static ContentVariantInfo MatchVariantInfo(ContentSearchResult sibling, string key)
-    {
-        var variantInfo = sibling.Variants?.FirstOrDefault(v =>
-            string.Equals(v.Id, sibling.Id, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(v.Id, key, StringComparison.OrdinalIgnoreCase) ||
-            (!string.IsNullOrEmpty(v.Id) && sibling.Id?.EndsWith($".{v.Id}", StringComparison.OrdinalIgnoreCase) == true) ||
-            (!string.IsNullOrEmpty(v.Id) && key.EndsWith($".{v.Id}", StringComparison.OrdinalIgnoreCase)));
-
-        if (variantInfo == null && sibling.Variants != null)
-        {
-            var gameSuffix = sibling.TargetGame switch
-            {
-                GameType.Generals => "generals",
-                GameType.ZeroHour => "zerohour",
-                _ => null,
-            };
-            if (gameSuffix != null)
-            {
-                variantInfo = sibling.Variants.FirstOrDefault(v =>
-                    v.Id.EndsWith($".{gameSuffix}", StringComparison.OrdinalIgnoreCase) ||
-                    v.Name.Contains(gameSuffix, StringComparison.OrdinalIgnoreCase) ||
-                    (sibling.TargetGame == GameType.ZeroHour && v.Name.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase)) ||
-                    (sibling.TargetGame == GameType.Generals && v.Name.Contains("Generals", StringComparison.OrdinalIgnoreCase) && !v.Name.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase)));
-            }
-        }
-
-        return variantInfo ?? new ContentVariantInfo
-        {
-            Id = !string.IsNullOrEmpty(key) ? key : (sibling.Id ?? string.Empty),
-            Name = sibling.Name ?? sibling.Id ?? "Unknown",
-            ManifestId = !string.IsNullOrEmpty(key) ? key : (sibling.Id ?? string.Empty),
-        };
-    }
-
-    private static ContentSearchResult PrepareVariantSnapshot(ContentSearchResult sibling, ContentVariantInfo info, string catalogKey)
-    {
-        var snapshot = VariantSwap.Clone(sibling);
-
-        if (!string.IsNullOrEmpty(catalogKey) &&
-            ManifestIdValidator.IsValid(snapshot.Id ?? string.Empty, out _) &&
-            !string.Equals(snapshot.Id, catalogKey, StringComparison.OrdinalIgnoreCase))
-        {
-        }
-        else if (!string.IsNullOrEmpty(catalogKey))
-        {
-            snapshot.Id = catalogKey;
-        }
-
-        var displayName = VariantSwap.ResolveDisplayName(sibling, info);
-        if (string.Equals(snapshot.Name, snapshot.VariantFamilyName, StringComparison.Ordinal) ||
-            string.IsNullOrWhiteSpace(snapshot.Name))
-        {
-            snapshot.Name = displayName;
-        }
-
-        return snapshot;
-    }
-
     private void OnAxisSelectionCommitted(InstallableVariant? value)
     {
         if (value == null || ReferenceEquals(SelectedVariant, value))
@@ -3937,5 +3879,63 @@ public partial class ContentDetailViewModel(
         }
 
         return fallbackResult.TargetGame != GameType.Unknown ? fallbackResult.TargetGame.ToString() : null;
+    }
+
+    private static ContentVariantInfo MatchVariantInfo(ContentSearchResult sibling, string key)
+    {
+        var variantInfo = sibling.Variants?.FirstOrDefault(v =>
+            string.Equals(v.Id, sibling.Id, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(v.Id, key, StringComparison.OrdinalIgnoreCase) ||
+            (!string.IsNullOrEmpty(v.Id) && sibling.Id?.EndsWith($".{v.Id}", StringComparison.OrdinalIgnoreCase) == true) ||
+            (!string.IsNullOrEmpty(v.Id) && key.EndsWith($".{v.Id}", StringComparison.OrdinalIgnoreCase)));
+
+        if (variantInfo == null && sibling.Variants != null)
+        {
+            var gameSuffix = sibling.TargetGame switch
+            {
+                GameType.Generals => "generals",
+                GameType.ZeroHour => "zerohour",
+                _ => null,
+            };
+            if (gameSuffix != null)
+            {
+                variantInfo = sibling.Variants.FirstOrDefault(v =>
+                    v.Id.EndsWith($".{gameSuffix}", StringComparison.OrdinalIgnoreCase) ||
+                    v.Name.Contains(gameSuffix, StringComparison.OrdinalIgnoreCase) ||
+                    (sibling.TargetGame == GameType.ZeroHour && v.Name.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase)) ||
+                    (sibling.TargetGame == GameType.Generals && v.Name.Contains("Generals", StringComparison.OrdinalIgnoreCase) && !v.Name.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase)));
+            }
+        }
+
+        return variantInfo ?? new ContentVariantInfo
+        {
+            Id = !string.IsNullOrEmpty(key) ? key : (sibling.Id ?? string.Empty),
+            Name = sibling.Name ?? sibling.Id ?? "Unknown",
+            ManifestId = !string.IsNullOrEmpty(key) ? key : (sibling.Id ?? string.Empty),
+        };
+    }
+
+    private static ContentSearchResult PrepareVariantSnapshot(ContentSearchResult sibling, ContentVariantInfo info, string catalogKey)
+    {
+        var snapshot = VariantSwap.Clone(sibling);
+
+        if (!string.IsNullOrEmpty(catalogKey) &&
+            ManifestIdValidator.IsValid(snapshot.Id ?? string.Empty, out _) &&
+            !string.Equals(snapshot.Id, catalogKey, StringComparison.OrdinalIgnoreCase))
+        {
+        }
+        else if (!string.IsNullOrEmpty(catalogKey))
+        {
+            snapshot.Id = catalogKey;
+        }
+
+        var displayName = VariantSwap.ResolveDisplayName(sibling, info);
+        if (string.Equals(snapshot.Name, snapshot.VariantFamilyName, StringComparison.Ordinal) ||
+            string.IsNullOrWhiteSpace(snapshot.Name))
+        {
+            snapshot.Name = displayName;
+        }
+
+        return snapshot;
     }
 }

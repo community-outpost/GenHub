@@ -549,6 +549,71 @@ public class ContentOrchestrator(
         }
     }
 
+    /// <summary>
+    /// Gets all acquired content manifests from the pool.
+    /// </summary>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A result object containing all acquired game manifests.</returns>
+    public async Task<OperationResult<IEnumerable<ContentManifest>>> GetAcquiredContentAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var manifestsResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
+        if (manifestsResult.Success)
+        {
+            return OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifestsResult.Data ?? []);
+        }
+
+        return OperationResult<IEnumerable<ContentManifest>>.CreateFailure(manifestsResult.Errors);
+    }
+
+    /// <summary>
+    /// Removes acquired content from the pool.
+    /// </summary>
+    /// <param name="manifestId">The unique identifier of the manifest to remove.</param>
+    /// <param name="cancellationToken">A token to cancel the operation.</param>
+    /// <returns>A result indicating success or failure of the removal operation.</returns>
+    public async Task<OperationResult<bool>> RemoveAcquiredContentAsync(
+        string manifestId, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(manifestId);
+
+        try
+        {
+            // Retrieve the manifest first to get its original provider info for cache invalidation
+            var manifestResult = await manifestPool.GetManifestAsync(manifestId, cancellationToken);
+
+            var removalResult = await manifestPool.RemoveManifestAsync(manifestId, cancellationToken: cancellationToken);
+            if (!removalResult.Success)
+            {
+                logger.LogWarning("Failed to remove content {ManifestId} from pool: {Error}", manifestId, removalResult.FirstError);
+                return OperationResult<bool>.CreateFailure($"Failed to remove content from pool: {removalResult.FirstError}");
+            }
+
+            logger.LogInformation("Removed content {ManifestId} from pool", manifestId);
+
+            // Invalidate related cache entries
+            if (manifestResult.Success && manifestResult.Data != null)
+            {
+                var providerName = manifestResult.Data.OriginalProviderName;
+                var contentId = manifestResult.Data.OriginalContentId;
+
+                if (!string.IsNullOrEmpty(providerName) && !string.IsNullOrEmpty(contentId))
+                {
+                    await cache.InvalidateAsync($"manifest::{providerName}::{contentId}", cancellationToken);
+                }
+            }
+
+            await cache.InvalidateAsync($"manifest::{manifestId}", cancellationToken);
+
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to remove content {ManifestId} from pool", manifestId);
+            return OperationResult<bool>.CreateFailure($"Failed to remove content: {ex.Message}");
+        }
+    }
+
     private async Task<OperationResult<ContentManifest>> ResolveAndValidateManifestAsync(
         ContentSearchResult searchResult,
         IContentProvider? provider,
@@ -859,71 +924,6 @@ public class ContentOrchestrator(
         }
 
         return OperationResult<bool>.CreateSuccess(true);
-    }
-
-    /// <summary>
-    /// Gets all acquired content manifests from the pool.
-    /// </summary>
-    /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A result object containing all acquired game manifests.</returns>
-    public async Task<OperationResult<IEnumerable<ContentManifest>>> GetAcquiredContentAsync(
-        CancellationToken cancellationToken = default)
-    {
-        var manifestsResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
-        if (manifestsResult.Success)
-        {
-            return OperationResult<IEnumerable<ContentManifest>>.CreateSuccess(manifestsResult.Data ?? []);
-        }
-
-        return OperationResult<IEnumerable<ContentManifest>>.CreateFailure(manifestsResult.Errors);
-    }
-
-    /// <summary>
-    /// Removes acquired content from the pool.
-    /// </summary>
-    /// <param name="manifestId">The unique identifier of the manifest to remove.</param>
-    /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A result indicating success or failure of the removal operation.</returns>
-    public async Task<OperationResult<bool>> RemoveAcquiredContentAsync(
-        string manifestId, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(manifestId);
-
-        try
-        {
-            // Retrieve the manifest first to get its original provider info for cache invalidation
-            var manifestResult = await manifestPool.GetManifestAsync(manifestId, cancellationToken);
-
-            var removalResult = await manifestPool.RemoveManifestAsync(manifestId, cancellationToken: cancellationToken);
-            if (!removalResult.Success)
-            {
-                logger.LogWarning("Failed to remove content {ManifestId} from pool: {Error}", manifestId, removalResult.FirstError);
-                return OperationResult<bool>.CreateFailure($"Failed to remove content from pool: {removalResult.FirstError}");
-            }
-
-            logger.LogInformation("Removed content {ManifestId} from pool", manifestId);
-
-            // Invalidate related cache entries
-            if (manifestResult.Success && manifestResult.Data != null)
-            {
-                var providerName = manifestResult.Data.OriginalProviderName;
-                var contentId = manifestResult.Data.OriginalContentId;
-
-                if (!string.IsNullOrEmpty(providerName) && !string.IsNullOrEmpty(contentId))
-                {
-                    await cache.InvalidateAsync($"manifest::{providerName}::{contentId}", cancellationToken);
-                }
-            }
-
-            await cache.InvalidateAsync($"manifest::{manifestId}", cancellationToken);
-
-            return OperationResult<bool>.CreateSuccess(true);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to remove content {ManifestId} from pool", manifestId);
-            return OperationResult<bool>.CreateFailure($"Failed to remove content: {ex.Message}");
-        }
     }
 
     private static ConcurrentDictionary<string, IContentResolver> InitializeResolvers(
