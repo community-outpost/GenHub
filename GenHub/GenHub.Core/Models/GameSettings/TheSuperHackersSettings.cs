@@ -1,3 +1,5 @@
+using GenHub.Core.Constants;
+
 namespace GenHub.Core.Models.GameSettings;
 
 /// <summary>TheSuperHackers game client settings from Options.ini.</summary>
@@ -19,7 +21,7 @@ public class TheSuperHackersSettings
     public bool CursorCaptureEnabledInWindowedMenu { get; set; }
 
     /// <summary>Gets or sets the volume of money transaction audio events (0-100, 0 to mute).</summary>
-    public int MoneyTransactionVolume { get; set; }
+    public int MoneyTransactionVolume { get; set; } = GameSettingsTheSuperHackersConstants.DefaultMoneyTransactionVolume;
 
     /// <summary>Gets or sets the font size for network latency display (0 to disable).</summary>
     public int NetworkLatencyFontSize { get; set; } = 8;

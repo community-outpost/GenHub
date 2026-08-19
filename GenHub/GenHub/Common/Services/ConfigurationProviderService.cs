@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Enums;
@@ -20,11 +22,41 @@ public class ConfigurationProviderService(
     IUserSettingsService userSettings,
     ILogger<ConfigurationProviderService> logger) : IConfigurationProviderService
 {
+    private static readonly string[] LegacyRootDirectories =
+    [
+        DirectoryNames.Profiles,
+        FileTypes.ManifestsDirectory,
+        DirectoryNames.UserData,
+    ];
+
+    private static readonly string[] LegacySettingsFileNames =
+    [
+        FileTypes.SettingsFileName,
+        FileTypes.LegacySettingsFileName,
+    ];
+
+    /// <summary>
+    /// The sub-paths of the legacy data root a tracked entry may sit in, most recent layout first so
+    /// that a newer copy wins over an older one when both are present.
+    /// </summary>
+    private static readonly string[] LegacyRootLayouts =
+    [
+        string.Empty,
+        DirectoryNames.LegacyContent,
+    ];
+
     private readonly IAppConfiguration _appConfig = appConfig ?? throw new ArgumentNullException(nameof(appConfig));
     private readonly IUserSettingsService _userSettings = userSettings ?? throw new ArgumentNullException(nameof(userSettings));
     private readonly ILogger<ConfigurationProviderService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     private readonly object _migrationLock = new();
-    private bool _migrated;
+
+    /// <summary>
+    /// Set once the migration has finished. Volatile because the fast path in
+    /// <see cref="EnsureLegacyDataMigrated"/> reads it outside <see cref="_migrationLock"/>: without
+    /// the release/acquire pair a second thread could observe the flag on a weakly ordered
+    /// architecture and read profiles or manifests before the moves that produced them are visible.
+    /// </summary>
+    private volatile bool _migrated;
 
     /// <inheritdoc />
     public string GetWorkspacePath()
@@ -259,10 +291,11 @@ public class ConfigurationProviderService(
             return settings.ContentDirectories;
         }
 
+        var dataRoot = GetApplicationDataPath();
         return
         [
-            Path.Combine(_appConfig.GetConfiguredDataPath(), FileTypes.ManifestsDirectory),
-            Path.Combine(_appConfig.GetConfiguredDataPath(), "CustomManifests"),
+            Path.Combine(dataRoot, FileTypes.ManifestsDirectory),
+            Path.Combine(dataRoot, DirectoryNames.CustomManifests),
             Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                 "Command and Conquer Generals Zero Hour Data",
@@ -288,37 +321,18 @@ public class ConfigurationProviderService(
     /// <inheritdoc />
     public string GetApplicationDataPath()
     {
-        if (!_migrated)
-        {
-            lock (_migrationLock)
-            {
-                if (!_migrated)
-                {
-                    // Double-check
-                    MigrateContentDirectory();
-                    _migrated = true;
-                }
-            }
-        }
-
-        var settings = _userSettings.Get();
-        if (settings.IsExplicitlySet(nameof(UserSettings.ApplicationDataPath)) &&
-            !string.IsNullOrWhiteSpace(settings.ApplicationDataPath))
-        {
-            return settings.ApplicationDataPath;
-        }
-
-        return _appConfig.GetConfiguredDataPath();
+        EnsureLegacyDataMigrated();
+        return ResolveApplicationDataPath();
     }
 
     /// <inheritdoc />
     public string GetRootAppDataPath() => _appConfig.GetConfiguredDataPath();
 
     /// <inheritdoc />
-    public string GetProfilesPath() => Path.Combine(_appConfig.GetConfiguredDataPath(), DirectoryNames.Profiles);
+    public string GetProfilesPath() => Path.Combine(GetApplicationDataPath(), DirectoryNames.Profiles);
 
     /// <inheritdoc />
-    public string GetManifestsPath() => Path.Combine(_appConfig.GetConfiguredDataPath(), FileTypes.ManifestsDirectory);
+    public string GetManifestsPath() => Path.Combine(GetApplicationDataPath(), FileTypes.ManifestsDirectory);
 
     /// <inheritdoc />
     /// <remarks>
@@ -357,12 +371,161 @@ public class ConfigurationProviderService(
             DirectoryNames.Logs.ToLowerInvariant());
     }
 
+    /// <summary>
+    /// Moves the data written by releases that stored everything under the roaming application data
+    /// folder into the current data root, so upgrading users keep their profiles, manifests, tracked
+    /// user data, workspace metadata and settings.
+    /// </summary>
+    /// <param name="legacyRoot">The roaming data root used before the move to local application data.</param>
+    /// <param name="dataRoot">The root every consumer of <see cref="GetApplicationDataPath"/> reads from.</param>
+    /// <param name="settingsRoot">The root the settings file is read from and written to.</param>
+    /// <remarks>
+    /// <para>
+    /// The two destinations differ deliberately. Profiles, manifests, tracked user data and the
+    /// workspace metadata are all resolved through <see cref="GetApplicationDataPath"/>, so they have
+    /// to follow an explicitly configured <see cref="UserSettings.ApplicationDataPath"/> override;
+    /// moving them into the configured root instead would leave them where nothing ever looks. The
+    /// settings file is resolved straight from <see cref="IAppConfiguration.GetConfiguredDataPath"/>
+    /// and therefore has to land there.
+    /// </para>
+    /// <para>
+    /// Releases up to v0.0.3 nested the manifests, tracked user data and workspace metadata under a
+    /// <c>Content</c> directory, so both that layout and the flat one are probed and flattened into
+    /// the destination. Data that a v0.0.3 install kept outside the legacy root, because an
+    /// <see cref="UserSettings.ApplicationDataPath"/> override pointed elsewhere, is out of scope and
+    /// stays where it is.
+    /// </para>
+    /// <para>
+    /// The CAS pool is deliberately excluded: <see cref="GetCasConfiguration"/> still defaults to the
+    /// legacy location, so moving the pool would orphan it.
+    /// </para>
+    /// </remarks>
+    internal void MigrateLegacyDataRoot(string legacyRoot, string dataRoot, string settingsRoot)
+    {
+        if (!Directory.Exists(legacyRoot))
+        {
+            return;
+        }
+
+        var directories = ResolveLegacyDirectories(legacyRoot, dataRoot);
+        var files = ResolveLegacyFiles(legacyRoot, dataRoot, settingsRoot);
+
+        if (directories.Count == 0 && files.Count == 0)
+        {
+            return;
+        }
+
+        _logger.LogInformation(
+            "Migrating legacy data root {LegacyRoot} into {DataRoot}, settings into {SettingsRoot}",
+            legacyRoot,
+            dataRoot,
+            settingsRoot);
+
+        if (directories.Count > 0)
+        {
+            Directory.CreateDirectory(dataRoot);
+        }
+
+        foreach (var (source, destination) in directories)
+        {
+            try
+            {
+                MigrateDirectory(source, destination);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
+            {
+                _logger.LogError(ex, "Failed to migrate legacy directory {Source}", source);
+            }
+        }
+
+        foreach (var (source, destination) in files)
+        {
+            try
+            {
+                MigrateFile(source, destination);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
+            {
+                _logger.LogError(ex, "Failed to migrate legacy file {Source}", source);
+            }
+        }
+    }
+
+    private static List<(string Source, string Destination)> ResolveLegacyDirectories(string legacyRoot, string dataRoot) =>
+        LegacyRootDirectories
+            .SelectMany(
+                _ => LegacyRootLayouts,
+                (name, layout) => (Source: Path.Combine(legacyRoot, layout, name), Destination: Path.Combine(dataRoot, name)))
+            .Where(entry => Directory.Exists(entry.Source) && !PathHelper.AreSamePath(entry.Source, entry.Destination))
+            .ToList();
+
+    private static List<(string Source, string Destination)> ResolveLegacyFiles(string legacyRoot, string dataRoot, string settingsRoot) =>
+        LegacyRootLayouts
+            .Select(layout => (
+                Source: Path.Combine(legacyRoot, layout, FileTypes.WorkspaceMetadataFileName),
+                Destination: Path.Combine(dataRoot, FileTypes.WorkspaceMetadataFileName)))
+            .Concat(LegacySettingsFileNames
+                .Select(name => (
+                    Source: Path.Combine(legacyRoot, name),
+                    Destination: Path.Combine(settingsRoot, FileTypes.SettingsFileName))))
+            .Where(entry => File.Exists(entry.Source) && !PathHelper.AreSamePath(entry.Source, entry.Destination))
+            .ToList();
+
+    private void EnsureLegacyDataMigrated()
+    {
+        if (_migrated)
+        {
+            return;
+        }
+
+        lock (_migrationLock)
+        {
+            if (_migrated)
+            {
+                return;
+            }
+
+            MigrateLegacyDataRoot();
+            MigrateContentDirectory();
+            _migrated = true;
+        }
+    }
+
+    /// <summary>
+    /// Resolves the effective data root without triggering the legacy migration, so the migration
+    /// itself can ask where the app will read from.
+    /// </summary>
+    /// <returns>The explicitly configured override when set, otherwise the configured data root.</returns>
+    private string ResolveApplicationDataPath()
+    {
+        var settings = _userSettings.Get();
+        return settings.IsExplicitlySet(nameof(UserSettings.ApplicationDataPath)) &&
+            !string.IsNullOrWhiteSpace(settings.ApplicationDataPath)
+                ? settings.ApplicationDataPath
+                : _appConfig.GetConfiguredDataPath();
+    }
+
+    private void MigrateLegacyDataRoot()
+    {
+        try
+        {
+            MigrateLegacyDataRoot(
+                _appConfig.GetLegacyConfiguredDataPath(),
+                ResolveApplicationDataPath(),
+                _appConfig.GetConfiguredDataPath());
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
+        {
+            _logger.LogError(ex, "Failed to migrate legacy data root");
+        }
+    }
+
     private void MigrateContentDirectory()
     {
         try
         {
-            var rootPath = _appConfig.GetConfiguredDataPath();
-            var contentPath = Path.Combine(rootPath, "Content");
+            var rootPath = ResolveApplicationDataPath();
+            var contentPath = Path.Combine(rootPath, DirectoryNames.LegacyContent);
 
             if (!Directory.Exists(contentPath))
             {
@@ -371,85 +534,117 @@ public class ConfigurationProviderService(
 
             _logger.LogInformation("Migrating content from {ContentPath} to root {RootPath}", contentPath, rootPath);
 
-            // 1. Move Manifests
-            MigrateDirectory(Path.Combine(contentPath, "Manifests"), Path.Combine(rootPath, "Manifests"));
+            MigrateDirectory(Path.Combine(contentPath, FileTypes.ManifestsDirectory), Path.Combine(rootPath, FileTypes.ManifestsDirectory));
+            MigrateDirectory(Path.Combine(contentPath, DirectoryNames.UserData), Path.Combine(rootPath, DirectoryNames.UserData));
+            MigrateFile(
+                Path.Combine(contentPath, FileTypes.WorkspaceMetadataFileName),
+                Path.Combine(rootPath, FileTypes.WorkspaceMetadataFileName));
 
-            // 2. Move UserData
-            MigrateDirectory(Path.Combine(contentPath, "UserData"), Path.Combine(rootPath, "UserData"));
-
-            // 3. Move workspaces.json
-            var sourceWorkspaces = Path.Combine(contentPath, "workspaces.json");
-            var destWorkspaces = Path.Combine(rootPath, "workspaces.json");
-            if (File.Exists(sourceWorkspaces))
-            {
-                if (!File.Exists(destWorkspaces))
-                {
-                    File.Move(sourceWorkspaces, destWorkspaces);
-                    _logger.LogInformation("Moved workspaces.json to root");
-                }
-                else
-                {
-                    _logger.LogWarning("workspaces.json already exists in root, keeping original in Content (backup)");
-                }
-            }
-
-            // 4. Try to delete Content if empty
-            try
-            {
-                if (Directory.GetFiles(contentPath).Length == 0 && Directory.GetDirectories(contentPath).Length == 0)
-                {
-                    Directory.Delete(contentPath);
-                    _logger.LogInformation("Deleted empty Content directory");
-                }
-            }
-            catch
-            {
-                // Ignore if not empty
-            }
+            TryDeleteEmptyDirectory(contentPath);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
         {
             _logger.LogError(ex, "Failed to migrate Content directory");
         }
     }
 
+    private void TryDeleteEmptyDirectory(string path)
+    {
+        try
+        {
+            if (!Directory.EnumerateFileSystemEntries(path).Any())
+            {
+                Directory.Delete(path);
+                _logger.LogInformation("Deleted empty directory {Path}", path);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
+        {
+            _logger.LogDebug(ex, "Could not delete {Path} after migration", path);
+        }
+    }
+
     private void MigrateDirectory(string sourceDir, string destDir)
     {
-        if (!Directory.Exists(sourceDir)) return;
-
-        if (!Directory.Exists(destDir))
+        if (!Directory.Exists(sourceDir))
         {
-            Directory.Move(sourceDir, destDir);
-            _logger.LogInformation("Moved {Source} to {Dest}", sourceDir, destDir);
             return;
         }
 
-        // Destination exists, move content
+        if (!Directory.Exists(destDir))
+        {
+            try
+            {
+                Directory.Move(sourceDir, destDir);
+                _logger.LogInformation("Moved {Source} to {Dest}", sourceDir, destDir);
+                return;
+            }
+            catch (IOException ex)
+            {
+                _logger.LogWarning(ex, "Could not move {Source} to {Dest} directly, falling back to per-entry migration", sourceDir, destDir);
+                Directory.CreateDirectory(destDir);
+            }
+        }
+
         foreach (var file in Directory.GetFiles(sourceDir))
         {
-            var destFile = Path.Combine(destDir, Path.GetFileName(file));
-            if (!File.Exists(destFile))
+            try
             {
-                File.Move(file, destFile);
+                MigrateFile(file, Path.Combine(destDir, Path.GetFileName(file)));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
+            {
+                _logger.LogError(ex, "Failed to migrate {Source}, leaving it in place", file);
             }
         }
 
         foreach (var subDir in Directory.GetDirectories(sourceDir))
         {
-            var destSubDir = Path.Combine(destDir, Path.GetFileName(subDir));
-            MigrateDirectory(subDir, destSubDir);
-        }
-
-        // Try delete source if empty
-        try
-        {
-            if (!Directory.EnumerateFileSystemEntries(sourceDir).Any())
+            try
             {
-                Directory.Delete(sourceDir);
+                MigrateDirectory(subDir, Path.Combine(destDir, Path.GetFileName(subDir)));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
+            {
+                _logger.LogError(ex, "Failed to migrate {Source}, leaving it in place", subDir);
             }
         }
-        catch
+
+        TryDeleteEmptyDirectory(sourceDir);
+    }
+
+    private void MigrateFile(string sourceFile, string destFile)
+    {
+        if (!File.Exists(sourceFile))
         {
+            return;
         }
+
+        if (File.Exists(destFile))
+        {
+            _logger.LogInformation("Skipping {Source}, {Dest} already exists", sourceFile, destFile);
+            return;
+        }
+
+        var destDir = Path.GetDirectoryName(destFile);
+        if (!string.IsNullOrEmpty(destDir))
+        {
+            Directory.CreateDirectory(destDir);
+        }
+
+        try
+        {
+            File.Move(sourceFile, destFile);
+        }
+        catch (IOException ex)
+        {
+            // File.Move cannot cross volumes on every platform; copy and only drop the source once
+            // the copy is on disk so a failure can never lose the file.
+            _logger.LogWarning(ex, "Could not move {Source} to {Dest} directly, copying instead", sourceFile, destFile);
+            File.Copy(sourceFile, destFile, overwrite: false);
+            File.Delete(sourceFile);
+        }
+
+        _logger.LogInformation("Moved {Source} to {Dest}", sourceFile, destFile);
     }
 }

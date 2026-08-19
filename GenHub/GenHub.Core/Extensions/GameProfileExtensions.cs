@@ -1,3 +1,6 @@
+using System;
+using System.Linq;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.GameProfile;
 
 namespace GenHub.Core.Extensions;
@@ -19,6 +22,35 @@ public static class GameProfileExtensions
                HasCustomTshSettings(profile) ||
                HasCustomGeneralsOnlineSettings(profile) ||
                HasCustomNetworkSettings(profile);
+    }
+
+    /// <summary>
+    /// Checks if a profile runs the GeneralsOnline client.
+    /// </summary>
+    /// <remarks>
+    /// A recorded publisher type settles the question either way. The client name and the enabled
+    /// content ids are consulted only when no publisher type was recorded, which is the case for
+    /// profiles created before it existed: a TheSuperHackers profile with GeneralsOnline content
+    /// enabled belongs to TheSuperHackers, and answering otherwise would let it rewrite the
+    /// GeneralsOnline client's global settings.
+    /// </remarks>
+    /// <param name="profile">The game profile.</param>
+    /// <returns>True if the profile runs GeneralsOnline, false otherwise.</returns>
+    public static bool IsGeneralsOnlineProfile(this GameProfile profile)
+    {
+        var publisherType = profile.GameClient?.PublisherType;
+        if (!string.IsNullOrWhiteSpace(publisherType))
+        {
+            return string.Equals(publisherType, PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (profile.GameClient?.Name?.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return true;
+        }
+
+        return profile.EnabledContentIds?
+            .Any(id => id.Contains(PublisherTypeConstants.GeneralsOnline, StringComparison.OrdinalIgnoreCase)) == true;
     }
 
     private static bool HasCustomVideoSettings(GameProfile profile)

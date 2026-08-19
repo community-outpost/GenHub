@@ -46,6 +46,12 @@ public static class GameSettingsTheSuperHackersConstants
     public const int DefaultSystemTimeFontSize = 8;
 
     /// <summary>
+    /// Default volume for money transaction audio events, on the same 0-100 scale the settings
+    /// screen exposes. Zero would mute them, which is a choice rather than a default.
+    /// </summary>
+    public const int DefaultMoneyTransactionVolume = 50;
+
+    /// <summary>
     /// Default for whether player observer mode is enabled.
     /// Matches the engine fallback in OptionPreferences::getPlayerObserverEnabled.
     /// </summary>

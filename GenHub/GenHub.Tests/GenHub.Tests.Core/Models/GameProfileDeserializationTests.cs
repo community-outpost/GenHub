@@ -8,9 +8,11 @@ namespace GenHub.Tests.Core.Models;
 
 /// <summary>
 /// Tests to verify that GameProfile correctly applies default values during deserialization.
-/// This addresses the bug where WorkspaceStrategy was defaulting to SymlinkOnly (enum default 0)
-/// WorkspaceStrategyJsonConverter correctly handles the null/missing property, allowing
-/// services to apply the global default fallback.
+/// The numeric values exercised here are not the profile format of any release: v0.0.3 serialized
+/// profiles with a string enum converter, so it wrote member names. Numbers only reach a profile
+/// file from v0.0.2 and older, or from a build of the default branch made while the enum was
+/// reordered. Pinning the mapping is a deliberate decision, because the ordinals below are the ones
+/// v0.0.3 wrote into workspaces.json and the two formats have to agree.
 /// </summary>
 public class GameProfileDeserializationTests
 {
@@ -43,12 +45,12 @@ public class GameProfileDeserializationTests
     [Fact]
     public void Deserialize_ProfileWithSymlinkOnly_ShouldPreserveSymlinkOnly()
     {
-        // Arrange - JSON with explicit SymlinkOnly (1)
+        // Arrange - JSON with explicit SymlinkOnly (0)
         var json = """
         {
             "Id": "test_profile",
             "Name": "Test Profile",
-            "WorkspaceStrategy": 1
+            "WorkspaceStrategy": 0
         }
         """;
 
@@ -58,7 +60,6 @@ public class GameProfileDeserializationTests
         // Assert
         Assert.NotNull(profile);
 
-        // Should NOT be overridden to HardLink anymore
         Assert.Equal(WorkspaceStrategy.SymlinkOnly, profile.WorkspaceStrategy);
     }
 
@@ -68,12 +69,12 @@ public class GameProfileDeserializationTests
     [Fact]
     public void Deserialize_ProfileWithExplicitHardLink_ShouldPreserveHardLink()
     {
-        // Arrange - JSON with explicit HardLink (0)
+        // Arrange - JSON with explicit HardLink (3)
         var json = """
         {
             "Id": "test_profile",
             "Name": "Test Profile",
-            "WorkspaceStrategy": 0
+            "WorkspaceStrategy": 3
         }
         """;
 
@@ -91,12 +92,12 @@ public class GameProfileDeserializationTests
     [Fact]
     public void Deserialize_ProfileWithCopyStrategy_ShouldPreserveCopy()
     {
-        // Arrange - JSON with explicit Copy strategy (2)
+        // Arrange - JSON with explicit Copy strategy (1)
         var json = """
         {
             "Id": "test_profile",
             "Name": "Test Profile",
-            "WorkspaceStrategy": 2
+            "WorkspaceStrategy": 1
         }
         """;
 
@@ -226,5 +227,40 @@ public class GameProfileDeserializationTests
         // Assert
         Assert.NotNull(profile);
         Assert.Equal(WorkspaceStrategy.HardLink, profile.WorkspaceStrategy);
+    }
+
+    /// <summary>
+    /// Verifies that a profile persisted by releases up to v0.0.3, which wrote the strategy as a
+    /// name using the repository serializer options, still resolves to the same strategy.
+    /// </summary>
+    /// <param name="strategyName">The strategy name persisted in the profile file.</param>
+    /// <param name="expected">The strategy the profile must resolve to.</param>
+    [Theory]
+    [InlineData("SymlinkOnly", WorkspaceStrategy.SymlinkOnly)]
+    [InlineData("FullCopy", WorkspaceStrategy.FullCopy)]
+    [InlineData("HybridCopySymlink", WorkspaceStrategy.HybridCopySymlink)]
+    [InlineData("HardLink", WorkspaceStrategy.HardLink)]
+    public void Deserialize_LegacyProfileFile_ShouldPreserveStrategy(string strategyName, WorkspaceStrategy expected)
+    {
+        // Arrange - profile file as written by GameProfileRepository before the move to a string enum
+        var json = $$"""
+        {
+            "id": "test_profile",
+            "name": "Test Profile",
+            "workspaceStrategy": "{{strategyName}}"
+        }
+        """;
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
+        };
+
+        // Act
+        var profile = JsonSerializer.Deserialize<GameProfileModel>(json, options);
+
+        // Assert
+        Assert.NotNull(profile);
+        Assert.Equal(expected, profile.WorkspaceStrategy);
     }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -11,6 +12,7 @@ using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameSettings;
+using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.GameProfiles.ViewModels;
@@ -316,32 +318,32 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     private bool _tshScreenEdgeScrollEnabledInWindowedApp = GameSettingsTheSuperHackersConstants.DefaultScreenEdgeScrollEnabledInWindowedApp;
 
     [ObservableProperty]
-    private int _tshMoneyTransactionVolume = 50;
+    private int _tshMoneyTransactionVolume = GameSettingsTheSuperHackersConstants.DefaultMoneyTransactionVolume;
 
     // ===== GeneralsOnline Client Settings =====
     [ObservableProperty]
     private bool _goShowFps;
 
     [ObservableProperty]
-    private bool _goShowPing;
+    private bool _goShowPing = GameSettingsGeneralsOnlineConstants.DefaultShowPing;
 
     [ObservableProperty]
-    private bool _goShowPlayerRanks;
+    private bool _goShowPlayerRanks = GameSettingsGeneralsOnlineConstants.DefaultShowPlayerRanks;
 
     [ObservableProperty]
     private bool _goAutoLogin;
 
     [ObservableProperty]
-    private bool _goRememberUsername;
+    private bool _goRememberUsername = GameSettingsGeneralsOnlineConstants.DefaultRememberUsername;
 
     [ObservableProperty]
-    private bool _goEnableNotifications;
+    private bool _goEnableNotifications = GameSettingsGeneralsOnlineConstants.DefaultEnableNotifications;
 
     [ObservableProperty]
-    private bool _goEnableSoundNotifications;
+    private bool _goEnableSoundNotifications = GameSettingsGeneralsOnlineConstants.DefaultEnableSoundNotifications;
 
     [ObservableProperty]
-    private int _goChatFontSize = 12;
+    private int _goChatFontSize = GameSettingsGeneralsOnlineConstants.DefaultChatFontSize;
 
     // Camera settings
     [ObservableProperty]
@@ -423,6 +425,8 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         try
         {
             _currentProfileId = profileId;
+            _currentProfileIsGeneralsOnline = profile?.IsGeneralsOnlineProfile() == true;
+            _generalsOnlineSettingsSeeded = false;
 
             // Auto-select game type from profile
             if (profile != null)
@@ -457,6 +461,10 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             // If profile has settings, load them
             if (profile?.HasCustomSettings() == true)
             {
+                // Seeded from settings.json first so that the options the profile does not declare
+                // show, and are saved back as, what the user configured inside the GeneralsOnline
+                // client rather than this view model's defaults.
+                await LoadGeneralsOnlineSettingsFromClientAsync();
                 LoadSettingsFromProfile(profile);
             }
             else
@@ -631,6 +639,8 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     }
 
     private IniOptions? _currentOptions;
+    private bool _generalsOnlineSettingsSeeded;
+    private bool _currentProfileIsGeneralsOnline;
     private string? _currentProfileId;
     private int _initializationDepth;
     private bool _isLoadingFromOptions;
@@ -689,10 +699,12 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             if (goResult?.Success == true && goResult.Data != null)
             {
                 ApplyGeneralsOnlineSettings(goResult.Data);
+                _generalsOnlineSettingsSeeded = true;
                 _logger.LogInformation("Loaded GeneralsOnline settings");
             }
             else
             {
+                _generalsOnlineSettingsSeeded = false;
                 var goErrors = goResult?.Errors ?? ["LoadGeneralsOnlineSettings result was null"];
                 _logger.LogWarning("Failed to load GeneralsOnline settings: {Errors}", string.Join(", ", goErrors));
             }
@@ -705,6 +717,37 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         finally
         {
             IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Reads the GeneralsOnline client's own settings.json into this view model.
+    /// </summary>
+    /// <remarks>
+    /// The view model's GeneralsOnline properties have no unset state, so every one of them is
+    /// written back on save. Seeding them from the client's file is what keeps that from replacing
+    /// options the profile says nothing about with defaults. A read that fails leaves the view
+    /// model unseeded, which is what stops the save from writing over the client's own values.
+    /// </remarks>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    private async Task LoadGeneralsOnlineSettingsFromClientAsync()
+    {
+        if (_gameSettingsService == null || !_currentProfileIsGeneralsOnline)
+        {
+            return;
+        }
+
+        var goResult = await _gameSettingsService.LoadGeneralsOnlineSettingsAsync();
+        if (goResult?.Success == true && goResult.Data != null)
+        {
+            ApplyGeneralsOnlineSettings(goResult.Data);
+            _generalsOnlineSettingsSeeded = true;
+        }
+        else
+        {
+            _generalsOnlineSettingsSeeded = false;
+            var goErrors = goResult?.Errors ?? ["LoadGeneralsOnlineSettings result was null"];
+            _logger.LogWarning("Failed to load GeneralsOnline settings: {Errors}", string.Join(", ", goErrors));
         }
     }
 
@@ -853,8 +896,16 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     }
 
     /// <summary>
-    /// Saves the current settings to options.ini.
+    /// Saves the current settings to Options.ini and, for a GeneralsOnline profile, to the client's
+    /// settings.json.
     /// </summary>
+    /// <remarks>
+    /// The two files are separate writes with no transaction between them, so either one can land
+    /// while the other does not: the settings.json rewrite can be refused after Options.ini is
+    /// written, and Options.ini can fail after settings.json has been rewritten. Reordering the
+    /// writes only moves which half is exposed, so the status message names the halves separately
+    /// instead of reporting a total failure over a file that was written.
+    /// </remarks>
     [RelayCommand]
     private async Task SaveSettings()
     {
@@ -872,27 +923,66 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             var options = CreateOptionsFromViewModel();
             var result = await _gameSettingsService.SaveOptionsAsync(SelectedGameType, options);
 
-            // Save GeneralsOnline settings
-            var goSettings = CreateGeneralsOnlineSettings();
-            var goResult = await _gameSettingsService.SaveGeneralsOnlineSettingsAsync(goSettings);
+            var writeGeneralsOnlineSettings = ShouldWriteGeneralsOnlineSettings();
+            OperationResult<bool>? goResult = null;
+            string? goLoadError = null;
 
-            if (result?.Success == true && goResult?.Success == true)
+            if (writeGeneralsOnlineSettings)
+            {
+                var goLoadResult = await ReadGeneralsOnlineSettingsForRewriteAsync();
+                if (goLoadResult.Success && goLoadResult.Data != null)
+                {
+                    var goSettings = goLoadResult.Data;
+                    MergeViewModelIntoGeneralsOnlineSettings(goSettings);
+                    goResult = await _gameSettingsService.SaveGeneralsOnlineSettingsAsync(goSettings);
+                }
+                else
+                {
+                    goLoadError = goLoadResult.FirstError;
+                }
+            }
+
+            var optionsSaved = result?.Success == true;
+            var generalsOnlineWritten = goResult?.Success == true;
+            var generalsOnlineBlocked = writeGeneralsOnlineSettings && !generalsOnlineWritten;
+
+            if (optionsSaved)
             {
                 _currentOptions = options;
                 OptionsFileExists = true;
+            }
+
+            var optionsErrors = new List<string>();
+            if (result == null) optionsErrors.Add("SaveOptions result was null");
+            if (result?.Success == false) optionsErrors.AddRange(result.Errors);
+
+            var generalsOnlineErrors = new List<string>();
+            if (goLoadError != null) generalsOnlineErrors.Add(goLoadError);
+            if (goResult?.Success == false) generalsOnlineErrors.AddRange(goResult.Errors);
+            if (generalsOnlineBlocked && goLoadError == null && goResult == null) generalsOnlineErrors.Add("SaveGeneralsOnlineSettings result was null");
+
+            if (optionsSaved && !generalsOnlineBlocked)
+            {
                 StatusMessage = $"{SelectedGameType} settings saved successfully";
                 _logger.LogInformation("Saved settings for {GameType}", SelectedGameType);
             }
+            else if (optionsSaved)
+            {
+                var goErrors = string.Join(", ", generalsOnlineErrors);
+                StatusMessage = $"Options.ini saved; GeneralsOnline settings not written: {goErrors}";
+                _logger.LogWarning("Saved Options.ini for {GameType} but did not write GeneralsOnline settings: {Errors}", SelectedGameType, goErrors);
+            }
+            else if (generalsOnlineWritten)
+            {
+                var iniErrors = string.Join(", ", optionsErrors);
+                StatusMessage = $"GeneralsOnline settings saved; Options.ini not saved: {iniErrors}";
+                _logger.LogWarning("Wrote GeneralsOnline settings but failed to save Options.ini for {GameType}: {Errors}", SelectedGameType, iniErrors);
+            }
             else
             {
-                var errors = new List<string>();
-                if (result?.Success == false) errors.AddRange(result.Errors);
-                if (goResult?.Success == false) errors.AddRange(goResult.Errors);
-                if (result == null) errors.Add("SaveOptions result was null");
-                if (goResult == null) errors.Add("SaveGeneralsOnlineSettings result was null");
-
-                StatusMessage = $"Failed to save settings: {string.Join(", ", errors)}";
-                _logger.LogWarning("Failed to save settings: {Errors}", string.Join(", ", errors));
+                var errors = string.Join(", ", optionsErrors.Concat(generalsOnlineErrors));
+                StatusMessage = $"Failed to save settings: {errors}";
+                _logger.LogWarning("Failed to save settings: {Errors}", errors);
             }
         }
         catch (Exception ex)
@@ -904,6 +994,43 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         {
             IsLoading = false;
         }
+    }
+
+    /// <summary>
+    /// Reads the GeneralsOnline client's settings.json so the save can be applied on top of it.
+    /// </summary>
+    /// <remarks>
+    /// The file is read again for every save rather than kept as a snapshot: it is the
+    /// GeneralsOnline client's own global file, so anything it or another GenHub window wrote
+    /// since this editor opened would otherwise be reverted by the rewrite. Reading it is also
+    /// the only way to fail loudly, because a missing file reads as defaults and reports success:
+    /// a failure therefore means the client's file exists and could not be read, and rewriting it
+    /// from defaults would discard every key the client owns.
+    /// <para>
+    /// The read alone is not enough. This view model has no unset state, so it writes all 24
+    /// GeneralsOnline fields; unless they were seeded from a successful read, writing them would
+    /// replace what the user configured inside the client with this view model's defaults.
+    /// </para>
+    /// </remarks>
+    /// <returns>The settings this save must be applied on top of, or the error that aborts the rewrite.</returns>
+    private async Task<OperationResult<GeneralsOnlineSettings>> ReadGeneralsOnlineSettingsForRewriteAsync()
+    {
+        if (!_generalsOnlineSettingsSeeded)
+        {
+            const string error = "GeneralsOnline settings.json was never read, so its values cannot be rewritten";
+            _logger.LogWarning("Not writing GeneralsOnline settings: {Error}", error);
+            return OperationResult<GeneralsOnlineSettings>.CreateFailure(error);
+        }
+
+        var goLoadResult = await _gameSettingsService!.LoadGeneralsOnlineSettingsAsync();
+        if (goLoadResult?.Success == true && goLoadResult.Data != null)
+        {
+            return goLoadResult;
+        }
+
+        var loadError = goLoadResult?.FirstError ?? "LoadGeneralsOnlineSettings result was null";
+        _logger.LogWarning("Not writing GeneralsOnline settings because settings.json could not be read: {Error}", loadError);
+        return OperationResult<GeneralsOnlineSettings>.CreateFailure(loadError);
     }
 
     /// <summary>
@@ -1173,6 +1300,8 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
 
     private void ApplyGeneralsOnlineSettings(GeneralsOnlineSettings settings)
     {
+        settings.EnsureNestedSectionsInitialized();
+
         GoShowFps = settings.ShowFps;
         GoShowPing = settings.ShowPing;
         GoShowPlayerRanks = settings.ShowPlayerRanks;
@@ -1199,20 +1328,34 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         GoSocialNotificationPlayerSendsRequestMenus = settings.Social.NotificationPlayerSendsRequestMenus;
     }
 
-    private GeneralsOnlineSettings CreateGeneralsOnlineSettings()
+    /// <summary>
+    /// Decides whether this save may rewrite settings.json, which is a single global file owned by
+    /// the GeneralsOnline client rather than a per-profile one. Saving a retail, TheSuperHackers or
+    /// CommunityOutpost profile must leave it untouched.
+    /// </summary>
+    /// <returns>True when the profile being edited runs the GeneralsOnline client.</returns>
+    private bool ShouldWriteGeneralsOnlineSettings()
     {
-        var settings = new GeneralsOnlineSettings
-        {
-            ShowFps = GoShowFps,
-            ShowPing = GoShowPing,
-            ShowPlayerRanks = GoShowPlayerRanks,
-            AutoLogin = GoAutoLogin,
-            RememberUsername = GoRememberUsername,
-            EnableNotifications = GoEnableNotifications,
-            EnableSoundNotifications = GoEnableSoundNotifications,
-            ChatFontSize = GoChatFontSize,
-        };
+        return SelectedGameType == GameType.ZeroHour && _currentProfileIsGeneralsOnline;
+    }
 
+    /// <summary>
+    /// Writes this view model's GeneralsOnline values into settings just read from the client's
+    /// settings.json, which is what carries the keys this model does not declare through a save.
+    /// </summary>
+    /// <param name="settings">The settings read from settings.json, mutated in place.</param>
+    private void MergeViewModelIntoGeneralsOnlineSettings(GeneralsOnlineSettings settings)
+    {
+        settings.EnsureNestedSectionsInitialized();
+
+        settings.ShowFps = GoShowFps;
+        settings.ShowPing = GoShowPing;
+        settings.ShowPlayerRanks = GoShowPlayerRanks;
+        settings.AutoLogin = GoAutoLogin;
+        settings.RememberUsername = GoRememberUsername;
+        settings.EnableNotifications = GoEnableNotifications;
+        settings.EnableSoundNotifications = GoEnableSoundNotifications;
+        settings.ChatFontSize = GoChatFontSize;
         settings.Camera.MaxHeightOnlyWhenLobbyHost = GoCameraMaxHeightOnlyWhenLobbyHost;
         settings.Camera.MinHeight = GoCameraMinHeight;
         settings.Camera.MoveSpeedRatio = GoCameraMoveSpeedRatio;
@@ -1229,7 +1372,5 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         settings.Social.NotificationPlayerAcceptsRequestMenus = GoSocialNotificationPlayerAcceptsRequestMenus;
         settings.Social.NotificationPlayerSendsRequestGameplay = GoSocialNotificationPlayerSendsRequestGameplay;
         settings.Social.NotificationPlayerSendsRequestMenus = GoSocialNotificationPlayerSendsRequestMenus;
-
-        return settings;
     }
 }

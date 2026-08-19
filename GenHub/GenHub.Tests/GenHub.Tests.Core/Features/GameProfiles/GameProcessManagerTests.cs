@@ -84,8 +84,9 @@ public class GameProcessManagerTests
     {
         if (!OperatingSystem.IsWindows())
         {
-            // Process.GetProcessesByName does not enumerate these processes on macOS, so adoption
-            // cannot be observed there. The behaviour is Windows-only in practice.
+            // The hosted macOS runners do not start the harness child within the discovery
+            // timeout, so this asserts nothing there. Adoption itself is covered on Unix by
+            // StartProcessAsync_WhenAnUndeclaredLauncherForksAndExits_AdoptsTheSpawnedGameAsync.
             return;
         }
 
@@ -197,6 +198,54 @@ public class GameProcessManagerTests
         var errors = string.Join(", ", result.Errors);
         Assert.True(errors.Contains("without starting") || errors.Contains("did not start"), $"Expected start failure message, but got: {errors}");
         Assert.Contains(complaint, errors);
+    }
+
+    /// <summary>
+    /// A launcher that forks the game and exits 0 without declaring a child — a Wine or Proton
+    /// wrapper, or a stub — must have its game adopted instead of being reported as an immediate
+    /// exit. Adoption was gated to Windows, so these launches failed on Unix while the game ran.
+    /// Windows cannot exercise this path with a script launcher: a .bat is handled as a batch file
+    /// and skips immediate-exit handling entirely.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task StartProcessAsync_WhenAnUndeclaredLauncherForksAndExits_AdoptsTheSpawnedGameAsync()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var harness = LauncherHarness.Create(exitImmediately: true, launcherSharesChildName: true);
+
+        if (!harness.ChildBinaryRuns)
+        {
+            // The platform refuses the copied system binary, so no child can exist to adopt and
+            // the assertions below would be measuring the fixture rather than the manager.
+            return;
+        }
+
+        var config = new GameLaunchConfiguration
+        {
+            ExecutablePath = harness.LauncherPath,
+            WorkingDirectory = harness.WorkingDirectory,
+        };
+
+        var result = await _processManager.StartProcessAsync(config);
+
+        try
+        {
+            Assert.True(result.Success, string.Join(", ", result.Errors));
+            Assert.Equal(LauncherHarness.ChildProcessName, result.Data!.ProcessName);
+            Assert.True(result.Data.IsRunning);
+        }
+        finally
+        {
+            if (result.Success && result.Data is not null)
+            {
+                await _processManager.TerminateProcessAsync(result.Data.ProcessId);
+            }
+        }
     }
 
     /// <summary>
@@ -370,10 +419,14 @@ public class GameProcessManagerTests
         /// <summary>File the launcher writes its own PID into, so Dispose can stop it.</summary>
         private const string LauncherPidFileName = "launcher.pid";
 
-        private LauncherHarness(string workingDirectory, string launcherPath)
+        /// <summary>How long to wait for the one-shot checks that prepare and vet the child.</summary>
+        private const int ChildProbeTimeoutMs = 5000;
+
+        private LauncherHarness(string workingDirectory, string launcherPath, bool childBinaryRuns)
         {
             WorkingDirectory = workingDirectory;
             LauncherPath = launcherPath;
+            ChildBinaryRuns = childBinaryRuns;
         }
 
         /// <summary>Gets the directory the launcher and child run from.</summary>
@@ -382,15 +435,24 @@ public class GameProcessManagerTests
         /// <summary>Gets the path of the launcher to start.</summary>
         public string LauncherPath { get; }
 
+        /// <summary>Gets a value indicating whether the copied child binary runs on this machine.</summary>
+        public bool ChildBinaryRuns { get; }
+
         /// <summary>Creates a harness, optionally spawning a child.</summary>
         /// <param name="spawnChild">Whether the launcher should spawn the child.</param>
         /// <param name="exitImmediately">Whether the launcher should exit cleanly instead of staying alive.</param>
         /// <param name="stderrMessage">A line the launcher writes to stderr before doing anything else.</param>
+        /// <param name="launcherSharesChildName">Whether the launcher takes the child's name, as an undeclared child is looked up by the launcher's own name. Unix only.</param>
         /// <returns>The created harness.</returns>
-        public static LauncherHarness Create(bool spawnChild = true, bool exitImmediately = false, string? stderrMessage = null)
+        public static LauncherHarness Create(
+            bool spawnChild = true,
+            bool exitImmediately = false,
+            string? stderrMessage = null,
+            bool launcherSharesChildName = false)
         {
             var workingDirectory = Path.Combine(Path.GetTempPath(), "genhub-launcher-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(workingDirectory);
+            workingDirectory = Canonicalize(workingDirectory);
 
             var childPath = Path.Combine(workingDirectory, OperatingSystem.IsWindows() ? ChildProcessName + ".exe" : ChildProcessName);
             File.Copy(LongRunningSystemBinary(), childPath);
@@ -415,7 +477,9 @@ public class GameProcessManagerTests
             }
             else
             {
-                launcherPath = Path.Combine(workingDirectory, "genhublauncher.sh");
+                launcherPath = Path.Combine(
+                    workingDirectory,
+                    (launcherSharesChildName ? ChildProcessName : "genhublauncher") + ".sh");
                 var spawn = spawnChild ? $"\"{childPath}\" {LauncherLifetimeSeconds} &\n" : string.Empty;
                 var linger = exitImmediately ? string.Empty : $"sleep {LauncherLifetimeSeconds}\n";
                 var complain = stderrMessage is null ? string.Empty : $"echo \"{stderrMessage}\" >&2\n";
@@ -427,8 +491,9 @@ public class GameProcessManagerTests
             File.WriteAllText(launcherPath, script);
             MakeExecutable(launcherPath);
             MakeExecutable(childPath);
+            SignForLocalExecution(childPath);
 
-            return new LauncherHarness(workingDirectory, launcherPath);
+            return new LauncherHarness(workingDirectory, launcherPath, CanExecute(childPath));
         }
 
         /// <inheritdoc/>
@@ -479,6 +544,82 @@ public class GameProcessManagerTests
             }
 
             return File.Exists("/bin/sleep") ? "/bin/sleep" : "/usr/bin/sleep";
+        }
+
+        /// <summary>
+        /// Resolves symlinked components so the configured working directory is spelled the way a
+        /// process image path is. The temp root is reached through a symlink on macOS, while a real
+        /// workspace is not, and selection compares the two spellings without resolving either.
+        /// </summary>
+        /// <param name="path">An existing directory path.</param>
+        /// <returns>The path with every symlinked component replaced by its target.</returns>
+        private static string Canonicalize(string path)
+        {
+            var resolved = Path.GetPathRoot(path) ?? string.Empty;
+
+            foreach (var segment in path[resolved.Length..].Split(
+                Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
+            {
+                resolved = Path.Combine(resolved, segment);
+                resolved = Directory.ResolveLinkTarget(resolved, returnFinalTarget: true)?.FullName ?? resolved;
+            }
+
+            return resolved;
+        }
+
+        /// <summary>
+        /// Re-signs the copied system binary so the platform will run it. macOS kills a copy of a
+        /// platform binary on sight, and an ad-hoc signature is what makes the copy executable.
+        /// </summary>
+        private static void SignForLocalExecution(string path)
+        {
+            if (!OperatingSystem.IsMacOS())
+            {
+                return;
+            }
+
+            try
+            {
+                using var codesign = System.Diagnostics.Process.Start(
+                    new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "codesign",
+                        ArgumentList = { "--force", "--sign", "-", path },
+                        RedirectStandardError = true,
+                    });
+                codesign?.WaitForExit(ChildProbeTimeoutMs);
+            }
+            catch
+            {
+                // Best effort - CanExecute is what decides whether the child is usable.
+            }
+        }
+
+        /// <summary>
+        /// Confirms the copied child really runs here, so a platform that refuses it reads as an
+        /// unusable fixture rather than as a launch that failed to adopt.
+        /// </summary>
+        private static bool CanExecute(string childPath)
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                return true;
+            }
+
+            try
+            {
+                using var probe = System.Diagnostics.Process.Start(childPath, "0");
+                if (probe is null)
+                {
+                    return false;
+                }
+
+                return probe.WaitForExit(ChildProbeTimeoutMs) && probe.ExitCode == 0;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private static void MakeExecutable(string path)

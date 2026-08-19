@@ -710,7 +710,6 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 throw new InvalidOperationException("Failed to load GitHub PAT");
             }
 
-            using var client = CreateConfiguredHttpClientWithToken(token);
             var owner = AppConstants.GitHubRepositoryOwner;
             var repo = AppConstants.GitHubRepositoryName;
             var artifactId = artifactInfo.ArtifactId;
@@ -725,33 +724,32 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
             var zipPath = Path.Combine(tempDir, "artifact.zip");
 
-            // Download artifact
-            var downloadProgress = new Progress<UpdateProgress>(p =>
+            var headers = new Dictionary<string, string>
+            {
+                { "Authorization", $"Bearer {token}" },
+                { "User-Agent", AppConstants.AppName },
+                { "Accept", "application/vnd.github+json" },
+            };
+
+            var downloadProgress = new Action<int>(percent =>
             {
                 // Scale 0-100% download to 0-30% total progress
-                var totalPercent = (int)(p.PercentComplete * 0.3);
-
-                // Format decimal size if possible
-                string sizeInfo = string.Empty;
-                if (p.TotalBytes > 0)
-                {
-                    double currentMb = p.BytesDownloaded / 1024.0 / 1024.0;
-                    double totalMb = p.TotalBytes / 1024.0 / 1024.0;
-                    double speedMb = p.BytesPerSecond / 1024.0 / 1024.0;
-                    sizeInfo = $" ({currentMb:F1}/{totalMb:F1} MB, {speedMb:F1} MB/s)";
-                }
+                var totalPercent = (int)(percent * 0.3);
 
                 progress?.Report(new UpdateProgress
                 {
-                    Status = $"Downloading artifact for {label}{commitInfo}... {p.PercentComplete}%{sizeInfo}",
+                    Status = $"Downloading artifact for {label}{commitInfo}... {percent}%",
                     PercentComplete = totalPercent,
-                    BytesDownloaded = p.BytesDownloaded,
-                    TotalBytes = p.TotalBytes,
-                    BytesPerSecond = p.BytesPerSecond,
                 });
             });
 
-            await DownloadFileWithProgressAsync(client, downloadUrl, zipPath, downloadProgress, cancellationToken);
+            await _fileDownloader.DownloadFile(
+                downloadUrl,
+                zipPath,
+                downloadProgress,
+                headers,
+                timeout: 300,
+                cancelToken: cancellationToken);
 
             progress?.Report(new UpdateProgress { Status = "Extracting artifact...", PercentComplete = 30 });
 
@@ -1101,80 +1099,6 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
         listener.Stop();
         return port;
-    }
-
-    /// <summary>
-    /// Downloads a file with progress reporting.
-    /// </summary>
-    private static async Task DownloadFileWithProgressAsync(
-        HttpClient client,
-        string requestUrl,
-        string destinationPath,
-        IProgress<UpdateProgress>? progress,
-        CancellationToken cancellationToken)
-    {
-        using var response = await client.GetAsync(requestUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        var totalBytes = response.Content.Headers.ContentLength ?? -1L;
-
-        // Create temp directory if it doesn't exist
-        var directory = Path.GetDirectoryName(destinationPath);
-        if (!string.IsNullOrEmpty(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using var fileStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, AppUpdateConstants.DefaultStreamBufferSize, true);
-
-        var totalRead = 0L;
-        var buffer = new byte[AppUpdateConstants.DefaultStreamBufferSize];
-        var isMoreToRead = true;
-
-        var stopwatch = Stopwatch.StartNew();
-        var lastReportTime = stopwatch.ElapsedMilliseconds;
-
-        while (isMoreToRead)
-        {
-            var read = await contentStream.ReadAsync(buffer, cancellationToken);
-            if (read == 0)
-            {
-                isMoreToRead = false;
-            }
-            else
-            {
-                await fileStream.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
-
-                totalRead += read;
-
-                var currentTime = stopwatch.ElapsedMilliseconds;
-
-                // Report every 500ms
-                if (currentTime - lastReportTime >= 500 || !isMoreToRead)
-                {
-                    if (progress != null)
-                    {
-                        var elapsedSeconds = stopwatch.Elapsed.TotalSeconds;
-                        var bytesPerSecond = elapsedSeconds > 0 ? (long)(totalRead / elapsedSeconds) : 0L;
-                        var percent = totalBytes > 0 ? (int)((double)totalRead / totalBytes * 100) : 0;
-
-                        progress.Report(new UpdateProgress
-                        {
-                            PercentComplete = percent,
-                            BytesDownloaded = totalRead,
-                            TotalBytes = totalBytes,
-                            BytesPerSecond = bytesPerSecond,
-                            Status = "Downloading...",
-                        });
-                    }
-
-                    lastReportTime = currentTime;
-                }
-            }
-        }
-
-        stopwatch.Stop();
     }
 
     /// <summary>

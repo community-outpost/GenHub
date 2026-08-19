@@ -458,4 +458,78 @@ public class FastHttpClientFileDownloaderTests : IDisposable
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => downloader.DownloadFile("https://example.com/file.bin", targetFile, _ => { }, null, 30, cts.Token));
     }
+
+    /// <summary>
+    /// Tests that when redirected to a cross-origin storage host, the Authorization header is omitted from chunk requests.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DownloadFile_WhenRedirectedToCrossOriginCdn_ShouldStripAuthorizationHeaderOnChunksAsync()
+    {
+        var totalBytes = AppUpdateConstants.DownloadChunkSizeBytes * 2;
+        var sourceBytes = new byte[totalBytes];
+        new Random(42).NextBytes(sourceBytes);
+
+        var chunkAuthHeadersPresent = 0;
+
+        var handler = new TestHttpMessageHandler(request =>
+        {
+            var range = request.Headers.Range?.Ranges.FirstOrDefault();
+            if (range is { From: 0, To: 0 })
+            {
+                var probeResponse = new HttpResponseMessage(HttpStatusCode.PartialContent)
+                {
+                    Content = new ByteArrayContent([sourceBytes[0]]),
+                    RequestMessage = new HttpRequestMessage(HttpMethod.Get, "https://cdn.blob.core.windows.net/artifacts/file.zip"),
+                };
+                probeResponse.Content.Headers.ContentRange = new ContentRangeHeaderValue(0, 0, totalBytes) { Unit = "bytes" };
+                return probeResponse;
+            }
+
+            if (range is { From: { } from, To: { } to })
+            {
+                if (request.Headers.Contains("Authorization"))
+                {
+                    Interlocked.Increment(ref chunkAuthHeadersPresent);
+                }
+
+                var length = (int)(to - from + 1);
+                var chunkData = new byte[length];
+                Array.Copy(sourceBytes, from, chunkData, 0, length);
+
+                var chunkResponse = new HttpResponseMessage(HttpStatusCode.PartialContent)
+                {
+                    Content = new ByteArrayContent(chunkData),
+                    RequestMessage = request,
+                };
+                chunkResponse.Content.Headers.ContentRange = new ContentRangeHeaderValue(from, to, totalBytes) { Unit = "bytes" };
+                return chunkResponse;
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(sourceBytes),
+                RequestMessage = request,
+            };
+        });
+
+        var downloader = new FastHttpClientFileDownloader(_mockLogger.Object, handler);
+        var targetFile = Path.Combine(_tempDirectory, "cross-origin-test.bin");
+        var headers = new Dictionary<string, string>
+        {
+            { "Authorization", "Bearer test_pat_token" },
+            { "User-Agent", "GenHub" },
+        };
+
+        await downloader.DownloadFile(
+            "https://api.github.com/repos/community-outpost/GenHub/actions/artifacts/123/zip",
+            targetFile,
+            _ => { },
+            headers,
+            30);
+
+        Assert.True(File.Exists(targetFile));
+        Assert.Equal(sourceBytes, await File.ReadAllBytesAsync(targetFile));
+        Assert.Equal(0, chunkAuthHeadersPresent);
+    }
 }

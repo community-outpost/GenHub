@@ -47,7 +47,7 @@
     <PackageVersion Include="coverlet.collector" Version="6.0.2" />
     <PackageVersion Include="moq" Version="4.20.72" />
     <PackageVersion Include="FluentAssertions" Version="6.12.1" />
-    <PackageVersion Include="SharpCompress" Version="0.42.0" />
+    <PackageVersion Include="SharpCompress" Version="0.48.0" />
     <PackageVersion Include="System.Management" Version="10.0.2" />
     <!-- Image processing for AVIF to TGA conversion (GenPatcher content) -->
     <PackageVersion Include="SixLabors.ImageSharp" Version="3.1.12" />

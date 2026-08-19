@@ -68,6 +68,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly IGameInstallationService _installationService;
     private readonly IStorageLocationService _storageLocationService;
     private readonly IUserDataTracker _userDataTracker;
+    private readonly IDialogService _dialogService;
 
     private bool _isViewVisible;
     private bool _disposed;
@@ -216,6 +217,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <param name="installationService">Game installation service.</param>
     /// <param name="storageLocationService">Storage location service.</param>
     /// <param name="userDataTracker">User data tracker service.</param>
+    /// <param name="dialogService">Dialog service used to confirm destructive actions.</param>
     /// <param name="gitHubTokenStorage">GitHub token storage.</param>
     public SettingsViewModel(
         IUserSettingsService userSettingsService,
@@ -230,6 +232,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IGameInstallationService installationService,
         IStorageLocationService storageLocationService,
         IUserDataTracker userDataTracker,
+        IDialogService dialogService,
         IGitHubTokenStorage? gitHubTokenStorage = null)
     {
         _userSettingsService = userSettingsService ?? throw new ArgumentNullException(nameof(userSettingsService));
@@ -244,6 +247,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _installationService = installationService ?? throw new ArgumentNullException(nameof(installationService));
         _storageLocationService = storageLocationService ?? throw new ArgumentNullException(nameof(storageLocationService));
         _userDataTracker = userDataTracker ?? throw new ArgumentNullException(nameof(userDataTracker));
+        _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         _gitHubTokenStorage = gitHubTokenStorage;
 
         LoadSettings();
@@ -593,6 +597,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to save settings");
+            _notificationService.ShowError(
+                "Settings Not Saved",
+                ex.Message,
+                (int)TimeIntervals.NotificationHideDelay.TotalMilliseconds);
         }
         finally
         {
@@ -1056,22 +1064,54 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task DeleteAllData()
     {
-        _logger.LogWarning("Deleting ALL application data requested");
+        try
+        {
+            _logger.LogWarning("Deleting ALL application data requested");
 
-        await DeleteProfiles();
-        await DeleteWorkspaces();
-        await DeleteManifests();
-        await DeleteCasStorage();
-        await DeleteUserData();
+            var confirmed = await _dialogService.ShowConfirmationAsync(
+                AppConstants.DeleteAllDataConfirmationTitle,
+                AppConstants.DeleteAllDataConfirmationMessage,
+                confirmText: AppConstants.DeleteAllDataConfirmText);
 
-        // Invalidate installation cache to force re-generation of manifests on next scan
-        _installationService.InvalidateCache();
+            if (!confirmed)
+            {
+                _logger.LogInformation("Deleting ALL application data was cancelled at the confirmation prompt");
+                return;
+            }
 
-        await UpdateDangerZoneDataAsync();
-        _notificationService.ShowSuccess(
-            "Data Deleted",
-            $"Profiles, workspaces, manifests, and user data were deleted. {CasDefaults.GarbageCollectionDisabledMessage}",
-            5000);
+            await DeleteProfiles();
+            await DeleteWorkspaces();
+            await DeleteManifests();
+            await DeleteCasStorage();
+            var userDataDeleted = await DeleteUserDataInternalAsync();
+
+            // Invalidate installation cache to force re-generation of manifests on next scan
+            _installationService.InvalidateCache();
+
+            await UpdateDangerZoneDataAsync();
+
+            // A success toast on top of the partial-failure toast the user data deletion just raised
+            // would tell the user their data is gone while their originals are still on disk.
+            if (userDataDeleted)
+            {
+                _notificationService.ShowSuccess(
+                    "Data Deleted",
+                    $"Profiles, workspaces, manifests, and user data were deleted. {CasDefaults.GarbageCollectionDisabledMessage}",
+                    5000);
+            }
+            else
+            {
+                _notificationService.ShowWarning(
+                    "Data Partially Deleted",
+                    $"Profiles, workspaces, and manifests were deleted, but some user data was kept. {CasDefaults.GarbageCollectionDisabledMessage}",
+                    5000);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete all application data");
+            _notificationService.ShowError("Deletion Failed", $"Failed to delete all application data: {ex.Message}", 5000);
+        }
     }
 
     [RelayCommand]
@@ -1289,18 +1329,41 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task DeleteUserData()
     {
+        await DeleteUserDataInternalAsync();
+    }
+
+    /// <summary>
+    /// Deletes the tracked user data and reports whether everything was actually removed, so a
+    /// caller that follows it with a summary message cannot contradict the partial-failure it raised.
+    /// </summary>
+    /// <returns><c>true</c> when all tracked user data was deleted; otherwise, <c>false</c>.</returns>
+    private async Task<bool> DeleteUserDataInternalAsync()
+    {
         try
         {
             _logger.LogWarning("Deleting all user data");
-            await _userDataTracker.DeleteAllUserDataAsync();
-            _notificationService.ShowSuccess("User Data Deleted", "All user data deleted successfully.", 3000);
+            var result = await _userDataTracker.DeleteAllUserDataAsync();
+            if (result.Success)
+            {
+                _notificationService.ShowSuccess("User Data Deleted", "All user data deleted successfully.", 3000);
+            }
+            else
+            {
+                _logger.LogWarning("User data deletion kept some data: {Error}", result.FirstError);
+                _notificationService.ShowError(
+                    "User Data Partially Deleted",
+                    result.FirstError ?? "Some tracked user data could not be deleted.",
+                    5000);
+            }
 
             await UpdateDangerZoneDataAsync();
+            return result.Success;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to delete user data");
             _notificationService.ShowError("Deletion Failed", $"Failed to delete user data: {ex.Message}", 5000);
+            return false;
         }
     }
 

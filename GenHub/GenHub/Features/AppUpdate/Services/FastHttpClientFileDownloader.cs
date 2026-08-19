@@ -21,6 +21,16 @@ public class FastHttpClientFileDownloader(
     ILogger<FastHttpClientFileDownloader>? logger = null,
     HttpMessageHandler? httpMessageHandler = null) : HttpClientFileDownloader
 {
+    private static readonly SocketsHttpHandler SharedSocketsHandler = new()
+    {
+        MaxConnectionsPerServer = 32,
+        EnableMultipleHttp2Connections = true,
+        AutomaticDecompression = DecompressionMethods.All,
+        PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+        PooledConnectionIdleTimeout = TimeSpan.FromSeconds(60),
+        ResponseHeaderTimeout = TimeSpan.FromSeconds(30),
+    };
+
     private sealed class MonotonicProgressReporter(Action<int>? progressCallback, long totalBytes)
     {
         private readonly object _sync = new();
@@ -126,13 +136,33 @@ public class FastHttpClientFileDownloader(
                     AppUpdateConstants.ParallelDownloadConcurrency,
                     totalLength);
 
-                await DownloadParallelAsync(
-                    client,
-                    resolvedUri,
-                    targetFile,
-                    totalLength,
-                    progress,
-                    cancelToken).ConfigureAwait(false);
+                // If redirected to a third-party CDN/storage host (e.g. Azure Blob/S3), strip Authorization header to avoid 400 Bad Request on presigned URLs
+                HttpClient chunkClient = client;
+                HttpClient? cdnClient = null;
+                var originUri = new Uri(url);
+                if (!string.Equals(resolvedUri.Host, originUri.Host, StringComparison.OrdinalIgnoreCase) && headers?.ContainsKey("Authorization") == true)
+                {
+                    var cdnHeaders = headers.Where(h => !string.Equals(h.Key, "Authorization", StringComparison.OrdinalIgnoreCase))
+                                           .ToDictionary(h => h.Key, h => h.Value);
+                    cdnClient = CreateHttpClient(cdnHeaders, timeout);
+                    chunkClient = cdnClient;
+                }
+
+                try
+                {
+                    await DownloadParallelAsync(
+                        chunkClient,
+                        resolvedUri,
+                        targetFile,
+                        totalLength,
+                        progress,
+                        cancelToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    cdnClient?.Dispose();
+                }
+
                 return;
             }
 
@@ -168,26 +198,22 @@ public class FastHttpClientFileDownloader(
     /// <inheritdoc/>
     protected override HttpClient CreateHttpClient(IDictionary<string, string>? headers, double timeout)
     {
-        if (httpMessageHandler is not null)
+        var handler = httpMessageHandler ?? SharedSocketsHandler;
+        var client = new HttpClient(handler, disposeHandler: false);
+        if (timeout > 0)
         {
-            var client = new HttpClient(httpMessageHandler, disposeHandler: false);
-            if (timeout > 0)
-            {
-                client.Timeout = TimeSpan.FromSeconds(timeout);
-            }
-
-            if (headers != null)
-            {
-                foreach (var header in headers)
-                {
-                    client.DefaultRequestHeaders.TryAddWithoutValidation(header.Key, header.Value);
-                }
-            }
-
-            return client;
+            client.Timeout = TimeSpan.FromSeconds(timeout);
         }
 
-        return base.CreateHttpClient(headers, timeout);
+        if (headers != null)
+        {
+            foreach (var header in headers)
+            {
+                client.DefaultRequestHeaders.TryAddWithoutValidation(header.Key, header.Value);
+            }
+        }
+
+        return client;
     }
 
     private static async Task DownloadSingleStreamAsync(
@@ -209,7 +235,7 @@ public class FastHttpClientFileDownloader(
             useAsync: true);
 
         var buffer = new byte[AppUpdateConstants.DefaultStreamBufferSize];
-        int bytesRead = 0;
+        int bytesRead;
 
         while ((bytesRead = await contentStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancelToken).ConfigureAwait(false)) > 0)
         {
@@ -228,17 +254,15 @@ public class FastHttpClientFileDownloader(
         Action<int>? progress,
         CancellationToken cancelToken)
     {
-        // Pre-allocate the full file on disk to prevent fragmentation and allow concurrent range writing
-        await using (var preAllocStream = new FileStream(
+        // Pre-allocate the full file on disk and open safe handle for lock-free parallel writes
+        using var fileHandle = File.OpenHandle(
             targetFile,
             FileMode.Create,
             FileAccess.Write,
-            FileShare.Write,
-            AppUpdateConstants.DefaultStreamBufferSize,
-            useAsync: true))
-        {
-            preAllocStream.SetLength(totalBytes);
-        }
+            FileShare.ReadWrite,
+            FileOptions.Asynchronous);
+
+        RandomAccess.SetLength(fileHandle, totalBytes);
 
         var chunkSize = AppUpdateConstants.DownloadChunkSizeBytes;
         var chunkCount = (int)Math.Ceiling((double)totalBytes / chunkSize);
@@ -281,23 +305,19 @@ public class FastHttpClientFileDownloader(
                 }
 
                 await using var chunkStream = await chunkResponse.Content.ReadAsStreamAsync(cancelToken).ConfigureAwait(false);
-                await using var fileStream = new FileStream(
-                    targetFile,
-                    FileMode.Open,
-                    FileAccess.Write,
-                    FileShare.ReadWrite,
-                    AppUpdateConstants.DefaultStreamBufferSize,
-                    useAsync: true);
-
-                fileStream.Seek(start, SeekOrigin.Begin);
 
                 var buffer = new byte[AppUpdateConstants.DefaultStreamBufferSize];
                 var chunkBytesRead = 0L;
-                int bytesRead = 0;
+                int bytesRead;
 
                 while ((bytesRead = await chunkStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancelToken).ConfigureAwait(false)) > 0)
                 {
-                    await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancelToken).ConfigureAwait(false);
+                    await RandomAccess.WriteAsync(
+                        fileHandle,
+                        buffer.AsMemory(0, bytesRead),
+                        start + chunkBytesRead,
+                        cancelToken).ConfigureAwait(false);
+
                     chunkBytesRead += bytesRead;
                     progressReporter.ReportBytesRead(bytesRead);
                 }

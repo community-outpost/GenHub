@@ -36,6 +36,22 @@ public static class FileTypes
     public const string SettingsFileName = "settings.json";
 
     /// <summary>
+    /// Settings file name written by releases up to v0.0.3, which combined the data root with the
+    /// JSON extension instead of the settings file name.
+    /// </summary>
+    public const string LegacySettingsFileName = ".json";
+
+    /// <summary>
+    /// File name holding the persisted workspace metadata.
+    /// </summary>
+    public const string WorkspaceMetadataFileName = "workspaces.json";
+
+    /// <summary>
+    /// File name of the index tracking installed user data.
+    /// </summary>
+    public const string UserDataIndexFileName = "index.json";
+
+    /// <summary>
     /// File extension for replay files.
     /// </summary>
     public const string ReplayFileExtension = ".rep";

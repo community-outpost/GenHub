@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Storage;
@@ -47,7 +48,7 @@ public class ContentStorageService : IContentStorageService
                 try
                 {
                     var fullPath = Path.GetFullPath(Path.Combine(baseDirectory, file.RelativePath));
-                    if (!IsPathWithinDirectory(normalizedBase, fullPath))
+                    if (!PathHelper.IsPathWithinDirectory(normalizedBase, fullPath))
                     {
                         return OperationResult<bool>.CreateFailure($"File {file.RelativePath} attempts path traversal outside base directory");
                     }
@@ -72,7 +73,7 @@ public class ContentStorageService : IContentStorageService
                             ? Path.GetFullPath(file.SourcePath)
                             : Path.GetFullPath(Path.Combine(baseDirectory, file.SourcePath));
 
-                        if (!IsPathWithinDirectory(normalizedBase, fullSource))
+                        if (!PathHelper.IsPathWithinDirectory(normalizedBase, fullSource))
                         {
                             return OperationResult<bool>.CreateFailure($"File {file.RelativePath} specifies SourcePath {file.SourcePath} which traverses outside base directory");
                         }
@@ -86,15 +87,6 @@ public class ContentStorageService : IContentStorageService
         }
 
         return OperationResult<bool>.CreateSuccess(true);
-    }
-
-    private static bool IsPathWithinDirectory(string normalizedBase, string fullPath)
-    {
-        var relative = Path.GetRelativePath(normalizedBase, fullPath);
-        return !relative.Equals("..", StringComparison.Ordinal) &&
-               !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) &&
-               !relative.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal) &&
-               !Path.IsPathRooted(relative);
     }
 
     private static async Task<string> CalculateFileHashAsync(string filePath, CancellationToken cancellationToken)

@@ -226,4 +226,11 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
             ? configured
             : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppConstants.AppName);
     }
+
+    /// <summary>
+    /// Gets the application data path used by releases up to v0.0.3, which stored data under the roaming profile.
+    /// </summary>
+    /// <returns>The legacy application data path as a string.</returns>
+    public string GetLegacyConfiguredDataPath() =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppConstants.AppName);
 }
