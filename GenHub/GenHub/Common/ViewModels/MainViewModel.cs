@@ -259,7 +259,7 @@ public partial class MainViewModel(
                         !string.Equals(artifactVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
                     {
                         logger?.LogInformation("PR #{PrNumber} update available: {Version}", prNumber, artifactUpdate.DisplayVersion);
-                        await Dispatcher.UIThread.InvokeAsync(() => notificationService.Show(new NotificationMessage(
+                        notificationService.Show(new NotificationMessage(
                             NotificationType.Info,
                             AppUpdateConstants.PrUpdateAvailableNotificationTitle,
                             string.Format(AppUpdateConstants.PrUpdateNotificationFormat, artifactUpdate.DisplayVersion, prNumber),
@@ -273,7 +273,7 @@ public partial class MainViewModel(
                                     dismissOnExecute: true),
                             ],
                             isPersistent: true,
-                            showInBadge: true)));
+                            showInBadge: true));
                     }
                 }
 
@@ -298,7 +298,7 @@ public partial class MainViewModel(
                         !string.Equals(artifactVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
                     {
                         logger?.LogInformation("Branch '{Branch}' update available: {Version}", branch, artifactUpdate.DisplayVersion);
-                        await Dispatcher.UIThread.InvokeAsync(() => notificationService.Show(new NotificationMessage(
+                        notificationService.Show(new NotificationMessage(
                             NotificationType.Info,
                             AppUpdateConstants.BranchUpdateAvailableNotificationTitle,
                             string.Format(AppUpdateConstants.BranchUpdateNotificationFormat, artifactUpdate.DisplayVersion, branch),
@@ -312,7 +312,7 @@ public partial class MainViewModel(
                                     dismissOnExecute: true),
                             ],
                             isPersistent: true,
-                            showInBadge: true)));
+                            showInBadge: true));
                     }
                 }
 
@@ -330,7 +330,7 @@ public partial class MainViewModel(
                 if (!string.Equals(version, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
                 {
                     logger?.LogInformation("GitHub release update available: {Version}", version);
-                    await Dispatcher.UIThread.InvokeAsync(() => notificationService.Show(new NotificationMessage(
+                    notificationService.Show(new NotificationMessage(
                         NotificationType.Info,
                         AppUpdateConstants.UpdateAvailableNotificationTitle,
                         string.Format(AppUpdateConstants.ReleaseUpdateNotificationFormat, version),
@@ -344,7 +344,7 @@ public partial class MainViewModel(
                                 dismissOnExecute: true),
                         ],
                         isPersistent: true,
-                        showInBadge: true)));
+                        showInBadge: true));
                     return;
                 }
             }
@@ -355,7 +355,7 @@ public partial class MainViewModel(
                     !string.Equals(githubVersion, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
                 {
                     logger?.LogInformation("GitHub API release update available: {Version}", githubVersion);
-                    await Dispatcher.UIThread.InvokeAsync(() => notificationService.Show(new NotificationMessage(
+                    notificationService.Show(new NotificationMessage(
                         NotificationType.Info,
                         AppUpdateConstants.UpdateAvailableNotificationTitle,
                         string.Format(AppUpdateConstants.ReleaseUpdateNotificationFormat, githubVersion),
@@ -369,7 +369,7 @@ public partial class MainViewModel(
                                 dismissOnExecute: true),
                         ],
                         isPersistent: true,
-                        showInBadge: true)));
+                        showInBadge: true));
                 }
             }
         }
@@ -387,7 +387,7 @@ public partial class MainViewModel(
         var progressNotificationId = Guid.NewGuid();
 
         // show the progress notification immediately
-        await Dispatcher.UIThread.InvokeAsync(() => notificationService.Show(new NotificationMessage(
+        notificationService.Show(new NotificationMessage(
             NotificationType.Info,
             AppUpdateConstants.UpdatingAppNotificationTitle,
             AppUpdateConstants.UpdateStartingMessage,
@@ -396,7 +396,7 @@ public partial class MainViewModel(
             showInBadge: false)
         {
             Id = progressNotificationId,
-        }));
+        });
 
         var progress = new Progress<UpdateProgress>(p =>
         {
@@ -433,20 +433,32 @@ public partial class MainViewModel(
             }
             else if (!string.IsNullOrWhiteSpace(githubVersion))
             {
-                // if update info is unavailable (e.g., debug mode), open update window
-                logger?.LogInformation("GitHub API update detected without Velopack package; opening update window");
+                logger?.LogInformation("Opening update window for GitHub API update: {Version}", githubVersion);
                 notificationService.Dismiss(progressNotificationId);
-                await Dispatcher.UIThread.InvokeAsync(() => SettingsViewModel.OpenUpdateWindowCommand.Execute(null));
+                OpenUpdateSettings();
             }
         }
         catch (Exception ex)
         {
-            logger?.LogError(ex, "Failed to perform one-click update");
+            logger?.LogError(ex, "Failed to install update");
             notificationService.Dismiss(progressNotificationId);
             notificationService.ShowError(
                 AppUpdateConstants.UpdateFailedNotificationTitle,
-                ex.Message,
-                NotificationConstants.DefaultAutoDismissMs);
+                string.Format(AppUpdateConstants.UpdateFailedNotificationFormat, ex.Message),
+                autoDismissMilliseconds: 5000);
+        }
+    }
+
+    private void OpenUpdateSettings()
+    {
+        SelectTab(NavigationTab.Settings);
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            SettingsViewModel.OpenUpdateWindowCommand.Execute(null);
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(() => SettingsViewModel.OpenUpdateWindowCommand.Execute(null));
         }
     }
 

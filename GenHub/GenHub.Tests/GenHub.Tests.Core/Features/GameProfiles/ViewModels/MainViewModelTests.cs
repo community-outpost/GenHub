@@ -290,9 +290,16 @@ public class MainViewModelTests
             DownloadUrl: "https://example.com/artifact.zip",
             Size: 1024);
 
+        var installStartedTcs = new TaskCompletionSource<bool>();
         var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
         mockVelopackUpdateManager.Setup(x => x.CheckForArtifactUpdatesAsync(It.IsAny<System.Threading.CancellationToken>()))
             .ReturnsAsync(artifactInfo);
+        mockVelopackUpdateManager.Setup(x => x.InstallArtifactAsync(
+                artifactInfo,
+                It.IsAny<IProgress<UpdateProgress>>(),
+                It.IsAny<System.Threading.CancellationToken>()))
+            .Callback(() => installStartedTcs.TrySetResult(true))
+            .Returns(Task.CompletedTask);
 
         var mockLogger = new Mock<ILogger<MainViewModel>>();
         var mockNotificationService = CreateNotificationServiceMock();
@@ -340,8 +347,8 @@ public class MainViewModelTests
         // Act - simulate clicking the update action button
         updateNotification.Actions[0].Callback?.Invoke();
 
-        // Allow background install task to trigger progress notification
-        await Task.Delay(100);
+        // Await background install execution deterministically
+        await installStartedTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         // Assert that progress notification was displayed
         mockVelopackUpdateManager.Verify(x => x.InstallArtifactAsync(artifactInfo, It.IsAny<IProgress<UpdateProgress>>(), It.IsAny<System.Threading.CancellationToken>()), Times.Once);
