@@ -189,13 +189,13 @@ public class VelopackUpdateManagerTests
     }
 
     /// <summary>
-    /// Tests that VelopackUpdateManager accepts a custom FastHttpClientFileDownloader.
+    /// Tests that VelopackUpdateManager accepts a custom IFileDownloader.
     /// </summary>
     [Fact]
     public void Constructor_WithCustomFileDownloader_ShouldInitializeSuccessfully()
     {
         // Arrange
-        var customDownloader = new FastHttpClientFileDownloader();
+        var customDownloader = new Mock<IFileDownloader>().Object;
 
         // Act
         var manager = new VelopackUpdateManager(

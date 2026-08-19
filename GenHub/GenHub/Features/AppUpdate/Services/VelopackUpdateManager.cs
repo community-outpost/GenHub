@@ -40,7 +40,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IGitHubTokenStorage? _gitHubTokenStorage;
     private readonly IUserSettingsService? _userSettingsService;
-    private readonly FastHttpClientFileDownloader _fileDownloader;
+    private readonly IFileDownloader _fileDownloader;
     private readonly UpdateManager? _updateManager;
     private readonly GithubSource _githubSource;
 
@@ -115,7 +115,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         IHttpClientFactory httpClientFactory,
         IGitHubTokenStorage? gitHubTokenStorage = null,
         IUserSettingsService? userSettingsService = null,
-        FastHttpClientFileDownloader? fileDownloader = null)
+        IFileDownloader? fileDownloader = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));

@@ -23,6 +23,7 @@ public class FastHttpClientFileDownloader(
 {
     private sealed class MonotonicProgressReporter(Action<int>? progressCallback, long totalBytes)
     {
+        private readonly object _sync = new();
         private int _lastReportedPercent = -1;
         private long _totalBytesDownloaded;
 
@@ -36,17 +37,18 @@ public class FastHttpClientFileDownloader(
             var currentTotal = Interlocked.Add(ref _totalBytesDownloaded, bytesRead);
             var currentPercent = (int)Math.Clamp((double)currentTotal / totalBytes * 100, 0, 99);
 
-            var initialLast = Volatile.Read(ref _lastReportedPercent);
-            while (currentPercent > initialLast)
+            if (currentPercent <= Volatile.Read(ref _lastReportedPercent))
             {
-                var prev = Interlocked.CompareExchange(ref _lastReportedPercent, currentPercent, initialLast);
-                if (prev == initialLast)
-                {
-                    progressCallback(currentPercent);
-                    break;
-                }
+                return;
+            }
 
-                initialLast = prev;
+            lock (_sync)
+            {
+                if (currentPercent > _lastReportedPercent)
+                {
+                    _lastReportedPercent = currentPercent;
+                    progressCallback(currentPercent);
+                }
             }
         }
 
@@ -57,10 +59,13 @@ public class FastHttpClientFileDownloader(
                 return;
             }
 
-            var prev = Interlocked.Exchange(ref _lastReportedPercent, 100);
-            if (prev < 100)
+            lock (_sync)
             {
-                progressCallback(100);
+                if (_lastReportedPercent < 100)
+                {
+                    _lastReportedPercent = 100;
+                    progressCallback(100);
+                }
             }
         }
     }

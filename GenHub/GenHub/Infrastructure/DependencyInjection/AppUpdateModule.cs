@@ -2,6 +2,7 @@ using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.AppUpdate.Services;
 using GenHub.Features.AppUpdate.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
+using Velopack.Sources;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -22,6 +23,7 @@ public static class AppUpdateModule
 
         // Register high-performance file downloader for Velopack
         services.AddSingleton<FastHttpClientFileDownloader>();
+        services.AddSingleton<IFileDownloader>(sp => sp.GetRequiredService<FastHttpClientFileDownloader>());
 
         // Register Velopack update manager (only update system needed)
         services.AddSingleton<IVelopackUpdateManager, VelopackUpdateManager>();
