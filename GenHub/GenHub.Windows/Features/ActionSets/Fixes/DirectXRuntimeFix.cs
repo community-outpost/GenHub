@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
@@ -120,7 +121,24 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
                         continue;
                     }
 
-                    details.Add($"✓ Downloaded {fileSize / 1024.0 / 1024.0:F2} MB from {uri.Host}");
+                    if (isExe)
+                    {
+                        // Security signature validation (Authenticode publisher verification for Microsoft installer)
+                        var securityValidation = await DownloadSecurityValidator.ValidateFileAsync(
+                            downloadPath,
+                            expectedAuthenticodePublisher: ActionSetConstants.Security.MicrosoftPublisher,
+                            ct: cancellationToken);
+
+                        if (!securityValidation.Success)
+                        {
+                            var errorSummary = string.Join("; ", securityValidation.Errors);
+                            logger.LogWarning("Security validation failed for DirectX setup from {Url}: {Error}", url, errorSummary);
+                            if (File.Exists(downloadPath)) File.Delete(downloadPath);
+                            continue;
+                        }
+                    }
+
+                    details.Add($"✓ Downloaded and verified {fileSize / 1024.0 / 1024.0:F2} MB from {uri.Host}");
 
                     if (!isExe)
                     {
@@ -204,8 +222,14 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
 
             if (process.ExitCode != ProcessConstants.ExitCodeSuccess && process.ExitCode != ProcessConstants.ExitCodeRebootRequired)
             {
-                logger.LogWarning("DirectX setup exited with code {ExitCode}", process.ExitCode);
-                details.Add($"⚠ DirectX setup exited with code {process.ExitCode}");
+                logger.LogError("DirectX setup failed with exit code {ExitCode}", process.ExitCode);
+                details.Add($"✗ DirectX setup failed with exit code {process.ExitCode}");
+                return new ActionSetResult(false, $"DirectX setup exited with code {process.ExitCode}", details);
+            }
+
+            if (process.ExitCode == ProcessConstants.ExitCodeRebootRequired)
+            {
+                details.Add("✓ DirectX setup completed successfully (reboot required)");
             }
             else
             {

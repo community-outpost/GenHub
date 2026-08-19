@@ -27,7 +27,7 @@ public partial class MyDocumentsPathCompatibility(ILogger<MyDocumentsPathCompati
     public override bool IsCoreFix => true;
 
     /// <inheritdoc/>
-    public override bool IsCrucialFix => true;
+    public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
     public override Task<bool> IsApplicableAsync(GameInstallation installation)
@@ -48,8 +48,6 @@ public partial class MyDocumentsPathCompatibility(ILogger<MyDocumentsPathCompati
     {
         string documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
 
-        if (File.Exists(_markerPath)) return Task.FromResult(true);
-
         // If valid, return TRUE (applied/compliant). If invalid, return FALSE (needs fixing).
         return Task.FromResult(IsValidPath(documentsPath));
     }
@@ -57,43 +55,27 @@ public partial class MyDocumentsPathCompatibility(ILogger<MyDocumentsPathCompati
     /// <inheritdoc/>
     protected override Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
     {
-        // We cannot automatically move the Documents folder as it requires user interaction/OS configuration.
-        // We return a failure with a descriptive message to prompt the user.
-        // In the future, we might implement a symlink workaround similar to OneDriveFix here too,
-        // but for now, we flag it.
         string documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
 
-        // Since we can't auto-fix, if the user clicked Apply, we assume they saw the message.
-        // We mark it as applied so it doesn't stay blue/red forever.
-        try
+        if (IsValidPath(documentsPath))
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(_markerPath)!);
-            File.WriteAllText(_markerPath, DateTime.UtcNow.ToString("O"));
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to create marker file for MyDocumentsPathCompatibility");
+            return Task.FromResult(new ActionSetResult(true, null, [$"Documents path '{documentsPath}' is compatible."]));
         }
 
-        return Task.FromResult(new ActionSetResult(true, null, [$"Your 'Documents' path '{documentsPath}' contains non-ASCII or unsupported characters. Please move your Documents folder manually. Marked as acknowledged."]));
+        // Automatic moving of OS User Documents profile is not supported without user manual relocation.
+        return Task.FromResult(new ActionSetResult(
+            false,
+            $"Manual Action Required: Your 'Documents' path '{documentsPath}' contains non-ASCII or unsupported characters.",
+            [
+                $"Current Documents path: {documentsPath}",
+                "Right-click on Documents folder > Properties > Location to relocate to an ASCII-only path.",
+            ]));
     }
 
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
-        try
-        {
-            if (File.Exists(_markerPath))
-            {
-                File.Delete(_markerPath);
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to delete marker file for MyDocumentsPathCompatibility");
-        }
-
-        return Task.FromResult(new ActionSetResult(true, null, ["Documents path compatibility marker removed."]));
+        return Task.FromResult(new ActionSetResult(true, null, ["Documents path compatibility does not require undo."]));
     }
 
     private static bool IsValidPath(string path)

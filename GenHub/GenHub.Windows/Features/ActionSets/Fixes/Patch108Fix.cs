@@ -37,7 +37,6 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
     public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
-    /// <inheritdoc/>
     public override Task<bool> IsApplicableAsync(GameInstallation installation)
     {
         return Task.FromResult(installation.HasGenerals);
@@ -109,7 +108,24 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
                 return new ActionSetResult(false, "Downloaded Generals 1.08 patch is corrupted or incomplete.", details);
             }
 
-            details.Add($"✓ Downloaded {fileSize / 1024.0 / 1024.0:F2} MB");
+            // Validate zip integrity before extracting
+            try
+            {
+                using var archive = ZipFile.OpenRead(tempPath);
+                if (archive.Entries.Count == 0)
+                {
+                    if (File.Exists(tempPath)) File.Delete(tempPath);
+                    return new ActionSetResult(false, "Downloaded Generals 1.08 patch archive contains no files.", details);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Downloaded Generals 1.08 patch archive is corrupted");
+                if (File.Exists(tempPath)) File.Delete(tempPath);
+                return new ActionSetResult(false, $"Downloaded Generals 1.08 patch archive is corrupted: {ex.Message}", details);
+            }
+
+            details.Add($"✓ Downloaded and verified {fileSize / 1024.0 / 1024.0:F2} MB");
 
             details.Add("Extracting patch files...");
             logger.LogInformation("Extracting Generals 1.08 patch...");

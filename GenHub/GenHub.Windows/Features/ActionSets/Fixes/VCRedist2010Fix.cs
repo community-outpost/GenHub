@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
@@ -113,7 +114,21 @@ public class VCRedist2010Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
                 return new ActionSetResult(false, "Downloaded VCRedist 2010 is corrupted or incomplete.", details);
             }
 
-            details.Add($"✓ Downloaded {fileSize / 1024.0 / 1024.0:F2} MB");
+            // Security signature validation (Authenticode publisher verification)
+            var securityValidation = await DownloadSecurityValidator.ValidateFileAsync(
+                tempPath,
+                expectedAuthenticodePublisher: ActionSetConstants.Security.MicrosoftPublisher,
+                ct: cancellationToken);
+
+            if (!securityValidation.Success)
+            {
+                var errorSummary = string.Join("; ", securityValidation.Errors);
+                logger.LogWarning("Security validation failed for VCRedist 2010: {Error}", errorSummary);
+                if (File.Exists(tempPath)) File.Delete(tempPath);
+                return new ActionSetResult(false, $"Security validation failed: {errorSummary}", details);
+            }
+
+            details.Add($"✓ Downloaded and verified {fileSize / 1024.0 / 1024.0:F2} MB");
 
             details.Add("Installing VCRedist 2010 (silent mode)...");
             details.Add("  ⚠ This may require administrator privileges");

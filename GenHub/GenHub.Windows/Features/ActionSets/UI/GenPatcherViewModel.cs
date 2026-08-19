@@ -225,78 +225,16 @@ public partial class GenPatcherViewModel(
             }
 
             logger.LogInformation(
-                "[GENPATCHER_APPLY_006] Starting batch application of {Count} fixes: {FixList}",
+                "[GENPATCHER_APPLY_006] Starting batch application of {Count} fixes via orchestrator: {FixList}",
                 applicableFixes.Count,
                 string.Join(", ", applicableFixes.Select(f => f.Id)));
 
             notificationService.ShowInfo(
                 "Applying Fixes",
-                $"Starting to apply {applicableFixes.Count} fix(es)...\nThis may take a few minutes.");
+                $"Applying {applicableFixes.Count} recommended fix(es)...");
 
-            // Apply fixes one by one with progress notifications
-            int successCount = 0;
-            var errors = new List<string>();
             var startTime = DateTime.UtcNow;
-
-            for (int i = 0; i < applicableFixes.Count; i++)
-            {
-                var fix = applicableFixes[i];
-                var fixNumber = i + 1;
-                var total = applicableFixes.Count;
-
-                // Show notification for current fix
-                notificationService.ShowInfo(
-                    $"Applying Fix {fixNumber}/{total}",
-                    $"⚙ {fix.Title}");
-
-                logger.LogInformation(
-                    "[{Current}/{Total}] Applying {Title} (ID={Id})",
-                    fixNumber,
-                    total,
-                    fix.Title,
-                    fix.Id);
-
-                var fixStartTime = DateTime.UtcNow;
-
-                ActionSetResult fixResult = new(false);
-                try
-                {
-                    fixResult = await fix.ApplyAsync(currentInstallation);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Unexpected error applying fix {Title}", fix.Title);
-                    fixResult = new ActionSetResult(false, ex.Message);
-                }
-
-                var duration = (DateTime.UtcNow - fixStartTime).TotalMilliseconds;
-
-                if (fixResult.Success)
-                {
-                    successCount++;
-                    notificationService.ShowSuccess(
-                        $"✓ Fix {fixNumber}/{total} Applied",
-                        fix.Title);
-                    logger.LogInformation(
-                        "✓ [{Title}] Success in {Duration}ms",
-                        fix.Title,
-                        (int)duration);
-                }
-                else
-                {
-                    var errorMsg = $"{fix.Title}: {fixResult.ErrorMessage}";
-                    errors.Add(errorMsg);
-                    notificationService.ShowWarning(
-                        $"✗ Fix {fixNumber}/{total} Failed",
-                        $"{fix.Title}\n{fixResult.ErrorMessage}");
-                    logger.LogError(
-                        "✗ [GENPATCHER_FIX_007] {Title} failed in {Duration}ms - {Error}",
-                        fix.Title,
-                        (int)duration,
-                        fixResult.ErrorMessage);
-                }
-            }
-
+            var batchResult = await orchestrator.ApplyActionSetsAsync(currentInstallation, applicableFixes);
             var totalDuration = (DateTime.UtcNow - startTime).TotalSeconds;
 
             // Refresh status
@@ -313,30 +251,28 @@ public partial class GenPatcherViewModel(
                 }
             }
 
-            // Provide detailed summary
-            var failureCount = applicableFixes.Count - successCount;
+            int successCount = batchResult.Data;
+            int failureCount = applicableFixes.Count - successCount;
 
-            logger.LogInformation(
-                "Batch complete in {Duration}s - {Success}/{Total} successful, {Failed} failed",
-                totalDuration,
-                successCount,
-                applicableFixes.Count,
-                failureCount);
-
-            if (errors.Count > 0)
+            if (batchResult.Success)
             {
-                var errorDetails = string.Join("\n\n", errors);
+                logger.LogInformation(
+                    "Batch complete in {Duration:F1}s - {Success}/{Total} successful",
+                    totalDuration,
+                    successCount,
+                    applicableFixes.Count);
 
-                logger.LogWarning("Batch completed with {Count} error(s): {Errors}", errors.Count, string.Join("; ", errors));
-                notificationService.ShowError(
-                    $"Fixes Completed with Errors ({successCount}/{applicableFixes.Count} successful)",
-                    $"✓ Successfully applied: {successCount}\n✗ Failed: {failureCount}\n\nErrors:\n{errorDetails}");
+                notificationService.ShowSuccess(
+                    "All Fixes Applied Successfully",
+                    $"✓ Successfully applied all {successCount} fix(es).\n\nYour game installation has been optimized!");
             }
             else
             {
-                notificationService.ShowSuccess(
-                    "All Fixes Applied Successfully",
-                    $"✓ Successfully applied all {applicableFixes.Count} fix(es).\n\nYour game installation has been optimized!");
+                var errorDetails = string.Join("\n", batchResult.Errors);
+                logger.LogWarning("Batch completed with errors: {Errors}", errorDetails);
+                notificationService.ShowError(
+                    $"Fixes Completed with Errors ({successCount}/{applicableFixes.Count} successful)",
+                    $"✓ Successfully applied: {successCount}\n✗ Failed: {failureCount}\n\nErrors:\n{errorDetails}");
             }
         }
         catch (Exception ex)

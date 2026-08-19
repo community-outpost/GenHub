@@ -8,21 +8,70 @@
              x:DataType="vm:GenPatcherViewModel">
 
     <UserControl.Styles>
+        <!-- Standard Action Button -->
         <Style Selector="Button.ActionBtn">
-            <Setter Property="Background" Value="#33FFFFFF"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="15,8"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="#20FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#33FFFFFF"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush" Value="#44FFFFFF"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="14,6"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Transitions">
                 <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15"/>
                 </Transitions>
             </Setter>
         </Style>
         <Style Selector="Button.ActionBtn:pointerover">
-            <Setter Property="Background" Value="#55FFFFFF"/>
+            <Setter Property="Background" Value="#35FFFFFF"/>
+            <Setter Property="BorderBrush" Value="{StaticResource PurpleAccentBright}"/>
+            <Setter Property="RenderTransform" Value="scale(1.02)"/>
+        </Style>
+        <Style Selector="Button.ActionBtn:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.98)"/>
+        </Style>
+
+        <!-- GenPatcher Primary Red Accent Button -->
+        <Style Selector="Button.GenPatcherPrimaryBtn">
+            <Setter Property="Background">
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                    <GradientStop Color="#C62828" Offset="0"/>
+                    <GradientStop Color="#8E0000" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter>
+            <Setter Property="BorderBrush" Value="#EF5350"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.GenPatcherPrimaryBtn:pointerover">
+            <Setter Property="Background">
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                    <GradientStop Color="#E53935" Offset="0"/>
+                    <GradientStop Color="#B71C1C" Offset="1"/>
+                </LinearGradientBrush>
+            </Setter>
+            <Setter Property="BorderBrush" Value="#FF8A80"/>
+            <Setter Property="RenderTransform" Value="scale(1.02)"/>
+        </Style>
+        <Style Selector="Button.GenPatcherPrimaryBtn:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.98)"/>
         </Style>
     </UserControl.Styles>
 
@@ -32,69 +81,55 @@
             <ExperimentalAcrylicBorder.Material>
                 <ExperimentalAcrylicMaterial
                     BackgroundSource="Digger"
-                    TintColor="#FF0F0518"
-                    TintOpacity="0.85"
+                    TintColor="#FF0A0A14"
+                    TintOpacity="0.88"
                     MaterialOpacity="0.65" />
             </ExperimentalAcrylicBorder.Material>
         </ExperimentalAcrylicBorder>
 
-        <!-- Background Image (Optional, faint overlay) -->
+        <!-- Background Image (Faint watermark) -->
         <Image Source="avares://GenHub/Assets/Logos/genpatcher-logo.png"
-               Opacity="0.05" Stretch="UniformToFill" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+               Opacity="0.04" Stretch="UniformToFill" VerticalAlignment="Center" HorizontalAlignment="Center"/>
 
         <!-- Decoration / Content -->
-        <Grid RowDefinitions="Auto, *" Margin="40">
+        <Grid RowDefinitions="Auto, *" Margin="24,14,24,6">
 
             <!-- Header Area -->
-            <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,30">
+            <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,16">
 
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="20" VerticalAlignment="Center">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
                     <!-- GenPatcher Logo -->
-                    <Image Source="avares://GenHub/Assets/Logos/genpatcher-logo.png" Height="60" VerticalAlignment="Center"/>
+                    <Image Source="avares://GenHub/Assets/Logos/genpatcher-logo.png" Height="50" VerticalAlignment="Center"/>
 
-                    <StackPanel VerticalAlignment="Center" Spacing="5">
-                        <TextBlock Text="GenPatcher" FontSize="32" FontWeight="Bold" Foreground="White">
+                    <StackPanel VerticalAlignment="Center" Spacing="3">
+                        <TextBlock Text="GenPatcher" FontSize="26" FontWeight="Bold" Foreground="White">
                              <TextBlock.Effect>
-                                <DropShadowEffect Color="#AA5500AA" BlurRadius="15" Opacity="0.8"/>
+                                <DropShadowEffect Color="#80C62828" BlurRadius="12" Opacity="0.8"/>
                              </TextBlock.Effect>
                         </TextBlock>
-                        <TextBlock Text="Essential fixes and enhancements for Command &amp; Conquer" FontSize="16" Foreground="#CCDDDDDD"/>
+                        <TextBlock Text="Essential fixes and enhancements for Command &amp; Conquer" FontSize="13" Foreground="#B0B0C0"/>
                     </StackPanel>
                 </StackPanel>
 
-                <Button Grid.Column="1" Classes="ActionBtn" Command="{Binding ApplyAllFixesCommand}">
+                <Button Grid.Column="1" Classes="GenPatcherPrimaryBtn" Command="{Binding ApplyAllFixesCommand}">
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <TextBlock Text="⚡" VerticalAlignment="Center"/>
-                        <TextBlock Text="Apply All Recommended" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                        <TextBlock Text="Apply All Recommended" VerticalAlignment="Center" FontWeight="Bold"/>
                     </StackPanel>
                 </Button>
             </Grid>
 
             <!-- Content Area - Scrollable List of Fixes -->
-            <ScrollViewer Grid.Row="1">
+            <ScrollViewer Grid.Row="1" Padding="0,0,6,0">
                 <ItemsControl ItemsSource="{Binding ActionSets}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Spacing="10"/>
+                            <StackPanel Spacing="8"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:ActionSetViewModel">
-                            <Border CornerRadius="8" Padding="15" Margin="0,0,10,0">
-                                <Border.Background>
-                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                        <GradientStop Color="#22AA00FF" Offset="0"/>
-                                        <GradientStop Color="#11000000" Offset="1"/>
-                                    </LinearGradientBrush>
-                                </Border.Background>
-                                <Border.BorderBrush>
-                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                        <GradientStop Color="#44AA00FF" Offset="0"/>
-                                        <GradientStop Color="#11AA00FF" Offset="1"/>
-                                    </LinearGradientBrush>
-                                </Border.BorderBrush>
-                                <Border.BorderThickness>1</Border.BorderThickness>
-
+                            <Border CornerRadius="8" Padding="14,10" Margin="0,0,2,0" Background="#161520" BorderBrush="#2C2738" BorderThickness="1">
                                 <Border.ContextMenu>
                                     <ContextMenu>
                                         <MenuItem Header="Force Re-Apply (Testing)" Command="{Binding ForceApplyCommand}" Foreground="White"/>
@@ -102,18 +137,18 @@
                                 </Border.ContextMenu>
 
                                 <Grid ColumnDefinitions="*, Auto, Auto">
-                                    <StackPanel Grid.Column="0" Spacing="4">
+                                    <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <TextBlock Text="{Binding Title}" FontWeight="Bold" FontSize="16" Foreground="White"/>
-                                            <Border IsVisible="{Binding IsCore}" Background="#CCAA00" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
-                                                <TextBlock Text="CORE" FontSize="10" FontWeight="Bold" Foreground="Black"/>
+                                            <TextBlock Text="{Binding Title}" FontWeight="Bold" FontSize="15" Foreground="White"/>
+                                            <Border IsVisible="{Binding IsCore}" Background="#B71C1C" BorderBrush="#EF5350" BorderThickness="1" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                                <TextBlock Text="CORE" FontSize="9" FontWeight="Bold" Foreground="White"/>
                                             </Border>
                                         </StackPanel>
-                                        <TextBlock Text="{Binding Description}" FontSize="12" Foreground="#AAFFFFFF"/>
+                                        <TextBlock Text="{Binding Description}" FontSize="12" Foreground="#888899"/>
                                     </StackPanel>
 
                                     <!-- Status Badge -->
-                                    <Border Grid.Column="1" Margin="20,0" VerticalAlignment="Center" CornerRadius="12" Padding="12,4"
+                                    <Border Grid.Column="1" Margin="16,0" VerticalAlignment="Center" CornerRadius="12" Padding="12,4"
                                             Background="{Binding StatusBackground}"
                                             BorderBrush="{Binding StatusBorder}"
                                             BorderThickness="1">

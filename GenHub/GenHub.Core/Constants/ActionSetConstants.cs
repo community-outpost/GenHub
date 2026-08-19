@@ -257,4 +257,20 @@ public static class ActionSetConstants
         /// </summary>
         public const long GenToolMinSize = 200 * 1024;
     }
+
+    /// <summary>
+    /// Security constants for digital signature and Authenticode publisher validation.
+    /// </summary>
+    public static class Security
+    {
+        /// <summary>
+        /// Gets the expected Microsoft Corporation Authenticode publisher string.
+        /// </summary>
+        public const string MicrosoftPublisher = "Microsoft Corporation";
+
+        /// <summary>
+        /// Gets the expected Electronic Arts Authenticode publisher string.
+        /// </summary>
+        public const string ElectronicArtsPublisher = "Electronic Arts";
+    }
 }

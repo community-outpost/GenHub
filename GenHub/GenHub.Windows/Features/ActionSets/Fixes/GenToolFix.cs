@@ -32,7 +32,6 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
     public override bool IsCrucialFix => false; // Recommended but not strictly crucial for launch (though highly recommended)
 
     /// <inheritdoc/>
-    /// <inheritdoc/>
     public override Task<bool> IsApplicableAsync(GameInstallation installation)
     {
         return Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
@@ -88,7 +87,25 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
                         continue;
                     }
 
-                    details.Add($"✓ Downloaded {fileSize / 1024.0:F2} KB from {new Uri(url).Host}");
+                    // Validate ZIP integrity
+                    try
+                    {
+                        using var archive = System.IO.Compression.ZipFile.OpenRead(tempFile);
+                        if (archive.Entries.Count == 0)
+                        {
+                            logger.LogWarning("GenTool archive from {Url} has no entries", url);
+                            if (File.Exists(tempFile)) File.Delete(tempFile);
+                            continue;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "GenTool archive from {Url} is corrupt", url);
+                        if (File.Exists(tempFile)) File.Delete(tempFile);
+                        continue;
+                    }
+
+                    details.Add($"✓ Downloaded and verified {fileSize / 1024.0:F2} KB from {new Uri(url).Host}");
                     downloaded = true;
                     break;
                 }
