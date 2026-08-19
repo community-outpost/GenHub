@@ -55,7 +55,8 @@ public partial class GameProfileLauncherViewModel(
     INotificationService notificationService,
     ISetupWizardService setupWizardService,
     IDialogService dialogService,
-    ILogger<GameProfileLauncherViewModel> logger) : ViewModelBase,
+    ILogger<GameProfileLauncherViewModel> logger,
+    IProfileSharingService? profileSharingService = null) : ViewModelBase,
     IRecipient<ProfileCreatedMessage>,
     IRecipient<ProfileUpdatedMessage>,
     IRecipient<ProfileListUpdatedMessage>
@@ -189,6 +190,7 @@ public partial class GameProfileLauncherViewModel(
                         StopProfileAction = StopProfile,
                         ToggleSteamLaunchAction = ToggleSteamLaunch,
                         CopyProfileAction = CopyProfile,
+                        ShareProfileAction = ShareProfileFromCardAsync,
                     };
 
                     // Add to collection before the "Add New Profile" button (which is always at the end)
@@ -953,6 +955,7 @@ public partial class GameProfileLauncherViewModel(
                 StopProfileAction = StopProfile,
                 ToggleSteamLaunchAction = ToggleSteamLaunch,
                 CopyProfileAction = CopyProfile,
+                ShareProfileAction = ShareProfileFromCardAsync,
             };
 
             // Add to collection before the "Add New Profile" button (which is always at the end)
@@ -1756,6 +1759,60 @@ public partial class GameProfileLauncherViewModel(
                 "Error",
                 $"Failed to process selected directory: {ex.Message}");
             return null;
+        }
+    }
+
+    private async Task ShareProfileFromCardAsync(GameProfileItemViewModel item)
+    {
+        if (profileSharingService == null || string.IsNullOrEmpty(item.ProfileId))
+        {
+            return;
+        }
+
+        try
+        {
+            var uriResult = await profileSharingService.ExportProfileToUriAsync(item.ProfileId);
+            if (!uriResult.Success || string.IsNullOrEmpty(uriResult.Data))
+            {
+                notificationService.ShowError("Share Failed", uriResult.FirstError ?? "Failed to generate share link.");
+                return;
+            }
+
+            var profileResult = await gameProfileManager.GetProfileAsync(item.ProfileId);
+            if (!profileResult.Success || profileResult.Data == null)
+            {
+                notificationService.ShowError("Share Failed", "Failed to load profile details.");
+                return;
+            }
+
+            var shareViewModel = new ShareProfileDialogViewModel(
+                item.ProfileId,
+                profileResult.Data,
+                uriResult.Data,
+                profileSharingService,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<ShareProfileDialogViewModel>.Instance);
+
+            var dialog = new Views.ShareProfileDialogWindow
+            {
+                DataContext = shareViewModel,
+            };
+
+            var desktop = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+            var parent = desktop?.Windows.FirstOrDefault(w => w.IsActive) ?? desktop?.MainWindow;
+
+            if (parent != null)
+            {
+                await dialog.ShowDialog(parent);
+            }
+            else
+            {
+                dialog.Show();
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to share profile {ProfileId}", item.ProfileId);
+            notificationService.ShowError("Share Error", $"An error occurred while preparing share: {ex.Message}");
         }
     }
 }

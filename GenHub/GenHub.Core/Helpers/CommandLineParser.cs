@@ -82,4 +82,41 @@ public static class CommandLineParser
 
         return null;
     }
+
+    /// <summary>
+    /// Extracts a profile share URI, catalog view URI, or .ghprofile file path from command line arguments.
+    /// Supports direct <c>genhub://profile/...</c> URIs, <c>--import-profile &lt;target&gt;</c>, <c>--import-profile=&lt;target&gt;</c>, and <c>.ghprofile</c> file paths.
+    /// </summary>
+    /// <param name="args">The command line arguments.</param>
+    /// <returns>The extracted share URI or file path if present; otherwise, <c>null</c>.</returns>
+    public static string? ExtractProfileShareUri(string[] args)
+    {
+        for (int i = 0; i < args.Length; i++)
+        {
+            string arg = args[i].Trim('"', '\'');
+
+            if (arg.Equals(CommandLineConstants.ImportProfileArg, StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                return args[i + 1].Trim('"', '\'');
+            }
+
+            if (arg.StartsWith(CommandLineConstants.ImportProfileInlinePrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return arg[CommandLineConstants.ImportProfileInlinePrefix.Length..].Trim('"', '\'');
+            }
+
+            if (arg.StartsWith(CommandLineConstants.ProfileImportUriPrefix, StringComparison.OrdinalIgnoreCase) ||
+                arg.StartsWith(CommandLineConstants.ProfileViewUriPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return arg;
+            }
+
+            if (arg.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase))
+            {
+                return arg;
+            }
+        }
+
+        return null;
+    }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
@@ -13,8 +14,10 @@ using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
+using GenHub.Features.GameProfiles.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace GenHub;
 
@@ -183,6 +186,7 @@ public partial class App : Application
 
         await HandleLaunchProfileArgsAsync(args, mainWindow);
         await HandleSubscriptionArgsAsync(args, mainWindow);
+        await HandleImportProfileArgsAsync(args, mainWindow);
     }
 
     private async Task HandleLaunchProfileArgsAsync(string[]? args, MainWindow mainWindow)
@@ -223,6 +227,25 @@ public partial class App : Application
         await HandleSubscriptionUrlAsync(subscriptionUrl, mainWindow);
     }
 
+    private async Task HandleImportProfileArgsAsync(string[]? args, MainWindow mainWindow)
+    {
+        if (args == null || args.Length == 0)
+        {
+            return;
+        }
+
+        var shareUri = CommandLineParser.ExtractProfileShareUri(args);
+        if (string.IsNullOrWhiteSpace(shareUri))
+        {
+            return;
+        }
+
+        var logger = _serviceProvider.GetService<ILogger<App>>();
+        logger?.LogInformation("Startup profile import detected: {ShareUri}", shareUri);
+
+        await HandleImportProfileUriAsync(shareUri, mainWindow);
+    }
+
     private void SubscribeToSingleInstanceCommands(MainWindow mainWindow)
     {
         // Get the SingleInstanceManager from AppLocator (set by Windows Program.cs)
@@ -259,9 +282,73 @@ public partial class App : Application
             // Handle the subscription URL
             SafeFireAndForget(HandleSubscriptionUrlAsync(subscriptionUrl, mainWindow), nameof(HandleSubscriptionUrlAsync));
         }
+        else if (command.StartsWith(IpcCommands.ImportProfilePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var shareUri = command[IpcCommands.ImportProfilePrefix.Length..];
+            logger?.LogInformation("Received IPC profile import command: {ShareUri}", shareUri);
+
+            // Handle profile import
+            SafeFireAndForget(HandleImportProfileUriAsync(shareUri, mainWindow), nameof(HandleImportProfileUriAsync));
+        }
         else
         {
             logger?.LogWarning("Unknown IPC command received: {Command}", command);
+        }
+    }
+
+    private async Task HandleImportProfileUriAsync(string shareUriOrPath, MainWindow mainWindow)
+    {
+        var logger = _serviceProvider.GetService<ILogger<App>>();
+        var profileSharingService = _serviceProvider.GetService<IProfileSharingService>();
+        var notificationService = _serviceProvider.GetService<INotificationService>();
+
+        if (profileSharingService == null)
+        {
+            logger?.LogError("Profile sharing service is not available for import.");
+            notificationService?.ShowError("Import Failed", "Profile sharing service is not registered.");
+            return;
+        }
+
+        try
+        {
+            logger?.LogInformation("Inspecting shared profile for import: {Uri}", shareUriOrPath);
+            var inspectResult = await profileSharingService.InspectSharedProfileAsync(shareUriOrPath);
+
+            if (!inspectResult.Success || inspectResult.Data == null)
+            {
+                logger?.LogWarning("Failed to inspect shared profile: {Error}", inspectResult.FirstError);
+                notificationService?.ShowError("Profile Import Error", inspectResult.FirstError ?? "Failed to inspect profile package.");
+                return;
+            }
+
+            // Bring main window to front
+            if (mainWindow.WindowState == WindowState.Minimized)
+            {
+                mainWindow.WindowState = WindowState.Normal;
+            }
+
+            mainWindow.Activate();
+
+            var vmLogger = _serviceProvider.GetService<ILogger<ImportProfileInspectionViewModel>>()
+                ?? NullLogger<ImportProfileInspectionViewModel>.Instance;
+
+            var inspectionViewModel = new ImportProfileInspectionViewModel(
+                inspectResult.Data,
+                profileSharingService,
+                notificationService,
+                vmLogger);
+
+            var dialog = new Features.GameProfiles.Views.ImportProfileInspectionWindow
+            {
+                DataContext = inspectionViewModel,
+            };
+
+            await dialog.ShowDialog(mainWindow);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Exception while inspecting shared profile: {Uri}", shareUriOrPath);
+            notificationService?.ShowError("Import Error", $"An error occurred while inspecting profile: {ex.Message}");
         }
     }
 

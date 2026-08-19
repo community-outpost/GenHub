@@ -209,14 +209,18 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private readonly ILocalContentService? _localContentService;
     private readonly IGenLauncherNormalizationService? _genLauncherNormalizationService;
     private readonly IDialogService? _dialogService;
+    private readonly IProfileSharingService? _profileSharingService;
     private readonly ILogger<GameProfileSettingsViewModel>? _logger;
     private readonly ILogger<GameSettingsViewModel>? _gameSettingsLogger;
 
     private readonly NotificationService _localNotificationService = new(NullLogger<NotificationService>.Instance);
+    private WorkspaceStrategy? _originalWorkspaceStrategy;
+    private string? _currentProfileId;
 
-    private WorkspaceStrategy? OriginalWorkspaceStrategy { get; set; }
-
-    private string? CurrentProfileId { get; set; }
+    /// <summary>
+    /// Gets a value indicating whether the current profile can be shared (i.e. is already saved and has an ID).
+    /// </summary>
+    public bool CanShareProfile => !string.IsNullOrEmpty(_currentProfileId);
 
     /// <summary>
     /// Event triggered when the view model requests to close.
@@ -249,6 +253,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// <param name="dialogService">The dialog service.</param>
     /// <param name="logger">The logger for this view model.</param>
     /// <param name="gameSettingsLogger">The logger for the game settings view model.</param>
+    /// <param name="profileSharingService">The profile sharing service.</param>
     public GameProfileSettingsViewModel(
         IGameProfileManager? gameProfileManager,
         IGameSettingsService? gameSettingsService,
@@ -262,7 +267,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         IGenLauncherNormalizationService? genLauncherNormalizationService,
         IDialogService? dialogService,
         ILogger<GameProfileSettingsViewModel>? logger,
-        ILogger<GameSettingsViewModel>? gameSettingsLogger)
+        ILogger<GameSettingsViewModel>? gameSettingsLogger,
+        IProfileSharingService? profileSharingService = null)
     {
         _gameProfileManager = gameProfileManager;
         _gameSettingsService = gameSettingsService;
@@ -277,6 +283,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         _dialogService = dialogService;
         _logger = logger;
         _gameSettingsLogger = gameSettingsLogger;
+        _profileSharingService = profileSharingService;
 
         NotificationManager = new NotificationManagerViewModel(
             _localNotificationService,

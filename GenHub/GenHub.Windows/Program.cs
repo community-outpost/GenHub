@@ -55,6 +55,9 @@ public class Program
         // Extract genhub://subscribe?url=... target (catalog JSON today; definition URL later)
         var subscriptionUrl = CommandLineParser.ExtractSubscriptionUrl(args);
 
+        // Extract profile share URI or .ghprofile path if present
+        var profileShareUri = CommandLineParser.ExtractProfileShareUri(args);
+
         // Check for multi-instance mode (useful for debugging with multiple instances)
         bool multiInstance = args.Contains("--multi-instance", StringComparer.OrdinalIgnoreCase) ||
                              args.Contains("-m", StringComparer.OrdinalIgnoreCase) ||
@@ -79,6 +82,13 @@ public class Program
                 {
                     bootstrapLogger.LogInformation("Forwarding subscribe command to primary instance: {Url}", subscriptionUrl);
                     SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.SubscribePrefix}{subscriptionUrl}");
+                }
+
+                // Forward import-profile so the running UI can show the inspection window
+                if (!string.IsNullOrEmpty(profileShareUri))
+                {
+                    bootstrapLogger.LogInformation("Forwarding import-profile command to primary instance: {ShareUri}", profileShareUri);
+                    SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.ImportProfilePrefix}{profileShareUri}");
                 }
 
                 // Focus the existing instance

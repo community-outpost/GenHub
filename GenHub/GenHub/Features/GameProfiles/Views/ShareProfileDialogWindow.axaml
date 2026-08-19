@@ -1,0 +1,221 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
+        xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+        mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="420"
+        x:Class="GenHub.Features.GameProfiles.Views.ShareProfileDialogWindow"
+        x:DataType="vm:ShareProfileDialogViewModel"
+        Title="Share Game Profile"
+        Width="560" Height="440"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        SystemDecorations="None"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1"
+        TransparencyLevelHint="AcrylicBlur"
+        Background="Transparent">
+
+    <Window.Resources>
+        <conv:ColorToBrushConverter x:Key="ColorToBrushConverter" />
+        <conv:ThemeBackgroundConverter x:Key="ThemeBackgroundConverter" />
+        <conv:ThemeBorderConverter x:Key="ThemeBorderConverter" />
+    </Window.Resources>
+
+    <!-- Root Container with Margin for Window Shadow -->
+    <Grid Margin="16">
+        <!-- Main Window Border -->
+        <Border CornerRadius="16"
+                BorderThickness="1"
+                ClipToBounds="False"
+                BoxShadow="0 12 36 0 #90000000">
+
+            <Border.BorderBrush>
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                    <GradientStop Color="#80FFFFFF" Offset="0" />
+                    <GradientStop Color="#20FFFFFF" Offset="0.5" />
+                    <GradientStop Color="#05FFFFFF" Offset="1" />
+                </LinearGradientBrush>
+            </Border.BorderBrush>
+
+            <Panel>
+                <!-- Acrylic Backdrop -->
+                <ExperimentalAcrylicBorder IsHitTestVisible="False" CornerRadius="16">
+                    <ExperimentalAcrylicBorder.Material>
+                        <ExperimentalAcrylicMaterial
+                            BackgroundSource="Digger"
+                            TintColor="#0D0D0D"
+                            TintOpacity="0.95"
+                            MaterialOpacity="0.85" />
+                    </ExperimentalAcrylicBorder.Material>
+                </ExperimentalAcrylicBorder>
+
+                <!-- Subtle Tint -->
+                <Border CornerRadius="16"
+                        Background="{Binding ThemeColor, Converter={StaticResource ThemeBackgroundConverter}}"
+                        IsHitTestVisible="False" />
+
+                <!-- Layout -->
+                <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+
+                    <!-- Header -->
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+                        <StackPanel Grid.Column="0" Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <PathIcon Data="M18,16.08C17.24,16.08 16.56,16.38 16.04,16.85L8.91,12.7C8.96,12.47 9,12.24 9,12C9,11.76 8.96,11.53 8.91,11.3L15.96,7.19C16.5,7.69 17.21,8 18,8A3,3 0 0,0 21,5A3,3 0 0,0 18,2A3,3 0 0,0 15,5C15,5.24 15.04,5.47 15.09,5.7L8.04,9.81C7.5,9.31 6.79,9 6,9A3,3 0 0,0 3,12A3,3 0 0,0 6,15C6.79,15 7.5,14.69 8.04,14.19L15.16,18.34C15.11,18.55 15.08,18.77 15.08,19C15.08,20.61 16.39,21.91 18,21.91C19.61,21.91 20.92,20.61 20.92,19A2.92,2.92 0 0,0 18,16.08Z"
+                                          Width="18" Height="18"
+                                          Foreground="{Binding ThemeColor, Converter={StaticResource ColorToBrushConverter}}"
+                                          VerticalAlignment="Center" />
+                                <TextBlock Text="SHARE GAME PROFILE"
+                                           FontSize="16"
+                                           FontWeight="Bold"
+                                           Foreground="White"
+                                           LetterSpacing="0.8"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{Binding ProfileName}"
+                                           FontSize="14"
+                                           FontWeight="SemiBold"
+                                           Foreground="#E0E0E0" />
+                                <Border Background="#25FFFFFF" CornerRadius="4" Padding="6,2">
+                                    <TextBlock Text="{Binding GameVersion}" FontSize="11" Foreground="#B0B0B0" />
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Close Button -->
+                        <Button Grid.Column="1"
+                                Command="{Binding CloseCommand}"
+                                Width="30" Height="30"
+                                CornerRadius="15"
+                                Background="#15FFFFFF"
+                                Foreground="#AAAAAA"
+                                Padding="0"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                Cursor="Hand">
+                            <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                                      Width="12" Height="12" />
+                        </Button>
+                    </Grid>
+
+                    <!-- Content Body -->
+                    <StackPanel Grid.Row="1" Spacing="16">
+
+                        <!-- Status Alert (if visible) -->
+                        <Border Background="#2500E676"
+                                BorderBrush="#00E676"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="12,8"
+                                IsVisible="{Binding IsStatusMessageVisible}">
+                            <TextBlock Text="{Binding StatusMessage}"
+                                       Foreground="#00E676"
+                                       FontSize="12"
+                                       FontWeight="SemiBold" />
+                        </Border>
+
+                        <!-- Share Link Field -->
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Protocol Share Link (genhub://):"
+                                       FontSize="12"
+                                       Foreground="#AAAAAA"
+                                       FontWeight="Medium" />
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBox Grid.Column="0"
+                                         Text="{Binding ShareUri, Mode=OneWay}"
+                                         IsReadOnly="True"
+                                         Height="38"
+                                         Background="#15FFFFFF"
+                                         BorderBrush="#30FFFFFF"
+                                         CornerRadius="8,0,0,8"
+                                         Foreground="White"
+                                         FontSize="11"
+                                         VerticalContentAlignment="Center" />
+                                <Button Grid.Column="1"
+                                        Command="{Binding CopyUriCommand}"
+                                        Content="Copy Link"
+                                        Height="38"
+                                        Padding="16,0"
+                                        Background="{Binding ThemeColor, Converter={StaticResource ColorToBrushConverter}}"
+                                        Foreground="White"
+                                        FontWeight="SemiBold"
+                                        CornerRadius="0,8,8,0"
+                                        Cursor="Hand" />
+                            </Grid>
+                            <TextBlock Text="Recipients clicking this link in Discord or browsers will open GenHub's import inspector."
+                                       FontSize="11"
+                                       Foreground="#777777" />
+                        </StackPanel>
+
+                        <!-- Actions Grid -->
+                        <Grid ColumnDefinitions="*,*" Margin="0,8,0,0">
+                            <!-- Discord Markdown -->
+                            <Button Grid.Column="0"
+                                    Command="{Binding CopyDiscordMarkdownCommand}"
+                                    Margin="0,0,6,0"
+                                    Height="44"
+                                    Background="#155865F2"
+                                    BorderBrush="#5865F2"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Cursor="Hand">
+                                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                    <PathIcon Data="M19.27 5.33C17.94 4.71 16.5 4.26 15 4a.09.09 0 0 0-.07.03c-.18.33-.39.76-.53 1.09a16.09 16.09 0 0 0-4.8 0c-.14-.34-.35-.76-.54-1.09-.01-.02-.04-.03-.07-.03-1.5.26-2.93.71-4.27 1.33-.01 0-.02.01-.03.02-2.72 4.07-3.47 8.03-3.1 11.95 0 .02.01.04.03.05 1.8 1.32 3.53 2.12 5.24 2.65.03.01.06 0 .07-.02.4-.55.76-1.13 1.07-1.74.02-.04 0-.08-.04-.09-.57-.22-1.11-.48-1.64-.78-.04-.02-.04-.08-.01-.11.11-.08.22-.17.33-.25.02-.02.05-.02.07-.01 3.44 1.57 7.15 1.57 10.55 0 .02-.01.05-.01.07.01.11.09.22.17.33.26.04.03.04.09-.01.11-.52.31-1.07.56-1.64.78-.04.01-.05.06-.04.09.32.61.68 1.19 1.07 1.74.03.01.06.02.09.01 1.72-.53 3.45-1.33 5.25-2.65.02-.01.03-.03.03-.05.44-4.53-.73-8.46-3.1-11.95-.01-.01-.02-.02-.04-.02zM8.52 14.91c-1.03 0-1.89-.95-1.89-2.12s.84-2.12 1.89-2.12c1.06 0 1.9.96 1.89 2.12 0 1.17-.84 2.12-1.89 2.12zm6.97 0c-1.03 0-1.89-.95-1.89-2.12s.84-2.12 1.89-2.12c1.06 0 1.9.96 1.89 2.12 0 1.17-.83 2.12-1.89 2.12z"
+                                              Width="16" Height="16"
+                                              Foreground="#5865F2" />
+                                    <TextBlock Text="Copy Discord Invite"
+                                               Foreground="White"
+                                               FontWeight="SemiBold"
+                                               FontSize="12"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+                            <!-- File Export -->
+                            <Button Grid.Column="1"
+                                    Command="{Binding ExportFileCommand}"
+                                    Margin="6,0,0,0"
+                                    Height="44"
+                                    Background="#15FFFFFF"
+                                    BorderBrush="#30FFFFFF"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Cursor="Hand">
+                                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                                    <PathIcon Data="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M12,19L8,15H10.5V12H13.5V15H16L12,19Z"
+                                              Width="16" Height="16"
+                                              Foreground="#CCCCCC" />
+                                    <TextBlock Text="Export .ghprofile"
+                                               Foreground="White"
+                                               FontWeight="SemiBold"
+                                               FontSize="12"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+
+                    </StackPanel>
+
+                    <!-- Footer -->
+                    <Grid Grid.Row="2" Margin="0,16,0,0">
+                        <Button HorizontalAlignment="Right"
+                                Command="{Binding CloseCommand}"
+                                Content="Close"
+                                Width="90" Height="36"
+                                Background="#20FFFFFF"
+                                Foreground="White"
+                                CornerRadius="8"
+                                FontWeight="Medium"
+                                Cursor="Hand" />
+                    </Grid>
+
+                </Grid>
+            </Panel>
+        </Border>
+    </Grid>
+</Window>

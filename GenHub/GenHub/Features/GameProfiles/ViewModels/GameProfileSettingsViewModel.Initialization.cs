@@ -35,7 +35,8 @@ public partial class GameProfileSettingsViewModel
                 HasShownFirstLoadNotification = true;
             }
 
-            CurrentProfileId = null;
+            _currentProfileId = null;
+            OnPropertyChanged(nameof(CanShareProfile));
             Name = ProfileConstants.DefaultProfileName;
             Description = "A new game profile";
             ColorValue = "#1976D2";
@@ -134,7 +135,8 @@ public partial class GameProfileSettingsViewModel
                 HasShownFirstLoadNotification = true;
             }
 
-            CurrentProfileId = profileId;
+            _currentProfileId = profileId;
+            OnPropertyChanged(nameof(CanShareProfile));
             _logger?.LogInformation("InitializeForProfileAsync called with profileId: {ProfileId}", profileId);
 
             var profileResult = await _gameProfileManager.GetProfileAsync(profileId);
@@ -156,7 +158,7 @@ public partial class GameProfileSettingsViewModel
             var defaultCoverPath = _profileResourceService?.GetDefaultCoverPath(profile.GameClient?.GameType.ToString() ?? "ZeroHour") ?? string.Empty;
             CoverPath = NormalizeResourcePath(profile.CoverPath, defaultCoverPath);
             SelectedWorkspaceStrategy = profile.WorkspaceStrategy ?? GetDefaultWorkspaceStrategy();
-            OriginalWorkspaceStrategy = profile.WorkspaceStrategy ?? GetDefaultWorkspaceStrategy();
+            _originalWorkspaceStrategy = profile.WorkspaceStrategy ?? GetDefaultWorkspaceStrategy();
             CommandLineArguments = profile.CommandLineArguments ?? string.Empty;
 
             LoadAvailableIconsAndCovers(profile.GameClient?.GameType.ToString() ?? "ZeroHour");

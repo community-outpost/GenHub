@@ -1,0 +1,422 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:GenHub.Features.GameProfiles.ViewModels"
+        xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+        mc:Ignorable="d" d:DesignWidth="720" d:DesignHeight="700"
+        x:Class="GenHub.Features.GameProfiles.Views.ImportProfileInspectionWindow"
+        x:DataType="vm:ImportProfileInspectionViewModel"
+        Title="Import Shared Game Profile"
+        Width="740" Height="720"
+        MinWidth="600" MinHeight="550"
+        WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        SystemDecorations="None"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1"
+        TransparencyLevelHint="AcrylicBlur"
+        Background="Transparent">
+
+    <Window.Resources>
+        <conv:ColorToBrushConverter x:Key="ColorToBrushConverter" />
+        <conv:ThemeBackgroundConverter x:Key="ThemeBackgroundConverter" />
+        <conv:StringToImageConverter x:Key="StringToImageConverter" />
+        <conv:ContentTypeDisplayConverter x:Key="ContentTypeDisplayConverter" />
+        <conv:FileSizeConverter x:Key="FileSizeConverter" />
+    </Window.Resources>
+
+    <Grid Margin="16">
+        <!-- Physical Window Border -->
+        <Border CornerRadius="16"
+                BorderThickness="1"
+                ClipToBounds="False"
+                BoxShadow="0 16 48 0 #95000000">
+
+            <Border.BorderBrush>
+                <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                    <GradientStop Color="#80FFFFFF" Offset="0" />
+                    <GradientStop Color="#20FFFFFF" Offset="0.5" />
+                    <GradientStop Color="#05FFFFFF" Offset="1" />
+                </LinearGradientBrush>
+            </Border.BorderBrush>
+
+            <Panel>
+                <!-- Acrylic Backdrop -->
+                <ExperimentalAcrylicBorder IsHitTestVisible="False" CornerRadius="16">
+                    <ExperimentalAcrylicBorder.Material>
+                        <ExperimentalAcrylicMaterial
+                            BackgroundSource="Digger"
+                            TintColor="#0A0A0A"
+                            TintOpacity="0.96"
+                            MaterialOpacity="0.88" />
+                    </ExperimentalAcrylicBorder.Material>
+                </ExperimentalAcrylicBorder>
+
+                <!-- Tint Overlay -->
+                <Border CornerRadius="16"
+                        Background="{Binding ThemeColor, Converter={StaticResource ThemeBackgroundConverter}}"
+                        IsHitTestVisible="False" />
+
+                <!-- Layout -->
+                <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+
+                    <!-- Header -->
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+                        <StackPanel Grid.Column="0" Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <PathIcon Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"
+                                          Width="20" Height="20"
+                                          Foreground="{Binding ThemeColor, Converter={StaticResource ColorToBrushConverter}}"
+                                          VerticalAlignment="Center" />
+                                <TextBlock Text="IMPORT SHARED PROFILE"
+                                           FontSize="16"
+                                           FontWeight="Bold"
+                                           Foreground="White"
+                                           LetterSpacing="0.8"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                            <TextBlock Text="Review the included content manifests, target client version, and required downloads before importing."
+                                       FontSize="12"
+                                       Foreground="#888888" />
+                        </StackPanel>
+
+                        <!-- Close Button -->
+                        <Button Grid.Column="1"
+                                Command="{Binding CancelCommand}"
+                                Width="30" Height="30"
+                                CornerRadius="15"
+                                Background="#15FFFFFF"
+                                Foreground="#AAAAAA"
+                                Padding="0"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                Cursor="Hand">
+                            <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                                      Width="12" Height="12" />
+                        </Button>
+                    </Grid>
+
+                    <!-- Body Content -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,16">
+                        <StackPanel Spacing="16">
+
+                            <!-- Error Alert -->
+                            <Border Background="#25EF4444"
+                                    BorderBrush="#EF4444"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="14,10"
+                                    IsVisible="{Binding HasError}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <PathIcon Data="M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
+                                              Width="16" Height="16"
+                                              Foreground="#EF4444"
+                                              VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding ErrorMessage}"
+                                               Foreground="#EF4444"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Hero Card: Profile Summary -->
+                            <Border Background="#12FFFFFF"
+                                    BorderBrush="#25FFFFFF"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    Padding="16">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <!-- Cover / Icon -->
+                                    <Border Grid.Column="0"
+                                            Width="80" Height="80"
+                                            CornerRadius="10"
+                                            Background="#20000000"
+                                            BorderBrush="{Binding ThemeColor, Converter={StaticResource ColorToBrushConverter}}"
+                                            BorderThickness="1.5"
+                                            ClipToBounds="True"
+                                            Margin="0,0,16,0">
+                                        <Image Source="{Binding IconPath, Converter={StaticResource StringToImageConverter}}"
+                                               Stretch="Uniform" Margin="6" />
+                                    </Border>
+
+                                    <!-- Details -->
+                                    <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="Profile Name:" FontSize="11" Foreground="#AAAAAA" />
+                                            <TextBox Text="{Binding ProfileName, Mode=TwoWay}"
+                                                     Height="34"
+                                                     Background="#18FFFFFF"
+                                                     BorderBrush="#40FFFFFF"
+                                                     CornerRadius="6"
+                                                     Foreground="White"
+                                                     FontWeight="SemiBold"
+                                                     FontSize="13" />
+                                        </StackPanel>
+
+                                        <WrapPanel Margin="0,4,0,0">
+                                            <Border Background="#25FFFFFF" CornerRadius="4" Padding="6,2" Margin="0,0,6,0">
+                                                <TextBlock Text="{Binding GameVersion}" FontSize="11" Foreground="#E0E0E0" FontWeight="SemiBold" />
+                                            </Border>
+                                            <Border Background="#2500E676" CornerRadius="4" Padding="6,2" Margin="0,0,6,0" IsVisible="{Binding HasNameConflict}">
+                                                <TextBlock Text="Name Auto-Renamed" FontSize="11" Foreground="#00E676" FontWeight="SemiBold" />
+                                            </Border>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <!-- Security Warnings Card -->
+                            <Border Background="#20FFA000"
+                                    BorderBrush="#FFA000"
+                                    BorderThickness="1"
+                                    CornerRadius="10"
+                                    Padding="14,10"
+                                    IsVisible="{Binding HasSecurityWarnings}">
+                                <StackPanel Spacing="6">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <PathIcon Data="M12,2L1,21H23L12,2M12,6L19.53,19H4.47L12,6M11,10V14H13V10H11M11,16V18H13V16H11Z"
+                                                  Width="16" Height="16"
+                                                  Foreground="#FFA000" />
+                                        <TextBlock Text="Security &amp; Sanitization Guardrails"
+                                                   Foreground="#FFA000"
+                                                   FontSize="12"
+                                                   FontWeight="Bold" />
+                                    </StackPanel>
+                                    <ItemsControl ItemsSource="{Binding SecurityWarnings}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}" Foreground="#E0E0E0" FontSize="11" Margin="24,2,0,0" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Content Manifests Breakdown -->
+                            <Border Background="#12FFFFFF"
+                                    BorderBrush="#25FFFFFF"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    Padding="16">
+                                <StackPanel Spacing="12">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0"
+                                                   Text="CONTENT &amp; MOD MANIFESTS BREAKDOWN"
+                                                   FontSize="12"
+                                                   FontWeight="Bold"
+                                                   Foreground="#AAAAAA"
+                                                   LetterSpacing="0.5" />
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding Manifests.Count, StringFormat='{}({0} items)'}"
+                                                   FontSize="12"
+                                                   Foreground="#777777" />
+                                    </Grid>
+
+                                    <!-- Manifest Items -->
+                                    <ItemsControl ItemsSource="{Binding Manifests}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#0CFFFFFF"
+                                                        BorderBrush="#18FFFFFF"
+                                                        BorderThickness="1"
+                                                        CornerRadius="8"
+                                                        Padding="12,8"
+                                                        Margin="0,0,0,6">
+                                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                                        <!-- Content Type Badge -->
+                                                        <Border Grid.Column="0"
+                                                                Background="#305E35B1"
+                                                                BorderBrush="#5E35B1"
+                                                                BorderThickness="1"
+                                                                CornerRadius="4"
+                                                                Padding="6,2"
+                                                                Margin="0,0,10,0"
+                                                                VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding ContentType, Converter={StaticResource ContentTypeDisplayConverter}}"
+                                                                       FontSize="10"
+                                                                       FontWeight="SemiBold"
+                                                                       Foreground="#D1C4E9" />
+                                                        </Border>
+
+                                                        <!-- Name and Publisher -->
+                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding DisplayName}"
+                                                                       FontSize="12"
+                                                                       FontWeight="SemiBold"
+                                                                       Foreground="White" />
+                                                            <TextBlock Text="{Binding Publisher, StringFormat='{}Publisher: {0}'}"
+                                                                       FontSize="10"
+                                                                       Foreground="#888888" />
+                                                        </StackPanel>
+
+                                                        <!-- Version -->
+                                                        <TextBlock Grid.Column="2"
+                                                                   Text="{Binding Version}"
+                                                                   FontSize="11"
+                                                                   Foreground="#AAAAAA"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="12,0" />
+
+                                                        <!-- Status Badge -->
+                                                        <Border Grid.Column="3"
+                                                                CornerRadius="6"
+                                                                Padding="8,3"
+                                                                VerticalAlignment="Center">
+                                                            <Border.Styles>
+                                                                <Style Selector="Border">
+                                                                    <Setter Property="Background" Value="#2500E676" />
+                                                                    <Setter Property="BorderBrush" Value="#00E676" />
+                                                                    <Setter Property="BorderThickness" Value="1" />
+                                                                </Style>
+                                                            </Border.Styles>
+                                                            <Panel>
+                                                                <TextBlock Text="✅ CACHED"
+                                                                           FontSize="10"
+                                                                           FontWeight="Bold"
+                                                                           Foreground="#00E676"
+                                                                           IsVisible="{Binding IsCachedLocally}" />
+                                                                <TextBlock Text="{Binding DownloadSize, Converter={StaticResource FileSizeConverter}, StringFormat='{}⬇️ {0}'}"
+                                                                           FontSize="10"
+                                                                           FontWeight="Bold"
+                                                                           Foreground="#00CCFF"
+                                                                           IsVisible="{Binding !IsCachedLocally}" />
+                                                            </Panel>
+                                                        </Border>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Settings Summary & Target Installation -->
+                            <Border Background="#12FFFFFF"
+                                    BorderBrush="#25FFFFFF"
+                                    BorderThickness="1"
+                                    CornerRadius="12"
+                                    Padding="16">
+                                <StackPanel Spacing="12">
+                                    <TextBlock Text="TARGET INSTALLATION &amp; LAUNCH OPTIONS"
+                                               FontSize="12"
+                                               FontWeight="Bold"
+                                               Foreground="#AAAAAA"
+                                               LetterSpacing="0.5" />
+
+                                    <!-- Installation Selector -->
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="Target Game Installation:" FontSize="11" Foreground="#AAAAAA" />
+                                        <ComboBox ItemsSource="{Binding CompatibleInstallations}"
+                                                  SelectedItem="{Binding SelectedInstallation, Mode=TwoWay}"
+                                                  HorizontalAlignment="Stretch"
+                                                  Height="36">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding DisplayName}" />
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                        <TextBlock Text="⚠️ No compatible installation found for this game client."
+                                                   FontSize="11"
+                                                   Foreground="#EF4444"
+                                                   IsVisible="{Binding !HasValidGameInstallation}" />
+                                    </StackPanel>
+
+                                    <!-- Launch Arguments -->
+                                    <StackPanel Spacing="4" IsVisible="{Binding CommandLineArguments, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                        <TextBlock Text="Launch Arguments:" FontSize="11" Foreground="#AAAAAA" />
+                                        <Border Background="#15FFFFFF" CornerRadius="6" Padding="10,6">
+                                            <TextBlock Text="{Binding CommandLineArguments}"
+                                                       FontSize="11"
+                                                       FontFamily="Monospace"
+                                                       Foreground="#E0E0E0" />
+                                        </Border>
+                                    </StackPanel>
+
+                                    <!-- Include Settings Checkbox -->
+                                    <CheckBox IsChecked="{Binding IncludeGameSettings, Mode=TwoWay}"
+                                              Content="Apply video resolution and audio configuration overrides"
+                                              FontSize="12"
+                                              Foreground="#CCCCCC" />
+                                </StackPanel>
+                            </Border>
+
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- Footer -->
+                    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" Margin="0,8,0,0">
+                        <!-- Summary info -->
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding MissingManifestCount, StringFormat='{}Acquisition: {0} downloads required'}"
+                                       FontSize="12"
+                                       FontWeight="SemiBold"
+                                       Foreground="White"
+                                       IsVisible="{Binding HasMissingDownloads}" />
+                            <TextBlock Text="All required content is already cached locally."
+                                       FontSize="12"
+                                       FontWeight="SemiBold"
+                                       Foreground="#00E676"
+                                       IsVisible="{Binding !HasMissingDownloads}" />
+                        </StackPanel>
+
+                        <!-- Cancel Button -->
+                        <Button Grid.Column="1"
+                                Command="{Binding CancelCommand}"
+                                Content="Cancel"
+                                Width="90" Height="40"
+                                Margin="0,0,12,0"
+                                Background="#15FFFFFF"
+                                Foreground="White"
+                                CornerRadius="8"
+                                FontWeight="Medium"
+                                Cursor="Hand" />
+
+                        <!-- Import Button -->
+                        <Button Grid.Column="2"
+                                Command="{Binding ConfirmImportCommand}"
+                                Content="{Binding ActionButtonText}"
+                                Height="40"
+                                Padding="20,0"
+                                Background="{Binding ThemeColor, Converter={StaticResource ColorToBrushConverter}}"
+                                Foreground="White"
+                                CornerRadius="8"
+                                FontWeight="Bold"
+                                IsEnabled="{Binding HasValidGameInstallation}"
+                                Cursor="Hand" />
+                    </Grid>
+
+                    <!-- Acquisition Progress Overlay -->
+                    <Border Grid.RowSpan="3"
+                            Background="#DD000000"
+                            CornerRadius="16"
+                            IsVisible="{Binding IsImporting}"
+                            ZIndex="1000">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16" Width="360">
+                            <ProgressBar Value="{Binding ImportProgressPercentage}"
+                                         Minimum="0" Maximum="100"
+                                         Height="8"
+                                         CornerRadius="4"
+                                         Foreground="{Binding ThemeColor, Converter={StaticResource ColorToBrushConverter}}" />
+                            <StackPanel Spacing="4" HorizontalAlignment="Center">
+                                <TextBlock Text="{Binding CurrentOperationName}"
+                                           Foreground="White"
+                                           FontSize="13"
+                                           FontWeight="SemiBold"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Text="{Binding ImportProgressPercentage, StringFormat='{}{0}% complete'}"
+                                           Foreground="#888888"
+                                           FontSize="11"
+                                           HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                </Grid>
+            </Panel>
+        </Border>
+    </Grid>
+</Window>
