@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Messaging;
@@ -34,6 +35,15 @@ namespace GenHub.Tests.Core.Features.GameProfiles;
 /// </summary>
 public class ProfileSharingServiceTests
 {
+    private static readonly JsonSerializerOptions TestJsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Converters = { new JsonStringEnumConverter() },
+    };
+
     private readonly Mock<IGameProfileRepository> _profileRepositoryMock = new();
     private readonly Mock<IContentManifestPool> _manifestPoolMock = new();
     private readonly Mock<IGameInstallationService> _installationServiceMock = new();
@@ -47,6 +57,11 @@ public class ProfileSharingServiceTests
     /// </summary>
     public ProfileSharingServiceTests()
     {
+        _profileRepositoryMock.Setup(r => r.LoadAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+        _installationServiceMock.Setup(i => i.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([]));
+
         _factoryResolver = new PublisherManifestFactoryResolver([], NullLogger<PublisherManifestFactoryResolver>.Instance);
         _service = new ProfileSharingService(
             _profileRepositoryMock.Object,
@@ -174,7 +189,7 @@ public class ProfileSharingServiceTests
             ],
         };
 
-        var json = JsonSerializer.Serialize(package);
+        var json = JsonSerializer.Serialize(package, TestJsonOptions);
         var encoded = ProfileSharingCompressionHelper.CompressAndEncode(json);
         var uri = $"genhub://profile/import?data={encoded}";
 
@@ -325,7 +340,7 @@ public class ProfileSharingServiceTests
             Profile = new SharedProfileMetadata { Name = "Future Profile", GameType = GameType.ZeroHour },
             RequiredManifests = [],
         };
-        var json = JsonSerializer.Serialize(package);
+        var json = JsonSerializer.Serialize(package, TestJsonOptions);
 
         // Act
         var result = await _service.InspectSharedProfileAsync(json);
@@ -352,7 +367,7 @@ public class ProfileSharingServiceTests
                 new SharedManifestDependency { ManifestId = "invalid-manifest-id-without-dots", DisplayName = "Invalid", Version = "1.0", ContentType = ContentType.Mod }
             ],
         };
-        var json = JsonSerializer.Serialize(package);
+        var json = JsonSerializer.Serialize(package, TestJsonOptions);
 
         // Act
         var result = await _service.InspectSharedProfileAsync(json);
@@ -389,6 +404,180 @@ public class ProfileSharingServiceTests
         // Assert
         Assert.False(result.Success);
         Assert.Contains("Profile name must be between 1 and 100 characters", result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies that exporting a profile excludes any local GameInstallation manifests from required manifests.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ExportProfile_Should_ExcludeGameInstallationManifests_FromRequiredManifestsAsync()
+    {
+        // Arrange
+        var profile = CreateTestProfile("profile-export-filter", "Shockwave Generals");
+        profile.EnabledContentIds =
+        [
+            "1.104.steam.gameinstallation.zerohour",
+            "1.0.generalsonline.gameclient.generalsonline"
+        ];
+
+        _profileRepositoryMock.Setup(r => r.LoadProfileAsync("profile-export-filter", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        var gameClientManifest = CreateTestManifest("1.0.generalsonline.gameclient.generalsonline", "Generals Online", ContentType.GameClient);
+        _manifestPoolMock.Setup(m => m.GetManifestAsync("1.0.generalsonline.gameclient.generalsonline", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(gameClientManifest));
+
+        var installManifest = CreateTestManifest("1.104.steam.gameinstallation.zerohour", "Steam Zero Hour", ContentType.GameInstallation);
+        _manifestPoolMock.Setup(m => m.GetManifestAsync("1.104.steam.gameinstallation.zerohour", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(installManifest));
+
+        // Act
+        var uriResult = await _service.ExportProfileToUriAsync("profile-export-filter");
+
+        // Assert
+        Assert.True(uriResult.Success);
+        Assert.NotNull(uriResult.Data);
+
+        var dataParam = uriResult.Data.Replace("genhub://profile/import?data=", string.Empty);
+        var json = ProfileSharingCompressionHelper.DecodeAndDecompress(dataParam);
+        var package = JsonSerializer.Deserialize<SharedGameProfilePackage>(json, TestJsonOptions);
+
+        Assert.NotNull(package);
+        Assert.Single(package.RequiredManifests);
+        Assert.Equal("1.0.generalsonline.gameclient.generalsonline", package.RequiredManifests[0].ManifestId);
+        Assert.DoesNotContain(package.RequiredManifests, m => m.ManifestId == "1.104.steam.gameinstallation.zerohour");
+    }
+
+    /// <summary>
+    /// Verifies that inspecting a package ignores any legacy GameInstallation manifests so they do not count towards download sizes.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task InspectSharedProfile_Should_IgnoreGameInstallationDependencies_FromDownloadTotalsAsync()
+    {
+        // Arrange
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = ProfileSharingConstants.DefaultSchemaVersion,
+            Profile = new SharedProfileMetadata
+            {
+                Name = "Zero Hour Package",
+                GameType = GameType.ZeroHour,
+                GameVersion = "1.04",
+            },
+            RequiredManifests =
+            [
+                new SharedManifestDependency
+                {
+                    ManifestId = "1.104.steam.gameinstallation.zerohour",
+                    DisplayName = "Zero Hour Steam Installation",
+                    Version = "1.04",
+                    ContentType = ContentType.GameInstallation,
+                    DownloadSize = 2_750_000_000L,
+                },
+                new SharedManifestDependency
+                {
+                    ManifestId = "1.0.community.mod.testmod",
+                    DisplayName = "Test Mod",
+                    Version = "1.0",
+                    ContentType = ContentType.Mod,
+                    DownloadSize = 1_000_000L,
+                }
+            ],
+        };
+
+        var json = JsonSerializer.Serialize(package, TestJsonOptions);
+        _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync("1.0.community.mod.testmod", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        var installation = new GameInstallation("/games/zh", GameInstallationType.EaApp)
+        {
+            Id = "inst-ea",
+            HasZeroHour = true,
+            AvailableGameClients = [new GameClient { Id = "c1", Name = "Zero Hour", GameType = GameType.ZeroHour }],
+        };
+
+        _installationServiceMock.Setup(i => i.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess(new List<GameInstallation> { installation }));
+
+        // Act
+        var result = await _service.InspectSharedProfileAsync(json);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Single(result.Data.Manifests);
+        Assert.Equal("1.0.community.mod.testmod", result.Data.Manifests[0].ManifestId);
+        Assert.Equal(1_000_000L, result.Data.TotalDownloadBytesRequired);
+        Assert.Equal(1, result.Data.MissingManifestCount);
+    }
+
+    /// <summary>
+    /// Verifies that importing a profile attaches the target user's local GameInstallation manifest ID to EnabledContentIds.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ImportSharedProfile_Should_AttachTargetGameInstallationManifestId_ToImportedProfileAsync()
+    {
+        // Arrange
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = ProfileSharingConstants.DefaultSchemaVersion,
+            Profile = new SharedProfileMetadata
+            {
+                Name = "Shared Mod Profile",
+                GameType = GameType.ZeroHour,
+                GameVersion = "1.04",
+            },
+            RequiredManifests =
+            [
+                new SharedManifestDependency
+                {
+                    ManifestId = "1.0.community.mod.testmod",
+                    DisplayName = "Test Mod",
+                    Version = "1.0",
+                    ContentType = ContentType.Mod,
+                }
+            ],
+        };
+
+        var installation = new GameInstallation("/games/steam/zh", GameInstallationType.Steam)
+        {
+            Id = "inst-steam",
+            HasZeroHour = true,
+            AvailableGameClients =
+            [
+                new GameClient { Id = "zh-client", Name = "Zero Hour", Version = "1.04", GameType = GameType.ZeroHour }
+            ],
+        };
+
+        _installationServiceMock.Setup(i => i.GetInstallationAsync("inst-steam", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(installation));
+
+        _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync("1.0.community.mod.testmod", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        GameProfile? savedProfile = null;
+        _profileRepositoryMock.Setup(r => r.SaveProfileAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()))
+            .Callback<GameProfile, CancellationToken>((p, _) => savedProfile = p)
+            .ReturnsAsync((GameProfile p, CancellationToken _) => ProfileOperationResult<GameProfile>.CreateSuccess(p));
+
+        var request = new SharedProfileImportRequest
+        {
+            Package = package,
+            ProfileName = "Imported Steam ZH Profile",
+            GameInstallationId = "inst-steam",
+        };
+
+        // Act
+        var result = await _service.ImportSharedProfileAsync(request);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(savedProfile);
+        Assert.Contains("1.0.community.mod.testmod", savedProfile.EnabledContentIds);
+        Assert.Contains(savedProfile.EnabledContentIds, id => id.Contains(".steam.gameinstallation.zerohour", StringComparison.OrdinalIgnoreCase));
     }
 
     private static GameProfile CreateTestProfile(string id, string name)

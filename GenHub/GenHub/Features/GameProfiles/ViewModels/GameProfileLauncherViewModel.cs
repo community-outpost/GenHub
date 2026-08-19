@@ -341,6 +341,61 @@ public partial class GameProfileLauncherViewModel(
     }
 
     /// <summary>
+    /// Imports a profile from a file path or sharing URI.
+    /// </summary>
+    /// <param name="shareUriOrPath">The .ghprofile path, JSON string, or genhub:// URI.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public async Task ImportProfileFromFileOrUriAsync(string shareUriOrPath)
+    {
+        if (profileSharingService == null)
+        {
+            notificationService.ShowError("Import Failed", "Profile sharing service is not available.");
+            return;
+        }
+
+        try
+        {
+            logger.LogInformation("Inspecting shared profile for import from: {Path}", shareUriOrPath);
+            var inspectResult = await profileSharingService.InspectSharedProfileAsync(shareUriOrPath);
+
+            if (!inspectResult.Success || inspectResult.Data == null)
+            {
+                logger.LogWarning("Failed to inspect shared profile: {Error}", inspectResult.FirstError);
+                notificationService.ShowError("Profile Import Error", inspectResult.FirstError ?? "Failed to inspect profile package.");
+                return;
+            }
+
+            var desktop = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+            var parent = desktop?.Windows.FirstOrDefault(w => w.IsActive) ?? desktop?.MainWindow;
+
+            var inspectionViewModel = new ImportProfileInspectionViewModel(
+                inspectResult.Data,
+                profileSharingService,
+                notificationService,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<ImportProfileInspectionViewModel>.Instance);
+
+            var dialog = new Views.ImportProfileInspectionWindow
+            {
+                DataContext = inspectionViewModel,
+            };
+
+            if (parent != null)
+            {
+                await dialog.ShowDialog(parent);
+            }
+            else
+            {
+                dialog.Show();
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error importing profile from {Path}", shareUriOrPath);
+            notificationService.ShowError("Import Error", $"An error occurred during profile import: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// Generates a unique profile name by appending a number if needed.
     /// </summary>
     /// <param name="baseName">The base name to use for the profile.</param>
@@ -1813,6 +1868,53 @@ public partial class GameProfileLauncherViewModel(
         {
             logger.LogError(ex, "Failed to share profile {ProfileId}", item.ProfileId);
             notificationService.ShowError("Share Error", $"An error occurred while preparing share: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Prompts the user to select a profile file and opens the import inspection dialog.
+    /// </summary>
+    [RelayCommand]
+    private async Task ImportProfileAsync()
+    {
+        try
+        {
+            var desktop = Avalonia.Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+            var mainWindow = desktop?.MainWindow;
+            if (mainWindow == null)
+            {
+                return;
+            }
+
+            var topLevel = Avalonia.Controls.TopLevel.GetTopLevel(mainWindow);
+            if (topLevel?.StorageProvider == null)
+            {
+                return;
+            }
+
+            var files = await topLevel.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+            {
+                Title = "Select Game Profile Package to Import",
+                AllowMultiple = false,
+                FileTypeFilter =
+                [
+                    new Avalonia.Platform.Storage.FilePickerFileType(ProfileSharingConstants.ProfileFileTypeDisplayName)
+                    {
+                        Patterns = [ProfileSharingConstants.ProfileFilePattern, "*.json"],
+                    },
+                    Avalonia.Platform.Storage.FilePickerFileTypes.All,
+                ],
+            });
+
+            if (files.Count > 0 && files[0]?.Path?.LocalPath is { } filePath)
+            {
+                await ImportProfileFromFileOrUriAsync(filePath);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to select profile file for import");
+            notificationService.ShowError("Import Failed", $"Failed to select profile file: {ex.Message}");
         }
     }
 }

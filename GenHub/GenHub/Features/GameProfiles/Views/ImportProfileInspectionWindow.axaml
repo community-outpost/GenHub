@@ -147,7 +147,9 @@
                                         <StackPanel Spacing="4">
                                             <TextBlock Text="Profile Name:" FontSize="11" Foreground="#AAAAAA" />
                                             <TextBox Text="{Binding ProfileName, Mode=TwoWay}"
-                                                     Height="34"
+                                                     Height="36"
+                                                     Padding="10,0"
+                                                     VerticalContentAlignment="Center"
                                                      Background="#18FFFFFF"
                                                      BorderBrush="#40FFFFFF"
                                                      CornerRadius="6"
@@ -261,30 +263,34 @@
                                                                    Margin="12,0" />
 
                                                         <!-- Status Badge -->
-                                                        <Border Grid.Column="3"
-                                                                CornerRadius="6"
-                                                                Padding="8,3"
-                                                                VerticalAlignment="Center">
-                                                            <Border.Styles>
-                                                                <Style Selector="Border">
-                                                                    <Setter Property="Background" Value="#2500E676" />
-                                                                    <Setter Property="BorderBrush" Value="#00E676" />
-                                                                    <Setter Property="BorderThickness" Value="1" />
-                                                                </Style>
-                                                            </Border.Styles>
-                                                            <Panel>
+                                                        <Panel Grid.Column="3" VerticalAlignment="Center">
+                                                            <Border Background="#2000E676"
+                                                                    BorderBrush="#00E676"
+                                                                    BorderThickness="1"
+                                                                    CornerRadius="6"
+                                                                    Padding="8,3"
+                                                                    IsVisible="{Binding IsCachedLocally}">
                                                                 <TextBlock Text="✅ CACHED"
                                                                            FontSize="10"
                                                                            FontWeight="Bold"
                                                                            Foreground="#00E676"
-                                                                           IsVisible="{Binding IsCachedLocally}" />
-                                                                <TextBlock Text="{Binding DownloadSize, Converter={StaticResource FileSizeConverter}, StringFormat='{}⬇️ {0}'}"
+                                                                           VerticalAlignment="Center"
+                                                                           HorizontalAlignment="Center" />
+                                                            </Border>
+                                                            <Border Background="#2000B0FF"
+                                                                    BorderBrush="#00B0FF"
+                                                                    BorderThickness="1"
+                                                                    CornerRadius="6"
+                                                                    Padding="8,3"
+                                                                    IsVisible="{Binding !IsCachedLocally}">
+                                                                <TextBlock Text="{Binding DownloadSize, Converter={StaticResource FileSizeConverter}, StringFormat='{}⬇ {0}'}"
                                                                            FontSize="10"
                                                                            FontWeight="Bold"
-                                                                           Foreground="#00CCFF"
-                                                                           IsVisible="{Binding !IsCachedLocally}" />
-                                                            </Panel>
-                                                        </Border>
+                                                                           Foreground="#00B0FF"
+                                                                           VerticalAlignment="Center"
+                                                                           HorizontalAlignment="Center" />
+                                                            </Border>
+                                                        </Panel>
                                                     </Grid>
                                                 </Border>
                                             </DataTemplate>
@@ -329,10 +335,10 @@
                                     <StackPanel Spacing="4" IsVisible="{Binding CommandLineArguments, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                         <TextBlock Text="Launch Arguments:" FontSize="11" Foreground="#AAAAAA" />
                                         <Border Background="#15FFFFFF" CornerRadius="6" Padding="10,6">
-                                            <TextBlock Text="{Binding CommandLineArguments}"
-                                                       FontSize="11"
-                                                       FontFamily="Monospace"
-                                                       Foreground="#E0E0E0" />
+                                             <TextBlock Text="{Binding CommandLineArguments}"
+                                                        FontSize="11"
+                                                        FontFamily="Monospace"
+                                                        Foreground="#E0E0E0" />
                                         </Border>
                                     </StackPanel>
 
@@ -370,23 +376,70 @@
                                 Width="90" Height="40"
                                 Margin="0,0,12,0"
                                 Background="#15FFFFFF"
+                                BorderBrush="#30FFFFFF"
+                                BorderThickness="1"
                                 Foreground="White"
                                 CornerRadius="8"
                                 FontWeight="Medium"
-                                Cursor="Hand" />
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
+                                Cursor="Hand">
+                            <Button.Styles>
+                                <Style Selector="Button:pointerover">
+                                    <Setter Property="Background" Value="#25FFFFFF" />
+                                    <Setter Property="BorderBrush" Value="#50FFFFFF" />
+                                </Style>
+                                <Style Selector="Button:pressed">
+                                    <Setter Property="RenderTransform" Value="scale(0.98)" />
+                                </Style>
+                            </Button.Styles>
+                        </Button>
 
                         <!-- Import Button -->
                         <Button Grid.Column="2"
                                 Command="{Binding ConfirmImportCommand}"
-                                Content="{Binding ActionButtonText}"
                                 Height="40"
-                                Padding="20,0"
-                                Background="{Binding ThemeColor, Converter={StaticResource ColorToBrushConverter}}"
+                                Padding="24,0"
+                                Background="{StaticResource PrimaryGradientBrush}"
                                 Foreground="White"
                                 CornerRadius="8"
                                 FontWeight="Bold"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
                                 IsEnabled="{Binding HasValidGameInstallation}"
-                                Cursor="Hand" />
+                                Cursor="Hand">
+                            <Button.Styles>
+                                <Style Selector="Button">
+                                    <Setter Property="Transitions">
+                                        <Transitions>
+                                            <DoubleTransition Property="Opacity" Duration="0:0:0.15" />
+                                            <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1" />
+                                        </Transitions>
+                                    </Setter>
+                                </Style>
+                                <Style Selector="Button:pointerover">
+                                    <Setter Property="RenderTransform" Value="translateY(-1px)" />
+                                    <Setter Property="Opacity" Value="0.92" />
+                                </Style>
+                                <Style Selector="Button:pressed">
+                                    <Setter Property="RenderTransform" Value="scale(0.98)" />
+                                    <Setter Property="Opacity" Value="0.85" />
+                                </Style>
+                                <Style Selector="Button:disabled">
+                                    <Setter Property="Opacity" Value="0.45" />
+                                </Style>
+                            </Button.Styles>
+                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <PathIcon Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"
+                                          Width="14" Height="14"
+                                          Foreground="White"
+                                          VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding ActionButtonText}"
+                                           FontWeight="Bold"
+                                           FontSize="13"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
                     </Grid>
 
                     <!-- Acquisition Progress Overlay -->

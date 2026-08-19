@@ -1,6 +1,9 @@
+using System;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
+using GenHub.Common.ViewModels;
+using GenHub.Core.Constants;
 
 namespace GenHub.Common.Views;
 
@@ -15,6 +18,33 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        AddHandler(DragDrop.DropEvent, OnDrop);
+        AddHandler(DragDrop.DragOverEvent, OnDragOver);
+    }
+
+    private void OnDragOver(object? sender, DragEventArgs e)
+    {
+        e.DragEffects = e.Data.Contains(DataFormats.Files) ? DragDropEffects.Copy : DragDropEffects.None;
+    }
+
+    private async void OnDrop(object? sender, DragEventArgs e)
+    {
+        if (DataContext is not MainViewModel mainVm || mainVm.GameProfilesViewModel == null) return;
+
+        var files = e.Data.GetFiles();
+        if (files != null)
+        {
+            foreach (var file in files)
+            {
+                if (file?.Path?.LocalPath is { } path &&
+                    (path.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase) ||
+                     path.EndsWith(".json", StringComparison.OrdinalIgnoreCase)))
+                {
+                    await mainVm.GameProfilesViewModel.ImportProfileFromFileOrUriAsync(path);
+                    break;
+                }
+            }
+        }
     }
 
     /// <summary>
