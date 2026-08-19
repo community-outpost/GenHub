@@ -51,17 +51,24 @@ public class ActionSetOrchestrator : IActionSetOrchestrator
     }
 
     /// <inheritdoc/>
-    public IEnumerable<IActionSet> GetAllActionSets() => _actionSets;
+    public IReadOnlyList<IActionSet> GetAllActionSets() => _actionSets.ToList();
 
     /// <inheritdoc/>
-    public async Task<IEnumerable<IActionSet>> GetApplicableCoreFixesAsync(GameInstallation installation)
+    public async Task<IReadOnlyList<IActionSet>> GetApplicableCoreFixesAsync(GameInstallation installation)
     {
         var applicable = new List<IActionSet>();
         foreach (var actionSet in _actionSets.Where(x => x.IsCoreFix))
         {
-            if (await actionSet.IsApplicableAsync(installation))
+            try
             {
-                applicable.Add(actionSet);
+                if (await actionSet.IsApplicableAsync(installation))
+                {
+                    applicable.Add(actionSet);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking applicability for {Title}", actionSet.Title);
             }
         }
 
@@ -87,17 +94,40 @@ public class ActionSetOrchestrator : IActionSetOrchestrator
             if (ct.IsCancellationRequested)
             {
                 _logger.LogWarning("Action set application cancelled by user");
-                break;
+                errors.Add($"Cancelled after {successCount} of {totalCount} fixes");
+                return OperationResult<int>.CreateFailure(errors);
             }
 
-            // Double check applicability and applied state to avoid redundant work
-            if (!await actionSet.IsApplicableAsync(installation))
+            // Double check applicability and applied state with exception shielding
+            bool isApplicable;
+            try
+            {
+                isApplicable = await actionSet.IsApplicableAsync(installation);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking applicability for {Title}", actionSet.Title);
+                continue;
+            }
+
+            if (!isApplicable)
             {
                 _logger.LogDebug("Skipping {Title} - not applicable", actionSet.Title);
                 continue;
             }
 
-            if (await actionSet.IsAppliedAsync(installation))
+            bool isApplied;
+            try
+            {
+                isApplied = await actionSet.IsAppliedAsync(installation);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking applied status for {Title}", actionSet.Title);
+                isApplied = false;
+            }
+
+            if (isApplied)
             {
                 _logger.LogDebug("Skipping {Title} - already applied", actionSet.Title);
                 continue;

@@ -17,7 +17,12 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public class ZeroHourExecutableFix(ILogger<ZeroHourExecutableFix> logger) : BaseActionSet(logger)
 {
-    private readonly ILogger<ZeroHourExecutableFix> _logger = logger;
+    private static readonly IReadOnlyList<string> CandidateExes =
+    [
+        ActionSetConstants.FileNames.GeneralsExe,
+        ActionSetConstants.FileNames.GameDat,
+        ActionSetConstants.FileNames.GameExe,
+    ];
 
     /// <inheritdoc/>
     public override string Id => "ZeroHourExecutableFix";
@@ -48,8 +53,8 @@ public class ZeroHourExecutableFix(ILogger<ZeroHourExecutableFix> logger) : Base
                 return Task.FromResult(false);
             }
 
-            var gameExePath = Path.Combine(installation.ZeroHourPath, ActionSetConstants.FileNames.GameExe);
-            if (!File.Exists(gameExePath))
+            var gameExePath = FindExecutable(installation.ZeroHourPath);
+            if (gameExePath == null)
             {
                 return Task.FromResult(false);
             }
@@ -68,7 +73,7 @@ public class ZeroHourExecutableFix(ILogger<ZeroHourExecutableFix> logger) : Base
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking Zero Hour executable version");
+            logger.LogError(ex, "Error checking Zero Hour executable version");
             return Task.FromResult(false);
         }
     }
@@ -92,9 +97,9 @@ public class ZeroHourExecutableFix(ILogger<ZeroHourExecutableFix> logger) : Base
             details.Add("Note: Automatic patching is currently disabled. Please use the Downloads section.");
             details.Add(string.Empty);
 
-            var gameExePath = Path.Combine(installation.ZeroHourPath, ActionSetConstants.FileNames.GameExe);
+            var gameExePath = FindExecutable(installation.ZeroHourPath);
 
-            if (File.Exists(gameExePath))
+            if (gameExePath != null)
             {
                 var versionInfo = System.Diagnostics.FileVersionInfo.GetVersionInfo(gameExePath);
                 var version = versionInfo.FileVersion;
@@ -115,14 +120,14 @@ public class ZeroHourExecutableFix(ILogger<ZeroHourExecutableFix> logger) : Base
             else
             {
                 details.Add("⚠ Zero Hour executable not found");
-                details.Add($"  Expected location: {gameExePath}");
+                details.Add($"  Expected location in: {installation.ZeroHourPath}");
             }
 
             return Task.FromResult(new ActionSetResult(true, null, details));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error applying ZeroHourExecutableFix");
+            logger.LogError(ex, "Error applying ZeroHourExecutableFix");
             details.Add($"✗ Error: {ex.Message}");
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
@@ -131,7 +136,18 @@ public class ZeroHourExecutableFix(ILogger<ZeroHourExecutableFix> logger) : Base
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        _logger.LogWarning("Undoing Zero Hour Executable Fix is not supported via GenHub.");
+        logger.LogWarning("Undoing Zero Hour Executable Fix is not supported via GenHub.");
         return Task.FromResult(new ActionSetResult(true));
+    }
+
+    private static string? FindExecutable(string zeroHourPath)
+    {
+        foreach (var exeName in CandidateExes)
+        {
+            var p = Path.Combine(zeroHourPath, exeName);
+            if (File.Exists(p)) return p;
+        }
+
+        return null;
     }
 }

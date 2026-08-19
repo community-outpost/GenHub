@@ -76,15 +76,17 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
                     // GenTool zip is small but definitely > 100KB
                     if (fileSize < 1024 * 100)
                     {
-                         logger.LogWarning("Downloaded file from {Url} is too small ({Size} bytes). Likely blocked.", url, fileSize);
-                         continue;
+                        logger.LogWarning("Downloaded file from {Url} is too small ({Size} bytes). Likely blocked.", url, fileSize);
+                        continue;
                     }
 
                     details.Add($"✓ Downloaded {fileSize / 1024.0:F2} KB from {new Uri(url).Host}");
 
-                    using var fs = new FileStream(tempFile, FileMode.Create);
-                    await response.Content.CopyToAsync(fs, cancellationToken);
-                    fs.Close();
+                    using (var fs = new FileStream(tempFile, FileMode.Create))
+                    {
+                        await response.Content.CopyToAsync(fs, cancellationToken);
+                    }
+
                     downloaded = true;
                     break;
                 }
@@ -137,17 +139,29 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
                 return new ActionSetResult(false, "d3d8.dll not found in downloaded archive.", details);
             }
 
-            File.Delete(tempFile);
-
             // Add Defender exclusions (would require admin, currently just logging)
             details.Add("ℹ Note: You may need to add 'd3d8.dll' to Windows Defender exclusions manually.");
 
-            return new ActionSetResult(true, "GenTool installed successfully.", details);
+            return new ActionSetResult(true, null, details);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to apply GenTool fix");
             return new ActionSetResult(false, $"Error: {ex.Message}", details);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                try
+                {
+                    File.Delete(tempFile);
+                }
+                catch
+                {
+                    // Ignore temp deletion errors
+                }
+            }
         }
     }
 
@@ -162,10 +176,10 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
 
         if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
         {
-             var p = Path.Combine(installation.ZeroHourPath, "d3d8.dll");
-             if (File.Exists(p)) File.Delete(p);
+            var p = Path.Combine(installation.ZeroHourPath, "d3d8.dll");
+            if (File.Exists(p)) File.Delete(p);
         }
 
-        return Task.FromResult(new ActionSetResult(true, "GenTool removed."));
+        return Task.FromResult(new ActionSetResult(true, null, ["GenTool removed."]));
     }
 }

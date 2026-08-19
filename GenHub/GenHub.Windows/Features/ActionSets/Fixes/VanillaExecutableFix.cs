@@ -17,8 +17,6 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public class VanillaExecutableFix(ILogger<VanillaExecutableFix> logger) : BaseActionSet(logger)
 {
-    private readonly ILogger<VanillaExecutableFix> _logger = logger;
-
     /// <inheritdoc/>
     public override string Id => "VanillaExecutableFix";
 
@@ -68,7 +66,7 @@ public class VanillaExecutableFix(ILogger<VanillaExecutableFix> logger) : BaseAc
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking Generals executable version");
+            logger.LogError(ex, "Error checking Generals executable version");
             return Task.FromResult(false);
         }
     }
@@ -117,7 +115,7 @@ public class VanillaExecutableFix(ILogger<VanillaExecutableFix> logger) : BaseAc
                 details.Add($"  Expected location: {generalsExePath}");
             }
 
-            _logger.LogInformation("VanillaExecutableFix ensures Generals 1.08 patch is applied via Patch108Fix.");
+            logger.LogInformation("VanillaExecutableFix ensures Generals 1.08 patch is applied via Patch108Fix.");
 
             // This fix is a wrapper that ensures that the official patch is applied.
             // The actual patching is done by Patch108Fix.
@@ -126,7 +124,7 @@ public class VanillaExecutableFix(ILogger<VanillaExecutableFix> logger) : BaseAc
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error applying VanillaExecutableFix");
+            logger.LogError(ex, "Error applying VanillaExecutableFix");
             details.Add($"✗ Error: {ex.Message}");
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
@@ -135,7 +133,7 @@ public class VanillaExecutableFix(ILogger<VanillaExecutableFix> logger) : BaseAc
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        _logger.LogWarning("Undoing Generals Executable Fix is not supported via GenHub.");
+        logger.LogWarning("Undoing Generals Executable Fix is not supported via GenHub.");
         return Task.FromResult(new ActionSetResult(true));
     }
 }

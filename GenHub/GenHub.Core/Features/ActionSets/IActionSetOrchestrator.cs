@@ -15,14 +15,14 @@ public interface IActionSetOrchestrator
     /// Gets all registered action sets.
     /// </summary>
     /// <returns>A list of action sets.</returns>
-    IEnumerable<IActionSet> GetAllActionSets();
+    IReadOnlyList<IActionSet> GetAllActionSets();
 
     /// <summary>
     /// Gets applicable core fixes for a given installation.
     /// </summary>
     /// <param name="installation">The game installation.</param>
     /// <returns>A task returning the list of applicable core fixes.</returns>
-    Task<IEnumerable<IActionSet>> GetApplicableCoreFixesAsync(GameInstallation installation);
+    Task<IReadOnlyList<IActionSet>> GetApplicableCoreFixesAsync(GameInstallation installation);
 
     /// <summary>
     /// Applies a collection of action sets to an installation.

@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 
@@ -26,7 +27,17 @@ public partial class GenPatcherToolView : UserControl
 
         if (DataContext is GenPatcherViewModel vm)
         {
-            _ = vm.InitializeAsync();
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await vm.InitializeAsync();
+                }
+                catch
+                {
+                    // Exceptions during initialization are logged in the ViewModel
+                }
+            });
         }
     }
 

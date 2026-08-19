@@ -20,8 +20,6 @@ namespace GenHub.Windows.Features.ActionSets.Fixes;
 /// </summary>
 public class OptionsINIFix(IGameSettingsService gameSettingsService, ILogger<OptionsINIFix> logger) : BaseActionSet(logger)
 {
-    private readonly ILogger<OptionsINIFix> _logger = logger;
-
     /// <inheritdoc/>
     public override string Id => "OptionsINIFix";
 
@@ -46,47 +44,29 @@ public class OptionsINIFix(IGameSettingsService gameSettingsService, ILogger<Opt
     {
         try
         {
-            // Determine which game type to check
-            GameType gameType;
+            if (installation.HasGenerals)
+            {
+                var loadResult = await gameSettingsService.LoadOptionsAsync(GameType.Generals);
+                if (!loadResult.Success || loadResult.Data == null || !IsOptionsValid(loadResult.Data))
+                {
+                    return false;
+                }
+            }
+
             if (installation.HasZeroHour)
             {
-                gameType = GameType.ZeroHour;
-            }
-            else if (installation.HasGenerals)
-            {
-                gameType = GameType.Generals;
-            }
-            else
-            {
-                return false;
+                var loadResult = await gameSettingsService.LoadOptionsAsync(GameType.ZeroHour);
+                if (!loadResult.Success || loadResult.Data == null || !IsOptionsValid(loadResult.Data))
+                {
+                    return false;
+                }
             }
 
-            var optionsFilePath = gameSettingsService.GetOptionsFilePath(gameType);
-
-            if (!File.Exists(optionsFilePath))
-            {
-                return false;
-            }
-
-            var loadResult = await gameSettingsService.LoadOptionsAsync(gameType);
-            if (!loadResult.Success || loadResult.Data == null)
-            {
-                return false;
-            }
-
-            var options = loadResult.Data;
-
-            // Check if all required settings are present with correct values
-            if (!IsOptionsValid(options))
-            {
-                return false;
-            }
-
-            return true;
+            return installation.HasGenerals || installation.HasZeroHour;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking Options.ini status");
+            logger.LogError(ex, "Error checking Options.ini status");
             return false;
         }
     }
@@ -100,123 +80,122 @@ public class OptionsINIFix(IGameSettingsService gameSettingsService, ILogger<Opt
         {
             details.Add("Starting Options.ini optimization...");
 
-            // Determine which game type to apply to
-            GameType gameType;
-            if (installation.HasZeroHour)
-            {
-                gameType = GameType.ZeroHour;
-                details.Add("Target game: Command & Conquer: Generals Zero Hour");
-            }
-            else if (installation.HasGenerals)
-            {
-                gameType = GameType.Generals;
-                details.Add("Target game: Command & Conquer: Generals");
-            }
-            else
+            var gamesToProcess = new List<GameType>();
+            if (installation.HasGenerals) gamesToProcess.Add(GameType.Generals);
+            if (installation.HasZeroHour) gamesToProcess.Add(GameType.ZeroHour);
+
+            if (gamesToProcess.Count == 0)
             {
                 details.Add("✗ No game installation found");
                 return new ActionSetResult(false, "No game installation found", details);
             }
 
-            var optionsPath = gameSettingsService.GetOptionsFilePath(gameType);
-            details.Add($"Options.ini path: {optionsPath}");
-            details.Add("Loading Options.ini...");
-            var loadResult = await gameSettingsService.LoadOptionsAsync(gameType);
-            if (!loadResult.Success || loadResult.Data == null)
+            foreach (var gameType in gamesToProcess)
             {
-                details.Add("✗ Failed to load Options.ini");
-                if (loadResult.Errors?.Any() == true)
+                var gameName = gameType == GameType.ZeroHour ? "Command & Conquer: Generals Zero Hour" : "Command & Conquer: Generals";
+                details.Add($"Target game: {gameName}");
+
+                var optionsPath = gameSettingsService.GetOptionsFilePath(gameType);
+                details.Add($"Options.ini path: {optionsPath}");
+                details.Add($"Loading Options.ini for {gameType}...");
+                var loadResult = await gameSettingsService.LoadOptionsAsync(gameType);
+                if (!loadResult.Success || loadResult.Data == null)
                 {
-                    foreach (var error in loadResult.Errors)
+                    details.Add($"✗ Failed to load Options.ini for {gameType}");
+                    if (loadResult.Errors?.Any() == true)
                     {
-                        details.Add("  • " + error);
+                        foreach (var error in loadResult.Errors)
+                        {
+                            details.Add("  • " + error);
+                        }
                     }
+
+                    return new ActionSetResult(false, $"Failed to load Options.ini for {gameType}: " + string.Join(", ", loadResult.Errors ?? []), details);
                 }
 
-                return new ActionSetResult(false, "Failed to load Options.ini: " + string.Join(", ", loadResult.Errors ?? []), details);
-            }
+                details.Add($"✓ Options.ini loaded successfully for {gameType}");
+                var options = loadResult.Data;
 
-            details.Add("✓ Options.ini loaded successfully");
-            var options = loadResult.Data;
+                // Check current resolution
+                var currentRes = $"{options.Video.ResolutionWidth}x{options.Video.ResolutionHeight}";
+                details.Add($"Current resolution: {currentRes}");
 
-            // Check current resolution
-            var currentRes = $"{options.Video.ResolutionWidth}x{options.Video.ResolutionHeight}";
-            details.Add($"Current resolution: {currentRes}");
-
-            var resolutionChanged = false;
-            if (IsBadResolution(options.Video.ResolutionWidth, options.Video.ResolutionHeight))
-            {
-                details.Add("  ⚠ Bad resolution detected, will be changed to 1920x1080");
-                options.Video.ResolutionWidth = 1920;
-                options.Video.ResolutionHeight = 1080;
-                resolutionChanged = true;
-            }
-
-            details.Add("Applying optimal settings...");
-
-            // Apply optimal settings
-            ApplyOptimalSettings(options, details);
-
-            // Log what was changed
-            details.Add("✓ Video settings optimized:");
-            details.Add("  • AntiAliasing = 1");
-            details.Add("  • TextureReduction = 0");
-            details.Add("  • ExtraAnimations = yes");
-            details.Add("  • Gamma = 50");
-            details.Add("  • UseShadowDecals = yes");
-            details.Add("  • UseShadowVolumes = no");
-            details.Add("  • Windowed = no");
-
-            if (resolutionChanged)
-            {
-                details.Add($"  • Resolution = 1920x1080 (changed from {currentRes})");
-            }
-
-            details.Add("✓ Audio settings optimized:");
-            details.Add("  • SFXVolume = 70");
-            details.Add("  • SFX3DVolume = 70");
-            details.Add("  • MusicVolume = 70");
-            details.Add("  • VoiceVolume = 70");
-            details.Add("  • NumSounds = 16");
-
-            details.Add("✓ Network settings optimized:");
-            details.Add("  • GameSpyIPAddress = 0.0.0.0");
-
-            details.Add("✓ TheSuperHackers settings optimized:");
-            details.Add("  • DynamicLOD = no");
-            details.Add("  • HeatEffects = no");
-            details.Add("  • MaxParticleCount = 1000");
-            details.Add("  • SendDelay = no");
-            details.Add("  • ShowSoftWaterEdge = yes");
-            details.Add("  • ShowTrees = yes");
-            details.Add("  • UseAlternateMouse = no");
-            details.Add("  • UseDoubleClickAttackMove = no");
-
-            details.Add("Saving optimized Options.ini...");
-            var saveResult = await gameSettingsService.SaveOptionsAsync(gameType, options);
-            if (!saveResult.Success)
-            {
-                details.Add("✗ Failed to save Options.ini");
-                if (saveResult.Errors?.Any() == true)
+                var resolutionChanged = false;
+                if (IsBadResolution(options.Video.ResolutionWidth, options.Video.ResolutionHeight))
                 {
-                    foreach (var error in saveResult.Errors)
-                    {
-                        details.Add($"  • {error}");
-                    }
+                    details.Add($"  ⚠ Bad resolution detected, will be changed to {GameSettingsConstants.OptimalSettings.DefaultResolutionWidth}x{GameSettingsConstants.OptimalSettings.DefaultResolutionHeight}");
+                    options.Video.ResolutionWidth = GameSettingsConstants.OptimalSettings.DefaultResolutionWidth;
+                    options.Video.ResolutionHeight = GameSettingsConstants.OptimalSettings.DefaultResolutionHeight;
+                    resolutionChanged = true;
                 }
 
-                return new ActionSetResult(false, $"Failed to save Options.ini: {string.Join(", ", saveResult.Errors ?? [])}", details);
+                details.Add("Applying optimal settings...");
+
+                // Apply optimal settings
+                ApplyOptimalSettings(options, details);
+
+                // Log what was changed
+                details.Add("✓ Video settings optimized:");
+                details.Add("  • AntiAliasing = 1");
+                details.Add("  • TextureReduction = 0");
+                details.Add("  • ExtraAnimations = yes");
+                details.Add("  • Gamma = 50");
+                details.Add("  • UseShadowDecals = yes");
+                details.Add("  • UseShadowVolumes = no");
+                details.Add("  • Windowed = no");
+
+                if (resolutionChanged)
+                {
+                    details.Add($"  • Resolution = {GameSettingsConstants.OptimalSettings.DefaultResolutionWidth}x{GameSettingsConstants.OptimalSettings.DefaultResolutionHeight} (changed from {currentRes})");
+                }
+
+                details.Add("✓ Audio settings optimized:");
+                details.Add("  • SFXVolume = 70");
+                details.Add("  • SFX3DVolume = 70");
+                details.Add("  • MusicVolume = 70");
+                details.Add("  • VoiceVolume = 70");
+                details.Add("  • NumSounds = 16");
+
+                details.Add("✓ Network settings optimized:");
+                details.Add("  • GameSpyIPAddress = 0.0.0.0");
+
+                details.Add("✓ TheSuperHackers settings optimized:");
+                details.Add("  • DynamicLOD = no");
+                details.Add("  • HeatEffects = no");
+                details.Add("  • MaxParticleCount = 1000");
+                details.Add("  • SendDelay = no");
+                details.Add("  • ShowSoftWaterEdge = yes");
+                details.Add("  • ShowTrees = yes");
+                details.Add("  • UseAlternateMouse = no");
+                details.Add("  • UseDoubleClickAttackMove = no");
+
+                details.Add($"Saving optimized Options.ini for {gameType}...");
+                var saveResult = await gameSettingsService.SaveOptionsAsync(gameType, options);
+                if (!saveResult.Success)
+                {
+                    details.Add($"✗ Failed to save Options.ini for {gameType}");
+                    if (saveResult.Errors?.Any() == true)
+                    {
+                        foreach (var error in saveResult.Errors)
+                        {
+                            details.Add($"  • {error}");
+                        }
+                    }
+
+                    return new ActionSetResult(false, $"Failed to save Options.ini for {gameType}: {string.Join(", ", saveResult.Errors ?? [])}", details);
+                }
+
+                details.Add($"✓ Saved to: {optionsPath}");
             }
 
-            details.Add($"✓ Saved to: {optionsPath}");
             details.Add("✓ Options.ini optimization completed successfully");
 
-            _logger.LogInformation("Options.ini fix applied successfully for {GameType} with {Count} actions", gameType, details.Count);
+            logger.LogInformation("Options.ini fix applied successfully for {Count} games with {DetailsCount} actions", gamesToProcess.Count, details.Count);
             return new ActionSetResult(true, null, details);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error applying Options.ini fix");
+            logger.LogError(ex, "Error applying Options.ini fix");
             details.Add($"✗ Error: {ex.Message}");
             return new ActionSetResult(false, ex.Message, details);
         }
@@ -225,7 +204,7 @@ public class OptionsINIFix(IGameSettingsService gameSettingsService, ILogger<Opt
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        _logger.LogWarning("Undoing Options.ini fix is not supported via GenHub.");
+        logger.LogWarning("Undoing Options.ini fix is not supported via GenHub.");
         return Task.FromResult(Success());
     }
 

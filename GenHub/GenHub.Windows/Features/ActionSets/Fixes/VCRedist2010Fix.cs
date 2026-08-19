@@ -85,13 +85,12 @@ public class VCRedist2010Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
     protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
         var details = new List<string>();
+        var tempPath = Path.Combine(Path.GetTempPath(), "vcredist_x86_2010.exe");
 
         try
         {
             details.Add("Starting Visual C++ 2010 Runtime installation...");
             details.Add($"Download URL: {ExternalUrls.VCRedist2010DownloadUrl}");
-
-            var tempPath = Path.Combine(Path.GetTempPath(), "vcredist_x86_2010.exe");
             details.Add($"Temp file: {tempPath}");
 
             details.Add("Downloading VCRedist 2010...");
@@ -104,9 +103,10 @@ public class VCRedist2010Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
             var fileSize = response.Content.Headers.ContentLength ?? 0;
             details.Add($"✓ Downloaded {fileSize / 1024 / 1024:F2} MB");
 
-            using var fs = new FileStream(tempPath, FileMode.Create);
-            await response.Content.CopyToAsync(fs, cancellationToken);
-            fs.Close();
+            using (var fs = new FileStream(tempPath, FileMode.Create))
+            {
+                await response.Content.CopyToAsync(fs, cancellationToken);
+            }
 
             details.Add("Installing VCRedist 2010 (silent mode)...");
             details.Add("  ⚠ This may require administrator privileges");
@@ -120,38 +120,35 @@ public class VCRedist2010Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
                 Verb = "runas", // Request elevation just in case
             };
 
-            var process = Process.Start(psi);
-            if (process != null)
+            using var process = Process.Start(psi);
+            if (process == null)
             {
-                await process.WaitForExitAsync(cancellationToken);
-
-                // 3010 is restart required
-                if (process.ExitCode != ProcessConstants.ExitCodeSuccess && process.ExitCode != 3010)
-                {
-                    logger.LogWarning("VCRedist install exited with code {Code}", process.ExitCode);
-                    details.Add($"⚠ VCRedist install exited with code {process.ExitCode}");
-                    details.Add("✗ Installation may have failed");
-                    return new ActionSetResult(false, $"VCRedist install failed with code {process.ExitCode}", details);
-                }
-
-                if (process.ExitCode == 3010)
-                {
-                    details.Add("✓ VCRedist 2010 installed successfully");
-                    details.Add("  ⚠ System restart may be required");
-                }
-                else
-                {
-                    details.Add("✓ VCRedist 2010 installed successfully");
-                }
-
-                logger.LogInformation("VCRedist 2010 installed successfully");
+                details.Add("✗ Failed to start VCRedist installer process");
+                return new ActionSetResult(false, "Failed to start VCRedist installer process", details);
             }
 
-            // Cleanup
-            if (File.Exists(tempPath))
+            await process.WaitForExitAsync(cancellationToken);
+
+            // 3010 is restart required
+            if (process.ExitCode != ProcessConstants.ExitCodeSuccess && process.ExitCode != 3010)
             {
-                File.Delete(tempPath);
+                logger.LogWarning("VCRedist install exited with code {Code}", process.ExitCode);
+                details.Add($"⚠ VCRedist install exited with code {process.ExitCode}");
+                details.Add("✗ Installation may have failed");
+                return new ActionSetResult(false, $"VCRedist install failed with code {process.ExitCode}", details);
             }
+
+            if (process.ExitCode == 3010)
+            {
+                details.Add("✓ VCRedist 2010 installed successfully");
+                details.Add("  ⚠ System restart may be required");
+            }
+            else
+            {
+                details.Add("✓ VCRedist 2010 installed successfully");
+            }
+
+            logger.LogInformation("VCRedist 2010 installed successfully");
 
             details.Add("✓ VCRedist 2010 installation completed");
             return new ActionSetResult(true, null, details);
@@ -161,6 +158,20 @@ public class VCRedist2010Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
             logger.LogError(ex, "Failed to install VCRedist 2010");
             details.Add($"✗ Error: {ex.Message}");
             return new ActionSetResult(false, ex.Message, details);
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+            {
+                try
+                {
+                    File.Delete(tempPath);
+                }
+                catch
+                {
+                    // Ignore temp deletion errors
+                }
+            }
         }
     }
 

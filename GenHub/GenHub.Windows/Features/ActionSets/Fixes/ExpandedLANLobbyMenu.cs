@@ -4,6 +4,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
@@ -14,8 +15,7 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public class ExpandedLANLobbyMenu(ILogger<ExpandedLANLobbyMenu> logger) : BaseActionSet(logger)
 {
-    private readonly ILogger<ExpandedLANLobbyMenu> _logger = logger;
-    private readonly string _markerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", "sub_markers", "ExpandedLANLobbyMenu.done");
+    private readonly string _markerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", ActionSetConstants.Paths.SubActionSetMarkers, "ExpandedLANLobbyMenu.done");
 
     /// <inheritdoc/>
     public override string Id => "ExpandedLANLobbyMenu";
@@ -44,7 +44,7 @@ public class ExpandedLANLobbyMenu(ILogger<ExpandedLANLobbyMenu> logger) : BaseAc
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking LAN lobby menu status");
+            logger.LogError(ex, "Error checking LAN lobby menu status");
             return Task.FromResult(false);
         }
     }
@@ -55,37 +55,38 @@ public class ExpandedLANLobbyMenu(ILogger<ExpandedLANLobbyMenu> logger) : BaseAc
         try
         {
             // Provide guidance for LAN play
-            _logger.LogInformation("LAN Lobby Menu Information:");
-            _logger.LogInformation("Generals and Zero Hour have built-in LAN support.");
-            _logger.LogInformation(string.Empty);
-            _logger.LogInformation("To play on LAN:");
-            _logger.LogInformation("1. Ensure all players are on the same network");
-            _logger.LogInformation("2. Launch the game");
-            _logger.LogInformation("3. Go to 'Multiplayer' > 'Network' > 'LAN'");
-            _logger.LogInformation("4. Create or host a LAN game");
-            _logger.LogInformation("5. Other players can join from the LAN lobby");
-            _logger.LogInformation(string.Empty);
-            _logger.LogInformation("Note: For best LAN experience:");
-            _logger.LogInformation("- Ensure Windows Firewall allows the game");
-            _logger.LogInformation("- Disable VPN if not needed");
-            _logger.LogInformation("- Use wired network connection if possible");
-            _logger.LogInformation("- Ensure all players have the same game version");
-            _logger.LogInformation(string.Empty);
+            logger.LogInformation("LAN Lobby Menu Information:");
+            logger.LogInformation("Generals and Zero Hour have built-in LAN support.");
+            logger.LogInformation(string.Empty);
+            logger.LogInformation("To play on LAN:");
+            logger.LogInformation("1. Ensure all players are on the same network");
+            logger.LogInformation("2. Launch the game");
+            logger.LogInformation("3. Go to 'Multiplayer' > 'Network' > 'LAN'");
+            logger.LogInformation("4. Create or host a LAN game");
+            logger.LogInformation("5. Other players can join from the LAN lobby");
+            logger.LogInformation(string.Empty);
+            logger.LogInformation("Note: For best LAN experience:");
+            logger.LogInformation("- Ensure Windows Firewall allows the game");
+            logger.LogInformation("- Disable VPN if not needed");
+            logger.LogInformation("- Use wired network connection if possible");
+            logger.LogInformation("- Ensure all players have the same game version");
+            logger.LogInformation(string.Empty);
 
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(_markerPath)!);
                 File.WriteAllText(_markerPath, DateTime.UtcNow.ToString());
             }
-            catch
+            catch (Exception ex)
             {
+                logger.LogWarning(ex, "Failed to create marker file for ExpandedLANLobbyMenu");
             }
 
-            return Task.FromResult(new ActionSetResult(true, "LAN lobby menu is built into the game. See logs for details."));
+            return Task.FromResult(new ActionSetResult(true, null, ["LAN lobby menu is built into the game. See logs for details."]));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error applying LAN lobby menu fix");
+            logger.LogError(ex, "Error applying LAN lobby menu fix");
             return Task.FromResult(new ActionSetResult(false, ex.Message));
         }
     }
@@ -93,7 +94,7 @@ public class ExpandedLANLobbyMenu(ILogger<ExpandedLANLobbyMenu> logger) : BaseAc
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        _logger.LogWarning("Expanded LAN Lobby Menu Fix is informational only. No undo action needed.");
+        logger.LogWarning("Expanded LAN Lobby Menu Fix is informational only. No undo action needed.");
         return Task.FromResult(new ActionSetResult(true));
     }
 }

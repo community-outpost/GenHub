@@ -1,5 +1,8 @@
 namespace GenHub.Core.Constants;
 
+using System.Collections.Generic;
+using System.IO;
+
 /// <summary>
 /// Centralized constants for ActionSet fixes, registry keys, and file operations.
 /// </summary>
@@ -149,12 +152,12 @@ public static class ActionSetConstants
         /// <summary>
         /// Gets the registry uninstall key path for detecting Malwarebytes.
         /// </summary>
-        public const string RegistryUninstallKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall";
+        public const string RegistryUninstallKey = RegistryConstants.UninstallKeyPath;
 
         /// <summary>
         /// Gets the DisplayName value name in the registry.
         /// </summary>
-        public const string DisplayNameValue = "DisplayName";
+        public const string DisplayNameValue = RegistryConstants.DisplayNameValueName;
 
         /// <summary>
         /// Gets the string to check for in DisplayName to identify Malwarebytes.
@@ -164,7 +167,7 @@ public static class ActionSetConstants
         /// <summary>
         /// Gets the array of executable paths for Malwarebytes applications.
         /// </summary>
-        public static readonly string[] ExecutablePaths =
+        public static readonly IReadOnlyList<string> ExecutablePaths =
         [
             Path.Combine("Malwarebytes", "Anti-Malware", "mbam.exe"),
             Path.Combine("Malwarebytes", "Anti-Malware", "mbamtray.exe")

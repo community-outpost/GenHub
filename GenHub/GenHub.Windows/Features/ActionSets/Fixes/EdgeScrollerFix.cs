@@ -19,9 +19,6 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public class EdgeScrollerFix(ILogger<EdgeScrollerFix> logger, IGameSettingsService gameSettingsService) : BaseActionSet(logger)
 {
-    private readonly ILogger<EdgeScrollerFix> _logger = logger;
-    private readonly IGameSettingsService _gameSettingsService = gameSettingsService;
-
     /// <inheritdoc/>
     public override string Id => "EdgeScrollerFix";
 
@@ -47,7 +44,7 @@ public class EdgeScrollerFix(ILogger<EdgeScrollerFix> logger, IGameSettingsServi
         {
             if (installation.HasGenerals)
             {
-                var result = await _gameSettingsService.LoadOptionsAsync(GameType.Generals);
+                var result = await gameSettingsService.LoadOptionsAsync(GameType.Generals);
                 if (!result.Success || result.Data == null || !IsEdgeScrollingOptimal(result.Data))
                 {
                     return false;
@@ -56,7 +53,7 @@ public class EdgeScrollerFix(ILogger<EdgeScrollerFix> logger, IGameSettingsServi
 
             if (installation.HasZeroHour)
             {
-                var result = await _gameSettingsService.LoadOptionsAsync(GameType.ZeroHour);
+                var result = await gameSettingsService.LoadOptionsAsync(GameType.ZeroHour);
                 if (!result.Success || result.Data == null || !IsEdgeScrollingOptimal(result.Data))
                 {
                     return false;
@@ -67,7 +64,7 @@ public class EdgeScrollerFix(ILogger<EdgeScrollerFix> logger, IGameSettingsServi
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking edge scrolling status");
+            logger.LogError(ex, "Error checking edge scrolling status");
             return false;
         }
     }
@@ -78,17 +75,23 @@ public class EdgeScrollerFix(ILogger<EdgeScrollerFix> logger, IGameSettingsServi
         try
         {
             var details = new List<string>();
+            bool hasFailures = false;
+            int appliedCount = 0;
 
             if (installation.HasGenerals)
             {
-                var gameDetails = await ApplyEdgeScrollingFixAsync(GameType.Generals);
+                var (gameDetails, success) = await ApplyEdgeScrollingFixAsync(GameType.Generals);
                 details.AddRange(gameDetails);
+                if (success) appliedCount++;
+                else hasFailures = true;
             }
 
             if (installation.HasZeroHour)
             {
-                var gameDetails = await ApplyEdgeScrollingFixAsync(GameType.ZeroHour);
+                var (gameDetails, success) = await ApplyEdgeScrollingFixAsync(GameType.ZeroHour);
                 details.AddRange(gameDetails);
+                if (success) appliedCount++;
+                else hasFailures = true;
             }
 
             if (details.Count == 0)
@@ -96,11 +99,16 @@ public class EdgeScrollerFix(ILogger<EdgeScrollerFix> logger, IGameSettingsServi
                 details.Add("No games found to apply edge scrolling fix to.");
             }
 
+            if (hasFailures)
+            {
+                return new ActionSetResult(false, "Failed to apply edge scrolling fix to one or more games.", details);
+            }
+
             return new ActionSetResult(true, null, details);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error applying edge scrolling fix");
+            logger.LogError(ex, "Error applying edge scrolling fix");
             return new ActionSetResult(false, ex.Message, [$"Error: {ex.Message}"]);
         }
     }
@@ -108,7 +116,7 @@ public class EdgeScrollerFix(ILogger<EdgeScrollerFix> logger, IGameSettingsServi
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        _logger.LogWarning("Undoing Edge Scrolling Fix is not supported via GenHub.");
+        logger.LogWarning("Undoing Edge Scrolling Fix is not supported via GenHub.");
         return Task.FromResult(new ActionSetResult(true, null, ["Undo not supported for Edge Scrolling Fix."]));
     }
 
@@ -116,34 +124,35 @@ public class EdgeScrollerFix(ILogger<EdgeScrollerFix> logger, IGameSettingsServi
     {
         // Check if edge scrolling settings exist in TheSuperHackers section
         // If the section exists with ScrollEdgeZone or ScrollEdgeSpeed, consider it applied
-        if (!options.AdditionalSections.TryGetValue("TheSuperHackers", out var tshSection))
+        if (!options.AdditionalSections.TryGetValue(ActionSetConstants.IniFiles.TheSuperHackersSection, out var tshSection))
         {
             return false;
         }
 
         // If either setting exists, consider the fix applied
-        return tshSection.ContainsKey("ScrollEdgeZone") || tshSection.ContainsKey("ScrollEdgeSpeed");
+        return tshSection.ContainsKey(ActionSetConstants.IniFiles.ScrollEdgeZoneKey) ||
+               tshSection.ContainsKey(ActionSetConstants.IniFiles.ScrollEdgeSpeedKey);
     }
 
-    private async Task<List<string>> ApplyEdgeScrollingFixAsync(GameType gameType)
+    private async Task<(List<string> Details, bool Success)> ApplyEdgeScrollingFixAsync(GameType gameType)
     {
         var details = new List<string>();
 
         try
         {
-            _logger.LogInformation("Applying edge scrolling fix for {GameType}", gameType);
+            logger.LogInformation("Applying edge scrolling fix for {GameType}", gameType);
 
-            var result = await _gameSettingsService.LoadOptionsAsync(gameType);
+            var result = await gameSettingsService.LoadOptionsAsync(gameType);
             if (!result.Success || result.Data == null)
             {
                 var msg = $"⚠ Could not load Options.ini for {gameType}";
                 details.Add(msg);
-                _logger.LogWarning("Could not load settings for {GameType}", gameType);
-                return details;
+                logger.LogWarning("Could not load settings for {GameType}", gameType);
+                return (details, false);
             }
 
             var options = result.Data;
-            var optionsPath = _gameSettingsService.GetOptionsFilePath(gameType);
+            var optionsPath = gameSettingsService.GetOptionsFilePath(gameType);
 
             // Apply optimal edge scrolling settings
             if (!options.AdditionalSections.TryGetValue(ActionSetConstants.IniFiles.TheSuperHackersSection, out var tshSection))
@@ -161,25 +170,30 @@ public class EdgeScrollerFix(ILogger<EdgeScrollerFix> logger, IGameSettingsServi
             // Also ensure default scroll factor is good if present
             if (tshSection.ContainsKey("ScrollFactor"))
             {
-                 tshSection["ScrollFactor"] = "60";
-                 details.Add($"✓ Set ScrollFactor=60 for {gameType}");
+                tshSection["ScrollFactor"] = "60";
+                details.Add($"✓ Set ScrollFactor=60 for {gameType}");
             }
 
             details.Add($"✓ Set {ActionSetConstants.IniFiles.ScrollEdgeZoneKey}=0 for {gameType}");
             details.Add($"✓ Set {ActionSetConstants.IniFiles.ScrollEdgeSpeedKey}=1.0 for {gameType}");
             details.Add($"✓ Set {ActionSetConstants.IniFiles.ScrollEdgeAccelerationKey}=0.0 for {gameType}");
 
-            await _gameSettingsService.SaveOptionsAsync(gameType, options);
+            var saveResult = await gameSettingsService.SaveOptionsAsync(gameType, options);
+            if (!saveResult.Success)
+            {
+                details.Add($"✗ Failed to save Options.ini for {gameType}");
+                return (details, false);
+            }
 
             details.Add($"✓ Saved Options.ini: {optionsPath}");
-            _logger.LogInformation("Successfully applied edge scrolling fix for {GameType}", gameType);
+            logger.LogInformation("Successfully applied edge scrolling fix for {GameType}", gameType);
+            return (details, true);
         }
         catch (Exception ex)
         {
             details.Add($"✗ Error applying edge scrolling for {gameType}: {ex.Message}");
-            _logger.LogError(ex, "Error applying edge scrolling fix for {GameType}", gameType);
+            logger.LogError(ex, "Error applying edge scrolling fix for {GameType}", gameType);
+            return (details, false);
         }
-
-        return details;
     }
 }

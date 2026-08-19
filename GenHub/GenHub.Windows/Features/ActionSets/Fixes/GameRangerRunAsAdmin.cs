@@ -17,9 +17,8 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public class GameRangerRunAsAdmin(ILogger<GameRangerRunAsAdmin> logger) : BaseActionSet(logger)
 {
-    private static readonly string[] GeneralsExecutables = ["Generals.exe", "generals.exe"];
-    private static readonly string[] ZeroHourExecutables = ["game.exe", "Game.exe"];
-    private readonly ILogger<GameRangerRunAsAdmin> _logger = logger;
+    private static readonly IReadOnlyList<string> GeneralsExecutables = ["Generals.exe", "generals.exe"];
+    private static readonly IReadOnlyList<string> ZeroHourExecutables = ["generals.exe", "game.dat", "game.exe", "generalszh.exe"];
 
     /// <inheritdoc/>
     public override string Id => "GameRangerRunAsAdmin";
@@ -62,7 +61,7 @@ public class GameRangerRunAsAdmin(ILogger<GameRangerRunAsAdmin> logger) : BaseAc
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking GameRanger compatibility status");
+            logger.LogError(ex, "Error checking GameRanger compatibility status");
             return Task.FromResult(false);
         }
     }
@@ -76,41 +75,38 @@ public class GameRangerRunAsAdmin(ILogger<GameRangerRunAsAdmin> logger) : BaseAc
 
             if (!gameRangerInstalled)
             {
-                _logger.LogInformation("GameRanger is not installed. No action needed.");
+                logger.LogInformation("GameRanger is not installed. No action needed.");
                 return Task.FromResult(new ActionSetResult(true));
             }
 
             // Check if admin compatibility is already set
             if (HasAdminCompatibility(installation))
             {
-                _logger.LogInformation("Game executables already have run as administrator compatibility.");
+                logger.LogInformation("Game executables already have run as administrator compatibility.");
                 return Task.FromResult(new ActionSetResult(true));
             }
 
             // Provide guidance for GameRanger
-            _logger.LogWarning("GameRanger is installed. Games should run as administrator for GameRanger compatibility.");
-            _logger.LogInformation("To configure GameRanger:");
-            _logger.LogInformation("1. Open GameRanger");
-            _logger.LogInformation("2. Go to 'Edit' > 'Game Settings'");
-            _logger.LogInformation("3. Select Generals or Zero Hour");
-            _logger.LogInformation("4. Check 'Run this program as an administrator' option");
-            _logger.LogInformation("5. Ensure it is enabled");
-            _logger.LogInformation(string.Empty);
-            _logger.LogInformation("Alternatively, you can:");
-            _logger.LogInformation("- Right-click on game executable");
-            _logger.LogInformation("- Select 'Properties'");
-            _logger.LogInformation("- Go to 'Compatibility' tab");
-            _logger.LogInformation("- Check 'Run this program as an administrator'");
-            _logger.LogInformation("- Click 'Apply' and 'OK'");
-            _logger.LogInformation("Alternatively, you can:");
-            _logger.LogInformation("- Configure Windows to always run games as administrator");
-            _logger.LogInformation("- Use compatibility mode if available");
+            logger.LogWarning("GameRanger is installed. Games should run as administrator for GameRanger compatibility.");
+            logger.LogInformation("To configure GameRanger:");
+            logger.LogInformation("1. Open GameRanger");
+            logger.LogInformation("2. Go to 'Edit' > 'Game Settings'");
+            logger.LogInformation("3. Select Generals or Zero Hour");
+            logger.LogInformation("4. Check 'Run this program as an administrator' option");
+            logger.LogInformation("5. Ensure it is enabled");
+            logger.LogInformation(string.Empty);
+            logger.LogInformation("Alternatively, you can:");
+            logger.LogInformation("- Right-click on game executable");
+            logger.LogInformation("- Select 'Properties'");
+            logger.LogInformation("- Go to 'Compatibility' tab");
+            logger.LogInformation("- Check 'Run this program as an administrator'");
+            logger.LogInformation("- Click 'Apply' and 'OK'");
 
-            return Task.FromResult(new ActionSetResult(true, "Please configure GameRanger to run games as administrator. See logs for details."));
+            return Task.FromResult(new ActionSetResult(true, null, ["Please configure GameRanger to run games as administrator. See logs for details."]));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error applying GameRanger compatibility fix");
+            logger.LogError(ex, "Error applying GameRanger compatibility fix");
             return Task.FromResult(new ActionSetResult(false, ex.Message));
         }
     }
@@ -118,30 +114,36 @@ public class GameRangerRunAsAdmin(ILogger<GameRangerRunAsAdmin> logger) : BaseAc
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        _logger.LogWarning("GameRanger Run as Administrator Fix is informational only. No undo action needed.");
+        logger.LogWarning("GameRanger Run as Administrator Fix is informational only. No undo action needed.");
         return Task.FromResult(new ActionSetResult(true));
+    }
+
+    private static bool CheckUninstallKey(Microsoft.Win32.RegistryKey baseKey, string subPath)
+    {
+        using var key = baseKey.OpenSubKey(subPath, false);
+        if (key != null)
+        {
+            foreach (var subKeyName in key.GetSubKeyNames())
+            {
+                using var subKey = key.OpenSubKey(subKeyName, false);
+                if (subKey?.GetValue("DisplayName") is string displayName && displayName.Contains("GameRanger", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private bool IsGameRangerInstalled()
     {
         try
         {
-            // Check for GameRanger in registry
-            using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
-                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
-                false);
-
-            if (key != null)
-            {
-                foreach (var subKeyName in key.GetSubKeyNames())
-                {
-                    using var subKey = key.OpenSubKey(subKeyName, false);
-                    if (subKey?.GetValue("DisplayName") is string displayName && displayName.Contains("GameRanger", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return true;
-                    }
-                }
-            }
+            // Check for GameRanger in registry (HKLM, WOW6432Node, HKCU)
+            if (CheckUninstallKey(Microsoft.Win32.Registry.LocalMachine, RegistryConstants.UninstallKeyPath)) return true;
+            if (CheckUninstallKey(Microsoft.Win32.Registry.LocalMachine, @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall")) return true;
+            if (CheckUninstallKey(Microsoft.Win32.Registry.CurrentUser, RegistryConstants.UninstallKeyPath)) return true;
 
             // Check for GameRanger processes
             var processes = Process.GetProcessesByName("GameRanger");
@@ -156,7 +158,7 @@ public class GameRangerRunAsAdmin(ILogger<GameRangerRunAsAdmin> logger) : BaseAc
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error checking for GameRanger installation");
+            logger.LogWarning(ex, "Error checking for GameRanger installation");
             return false;
         }
     }
@@ -169,31 +171,33 @@ public class GameRangerRunAsAdmin(ILogger<GameRangerRunAsAdmin> logger) : BaseAc
 
             if (installation.HasGenerals)
             {
-                executables.AddRange(GeneralsExecutables);
+                foreach (var exe in GeneralsExecutables)
+                {
+                    var full = Path.Combine(installation.GeneralsPath, exe);
+                    if (File.Exists(full)) executables.Add(full);
+                }
             }
 
             if (installation.HasZeroHour)
             {
-                executables.AddRange(ZeroHourExecutables);
+                foreach (var exe in ZeroHourExecutables)
+                {
+                    var full = Path.Combine(installation.ZeroHourPath, exe);
+                    if (File.Exists(full)) executables.Add(full);
+                }
             }
 
-            foreach (var exe in executables)
+            foreach (var exePath in executables)
             {
-                var exePath = exe.Equals("game.exe", StringComparison.OrdinalIgnoreCase) || exe.Equals("Game.exe", StringComparison.OrdinalIgnoreCase)
-                    ? Path.Combine(installation.ZeroHourPath, exe)
-                    : Path.Combine(installation.GeneralsPath, exe);
-
-                if (!File.Exists(exePath))
+                // Check for compatibility flags in AppCompat registry (HKLM and HKCU)
+                using var hklmKey = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(RegistryConstants.AppCompatLayersKeyPath, false);
+                if (hklmKey?.GetValue(exePath) is string hklmFlags && hklmFlags.Contains("RUNASADMIN", StringComparison.OrdinalIgnoreCase))
                 {
-                    continue;
+                    return true;
                 }
 
-                // Check for compatibility flags in AppCompat registry
-                using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
-                    @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers",
-                    false);
-
-                if (key?.GetValue(exePath) is string flags && flags.Contains("RUNASADMIN", StringComparison.OrdinalIgnoreCase))
+                using var hkcuKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RegistryConstants.AppCompatLayersKeyPath, false);
+                if (hkcuKey?.GetValue(exePath) is string hkcuFlags && hkcuFlags.Contains("RUNASADMIN", StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
@@ -203,7 +207,7 @@ public class GameRangerRunAsAdmin(ILogger<GameRangerRunAsAdmin> logger) : BaseAc
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking admin compatibility");
+            logger.LogError(ex, "Error checking admin compatibility");
             return false;
         }
     }

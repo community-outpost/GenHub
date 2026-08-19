@@ -17,9 +17,6 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix> logger) : BaseActionSet(logger)
 {
-    private readonly IShortcutService _shortcutService = shortcutService;
-    private readonly ILogger<StartMenuFix> _logger = logger;
-
     /// <inheritdoc/>
     public override string Id => "StartMenuFix";
 
@@ -47,7 +44,7 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking start menu shortcuts status");
+            logger.LogError(ex, "Error checking start menu shortcuts status");
             return Task.FromResult(false);
         }
     }
@@ -56,6 +53,7 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
     protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
         var details = new List<string>();
+        bool hasFailures = false;
 
         try
         {
@@ -71,7 +69,7 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
                 if (File.Exists(exe))
                 {
                     var shortcutPath = Path.Combine(startMenuPath, "Command & Conquer Generals Windowed.lnk");
-                    var result = await _shortcutService.CreateShortcutAsync(
+                    var result = await shortcutService.CreateShortcutAsync(
                         shortcutPath,
                         exe,
                         "-win",
@@ -84,6 +82,7 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
                     }
                     else
                     {
+                        hasFailures = true;
                         details.Add($"✗ Failed to create Generals shortcut: {result.Errors.FirstOrDefault()}");
                     }
                 }
@@ -97,7 +96,7 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
                 if (File.Exists(exe))
                 {
                     var shortcutPath = Path.Combine(startMenuPath, "Command & Conquer Generals Zero Hour Windowed.lnk");
-                    var result = await _shortcutService.CreateShortcutAsync(
+                    var result = await shortcutService.CreateShortcutAsync(
                         shortcutPath,
                         exe,
                         "-win",
@@ -110,6 +109,7 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
                     }
                     else
                     {
+                        hasFailures = true;
                         details.Add($"✗ Failed to create Zero Hour shortcut: {result.Errors.FirstOrDefault()}");
                     }
                 }
@@ -119,7 +119,7 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
                 if (File.Exists(edgeScroller))
                 {
                     var shortcutPath = Path.Combine(startMenuPath, "EdgeScroller.lnk");
-                    var result = await _shortcutService.CreateShortcutAsync(
+                    var result = await shortcutService.CreateShortcutAsync(
                         shortcutPath,
                         edgeScroller,
                         null,
@@ -130,7 +130,17 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
                     {
                         details.Add($"✓ Created: {Path.GetFileName(shortcutPath)}");
                     }
+                    else
+                    {
+                        hasFailures = true;
+                        details.Add($"✗ Failed to create EdgeScroller shortcut: {result.Errors.FirstOrDefault()}");
+                    }
                 }
+            }
+
+            if (hasFailures)
+            {
+                return new ActionSetResult(false, "Failed to create one or more Start Menu shortcuts", details);
             }
 
             details.Add(string.Empty);
@@ -140,7 +150,7 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error applying start menu shortcuts fix");
+            logger.LogError(ex, "Error applying start menu shortcuts fix");
             details.Add($"✗ Error: {ex.Message}");
             return new ActionSetResult(false, ex.Message, details);
         }
@@ -149,7 +159,7 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        _logger.LogWarning("Undoing Start Menu Shortcuts Fix is not supported.");
+        logger.LogWarning("Undoing Start Menu Shortcuts Fix is not supported.");
         return Task.FromResult(new ActionSetResult(true));
     }
 

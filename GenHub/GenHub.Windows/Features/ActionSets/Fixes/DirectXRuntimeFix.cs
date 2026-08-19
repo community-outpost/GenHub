@@ -18,8 +18,6 @@ namespace GenHub.Windows.Features.ActionSets.Fixes;
 /// </summary>
 public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<DirectXRuntimeFix> logger) : BaseActionSet(logger)
 {
-    private readonly ILogger<DirectXRuntimeFix> _logger = logger;
-
     /// <inheritdoc/>
     public override string Id => "DirectXRuntimeFix";
 
@@ -103,13 +101,13 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
             {
                 try
                 {
-                    _logger.LogInformation("Attempting download from {Url}", url);
+                    logger.LogInformation("Attempting download from {Url}", url);
 
                     var uri = new Uri(url);
                     isExe = uri.AbsolutePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase);
                     downloadPath = isExe ? Path.Combine(tempFolder, "dxsetup.exe") : zipFile;
 
-                    var response = await client.GetAsync(url, cancellationToken);
+                    using var response = await client.GetAsync(url, cancellationToken);
                     response.EnsureSuccessStatusCode();
 
                     var fileSize = response.Content.Headers.ContentLength ?? 0;
@@ -119,16 +117,16 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
 
                     if (fileSize < minSize)
                     {
-                        _logger.LogWarning("Downloaded file from {Url} is too small ({Size} bytes). Likely blocked.", url, fileSize);
+                        logger.LogWarning("Downloaded file from {Url} is too small ({Size} bytes). Likely blocked.", url, fileSize);
                         continue;
                     }
 
                     details.Add($"✓ Downloaded {fileSize / 1024.0 / 1024.0:F2} MB from {uri.Host}");
 
-                    _logger.LogInformation("Reading response content to memory...");
+                    logger.LogInformation("Reading response content to memory...");
                     var fileBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
 
-                    _logger.LogInformation("Writing {Size} bytes to disk...", fileBytes.Length);
+                    logger.LogInformation("Writing {Size} bytes to disk...", fileBytes.Length);
                     await File.WriteAllBytesAsync(downloadPath, fileBytes, cancellationToken);
 
                     if (!isExe)
@@ -138,11 +136,11 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
                         {
                             using var archive = ZipFile.OpenRead(downloadPath);
                             var entryCount = archive.Entries.Count;
-                            _logger.LogInformation("Validated zip archive from {Url} ({Count} entries)", url, entryCount);
+                            logger.LogInformation("Validated zip archive from {Url} ({Count} entries)", url, entryCount);
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogWarning("Downloaded file from {Url} is corrupt: {Error}. Trying next mirror.", url, ex.Message);
+                            logger.LogWarning("Downloaded file from {Url} is corrupt: {Error}. Trying next mirror.", url, ex.Message);
                             continue;
                         }
                     }
@@ -152,7 +150,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning("Failed to download from {Url}: {Error}", url, ex.Message);
+                    logger.LogWarning("Failed to download from {Url}: {Error}", url, ex.Message);
                 }
             }
 
@@ -161,8 +159,8 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
                 throw new HttpRequestException("Failed to download or validate DirectX Runtime from all mirrors.");
             }
 
-            string setupExe = string.Empty;
-            string arguments = string.Empty;
+            string setupExe;
+            string arguments;
 
             if (isExe)
             {
@@ -173,7 +171,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
             else
             {
                 details.Add("Extracting DirectX Runtime...");
-                _logger.LogInformation("Extracting DirectX Runtime...");
+                logger.LogInformation("Extracting DirectX Runtime...");
                 ZipFile.ExtractToDirectory(zipFile, extractPath);
 
                 var extractedFiles = Directory.GetFiles(extractPath, "*.*", SearchOption.AllDirectories);
@@ -185,11 +183,13 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
                     details.Add("✗ DXSETUP.exe not found in package");
                     return new ActionSetResult(false, "DXSETUP.exe not found in downloaded package.", details);
                 }
+
+                arguments = "/silent";
             }
 
             details.Add("Running DirectX Setup (silent mode)...");
             details.Add("  ⚠ This may require administrator privileges");
-            _logger.LogInformation("Running DirectX Setup (Silent)...");
+            logger.LogInformation("Running DirectX Setup (Silent)...");
 
             var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
             {
@@ -209,9 +209,8 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
 
             if (process.ExitCode != 0)
             {
-                _logger.LogWarning("DirectX setup exited with code {ExitCode}", process.ExitCode);
+                logger.LogWarning("DirectX setup exited with code {ExitCode}", process.ExitCode);
                 details.Add($"⚠ DirectX setup exited with code {process.ExitCode}");
-                details.Add("  Note: Non-zero codes may not indicate failure");
             }
             else
             {
@@ -224,7 +223,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error implementing DirectX Runtime Fix");
+            logger.LogError(ex, "Error implementing DirectX Runtime Fix");
             details.Add($"✗ Error: {ex.Message}");
             return new ActionSetResult(false, ex.Message, details);
         }
@@ -239,7 +238,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
             }
             catch (Exception ex)
             {
-                _logger.LogDebug(ex, "Failed to cleanup temp directory: {TempFolder}", tempFolder);
+                logger.LogDebug(ex, "Failed to cleanup temp directory: {TempFolder}", tempFolder);
             }
         }
     }
@@ -247,7 +246,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        _logger.LogWarning("Uninstalling DirectX Runtime is not supported via GenHub.");
+        logger.LogWarning("Uninstalling DirectX Runtime is not supported via GenHub.");
         return Task.FromResult(new ActionSetResult(true));
     }
 }

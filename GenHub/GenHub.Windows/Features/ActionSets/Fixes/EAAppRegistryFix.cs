@@ -18,8 +18,6 @@ using Microsoft.Extensions.Logging;
 /// <param name="logger">The logger instance.</param>
 public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppRegistryFix> logger) : BaseActionSet(logger)
 {
-    private readonly IRegistryService _registryService = registryService ?? throw new ArgumentNullException(nameof(registryService));
-
     /// <inheritdoc/>
     public override string Id => "EAAppRegistryFix";
 
@@ -46,9 +44,9 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
 
         if (installation.HasGenerals)
         {
-            var installPath = _registryService.GetStringValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.InstallPathValueName);
-            var version = _registryService.GetIntValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.VersionValueName);
-            var serial = _registryService.GetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty); // Default value name is empty string
+            var installPath = registryService.GetStringValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.InstallPathValueName);
+            var version = registryService.GetIntValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.VersionValueName);
+            var serial = registryService.GetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty); // Default value name is empty string
 
             if (!string.Equals(installPath, installation.GeneralsPath, StringComparison.OrdinalIgnoreCase) ||
                 version != RegistryConstants.GeneralsVersionDWord ||
@@ -60,9 +58,9 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
 
         if (installation.HasZeroHour)
         {
-            var installPath = _registryService.GetStringValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.InstallPathValueName);
-            var version = _registryService.GetIntValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.VersionValueName);
-            var serial = _registryService.GetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty);
+            var installPath = registryService.GetStringValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.InstallPathValueName);
+            var version = registryService.GetIntValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.VersionValueName);
+            var serial = registryService.GetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty);
 
             if (!string.Equals(installPath, installation.ZeroHourPath, StringComparison.OrdinalIgnoreCase) ||
                 version != RegistryConstants.ZeroHourVersionDWord ||
@@ -80,9 +78,9 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
     {
         if (installation.HasGenerals)
         {
-            var installPath = _registryService.GetStringValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.InstallPathValueName);
-            var version = _registryService.GetIntValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.VersionValueName);
-            var serial = _registryService.GetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty);
+            var installPath = registryService.GetStringValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.InstallPathValueName);
+            var version = registryService.GetIntValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.VersionValueName);
+            var serial = registryService.GetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty);
 
             if (!string.Equals(installPath, installation.GeneralsPath, StringComparison.OrdinalIgnoreCase) ||
                 version != RegistryConstants.GeneralsVersionDWord ||
@@ -94,9 +92,9 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
 
         if (installation.HasZeroHour)
         {
-            var installPath = _registryService.GetStringValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.InstallPathValueName);
-            var version = _registryService.GetIntValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.VersionValueName);
-            var serial = _registryService.GetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty);
+            var installPath = registryService.GetStringValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.InstallPathValueName);
+            var version = registryService.GetIntValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.VersionValueName);
+            var serial = registryService.GetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty);
 
             if (!string.Equals(installPath, installation.ZeroHourPath, StringComparison.OrdinalIgnoreCase) ||
                 version != RegistryConstants.ZeroHourVersionDWord ||
@@ -115,7 +113,7 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
         var details = new List<string>();
 
         // Check if running as administrator - required for HKEY_LOCAL_MACHINE writes
-        if (!_registryService.IsRunningAsAdministrator())
+        if (!registryService.IsRunningAsAdministrator())
         {
             details.Add("✗ Administrator privileges required");
             details.Add("  Registry modifications require elevated permissions");
@@ -132,7 +130,7 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
             {
                 details.Add($"Configuring EA App registry for Generals: {installation.GeneralsPath}");
 
-                if (!_registryService.SetStringValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.InstallPathValueName, installation.GeneralsPath))
+                if (!registryService.SetStringValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.InstallPathValueName, installation.GeneralsPath))
                 {
                     allSucceeded = false;
                     failedOperations.Add($"{RegistryConstants.EAAppGeneralsKeyPath}\\{RegistryConstants.InstallPathValueName}");
@@ -143,7 +141,7 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
                     details.Add($"  ✓ InstallPath = {installation.GeneralsPath}");
                 }
 
-                if (!_registryService.SetIntValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.VersionValueName, RegistryConstants.GeneralsVersionDWord))
+                if (!registryService.SetIntValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.VersionValueName, RegistryConstants.GeneralsVersionDWord))
                 {
                     allSucceeded = false;
                     failedOperations.Add($"{RegistryConstants.EAAppGeneralsKeyPath}\\{RegistryConstants.VersionValueName}");
@@ -154,11 +152,11 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
                     details.Add($"  ✓ Version = {RegistryConstants.GeneralsVersionDWord}");
                 }
 
-                var existingSerial = _registryService.GetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty);
+                var existingSerial = registryService.GetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty);
                 if (string.IsNullOrEmpty(existingSerial))
                 {
                     const string defaultSerial = "1234567890";
-                    if (!_registryService.SetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty, defaultSerial))
+                    if (!registryService.SetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty, defaultSerial))
                     {
                         allSucceeded = false;
                         failedOperations.Add($"{RegistryConstants.EAAppGeneralsErgcKeyPath}\\(Default)");
@@ -184,7 +182,7 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
             {
                 details.Add($"Configuring EA App registry for Zero Hour: {installation.ZeroHourPath}");
 
-                if (!_registryService.SetStringValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.InstallPathValueName, installation.ZeroHourPath))
+                if (!registryService.SetStringValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.InstallPathValueName, installation.ZeroHourPath))
                 {
                     allSucceeded = false;
                     failedOperations.Add($"{RegistryConstants.EAAppZeroHourKeyPath}\\{RegistryConstants.InstallPathValueName}");
@@ -195,7 +193,7 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
                     details.Add($"  ✓ InstallPath = {installation.ZeroHourPath}");
                 }
 
-                if (!_registryService.SetIntValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.VersionValueName, RegistryConstants.ZeroHourVersionDWord))
+                if (!registryService.SetIntValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.VersionValueName, RegistryConstants.ZeroHourVersionDWord))
                 {
                     allSucceeded = false;
                     failedOperations.Add($"{RegistryConstants.EAAppZeroHourKeyPath}\\{RegistryConstants.VersionValueName}");
@@ -206,11 +204,11 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
                     details.Add($"  ✓ Version = {RegistryConstants.ZeroHourVersionDWord}");
                 }
 
-                var existingSerial = _registryService.GetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty);
+                var existingSerial = registryService.GetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty);
                 if (string.IsNullOrEmpty(existingSerial))
                 {
                     const string defaultSerial = "1234567890";
-                    if (!_registryService.SetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty, defaultSerial))
+                    if (!registryService.SetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty, defaultSerial))
                     {
                         allSucceeded = false;
                         failedOperations.Add($"{RegistryConstants.EAAppZeroHourErgcKeyPath}\\(Default)");

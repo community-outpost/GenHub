@@ -18,8 +18,6 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public class NahimicFix(ILogger<NahimicFix> logger) : BaseActionSet(logger)
 {
-    private readonly ILogger<NahimicFix> _logger = logger;
-
     /// <inheritdoc/>
     public override string Id => "NahimicFix";
 
@@ -64,7 +62,7 @@ public class NahimicFix(ILogger<NahimicFix> logger) : BaseActionSet(logger)
             {
                 details.Add("✓ Nahimic audio driver is not installed");
                 details.Add("  No action needed");
-                _logger.LogInformation("Nahimic audio driver is not installed. No action needed.");
+                logger.LogInformation("Nahimic audio driver is not installed. No action needed.");
                 return Task.FromResult(new ActionSetResult(true, null, details));
             }
 
@@ -83,23 +81,23 @@ public class NahimicFix(ILogger<NahimicFix> logger) : BaseActionSet(logger)
             details.Add(string.Empty);
             details.Add("Alternative: Uninstall Nahimic if you don't need it");
 
-            _logger.LogWarning("Nahimic audio driver is installed. This may cause audio issues with Generals/Zero Hour.");
-            _logger.LogInformation("To disable Nahimic audio effects:");
-            _logger.LogInformation("1. Open Task Manager (Ctrl+Shift+Esc)");
-            _logger.LogInformation("2. Go to the 'Services' tab");
-            _logger.LogInformation("3. Find 'Nahimic Service' or 'Nahimic Service UI'");
-            _logger.LogInformation("4. Right-click and select 'Stop'");
-            _logger.LogInformation("5. Right-click again and select 'Properties'");
-            _logger.LogInformation("6. Change 'Startup type' to 'Disabled'");
-            _logger.LogInformation("7. Click 'Apply' and 'OK'");
-            _logger.LogInformation(string.Empty);
-            _logger.LogInformation("Alternatively, you can uninstall Nahimic audio software if you don't need it.");
+            logger.LogWarning("Nahimic audio driver is installed. This may cause audio issues with Generals/Zero Hour.");
+            logger.LogInformation("To disable Nahimic audio effects:");
+            logger.LogInformation("1. Open Task Manager (Ctrl+Shift+Esc)");
+            logger.LogInformation("2. Go to the 'Services' tab");
+            logger.LogInformation("3. Find 'Nahimic Service' or 'Nahimic Service UI'");
+            logger.LogInformation("4. Right-click and select 'Stop'");
+            logger.LogInformation("5. Right-click again and select 'Properties'");
+            logger.LogInformation("6. Change 'Startup type' to 'Disabled'");
+            logger.LogInformation("7. Click 'Apply' and 'OK'");
+            logger.LogInformation(string.Empty);
+            logger.LogInformation("Alternatively, you can uninstall Nahimic audio software if you don't need it.");
 
-            return Task.FromResult(new ActionSetResult(true, "Please manually disable Nahimic service. See details for instructions.", details));
+            return Task.FromResult(new ActionSetResult(true, null, details));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error applying Nahimic compatibility fix");
+            logger.LogError(ex, "Error applying Nahimic compatibility fix");
             details.Add($"✗ Error: {ex.Message}");
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
@@ -108,7 +106,7 @@ public class NahimicFix(ILogger<NahimicFix> logger) : BaseActionSet(logger)
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        _logger.LogWarning("Nahimic Fix is informational only. No undo action needed.");
+        logger.LogWarning("Nahimic Fix is informational only. No undo action needed.");
         return Task.FromResult(new ActionSetResult(true));
     }
 
@@ -134,28 +132,30 @@ public class NahimicFix(ILogger<NahimicFix> logger) : BaseActionSet(logger)
             }
 
             // Check for Nahimic processes
-            var processes = Process.GetProcessesByName("Nahimic");
-            if (processes.Length > 0)
+            var p1 = Process.GetProcessesByName("Nahimic");
+            try
             {
-                return true;
+                if (p1.Length > 0)
+                {
+                    return true;
+                }
+            }
+            finally
+            {
+                foreach (var p in p1) p.Dispose();
             }
 
-            processes = Process.GetProcessesByName("NahimicService");
-            return processes.Length > 0;
+            var p2 = Process.GetProcessesByName("NahimicService");
+            try
+            {
+                return p2.Length > 0;
+            }
+            finally
+            {
+                foreach (var p in p2) p.Dispose();
+            }
         }
-        catch (InvalidOperationException)
-        {
-            return false;
-        }
-        catch (System.ComponentModel.Win32Exception)
-        {
-            return false;
-        }
-        catch (PlatformNotSupportedException)
-        {
-            return false;
-        }
-        catch (UnauthorizedAccessException)
+        catch (Exception)
         {
             return false;
         }
