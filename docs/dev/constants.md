@@ -68,11 +68,14 @@ Application-wide constants for GenHub.
 
 Constants related to application updates and Velopack.
 
-| Constant                     | Value/Type                  | Description                                      |
-| ---------------------------- | --------------------------- | ------------------------------------------------ |
-| `PostUpdateExitDelay`        | `TimeSpan.FromSeconds(5)`   | Delay before exit after applying update          |
-| `CacheDuration`              | `TimeSpan.FromHours(1)`     | Cache duration for update checks                 |
-| `MaxHttpRetries`             | `3`                         | Maximum number of HTTP retries for failed requests |
+| Constant                                | Value/Type                  | Description                                      |
+| --------------------------------------- | --------------------------- | ------------------------------------------------ |
+| `DefaultPeriodicUpdateCheckIntervalHours` | `4`                         | Default interval in hours for periodic update checks (4 hours) |
+| `MinPeriodicUpdateCheckIntervalHours`     | `1`                         | Minimum interval in hours for periodic update checks (1 hour)   |
+| `MaxPeriodicUpdateCheckIntervalHours`     | `168`                       | Maximum interval in hours for periodic update checks (168 hours / 7 days) |
+| `PostUpdateExitDelay`                   | `TimeSpan.FromSeconds(5)`   | Delay before exit after applying update          |
+| `CacheDuration`                         | `TimeSpan.FromHours(1)`     | Cache duration for update checks                 |
+| `MaxHttpRetries`                        | `3`                         | Maximum number of HTTP retries for failed requests |
 
 ---
 

@@ -63,9 +63,10 @@ public partial class MainViewModel(
     IDialogService dialogService,
     NotificationFeedViewModel notificationFeedViewModel,
     InfoViewModel infoViewModel,
-    ILogger<MainViewModel> logger) : ObservableObject, IDisposable, IRecipient<NavigationMessage>
+    ILogger<MainViewModel> logger) : ObservableObject, IDisposable, IRecipient<NavigationMessage>, IRecipient<UpdateSettingsChangedMessage>
 {
     private readonly CancellationTokenSource _initializationCts = new();
+    private Timer? _periodicUpdateTimer;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MainViewModel"/> class for design-time support.
@@ -165,6 +166,12 @@ public partial class MainViewModel(
         Dispatcher.UIThread.Post(() => SelectTab(message.Tab));
     }
 
+    /// <inheritdoc/>
+    public void Receive(UpdateSettingsChangedMessage message)
+    {
+        RestartPeriodicUpdateTimer(message.AutoCheckForUpdatesPeriodically, message.PeriodicUpdateCheckIntervalHours);
+    }
+
     /// <summary>
     /// Selects the specified navigation tab.
     /// </summary>
@@ -188,8 +195,15 @@ public partial class MainViewModel(
         await InfoViewModel.InitializeAsync();
         logger?.LogInformation("MainViewModel initialized");
 
-        // Start background check with cancellation support
-        _ = CheckForUpdatesInBackgroundAsync(_initializationCts.Token);
+        var settings = userSettingsService.Get();
+        if (settings.AutoCheckForUpdatesOnStartup)
+        {
+            // Start background check with cancellation support
+            _ = CheckForUpdatesInBackgroundAsync(_initializationCts.Token);
+        }
+
+        // Initialize periodic update timer
+        RestartPeriodicUpdateTimer(settings.AutoCheckForUpdatesPeriodically, settings.PeriodicUpdateCheckIntervalHours);
 
         CheckForQuickStart();
     }
@@ -199,6 +213,7 @@ public partial class MainViewModel(
     /// </summary>
     public void Dispose()
     {
+        _periodicUpdateTimer?.Dispose();
         _initializationCts?.Cancel();
         _initializationCts?.Dispose();
         GC.SuppressFinalize(this);
@@ -486,6 +501,42 @@ public partial class MainViewModel(
         {
             logger?.LogError(ex, "Unhandled exception in background update check");
         }
+    }
+
+    private void RestartPeriodicUpdateTimer(bool enabled, int intervalHours)
+    {
+        _periodicUpdateTimer?.Dispose();
+        _periodicUpdateTimer = null;
+
+        if (!enabled || intervalHours <= 0)
+        {
+            return;
+        }
+
+        var clampedInterval = Math.Clamp(
+            intervalHours,
+            AppUpdateConstants.MinPeriodicUpdateCheckIntervalHours,
+            AppUpdateConstants.MaxPeriodicUpdateCheckIntervalHours);
+
+        var interval = TimeSpan.FromHours(clampedInterval);
+        logger?.LogDebug("Starting periodic update check timer with interval: {Interval}", interval);
+
+        _periodicUpdateTimer = new Timer(
+            OnPeriodicUpdateTimerCallback,
+            null,
+            interval,
+            interval);
+    }
+
+    private void OnPeriodicUpdateTimerCallback(object? state)
+    {
+        if (_initializationCts.IsCancellationRequested)
+        {
+            return;
+        }
+
+        logger?.LogDebug("Periodic update check timer triggered");
+        _ = CheckForUpdatesInBackgroundAsync(_initializationCts.Token);
     }
 
     private void CheckForQuickStart()

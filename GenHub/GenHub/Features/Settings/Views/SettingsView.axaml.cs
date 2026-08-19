@@ -20,7 +20,7 @@ public partial class SettingsView : UserControl
         InitializeComponent();
 
         // Handle pointer press to unfocus text boxes when clicking elsewhere
-        this.AddHandler(PointerPressedEvent, OnPointerPressed, RoutingStrategies.Tunnel);
+        AddHandler(PointerPressedEvent, OnPointerPressed, RoutingStrategies.Tunnel);
     }
 
     /// <summary>
@@ -59,7 +59,7 @@ public partial class SettingsView : UserControl
         if (DataContext is SettingsViewModel vm)
         {
             // Sync visibility state with current visual tree state
-            vm.IsViewVisible = this.VisualRoot != null;
+            vm.IsViewVisible = VisualRoot != null;
         }
     }
 
@@ -68,7 +68,7 @@ public partial class SettingsView : UserControl
         // If clicking outside of a TextBox, clear focus from any focused TextBox
         if (e.Source is not TextBox)
         {
-            this.Focus();
+            Focus();
         }
     }
 
@@ -92,24 +92,6 @@ public partial class SettingsView : UserControl
         catch
         {
             // Silently fail if browser cannot be opened
-        }
-    }
-
-    private void OnViewWorkflowRun(object? sender, RoutedEventArgs e)
-    {
-        if (sender is Button button && button.Tag is string url && !string.IsNullOrEmpty(url))
-        {
-            try
-            {
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url)
-                {
-                    UseShellExecute = true,
-                });
-            }
-            catch
-            {
-                // Silently fail if browser cannot be opened
-            }
         }
     }
 

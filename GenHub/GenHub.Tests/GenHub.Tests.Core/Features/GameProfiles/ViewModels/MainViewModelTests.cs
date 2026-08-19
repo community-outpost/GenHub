@@ -163,6 +163,94 @@ public class MainViewModelTests
     }
 
     /// <summary>
+    /// Tests that receiving <see cref="UpdateSettingsChangedMessage"/> updates periodic update timer settings without throwing.
+    /// </summary>
+    [Fact]
+    public void Receive_UpdateSettingsChangedMessage_UpdatesPeriodicTimer()
+    {
+        // Arrange
+        var (settingsVm, userSettingsMock) = CreateSettingsVm();
+        var toolsVm = CreateToolsVm();
+        var configProvider = CreateConfigProviderMock();
+        var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
+        var mockLogger = new Mock<ILogger<MainViewModel>>();
+        var mockNotificationService = CreateNotificationServiceMock();
+        var mockNotificationManager = new Mock<NotificationManagerViewModel>(
+            mockNotificationService.Object,
+            Mock.Of<ILogger<NotificationManagerViewModel>>(),
+            Mock.Of<ILogger<NotificationItemViewModel>>());
+        var notificationFeedVm = CreateNotificationFeedViewModel(mockNotificationService.Object);
+
+        var vm = new MainViewModel(
+            gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
+            downloadsViewModel: CreateDownloadsViewModel(configProvider),
+            toolsViewModel: toolsVm,
+            settingsViewModel: settingsVm,
+            notificationManager: mockNotificationManager.Object,
+            configurationProvider: configProvider,
+            userSettingsService: userSettingsMock.Object,
+            velopackUpdateManager: mockVelopackUpdateManager.Object,
+            notificationService: mockNotificationService.Object,
+            dialogService: new Mock<IDialogService>().Object,
+            notificationFeedViewModel: notificationFeedVm,
+            infoViewModel: CreateInfoViewModel(),
+            logger: mockLogger.Object);
+
+        // Act & Assert (should not throw when enabling/disabling or changing interval)
+        vm.Receive(new UpdateSettingsChangedMessage(false, true, 8));
+        vm.Receive(new UpdateSettingsChangedMessage(false, false, 8));
+        Assert.True(true);
+    }
+
+    /// <summary>
+    /// Tests that when AutoCheckForUpdatesOnStartup is false, background update check is not triggered on initialize.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeAsync_WhenAutoCheckForUpdatesOnStartupFalse_DoesNotCheckUpdatesOnStartupAsync()
+    {
+        // Arrange
+        var (settingsVm, userSettingsMock) = CreateSettingsVm();
+        userSettingsMock.Setup(x => x.Get()).Returns(new UserSettings
+        {
+            AutoCheckForUpdatesOnStartup = false,
+            AutoCheckForUpdatesPeriodically = false,
+            SubscribedBranch = "main",
+        });
+        var toolsVm = CreateToolsVm();
+        var configProvider = CreateConfigProviderMock();
+        var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
+        var mockLogger = new Mock<ILogger<MainViewModel>>();
+        var mockNotificationService = CreateNotificationServiceMock();
+        var mockNotificationManager = new Mock<NotificationManagerViewModel>(
+            mockNotificationService.Object,
+            Mock.Of<ILogger<NotificationManagerViewModel>>(),
+            Mock.Of<ILogger<NotificationItemViewModel>>());
+        var notificationFeedVm = CreateNotificationFeedViewModel(mockNotificationService.Object);
+
+        var vm = new MainViewModel(
+            gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
+            downloadsViewModel: CreateDownloadsViewModel(configProvider),
+            toolsViewModel: toolsVm,
+            settingsViewModel: settingsVm,
+            notificationManager: mockNotificationManager.Object,
+            configurationProvider: configProvider,
+            userSettingsService: userSettingsMock.Object,
+            velopackUpdateManager: mockVelopackUpdateManager.Object,
+            notificationService: mockNotificationService.Object,
+            dialogService: new Mock<IDialogService>().Object,
+            notificationFeedViewModel: notificationFeedVm,
+            infoViewModel: CreateInfoViewModel(),
+            logger: mockLogger.Object);
+
+        await vm.InitializeAsync();
+        await Task.Delay(100);
+
+        mockVelopackUpdateManager.Verify(x => x.CheckForArtifactUpdatesAsync(It.IsAny<System.Threading.CancellationToken>()), Times.Never);
+        mockVelopackUpdateManager.Verify(x => x.CheckForUpdatesAsync(It.IsAny<System.Threading.CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
     /// Tests that background update check queries artifact updates when subscribed to a PR.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>

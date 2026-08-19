@@ -6,6 +6,7 @@ using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
@@ -580,6 +581,12 @@ public class MockConfigurationProviderService : IConfigurationProviderService
 
     /// <inheritdoc/>
     public bool GetAutoCheckForUpdatesOnStartup() => true;
+
+    /// <inheritdoc/>
+    public bool GetAutoCheckForUpdatesPeriodically() => true;
+
+    /// <inheritdoc/>
+    public int GetPeriodicUpdateCheckIntervalHours() => AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalHours;
 
     /// <inheritdoc/>
     public bool GetEnableDetailedLogging() => false;

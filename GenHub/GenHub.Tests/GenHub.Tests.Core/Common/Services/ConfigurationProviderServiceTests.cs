@@ -550,6 +550,58 @@ public class ConfigurationProviderServiceTests
     }
 
     /// <summary>
+    /// Verifies that GetAutoCheckForUpdatesPeriodically returns user setting when explicitly set.
+    /// </summary>
+    /// <param name="userValue">The value to set for AutoCheckForUpdatesPeriodically in user settings.</param>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void GetAutoCheckForUpdatesPeriodically_ReturnsUserSetting(bool userValue)
+    {
+        // Arrange
+        var userSettings = new UserSettings { AutoCheckForUpdatesPeriodically = userValue };
+        userSettings.MarkAsExplicitlySet(nameof(UserSettings.AutoCheckForUpdatesPeriodically));
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetAutoCheckForUpdatesPeriodically();
+
+        // Assert
+        Assert.Equal(userValue, result);
+    }
+
+    /// <summary>
+    /// Verifies that GetPeriodicUpdateCheckIntervalHours returns user setting when explicitly set.
+    /// </summary>
+    /// <param name="intervalHours">The interval to set in user settings.</param>
+    /// <param name="expectedHours">The expected clamped interval.</param>
+    [Theory]
+    [InlineData(6, 6)]
+    [InlineData(0, AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalHours)]
+    [InlineData(200, AppUpdateConstants.MaxPeriodicUpdateCheckIntervalHours)]
+    public void GetPeriodicUpdateCheckIntervalHours_ReturnsUserSetting(int intervalHours, int expectedHours)
+    {
+        // Arrange
+        var userSettings = new UserSettings { PeriodicUpdateCheckIntervalHours = intervalHours };
+        if (intervalHours > 0)
+        {
+            userSettings.MarkAsExplicitlySet(nameof(UserSettings.PeriodicUpdateCheckIntervalHours));
+        }
+
+        _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+
+        var provider = CreateProvider();
+
+        // Act
+        var result = provider.GetPeriodicUpdateCheckIntervalHours();
+
+        // Assert
+        Assert.Equal(expectedHours, result);
+    }
+
+    /// <summary>
     /// Verifies that GetEnableDetailedLogging returns user setting when explicitly set.
     /// </summary>
     /// <param name="userValue">The value to set for EnableDetailedLogging in user settings.</param>
