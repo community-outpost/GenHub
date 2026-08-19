@@ -211,7 +211,8 @@ public class SettingsViewModelTests
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
             _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object);
+            _mockUserDataTracker.Object,
+            _mockDialogService.Object);
 
         // Assert
         Assert.False(viewModel.AutoCheckForUpdatesPeriodically);
@@ -238,7 +239,8 @@ public class SettingsViewModelTests
             _mockConfigurationProvider.Object,
             _mockInstallationService.Object,
             _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object)
+            _mockUserDataTracker.Object,
+            _mockDialogService.Object)
         {
             AutoCheckForUpdatesPeriodically = false,
             PeriodicUpdateCheckIntervalMinutes = 45,
