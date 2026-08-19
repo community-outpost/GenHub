@@ -400,9 +400,19 @@ public partial class MainViewModel(
 
         var progress = new Progress<UpdateProgress>(p =>
         {
-            var statusText = !string.IsNullOrWhiteSpace(p.Message)
-                ? p.Message
-                : (!string.IsNullOrWhiteSpace(p.Status) ? p.Status : $"{p.PercentComplete}%");
+            string statusText;
+            if (!string.IsNullOrWhiteSpace(p.Message))
+            {
+                statusText = p.Message;
+            }
+            else if (!string.IsNullOrWhiteSpace(p.Status))
+            {
+                statusText = p.Status;
+            }
+            else
+            {
+                statusText = $"{p.PercentComplete}%";
+            }
 
             notificationService.Update(
                 progressNotificationId,
@@ -445,7 +455,7 @@ public partial class MainViewModel(
             notificationService.ShowError(
                 AppUpdateConstants.UpdateFailedNotificationTitle,
                 string.Format(AppUpdateConstants.UpdateFailedNotificationFormat, ex.Message),
-                autoDismissMs: 5000);
+                autoDismissMs: NotificationConstants.DefaultAutoDismissMs);
         }
     }
 

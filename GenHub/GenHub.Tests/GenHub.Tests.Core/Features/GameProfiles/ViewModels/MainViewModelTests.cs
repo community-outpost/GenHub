@@ -269,7 +269,7 @@ public class MainViewModelTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task InitializeAsync_WhenArtifactUpdateAvailable_ShowsNotificationWithUpdateAction()
+    public async Task InitializeAsync_WhenArtifactUpdateAvailable_ShowsNotificationWithUpdateActionAsync()
     {
         // Arrange
         var (settingsVm, userSettingsMock) = CreateSettingsVm();
@@ -280,13 +280,13 @@ public class MainViewModelTests
         var notificationShownTcs = new TaskCompletionSource<NotificationMessage>();
 
         var artifactInfo = new ArtifactUpdateInfo(
-            Version: "99.0.0",
+            Version: "0.0.99999-main",
             GitHash: "abcdef1",
             PullRequestNumber: null,
             WorkflowRunId: 12345,
             WorkflowRunUrl: "https://example.com/runs/1",
             ArtifactId: 67890,
-            ArtifactName: "genhub-velopack-linux-99.0.0",
+            ArtifactName: "genhub-velopack-linux-0.0.99999",
             CreatedAt: DateTime.UtcNow,
             DownloadUrl: "https://example.com/artifact.zip",
             Size: 1024);

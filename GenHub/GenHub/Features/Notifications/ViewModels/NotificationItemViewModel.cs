@@ -38,10 +38,10 @@ public partial class NotificationItemViewModel : ViewModelBase, IDisposable
     public NotificationType Type { get; }
 
     [ObservableProperty]
-    private string _title = string.Empty;
+    private string _title;
 
     [ObservableProperty]
-    private string _message = string.Empty;
+    private string _message;
 
     /// <summary>
     /// Gets the timestamp when the notification was created.
@@ -131,10 +131,7 @@ public partial class NotificationItemViewModel : ViewModelBase, IDisposable
             StartDismissTimer(notification.AutoDismissMilliseconds.Value);
         }
 
-        Dispatcher.UIThread.Post(() =>
-        {
-            IsVisible = true;
-        });
+        Dispatcher.UIThread.Post(() => IsVisible = true);
     }
 
     /// <summary>
