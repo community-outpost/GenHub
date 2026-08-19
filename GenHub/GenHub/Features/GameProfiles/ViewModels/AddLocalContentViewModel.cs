@@ -225,12 +225,6 @@ public partial class AddLocalContentViewModel(
     };
 
     /// <summary>
-    /// Gets a value indicating whether the loading overlay should be shown.
-    /// Subclasses can override to customize loading overlay behavior.
-    /// </summary>
-    public virtual bool ShowLoadingOverlay => IsBusy;
-
-    /// <summary>
     /// Initializes the view model from an existing manifest for editing.
     /// </summary>
     /// <param name="contentItem">The content item to edit.</param>
