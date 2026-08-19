@@ -266,8 +266,8 @@ jobs:
 
       - name: Install Linux Dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libx11-dev
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update -y
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libgtk-3-dev libx11-dev
 
       - name: Cache NuGet Packages
         uses: actions/cache@v3
