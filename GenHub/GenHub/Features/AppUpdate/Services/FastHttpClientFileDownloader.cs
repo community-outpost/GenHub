@@ -28,7 +28,7 @@ public class FastHttpClientFileDownloader(
         AutomaticDecompression = DecompressionMethods.All,
         PooledConnectionLifetime = TimeSpan.FromMinutes(5),
         PooledConnectionIdleTimeout = TimeSpan.FromSeconds(60),
-        ResponseHeaderTimeout = TimeSpan.FromSeconds(30),
+        ConnectTimeout = TimeSpan.FromSeconds(30),
     };
 
     private sealed class MonotonicProgressReporter(Action<int>? progressCallback, long totalBytes)
