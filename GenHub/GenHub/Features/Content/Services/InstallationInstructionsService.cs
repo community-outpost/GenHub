@@ -170,7 +170,6 @@ public class InstallationInstructionsService(
                 result = ExecuteRenameFile(step, workingDirectory);
                 break;
 
-            case InstallationStepKind.Unknown:
             default:
                 logger.LogError("Unsupported installation step kind '{Kind}' in step '{StepName}'", step.Kind, step.Name);
                 return OperationResult.CreateFailure($"Unsupported installation step kind '{step.Kind}' for step '{step.Name}'.");

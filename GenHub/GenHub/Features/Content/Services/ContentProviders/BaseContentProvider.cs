@@ -83,7 +83,7 @@ public abstract class BaseContentProvider(
     }
 
     /// <inheritdoc />
-    public virtual async Task<OperationResult<ContentManifest>> GetByIdAsync(
+    public virtual async Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId,
         CancellationToken cancellationToken = default)
     {
