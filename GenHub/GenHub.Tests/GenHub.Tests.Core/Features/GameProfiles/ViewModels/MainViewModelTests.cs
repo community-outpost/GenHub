@@ -2,6 +2,7 @@ using System.Reactive.Linq;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Messages;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.GameSettings;
@@ -512,8 +513,9 @@ public class MainViewModelTests
         await vm.InitializeAsync();
         await notificationShownTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        // Re-trigger update check via settings changed message
-        vm.Receive(new UpdateSettingsChangedMessage(true, 1));
+        // Re-trigger update check via second initialize call and message receipt
+        vm.Receive(new UpdateSettingsChangedMessage(true, true, 1));
+        await vm.InitializeAsync();
         await Task.Delay(200);
 
         // Assert that branch update notification was shown exactly once
