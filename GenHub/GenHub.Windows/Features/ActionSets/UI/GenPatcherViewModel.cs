@@ -128,18 +128,29 @@ public partial class GenPatcherViewModel(
             {
                 tasks.Add(Task.Run(async () =>
                 {
-                    var vm = new ActionSetViewModel(fix, installation, registryService, notificationService, logger);
+                    var vm = new ActionSetViewModel(
+                        fix,
+                        installation,
+                        registryService,
+                        notificationService,
+                        logger,
+                        () => Avalonia.Threading.Dispatcher.UIThread.Post(SortActionSets));
                     await vm.CheckStatusAsync();
                     return vm;
                 }));
             }
 
             var loadedVms = await Task.WhenAll(tasks);
+            var sortedVms = loadedVms
+                .OrderBy(GetSortPriority)
+                .ThenByDescending(vm => vm.IsCore)
+                .ThenBy(vm => vm.Title, StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
                 ActionSets.Clear();
-                foreach (var vm in loadedVms)
+                foreach (var vm in sortedVms)
                 {
                     ActionSets.Add(vm);
                     logger.LogInformation(
@@ -251,6 +262,8 @@ public partial class GenPatcherViewModel(
                 }
             }
 
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(SortActionSets);
+
             int successCount = batchResult.Data;
             int failureCount = applicableFixes.Count - successCount;
 
@@ -279,6 +292,52 @@ public partial class GenPatcherViewModel(
         {
             logger.LogError(ex, "Fatal error during batch fix application");
             notificationService.ShowError("Batch Apply Error", $"An error occurred: {ex.Message}");
+        }
+    }
+
+    private int GetSortPriority(ActionSetViewModel vm)
+    {
+        // 0: NOT APPLIED (applicable and needs fix) -> top
+        // 1: APPLIED (applicable and already fixed)
+        // 2: NOT APPLICABLE (not applicable to this game installation)
+        if (vm.IsApplicable && !vm.IsApplied)
+        {
+            return 0;
+        }
+
+        if (vm.IsApplicable && vm.IsApplied)
+        {
+            return 1;
+        }
+
+        return 2;
+    }
+
+    private void SortActionSets()
+    {
+        var sorted = ActionSets
+            .OrderBy(GetSortPriority)
+            .ThenByDescending(vm => vm.IsCore)
+            .ThenBy(vm => vm.Title, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var isDifferent = false;
+        for (var i = 0; i < sorted.Count; i++)
+        {
+            if (!ReferenceEquals(ActionSets[i], sorted[i]))
+            {
+                isDifferent = true;
+                break;
+            }
+        }
+
+        if (isDifferent)
+        {
+            ActionSets.Clear();
+            foreach (var vm in sorted)
+            {
+                ActionSets.Add(vm);
+            }
         }
     }
 }

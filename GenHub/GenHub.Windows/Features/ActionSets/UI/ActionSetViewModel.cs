@@ -19,7 +19,8 @@ public partial class ActionSetViewModel(
     GameInstallation installation,
     IRegistryService registryService,
     INotificationService notificationService,
-    ILogger logger) : ObservableObject
+    ILogger logger,
+    Action? onStatusChanged = null) : ObservableObject
 {
     /// <summary>
     /// Gets the underlying action set.
@@ -197,6 +198,7 @@ public partial class ActionSetViewModel(
             try
             {
                 await CheckStatusAsync();
+                onStatusChanged?.Invoke();
             }
             catch (Exception statusEx)
             {
@@ -279,6 +281,7 @@ public partial class ActionSetViewModel(
             try
             {
                 await CheckStatusAsync();
+                onStatusChanged?.Invoke();
             }
             catch (Exception statusEx)
             {
