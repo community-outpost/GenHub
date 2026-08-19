@@ -42,8 +42,8 @@ public class UserSettings
     /// <summary>Gets or sets a value indicating whether to automatically check for updates periodically.</summary>
     public bool AutoCheckForUpdatesPeriodically { get; set; } = true;
 
-    /// <summary>Gets or sets the interval in hours between periodic update checks.</summary>
-    public int PeriodicUpdateCheckIntervalHours { get; set; } = GenHub.Core.Constants.AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalHours;
+    /// <summary>Gets or sets the interval in minutes between periodic update checks.</summary>
+    public int PeriodicUpdateCheckIntervalMinutes { get; set; } = GenHub.Core.Constants.AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalMinutes;
 
     /// <summary>Gets or sets the timestamp of the last update check in ISO 8601 format.</summary>
     public string? LastUpdateCheckTimestamp { get; set; }
@@ -158,7 +158,7 @@ public class UserSettings
             AllowBackgroundDownloads = AllowBackgroundDownloads,
             AutoCheckForUpdatesOnStartup = AutoCheckForUpdatesOnStartup,
             AutoCheckForUpdatesPeriodically = AutoCheckForUpdatesPeriodically,
-            PeriodicUpdateCheckIntervalHours = PeriodicUpdateCheckIntervalHours,
+            PeriodicUpdateCheckIntervalMinutes = PeriodicUpdateCheckIntervalMinutes,
             LastUpdateCheckTimestamp = LastUpdateCheckTimestamp,
             EnableDetailedLogging = EnableDetailedLogging,
             DefaultWorkspaceStrategy = DefaultWorkspaceStrategy,

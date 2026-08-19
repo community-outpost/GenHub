@@ -172,7 +172,7 @@ public class SettingsViewModelTests
         Assert.False(viewModel.EnableDetailedLogging);
         Assert.Equal(WorkspaceConstants.DefaultWorkspaceStrategy, viewModel.DefaultWorkspaceStrategy);
         Assert.True(viewModel.AutoCheckForUpdatesPeriodically);
-        Assert.Equal(AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalHours, viewModel.PeriodicUpdateCheckIntervalHours);
+        Assert.Equal(AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalMinutes, viewModel.PeriodicUpdateCheckIntervalMinutes);
     }
 
     /// <summary>
@@ -185,7 +185,7 @@ public class SettingsViewModelTests
         var customSettings = new UserSettings
         {
             AutoCheckForUpdatesPeriodically = false,
-            PeriodicUpdateCheckIntervalHours = 12,
+            PeriodicUpdateCheckIntervalMinutes = 15,
         };
 
         _mockConfigService.Setup(x => x.Get()).Returns(customSettings);
@@ -207,7 +207,7 @@ public class SettingsViewModelTests
 
         // Assert
         Assert.False(viewModel.AutoCheckForUpdatesPeriodically);
-        Assert.Equal(12, viewModel.PeriodicUpdateCheckIntervalHours);
+        Assert.Equal(15, viewModel.PeriodicUpdateCheckIntervalMinutes);
     }
 
     /// <summary>
@@ -233,7 +233,7 @@ public class SettingsViewModelTests
             _mockUserDataTracker.Object)
         {
             AutoCheckForUpdatesPeriodically = false,
-            PeriodicUpdateCheckIntervalHours = 24,
+            PeriodicUpdateCheckIntervalMinutes = 45,
         };
 
         UserSettings? capturedSettings = null;
@@ -250,7 +250,7 @@ public class SettingsViewModelTests
         // Assert
         Assert.NotNull(capturedSettings);
         Assert.False(capturedSettings.AutoCheckForUpdatesPeriodically);
-        Assert.Equal(24, capturedSettings.PeriodicUpdateCheckIntervalHours);
+        Assert.Equal(45, capturedSettings.PeriodicUpdateCheckIntervalMinutes);
     }
 
     /// <summary>

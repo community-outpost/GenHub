@@ -244,19 +244,24 @@ public static class AppUpdateConstants
     public const string SortOptionPrNumberAsc = "PR Number (Lowest)";
 
     /// <summary>
-    /// Default interval in hours for periodic update checks (4 hours).
+    /// Default interval in minutes for periodic update checks (30 minutes).
     /// </summary>
-    public const int DefaultPeriodicUpdateCheckIntervalHours = 4;
+    public const int DefaultPeriodicUpdateCheckIntervalMinutes = 30;
 
     /// <summary>
-    /// Minimum interval in hours for periodic update checks (1 hour).
+    /// Minimum interval in minutes for periodic update checks (5 minutes).
     /// </summary>
-    public const int MinPeriodicUpdateCheckIntervalHours = 1;
+    public const int MinPeriodicUpdateCheckIntervalMinutes = 5;
 
     /// <summary>
-    /// Maximum interval in hours for periodic update checks (168 hours / 7 days).
+    /// Maximum interval in minutes for periodic update checks (10080 minutes / 7 days).
     /// </summary>
-    public const int MaxPeriodicUpdateCheckIntervalHours = 168;
+    public const int MaxPeriodicUpdateCheckIntervalMinutes = 10080;
+
+    /// <summary>
+    /// Increment step in minutes for periodic update check interval setting (5 minutes).
+    /// </summary>
+    public const int PeriodicUpdateCheckIntervalIncrementMinutes = 5;
 
     /// <summary>
     /// Delay before exit after applying update (5 seconds).

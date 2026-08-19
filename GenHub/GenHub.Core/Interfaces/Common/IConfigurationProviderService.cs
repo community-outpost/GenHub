@@ -71,10 +71,10 @@ public interface IConfigurationProviderService
     bool GetAutoCheckForUpdatesPeriodically();
 
     /// <summary>
-    /// Gets the interval in hours for periodic update checks.
+    /// Gets the interval in minutes for periodic update checks.
     /// </summary>
-    /// <returns>The update check interval in hours.</returns>
-    int GetPeriodicUpdateCheckIntervalHours();
+    /// <returns>The update check interval in minutes.</returns>
+    int GetPeriodicUpdateCheckIntervalMinutes();
 
     /// <summary>
     /// Gets whether detailed logging is enabled.

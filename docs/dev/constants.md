@@ -70,12 +70,13 @@ Constants related to application updates and Velopack.
 
 | Constant                                | Value/Type                  | Description                                      |
 | --------------------------------------- | --------------------------- | ------------------------------------------------ |
-| `DefaultPeriodicUpdateCheckIntervalHours` | `4`                         | Default interval in hours for periodic update checks (4 hours) |
-| `MinPeriodicUpdateCheckIntervalHours`     | `1`                         | Minimum interval in hours for periodic update checks (1 hour)   |
-| `MaxPeriodicUpdateCheckIntervalHours`     | `168`                       | Maximum interval in hours for periodic update checks (168 hours / 7 days) |
-| `PostUpdateExitDelay`                   | `TimeSpan.FromSeconds(5)`   | Delay before exit after applying update          |
-| `CacheDuration`                         | `TimeSpan.FromHours(1)`     | Cache duration for update checks                 |
-| `MaxHttpRetries`                        | `3`                         | Maximum number of HTTP retries for failed requests |
+| `DefaultPeriodicUpdateCheckIntervalMinutes`   | `30`                        | Default interval in minutes for periodic update checks (30 minutes) |
+| `MinPeriodicUpdateCheckIntervalMinutes`       | `5`                         | Minimum interval in minutes for periodic update checks (5 minutes)   |
+| `MaxPeriodicUpdateCheckIntervalMinutes`       | `10080`                     | Maximum interval in minutes for periodic update checks (10080 minutes / 7 days) |
+| `PeriodicUpdateCheckIntervalIncrementMinutes` | `5`                         | Increment step in minutes for periodic update check interval setting (5 minutes) |
+| `PostUpdateExitDelay`                         | `TimeSpan.FromSeconds(5)`   | Delay before exit after applying update          |
+| `CacheDuration`                               | `TimeSpan.FromHours(1)`     | Cache duration for update checks                 |
+| `MaxHttpRetries`                              | `3`                         | Maximum number of HTTP retries for failed requests |
 
 ---
 

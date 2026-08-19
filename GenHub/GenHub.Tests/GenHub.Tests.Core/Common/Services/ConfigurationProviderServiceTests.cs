@@ -573,21 +573,21 @@ public class ConfigurationProviderServiceTests
     }
 
     /// <summary>
-    /// Verifies that GetPeriodicUpdateCheckIntervalHours returns user setting when explicitly set.
+    /// Verifies that GetPeriodicUpdateCheckIntervalMinutes returns user setting when explicitly set.
     /// </summary>
-    /// <param name="intervalHours">The interval to set in user settings.</param>
-    /// <param name="expectedHours">The expected clamped interval.</param>
+    /// <param name="intervalMinutes">The interval to set in user settings.</param>
+    /// <param name="expectedMinutes">The expected clamped interval.</param>
     [Theory]
-    [InlineData(6, 6)]
-    [InlineData(0, AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalHours)]
-    [InlineData(200, AppUpdateConstants.MaxPeriodicUpdateCheckIntervalHours)]
-    public void GetPeriodicUpdateCheckIntervalHours_ReturnsUserSetting(int intervalHours, int expectedHours)
+    [InlineData(60, 60)]
+    [InlineData(0, AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalMinutes)]
+    [InlineData(20000, AppUpdateConstants.MaxPeriodicUpdateCheckIntervalMinutes)]
+    public void GetPeriodicUpdateCheckIntervalMinutes_ReturnsUserSetting(int intervalMinutes, int expectedMinutes)
     {
         // Arrange
-        var userSettings = new UserSettings { PeriodicUpdateCheckIntervalHours = intervalHours };
-        if (intervalHours > 0)
+        var userSettings = new UserSettings { PeriodicUpdateCheckIntervalMinutes = intervalMinutes };
+        if (intervalMinutes > 0)
         {
-            userSettings.MarkAsExplicitlySet(nameof(UserSettings.PeriodicUpdateCheckIntervalHours));
+            userSettings.MarkAsExplicitlySet(nameof(UserSettings.PeriodicUpdateCheckIntervalMinutes));
         }
 
         _mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
@@ -595,10 +595,10 @@ public class ConfigurationProviderServiceTests
         var provider = CreateProvider();
 
         // Act
-        var result = provider.GetPeriodicUpdateCheckIntervalHours();
+        var result = provider.GetPeriodicUpdateCheckIntervalMinutes();
 
         // Assert
-        Assert.Equal(expectedHours, result);
+        Assert.Equal(expectedMinutes, result);
     }
 
     /// <summary>

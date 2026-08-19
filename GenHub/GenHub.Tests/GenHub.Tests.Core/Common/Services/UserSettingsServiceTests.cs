@@ -67,7 +67,7 @@ public class UserSettingsServiceTests : IDisposable
         Assert.True(settings.AllowBackgroundDownloads);
         Assert.True(settings.AutoCheckForUpdatesOnStartup);
         Assert.True(settings.AutoCheckForUpdatesPeriodically);
-        Assert.Equal(AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalHours, settings.PeriodicUpdateCheckIntervalHours);
+        Assert.Equal(AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalMinutes, settings.PeriodicUpdateCheckIntervalMinutes);
         Assert.Equal(WorkspaceConstants.DefaultWorkspaceStrategy, settings.DefaultWorkspaceStrategy);
     }
 
@@ -377,12 +377,12 @@ public class UserSettingsServiceTests : IDisposable
         service.Update(settings =>
         {
             settings.AutoCheckForUpdatesPeriodically = false;
-            settings.PeriodicUpdateCheckIntervalHours = 12;
+            settings.PeriodicUpdateCheckIntervalMinutes = 15;
         });
         var currentSettings = service.Get();
 
         Assert.False(currentSettings.AutoCheckForUpdatesPeriodically);
-        Assert.Equal(12, currentSettings.PeriodicUpdateCheckIntervalHours);
+        Assert.Equal(15, currentSettings.PeriodicUpdateCheckIntervalMinutes);
     }
 
     private static IAppConfiguration CreateAppConfigMock()

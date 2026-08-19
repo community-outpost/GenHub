@@ -132,7 +132,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private bool _autoCheckForUpdatesPeriodically = true;
 
     [ObservableProperty]
-    private int _periodicUpdateCheckIntervalHours = AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalHours;
+    private int _periodicUpdateCheckIntervalMinutes = AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalMinutes;
 
     [ObservableProperty]
     private bool _allowBackgroundDownloads = true;
@@ -487,7 +487,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             MaxConcurrentDownloads = settings.MaxConcurrentDownloads;
             AutoCheckForUpdatesOnStartup = settings.AutoCheckForUpdatesOnStartup;
             AutoCheckForUpdatesPeriodically = settings.AutoCheckForUpdatesPeriodically;
-            PeriodicUpdateCheckIntervalHours = settings.PeriodicUpdateCheckIntervalHours;
+            PeriodicUpdateCheckIntervalMinutes = settings.PeriodicUpdateCheckIntervalMinutes;
             AllowBackgroundDownloads = settings.AllowBackgroundDownloads;
             EnableDetailedLogging = settings.EnableDetailedLogging;
             DefaultWorkspaceStrategy = settings.DefaultWorkspaceStrategy;
@@ -543,7 +543,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 settings.MaxConcurrentDownloads = MaxConcurrentDownloads;
                 settings.AutoCheckForUpdatesOnStartup = AutoCheckForUpdatesOnStartup;
                 settings.AutoCheckForUpdatesPeriodically = AutoCheckForUpdatesPeriodically;
-                settings.PeriodicUpdateCheckIntervalHours = PeriodicUpdateCheckIntervalHours;
+                settings.PeriodicUpdateCheckIntervalMinutes = PeriodicUpdateCheckIntervalMinutes;
                 settings.AllowBackgroundDownloads = AllowBackgroundDownloads;
                 settings.EnableDetailedLogging = EnableDetailedLogging;
                 settings.DefaultWorkspaceStrategy = DefaultWorkspaceStrategy;
@@ -577,7 +577,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             WeakReferenceMessenger.Default.Send(new UpdateSettingsChangedMessage(
                 AutoCheckForUpdatesOnStartup,
                 AutoCheckForUpdatesPeriodically,
-                PeriodicUpdateCheckIntervalHours));
+                PeriodicUpdateCheckIntervalMinutes));
 
             // Apply log level change immediately without restart
             Infrastructure.DependencyInjection.LoggingModule.SetLogLevel(EnableDetailedLogging);
@@ -611,7 +611,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             MaxConcurrentDownloads = DownloadDefaults.MaxConcurrentDownloads;
             AutoCheckForUpdatesOnStartup = true;
             AutoCheckForUpdatesPeriodically = true;
-            PeriodicUpdateCheckIntervalHours = AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalHours;
+            PeriodicUpdateCheckIntervalMinutes = AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalMinutes;
             AllowBackgroundDownloads = true;
             EnableDetailedLogging = false;
             DefaultWorkspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy;
@@ -757,11 +757,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
 
         // Validate periodic update check interval
-        if (PeriodicUpdateCheckIntervalHours < AppUpdateConstants.MinPeriodicUpdateCheckIntervalHours ||
-            PeriodicUpdateCheckIntervalHours > AppUpdateConstants.MaxPeriodicUpdateCheckIntervalHours)
+        if (PeriodicUpdateCheckIntervalMinutes < AppUpdateConstants.MinPeriodicUpdateCheckIntervalMinutes ||
+            PeriodicUpdateCheckIntervalMinutes > AppUpdateConstants.MaxPeriodicUpdateCheckIntervalMinutes)
         {
-            _logger.LogWarning("Invalid PeriodicUpdateCheckIntervalHours value: {Value}. Resetting to default.", PeriodicUpdateCheckIntervalHours);
-            PeriodicUpdateCheckIntervalHours = AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalHours;
+            _logger.LogWarning("Invalid PeriodicUpdateCheckIntervalMinutes value: {Value}. Resetting to default.", PeriodicUpdateCheckIntervalMinutes);
+            PeriodicUpdateCheckIntervalMinutes = AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalMinutes;
         }
 
         // Validate game install path if specified

@@ -170,7 +170,7 @@ public partial class MainViewModel(
     /// <inheritdoc/>
     public void Receive(UpdateSettingsChangedMessage message)
     {
-        RestartPeriodicUpdateTimer(message.AutoCheckForUpdatesPeriodically, message.PeriodicUpdateCheckIntervalHours);
+        RestartPeriodicUpdateTimer(message.AutoCheckForUpdatesPeriodically, message.PeriodicUpdateCheckIntervalMinutes);
     }
 
     /// <summary>
@@ -204,7 +204,7 @@ public partial class MainViewModel(
         }
 
         // Initialize periodic update timer
-        RestartPeriodicUpdateTimer(settings.AutoCheckForUpdatesPeriodically, settings.PeriodicUpdateCheckIntervalHours);
+        RestartPeriodicUpdateTimer(settings.AutoCheckForUpdatesPeriodically, settings.PeriodicUpdateCheckIntervalMinutes);
 
         CheckForQuickStart();
     }
@@ -540,22 +540,22 @@ public partial class MainViewModel(
         }
     }
 
-    private void RestartPeriodicUpdateTimer(bool enabled, int intervalHours)
+    private void RestartPeriodicUpdateTimer(bool enabled, int intervalMinutes)
     {
         _periodicUpdateTimer?.Dispose();
         _periodicUpdateTimer = null;
 
-        if (!enabled || intervalHours <= 0)
+        if (!enabled || intervalMinutes <= 0)
         {
             return;
         }
 
         var clampedInterval = Math.Clamp(
-            intervalHours,
-            AppUpdateConstants.MinPeriodicUpdateCheckIntervalHours,
-            AppUpdateConstants.MaxPeriodicUpdateCheckIntervalHours);
+            intervalMinutes,
+            AppUpdateConstants.MinPeriodicUpdateCheckIntervalMinutes,
+            AppUpdateConstants.MaxPeriodicUpdateCheckIntervalMinutes);
 
-        var interval = TimeSpan.FromHours(clampedInterval);
+        var interval = TimeSpan.FromMinutes(clampedInterval);
         logger?.LogDebug("Starting periodic update check timer with interval: {Interval}", interval);
 
         _periodicUpdateTimer = new Timer(

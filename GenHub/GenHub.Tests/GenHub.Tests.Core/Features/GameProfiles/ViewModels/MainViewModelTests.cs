@@ -198,8 +198,8 @@ public class MainViewModelTests
             logger: mockLogger.Object);
 
         // Act & Assert (should not throw when enabling/disabling or changing interval)
-        vm.Receive(new UpdateSettingsChangedMessage(false, true, 8));
-        vm.Receive(new UpdateSettingsChangedMessage(false, false, 8));
+        vm.Receive(new UpdateSettingsChangedMessage(false, true, 30));
+        vm.Receive(new UpdateSettingsChangedMessage(false, false, 30));
         Assert.True(true);
     }
 
@@ -514,7 +514,7 @@ public class MainViewModelTests
         await notificationShownTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         // Re-trigger update check via second initialize call and message receipt
-        vm.Receive(new UpdateSettingsChangedMessage(true, true, 1));
+        vm.Receive(new UpdateSettingsChangedMessage(true, true, 5));
         await vm.InitializeAsync();
         await Task.Delay(200);
 

@@ -743,16 +743,16 @@
           </StackPanel>
 
           <StackPanel Spacing="8" IsVisible="{Binding AutoCheckForUpdatesPeriodically}">
-            <TextBlock Text="Update Check Interval (Hours)" Classes="setting-label" />
-            <NumericUpDown Value="{Binding PeriodicUpdateCheckIntervalHours}"
-                           Minimum="1"
-                           Maximum="168"
-                           Increment="1"
+            <TextBlock Text="Update Check Interval (Minutes)" Classes="setting-label" />
+            <NumericUpDown Value="{Binding PeriodicUpdateCheckIntervalMinutes}"
+                           Minimum="5"
+                           Maximum="10080"
+                           Increment="5"
                            HorizontalAlignment="Left"
                            Width="120"
                            FormatString="F0"
                            LostFocus="OnTextBoxLostFocus" />
-            <TextBlock Text="How often to automatically check for updates (1-168 hours, default: 4 hours)"
+            <TextBlock Text="How often to automatically check for updates (5-10080 minutes, default: 30 minutes)"
                        Classes="setting-description" />
           </StackPanel>
 

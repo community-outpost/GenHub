@@ -586,7 +586,7 @@ public class MockConfigurationProviderService : IConfigurationProviderService
     public bool GetAutoCheckForUpdatesPeriodically() => true;
 
     /// <inheritdoc/>
-    public int GetPeriodicUpdateCheckIntervalHours() => AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalHours;
+    public int GetPeriodicUpdateCheckIntervalMinutes() => AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalMinutes;
 
     /// <inheritdoc/>
     public bool GetEnableDetailedLogging() => false;

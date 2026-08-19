@@ -152,13 +152,13 @@ public class ConfigurationProviderService(
     }
 
     /// <inheritdoc />
-    public int GetPeriodicUpdateCheckIntervalHours()
+    public int GetPeriodicUpdateCheckIntervalMinutes()
     {
         var settings = _userSettings.Get();
-        var value = settings.IsExplicitlySet(nameof(UserSettings.PeriodicUpdateCheckIntervalHours)) && settings.PeriodicUpdateCheckIntervalHours > 0
-            ? settings.PeriodicUpdateCheckIntervalHours
-            : AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalHours;
-        return Math.Clamp(value, AppUpdateConstants.MinPeriodicUpdateCheckIntervalHours, AppUpdateConstants.MaxPeriodicUpdateCheckIntervalHours);
+        var value = settings.IsExplicitlySet(nameof(UserSettings.PeriodicUpdateCheckIntervalMinutes)) && settings.PeriodicUpdateCheckIntervalMinutes > 0
+            ? settings.PeriodicUpdateCheckIntervalMinutes
+            : AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalMinutes;
+        return Math.Clamp(value, AppUpdateConstants.MinPeriodicUpdateCheckIntervalMinutes, AppUpdateConstants.MaxPeriodicUpdateCheckIntervalMinutes);
     }
 
     /// <inheritdoc />
@@ -233,7 +233,7 @@ public class ConfigurationProviderService(
             AllowBackgroundDownloads = GetAllowBackgroundDownloads(),
             AutoCheckForUpdatesOnStartup = GetAutoCheckForUpdatesOnStartup(),
             AutoCheckForUpdatesPeriodically = GetAutoCheckForUpdatesPeriodically(),
-            PeriodicUpdateCheckIntervalHours = GetPeriodicUpdateCheckIntervalHours(),
+            PeriodicUpdateCheckIntervalMinutes = GetPeriodicUpdateCheckIntervalMinutes(),
             LastUpdateCheckTimestamp = _userSettings.Get().LastUpdateCheckTimestamp,
             EnableDetailedLogging = GetEnableDetailedLogging(),
             DefaultWorkspaceStrategy = GetDefaultWorkspaceStrategy(),
