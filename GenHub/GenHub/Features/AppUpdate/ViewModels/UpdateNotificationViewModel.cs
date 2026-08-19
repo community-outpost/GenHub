@@ -1163,7 +1163,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             if (_velopackUpdateManager.SubscribedPrNumber.HasValue)
             {
                 var matchingPr = AvailablePullRequests.FirstOrDefault(p => p.Number == _velopackUpdateManager.SubscribedPrNumber.Value);
-                if (matchingPr != null && (SubscribedPr == null || string.IsNullOrEmpty(SubscribedPr.BranchName)))
+                if (matchingPr != null && (SubscribedPr == null || SubscribedPr.Number == matchingPr.Number))
                 {
                     SubscribedPr = matchingPr;
                 }

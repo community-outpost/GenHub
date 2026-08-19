@@ -234,19 +234,13 @@ public class UpdateNotificationViewModelTests
         };
         pr389Tcs.TrySetResult(pr389Artifacts);
 
-        // also complete 391 afterwards to ensure its results are not applied
-        var pr391Artifacts = new List<ArtifactUpdateInfo>
-        {
-            new("0.0.1314-pr391", "230d15b", 391, 999, "https://github.com/test/run/99", 499, "genhub-velopack-linux-0.0.1314-pr391", DateTime.UtcNow, "https://github.com/test/art/99", 1024),
-        };
-        pr391Tcs.TrySetResult(pr391Artifacts);
-
         var timeout = DateTime.UtcNow.AddSeconds(2);
         while (vm.IsLoadingVersions && DateTime.UtcNow < timeout)
         {
             await Task.Delay(10);
         }
 
+        Assert.True(pr391Tcs.Task.IsCanceled);
         Assert.False(vm.IsLoadingVersions);
         Assert.Single(vm.AvailableVersions);
         Assert.NotNull(vm.SelectedVersion);
@@ -298,18 +292,13 @@ public class UpdateNotificationViewModelTests
         };
         branchNewTcs.TrySetResult(newArtifacts);
 
-        var oldArtifacts = new List<ArtifactUpdateInfo>
-        {
-            new("0.0.1100-old-branch", "1112223", null, 2001, "https://github.com/test/run/2", 601, "genhub-velopack-linux-0.0.1100-old-branch", DateTime.UtcNow, "https://github.com/test/art/2", 2048),
-        };
-        branchOldTcs.TrySetResult(oldArtifacts);
-
         var timeout = DateTime.UtcNow.AddSeconds(2);
         while (vm.IsLoadingVersions && DateTime.UtcNow < timeout)
         {
             await Task.Delay(10);
         }
 
+        Assert.True(branchOldTcs.Task.IsCanceled);
         Assert.False(vm.IsLoadingVersions);
         Assert.Single(vm.AvailableVersions);
         Assert.NotNull(vm.SelectedVersion);
@@ -345,17 +334,13 @@ public class UpdateNotificationViewModelTests
 
         vm.UnsubscribeCommand.Execute(null);
 
-        prTcs.TrySetResult(
-        [
-            new ArtifactUpdateInfo("0.0.1314-pr391", "230d15b", 391, 999, "https://github.com/test/run/99", 499, "genhub-velopack-linux-0.0.1314-pr391", DateTime.UtcNow, "https://github.com/test/art/99", 1024),
-        ]);
-
         var timeout = DateTime.UtcNow.AddSeconds(2);
         while ((vm.IsLoadingVersions || vm.AvailableVersions.Count > 0) && DateTime.UtcNow < timeout)
         {
             await Task.Delay(10);
         }
 
+        Assert.True(prTcs.Task.IsCanceled);
         Assert.False(vm.IsLoadingVersions);
         Assert.Empty(vm.AvailableVersions);
         Assert.Null(vm.SelectedVersion);

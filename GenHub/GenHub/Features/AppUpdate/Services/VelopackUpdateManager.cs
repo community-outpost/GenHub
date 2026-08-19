@@ -1578,7 +1578,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 }
             }
 
-            _logger.LogWarning("No suitable artifacts found in the last 10 'push' runs for branch {Branch}", branch ?? "any");
+            _logger.LogWarning("No suitable artifacts found in workflow runs for branch {Branch}", branch ?? "any");
             return null;
         }
         catch (Exception ex)
@@ -1609,6 +1609,12 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         if (!string.IsNullOrEmpty(branch) && !string.Equals(actualBranch, branch, StringComparison.OrdinalIgnoreCase))
         {
             _logger.LogDebug("Skipping run {RunId} ({ActualBranch}) - does not match requested branch {Branch}", runId, actualBranch, branch);
+            return null;
+        }
+
+        if (!string.IsNullOrEmpty(branch) && !string.Equals(eventType, "push", StringComparison.OrdinalIgnoreCase) && !string.Equals(eventType, "workflow_dispatch", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogDebug("Skipping run {RunId} ({EventType}) - not a push or workflow_dispatch event for branch {Branch}", runId, eventType, branch);
             return null;
         }
 
