@@ -48,7 +48,7 @@ When communicating and reasoning about GenHub, use this language:
 ## The three ways to hurt yourself
 
 1. **Blind symbol edits.** Never modify core interfaces, storage services, or launcher models without checking caller chains via `gitnexus_impact`. Modifying a signature in `ICasService`, `IContentService`, or `IContentReconciliationService` can break Windows launch receipts, Linux symlink handlers, and macOS composition roots simultaneously.
-2. **Throwing exceptions for control flow.** Never throw exceptions for predictable failure states (file missing, validation failure, hash mismatch, cancelled task). Return `OperationResult<T>.CreateFailure(...)`. Reserve exceptions solely for fatal runtime invariants.
+2. **Throwing exceptions for control flow.** Never throw custom exceptions for predictable domain failure states (file missing, validation failure, hash mismatch, network failure). Return `OperationResult<T>.CreateFailure(...)`. Cooperative cancellation (`OperationCanceledException`) and contract invariant violations (`ArgumentNullException`, invalid arguments) should follow standard .NET exception semantics.
 3. **Hardcoding paths and magic strings.** Never hardcode backslashes `\`, magic constants, URLs, or regexes inline. Always use `Path.Combine` and centralized constants from `GenHub.Core.Constants`.
 
 ## Hit every surface
@@ -158,4 +158,4 @@ This repository uses **GitNexus** to maintain an AST-parsed structural knowledge
 - Body: the problem in a sentence or two, then how you fixed it. End with the model and harness that did the work.
 - UI changes need before/after images. Motion or timing needs a short video.
 - One concern per PR. If the description says "also", split it.
-- When babysitting: poll checks and all bot comments (including inline review threads and summary 'Outside diff range' findings) newer than the last push. Verify each finding against the source, fix real ones, dismiss false positives with a written reason. Stay quiet when nothing is new. Stop when the bots are green on the latest commit with all threads resolved.
+- When babysitting: poll checks and all bot comments (including inline review threads and summary 'Outside diff range' findings) newer than the last push. Verify each finding against the source, fix real ones in code, and reply to review threads with a clear technical reason before resolving the discussion on GitHub. For extended PR workflows, invoke the `pull-request` and `babysit-pr` skills. Stay quiet when nothing is new. Stop when all checks pass on the latest commit with all threads resolved.

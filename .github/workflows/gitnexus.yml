@@ -50,11 +50,13 @@ jobs:
       - name: PR Impact Analysis
         if: github.event_name == 'pull_request'
         shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           echo "### 🔍 GitNexus Blast Radius & Change Impact" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           set +e
-          npx -y gitnexus@1.6.9 detect-changes 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          npx -y gitnexus@1.6.9 detect-changes --scope compare --base-ref "$BASE_SHA" 2>&1 | tee -a $GITHUB_STEP_SUMMARY
           EXIT_CODE=${PIPESTATUS[0]}
           set -e
           echo '```' >> $GITHUB_STEP_SUMMARY
