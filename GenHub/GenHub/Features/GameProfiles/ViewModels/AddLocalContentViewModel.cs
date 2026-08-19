@@ -221,76 +221,94 @@ public partial class AddLocalContentViewModel(
         ContentType.Map => "Import map files",
         ContentType.MapPack => "Import map pack files",
         ContentType.Mission => "Import mission content",
-        _ => "Import files",
+        _ => "Drag and drop content to begin",
     };
 
     /// <summary>
-    /// Initializes the view model from an existing manifest for editing.
+    /// Event triggered when the window should be closed.
     /// </summary>
-    /// <param name="contentItem">The content item to edit.</param>
+    public event EventHandler<bool>? RequestClose;
+
+    /// <summary>
+    /// Event triggered when content has been successfully added.
+    /// </summary>
+    public event EventHandler? ContentAdded;
+
+    /// <summary>
+    /// Gets the created content item after successful import.
+    /// </summary>
+    public ContentDisplayItem? CreatedContentItem { get; private set; }
+
+    /// <summary>
+    /// Gets or sets the action to browse for a folder.
+    /// </summary>
+    public Func<Task<string?>>? BrowseFolderAction { get; set; }
+
+    /// <summary>
+    /// Gets or sets the action to browse for files.
+    /// </summary>
+    public Func<Task<IReadOnlyList<string>?>>? BrowseFileAction { get; set; }
+
+    /// <summary>
+    /// Loads existing content for editing.
+    /// </summary>
+    /// <param name="item">The item to load.</param>
     /// <returns>A task representing the operation.</returns>
-    public async Task LoadFromManifestAsync(ContentDisplayItem contentItem)
+    public async Task LoadFromManifestAsync(ContentDisplayItem item)
     {
-        ArgumentNullException.ThrowIfNull(contentItem);
-
-        IsEditing = true;
-        _originalManifestId = contentItem.ManifestId.Value;
-        DialogTitle = "Edit Local Content";
-        ActionButtonText = "Save Changes";
-
-        ContentName = contentItem.DisplayName;
-        SelectedContentType = contentItem.ContentType;
-        SelectedGameType = contentItem.GameType;
-        SourcePath = contentItem.SourcePath ?? string.Empty;
-
-        // Retrieve content files to staging for editing
-        if (contentStorageService != null)
+        if (contentStorageService == null)
         {
-            try
+            StatusMessage = "Storage service unavailable.";
+            return;
+        }
+
+        try
+        {
+            IsBusy = true;
+            StatusMessage = "Loading existing content...";
+
+            _originalManifestId = item.ManifestId.Value;
+            _pendingEntryPoint = item.Manifest?.EntryPoint;
+            ContentName = item.DisplayName ?? string.Empty;
+            SelectedContentType = item.ContentType;
+            SelectedGameType = item.GameType;
+            SourcePath = item.SourcePath ?? string.Empty;
+
+            OnPropertyChanged(nameof(IsEditing));
+            OnPropertyChanged(nameof(DialogTitle));
+            OnPropertyChanged(nameof(ActionButtonText));
+
+            // Prepare staging directory
+            if (Directory.Exists(_stagingPath))
             {
-                IsBusy = true;
-                StatusMessage = "Loading content files...";
-
-                var result = await contentStorageService.RetrieveContentAsync(
-                    contentItem.ManifestId,
-                    _stagingPath);
-
-                if (result.Success)
-                {
-                    await RefreshStagingTreeAsync();
-
-                    // Restore selected executable from manifest entry point if available
-                    var entryPoint = contentItem.Manifest?.EntryPoint;
-                    if (!string.IsNullOrWhiteSpace(entryPoint))
-                    {
-                        var normalizedEntryPoint = entryPoint.Replace('\\', '/');
-                        var matchedItem = FindInTree(
-                            FileTree,
-                            item => item.IsExecutable &&
-                                    !string.IsNullOrWhiteSpace(item.FullPath) &&
-                                    Path.GetRelativePath(_stagingPath, item.FullPath).Replace('\\', '/').Equals(normalizedEntryPoint, StringComparison.OrdinalIgnoreCase));
-
-                        if (matchedItem != null)
-                        {
-                            SelectedExecutableItem = matchedItem;
-                            logger?.LogInformation("Restored selected executable from manifest EntryPoint: {EntryPoint}", entryPoint);
-                        }
-                    }
-                }
-                else
-                {
-                    StatusMessage = $"Failed to load content files: {result.FirstError}";
-                }
+                Directory.Delete(_stagingPath, true);
             }
-            catch (Exception ex)
+
+            Directory.CreateDirectory(_stagingPath);
+
+            // Retrieve content from CAS to staging
+            var result = await contentStorageService.RetrieveContentAsync(
+                Core.Models.Manifest.ManifestId.Create(_originalManifestId),
+                _stagingPath);
+
+            if (result.Success)
             {
-                logger?.LogError(ex, "Error loading content files for editing");
-                StatusMessage = "Error loading content files.";
+                StatusMessage = "Success!";
+                await RefreshStagingTreeAsync();
             }
-            finally
+            else
             {
-                IsBusy = false;
+                StatusMessage = $"Failed to load content: {result.FirstError}";
             }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Error loading content for editing");
+            StatusMessage = $"Error loading content: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
         }
     }
 
