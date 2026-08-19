@@ -59,6 +59,6 @@ Lightweight reads (~100-500 tokens) for navigation:
 **Edges (via CodeRelation.type):** CALLS, IMPORTS, EXTENDS, IMPLEMENTS, DEFINES, MEMBER_OF, STEP_IN_PROCESS
 
 ```cypher
-MATCH (caller)-[:CodeRelation {type: 'CALLS'}]->(f:Function {name: "myFunc"})
+MATCH (caller)-[:CodeRelation {type: 'CALLS'}]->(m:Method {name: "ReconcileAsync"})
 RETURN caller.name, caller.filePath
 ```

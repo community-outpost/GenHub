@@ -1,16 +1,16 @@
 ---
 name: gitnexus-refactoring
-description: "Use when the user wants to rename, extract, split, move, or restructure code safely. Examples: \"Rename this function\", \"Extract this into a module\", \"Refactor this class\", \"Move this to a separate file\""
+description: "Use when renaming, extracting, splitting, moving, or refactoring code in GenHub safely. Examples: \"Rename ICasStorage method\", \"Extract manifest parser from ContentResolver\", \"Refactor ContentReconciliationService\", \"Split GameLauncher hooks\""
 ---
 
 # Refactoring with GitNexus
 
 ## When to Use
 
-- "Rename this function safely"
-- "Extract this into a module"
-- "Split this service"
-- "Move this to a new file"
+- "Rename a method on `ICasService` or `IContentReconciliationService` safely"
+- "Extract a CAS pool verification service from `CasService`"
+- "Split platform-specific process launch logic from `GameLauncher`"
+- "Move reconciliation audit helpers to a dedicated service"
 - Any task involving renaming, extracting, splitting, or restructuring code
 
 ## Workflow
@@ -36,13 +36,13 @@ description: "Use when the user wants to rename, extract, split, move, or restru
 - [ ] Run tests for affected processes
 ```
 
-### Extract Module
+### Extract Module / Service
 
 ```
 - [ ] gitnexus_context({name: target}) — see all incoming/outgoing refs
 - [ ] gitnexus_impact({target, direction: "upstream"}) — find all external callers
-- [ ] Define new module interface
-- [ ] Extract code, update imports
+- [ ] Define new module interface in GenHub.Core
+- [ ] Extract code, register in DependencyInjection module
 - [ ] gitnexus_detect_changes() — verify affected scope
 - [ ] Run tests for affected processes
 ```
@@ -64,33 +64,33 @@ description: "Use when the user wants to rename, extract, split, move, or restru
 **gitnexus_rename** — automated multi-file rename:
 
 ```
-gitnexus_rename({symbol_name: "validateUser", new_name: "authenticateUser", dry_run: true})
-→ 12 edits across 8 files
-→ 10 graph edits (high confidence), 2 ast_search edits (review)
+gitnexus_rename({symbol_name: "MaterializeFileAsync", new_name: "DeployArtifactAsync", dry_run: true})
+→ 8 edits across 5 files
+→ 6 graph edits (high confidence), 2 ast_search edits (review)
 → Changes: [{file_path, edits: [{line, old_text, new_text, confidence}]}]
 ```
 
 **gitnexus_impact** — map all dependents first:
 
 ```
-gitnexus_impact({target: "validateUser", direction: "upstream"})
-→ d=1: loginHandler, apiMiddleware, testUtils
-→ Affected Processes: LoginFlow, TokenRefresh
+gitnexus_impact({target: "ContentReconciliationService", direction: "upstream"})
+→ d=1: GameLauncher, ProfileLauncherFacade, ReconciliationAuditLog
+→ Affected Processes: ProfileLaunchFlow, ProfileWorkspaceReconciliation
 ```
 
 **gitnexus_detect_changes** — verify your changes after refactoring:
 
 ```
-gitnexus_detect_changes({scope: "all"})
-→ Changed: 8 files, 12 symbols
-→ Affected processes: LoginFlow, TokenRefresh
+gitnexus_detect_changes({scope: "staged"})
+→ Changed: 5 files, 8 symbols
+→ Affected processes: ProfileLaunchFlow, WorkspaceReconciliation
 → Risk: MEDIUM
 ```
 
 **gitnexus_cypher** — custom reference queries:
 
 ```cypher
-MATCH (caller)-[:CodeRelation {type: 'CALLS'}]->(f:Function {name: "validateUser"})
+MATCH (caller)-[:CodeRelation {type: 'CALLS'}]->(m:Method {name: "ReconcileAsync"})
 RETURN caller.name, caller.filePath ORDER BY caller.filePath
 ```
 
@@ -100,22 +100,21 @@ RETURN caller.name, caller.filePath ORDER BY caller.filePath
 | ------------------- | ----------------------------------------- |
 | Many callers (>5)   | Use gitnexus_rename for automated updates |
 | Cross-area refs     | Use detect_changes after to verify scope  |
-| String/dynamic refs | gitnexus_query to find them               |
-| External/public API | Version and deprecate properly            |
+| Platform hosts      | Verify composition in Windows, Linux, macOS |
+| External/public API | Check Result pattern contract and error codes |
 
-## Example: Rename `validateUser` to `authenticateUser`
+## Example: Rename `MaterializeFileAsync` to `DeployArtifactAsync`
 
 ```
-1. gitnexus_rename({symbol_name: "validateUser", new_name: "authenticateUser", dry_run: true})
-   → 12 edits: 10 graph (safe), 2 ast_search (review)
-   → Files: validator.ts, login.ts, middleware.ts, config.json...
+1. gitnexus_rename({symbol_name: "MaterializeFileAsync", new_name: "DeployArtifactAsync", dry_run: true})
+   → Preview edits across ICasService.cs, CasService.cs, ContentReconciliationService.cs, and tests
 
-2. Review ast_search edits (config.json: dynamic reference!)
+2. Review changes to ensure all cross-platform composition roots and test mocks match
 
-3. gitnexus_rename({symbol_name: "validateUser", new_name: "authenticateUser", dry_run: false})
-   → Applied 12 edits across 8 files
+3. gitnexus_rename({symbol_name: "MaterializeFileAsync", new_name: "DeployArtifactAsync", dry_run: false})
+   → Applied edits across core interfaces, implementation, and test suites
 
-4. gitnexus_detect_changes({scope: "all"})
-   → Affected: LoginFlow, TokenRefresh
-   → Risk: MEDIUM — run tests for these flows
+4. gitnexus_detect_changes({scope: "staged"})
+   → Affected: ProfileLaunchFlow, WorkspaceReconciliation
+   → Risk: MEDIUM — run targeted tests (dotnet test GenHub/GenHub.Tests/GenHub.Tests.Core/...)
 ```

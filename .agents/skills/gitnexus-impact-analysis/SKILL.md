@@ -1,17 +1,17 @@
 ---
 name: gitnexus-impact-analysis
-description: "Use when the user wants to know what will break if they change something, or needs safety analysis before editing code. Examples: \"Is it safe to change X?\", \"What depends on this?\", \"What will break?\""
+description: "Use when analyzing blast radius or safety before modifying core GenHub symbols/interfaces (e.g. ICasService, IContentReconciliationService, IGameLauncher). Examples: \"Is it safe to change ICasService?\", \"What depends on ContentReconciliationService?\", \"What will break if I modify GameLauncher?\""
 ---
 
 # Impact Analysis with GitNexus
 
 ## When to Use
 
-- "Is it safe to change this function?"
-- "What will break if I modify X?"
-- "Show me the blast radius"
+- "Is it safe to modify `ICasService` method signatures?"
+- "What will break if I change `IContentReconciliationService.ReconcileAsync`?"
+- "Show me the blast radius of modifying `IGameProcessManager` across Windows, Linux, and macOS hosts"
 - "Who uses this code?"
-- Before making non-trivial code changes
+- Before making non-trivial code changes to core abstractions
 - Before committing — to understand what your changes affect
 
 ## Workflow
@@ -51,7 +51,7 @@ description: "Use when the user wants to know what will break if they change som
 | <5 symbols, few processes      | LOW      |
 | 5-15 symbols, 2-5 processes    | MEDIUM   |
 | >15 symbols or many processes  | HIGH     |
-| Critical path (auth, payments) | CRITICAL |
+| Critical path (CAS, launcher, reconciliation, platform runners) | CRITICAL |
 
 ## Tools
 
@@ -59,18 +59,20 @@ description: "Use when the user wants to know what will break if they change som
 
 ```
 gitnexus_impact({
-  target: "validateUser",
+  target: "ICasService",
   direction: "upstream",
   minConfidence: 0.8,
   maxDepth: 3
 })
 
 → d=1 (WILL BREAK):
-  - loginHandler (src/auth/login.ts:42) [CALLS, 100%]
-  - apiMiddleware (src/api/middleware.ts:15) [CALLS, 100%]
+  - CasService (GenHub/Services/CasService.cs) [IMPLEMENTS, 100%]
+  - ContentReconciliationService (GenHub/Features/Content/ContentReconciliationService.cs) [CALLS, 100%]
+  - InstallationCasPoolService (GenHub.Core/Features/Storage/InstallationCasPoolService.cs) [CALLS, 100%]
 
 → d=2 (LIKELY AFFECTED):
-  - authRouter (src/routes/auth.ts:22) [CALLS, 95%]
+  - GameLauncher (GenHub/Features/Launching/GameLauncher.cs) [CALLS, 95%]
+  - ProfileEditorFacade (GenHub/Features/GameProfiles/ProfileEditorFacade.cs) [CALLS, 90%]
 ```
 
 **gitnexus_detect_changes** — git-diff based impact analysis:
@@ -78,20 +80,20 @@ gitnexus_impact({
 ```
 gitnexus_detect_changes({scope: "staged"})
 
-→ Changed: 5 symbols in 3 files
-→ Affected: LoginFlow, TokenRefresh, APIMiddlewarePipeline
-→ Risk: MEDIUM
+→ Changed: 3 symbols in CasService.cs, ICasService.cs
+→ Affected: ProfileLaunchFlow, ContentReconciliationFlow, CasPoolIngestion
+→ Risk: HIGH
 ```
 
-## Example: "What breaks if I change validateUser?"
+## Example: "What breaks if I change ICasService?"
 
 ```
-1. gitnexus_impact({target: "validateUser", direction: "upstream"})
-   → d=1: loginHandler, apiMiddleware (WILL BREAK)
-   → d=2: authRouter, sessionManager (LIKELY AFFECTED)
+1. gitnexus_impact({target: "ICasService", direction: "upstream"})
+   → d=1: CasService, ContentReconciliationService, InstallationCasPoolService (WILL BREAK)
+   → d=2: GameLauncher, ProfileLauncherFacade (LIKELY AFFECTED)
 
-2. READ gitnexus://repo/my-app/processes
-   → LoginFlow and TokenRefresh touch validateUser
+2. READ gitnexus://repo/GenHub/processes
+   → ProfileLaunchFlow and ModInstallationFlow depend on ICasService
 
-3. Risk: 2 direct callers, 2 processes = MEDIUM
+3. Risk: 3 direct dependents, 2 core execution flows = HIGH (Verify callers across Windows, Linux, macOS hosts)
 ```
