@@ -204,6 +204,12 @@ public class GeneralsOnlineProvider(
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            return OperationResult<ContentManifest>.CreateFailure(
+                "GeneralsOnline is currently supported only on Windows. Easy Anti-Cheat was not designed for Wine/Proton environments.");
+        }
+
         Logger.LogInformation("Preparing Generals Online content: {Version}", manifest.Version);
 
         try
@@ -268,7 +274,13 @@ public class GeneralsOnlineProvider(
 
         try
         {
-            _preExistingManifestIdsByManifest.TryRemove(originalManifest.Id, out var preExistingIds);
+            if (!_preExistingManifestIdsByManifest.TryRemove(originalManifest.Id, out var preExistingIds) || preExistingIds == null)
+            {
+                Logger.LogWarning(
+                    "No pre-delivery manifest snapshot found for {ManifestId}; skipping rollback manifest unregistration to avoid removing existing content",
+                    originalManifest.Id);
+                return;
+            }
 
             var allManifestsResult = await manifestPool.GetAllManifestsAsync(cancellationToken);
             if (allManifestsResult.Success && allManifestsResult.Data != null)
@@ -276,7 +288,7 @@ public class GeneralsOnlineProvider(
                 var matchingManifests = allManifestsResult.Data
                     .Where(m => string.Equals(m.Version, preparedManifest.Version, StringComparison.OrdinalIgnoreCase) &&
                                 string.Equals(m.Publisher?.PublisherType, GeneralsOnlineConstants.PublisherType, StringComparison.OrdinalIgnoreCase) &&
-                                (preExistingIds == null || !preExistingIds.Contains(m.Id)))
+                                !preExistingIds.Contains(m.Id))
                     .ToList();
 
                 foreach (var manifest in matchingManifests)
