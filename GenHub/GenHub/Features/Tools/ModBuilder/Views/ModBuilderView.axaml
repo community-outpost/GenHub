@@ -9,180 +9,203 @@
              x:DataType="vm:ModBuilderViewModel"
              x:Name="Root">
 
-  <!-- Modern Glassmorphic Background -->
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="../Styles/ModBuilderStyles.axaml"/>
+        <ResourceInclude Source="../Styles/ModBuilderIcons.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </UserControl.Resources>
+
+  <!-- Modern Glassmorphic Deep Purple Background -->
   <Panel>
-    <!-- Gradient Background -->
     <Border>
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-          <GradientStop Color="#0D0D0D" Offset="0"/>
-          <GradientStop Color="#1A1A2E" Offset="0.5"/>
-          <GradientStop Color="#16213E" Offset="1"/>
+          <GradientStop Color="#0D0D14" Offset="0"/>
+          <GradientStop Color="#161226" Offset="0.5"/>
+          <GradientStop Color="#1A162B" Offset="1"/>
         </LinearGradientBrush>
       </Border.Background>
     </Border>
 
     <!-- Main Content -->
-    <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+    <Grid RowDefinitions="Auto,*" Margin="20">
 
-      <!-- Header: Project Management -->
-      <Border Grid.Row="0" Background="#40000000" CornerRadius="16" Padding="20" Margin="0,0,0,20"
-              BorderBrush="#20FFFFFF" BorderThickness="1" BoxShadow="0 8 32 0 #40000000">
+      <!-- Header: Project Management & Quick Actions -->
+      <Border Grid.Row="0" Background="#251E38" CornerRadius="16" Padding="16,14" Margin="0,0,0,16"
+              BorderBrush="#3D325A" BorderThickness="1" BoxShadow="0 8 32 0 #40000000">
         <Grid ColumnDefinitions="Auto,*,Auto">
           <!-- Project Path -->
           <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-            <TextBlock Text="📁" FontSize="20" VerticalAlignment="Center"/>
-            <TextBlock Text="Project:" FontWeight="SemiBold" FontSize="14" VerticalAlignment="Center" Foreground="White"/>
+            <Border Width="36" Height="36" Background="#3D325A" CornerRadius="8">
+              <TextBlock Text="📁" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="Current Project" FontSize="11" Foreground="#B0B0B0" FontWeight="SemiBold"/>
+              <TextBlock Text="{Binding ProjectName, FallbackValue='No project loaded'}" FontSize="15" FontWeight="Bold" Foreground="White"/>
+            </StackPanel>
             <TextBox Text="{Binding CurrentProjectPath}" IsReadOnly="True"
-                     Watermark="No project loaded..." MinWidth="400"
-                     Background="#20FFFFFF" BorderBrush="#15FFFFFF" CornerRadius="8"
-                     Padding="12,8" VerticalAlignment="Center" VerticalContentAlignment="Center"/>
+                     Watermark="No project loaded..." MinWidth="360" MaxWidth="500"
+                     Background="#1AFFFFFF" BorderBrush="#25FFFFFF" CornerRadius="8"
+                     Padding="10,6" VerticalAlignment="Center" VerticalContentAlignment="Center"
+                     Foreground="#D0D0D0" FontSize="12"/>
           </StackPanel>
 
           <!-- Quick Actions -->
-          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
-            <Button Command="{Binding NewProjectCommand}" Padding="16,10" CornerRadius="8"
-                    Background="#30FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1"
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <Button Command="{Binding NewProjectCommand}" Padding="14,9" CornerRadius="8"
+                    Background="#20FFFFFF" BorderBrush="#30FFFFFF" BorderThickness="1"
                     ToolTip.Tip="Create a new ModBuilder project">
               <StackPanel Orientation="Horizontal" Spacing="6">
-                <TextBlock Text="📄" FontSize="14"/>
-                <TextBlock Text="New" FontWeight="Medium"/>
+                <TextBlock Text="📄" FontSize="13"/>
+                <TextBlock Text="New" FontWeight="Medium" Foreground="White"/>
               </StackPanel>
             </Button>
-            <Button Command="{Binding LoadProjectCommand}" Padding="16,10" CornerRadius="8"
-                    Background="#30FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1"
+            <Button Command="{Binding LoadProjectCommand}" Padding="14,9" CornerRadius="8"
+                    Background="#20FFFFFF" BorderBrush="#30FFFFFF" BorderThickness="1"
                     ToolTip.Tip="Open an existing project">
               <StackPanel Orientation="Horizontal" Spacing="6">
-                <TextBlock Text="📂" FontSize="14"/>
-                <TextBlock Text="Open" FontWeight="Medium"/>
+                <TextBlock Text="📂" FontSize="13"/>
+                <TextBlock Text="Open" FontWeight="Medium" Foreground="White"/>
               </StackPanel>
             </Button>
-            <Button Command="{Binding LoadSampleProjectCommand}" Padding="16,10" CornerRadius="8"
-                    Background="#50673AB7" BorderBrush="#40673AB7" BorderThickness="1"
-                    ToolTip.Tip="Load a working sample project">
+            <Button Command="{Binding LoadSampleProjectCommand}" Padding="14,9" CornerRadius="8"
+                    Background="#607C4DFF" BorderBrush="#807C4DFF" BorderThickness="1"
+                    ToolTip.Tip="Load the bundled BasicMod sample project">
               <StackPanel Orientation="Horizontal" Spacing="6">
-                <TextBlock Text="📦" FontSize="14"/>
-                <TextBlock Text="Sample" FontWeight="SemiBold"/>
+                <TextBlock Text="📦" FontSize="13"/>
+                <TextBlock Text="Sample" FontWeight="SemiBold" Foreground="White"/>
               </StackPanel>
             </Button>
-            <Button Command="{Binding SaveProjectCommand}" Padding="16,10" CornerRadius="8"
-                    Background="#30FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1"
+            <Button Command="{Binding OpenFileManagerCommand}" Padding="14,9" CornerRadius="8"
+                    Background="#407C4DFF" BorderBrush="#607C4DFF" BorderThickness="1"
                     IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}"
-                    ToolTip.Tip="Save the current project">
+                    ToolTip.Tip="Open dedicated Game Asset &amp; File Manager">
               <StackPanel Orientation="Horizontal" Spacing="6">
-                <TextBlock Text="💾" FontSize="14"/>
-                <TextBlock Text="Save" FontWeight="Medium"/>
+                <TextBlock Text="🗂️" FontSize="13"/>
+                <TextBlock Text="Asset Manager" FontWeight="Medium" Foreground="White"/>
               </StackPanel>
             </Button>
-            <Button Command="{Binding CloseProjectCommand}" Padding="16,10" CornerRadius="8"
-                    Background="#30FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1"
+            <Button Command="{Binding SaveProjectCommand}" Padding="14,9" CornerRadius="8"
+                    Background="#20FFFFFF" BorderBrush="#30FFFFFF" BorderThickness="1"
                     IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}"
-                    ToolTip.Tip="Close current project and return to dashboard">
+                    ToolTip.Tip="Save current project configuration">
               <StackPanel Orientation="Horizontal" Spacing="6">
-                <TextBlock Text="✖" FontSize="14"/>
-                <TextBlock Text="Close" FontWeight="Medium"/>
+                <TextBlock Text="💾" FontSize="13"/>
+                <TextBlock Text="Save" FontWeight="Medium" Foreground="White"/>
+              </StackPanel>
+            </Button>
+            <Button Command="{Binding CloseProjectCommand}" Padding="14,9" CornerRadius="8"
+                    Background="#20FFFFFF" BorderBrush="#30FFFFFF" BorderThickness="1"
+                    IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}"
+                    ToolTip.Tip="Close project and return to dashboard">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="✖" FontSize="13"/>
+                <TextBlock Text="Close" FontWeight="Medium" Foreground="White"/>
               </StackPanel>
             </Button>
           </StackPanel>
         </Grid>
       </Border>
 
-      <!-- Main Content Area -->
-      <Grid Grid.Row="1" ColumnDefinitions="320,*,360">
+      <!-- Main Resizable 3-Column Content Area -->
+      <Grid Grid.Row="1" ColumnDefinitions="320,Auto,*,Auto,340">
 
         <!-- Left Panel: Configuration & Actions -->
-        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
-          <StackPanel Spacing="16">
+        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="0,0,6,0">
+          <StackPanel Spacing="14">
 
             <!-- Quick Start Guide -->
-            <Border Background="#50673AB7" BorderBrush="#40673AB7" BorderThickness="1"
-                    CornerRadius="12" Padding="16" BoxShadow="0 4 24 0 #50673AB7"
+            <Border Background="#40673AB7" BorderBrush="#607C4DFF" BorderThickness="1"
+                    CornerRadius="12" Padding="16" BoxShadow="0 4 20 0 #40673AB7"
                     IsVisible="{Binding IsProjectLoaded}">
-              <StackPanel Spacing="12">
-                <TextBlock Text="🚀 Quick Start" FontSize="16" FontWeight="Bold" Foreground="White"/>
+              <StackPanel Spacing="10">
+                <TextBlock Text="🚀 Quick Start" FontSize="15" FontWeight="Bold" Foreground="White"/>
                 <Separator Background="#30FFFFFF" Height="1"/>
                 <TextBlock TextWrapping="Wrap" Foreground="White" FontSize="12" LineHeight="18">
-                  <Run Text="1." FontWeight="Bold"/> Copy your game files to GameFilesEdited folder
+                  <Run Text="1." FontWeight="Bold"/> Copy game assets to GameFilesEdited
                 </TextBlock>
                 <TextBlock TextWrapping="Wrap" Foreground="White" FontSize="12" LineHeight="18">
-                  <Run Text="2." FontWeight="Bold"/> Configure ModBundleItems.json
+                  <Run Text="2." FontWeight="Bold"/> Configure bundles in Edit Configuration
                 </TextBlock>
                 <TextBlock TextWrapping="Wrap" Foreground="White" FontSize="12" LineHeight="18">
-                  <Run Text="3." FontWeight="Bold"/> Click Execute Build to create .big archives
+                  <Run Text="3." FontWeight="Bold"/> Click Execute Build to generate packages
                 </TextBlock>
               </StackPanel>
             </Border>
 
             <!-- File Count Card -->
-            <Border Background="#40000000" BorderBrush="#20FFFFFF" BorderThickness="1"
-                    CornerRadius="12" Padding="20" BoxShadow="0 4 16 0 #30000000"
+            <Border Background="#201A33" BorderBrush="#382E55" BorderThickness="1"
+                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #20000000"
                     IsVisible="{Binding IsProjectLoaded}">
               <Grid RowDefinitions="Auto,Auto,Auto">
-                <TextBlock Grid.Row="0" Text="Files to Build" FontSize="12" Foreground="#B0FFFFFF"
+                <TextBlock Grid.Row="0" Text="Files to Build" FontSize="12" Foreground="#B0B0B0"
                            HorizontalAlignment="Center"/>
-                <TextBlock Grid.Row="1" Text="{Binding FilesToBuildCount}" FontSize="48" FontWeight="Bold"
-                           Foreground="White" HorizontalAlignment="Center" Margin="0,8"/>
-                <Button Grid.Row="2" Content="↻ Refresh" Command="{Binding RefreshFileCountCommand}"
-                        HorizontalAlignment="Stretch" Padding="12,8" CornerRadius="8"
-                        Background="#20FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1"/>
+                <TextBlock Grid.Row="1" Text="{Binding FilesToBuildCount}" FontSize="42" FontWeight="Bold"
+                           Foreground="White" HorizontalAlignment="Center" Margin="0,6"/>
+                <Button Grid.Row="2" Content="↻ Refresh Count" Command="{Binding RefreshFileCountCommand}"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="10,6" CornerRadius="8"
+                        Background="#25FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1" Foreground="White"/>
               </Grid>
             </Border>
 
             <!-- Quick Access -->
-            <Border Background="#40000000" BorderBrush="#20FFFFFF" BorderThickness="1"
-                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #30000000"
+            <Border Background="#201A33" BorderBrush="#382E55" BorderThickness="1"
+                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #20000000"
                     IsVisible="{Binding IsProjectLoaded}">
-              <StackPanel Spacing="12">
+              <StackPanel Spacing="10">
                 <TextBlock Text="Quick Access" FontWeight="Bold" FontSize="14" Foreground="White"/>
-                <Separator Background="#20FFFFFF" Height="1"/>
+                <Separator Background="#25FFFFFF" Height="1"/>
                 <Button Command="{Binding OpenProjectFolderCommand}" HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Left" Padding="12,10" CornerRadius="8"
-                        Background="#20FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1">
+                        HorizontalContentAlignment="Left" Padding="12,9" CornerRadius="8"
+                        Background="#20FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1">
                   <StackPanel Orientation="Horizontal" Spacing="8">
                     <TextBlock Text="📁" FontSize="14"/>
-                    <TextBlock Text="Open Project Folder" FontWeight="Medium"/>
+                    <TextBlock Text="Open Project Folder" FontWeight="Medium" Foreground="White"/>
                   </StackPanel>
                 </Button>
                 <Button Command="{Binding OpenEditFolderCommand}" HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Left" Padding="12,10" CornerRadius="8"
-                        Background="#20FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1">
+                        HorizontalContentAlignment="Left" Padding="12,9" CornerRadius="8"
+                        Background="#20FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1">
                   <StackPanel Orientation="Horizontal" Spacing="8">
                     <TextBlock Text="✏️" FontSize="14"/>
-                    <TextBlock Text="Open GameFilesEdited" FontWeight="Medium"/>
+                    <TextBlock Text="Open GameFilesEdited" FontWeight="Medium" Foreground="White"/>
                   </StackPanel>
                 </Button>
-                <Button Command="{Binding OpenBuildFolderCommand}" HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Left" Padding="12,10" CornerRadius="8"
-                        Background="#20FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1">
+                <Button Command="{Binding OpenFileManagerCommand}" HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Left" Padding="12,9" CornerRadius="8"
+                        Background="#357C4DFF" BorderBrush="#507C4DFF" BorderThickness="1">
                   <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Text="📦" FontSize="14"/>
-                    <TextBlock Text="Open Build Output" FontWeight="Medium"/>
+                    <TextBlock Text="🗂️" FontSize="14"/>
+                    <TextBlock Text="Game Asset Manager" FontWeight="Medium" Foreground="White"/>
                   </StackPanel>
                 </Button>
                 <Button Command="{Binding OpenConfigEditorCommand}" HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Left" Padding="12,10" CornerRadius="8"
-                        Background="#50673AB7" BorderBrush="#40673AB7" BorderThickness="1">
+                        HorizontalContentAlignment="Left" Padding="12,9" CornerRadius="8"
+                        Background="#50673AB7" BorderBrush="#707C4DFF" BorderThickness="1">
                   <StackPanel Orientation="Horizontal" Spacing="8">
                     <TextBlock Text="⚙️" FontSize="14"/>
-                    <TextBlock Text="Edit Configuration" FontWeight="SemiBold"/>
+                    <TextBlock Text="Edit Configuration" FontWeight="SemiBold" Foreground="White"/>
                   </StackPanel>
                 </Button>
               </StackPanel>
             </Border>
 
             <!-- Bundle Packs -->
-            <Border Background="#40000000" BorderBrush="#20FFFFFF" BorderThickness="1"
-                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #30000000">
-              <StackPanel Spacing="12">
+            <Border Background="#201A33" BorderBrush="#382E55" BorderThickness="1"
+                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #20000000">
+              <StackPanel Spacing="10">
                 <TextBlock Text="Bundle Packs" FontWeight="Bold" FontSize="14" Foreground="White"/>
-                <Separator Background="#20FFFFFF" Height="1"/>
-                <Border Background="#20FFFFFF" CornerRadius="8" Padding="12" MinHeight="100">
-                  <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto">
+                <Separator Background="#25FFFFFF" Height="1"/>
+                <Border Background="#15FFFFFF" CornerRadius="8" Padding="10" MinHeight="90">
+                  <ScrollViewer MaxHeight="160" VerticalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding BundlePacks}">
                       <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:BundleItemViewModel">
                           <CheckBox Content="{Binding Name}" IsChecked="{Binding IsSelected}"
-                                    Margin="0,6" Foreground="White"/>
+                                    Margin="0,4" Foreground="White"/>
                         </DataTemplate>
                       </ItemsControl.ItemTemplate>
                     </ItemsControl>
@@ -192,13 +215,13 @@
             </Border>
 
             <!-- Build Actions -->
-            <Border Background="#40000000" BorderBrush="#20FFFFFF" BorderThickness="1"
-                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #30000000">
-              <StackPanel Spacing="12" IsEnabled="{Binding !IsBuilding}">
+            <Border Background="#201A33" BorderBrush="#382E55" BorderThickness="1"
+                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #20000000">
+              <StackPanel Spacing="10" IsEnabled="{Binding !IsBuilding}">
                 <TextBlock Text="Build Actions" FontWeight="Bold" FontSize="14" Foreground="White"/>
-                <Separator Background="#20FFFFFF" Height="1"/>
-                <Border Background="#20FFFFFF" CornerRadius="8" Padding="12">
-                  <StackPanel Spacing="8">
+                <Separator Background="#25FFFFFF" Height="1"/>
+                <Border Background="#15FFFFFF" CornerRadius="8" Padding="10">
+                  <StackPanel Spacing="6">
                     <CheckBox Content="Clean" IsChecked="{Binding CleanEnabled}" Foreground="White" ToolTip.Tip="Deletes temporary build and output artifacts before building"/>
                     <CheckBox Content="Build" IsChecked="{Binding BuildEnabled}" Foreground="White" ToolTip.Tip="Compiles and packages edited assets into .big bundles"/>
                     <CheckBox Content="Release" IsChecked="{Binding ReleaseEnabled}" Foreground="White" ToolTip.Tip="Generates distributable release archive packages"/>
@@ -211,13 +234,13 @@
             </Border>
 
             <!-- Build Options -->
-            <Border Background="#40000000" BorderBrush="#20FFFFFF" BorderThickness="1"
-                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #30000000">
-              <StackPanel Spacing="12">
+            <Border Background="#201A33" BorderBrush="#382E55" BorderThickness="1"
+                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #20000000">
+              <StackPanel Spacing="10">
                 <TextBlock Text="Build Options" FontWeight="Bold" FontSize="14" Foreground="White"/>
-                <Separator Background="#20FFFFFF" Height="1"/>
-                <Border Background="#20FFFFFF" CornerRadius="8" Padding="12">
-                  <StackPanel Spacing="8">
+                <Separator Background="#25FFFFFF" Height="1"/>
+                <Border Background="#15FFFFFF" CornerRadius="8" Padding="10">
+                  <StackPanel Spacing="6">
                     <CheckBox Content="Verbose Logging" IsChecked="{Binding VerboseLogging}" Foreground="White"/>
                     <CheckBox Content="Multi-Processing" IsChecked="{Binding MultiProcessing}" Foreground="White"/>
                     <CheckBox Content="Print Config" IsChecked="{Binding PrintConfig}" Foreground="White"/>
@@ -229,95 +252,85 @@
           </StackPanel>
         </ScrollViewer>
 
-        <!-- Center: Build Output Console -->
-        <Border Grid.Column="1" Background="#40000000" BorderBrush="#20FFFFFF" BorderThickness="1"
-                CornerRadius="16" Padding="20" BoxShadow="0 8 32 0 #40000000">
+        <!-- Left Column Splitter -->
+        <GridSplitter Grid.Column="1" Width="8" Background="Transparent" ResizeDirection="Columns" Cursor="SizeWestEast"/>
+
+        <!-- Center: Build Output Terminal (Streaming Live) -->
+        <Border Grid.Column="2" Background="#1C162E" BorderBrush="#382E55" BorderThickness="1"
+                CornerRadius="16" Padding="16" BoxShadow="0 8 32 0 #40000000" Margin="4,0">
           <Grid RowDefinitions="Auto,*">
             <!-- Console Header -->
-            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
-              <TextBlock Grid.Column="0" Text="Build Output" FontWeight="Bold" FontSize="16"
-                         VerticalAlignment="Center" Foreground="White"/>
-              <Button Grid.Column="1" Content="Clear" Command="{Binding ClearOutputCommand}"
-                      Padding="12,6" CornerRadius="8" Background="#20FFFFFF"
-                      BorderBrush="#15FFFFFF" BorderThickness="1"/>
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+              <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <TextBlock Text="💻" FontSize="15" VerticalAlignment="Center"/>
+                <TextBlock Text="Build Output" FontWeight="Bold" FontSize="15" Foreground="White" VerticalAlignment="Center"/>
+              </StackPanel>
+              <Button Grid.Column="1" Content="Clear Output" Command="{Binding ClearOutputCommand}"
+                      Padding="12,6" CornerRadius="8" Background="#25FFFFFF" Foreground="White"
+                      BorderBrush="#20FFFFFF" BorderThickness="1"/>
             </Grid>
 
-            <!-- Console Content -->
-            <Border Grid.Row="1" Background="#15000000" BorderBrush="#20FFFFFF" BorderThickness="1"
+            <!-- Live Streaming Console Output (No Blocking Overlay) -->
+            <Border Grid.Row="1" Background="#100B1E" BorderBrush="#25FFFFFF" BorderThickness="1"
                     CornerRadius="12" ClipToBounds="True">
-              <Grid>
-                <ScrollViewer Name="BuildOutputScroller" VerticalScrollBarVisibility="Auto"
-                              HorizontalScrollBarVisibility="Auto">
-                  <TextBox Text="{Binding BuildOutput}" IsReadOnly="True" TextWrapping="NoWrap"
-                           BorderThickness="0" Background="Transparent"
-                           FontFamily="Consolas,Courier New,monospace" FontSize="12"
-                           Foreground="#E0E0E0" Padding="16" AcceptsReturn="True"/>
-                </ScrollViewer>
-
-                <!-- Build Progress Overlay -->
-                <Border Background="#CC000000" CornerRadius="12" IsVisible="{Binding IsBuilding}">
-                  <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="20">
-                    <ProgressBar IsIndeterminate="True" Width="300" Height="6" CornerRadius="3">
-                      <ProgressBar.Foreground>
-                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
-                          <GradientStop Color="#673AB7" Offset="0"/>
-                          <GradientStop Color="#4527A0" Offset="1"/>
-                        </LinearGradientBrush>
-                      </ProgressBar.Foreground>
-                    </ProgressBar>
-                    <TextBlock Text="Building..." HorizontalAlignment="Center" Foreground="White"
-                               FontWeight="SemiBold" FontSize="16"/>
-                  </StackPanel>
-                </Border>
-              </Grid>
+              <ScrollViewer Name="BuildOutputScroller" VerticalScrollBarVisibility="Auto"
+                            HorizontalScrollBarVisibility="Auto">
+                <TextBox Text="{Binding BuildOutput}" IsReadOnly="True" TextWrapping="NoWrap"
+                         BorderThickness="0" Background="Transparent"
+                         FontFamily="Consolas,JetBrains Mono,Courier New,monospace" FontSize="12"
+                         Foreground="#E8E8E8" Padding="14" AcceptsReturn="True"/>
+              </ScrollViewer>
             </Border>
           </Grid>
         </Border>
 
+        <!-- Right Column Splitter -->
+        <GridSplitter Grid.Column="3" Width="8" Background="Transparent" ResizeDirection="Columns" Cursor="SizeWestEast"/>
+
         <!-- Right Panel: Build Control & Status -->
-        <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
-          <StackPanel Spacing="16">
+        <ScrollViewer Grid.Column="4" VerticalScrollBarVisibility="Auto" Margin="6,0,0,0">
+          <StackPanel Spacing="14">
 
             <!-- Build Status Card -->
-            <Border Background="#40000000" BorderBrush="#20FFFFFF" BorderThickness="1"
-                    CornerRadius="12" Padding="20" BoxShadow="0 4 16 0 #30000000">
-              <StackPanel Spacing="16">
-                <TextBlock Text="Build Status" FontWeight="Bold" FontSize="16" Foreground="White"/>
-                <Separator Background="#20FFFFFF" Height="1"/>
+            <Border Background="#201A33" BorderBrush="#382E55" BorderThickness="1"
+                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #20000000">
+              <StackPanel Spacing="12">
+                <TextBlock Text="Build Status" FontWeight="Bold" FontSize="15" Foreground="White"/>
+                <Separator Background="#25FFFFFF" Height="1"/>
 
-                <Border Background="#20FFFFFF" CornerRadius="8" Padding="16">
-                  <StackPanel Spacing="12">
+                <Border Background="#15FFFFFF" CornerRadius="8" Padding="14">
+                  <StackPanel Spacing="10">
                     <Grid ColumnDefinitions="Auto,*">
-                      <TextBlock Grid.Column="0" Text="Status:" Foreground="#B0FFFFFF" Width="80"/>
+                      <TextBlock Grid.Column="0" Text="Status:" Foreground="#B0B0B0" Width="70"/>
                       <TextBlock Grid.Column="1" Text="{Binding BuildStatus, FallbackValue='Ready'}"
                                  FontWeight="SemiBold" Foreground="White"/>
                     </Grid>
                     <Grid ColumnDefinitions="Auto,*">
-                      <TextBlock Grid.Column="0" Text="Stage:" Foreground="#B0FFFFFF" Width="80"/>
+                      <TextBlock Grid.Column="0" Text="Stage:" Foreground="#B0B0B0" Width="70"/>
                       <TextBlock Grid.Column="1" Text="{Binding CurrentStage, FallbackValue='Idle'}"
                                  FontWeight="SemiBold" Foreground="White"/>
                     </Grid>
                     <Grid ColumnDefinitions="Auto,*">
-                      <TextBlock Grid.Column="0" Text="File:" Foreground="#B0FFFFFF" Width="80"/>
+                      <TextBlock Grid.Column="0" Text="File:" Foreground="#B0B0B0" Width="70"/>
                       <TextBlock Grid.Column="1" Text="{Binding CurrentFile, FallbackValue='—'}"
                                  TextTrimming="CharacterEllipsis" Foreground="White"
                                  ToolTip.Tip="{Binding CurrentFile}"/>
                     </Grid>
 
-                    <Separator Background="#20FFFFFF" Height="1" Margin="0,8"/>
+                    <Separator Background="#25FFFFFF" Height="1" Margin="0,4"/>
 
                     <Grid ColumnDefinitions="Auto,*">
-                      <TextBlock Grid.Column="0" Text="Progress:" Foreground="#B0FFFFFF" Width="80"/>
+                      <TextBlock Grid.Column="0" Text="Progress:" Foreground="#B0B0B0" Width="70"/>
                       <TextBlock Grid.Column="1" Text="{Binding ProgressText, FallbackValue='0%'}"
                                  FontWeight="SemiBold" Foreground="White"/>
                     </Grid>
 
                     <ProgressBar Value="{Binding PercentComplete}" Minimum="0" Maximum="100"
-                                 Height="8" CornerRadius="4" Background="#20FFFFFF">
+                                 Height="8" CornerRadius="4" Background="#25FFFFFF">
                       <ProgressBar.Foreground>
                         <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
-                          <GradientStop Color="#673AB7" Offset="0"/>
-                          <GradientStop Color="#4527A0" Offset="1"/>
+                          <GradientStop Color="#7C4DFF" Offset="0"/>
+                          <GradientStop Color="#673AB7" Offset="1"/>
                         </LinearGradientBrush>
                       </ProgressBar.Foreground>
                     </ProgressBar>
@@ -327,32 +340,32 @@
             </Border>
 
             <!-- Project Info Card -->
-            <Border Background="#40000000" BorderBrush="#20FFFFFF" BorderThickness="1"
-                    CornerRadius="12" Padding="20" BoxShadow="0 4 16 0 #30000000"
+            <Border Background="#201A33" BorderBrush="#382E55" BorderThickness="1"
+                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #20000000"
                     IsVisible="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}">
-              <StackPanel Spacing="16">
-                <TextBlock Text="Project Info" FontWeight="Bold" FontSize="16" Foreground="White"/>
-                <Separator Background="#20FFFFFF" Height="1"/>
+              <StackPanel Spacing="12">
+                <TextBlock Text="Project Info" FontWeight="Bold" FontSize="15" Foreground="White"/>
+                <Separator Background="#25FFFFFF" Height="1"/>
 
-                <Border Background="#20FFFFFF" CornerRadius="8" Padding="16">
-                  <StackPanel Spacing="10">
+                <Border Background="#15FFFFFF" CornerRadius="8" Padding="14">
+                  <StackPanel Spacing="8">
                     <Grid ColumnDefinitions="Auto,*">
-                      <TextBlock Grid.Column="0" Text="Name:" Foreground="#B0FFFFFF" Width="70"/>
+                      <TextBlock Grid.Column="0" Text="Name:" Foreground="#B0B0B0" Width="65"/>
                       <TextBlock Grid.Column="1" Text="{Binding CurrentProject.Name, FallbackValue='—'}"
                                  FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis"/>
                     </Grid>
                     <Grid ColumnDefinitions="Auto,*">
-                      <TextBlock Grid.Column="0" Text="Version:" Foreground="#B0FFFFFF" Width="70"/>
+                      <TextBlock Grid.Column="0" Text="Version:" Foreground="#B0B0B0" Width="65"/>
                       <TextBlock Grid.Column="1" Text="{Binding CurrentProject.Version, FallbackValue='—'}"
                                  Foreground="White"/>
                     </Grid>
                     <Grid ColumnDefinitions="Auto,*">
-                      <TextBlock Grid.Column="0" Text="Author:" Foreground="#B0FFFFFF" Width="70"/>
+                      <TextBlock Grid.Column="0" Text="Author:" Foreground="#B0B0B0" Width="65"/>
                       <TextBlock Grid.Column="1" Text="{Binding CurrentProject.Author, FallbackValue='—'}"
                                  Foreground="White" TextTrimming="CharacterEllipsis"/>
                     </Grid>
                     <Grid ColumnDefinitions="Auto,*">
-                      <TextBlock Grid.Column="0" Text="Packs:" Foreground="#B0FFFFFF" Width="70"/>
+                      <TextBlock Grid.Column="0" Text="Packs:" Foreground="#B0B0B0" Width="65"/>
                       <TextBlock Grid.Column="1" Text="{Binding BundlePacks.Count, FallbackValue='0'}"
                                  Foreground="White"/>
                     </Grid>
@@ -362,16 +375,16 @@
             </Border>
 
             <!-- Build Control Buttons -->
-            <Border Background="#40000000" BorderBrush="#20FFFFFF" BorderThickness="1"
-                    CornerRadius="12" Padding="20" BoxShadow="0 4 16 0 #30000000">
-              <StackPanel Spacing="12">
+            <Border Background="#201A33" BorderBrush="#382E55" BorderThickness="1"
+                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #20000000">
+              <StackPanel Spacing="10">
                 <!-- Execute Build Button -->
                 <Button Command="{Binding BuildCommand}" HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Center" Padding="0,18" CornerRadius="12">
+                        HorizontalContentAlignment="Center" Padding="0,16" CornerRadius="12">
                   <Button.Background>
                     <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                      <GradientStop Color="#673AB7" Offset="0"/>
-                      <GradientStop Color="#4527A0" Offset="1"/>
+                      <GradientStop Color="#7C4DFF" Offset="0"/>
+                      <GradientStop Color="#5E35B1" Offset="1"/>
                     </LinearGradientBrush>
                   </Button.Background>
                   <StackPanel Orientation="Horizontal" Spacing="10">
@@ -382,7 +395,8 @@
 
                 <!-- Abort Build Button -->
                 <Button Command="{Binding AbortBuildCommand}" HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Center" Padding="0,14" CornerRadius="12">
+                        HorizontalContentAlignment="Center" Padding="0,12" CornerRadius="10"
+                        IsEnabled="{Binding IsBuilding}">
                   <Button.Background>
                     <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
                       <GradientStop Color="#E53935" Offset="0"/>
@@ -390,22 +404,22 @@
                     </LinearGradientBrush>
                   </Button.Background>
                   <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Text="⏹" FontSize="16" Foreground="White"/>
+                    <TextBlock Text="⏹" FontSize="15" Foreground="White"/>
                     <TextBlock Text="Abort Build" FontWeight="SemiBold" Foreground="White"/>
                   </StackPanel>
                 </Button>
 
-                <Separator Background="#20FFFFFF" Height="1" Margin="0,8"/>
+                <Separator Background="#25FFFFFF" Height="1" Margin="0,4"/>
 
-                <!-- Folder Buttons -->
+                <!-- Dedicated Folder Buttons -->
                 <Button Content="Open Build Folder" Command="{Binding OpenBuildFolderCommand}"
-                        HorizontalAlignment="Stretch" Padding="0,12" CornerRadius="8"
-                        Background="#20FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="0,10" CornerRadius="8"
+                        Background="#20FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1" Foreground="White"
                         IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}"/>
 
                 <Button Content="Open Release Folder" Command="{Binding OpenReleaseFolderCommand}"
-                        HorizontalAlignment="Stretch" Padding="0,12" CornerRadius="8"
-                        Background="#20FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="0,10" CornerRadius="8"
+                        Background="#20FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1" Foreground="White"
                         IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}"/>
               </StackPanel>
             </Border>
@@ -414,36 +428,6 @@
         </ScrollViewer>
 
       </Grid>
-
-      <!-- File Manager Section (Collapsible) -->
-      <Border Grid.Row="2" Background="#40000000" BorderBrush="#20FFFFFF" BorderThickness="1"
-              CornerRadius="16" Padding="20" Margin="0,20,0,0" BoxShadow="0 8 32 0 #40000000"
-              IsVisible="{Binding IsProjectLoaded}">
-        <Expander Header="📁 File Manager" IsExpanded="False">
-          <Expander.Styles>
-            <Style Selector="Expander /template/ ToggleButton#PART_toggle">
-              <Setter Property="Background" Value="Transparent"/>
-              <Setter Property="FontWeight" Value="Bold"/>
-              <Setter Property="FontSize" Value="16"/>
-              <Setter Property="Foreground" Value="White"/>
-              <Setter Property="Padding" Value="12"/>
-            </Style>
-            <Style Selector="Expander /template/ ToggleButton#PART_toggle:pointerover">
-              <Setter Property="Background" Value="#20FFFFFF"/>
-            </Style>
-          </Expander.Styles>
-
-          <Border Height="500" Margin="0,16,0,0" Background="#20FFFFFF" CornerRadius="12" Padding="12">
-            <ContentControl Content="{Binding FileManager}">
-              <ContentControl.ContentTemplate>
-                <DataTemplate>
-                  <views:FileManagerPanel/>
-                </DataTemplate>
-              </ContentControl.ContentTemplate>
-            </ContentControl>
-          </Border>
-        </Expander>
-      </Border>
 
     </Grid>
   </Panel>

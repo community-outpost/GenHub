@@ -401,6 +401,13 @@ public class ConfigurationProviderService(
         };
     }
 
+    /// <inheritdoc />
+    public GenHub.Core.Models.Content.CsvCatalogConfiguration? GetCsvCatalogConfiguration()
+    {
+        var settings = _userSettings.Get();
+        return settings.CsvCatalogConfiguration;
+    }
+
     /// <summary>
     /// Moves data that was written to the legacy roaming data root by GenHub releases up to v0.0.4
     /// into the current data and settings roots.

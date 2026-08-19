@@ -4,7 +4,13 @@
   "author": "Sample Project",
   "description": "A basic sample project demonstrating ModBuilder functionality",
   "directories": {
-    "config": "config",
-    "output": ".Release"
-  }
+    "configs": "config",
+    "gameFilesEdited": "GameFilesEdited",
+    "build": ".Build",
+    "release": ".Release"
+  },
+  "bundleConfigs": [
+    "ModBundleItems.json",
+    "ModBundlePacks.json"
+  ]
 }

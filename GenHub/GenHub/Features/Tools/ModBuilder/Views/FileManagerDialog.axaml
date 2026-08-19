@@ -1,0 +1,62 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:GenHub.Features.Tools.ModBuilder.ViewModels"
+        xmlns:views="using:GenHub.Features.Tools.ModBuilder.Views"
+        mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="750"
+        x:Class="GenHub.Features.Tools.ModBuilder.Views.FileManagerDialog"
+        x:DataType="vm:FileManagerViewModel"
+        Title="ModBuilder - Game Asset &amp; File Manager"
+        Width="1200" Height="750"
+        MinWidth="950" MinHeight="550"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource BackgroundPrimaryBrush}">
+
+  <Window.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="/Features/Tools/ModBuilder/Styles/ModBuilderStyles.axaml"/>
+        <ResourceInclude Source="/Features/Tools/ModBuilder/Styles/ModBuilderIcons.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Window.Resources>
+
+  <Grid RowDefinitions="Auto,*,Auto" Margin="{StaticResource PaddingLarge}">
+    <!-- Header -->
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+      <StackPanel Grid.Column="0" Spacing="{StaticResource SpacingSmall}">
+        <TextBlock Text="Game Asset &amp; File Manager"
+                   FontSize="{StaticResource FontSizeHeading2}"
+                   FontWeight="{StaticResource FontWeightSemiBold}"
+                   Foreground="{StaticResource TextPrimaryBrush}"/>
+        <TextBlock Text="Browse game installation files and import textures, INIs, and models into your project"
+                   FontSize="{StaticResource FontSizeNormal}"
+                   Foreground="{StaticResource TextSecondaryBrush}"/>
+      </StackPanel>
+
+      <Button Grid.Column="1" Click="OnCloseClicked" VerticalAlignment="Center" Padding="16,8" CornerRadius="8"
+              Background="#20FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <TextBlock Text="✖" FontSize="12" Foreground="White"/>
+          <TextBlock Text="Close" FontWeight="Medium" Foreground="White"/>
+        </StackPanel>
+      </Button>
+    </Grid>
+
+    <!-- Main Content Panel -->
+    <Border Grid.Row="1" Background="#15FFFFFF" CornerRadius="12" Padding="12" BorderBrush="#20FFFFFF" BorderThickness="1">
+      <views:FileManagerPanel/>
+    </Border>
+
+    <!-- Footer -->
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,12,0,0">
+      <TextBlock Grid.Column="0" Text="Select files from the left tree and click 'Add to Project' to copy them to GameFilesEdited"
+                 FontSize="{StaticResource FontSizeSmall}" Foreground="{StaticResource TextTertiaryBrush}" VerticalAlignment="Center"/>
+      <Button Grid.Column="1" Click="OnCloseClicked" MinWidth="100" Padding="16,8" CornerRadius="8"
+              Classes="Primary">
+        <TextBlock Text="Done"/>
+      </Button>
+    </Grid>
+  </Grid>
+</Window>

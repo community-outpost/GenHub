@@ -15,328 +15,340 @@
     </ResourceDictionary>
   </UserControl.Resources>
 
-  <Grid RowDefinitions="Auto,*" Margin="24">
+  <Panel>
+    <!-- Glassmorphic Deep Purple Background -->
+    <Border>
+      <Border.Background>
+        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+          <GradientStop Color="#0D0D14" Offset="0"/>
+          <GradientStop Color="#161226" Offset="0.5"/>
+          <GradientStop Color="#1A162B" Offset="1"/>
+        </LinearGradientBrush>
+      </Border.Background>
+    </Border>
 
-    <!-- Header -->
-    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,24">
+    <Grid RowDefinitions="Auto,*" Margin="24">
 
-      <!-- Title & Subtitle -->
-      <StackPanel Grid.Column="0">
-        <TextBlock Text="ModBuilder"
-                   FontSize="{StaticResource FontSizeHeading1}"
-                   FontWeight="{StaticResource FontWeightBold}"
-                   Foreground="{StaticResource TextPrimaryBrush}"/>
-        <TextBlock Text="C&amp;C Generals Zero Hour Mod Build System"
-                   FontSize="{StaticResource FontSizeMedium}"
-                   Foreground="{StaticResource TextSecondaryBrush}"
-                   Margin="0,4,0,0"/>
-      </StackPanel>
+      <!-- Header -->
+      <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,24">
 
-      <!-- Quick Actions -->
-      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
+        <!-- Title & Subtitle -->
+        <StackPanel Grid.Column="0">
+          <TextBlock Text="ModBuilder"
+                     FontSize="{StaticResource FontSizeHeading1}"
+                     FontWeight="{StaticResource FontWeightBold}"
+                     Foreground="{StaticResource TextPrimaryBrush}"/>
+          <TextBlock Text="C&amp;C Generals &amp; Zero Hour Mod Development Environment"
+                     FontSize="{StaticResource FontSizeMedium}"
+                     Foreground="{StaticResource TextSecondaryBrush}"
+                     Margin="0,4,0,0"/>
+        </StackPanel>
 
-        <Button Command="{Binding LoadSampleProjectCommand}"
-                Classes="Secondary"
-                Padding="16,12"
-                ToolTip.Tip="Load the bundled BasicMod sample project">
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <Path Width="18" Height="18"
-                  Fill="{StaticResource TextPrimaryBrush}"
-                  Data="{StaticResource IconArchiveFile}"/>
-            <TextBlock Text="Load Sample Project"/>
-          </StackPanel>
-        </Button>
+        <!-- Quick Actions -->
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
 
-        <Button Command="{Binding NewProjectCommand}"
-                Classes="Primary"
-                Padding="16,12">
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <Path Width="18" Height="18"
-                  Fill="{StaticResource TextPrimaryBrush}"
-                  Data="{StaticResource IconNewProject}"/>
-            <TextBlock Text="New Project"
-                       FontWeight="{StaticResource FontWeightSemiBold}"/>
-          </StackPanel>
-        </Button>
+          <Button Command="{Binding LoadSampleProjectCommand}"
+                  Classes="Secondary"
+                  Padding="16,12"
+                  ToolTip.Tip="Load the bundled BasicMod sample project">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Path Width="18" Height="18"
+                    Fill="{StaticResource TextPrimaryBrush}"
+                    Data="{StaticResource IconArchiveFile}"/>
+              <TextBlock Text="Load Sample Project"/>
+            </StackPanel>
+          </Button>
 
-        <Button Command="{Binding OpenProjectCommand}"
-                Classes="Secondary"
-                Padding="16,12">
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <Path Width="18" Height="18"
-                  Fill="{StaticResource TextPrimaryBrush}"
-                  Data="{StaticResource IconOpenFolder}"/>
-            <TextBlock Text="Open Project"/>
-          </StackPanel>
-        </Button>
+          <Button Command="{Binding NewProjectCommand}"
+                  Classes="Primary"
+                  Padding="16,12">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Path Width="18" Height="18"
+                    Fill="{StaticResource TextPrimaryBrush}"
+                    Data="{StaticResource IconNewProject}"/>
+              <TextBlock Text="New Project"
+                         FontWeight="{StaticResource FontWeightSemiBold}"/>
+            </StackPanel>
+          </Button>
 
-      </StackPanel>
+          <Button Command="{Binding OpenProjectCommand}"
+                  Classes="Secondary"
+                  Padding="16,12">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Path Width="18" Height="18"
+                    Fill="{StaticResource TextPrimaryBrush}"
+                    Data="{StaticResource IconOpenFolder}"/>
+              <TextBlock Text="Open Project"/>
+            </StackPanel>
+          </Button>
 
-    </Grid>
+        </StackPanel>
 
-    <!-- Main Content -->
-    <Grid Grid.Row="1" ColumnDefinitions="*,320">
+      </Grid>
 
-      <!-- Left: Recent Projects -->
-      <Border Grid.Column="0" Margin="0,0,16,0">
-        <Grid RowDefinitions="Auto,Auto,*">
+      <!-- Main Content -->
+      <Grid Grid.Row="1" ColumnDefinitions="*,320">
 
-          <!-- Section Header -->
-          <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
-            <TextBlock Grid.Column="0"
-                       Text="Recent Projects"
-                       FontSize="{StaticResource FontSizeLarge}"
-                       FontWeight="{StaticResource FontWeightSemiBold}"
-                       Foreground="{StaticResource TextPrimaryBrush}"/>
+        <!-- Left: Recent Projects -->
+        <Border Grid.Column="0" Margin="0,0,16,0">
+          <Grid RowDefinitions="Auto,Auto,*">
 
-            <TextBox Grid.Column="1"
-                     Width="240"
-                     Watermark="Search projects..."
-                     Text="{Binding SearchQuery}">
-              <TextBox.InnerLeftContent>
-                <Path Width="16" Height="16"
-                      Fill="{StaticResource TextTertiaryBrush}"
-                      Data="{StaticResource IconSearch}"
-                      Margin="8,0,0,0"/>
-              </TextBox.InnerLeftContent>
-            </TextBox>
-          </Grid>
-
-          <!-- Empty State -->
-          <Border Grid.Row="2"
-                  Background="{StaticResource BackgroundTertiaryBrush}"
-                  CornerRadius="{StaticResource CornerRadiusLarge}"
-                  Padding="{StaticResource PaddingXXLarge}"
-                  IsVisible="{Binding !HasRecentProjects}">
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
-              <Path Width="64" Height="64"
-                    Fill="{StaticResource TextTertiaryBrush}"
-                    Data="{StaticResource IconNewProject}"
-                    HorizontalAlignment="Center"/>
-              <TextBlock Text="No recent projects"
+            <!-- Section Header -->
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+              <TextBlock Grid.Column="0"
+                         Text="Recent &amp; Discovered Projects"
                          FontSize="{StaticResource FontSizeLarge}"
                          FontWeight="{StaticResource FontWeightSemiBold}"
-                         Foreground="{StaticResource TextSecondaryBrush}"
-                         HorizontalAlignment="Center"/>
-              <TextBlock Text="Create a new project or explore the bundled sample project to get started"
-                         FontSize="{StaticResource FontSizeNormal}"
-                         Foreground="{StaticResource TextTertiaryBrush}"
-                         HorizontalAlignment="Center"
-                         TextAlignment="Center"/>
-              <Button Command="{Binding LoadSampleProjectCommand}"
-                      Classes="Secondary"
-                      HorizontalAlignment="Center"
-                      Margin="0,8,0,0"
-                      Padding="16,10">
-                <StackPanel Orientation="Horizontal" Spacing="8">
+                         Foreground="{StaticResource TextPrimaryBrush}"/>
+
+              <TextBox Grid.Column="1"
+                       Width="240"
+                       Watermark="Search projects..."
+                       Text="{Binding SearchQuery}">
+                <TextBox.InnerLeftContent>
                   <Path Width="16" Height="16"
-                        Fill="{StaticResource TextPrimaryBrush}"
-                        Data="{StaticResource IconPackage}"/>
-                  <TextBlock Text="Explore BasicMod Sample"/>
-                </StackPanel>
-              </Button>
-            </StackPanel>
-          </Border>
+                        Fill="{StaticResource TextTertiaryBrush}"
+                        Data="{StaticResource IconSearch}"
+                        Margin="8,0,0,0"/>
+                </TextBox.InnerLeftContent>
+              </TextBox>
+            </Grid>
 
-          <!-- Recent Projects Grid -->
-          <ScrollViewer Grid.Row="2"
-                        VerticalScrollBarVisibility="Auto"
-                        IsVisible="{Binding HasRecentProjects}">
-            <ItemsControl ItemsSource="{Binding RecentProjects}">
-              <ItemsControl.ItemsPanel>
-                <ItemsPanelTemplate>
-                  <WrapPanel Orientation="Horizontal"/>
-                </ItemsPanelTemplate>
-              </ItemsControl.ItemsPanel>
+            <!-- Empty State -->
+            <Border Grid.Row="2"
+                    Background="{StaticResource BackgroundTertiaryBrush}"
+                    CornerRadius="{StaticResource CornerRadiusLarge}"
+                    Padding="{StaticResource PaddingXXLarge}"
+                    IsVisible="{Binding !HasRecentProjects}">
+              <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
+                <Path Width="64" Height="64"
+                      Fill="{StaticResource TextTertiaryBrush}"
+                      Data="{StaticResource IconNewProject}"
+                      HorizontalAlignment="Center"/>
+                <TextBlock Text="No projects found"
+                           FontSize="{StaticResource FontSizeLarge}"
+                           FontWeight="{StaticResource FontWeightSemiBold}"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           HorizontalAlignment="Center"/>
+                <TextBlock Text="Create a new project or explore the bundled sample project to get started"
+                           FontSize="{StaticResource FontSizeNormal}"
+                           Foreground="{StaticResource TextTertiaryBrush}"
+                           HorizontalAlignment="Center"
+                           TextAlignment="Center"/>
+                <Button Command="{Binding LoadSampleProjectCommand}"
+                        Classes="Secondary"
+                        HorizontalAlignment="Center"
+                        Margin="0,8,0,0"
+                        Padding="16,10">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Path Width="16" Height="16"
+                          Fill="{StaticResource TextPrimaryBrush}"
+                          Data="{StaticResource IconPackage}"/>
+                    <TextBlock Text="Explore BasicMod Sample"/>
+                  </StackPanel>
+                </Button>
+              </StackPanel>
+            </Border>
 
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <!-- Project Card (Simplified for string paths) -->
-                  <Button Background="Transparent" BorderThickness="0" Padding="0" Margin="0,0,16,16"
-                          Command="{Binding $parent[UserControl].((vm:ModBuilderViewModel)DataContext).OpenRecentProjectCommand}"
-                          CommandParameter="{Binding}">
-                    <Border Width="280" Height="160"
-                            Background="{StaticResource BackgroundElevatedBrush}"
-                            BorderBrush="{StaticResource BorderBrush}"
-                            BorderThickness="{StaticResource BorderThicknessThin}"
-                            CornerRadius="{StaticResource CornerRadiusLarge}"
-                            Padding="{StaticResource PaddingMedium}"
-                            BoxShadow="{StaticResource ShadowNormal}"
-                            Cursor="Hand">
+            <!-- Recent Projects Grid -->
+            <ScrollViewer Grid.Row="2"
+                          VerticalScrollBarVisibility="Auto"
+                          IsVisible="{Binding HasRecentProjects}">
+              <ItemsControl ItemsSource="{Binding RecentProjects}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal"/>
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
 
-                      <Border.Styles>
-                        <Style Selector="Border:pointerover">
-                          <Setter Property="BorderBrush" Value="{StaticResource AccentPrimaryBrush}"/>
-                          <Setter Property="BoxShadow" Value="{StaticResource GlowAccent}"/>
-                        </Style>
-                      </Border.Styles>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <!-- Project Card -->
+                    <Button Background="Transparent" BorderThickness="0" Padding="0" Margin="0,0,16,16"
+                            Command="{Binding $parent[UserControl].((vm:ModBuilderViewModel)DataContext).OpenRecentProjectCommand}"
+                            CommandParameter="{Binding}">
+                      <Border Width="280" Height="160"
+                              Background="{StaticResource BackgroundElevatedBrush}"
+                              BorderBrush="{StaticResource BorderBrush}"
+                              BorderThickness="{StaticResource BorderThicknessThin}"
+                              CornerRadius="{StaticResource CornerRadiusLarge}"
+                              Padding="{StaticResource PaddingMedium}"
+                              BoxShadow="{StaticResource ShadowNormal}"
+                              Cursor="Hand">
 
-                      <Grid RowDefinitions="Auto,*,Auto">
+                        <Border.Styles>
+                          <Style Selector="Border:pointerover">
+                            <Setter Property="BorderBrush" Value="{StaticResource AccentPrimaryBrush}"/>
+                            <Setter Property="BoxShadow" Value="{StaticResource GlowAccent}"/>
+                          </Style>
+                        </Border.Styles>
 
-                        <!-- Project Name (from file path) -->
-                        <TextBlock Grid.Row="0"
-                                   Text="{Binding}"
-                                   FontSize="{StaticResource FontSizeLarge}"
-                                   FontWeight="{StaticResource FontWeightSemiBold}"
-                                   Foreground="{StaticResource TextPrimaryBrush}"
-                                   TextTrimming="CharacterEllipsis"
-                                   ToolTip.Tip="{Binding}"/>
+                        <Grid RowDefinitions="Auto,*,Auto">
 
-                        <!-- Project Info -->
-                        <StackPanel Grid.Row="1" Spacing="8" Margin="0,12,0,0">
-
-                          <Grid ColumnDefinitions="Auto,*">
-                            <Path Grid.Column="0"
-                                  Width="14" Height="14"
-                                  Fill="{StaticResource TextTertiaryBrush}"
-                                  Data="{StaticResource IconOpenFolder}"
-                                  VerticalAlignment="Center"
-                                  Margin="0,0,8,0"/>
-                            <TextBlock Grid.Column="1"
-                                       Text="ModBuilder Project"
-                                       FontSize="{StaticResource FontSizeSmall}"
-                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                       VerticalAlignment="Center"/>
-                          </Grid>
-
-                        </StackPanel>
-
-                        <!-- Path Display -->
-                        <Border Grid.Row="2"
-                                Background="{StaticResource SurfaceBrush}"
-                                CornerRadius="{StaticResource CornerRadiusSmall}"
-                                Padding="{StaticResource PaddingSmall}">
-                          <TextBlock Text="{Binding}"
-                                     FontSize="{StaticResource FontSizeXSmall}"
-                                     Foreground="{StaticResource TextTertiaryBrush}"
+                          <!-- Project Name (from file path) -->
+                          <TextBlock Grid.Row="0"
+                                     Text="{Binding}"
+                                     FontSize="{StaticResource FontSizeLarge}"
+                                     FontWeight="{StaticResource FontWeightSemiBold}"
+                                     Foreground="{StaticResource TextPrimaryBrush}"
                                      TextTrimming="CharacterEllipsis"
                                      ToolTip.Tip="{Binding}"/>
-                        </Border>
 
-                      </Grid>
+                          <!-- Project Info -->
+                          <StackPanel Grid.Row="1" Spacing="8" Margin="0,12,0,0">
 
+                            <Grid ColumnDefinitions="Auto,*">
+                              <Path Grid.Column="0"
+                                    Width="14" Height="14"
+                                    Fill="{StaticResource TextTertiaryBrush}"
+                                    Data="{StaticResource IconOpenFolder}"
+                                    VerticalAlignment="Center"
+                                    Margin="0,0,8,0"/>
+                              <TextBlock Grid.Column="1"
+                                         Text="ModBuilder Project"
+                                         FontSize="{StaticResource FontSizeSmall}"
+                                         Foreground="{StaticResource TextSecondaryBrush}"
+                                         VerticalAlignment="Center"/>
+                            </Grid>
+
+                          </StackPanel>
+
+                          <!-- Path Display -->
+                          <Border Grid.Row="2"
+                                  Background="{StaticResource SurfaceBrush}"
+                                  CornerRadius="{StaticResource CornerRadiusSmall}"
+                                  Padding="{StaticResource PaddingSmall}">
+                            <TextBlock Text="{Binding}"
+                                       FontSize="{StaticResource FontSizeXSmall}"
+                                       Foreground="{StaticResource TextTertiaryBrush}"
+                                       TextTrimming="CharacterEllipsis"
+                                       ToolTip.Tip="{Binding}"/>
+                          </Border>
+
+                        </Grid>
+
+                      </Border>
+                    </Button>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+
+              </ItemsControl>
+            </ScrollViewer>
+
+          </Grid>
+        </Border>
+
+        <!-- Right: Statistics & Info -->
+        <Border Grid.Column="1"
+                Background="{StaticResource BackgroundTertiaryBrush}"
+                CornerRadius="{StaticResource CornerRadiusLarge}"
+                Padding="{StaticResource PaddingMedium}">
+
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="20">
+
+              <!-- Statistics -->
+              <StackPanel Spacing="12">
+                <TextBlock Text="Statistics"
+                           FontSize="{StaticResource FontSizeLarge}"
+                           FontWeight="{StaticResource FontWeightSemiBold}"
+                           Foreground="{StaticResource TextPrimaryBrush}"/>
+
+                <!-- Total Projects -->
+                <Border Background="{StaticResource SurfaceBrush}"
+                        CornerRadius="{StaticResource CornerRadiusMedium}"
+                        Padding="{StaticResource PaddingMedium}">
+                  <Grid ColumnDefinitions="Auto,*">
+                    <Border Grid.Column="0"
+                            Width="40" Height="40"
+                            Background="#207C4DFF"
+                            CornerRadius="{StaticResource CornerRadiusSmall}"
+                            Margin="0,0,12,0">
+                      <Path Width="24" Height="24"
+                            Fill="{StaticResource AccentPrimaryBrush}"
+                            Data="{StaticResource IconNewProject}"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"/>
                     </Border>
-                  </Button>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding TotalProjects}"
+                                 FontSize="{StaticResource FontSizeHeading2}"
+                                 FontWeight="{StaticResource FontWeightBold}"
+                                 Foreground="{StaticResource TextPrimaryBrush}"/>
+                      <TextBlock Text="Available Projects"
+                                 FontSize="{StaticResource FontSizeSmall}"
+                                 Foreground="{StaticResource TextSecondaryBrush}"/>
+                    </StackPanel>
+                  </Grid>
+                </Border>
 
-            </ItemsControl>
+                <!-- Total Builds -->
+                <Border Background="{StaticResource SurfaceBrush}"
+                        CornerRadius="{StaticResource CornerRadiusMedium}"
+                        Padding="{StaticResource PaddingMedium}">
+                  <Grid ColumnDefinitions="Auto,*">
+                    <Border Grid.Column="0"
+                            Width="40" Height="40"
+                            Background="#1A00E676"
+                            CornerRadius="{StaticResource CornerRadiusSmall}"
+                            Margin="0,0,12,0">
+                      <Path Width="24" Height="24"
+                            Fill="{StaticResource SuccessBrush}"
+                            Data="{StaticResource IconPlay}"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding TotalBuilds}"
+                                 FontSize="{StaticResource FontSizeHeading2}"
+                                 FontWeight="{StaticResource FontWeightBold}"
+                                 Foreground="{StaticResource TextPrimaryBrush}"/>
+                      <TextBlock Text="Total Builds"
+                                 FontSize="{StaticResource FontSizeSmall}"
+                                 Foreground="{StaticResource TextSecondaryBrush}"/>
+                    </StackPanel>
+                  </Grid>
+                </Border>
+
+              </StackPanel>
+
+              <Separator Background="{StaticResource BorderBrush}"/>
+
+              <!-- Getting Started -->
+              <StackPanel Spacing="12">
+                <TextBlock Text="Getting Started"
+                           FontSize="{StaticResource FontSizeLarge}"
+                           FontWeight="{StaticResource FontWeightSemiBold}"
+                           Foreground="{StaticResource TextPrimaryBrush}"/>
+
+                <Border Background="{StaticResource SurfaceBrush}"
+                        CornerRadius="{StaticResource CornerRadiusMedium}"
+                        Padding="{StaticResource PaddingMedium}">
+                  <StackPanel Spacing="8">
+                    <TextBlock Text="1. Create or open a project"
+                               FontSize="{StaticResource FontSizeNormal}"
+                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                    <TextBlock Text="2. Manage assets in File Manager"
+                               FontSize="{StaticResource FontSizeNormal}"
+                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                    <TextBlock Text="3. Configure bundle packs"
+                               FontSize="{StaticResource FontSizeNormal}"
+                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                    <TextBlock Text="4. Execute build"
+                               FontSize="{StaticResource FontSizeNormal}"
+                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                  </StackPanel>
+                </Border>
+
+              </StackPanel>
+
+            </StackPanel>
           </ScrollViewer>
 
-        </Grid>
-      </Border>
+        </Border>
 
-      <!-- Right: Statistics & Info -->
-      <Border Grid.Column="1"
-              Background="{StaticResource BackgroundTertiaryBrush}"
-              CornerRadius="{StaticResource CornerRadiusLarge}"
-              Padding="{StaticResource PaddingMedium}">
-
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel Spacing="20">
-
-            <!-- Statistics -->
-            <StackPanel Spacing="12">
-              <TextBlock Text="Statistics"
-                         FontSize="{StaticResource FontSizeLarge}"
-                         FontWeight="{StaticResource FontWeightSemiBold}"
-                         Foreground="{StaticResource TextPrimaryBrush}"/>
-
-              <!-- Total Projects -->
-              <Border Background="{StaticResource SurfaceBrush}"
-                      CornerRadius="{StaticResource CornerRadiusMedium}"
-                      Padding="{StaticResource PaddingMedium}">
-                <Grid ColumnDefinitions="Auto,*">
-                  <Border Grid.Column="0"
-                          Width="40" Height="40"
-                          Background="#1A00D9FF"
-                          CornerRadius="{StaticResource CornerRadiusSmall}"
-                          Margin="0,0,12,0">
-                    <Path Width="24" Height="24"
-                          Fill="{StaticResource AccentPrimaryBrush}"
-                          Data="{StaticResource IconNewProject}"
-                          HorizontalAlignment="Center"
-                          VerticalAlignment="Center"/>
-                  </Border>
-                  <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding TotalProjects}"
-                               FontSize="{StaticResource FontSizeHeading2}"
-                               FontWeight="{StaticResource FontWeightBold}"
-                               Foreground="{StaticResource TextPrimaryBrush}"/>
-                    <TextBlock Text="Total Projects"
-                               FontSize="{StaticResource FontSizeSmall}"
-                               Foreground="{StaticResource TextSecondaryBrush}"/>
-                  </StackPanel>
-                </Grid>
-              </Border>
-
-              <!-- Total Builds -->
-              <Border Background="{StaticResource SurfaceBrush}"
-                      CornerRadius="{StaticResource CornerRadiusMedium}"
-                      Padding="{StaticResource PaddingMedium}">
-                <Grid ColumnDefinitions="Auto,*">
-                  <Border Grid.Column="0"
-                          Width="40" Height="40"
-                          Background="#1A00E676"
-                          CornerRadius="{StaticResource CornerRadiusSmall}"
-                          Margin="0,0,12,0">
-                    <Path Width="24" Height="24"
-                          Fill="{StaticResource SuccessBrush}"
-                          Data="{StaticResource IconPlay}"
-                          HorizontalAlignment="Center"
-                          VerticalAlignment="Center"/>
-                  </Border>
-                  <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding TotalBuilds}"
-                               FontSize="{StaticResource FontSizeHeading2}"
-                               FontWeight="{StaticResource FontWeightBold}"
-                               Foreground="{StaticResource TextPrimaryBrush}"/>
-                    <TextBlock Text="Total Builds"
-                               FontSize="{StaticResource FontSizeSmall}"
-                               Foreground="{StaticResource TextSecondaryBrush}"/>
-                  </StackPanel>
-                </Grid>
-              </Border>
-
-            </StackPanel>
-
-            <Separator Background="{StaticResource BorderBrush}"/>
-
-            <!-- Getting Started -->
-            <StackPanel Spacing="12">
-              <TextBlock Text="Getting Started"
-                         FontSize="{StaticResource FontSizeLarge}"
-                         FontWeight="{StaticResource FontWeightSemiBold}"
-                         Foreground="{StaticResource TextPrimaryBrush}"/>
-
-              <Border Background="{StaticResource SurfaceBrush}"
-                      CornerRadius="{StaticResource CornerRadiusMedium}"
-                      Padding="{StaticResource PaddingMedium}">
-                <StackPanel Spacing="8">
-                  <TextBlock Text="1. Create or open a project"
-                             FontSize="{StaticResource FontSizeNormal}"
-                             Foreground="{StaticResource TextSecondaryBrush}"/>
-                  <TextBlock Text="2. Configure bundle packs"
-                             FontSize="{StaticResource FontSizeNormal}"
-                             Foreground="{StaticResource TextSecondaryBrush}"/>
-                  <TextBlock Text="3. Select build actions"
-                             FontSize="{StaticResource FontSizeNormal}"
-                             Foreground="{StaticResource TextSecondaryBrush}"/>
-                  <TextBlock Text="4. Execute build"
-                             FontSize="{StaticResource FontSizeNormal}"
-                             Foreground="{StaticResource TextSecondaryBrush}"/>
-                </StackPanel>
-              </Border>
-
-            </StackPanel>
-
-          </StackPanel>
-        </ScrollViewer>
-
-      </Border>
+      </Grid>
 
     </Grid>
-
-  </Grid>
-
+  </Panel>
 </UserControl>
