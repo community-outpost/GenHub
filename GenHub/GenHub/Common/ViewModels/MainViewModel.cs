@@ -445,7 +445,7 @@ public partial class MainViewModel(
             notificationService.ShowError(
                 AppUpdateConstants.UpdateFailedNotificationTitle,
                 string.Format(AppUpdateConstants.UpdateFailedNotificationFormat, ex.Message),
-                autoDismissMilliseconds: 5000);
+                autoDismissMs: 5000);
         }
     }
 
