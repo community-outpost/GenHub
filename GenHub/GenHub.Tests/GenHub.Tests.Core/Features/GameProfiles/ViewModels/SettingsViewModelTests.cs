@@ -216,22 +216,7 @@ public class SettingsViewModelTests
         _mockConfigService.Setup(x => x.Get()).Returns(customSettings);
 
         // Act
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockSubscriptionStore.Object,
-            _mockCatalogRefreshService.Object,
-            _mockGitHubApiClient.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object);
+        var viewModel = CreateViewModel();
 
         // Assert
         Assert.False(viewModel.AutoCheckForUpdatesPeriodically);
@@ -246,26 +231,9 @@ public class SettingsViewModelTests
     public async Task SaveSettingsCommand_UpdatesPeriodicUpdateSettingsAsync()
     {
         // Arrange
-        var viewModel = new SettingsViewModel(
-            _mockConfigService.Object,
-            _mockLogger.Object,
-            _mockCasService.Object,
-            _mockProfileManager.Object,
-            _mockWorkspaceManager.Object,
-            _mockManifestPool.Object,
-            _mockUpdateManager.Object,
-            _mockSubscriptionStore.Object,
-            _mockCatalogRefreshService.Object,
-            _mockGitHubApiClient.Object,
-            _mockNotificationService.Object,
-            _mockConfigurationProvider.Object,
-            _mockInstallationService.Object,
-            _mockStorageLocationService.Object,
-            _mockUserDataTracker.Object)
-        {
-            AutoCheckForUpdatesPeriodically = false,
-            PeriodicUpdateCheckIntervalMinutes = 45,
-        };
+        var viewModel = CreateViewModel();
+        viewModel.AutoCheckForUpdatesPeriodically = false;
+        viewModel.PeriodicUpdateCheckIntervalMinutes = 45;
 
         UserSettings? capturedSettings = null;
         _mockConfigService.Setup(x => x.Update(It.IsAny<Action<UserSettings>>()))
@@ -754,6 +722,9 @@ public class SettingsViewModelTests
         _mockWorkspaceManager.Object,
         _mockManifestPool.Object,
         _mockUpdateManager.Object,
+        _mockSubscriptionStore.Object,
+        _mockCatalogRefreshService.Object,
+        _mockGitHubApiClient.Object,
         _mockNotificationService.Object,
         _mockConfigurationProvider.Object,
         _mockInstallationService.Object,
