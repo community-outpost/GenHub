@@ -1,14 +1,16 @@
 using System;
 using System.IO;
+using System.Runtime.Versioning;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using Microsoft.Win32;
 
 namespace GenHub.Features.Content.Services.GeneralsOnline;
 
 /// <summary>
-/// Precondition that checks whether Easy Anti-Cheat EOS service is already installed on Windows.
+/// Precondition that checks whether Easy Anti-Cheat EOS product ID is already registered in the Windows registry.
 /// </summary>
 public class EasyAntiCheatPrecondition : IInstallationStepPrecondition
 {
@@ -37,26 +39,33 @@ public class EasyAntiCheatPrecondition : IInstallationStepPrecondition
             return false;
         }
 
+        return IsProductRegisteredOnWindows(step);
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static bool IsProductRegisteredOnWindows(InstallationStep step)
+    {
         try
         {
-            var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-            if (!string.IsNullOrEmpty(programFilesX86))
+            var productId = step.Arguments is { Count: > 1 }
+                ? step.Arguments[1]
+                : GeneralsOnlineConstants.EacProductId;
+
+            if (string.IsNullOrWhiteSpace(productId))
             {
-                var serviceExe = Path.Combine(programFilesX86, "EasyAntiCheat_EOS", "EasyAntiCheat_EOS.exe");
-                if (File.Exists(serviceExe))
-                {
-                    return true;
-                }
+                return false;
             }
 
-            var commonProgramFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.CommonProgramFilesX86);
-            if (!string.IsNullOrEmpty(commonProgramFilesX86))
+            using var key32 = Registry.LocalMachine.OpenSubKey($@"SOFTWARE\WOW6432Node\EasyAntiCheat_EOS\{productId}");
+            if (key32 != null)
             {
-                var commonExe = Path.Combine(commonProgramFilesX86, "EasyAntiCheat", "EasyAntiCheat_EOS.exe");
-                if (File.Exists(commonExe))
-                {
-                    return true;
-                }
+                return true;
+            }
+
+            using var key64 = Registry.LocalMachine.OpenSubKey($@"SOFTWARE\EasyAntiCheat_EOS\{productId}");
+            if (key64 != null)
+            {
+                return true;
             }
         }
         catch
