@@ -37,15 +37,11 @@ public partial class NotificationItemViewModel : ViewModelBase, IDisposable
     /// </summary>
     public NotificationType Type { get; }
 
-    /// <summary>
-    /// Gets the notification title.
-    /// </summary>
-    public string Title { get; }
+    [ObservableProperty]
+    private string _title = string.Empty;
 
-    /// <summary>
-    /// Gets the notification message.
-    /// </summary>
-    public string Message { get; }
+    [ObservableProperty]
+    private string _message = string.Empty;
 
     /// <summary>
     /// Gets the timestamp when the notification was created.
@@ -118,8 +114,8 @@ public partial class NotificationItemViewModel : ViewModelBase, IDisposable
 
         Id = notification.Id;
         Type = notification.Type;
-        Title = notification.Title;
-        Message = notification.Message;
+        _title = notification.Title;
+        _message = notification.Message;
         Timestamp = notification.Timestamp;
         IsActionable = notification.IsActionable;
         _isVisible = false;

@@ -265,8 +265,8 @@ public partial class MainViewModel(
                             actions:
                             [
                                 new NotificationAction(
-                                    AppUpdateConstants.ViewUpdatesAction,
-                                    () => SettingsViewModel.OpenUpdateWindowCommand.Execute(null),
+                                    AppUpdateConstants.UpdateAction,
+                                    () => _ = PerformOneClickUpdateAsync(artifactUpdate, null, null),
                                     NotificationActionStyle.Primary,
                                     dismissOnExecute: true),
                             ],
@@ -304,8 +304,8 @@ public partial class MainViewModel(
                             actions:
                             [
                                 new NotificationAction(
-                                    AppUpdateConstants.ViewUpdatesAction,
-                                    () => SettingsViewModel.OpenUpdateWindowCommand.Execute(null),
+                                    AppUpdateConstants.UpdateAction,
+                                    () => _ = PerformOneClickUpdateAsync(artifactUpdate, null, null),
                                     NotificationActionStyle.Primary,
                                     dismissOnExecute: true),
                             ],
@@ -336,8 +336,8 @@ public partial class MainViewModel(
                         actions:
                         [
                             new NotificationAction(
-                                AppUpdateConstants.ViewUpdatesAction,
-                                () => SettingsViewModel.OpenUpdateWindowCommand.Execute(null),
+                                AppUpdateConstants.UpdateAction,
+                                () => _ = PerformOneClickUpdateAsync(null, updateInfo, null),
                                 NotificationActionStyle.Primary,
                                 dismissOnExecute: true),
                         ],
@@ -361,8 +361,8 @@ public partial class MainViewModel(
                         actions:
                         [
                             new NotificationAction(
-                                AppUpdateConstants.ViewUpdatesAction,
-                                () => SettingsViewModel.OpenUpdateWindowCommand.Execute(null),
+                                AppUpdateConstants.UpdateAction,
+                                () => _ = PerformOneClickUpdateAsync(null, null, githubVersion),
                                 NotificationActionStyle.Primary,
                                 dismissOnExecute: true),
                         ],
@@ -374,6 +374,77 @@ public partial class MainViewModel(
         catch (Exception ex)
         {
             logger?.LogError(ex, "Exception in CheckForUpdatesAsync");
+        }
+    }
+
+    private async Task PerformOneClickUpdateAsync(
+        ArtifactUpdateInfo? artifactUpdate,
+        UpdateInfo? updateInfo,
+        string? githubVersion)
+    {
+        var progressNotificationId = Guid.NewGuid();
+
+        // show the progress notification immediately
+        await Dispatcher.UIThread.InvokeAsync(() => notificationService.Show(new NotificationMessage(
+            NotificationType.Info,
+            AppUpdateConstants.UpdatingAppNotificationTitle,
+            AppUpdateConstants.UpdateStartingMessage,
+            autoDismissMilliseconds: null,
+            isPersistent: false,
+            showInBadge: false)
+        {
+            Id = progressNotificationId,
+        }));
+
+        var progress = new Progress<UpdateProgress>(p =>
+        {
+            var statusText = !string.IsNullOrWhiteSpace(p.Message)
+                ? p.Message
+                : (!string.IsNullOrWhiteSpace(p.Status) ? p.Status : $"{p.PercentComplete}%");
+
+            notificationService.Update(
+                progressNotificationId,
+                statusText,
+                AppUpdateConstants.UpdatingAppNotificationTitle);
+        });
+
+        try
+        {
+            if (artifactUpdate != null)
+            {
+                logger?.LogInformation("Starting one-click artifact install: {Version}", artifactUpdate.DisplayVersion);
+                await velopackUpdateManager.InstallArtifactAsync(artifactUpdate, progress, _initializationCts.Token);
+                notificationService.Update(
+                    progressNotificationId,
+                    AppUpdateConstants.UpdateCompleteRestartingMessage,
+                    AppUpdateConstants.UpdatingAppNotificationTitle);
+            }
+            else if (updateInfo != null)
+            {
+                logger?.LogInformation("Starting one-click release update: {Version}", updateInfo.TargetFullRelease.Version);
+                await velopackUpdateManager.DownloadUpdatesAsync(updateInfo, progress, _initializationCts.Token);
+                notificationService.Update(
+                    progressNotificationId,
+                    AppUpdateConstants.UpdateDownloadedRestartingMessage,
+                    AppUpdateConstants.UpdatingAppNotificationTitle);
+                velopackUpdateManager.ApplyUpdatesAndRestart(updateInfo);
+            }
+            else if (!string.IsNullOrWhiteSpace(githubVersion))
+            {
+                // if update info is unavailable (e.g., debug mode), open update window
+                logger?.LogInformation("GitHub API update detected without Velopack package; opening update window");
+                notificationService.Dismiss(progressNotificationId);
+                await Dispatcher.UIThread.InvokeAsync(() => SettingsViewModel.OpenUpdateWindowCommand.Execute(null));
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to perform one-click update");
+            notificationService.Dismiss(progressNotificationId);
+            notificationService.ShowError(
+                AppUpdateConstants.UpdateFailedNotificationTitle,
+                ex.Message,
+                NotificationConstants.DefaultAutoDismissMs);
         }
     }
 

@@ -20,6 +20,7 @@ public class NotificationManagerViewModel : ViewModelBase, IDisposable
     private readonly IDisposable _notificationSubscription;
     private readonly IDisposable _dismissSubscription;
     private readonly IDisposable _dismissAllSubscription;
+    private readonly IDisposable _updateSubscription;
     private readonly object _lock = new();
     private bool _disposed;
 
@@ -48,6 +49,7 @@ public class NotificationManagerViewModel : ViewModelBase, IDisposable
         _notificationSubscription = _notificationService.Notifications.Subscribe(HandleNotificationReceived);
         _dismissSubscription = _notificationService.DismissRequests.Subscribe(HandleDismissRequest);
         _dismissAllSubscription = _notificationService.DismissAllRequests.Subscribe(_ => HandleDismissAllRequest());
+        _updateSubscription = _notificationService.UpdateRequests.Subscribe(HandleUpdateRequest);
 
         _logger.LogInformation("NotificationManagerViewModel initialized");
     }
@@ -133,6 +135,7 @@ public class NotificationManagerViewModel : ViewModelBase, IDisposable
         _notificationSubscription?.Dispose();
         _dismissSubscription?.Dispose();
         _dismissAllSubscription?.Dispose();
+        _updateSubscription?.Dispose();
 
         foreach (var notification in ActiveNotifications)
         {
@@ -155,6 +158,37 @@ public class NotificationManagerViewModel : ViewModelBase, IDisposable
     {
         _logger.LogDebug("Dismiss request received for notification {NotificationId}", notificationId);
         RemoveNotification(notificationId);
+    }
+
+    private void HandleUpdateRequest((Guid Id, string? Title, string Message) update)
+    {
+        _logger.LogDebug("Update request received for notification {NotificationId}", update.Id);
+        Dispatcher.UIThread.InvokeAsync(
+            () =>
+            {
+                try
+                {
+                    lock (_lock)
+                    {
+                        var notification = ActiveNotifications.FirstOrDefault(n => n.Id == update.Id);
+                        if (notification != null)
+                        {
+                            if (!string.IsNullOrEmpty(update.Title))
+                            {
+                                notification.Title = update.Title;
+                            }
+
+                            notification.Message = update.Message;
+                            _logger.LogDebug("Updated notification {NotificationId} message: {Message}", update.Id, update.Message);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error updating notification {NotificationId}", update.Id);
+                }
+            },
+            DispatcherPriority.Send);
     }
 
     private void HandleDismissAllRequest()

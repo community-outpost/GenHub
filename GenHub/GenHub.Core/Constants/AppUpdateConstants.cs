@@ -184,6 +184,26 @@ public static class AppUpdateConstants
     public const string PrUpdateAvailableNotificationTitle = "PR Update Available";
 
     /// <summary>
+    /// Update action button text.
+    /// </summary>
+    public const string UpdateAction = "Update";
+
+    /// <summary>
+    /// Title for the update in progress notification.
+    /// </summary>
+    public const string UpdatingAppNotificationTitle = "Updating GenHub";
+
+    /// <summary>
+    /// Starting update progress message.
+    /// </summary>
+    public const string UpdateStartingMessage = "Starting update...";
+
+    /// <summary>
+    /// Title for update failed notification.
+    /// </summary>
+    public const string UpdateFailedNotificationTitle = "Update Failed";
+
+    /// <summary>
     /// View updates action button text.
     /// </summary>
     public const string ViewUpdatesAction = "View Updates";

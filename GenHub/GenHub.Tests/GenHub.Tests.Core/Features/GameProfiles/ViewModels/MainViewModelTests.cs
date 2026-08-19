@@ -264,6 +264,88 @@ public class MainViewModelTests
     }
 
     /// <summary>
+    /// Tests that background update check shows an update notification with update action and triggers progress notification on click.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeAsync_WhenArtifactUpdateAvailable_ShowsNotificationWithUpdateAction()
+    {
+        // Arrange
+        var (settingsVm, userSettingsMock) = CreateSettingsVm();
+        userSettingsMock.Setup(x => x.Get()).Returns(new UserSettings { SubscribedBranch = "main" });
+        var toolsVm = CreateToolsVm();
+        var configProvider = CreateConfigProviderMock();
+        var shownNotifications = new List<NotificationMessage>();
+        var notificationShownTcs = new TaskCompletionSource<NotificationMessage>();
+
+        var artifactInfo = new ArtifactUpdateInfo
+        {
+            Version = "99.0.0",
+            DisplayVersion = "v99.0.0",
+            DownloadUrl = "https://example.com/artifact.zip",
+            FileName = "genhub-velopack-linux-99.0.0.zip",
+            BranchName = "main",
+        };
+
+        var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
+        mockVelopackUpdateManager.Setup(x => x.CheckForArtifactUpdatesAsync(It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync(artifactInfo);
+
+        var mockLogger = new Mock<ILogger<MainViewModel>>();
+        var mockNotificationService = CreateNotificationServiceMock();
+        mockNotificationService.Setup(x => x.Show(It.IsAny<NotificationMessage>()))
+            .Callback<NotificationMessage>(msg =>
+            {
+                shownNotifications.Add(msg);
+                if (msg.Title == AppUpdateConstants.BranchUpdateAvailableNotificationTitle)
+                {
+                    notificationShownTcs.TrySetResult(msg);
+                }
+            });
+
+        var mockNotificationManager = new Mock<NotificationManagerViewModel>(
+            mockNotificationService.Object,
+            Mock.Of<ILogger<NotificationManagerViewModel>>(),
+            Mock.Of<ILogger<NotificationItemViewModel>>());
+        var notificationFeedVm = CreateNotificationFeedViewModel(mockNotificationService.Object);
+
+        var vm = new MainViewModel(
+            gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
+            downloadsViewModel: CreateDownloadsViewModel(configProvider),
+            toolsViewModel: toolsVm,
+            settingsViewModel: settingsVm,
+            notificationManager: mockNotificationManager.Object,
+            configurationProvider: configProvider,
+            userSettingsService: userSettingsMock.Object,
+            velopackUpdateManager: mockVelopackUpdateManager.Object,
+            notificationService: mockNotificationService.Object,
+            dialogService: new Mock<IDialogService>().Object,
+            notificationFeedViewModel: notificationFeedVm,
+            infoViewModel: CreateInfoViewModel(),
+            logger: mockLogger.Object);
+
+        // Act
+        await vm.InitializeAsync();
+        var updateNotification = await notificationShownTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Assert
+        Assert.NotNull(updateNotification);
+        Assert.Equal(AppUpdateConstants.BranchUpdateAvailableNotificationTitle, updateNotification.Title);
+        Assert.Single(updateNotification.Actions);
+        Assert.Equal(AppUpdateConstants.UpdateAction, updateNotification.Actions[0].Text);
+
+        // Act - simulate clicking the update action button
+        updateNotification.Actions[0].Callback?.Invoke();
+
+        // Allow background install task to trigger progress notification
+        await Task.Delay(100);
+
+        // Assert that progress notification was displayed
+        mockVelopackUpdateManager.Verify(x => x.InstallArtifactAsync(artifactInfo, It.IsAny<IProgress<UpdateProgress>>(), It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+        Assert.Contains(shownNotifications, n => n.Title == AppUpdateConstants.UpdatingAppNotificationTitle);
+    }
+
+    /// <summary>
     /// Tests that CurrentTabViewModel returns the correct ViewModel based on SelectedTab.
     /// </summary>
     /// <param name="tab">The tab to select.</param>
@@ -468,6 +550,7 @@ public class MainViewModelTests
         mock.Setup(x => x.NotificationHistory).Returns(Observable.Empty<NotificationMessage>());
         mock.Setup(x => x.DismissRequests).Returns(Observable.Empty<Guid>());
         mock.Setup(x => x.DismissAllRequests).Returns(Observable.Empty<bool>());
+        mock.Setup(x => x.UpdateRequests).Returns(Observable.Empty<(Guid Id, string? Title, string Message)>());
         return mock;
     }
 

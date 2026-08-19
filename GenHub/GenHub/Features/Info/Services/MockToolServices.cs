@@ -43,6 +43,7 @@ public class MockNotificationService : INotificationService
     private readonly Subject<Guid> _dismissRequests = new();
     private readonly Subject<bool> _dismissAllRequests = new();
     private readonly Subject<NotificationMessage> _notificationHistory = new();
+    private readonly Subject<(Guid Id, string? Title, string Message)> _updateRequests = new();
 
     /// <inheritdoc/>
     public IObservable<NotificationMessage> Notifications => _notifications.AsObservable();
@@ -55,6 +56,9 @@ public class MockNotificationService : INotificationService
 
     /// <inheritdoc/>
     public IObservable<NotificationMessage> NotificationHistory => _notificationHistory.AsObservable();
+
+    /// <inheritdoc/>
+    public IObservable<(Guid Id, string? Title, string Message)> UpdateRequests => _updateRequests.AsObservable();
 
     /// <inheritdoc/>
     public void Show(NotificationMessage notification) => _notifications.OnNext(notification);
@@ -74,6 +78,10 @@ public class MockNotificationService : INotificationService
     /// <inheritdoc/>
     public void ShowError(string title, string message, int? autoDismissMs = null, bool showInBadge = false)
         => Show(new NotificationMessage(NotificationType.Error, title, message, autoDismissMs, showInBadge: showInBadge));
+
+    /// <inheritdoc/>
+    public void Update(Guid notificationId, string message, string? title = null)
+        => _updateRequests.OnNext((notificationId, title, message));
 
     /// <inheritdoc/>
     public void Dismiss(Guid id) => _dismissRequests.OnNext(id);
