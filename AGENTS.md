@@ -95,7 +95,7 @@ This repository uses **GitNexus** to maintain an AST-parsed structural knowledge
 
 - **Coding Style Authority:** Follow `coding-style.md`.
 - **Primary Constructors:** Always use primary constructors for classes and records when dependencies are injected. Remove redundant private instance fields (e.g., `_logger = logger;`) and use constructor parameters directly in class members.
-- **Collection Types:** Prefer `IReadOnlyList<T>` / `IReadOnlyCollection<T>` over `IEnumerable<T>` for public properties and return types to ensure indexed access and avoid multi-pass LINQ enumeration.
+- **Collection Types:** Prefer `IReadOnlyList<T>` when callers need indexed access and known count, and `IReadOnlyCollection<T>` when only count and enumeration are needed. Avoid raw `IEnumerable<T>` for public properties and return types to prevent unintended deferred multiple enumerations; materialize eagerly (e.g., `.ToList()`, `.ToArray()`, or `ImmutableArray<T>`) when returning collections from services or queries.
 - **No `this.`:** Never qualify instance members with `this.`.
 - **Namespaces:** Always use file-scoped or top-level namespace declarations. Alphabetize all `using` directives at the very top of the file. Never use inline namespaces.
 - **Comment Casing:** Use standard sentence casing in comments. Never capitalize arbitrary words mid-comment.
@@ -158,4 +158,4 @@ This repository uses **GitNexus** to maintain an AST-parsed structural knowledge
 - Body: the problem in a sentence or two, then how you fixed it. End with the model and harness that did the work.
 - UI changes need before/after images. Motion or timing needs a short video.
 - One concern per PR. If the description says "also", split it.
-- When babysitting: poll checks and comments newer than the last push, verify each bot finding against the source, fix real ones, dismiss false positives with a written reason. Stay quiet when nothing is new. Stop when the bots are green on the latest commit.
+- When babysitting: poll checks and all bot comments (including inline review threads and summary 'Outside diff range' findings) newer than the last push. Verify each finding against the source, fix real ones, dismiss false positives with a written reason. Stay quiet when nothing is new. Stop when the bots are green on the latest commit with all threads resolved.
