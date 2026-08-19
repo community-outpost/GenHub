@@ -55,5 +55,6 @@ jobs:
         with:
           name: gitnexus-graph-${{ github.sha }}
           path: .gitnexus/
+          include-hidden-files: true
           if-no-files-found: warn
           retention-days: 14
