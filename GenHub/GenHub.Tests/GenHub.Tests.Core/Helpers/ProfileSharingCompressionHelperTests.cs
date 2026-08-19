@@ -34,7 +34,7 @@ public class ProfileSharingCompressionHelperTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task DecodeAndDecompressAsync_Should_Match_SynchronousResult()
+    public async Task DecodeAndDecompressAsync_Should_Match_SynchronousResultAsync()
     {
         // Arrange
         var originalText = "{\"name\":\"Shockwave Modded Profile\",\"description\":\"Full testing payload with custom parameters\"}";

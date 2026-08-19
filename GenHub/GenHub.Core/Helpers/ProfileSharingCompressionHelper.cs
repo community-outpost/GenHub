@@ -138,16 +138,13 @@ public static class ProfileSharingCompressionHelper
     {
         ArgumentNullException.ThrowIfNull(base64Url);
 
-        string incoming = base64Url.Replace('-', '+').Replace('_', '/');
-        switch (incoming.Length % 4)
+        string incoming = (base64Url.Length % 4) switch
         {
-            case 2:
-                incoming += "==";
-                break;
-            case 3:
-                incoming += "=";
-                break;
-        }
+            2 => base64Url.Replace('-', '+').Replace('_', '/') + "==",
+            3 => base64Url.Replace('-', '+').Replace('_', '/') + "=",
+            0 => base64Url.Replace('-', '+').Replace('_', '/'),
+            _ => throw new FormatException("Invalid Base64Url string length."),
+        };
 
         return Convert.FromBase64String(incoming);
     }

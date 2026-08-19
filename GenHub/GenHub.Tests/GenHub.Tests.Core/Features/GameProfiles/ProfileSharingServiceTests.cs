@@ -63,7 +63,7 @@ public class ProfileSharingServiceTests
     /// </summary>
     /// <returns>A task representing the test.</returns>
     [Fact]
-    public async Task ExportProfileToUriAsync_Should_ReturnValidUri_WhenProfileExists()
+    public async Task ExportProfileToUriAsync_Should_ReturnValidUri_WhenProfileExistsAsync()
     {
         // Arrange
         var profile = CreateTestProfile("profile-1", "Generals Online Ranked");
@@ -88,7 +88,7 @@ public class ProfileSharingServiceTests
     /// </summary>
     /// <returns>A task representing the test.</returns>
     [Fact]
-    public async Task ExportProfileToUriAsync_Should_ReturnFailure_WhenProfileDoesNotExist()
+    public async Task ExportProfileToUriAsync_Should_ReturnFailure_WhenProfileDoesNotExistAsync()
     {
         // Arrange
         _profileRepositoryMock.Setup(r => r.LoadProfileAsync("unknown", It.IsAny<CancellationToken>()))
@@ -107,7 +107,7 @@ public class ProfileSharingServiceTests
     /// </summary>
     /// <returns>A task representing the test.</returns>
     [Fact]
-    public async Task ExportProfileToFileAsync_Should_WriteJsonFile_Successfully()
+    public async Task ExportProfileToFileAsync_Should_WriteJsonFile_SuccessfullyAsync()
     {
         // Arrange
         var profile = CreateTestProfile("profile-file-1", "Shockwave Export");
@@ -141,7 +141,7 @@ public class ProfileSharingServiceTests
     /// </summary>
     /// <returns>A task representing the test.</returns>
     [Fact]
-    public async Task InspectSharedProfileAsync_Should_ItemizeDependenciesAndCheckInstallations()
+    public async Task InspectSharedProfileAsync_Should_ItemizeDependenciesAndCheckInstallationsAsync()
     {
         // Arrange
         var package = new SharedGameProfilePackage
@@ -222,7 +222,7 @@ public class ProfileSharingServiceTests
     /// </summary>
     /// <returns>A task representing the test.</returns>
     [Fact]
-    public async Task ImportSharedProfileAsync_Should_CreateAndSaveProfile()
+    public async Task ImportSharedProfileAsync_Should_CreateAndSaveProfileAsync()
     {
         // Arrange
         var package = new SharedGameProfilePackage

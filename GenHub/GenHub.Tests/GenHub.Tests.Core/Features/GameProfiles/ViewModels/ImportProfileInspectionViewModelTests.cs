@@ -91,7 +91,7 @@ public class ImportProfileInspectionViewModelTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ConfirmImportCommand_Should_InvokeImportAndCloseOnSuccess()
+    public async Task ConfirmImportCommand_Should_InvokeImportAndCloseOnSuccessAsync()
     {
         // Arrange
         var package = new SharedGameProfilePackage
@@ -162,7 +162,7 @@ public class ImportProfileInspectionViewModelTests
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task ConfirmImportCommand_Should_SetErrorMessage_WhenImportFails()
+    public async Task ConfirmImportCommand_Should_SetErrorMessage_WhenImportFailsAsync()
     {
         // Arrange
         var package = new SharedGameProfilePackage

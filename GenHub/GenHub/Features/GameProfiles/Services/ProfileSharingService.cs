@@ -176,13 +176,13 @@ public class ProfileSharingService(
                 return OperationResult<SharedProfileInspectionResult>.CreateFailure($"Invalid shared profile package format: {ex.Message}");
             }
 
-            if (package == null || package.Profile == null)
+            if (package?.Profile == null)
             {
                 return OperationResult<SharedProfileInspectionResult>.CreateFailure("Package does not contain valid profile metadata.");
             }
 
             // Sanitize launch arguments
-            var sanitizedArguments = ProfileSharingCompressionHelper.SanitizeCommandLineArguments(package.Profile.CommandLineArguments, out var securityWarnings);
+            _ = ProfileSharingCompressionHelper.SanitizeCommandLineArguments(package.Profile.CommandLineArguments, out var securityWarnings);
 
             // Itemize and diff manifests against local CAS/ManifestPool
             var inspectedManifests = new List<SharedManifestDependency>();
@@ -304,7 +304,7 @@ public class ProfileSharingService(
             }
 
             var package = request.Package;
-            if (package == null || package.Profile == null)
+            if (package?.Profile == null)
             {
                 return OperationResult<GameProfile>.CreateFailure("Invalid package in import request.");
             }
@@ -609,7 +609,7 @@ public class ProfileSharingService(
         try
         {
             // 1. Check if manifest has download files
-            if (dependency.Files != null && dependency.Files.Count > 0)
+            if (dependency.Files?.Count > 0)
             {
                 var stagingDir = Path.Combine(Path.GetTempPath(), "GenHub", "SharedImportStaging", dependency.ManifestId);
                 Directory.CreateDirectory(stagingDir);
@@ -770,20 +770,36 @@ public class ProfileSharingService(
 
     private void ApplySettingsOverridesToProfile(GameProfile profile, Dictionary<string, object?> overrides)
     {
+        ApplyVideoSettingsOverrides(profile, overrides);
+        ApplyAudioSettingsOverrides(profile, overrides);
+        ApplyTshSettingsOverrides(profile, overrides);
+        ApplyGoSettingsOverrides(profile, overrides);
+    }
+
+    private void ApplyVideoSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
+    {
         if (overrides.TryGetValue(nameof(profile.VideoResolutionWidth), out var widthObj) && widthObj is JsonElement widthElem && widthElem.TryGetInt32(out var width)) profile.VideoResolutionWidth = width;
         if (overrides.TryGetValue(nameof(profile.VideoResolutionHeight), out var heightObj) && heightObj is JsonElement heightElem && heightElem.TryGetInt32(out var height)) profile.VideoResolutionHeight = height;
         if (overrides.TryGetValue(nameof(profile.VideoWindowed), out var winObj) && winObj is JsonElement winElem) profile.VideoWindowed = winElem.GetBoolean();
+        if (overrides.TryGetValue(nameof(profile.EnableVideoShadows), out var shadowsObj) && shadowsObj is JsonElement shadowsElem) profile.EnableVideoShadows = shadowsElem.GetBoolean();
+    }
+
+    private void ApplyAudioSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
+    {
         if (overrides.TryGetValue(nameof(profile.AudioSoundVolume), out var soundObj) && soundObj is JsonElement soundElem && soundElem.TryGetInt32(out var sound)) profile.AudioSoundVolume = sound;
         if (overrides.TryGetValue(nameof(profile.AudioMusicVolume), out var musicObj) && musicObj is JsonElement musicElem && musicElem.TryGetInt32(out var music)) profile.AudioMusicVolume = music;
         if (overrides.TryGetValue(nameof(profile.AudioSpeechVolume), out var speechObj) && speechObj is JsonElement speechElem && speechElem.TryGetInt32(out var speech)) profile.AudioSpeechVolume = speech;
-        if (overrides.TryGetValue(nameof(profile.EnableVideoShadows), out var shadowsObj) && shadowsObj is JsonElement shadowsElem) profile.EnableVideoShadows = shadowsElem.GetBoolean();
+    }
 
-        // TSH settings
+    private void ApplyTshSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
+    {
         if (overrides.TryGetValue(nameof(profile.TshArchiveReplays), out var tshReplayObj) && tshReplayObj is JsonElement tshReplayElem) profile.TshArchiveReplays = tshReplayElem.GetBoolean();
         if (overrides.TryGetValue(nameof(profile.TshRenderFpsFontSize), out var tshFpsObj) && tshFpsObj is JsonElement tshFpsElem && tshFpsElem.TryGetInt32(out var fpsSize)) profile.TshRenderFpsFontSize = fpsSize;
         if (overrides.TryGetValue(nameof(profile.TshNetworkLatencyFontSize), out var tshLatObj) && tshLatObj is JsonElement tshLatElem && tshLatElem.TryGetInt32(out var latSize)) profile.TshNetworkLatencyFontSize = latSize;
+    }
 
-        // GO settings
+    private void ApplyGoSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
+    {
         if (overrides.TryGetValue(nameof(profile.GoShowFps), out var goFpsObj) && goFpsObj is JsonElement goFpsElem) profile.GoShowFps = goFpsElem.GetBoolean();
         if (overrides.TryGetValue(nameof(profile.GoShowPing), out var goPingObj) && goPingObj is JsonElement goPingElem) profile.GoShowPing = goPingElem.GetBoolean();
         if (overrides.TryGetValue(nameof(profile.GoShowPlayerRanks), out var goRanksObj) && goRanksObj is JsonElement goRanksElem) profile.GoShowPlayerRanks = goRanksElem.GetBoolean();

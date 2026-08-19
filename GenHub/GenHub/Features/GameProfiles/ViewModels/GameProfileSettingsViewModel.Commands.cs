@@ -395,7 +395,7 @@ public partial class GameProfileSettingsViewModel
                 enabledContentIds.Count,
                 string.Join(", ", enabledContentIds));
 
-            if (string.IsNullOrEmpty(_currentProfileId))
+            if (string.IsNullOrEmpty(CurrentProfileId))
             {
                 var createRequest = new CreateProfileRequest
                 {
@@ -444,7 +444,7 @@ public partial class GameProfileSettingsViewModel
                     ThemeColor = ColorValue,
                     GameInstallationId = SelectedGameInstallation?.SourceId,
 
-                    WorkspaceStrategy = _originalWorkspaceStrategy.HasValue && SelectedWorkspaceStrategy != _originalWorkspaceStrategy.Value
+                    WorkspaceStrategy = OriginalWorkspaceStrategy.HasValue && SelectedWorkspaceStrategy != OriginalWorkspaceStrategy.Value
                         ? SelectedWorkspaceStrategy
                         : null,
                     EnabledContentIds = enabledContentIds,
@@ -455,7 +455,7 @@ public partial class GameProfileSettingsViewModel
 
                 PopulateGameSettings(updateRequest, gameSettings);
 
-                var result = await _gameProfileManager.UpdateProfileAsync(_currentProfileId, updateRequest);
+                var result = await _gameProfileManager.UpdateProfileAsync(CurrentProfileId, updateRequest);
                 if (result.Success && result.Data != null)
                 {
                     if (GameSettingsViewModel.SaveSettingsCommand.CanExecute(null))
@@ -464,7 +464,7 @@ public partial class GameProfileSettingsViewModel
                     }
 
                     StatusMessage = "Profile updated successfully";
-                    _logger?.LogInformation("Updated profile {ProfileId} with {ContentCount} enabled content items", _currentProfileId, enabledContentIds.Count);
+                    _logger?.LogInformation("Updated profile {ProfileId} with {ContentCount} enabled content items", CurrentProfileId, enabledContentIds.Count);
 
                     WeakReferenceMessenger.Default.Send(new ProfileUpdatedMessage(result.Data));
 
@@ -473,7 +473,7 @@ public partial class GameProfileSettingsViewModel
                 else
                 {
                     StatusMessage = $"Failed to update profile: {string.Join(", ", result.Errors)}";
-                    _logger?.LogWarning("Failed to update profile {ProfileId}: {Errors}", _currentProfileId, string.Join(", ", result.Errors));
+                    _logger?.LogWarning("Failed to update profile {ProfileId}: {Errors}", CurrentProfileId, string.Join(", ", result.Errors));
                 }
             }
         }
@@ -896,7 +896,7 @@ public partial class GameProfileSettingsViewModel
     [RelayCommand]
     private async Task ShareProfileAsync()
     {
-        if (string.IsNullOrEmpty(_currentProfileId))
+        if (string.IsNullOrEmpty(CurrentProfileId))
         {
             _localNotificationService.ShowWarning("Cannot Share", "Please save the profile first before sharing.");
             return;
@@ -911,7 +911,7 @@ public partial class GameProfileSettingsViewModel
         try
         {
             StatusMessage = "Generating share package...";
-            var uriResult = await _profileSharingService.ExportProfileToUriAsync(_currentProfileId);
+            var uriResult = await _profileSharingService.ExportProfileToUriAsync(CurrentProfileId);
 
             if (!uriResult.Success || string.IsNullOrEmpty(uriResult.Data))
             {
@@ -919,7 +919,7 @@ public partial class GameProfileSettingsViewModel
                 return;
             }
 
-            var profileResult = await _gameProfileManager!.GetProfileAsync(_currentProfileId);
+            var profileResult = await _gameProfileManager!.GetProfileAsync(CurrentProfileId);
             if (!profileResult.Success || profileResult.Data == null)
             {
                 _localNotificationService.ShowError("Share Failed", "Failed to load profile details.");
@@ -927,7 +927,7 @@ public partial class GameProfileSettingsViewModel
             }
 
             var shareViewModel = new ShareProfileDialogViewModel(
-                _currentProfileId,
+                CurrentProfileId,
                 profileResult.Data,
                 uriResult.Data,
                 _profileSharingService,
@@ -952,7 +952,7 @@ public partial class GameProfileSettingsViewModel
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Failed to share profile {ProfileId}", _currentProfileId);
+            _logger?.LogError(ex, "Failed to share profile {ProfileId}", CurrentProfileId);
             _localNotificationService.ShowError("Share Error", $"An error occurred while preparing share: {ex.Message}");
         }
         finally

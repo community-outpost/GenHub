@@ -212,15 +212,16 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private readonly IProfileSharingService? _profileSharingService;
     private readonly ILogger<GameProfileSettingsViewModel>? _logger;
     private readonly ILogger<GameSettingsViewModel>? _gameSettingsLogger;
-
     private readonly NotificationService _localNotificationService = new(NullLogger<NotificationService>.Instance);
-    private WorkspaceStrategy? _originalWorkspaceStrategy;
-    private string? _currentProfileId;
 
     /// <summary>
     /// Gets a value indicating whether the current profile can be shared (i.e. is already saved and has an ID).
     /// </summary>
-    public bool CanShareProfile => !string.IsNullOrEmpty(_currentProfileId);
+    public bool CanShareProfile => !string.IsNullOrEmpty(CurrentProfileId);
+
+    private WorkspaceStrategy? OriginalWorkspaceStrategy { get; set; }
+
+    private string? CurrentProfileId { get; set; }
 
     /// <summary>
     /// Event triggered when the view model requests to close.
