@@ -2,7 +2,6 @@ name: GitNexus Graph Update & Cache
 
 permissions:
   contents: read
-  pull-requests: write
 
 on:
   push:
@@ -12,12 +11,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: >-
-    gitnexus-${{
-      github.event.pull_request.head.repo.full_name == github.repository
-        && github.event.pull_request.head.ref
-        || github.ref_name
-    }}
+  group: gitnexus-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -28,18 +22,19 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4
         with:
           node-version: 22
 
       - name: Cache GitNexus Graph
         id: cache-gitnexus
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: .gitnexus
           key: gitnexus-${{ runner.os }}-${{ github.sha }}
@@ -48,7 +43,7 @@ jobs:
 
       - name: Analyze Codebase
         run: |
-          npx -y gitnexus@1.6.9 analyze --force --index-only
+          npx -y gitnexus@1.6.9 analyze --index-only
           npx -y gitnexus@1.6.9 status
 
       - name: PR Impact Analysis
@@ -64,7 +59,7 @@ jobs:
           exit $EXIT_CODE
 
       - name: Upload GitNexus Knowledge Graph Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: gitnexus-graph-${{ github.sha }}
           path: .gitnexus/

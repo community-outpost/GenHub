@@ -9,15 +9,19 @@ You can think of GenHub as the modern, open source, cross-platform ecosystem rep
 GenHub serves a vibrant, global Command & Conquer community across multiple operating systems. As we iterate on the codebase, we never compromise on these core pillars:
 
 ### 1. Content-Addressable Storage (CAS) & Zero-Copy Workspaces
+
 We do not copy multi-gigabyte game directories or duplicate mod files. Game assets and content patches are indexed by cryptographic hash in a shared CAS pool, then hardlinked, symlinked, or atomically materialized into isolated workspaces. Switching complex mods or profiles must happen in milliseconds.
 
 ### 2. Multi-platform at the core
+
 Generals was a 2003 Win32 DirectX 8 title. GenHub makes it first-class on modern **Windows**, **Linux** (Wine/Proton), and **macOS** (Wine/CrossOver/native runners). Platform-specific logic (registry lookups, shortcut generation, desktop entries, macOS quarantine `xattr` removal) is strictly isolated inside platform composition hosts, keeping core services portable.
 
 ### 3. Shared `development` branch & zero regressions
+
 Every contributor and agent targets the `development` branch. Because changes to core services (storage, reconciliation, manifests, game detectors) ripple across multiple platforms and UI bindings, we do not tolerate blind edits or speculative refactors that break downstream consumers.
 
 ### 4. Deterministic architecture & Result pattern
+
 No hidden exceptions for control flow. Operations that can fail (missing files, network drops, checksum mismatches, launch errors) return strongly typed `OperationResult<T>` records. Constants are centralized, constructors are primary, and code is clean, maintainable, and verifiable.
 
 ## A note from the maintainers
@@ -66,9 +70,11 @@ This repository uses **GitNexus** to maintain an AST-parsed structural knowledge
 
 1. **Phase 1 — Discovery (Before Modifying Core Symbols / Interfaces):**
    - Run `gitnexus_impact` to inspect upstream callers and downstream dependents:
+
      ```json
      gitnexus_impact({ "target": "<SymbolOrClassName>", "direction": "upstream" })
      ```
+
    - Review $d=1$ (will break) and $d=2$ (likely affected) dependencies before altering signatures.
    - Check affected flows via `gitnexus://repo/{name}/processes` or `gitnexus_query(...)`.
 
@@ -80,8 +86,9 @@ This repository uses **GitNexus** to maintain an AST-parsed structural knowledge
    - CI builds, caches, and validates the `.gitnexus/` knowledge graph on push to `development` and `main`.
    - PR CI runs `gitnexus detect-changes` to surface blast radius in GitHub Step Summaries.
    - If the local graph is stale after pulling `development`:
+
      ```bash
-     npx gitnexus analyze
+     npx -y gitnexus@1.6.9 analyze --index-only
      ```
 
 ## Code Conventions & Taste
@@ -107,6 +114,7 @@ This repository uses **GitNexus** to maintain an AST-parsed structural knowledge
 ## Dev & Verification
 
 - **Targeted verification:** Run tests for the specific scope you changed.
+
   ```bash
   # Core tests
   dotnet test GenHub/GenHub.Tests/GenHub.Tests.Core/GenHub.Tests.Core.csproj -c Release
@@ -116,17 +124,21 @@ This repository uses **GitNexus** to maintain an AST-parsed structural knowledge
   dotnet test GenHub/GenHub.Tests/GenHub.Tests.Linux/GenHub.Tests.Linux.csproj -c Release
   dotnet test GenHub/GenHub.Tests/GenHub.Tests.MacOS/GenHub.Tests.MacOS.csproj -c Release
   ```
+
 - **Do not run repo-wide checks unprompted.** CI owns the full multi-platform matrix.
 - **Solution build:**
+
   ```bash
   dotnet build GenHub/GenHub.sln -c Release
   ```
+
 - **GitNexus CLI:**
+
   ```bash
-  npx gitnexus analyze          # Build/refresh graph
-  npx gitnexus status           # Inspect status
-  npx gitnexus detect-changes   # Map git diff to affected flows
-  npx gitnexus impact <Symbol>  # Symbol blast radius
+  npx -y gitnexus@1.6.9 analyze --index-only   # Build/refresh graph
+  npx -y gitnexus@1.6.9 status                 # Inspect status
+  npx -y gitnexus@1.6.9 detect-changes         # Map git diff to affected flows
+  npx -y gitnexus@1.6.9 impact <Symbol>        # Symbol blast radius
   ```
 
 ## Where code lives
