@@ -640,7 +640,9 @@ public partial class ContentManifestBuilder(
         List<string>? arguments = null,
         string? destinationRelativePath = null,
         bool requiresElevation = false,
-        string? statusMessage = null)
+        string? statusMessage = null,
+        bool runOnce = false,
+        string? stepKey = null)
     {
         var step = new InstallationStep
         {
@@ -651,6 +653,8 @@ public partial class ContentManifestBuilder(
             DestinationRelativePath = destinationRelativePath,
             RequiresElevation = requiresElevation,
             StatusMessage = statusMessage,
+            RunOnce = runOnce,
+            StepKey = stepKey,
         };
         return AddPreInstallStep(step);
     }
@@ -661,7 +665,7 @@ public partial class ContentManifestBuilder(
         ArgumentNullException.ThrowIfNull(step);
         _manifest.InstallationInstructions ??= new InstallationInstructions();
         _manifest.InstallationInstructions.PreInstallSteps.Add(step);
-        logger.LogDebug("Added pre-install step: {StepName} (Kind: {Kind})", step.Name, step.Kind);
+        logger.LogDebug("Added pre-install step: {StepName} (Kind: {Kind}, RunOnce: {RunOnce})", step.Name, step.Kind, step.RunOnce);
         return this;
     }
 
@@ -673,7 +677,9 @@ public partial class ContentManifestBuilder(
         List<string>? arguments = null,
         string? destinationRelativePath = null,
         bool requiresElevation = false,
-        string? statusMessage = null)
+        string? statusMessage = null,
+        bool runOnce = false,
+        string? stepKey = null)
     {
         var step = new InstallationStep
         {
@@ -684,6 +690,8 @@ public partial class ContentManifestBuilder(
             DestinationRelativePath = destinationRelativePath,
             RequiresElevation = requiresElevation,
             StatusMessage = statusMessage,
+            RunOnce = runOnce,
+            StepKey = stepKey,
         };
         return AddPostInstallStep(step);
     }
@@ -694,7 +702,7 @@ public partial class ContentManifestBuilder(
         ArgumentNullException.ThrowIfNull(step);
         _manifest.InstallationInstructions ??= new InstallationInstructions();
         _manifest.InstallationInstructions.PostInstallSteps.Add(step);
-        logger.LogDebug("Added post-install step: {StepName} (Kind: {Kind})", step.Name, step.Kind);
+        logger.LogDebug("Added post-install step: {StepName} (Kind: {Kind}, RunOnce: {RunOnce})", step.Name, step.Kind, step.RunOnce);
         return this;
     }
 

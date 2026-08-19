@@ -223,6 +223,8 @@ public interface IContentManifestBuilder
     /// <param name="destinationRelativePath">Destination relative path for rename operations.</param>
     /// <param name="requiresElevation">Whether elevation is required.</param>
     /// <param name="statusMessage">Optional user-facing status message.</param>
+    /// <param name="runOnce">Whether to execute only once and skip on future updates.</param>
+    /// <param name="stepKey">Optional unique step key for tracking execution.</param>
     /// <returns>The builder instance for chaining.</returns>
     IContentManifestBuilder AddPreInstallStep(
         string name,
@@ -231,7 +233,9 @@ public interface IContentManifestBuilder
         List<string>? arguments = null,
         string? destinationRelativePath = null,
         bool requiresElevation = false,
-        string? statusMessage = null);
+        string? statusMessage = null,
+        bool runOnce = false,
+        string? stepKey = null);
 
     /// <summary>
     /// Adds a pre-installation step using an existing <see cref="InstallationStep"/> instance.
@@ -250,6 +254,8 @@ public interface IContentManifestBuilder
     /// <param name="destinationRelativePath">Destination relative path for rename operations.</param>
     /// <param name="requiresElevation">Whether elevation is required.</param>
     /// <param name="statusMessage">Optional user-facing status message.</param>
+    /// <param name="runOnce">Whether to execute only once and skip on future updates.</param>
+    /// <param name="stepKey">Optional unique step key for tracking execution.</param>
     /// <returns>The builder instance for chaining.</returns>
     IContentManifestBuilder AddPostInstallStep(
         string name,
@@ -258,7 +264,9 @@ public interface IContentManifestBuilder
         List<string>? arguments = null,
         string? destinationRelativePath = null,
         bool requiresElevation = false,
-        string? statusMessage = null);
+        string? statusMessage = null,
+        bool runOnce = false,
+        string? stepKey = null);
 
     /// <summary>
     /// Adds a post-installation step using an existing <see cref="InstallationStep"/> instance.

@@ -113,6 +113,8 @@ public class GeneralsOnlineManifestFactory(
                         Arguments = [GeneralsOnlineConstants.EacInstallCommand, GeneralsOnlineConstants.EacProductId],
                         RequiresElevation = true,
                         StatusMessage = GeneralsOnlineConstants.EacStatusMessage,
+                        StepKey = GeneralsOnlineConstants.EacStepKey,
+                        RunOnce = true,
                     },
                 ],
             },
@@ -471,6 +473,8 @@ public class GeneralsOnlineManifestFactory(
                         Arguments = [GeneralsOnlineConstants.EacInstallCommand, GeneralsOnlineConstants.EacProductId],
                         RequiresElevation = true,
                         StatusMessage = GeneralsOnlineConstants.EacStatusMessage,
+                        StepKey = GeneralsOnlineConstants.EacStepKey,
+                        RunOnce = true,
                     },
                 ],
             },
@@ -718,6 +722,8 @@ public class GeneralsOnlineManifestFactory(
                     Arguments = [GeneralsOnlineConstants.EacInstallCommand, GeneralsOnlineConstants.EacProductId],
                     RequiresElevation = true,
                     StatusMessage = GeneralsOnlineConstants.EacStatusMessage,
+                    StepKey = GeneralsOnlineConstants.EacStepKey,
+                    RunOnce = true,
                 });
             }
 

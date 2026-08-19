@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
@@ -24,6 +25,8 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
     private readonly string _tempDirectory;
     private readonly Mock<IFileHashProvider> _hashProviderMock;
     private readonly Mock<INotificationService> _notificationServiceMock;
+    private readonly Mock<IUserSettingsService> _userSettingsServiceMock;
+    private readonly UserSettings _userSettings;
     private readonly InstallationInstructionsService _service;
 
     public InstallationInstructionsServiceTests()
@@ -33,10 +36,17 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
 
         _hashProviderMock = new Mock<IFileHashProvider>();
         _notificationServiceMock = new Mock<INotificationService>();
+        _userSettingsServiceMock = new Mock<IUserSettingsService>();
+        _userSettings = new UserSettings();
+
+        _userSettingsServiceMock.Setup(u => u.Get()).Returns(_userSettings);
+        _userSettingsServiceMock.Setup(u => u.Update(It.IsAny<Action<UserSettings>>()))
+            .Callback<Action<UserSettings>>(action => action(_userSettings));
 
         _service = new InstallationInstructionsService(
             _hashProviderMock.Object,
             _notificationServiceMock.Object,
+            _userSettingsServiceMock.Object,
             NullLogger<InstallationInstructionsService>.Instance);
     }
 
@@ -247,6 +257,7 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
                     Kind = InstallationStepKind.RenameFile,
                     TargetRelativePath = sourceFile,
                     DestinationRelativePath = destFile,
+                    StepKey = "test_rename_step",
                 },
             ],
         };
@@ -257,6 +268,7 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
         Assert.False(File.Exists(sourceFullPath));
         Assert.True(File.Exists(destFullPath));
         Assert.Equal("hello world", File.ReadAllText(destFullPath));
+        Assert.True(_userSettings.IsInstallationStepExecuted("test_rename_step"));
     }
 
     [Fact]
@@ -295,6 +307,8 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
                     Kind = InstallationStepKind.RunVerifiedInstaller,
                     TargetRelativePath = scriptName,
                     StatusMessage = GeneralsOnlineConstants.EacStatusMessage,
+                    StepKey = GeneralsOnlineConstants.EacStepKey,
+                    RunOnce = true,
                 },
             ],
         };
@@ -302,6 +316,7 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
         var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory);
 
         Assert.True(result.Success);
+        Assert.True(_userSettings.IsInstallationStepExecuted(GeneralsOnlineConstants.EacStepKey));
         _notificationServiceMock.Verify(
             n => n.ShowInfo(
                 GeneralsOnlineConstants.EacStepName,
@@ -313,6 +328,102 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
             n => n.ShowSuccess(
                 "Installation Step Completed",
                 It.Is<string>(msg => msg.Contains(GeneralsOnlineConstants.EacStepName)),
+                It.IsAny<int?>(),
+                It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task ExecutePostInstallStepsAsync_RunOnceStepAlreadyExecuted_SkipsExecution()
+    {
+        var scriptName = "installer.bat";
+        var manifest = CreateBaseManifest();
+        manifest.Publisher = new PublisherInfo
+        {
+            Name = GeneralsOnlineConstants.PublisherName,
+            PublisherType = PublisherTypeConstants.GeneralsOnline,
+        };
+        manifest.Files =
+        [
+            new ManifestFile { RelativePath = scriptName },
+        ];
+        manifest.InstallationInstructions = new InstallationInstructions
+        {
+            PostInstallSteps =
+            [
+                new InstallationStep
+                {
+                    Name = GeneralsOnlineConstants.EacStepName,
+                    Kind = InstallationStepKind.RunVerifiedInstaller,
+                    TargetRelativePath = scriptName,
+                    StepKey = GeneralsOnlineConstants.EacStepKey,
+                    RunOnce = true,
+                },
+            ],
+        };
+
+        // Mark as already executed
+        _userSettings.RecordInstallationStepExecuted(GeneralsOnlineConstants.EacStepKey);
+
+        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory);
+
+        Assert.True(result.Success);
+        // Notification should NOT be shown for skipped step
+        _notificationServiceMock.Verify(
+            n => n.ShowInfo(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecutePostInstallStepsAsync_RunOnceStepWithForceTrue_ExecutesEvenIfRecorded()
+    {
+        var scriptName = OperatingSystem.IsWindows() ? "test_force_installer.bat" : "test_force_installer.sh";
+        var fullPath = Path.Combine(_tempDirectory, scriptName);
+        var scriptContent = OperatingSystem.IsWindows() ? "@exit 0" : "#!/bin/sh\nexit 0\n";
+        File.WriteAllText(fullPath, scriptContent);
+
+        if (!OperatingSystem.IsWindows())
+        {
+            File.SetUnixFileMode(fullPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+
+        var manifest = CreateBaseManifest();
+        manifest.Publisher = new PublisherInfo
+        {
+            Name = GeneralsOnlineConstants.PublisherName,
+            PublisherType = PublisherTypeConstants.GeneralsOnline,
+        };
+        manifest.Files =
+        [
+            new ManifestFile { RelativePath = scriptName },
+        ];
+        manifest.InstallationInstructions = new InstallationInstructions
+        {
+            PostInstallSteps =
+            [
+                new InstallationStep
+                {
+                    Name = GeneralsOnlineConstants.EacStepName,
+                    Kind = InstallationStepKind.RunVerifiedInstaller,
+                    TargetRelativePath = scriptName,
+                    StatusMessage = GeneralsOnlineConstants.EacStatusMessage,
+                    StepKey = GeneralsOnlineConstants.EacStepKey,
+                    RunOnce = true,
+                },
+            ],
+        };
+
+        // Mark as already executed in settings
+        _userSettings.RecordInstallationStepExecuted(GeneralsOnlineConstants.EacStepKey);
+
+        // Force execution
+        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory, force: true);
+
+        Assert.True(result.Success);
+        _notificationServiceMock.Verify(
+            n => n.ShowInfo(
+                GeneralsOnlineConstants.EacStepName,
+                GeneralsOnlineConstants.EacStatusMessage,
                 It.IsAny<int?>(),
                 It.IsAny<bool>()),
             Times.Once);

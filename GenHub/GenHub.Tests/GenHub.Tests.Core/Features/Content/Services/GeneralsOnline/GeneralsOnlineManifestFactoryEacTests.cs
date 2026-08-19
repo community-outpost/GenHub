@@ -148,6 +148,8 @@ public class GeneralsOnlineManifestFactoryEacTests : IDisposable
         Assert.Equal(InstallationStepKind.RunVerifiedInstaller, eacStep.Kind);
         Assert.Equal(GameClientConstants.GeneralsOnlineEacSetupExecutable, eacStep.TargetRelativePath);
         Assert.True(eacStep.RequiresElevation);
+        Assert.True(eacStep.RunOnce);
+        Assert.Equal(GeneralsOnlineConstants.EacStepKey, eacStep.StepKey);
         Assert.Equal(GeneralsOnlineConstants.EacStatusMessage, eacStep.StatusMessage);
         Assert.NotNull(eacStep.Arguments);
         Assert.Equal(

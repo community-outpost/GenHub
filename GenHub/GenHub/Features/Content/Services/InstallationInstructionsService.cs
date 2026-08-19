@@ -24,16 +24,19 @@ namespace GenHub.Features.Content.Services;
 /// </summary>
 /// <param name="hashProvider">The file hash provider for integrity verification.</param>
 /// <param name="notificationService">The notification service for user awareness.</param>
+/// <param name="userSettingsService">The user settings service for tracking executed installation steps across updates.</param>
 /// <param name="logger">The logger instance.</param>
 public class InstallationInstructionsService(
     IFileHashProvider hashProvider,
     INotificationService notificationService,
+    IUserSettingsService? userSettingsService,
     ILogger<InstallationInstructionsService> logger) : IInstallationInstructionsService
 {
     /// <inheritdoc />
     public async Task<OperationResult> ExecutePreInstallStepsAsync(
         ContentManifest manifest,
         string workingDirectory,
+        bool force = false,
         IProgress<ContentAcquisitionProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
@@ -46,14 +49,16 @@ public class InstallationInstructionsService(
         }
 
         logger.LogInformation(
-            "Executing {Count} pre-install step(s) for manifest {ManifestId}",
+            "Executing {Count} pre-install step(s) for manifest {ManifestId} (force: {Force})",
             manifest.InstallationInstructions.PreInstallSteps.Count,
-            manifest.Id);
+            manifest.Id,
+            force);
 
         return await ExecuteStepsAsync(
             manifest.InstallationInstructions.PreInstallSteps,
             manifest,
             workingDirectory,
+            force,
             progress,
             cancellationToken);
     }
@@ -62,6 +67,7 @@ public class InstallationInstructionsService(
     public async Task<OperationResult> ExecutePostInstallStepsAsync(
         ContentManifest manifest,
         string workingDirectory,
+        bool force = false,
         IProgress<ContentAcquisitionProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
@@ -74,14 +80,16 @@ public class InstallationInstructionsService(
         }
 
         logger.LogInformation(
-            "Executing {Count} post-install step(s) for manifest {ManifestId}",
+            "Executing {Count} post-install step(s) for manifest {ManifestId} (force: {Force})",
             manifest.InstallationInstructions.PostInstallSteps.Count,
-            manifest.Id);
+            manifest.Id,
+            force);
 
         return await ExecuteStepsAsync(
             manifest.InstallationInstructions.PostInstallSteps,
             manifest,
             workingDirectory,
+            force,
             progress,
             cancellationToken);
     }
@@ -90,6 +98,7 @@ public class InstallationInstructionsService(
         IReadOnlyList<InstallationStep> steps,
         ContentManifest manifest,
         string workingDirectory,
+        bool force,
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
     {
@@ -108,7 +117,7 @@ public class InstallationInstructionsService(
                 continue;
             }
 
-            var stepResult = await ExecuteSingleStepAsync(step, manifest, workingDirectory, progress, cancellationToken);
+            var stepResult = await ExecuteSingleStepAsync(step, manifest, workingDirectory, force, progress, cancellationToken);
             if (!stepResult.Success)
             {
                 return stepResult;
@@ -122,25 +131,144 @@ public class InstallationInstructionsService(
         InstallationStep step,
         ContentManifest manifest,
         string workingDirectory,
+        bool force,
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
     {
+        var stepKey = GetStepKey(step, manifest);
+
+        if (!force && step.RunOnce && ShouldSkipStep(step, stepKey))
+        {
+            logger.LogInformation(
+                "Skipping installation step '{StepName}' for manifest {ManifestId} because it has already been executed (key: {StepKey})",
+                step.Name,
+                manifest.Id,
+                stepKey);
+
+            progress?.Report(new ContentAcquisitionProgress
+            {
+                Phase = ContentAcquisitionPhase.Extracting,
+                CurrentOperation = $"Skipping {step.Name} (already installed)",
+                CurrentFile = step.TargetRelativePath,
+            });
+
+            return OperationResult.CreateSuccess();
+        }
+
+        OperationResult result;
         switch (step.Kind)
         {
             case InstallationStepKind.RunVerifiedInstaller:
-                return await ExecuteRunVerifiedInstallerAsync(step, manifest, workingDirectory, progress, cancellationToken);
+                result = await ExecuteRunVerifiedInstallerAsync(step, manifest, workingDirectory, progress, cancellationToken);
+                break;
 
             case InstallationStepKind.RemoveFile:
-                return ExecuteRemoveFile(step, workingDirectory);
+                result = ExecuteRemoveFile(step, workingDirectory);
+                break;
 
             case InstallationStepKind.RenameFile:
-                return ExecuteRenameFile(step, workingDirectory);
+                result = ExecuteRenameFile(step, workingDirectory);
+                break;
 
             case InstallationStepKind.Unknown:
             default:
                 logger.LogError("Unsupported installation step kind '{Kind}' in step '{StepName}'", step.Kind, step.Name);
                 return OperationResult.CreateFailure($"Unsupported installation step kind '{step.Kind}' for step '{step.Name}'.");
         }
+
+        if (result.Success && userSettingsService != null && !string.IsNullOrWhiteSpace(stepKey))
+        {
+            userSettingsService.Update(s => s.RecordInstallationStepExecuted(stepKey));
+            try
+            {
+                await userSettingsService.SaveAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to persist executed installation step key '{StepKey}'", stepKey);
+            }
+        }
+
+        return result;
+    }
+
+    private bool ShouldSkipStep(InstallationStep step, string stepKey)
+    {
+        if (userSettingsService?.Get().IsInstallationStepExecuted(stepKey) == true)
+        {
+            return true;
+        }
+
+        if (OperatingSystem.IsWindows() && IsEacAlreadyInstalled(step))
+        {
+            userSettingsService?.Update(s => s.RecordInstallationStepExecuted(stepKey));
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsEacAlreadyInstalled(InstallationStep step)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return false;
+        }
+
+        if (step.Kind != InstallationStepKind.RunVerifiedInstaller)
+        {
+            return false;
+        }
+
+        var fileName = Path.GetFileName(step.TargetRelativePath ?? string.Empty);
+        if (!string.Equals(fileName, GameClientConstants.GeneralsOnlineEacSetupExecutable, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        try
+        {
+            var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+            if (!string.IsNullOrEmpty(programFilesX86))
+            {
+                var serviceExe = Path.Combine(programFilesX86, "EasyAntiCheat_EOS", "EasyAntiCheat_EOS.exe");
+                if (File.Exists(serviceExe))
+                {
+                    return true;
+                }
+            }
+
+            var commonProgramFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.CommonProgramFilesX86);
+            if (!string.IsNullOrEmpty(commonProgramFilesX86))
+            {
+                var commonExe = Path.Combine(commonProgramFilesX86, "EasyAntiCheat", "EasyAntiCheat_EOS.exe");
+                if (File.Exists(commonExe))
+                {
+                    return true;
+                }
+            }
+        }
+        catch
+        {
+            return false;
+        }
+
+        return false;
+    }
+
+    private static string GetStepKey(InstallationStep step, ContentManifest manifest)
+    {
+        if (!string.IsNullOrWhiteSpace(step.StepKey))
+        {
+            return step.StepKey;
+        }
+
+        var publisher = manifest.Publisher?.PublisherType ?? "generic";
+        var name = step.Name;
+        var target = step.TargetRelativePath ?? string.Empty;
+        var args = step.Arguments is { Count: > 0 } ? string.Join(" ", step.Arguments) : string.Empty;
+
+        return $"{publisher}:{name}:{target}:{args}".TrimEnd(':');
     }
 
     private async Task<OperationResult> ExecuteRunVerifiedInstallerAsync(

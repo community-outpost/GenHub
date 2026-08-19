@@ -49,4 +49,15 @@ public class InstallationStep
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? StatusMessage { get; set; }
+
+    /// <summary>
+    /// Gets or sets an optional unique key identifying this installation step for execution tracking across updates.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? StepKey { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this step should only run once and be skipped on subsequent updates if already executed.
+    /// </summary>
+    public bool RunOnce { get; set; }
 }
