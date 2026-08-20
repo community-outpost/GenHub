@@ -15,7 +15,7 @@ public partial class TelemetrySanitizer : ITelemetrySanitizer
     [GeneratedRegex(@"\b(?:\d{1,3}\.){3}\d{1,3}\b", RegexOptions.Compiled)]
     private static partial Regex Ipv4Regex();
 
-    [GeneratedRegex(@"\b(?:[0-9a-fA-F]{1,4}:){2,7}[0-9a-fA-F]{1,4}\b", RegexOptions.Compiled)]
+    [GeneratedRegex(@"(?i)(?<![0-9a-f:])(?:(?:[0-9a-f]{1,4}:){7}[0-9a-f]{1,4}|(?:[0-9a-f]{1,4}:){1,7}:|:(?::[0-9a-f]{1,4}){1,7}|(?:[0-9a-f]{1,4}:){1,6}:[0-9a-f]{1,4}|(?:[0-9a-f]{1,4}:){1,5}(?::[0-9a-f]{1,4}){1,2}|(?:[0-9a-f]{1,4}:){1,4}(?::[0-9a-f]{1,4}){1,3}|(?:[0-9a-f]{1,4}:){1,3}(?::[0-9a-f]{1,4}){1,4}|(?:[0-9a-f]{1,4}:){1,2}(?::[0-9a-f]{1,4}){1,5}|[0-9a-f]{1,4}:(?:(?::[0-9a-f]{1,4}){1,6})|::)(?![0-9a-f:])", RegexOptions.Compiled)]
     private static partial Regex Ipv6Regex();
 
     [GeneratedRegex(@"gh[pousr]_[A-Za-z0-9_]{20,}", RegexOptions.Compiled)]
@@ -156,12 +156,12 @@ public partial class TelemetrySanitizer : ITelemetrySanitizer
             return newDict;
         }
 
-        if (value is IEnumerable<string> stringList)
+        if (value is System.Collections.IEnumerable enumerable and not string)
         {
-            var sanitizedList = new List<string>();
-            foreach (var item in stringList)
+            var sanitizedList = new List<object?>();
+            foreach (var item in enumerable)
             {
-                sanitizedList.Add(SanitizeString(item));
+                sanitizedList.Add(SanitizeValue(item));
             }
 
             return sanitizedList;

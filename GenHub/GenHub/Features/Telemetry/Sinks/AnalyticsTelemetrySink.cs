@@ -28,9 +28,10 @@ public sealed class AnalyticsTelemetrySink(
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
+    private const int MaxBufferSize = 100;
     private readonly ConcurrentQueue<TelemetryEvent> _buffer = new();
-    private string? _endpointUrl;
-    private string? _apiKey;
+    private string? _endpointUrl = Environment.GetEnvironmentVariable("POSTHOG_CAPTURE_URL") ?? (Environment.GetEnvironmentVariable("POSTHOG_HOST") != null ? $"{Environment.GetEnvironmentVariable("POSTHOG_HOST")?.TrimEnd('/')}/capture/" : TelemetryConstants.DefaultPostHogCaptureEndpoint);
+    private string? _apiKey = Environment.GetEnvironmentVariable("POSTHOG_API_KEY") ?? Environment.GetEnvironmentVariable("GENHUB_POSTHOG_API_KEY") ?? TelemetryConstants.DefaultPostHogApiKey;
 
     /// <inheritdoc/>
     public string Name => "Analytics";
@@ -41,7 +42,7 @@ public sealed class AnalyticsTelemetrySink(
     /// </summary>
     public string? EndpointUrl
     {
-        get => _endpointUrl ?? Environment.GetEnvironmentVariable("POSTHOG_CAPTURE_URL") ?? (Environment.GetEnvironmentVariable("POSTHOG_HOST") != null ? $"{Environment.GetEnvironmentVariable("POSTHOG_HOST")?.TrimEnd('/')}/capture/" : TelemetryConstants.DefaultPostHogCaptureEndpoint);
+        get => _endpointUrl;
         set => _endpointUrl = value;
     }
 
@@ -50,7 +51,7 @@ public sealed class AnalyticsTelemetrySink(
     /// </summary>
     public string? ApiKey
     {
-        get => _apiKey ?? Environment.GetEnvironmentVariable("POSTHOG_API_KEY") ?? Environment.GetEnvironmentVariable("GENHUB_POSTHOG_API_KEY") ?? TelemetryConstants.DefaultPostHogApiKey;
+        get => _apiKey;
         set => _apiKey = value;
     }
 
@@ -77,12 +78,7 @@ public sealed class AnalyticsTelemetrySink(
         if (string.IsNullOrWhiteSpace(endpoint) || string.IsNullOrWhiteSpace(apiKey) || httpClient == null)
         {
             // Offline / unconfigured remote endpoint mode: buffer in memory
-            _buffer.Enqueue(telemetryEvent);
-            while (_buffer.Count > 100)
-            {
-                _buffer.TryDequeue(out _);
-            }
-
+            EnqueueBounded(telemetryEvent);
             return OperationResult<bool>.CreateSuccess(true);
         }
 
@@ -93,6 +89,7 @@ public sealed class AnalyticsTelemetrySink(
                 ["$lib"] = TelemetryConstants.AppName,
                 ["$app_version"] = telemetryEvent.AppVersion,
                 ["$os"] = telemetryEvent.Platform,
+                ["$process_person_profile"] = false,
             };
 
             if (!string.IsNullOrEmpty(telemetryEvent.SessionId))
@@ -119,7 +116,7 @@ public sealed class AnalyticsTelemetrySink(
             }
 
             logger.LogDebug("[Analytics] Endpoint returned status code {StatusCode}", response.StatusCode);
-            _buffer.Enqueue(telemetryEvent);
+            EnqueueBounded(telemetryEvent);
             return OperationResult<bool>.CreateFailure($"Remote endpoint returned {response.StatusCode}");
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -129,8 +126,17 @@ public sealed class AnalyticsTelemetrySink(
         catch (Exception ex)
         {
             logger.LogDebug(ex, "[Analytics] Failed to send telemetry event to endpoint");
-            _buffer.Enqueue(telemetryEvent);
+            EnqueueBounded(telemetryEvent);
             return OperationResult<bool>.CreateFailure(ex.Message);
+        }
+    }
+
+    private void EnqueueBounded(TelemetryEvent telemetryEvent)
+    {
+        _buffer.Enqueue(telemetryEvent);
+        while (_buffer.Count > MaxBufferSize)
+        {
+            _buffer.TryDequeue(out _);
         }
     }
 

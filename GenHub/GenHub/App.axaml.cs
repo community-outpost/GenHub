@@ -65,6 +65,15 @@ public partial class App : Application
                 if (args.ExceptionObject is Exception ex)
                 {
                     _telemetryService?.TrackException(ex, "AppDomain.UnhandledException", isFatal: true);
+                    try
+                    {
+                        using var crashFlushCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                        _telemetryService?.FlushAsync(crashFlushCts.Token).GetAwaiter().GetResult();
+                    }
+                    catch
+                    {
+                        // Suppress crash flush failures during terminal exception
+                    }
                 }
             };
 
@@ -184,7 +193,8 @@ public partial class App : Application
             {
                 try
                 {
-                    await _telemetryService.FlushAsync();
+                    using var flushCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                    await _telemetryService.FlushAsync(flushCts.Token);
                 }
                 catch
                 {

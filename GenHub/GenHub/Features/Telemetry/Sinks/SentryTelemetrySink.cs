@@ -29,8 +29,9 @@ public sealed class SentryTelemetrySink(
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
+    private const int MaxBufferSize = 50;
     private readonly ConcurrentQueue<TelemetryEvent> _crashBuffer = new();
-    private string? _dsnEndpoint;
+    private string? _dsnEndpoint = Environment.GetEnvironmentVariable("SENTRY_DSN") ?? Environment.GetEnvironmentVariable("GENHUB_SENTRY_DSN") ?? TelemetryConstants.DefaultSentryDsn;
 
     /// <inheritdoc/>
     public string Name => "Sentry";
@@ -41,7 +42,7 @@ public sealed class SentryTelemetrySink(
     /// </summary>
     public string? DsnEndpoint
     {
-        get => _dsnEndpoint ?? Environment.GetEnvironmentVariable("SENTRY_DSN") ?? Environment.GetEnvironmentVariable("GENHUB_SENTRY_DSN") ?? TelemetryConstants.DefaultSentryDsn;
+        get => _dsnEndpoint;
         set => _dsnEndpoint = value;
     }
 
@@ -67,12 +68,7 @@ public sealed class SentryTelemetrySink(
         if (string.IsNullOrWhiteSpace(dsn) || httpClient == null)
         {
             // Buffer locally if unconfigured
-            _crashBuffer.Enqueue(telemetryEvent);
-            while (_crashBuffer.Count > 50)
-            {
-                _crashBuffer.TryDequeue(out _);
-            }
-
+            EnqueueBounded(telemetryEvent);
             return OperationResult<bool>.CreateSuccess(true);
         }
 
@@ -101,7 +97,7 @@ public sealed class SentryTelemetrySink(
             }
 
             logger.LogDebug("[Sentry] Crash endpoint returned status code {StatusCode}", response.StatusCode);
-            _crashBuffer.Enqueue(telemetryEvent);
+            EnqueueBounded(telemetryEvent);
             return OperationResult<bool>.CreateFailure($"Crash endpoint returned {response.StatusCode}");
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -111,8 +107,17 @@ public sealed class SentryTelemetrySink(
         catch (Exception ex)
         {
             logger.LogDebug(ex, "[Sentry] Failed to send crash report to Sentry endpoint");
-            _crashBuffer.Enqueue(telemetryEvent);
+            EnqueueBounded(telemetryEvent);
             return OperationResult<bool>.CreateFailure(ex.Message);
+        }
+    }
+
+    private void EnqueueBounded(TelemetryEvent telemetryEvent)
+    {
+        _crashBuffer.Enqueue(telemetryEvent);
+        while (_crashBuffer.Count > MaxBufferSize)
+        {
+            _crashBuffer.TryDequeue(out _);
         }
     }
 

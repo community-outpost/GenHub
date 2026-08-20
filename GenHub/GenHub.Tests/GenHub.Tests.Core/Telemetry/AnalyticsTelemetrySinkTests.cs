@@ -68,7 +68,7 @@ public class AnalyticsTelemetrySinkTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task EmitAsync_WhenNoHttpClient_BuffersAndReturnsSuccess()
+    public async Task EmitAsync_WhenNoHttpClient_BuffersAndReturnsSuccessAsync()
     {
         var ev = new TelemetryEvent
         {
@@ -90,7 +90,7 @@ public class AnalyticsTelemetrySinkTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task EmitAsync_WhenHttpClientProvided_SendsPostHogFormattedPayload()
+    public async Task EmitAsync_WhenHttpClientProvided_SendsPostHogFormattedPayloadAsync()
     {
         HttpRequestMessage? capturedRequest = null;
         string? capturedBody = null;
@@ -139,6 +139,7 @@ public class AnalyticsTelemetrySinkTests
         Assert.Equal("GenHub", properties.GetProperty("$lib").GetString());
         Assert.Equal("sess-7777", properties.GetProperty("$session_id").GetString());
         Assert.Equal("ZeroHour", properties.GetProperty(TelemetryConstants.Properties.GameType).GetString());
+        Assert.False(properties.GetProperty("$process_person_profile").GetBoolean());
     }
 
     /// <summary>
@@ -146,7 +147,7 @@ public class AnalyticsTelemetrySinkTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task EmitAsync_WhenEndpointReturnsError_BuffersAndReturnsFailure()
+    public async Task EmitAsync_WhenEndpointReturnsError_BuffersAndReturnsFailureAsync()
     {
         var handler = new TestHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.BadGateway)));
         using var client = new HttpClient(handler);
@@ -167,14 +168,35 @@ public class AnalyticsTelemetrySinkTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task FlushAsync_FlushesBufferedEventsSuccessfully()
+    public async Task FlushAsync_FlushesBufferedEventsSuccessfullyAsync()
     {
-        var handler = new TestHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)));
+        var sendCount = 0;
+        var returnError = true;
+        var handler = new TestHandler(_ =>
+        {
+            Interlocked.Increment(ref sendCount);
+            return Task.FromResult(new HttpResponseMessage(returnError ? HttpStatusCode.BadGateway : HttpStatusCode.OK));
+        });
+
         using var client = new HttpClient(handler);
         var sink = new AnalyticsTelemetrySink(_loggerMock.Object, client);
 
+        var ev = new TelemetryEvent
+        {
+            EventName = TelemetryConstants.Events.GameSessionStarted,
+            Level = TelemetryLevel.AnonymousMetrics,
+        };
+
+        // Fail once to populate internal retry buffer
+        var emitResult = await sink.EmitAsync(ev);
+        Assert.False(emitResult.Success);
+        Assert.Equal(1, sendCount);
+
+        // Allow success and flush
+        returnError = false;
         var flushResult = await sink.FlushAsync();
         Assert.True(flushResult.Success);
+        Assert.Equal(2, sendCount);
     }
 
     private sealed class TestHandler(Func<HttpRequestMessage, Task<HttpResponseMessage>> handlerFunc) : HttpMessageHandler

@@ -48,7 +48,7 @@ public class LoggingTelemetrySinkTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task EmitAsync_StandardEvent_ReturnsSuccess()
+    public async Task EmitAsync_StandardEvent_ReturnsSuccessAsync()
     {
         var ev = new TelemetryEvent
         {
@@ -67,7 +67,7 @@ public class LoggingTelemetrySinkTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task EmitAsync_CrashEvent_ReturnsSuccess()
+    public async Task EmitAsync_CrashEvent_ReturnsSuccessAsync()
     {
         var ev = new TelemetryEvent
         {

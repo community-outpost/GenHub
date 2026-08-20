@@ -69,8 +69,9 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
             {
                 return _userSettingsService.Get().TelemetryPreference;
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogTrace(ex, "Failed to retrieve telemetry preference from user settings");
                 return TelemetryLevel.Disabled;
             }
         }
@@ -107,7 +108,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
             string? sessionId = null;
             if (properties?.TryGetValue(TelemetryConstants.Properties.SessionId, out var rawSessionId) is true && rawSessionId != null)
             {
-                sessionId = rawSessionId.ToString();
+                sessionId = _sanitizer.SanitizeString(rawSessionId.ToString());
             }
 
             var telemetryEvent = new TelemetryEvent
@@ -230,6 +231,14 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
     {
         try
         {
+            // Allow queued channel items to drain to sinks before flushing sink buffers
+            var spinCount = 0;
+            while (_channel.Reader.Count > 0 && spinCount < 20 && !cancellationToken.IsCancellationRequested)
+            {
+                await Task.Delay(25, cancellationToken);
+                spinCount++;
+            }
+
             var tasks = _sinks.Select(sink => sink.FlushAsync(cancellationToken));
             var results = await Task.WhenAll(tasks);
             var failures = results.Where(r => !r.Success).ToList();
@@ -258,7 +267,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
 
         _disposed = true;
         _channel.Writer.TryComplete();
-        _cts.Cancel();
+        _cts.CancelAfter(TimeSpan.FromSeconds(2));
 
         try
         {
@@ -282,7 +291,6 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
 
         _disposed = true;
         _channel.Writer.TryComplete();
-        _cts.Cancel();
 
         try
         {
@@ -295,6 +303,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
             // Suppress background task cancellation exceptions on shutdown
         }
 
+        _cts.Cancel();
         _cts.Dispose();
     }
 
@@ -327,7 +336,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
             {
                 while (_channel.Reader.TryRead(out var telemetryEvent))
                 {
-                    if (telemetryEvent == null)
+                    if (telemetryEvent == null || !IsEnabled(telemetryEvent.Level))
                     {
                         continue;
                     }

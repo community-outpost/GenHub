@@ -58,7 +58,7 @@ public class TelemetryServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task TrackEvent_WhenDisabled_DoesNotEmit()
+    public async Task TrackEvent_WhenDisabled_DoesNotEmitAsync()
     {
         _settings.TelemetryPreference = TelemetryLevel.Disabled;
 
@@ -70,8 +70,7 @@ public class TelemetryServiceTests : IDisposable
 
         service.TrackEvent(TelemetryConstants.Events.GameSessionStarted);
 
-        // Allow background loop a moment
-        await Task.Delay(50);
+        await service.FlushAsync();
 
         _mockSink.Verify(s => s.EmitAsync(It.IsAny<TelemetryEvent>(), It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -81,7 +80,7 @@ public class TelemetryServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task TrackEvent_WhenAnonymousMetrics_EmitsToSink()
+    public async Task TrackEvent_WhenAnonymousMetrics_EmitsToSinkAsync()
     {
         _settings.TelemetryPreference = TelemetryLevel.AnonymousMetrics;
 
@@ -96,8 +95,7 @@ public class TelemetryServiceTests : IDisposable
             [TelemetryConstants.Properties.SessionId] = "test-session",
         });
 
-        // Allow background loop to process
-        await Task.Delay(100);
+        await service.FlushAsync();
 
         _mockSink.Verify(
             s => s.EmitAsync(
@@ -111,7 +109,7 @@ public class TelemetryServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task TrackException_RecordsSanitizedCrashEvent()
+    public async Task TrackException_RecordsSanitizedCrashEventAsync()
     {
         _settings.TelemetryPreference = TelemetryLevel.CrashReportsOnly;
 
@@ -132,7 +130,7 @@ public class TelemetryServiceTests : IDisposable
             service.TrackException(ex, "GameLauncher", isFatal: true);
         }
 
-        await Task.Delay(100);
+        await service.FlushAsync();
 
         _mockSink.Verify(
             s => s.EmitAsync(
@@ -148,7 +146,7 @@ public class TelemetryServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task AddBreadcrumb_CappedAtMaxCount()
+    public async Task AddBreadcrumb_CappedAtMaxCountAsync()
     {
         await using var service = new TelemetryService(
             _mockLogger.Object,
@@ -171,7 +169,7 @@ public class TelemetryServiceTests : IDisposable
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task FlushAsync_CallsFlushOnAllSinks()
+    public async Task FlushAsync_CallsFlushOnAllSinksAsync()
     {
         await using var service = new TelemetryService(
             _mockLogger.Object,

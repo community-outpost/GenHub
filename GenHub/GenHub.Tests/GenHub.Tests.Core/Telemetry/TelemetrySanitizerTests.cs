@@ -66,12 +66,13 @@ public class TelemetrySanitizerTests
     [Fact]
     public void SanitizeString_IpAddresses_ReplacesWithIpMask()
     {
-        var input = "Connection from 192.168.1.50 and 2001:0db8:85a3:0000:0000:8a2e:0370:7334 failed.";
+        var input = "Connection from 192.168.1.50, 2001:0db8:85a3:0000:0000:8a2e:0370:7334, and 2001:db8::1 failed.";
         var result = _sanitizer.SanitizeString(input);
 
         Assert.Contains(TelemetryConstants.IpAddressMask, result);
         Assert.DoesNotContain("192.168.1.50", result);
         Assert.DoesNotContain("2001:0db8:85a3:0000:0000:8a2e:0370:7334", result);
+        Assert.DoesNotContain("2001:db8::1", result);
     }
 
     /// <summary>
@@ -89,16 +90,17 @@ public class TelemetrySanitizerTests
     }
 
     /// <summary>
-    /// Verifies that dictionary properties are recursively sanitized.
+    /// Verifies that dictionary properties and object collections are recursively sanitized.
     /// </summary>
     [Fact]
-    public void SanitizeProperties_NestedDictionary_SanitizesAllValues()
+    public void SanitizeProperties_NestedDictionaryAndCollections_SanitizesAllValues()
     {
         var props = new Dictionary<string, object?>
         {
             ["path"] = @"C:\Users\SecretUser\game.exe",
             ["ip"] = "10.0.0.1",
             ["count"] = 42,
+            ["collection"] = new object?[] { @"C:\Users\OtherUser\file.txt", "192.168.1.1" },
             ["nested"] = new Dictionary<string, object?>
             {
                 ["user_folder"] = "/home/secretuser/workspace",
@@ -110,6 +112,11 @@ public class TelemetrySanitizerTests
         Assert.Equal(42, sanitized["count"]);
         Assert.Contains(TelemetryConstants.UserDirectoryMask, sanitized["path"]?.ToString());
         Assert.Contains(TelemetryConstants.IpAddressMask, sanitized["ip"]?.ToString());
+
+        var coll = sanitized["collection"] as List<object?>;
+        Assert.NotNull(coll);
+        Assert.Contains(TelemetryConstants.UserDirectoryMask, coll[0]?.ToString());
+        Assert.Contains(TelemetryConstants.IpAddressMask, coll[1]?.ToString());
 
         var nested = sanitized["nested"] as IReadOnlyDictionary<string, object?>;
         Assert.NotNull(nested);

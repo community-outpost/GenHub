@@ -29,7 +29,7 @@ public class GameProcessManager(
 {
     private const int CleanupIntervalMs = ProcessConstants.ProcessCleanupIntervalMs;
     private readonly ConcurrentDictionary<int, Process> _managedProcesses = new();
-    private readonly ConcurrentDictionary<int, (string SessionId, DateTime StartTime, string ExecName)> _sessionMetadata = new();
+    private readonly ConcurrentDictionary<int, (string SessionId, DateTime StartTime, string ExecName, string Runner)> _sessionMetadata = new();
     private readonly SemaphoreSlim _terminationSemaphore = new(1, 1);
 
     /// <summary>
@@ -593,7 +593,7 @@ public class GameProcessManager(
             return "Native";
         }
 
-        if (envVars != null && envVars.TryGetValue("PROTON_VERSION", out var configProton) && !string.IsNullOrWhiteSpace(configProton))
+        if (envVars?.TryGetValue("PROTON_VERSION", out var configProton) is true && !string.IsNullOrWhiteSpace(configProton))
         {
             return $"Proton-{configProton}";
         }
@@ -603,8 +603,7 @@ public class GameProcessManager(
             return $"Proton-{proton}";
         }
 
-        if ((envVars != null && envVars.ContainsKey("WINEPREFIX"))
-            || Environment.GetEnvironmentVariable("WINEPREFIX") is { Length: > 0 })
+        if (envVars?.ContainsKey("WINEPREFIX") is true || Environment.GetEnvironmentVariable("WINEPREFIX") is { Length: > 0 })
         {
             return "Wine";
         }
@@ -955,7 +954,7 @@ public class GameProcessManager(
                 [TelemetryConstants.Properties.DurationSeconds] = duration,
                 [TelemetryConstants.Properties.ExitCode] = exitCode,
                 [TelemetryConstants.Properties.ExecutablePath] = sessionMeta.ExecName,
-                [TelemetryConstants.Properties.Runner] = DetectRunnerEnvironment(),
+                [TelemetryConstants.Properties.Runner] = sessionMeta.Runner,
             });
         }
 
@@ -1416,9 +1415,10 @@ public class GameProcessManager(
 
     private void RegisterSessionAndEmitStarted(Process process, string executableName, IReadOnlyDictionary<string, string>? envVars = null)
     {
-        var sessionId = Guid.NewGuid().ToString("N")[..8];
+        var sessionId = Guid.NewGuid().ToString("N");
         var execName = Path.GetFileName(executableName);
-        _sessionMetadata[process.Id] = (sessionId, DateTime.UtcNow, execName);
+        var runner = DetectRunnerEnvironment(envVars);
+        _sessionMetadata[process.Id] = (sessionId, DateTime.UtcNow, execName, runner);
 
         if (telemetryService != null)
         {
@@ -1433,7 +1433,7 @@ public class GameProcessManager(
                 [TelemetryConstants.Properties.SessionId] = sessionId,
                 [TelemetryConstants.Properties.ExecutablePath] = execName,
                 [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
-                [TelemetryConstants.Properties.Runner] = DetectRunnerEnvironment(envVars),
+                [TelemetryConstants.Properties.Runner] = runner,
             });
         }
     }
@@ -1445,14 +1445,14 @@ public class GameProcessManager(
             return;
         }
 
-        foreach (var (_, (sessionId, startTime, execName)) in _sessionMetadata)
+        foreach (var (_, (sessionId, startTime, execName, runner)) in _sessionMetadata)
         {
             telemetryService.TrackEvent(TelemetryConstants.Events.GameSessionHeartbeat, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.SessionId] = sessionId,
                 [TelemetryConstants.Properties.DurationSeconds] = (DateTime.UtcNow - startTime).TotalSeconds,
                 [TelemetryConstants.Properties.ExecutablePath] = execName,
-                [TelemetryConstants.Properties.Runner] = DetectRunnerEnvironment(),
+                [TelemetryConstants.Properties.Runner] = runner,
             });
         }
     }

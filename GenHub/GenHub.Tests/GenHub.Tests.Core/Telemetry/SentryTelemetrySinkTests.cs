@@ -68,7 +68,7 @@ public class SentryTelemetrySinkTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task EmitAsync_WhenNoHttpClient_BuffersAndReturnsSuccess()
+    public async Task EmitAsync_WhenNoHttpClient_BuffersAndReturnsSuccessAsync()
     {
         var ev = new TelemetryEvent
         {
@@ -90,7 +90,7 @@ public class SentryTelemetrySinkTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task EmitAsync_WhenHttpClientProvided_SendsSentryStorePayloadWithAuthHeader()
+    public async Task EmitAsync_WhenHttpClientProvided_SendsSentryStorePayloadWithAuthHeaderAsync()
     {
         HttpRequestMessage? capturedRequest = null;
         string? capturedBody = null;
@@ -107,7 +107,10 @@ public class SentryTelemetrySinkTests
         });
 
         using var client = new HttpClient(handler);
-        var sink = new SentryTelemetrySink(_loggerMock.Object, client);
+        var sink = new SentryTelemetrySink(_loggerMock.Object, client)
+        {
+            DsnEndpoint = "https://testkey@sentry.example.com/1234",
+        };
 
         var ev = new TelemetryEvent
         {
@@ -129,11 +132,11 @@ public class SentryTelemetrySinkTests
 
         Assert.True(result.Success);
         Assert.NotNull(capturedRequest);
-        Assert.Contains("/api/4511943606927440/store/", capturedRequest.RequestUri?.ToString());
+        Assert.Contains("/api/1234/store/", capturedRequest.RequestUri?.ToString());
         Assert.True(capturedRequest.Headers.Contains("X-Sentry-Auth"));
 
         var authHeader = capturedRequest.Headers.GetValues("X-Sentry-Auth").FirstOrDefault();
-        Assert.Contains("sentry_key=06a9269c6418a6917f0fec49e1589e44", authHeader);
+        Assert.Contains("sentry_key=testkey", authHeader);
 
         Assert.NotNull(capturedBody);
         using var jsonDoc = JsonDocument.Parse(capturedBody);
@@ -146,7 +149,7 @@ public class SentryTelemetrySinkTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task EmitAsync_WhenEndpointReturnsError_BuffersAndReturnsFailure()
+    public async Task EmitAsync_WhenEndpointReturnsError_BuffersAndReturnsFailureAsync()
     {
         var handler = new TestHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError)));
         using var client = new HttpClient(handler);
@@ -167,20 +170,35 @@ public class SentryTelemetrySinkTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task FlushAsync_FlushesBufferedEventsSuccessfully()
+    public async Task FlushAsync_FlushesBufferedEventsSuccessfullyAsync()
     {
         var sendCount = 0;
+        var returnError = true;
         var handler = new TestHandler(_ =>
         {
             Interlocked.Increment(ref sendCount);
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+            return Task.FromResult(new HttpResponseMessage(returnError ? HttpStatusCode.InternalServerError : HttpStatusCode.OK));
         });
 
         using var client = new HttpClient(handler);
         var sink = new SentryTelemetrySink(_loggerMock.Object, client);
 
+        var ev = new TelemetryEvent
+        {
+            EventName = TelemetryConstants.Events.AppCrash,
+            Level = TelemetryLevel.CrashReportsOnly,
+        };
+
+        // Fail once to populate internal retry buffer
+        var emitResult = await sink.EmitAsync(ev);
+        Assert.False(emitResult.Success);
+        Assert.Equal(1, sendCount);
+
+        // Allow success and flush
+        returnError = false;
         var flushResult = await sink.FlushAsync();
         Assert.True(flushResult.Success);
+        Assert.Equal(2, sendCount);
     }
 
     private sealed class TestHandler(Func<HttpRequestMessage, Task<HttpResponseMessage>> handlerFunc) : HttpMessageHandler
