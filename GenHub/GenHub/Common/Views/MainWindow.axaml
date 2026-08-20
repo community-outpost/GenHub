@@ -4,6 +4,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:GenHub.Common.Views"
         xmlns:vm="clr-namespace:GenHub.Common.ViewModels"
+        xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
+        xmlns:enums="clr-namespace:GenHub.Core.Models.Enums;assembly=GenHub.Core"
         xmlns:notifications="clr-namespace:GenHub.Features.Notifications.Views"
         mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
         x:Class="GenHub.Common.Views.MainWindow"
@@ -20,6 +22,50 @@
         <Style Selector="Grid.TitleBarArea">
             <Setter Property="Background" Value="#1A1A1A"/>
             <Setter Property="Height" Value="40"/>
+        </Style>
+
+        <!-- Titlebar Action Buttons (Info, Settings, Notifications) -->
+        <Style Selector="Button.titlebar-action-btn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#B0B0B0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Transitions">
+                <Setter.Value>
+                    <Transitions>
+                        <BrushTransition Property="Background" Duration="0:0:0.15" />
+                        <BrushTransition Property="Foreground" Duration="0:0:0.15" />
+                        <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                    </Transitions>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.titlebar-action-btn:pointerover">
+            <Setter Property="Background" Value="#2A2A2A"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
+
+        <Style Selector="Button.titlebar-action-btn.active">
+            <Setter Property="Background" Value="#251E38"/>
+            <Setter Property="Foreground" Value="#A855F7"/>
+            <Setter Property="BorderBrush" Value="#80A855F7"/>
+        </Style>
+
+        <Style Selector="Button.titlebar-action-btn.active:pointerover">
+            <Setter Property="Background" Value="#32264C"/>
+            <Setter Property="Foreground" Value="#C084FC"/>
+            <Setter Property="BorderBrush" Value="#A855F7"/>
         </Style>
     </Window.Styles>
 
@@ -44,23 +90,46 @@
                                Foreground="White" />
                 </StackPanel>
 
-                <!-- Notification Bell + Mute Toggle -->
+                <!-- Action buttons: Info, Settings, Notification Bell -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="0,0,8,0">
-                    <Button Command="{Binding NotificationFeed.ToggleFeedCommand}"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            Padding="8"
-                            VerticalAlignment="Center"
-                            Cursor="Hand"
+                    <!-- Info Button -->
+                    <Button Classes="titlebar-action-btn"
+                            Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static enums:NavigationTab.Info}}"
+                            Command="{Binding SelectTabCommand}"
+                            CommandParameter="{x:Static enums:NavigationTab.Info}"
+                            ToolTip.Tip="Info">
+                        <Path Fill="{Binding $parent[Button].Foreground}"
+                              Width="18"
+                              Height="18"
+                              Stretch="Uniform"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"
+                              Data="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z" />
+                    </Button>
+
+                    <!-- Settings Button -->
+                    <Button Classes="titlebar-action-btn"
+                            Classes.active="{Binding SelectedTab, Converter={x:Static conv:NavigationTabConverter.Instance}, ConverterParameter={x:Static enums:NavigationTab.Settings}}"
+                            Command="{Binding SelectTabCommand}"
+                            CommandParameter="{x:Static enums:NavigationTab.Settings}"
+                            ToolTip.Tip="Settings">
+                        <Path Fill="{Binding $parent[Button].Foreground}"
+                              Width="18"
+                              Height="18"
+                              Stretch="Uniform"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"
+                              Data="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z" />
+                    </Button>
+
+                    <!-- Notification Bell -->
+                    <Button Classes="titlebar-action-btn"
+                            Classes.active="{Binding NotificationFeed.IsFeedOpen}"
+                            Command="{Binding NotificationFeed.ToggleFeedCommand}"
                             ToolTip.Tip="Notifications">
-                        <Button.Styles>
-                            <Style Selector="Button:pointerover">
-                                <Setter Property="Background" Value="#2A2A2A" />
-                            </Style>
-                        </Button.Styles>
                         <Grid Width="26" Height="26">
                             <!-- Bell Icon -->
-                            <Path Fill="#A855F7"
+                            <Path Fill="{Binding $parent[Button].Foreground}"
                                   Width="18"
                                   Height="18"
                                   Stretch="Uniform"

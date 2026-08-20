@@ -14,10 +14,12 @@ public static class NavigationTabExtensions
     /// <returns>The display name for the tab.</returns>
     public static string ToDisplayString(this NavigationTab tab) => tab switch
     {
+        NavigationTab.Home => "Home",
         NavigationTab.GameProfiles => "Game Profiles",
         NavigationTab.Downloads => "Downloads",
         NavigationTab.Tools => "Tools",
         NavigationTab.Settings => "Settings",
+        NavigationTab.Info => "Info",
         _ => tab.ToString(),
     };
 }
