@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
@@ -37,7 +38,7 @@ public class D3D8XDLLCheck(ILogger<D3D8XDLLCheck> logger) : BaseActionSet(logger
     public override string DetailedDescription => "Modern Windows systems do not pre-install legacy DirectX 8 and 9 runtime libraries by default. This diagnostic check verifies whether essential graphics binaries (d3d8.dll, d3d8thk.dll, and d3dx9_43.dll) exist in SysWOW64 or the game directory to prevent missing DLL startup errors.";
 
     /// <inheritdoc/>
-    public override string Category => "Compatibility";
+    public override string Category => ActionSetConstants.Categories.Compatibility;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => false;

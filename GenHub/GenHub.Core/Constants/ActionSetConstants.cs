@@ -323,5 +323,15 @@ public static class ActionSetConstants
         /// Gets the pinned SHA-256 hash for the DirectX runtime ZIP archive.
         /// </summary>
         public const string DirectXRuntimeZipSha256 = "6fcc7cd1be32422d07f022424412d6fe3141c6ba3845b855cb6f1b18f9c3a0a7";
+
+        /// <summary>
+        /// Gets the pinned SHA-256 hash for the GenTool archive package.
+        /// </summary>
+        public const string GenToolArchiveSha256 = "62bb0380ae14c570b6fad92b31784bec188dc22ac5ac9e11d3c524e08fa434e4";
+
+        /// <summary>
+        /// Gets the pinned SHA-256 hash for the GenTool d3d8.dll binary.
+        /// </summary>
+        public const string GenToolD3D8DllSha256 = "be5276180d04b3de9abd20aeaf2c1f65a2b65c800233ce49d5e77f1ab42441f7";
     }
 }

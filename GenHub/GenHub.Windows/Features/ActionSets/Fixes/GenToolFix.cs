@@ -3,15 +3,17 @@ namespace GenHub.Windows.Features.ActionSets.Fixes;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Compression;
+using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
+using SharpCompress.Archives;
 
 /// <summary>
 /// Installs GenTool (d3d8.dll), which provides essential fixes, anti-cheat, and widescreen support.
@@ -32,7 +34,7 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
     public override string DetailedDescription => "GenTool is the essential community add-on for Generals and Zero Hour operating via Direct3D hook (d3d8.dll). It enables true widescreen display rendering without vertical image cropping, uncap/smooth camera controls, enhanced match recording, and tournament-standard anti-cheat validation.";
 
     /// <inheritdoc/>
-    public override string Category => "Quality of Life";
+    public override string Category => ActionSetConstants.Categories.QualityOfLife;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => false;
@@ -57,7 +59,8 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
     /// <inheritdoc/>
     protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        var tempFile = Path.Combine(Path.GetTempPath(), $"gentool_setup_{Guid.NewGuid():N}.zip");
+        var tempFile = Path.Combine(Path.GetTempPath(), $"gentool_setup_{Guid.NewGuid():N}.dat");
+        var tempExtractDir = Path.Combine(Path.GetTempPath(), $"gentool_extract_{Guid.NewGuid():N}");
         var details = new List<string>();
 
         try
@@ -88,29 +91,33 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
                     var fileInfo = new FileInfo(tempFile);
                     var fileSize = fileInfo.Length;
 
-                    // GenTool zip must meet minimum size
+                    // GenTool archive must meet minimum size
                     if (fileSize < ActionSetConstants.Validation.GenToolMinSize)
                     {
                         logger.LogWarning("Downloaded file from {Url} is too small ({Size} bytes). Likely blocked.", url, fileSize);
-                        if (File.Exists(tempFile)) File.Delete(tempFile);
+                        if (File.Exists(tempFile))
+                        {
+                            File.Delete(tempFile);
+                        }
+
                         continue;
                     }
 
-                    // Validate ZIP integrity
-                    try
+                    // Authenticate package hash against pinned SHA-256
+                    var securityValidation = await DownloadSecurityValidator.ValidateFileAsync(
+                        tempFile,
+                        allowedSha256Hashes: [ActionSetConstants.Security.GenToolArchiveSha256],
+                        ct: cancellationToken);
+
+                    if (!securityValidation.Success)
                     {
-                        using var archive = System.IO.Compression.ZipFile.OpenRead(tempFile);
-                        if (archive.Entries.Count == 0)
+                        var errorSummary = string.Join("; ", securityValidation.Errors);
+                        logger.LogWarning("Security validation failed for GenTool archive from {Url}: {Error}", url, errorSummary);
+                        if (File.Exists(tempFile))
                         {
-                            logger.LogWarning("GenTool archive from {Url} has no entries", url);
-                            if (File.Exists(tempFile)) File.Delete(tempFile);
-                            continue;
+                            File.Delete(tempFile);
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "GenTool archive from {Url} is corrupt", url);
-                        if (File.Exists(tempFile)) File.Delete(tempFile);
+
                         continue;
                     }
 
@@ -121,51 +128,64 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
                 catch (Exception ex)
                 {
                     logger.LogWarning("Failed to download from {Url}: {Error}", url, ex.Message);
-                    if (File.Exists(tempFile)) File.Delete(tempFile);
+                    if (File.Exists(tempFile))
+                    {
+                        File.Delete(tempFile);
+                    }
                 }
             }
 
             if (!downloaded)
             {
-                return new ActionSetResult(false, "Failed to download GenTool from all mirrors.", details);
+                return new ActionSetResult(false, "Failed to download and authenticate GenTool from all mirrors.", details);
             }
 
-            details.Add("Extracting GenTool...");
+            details.Add("Extracting and verifying GenTool (d3d8.dll)...");
 
-            // Extract d3d8.dll from zip
-            bool dllFound = false;
-            using (var archive = ZipFile.OpenRead(tempFile))
+            Directory.CreateDirectory(tempExtractDir);
+
+            using var archive = ArchiveFactory.OpenArchive(new FileInfo(tempFile));
+            var d3dEntry = archive.Entries.FirstOrDefault(e => !e.IsDirectory && e.Key != null && string.Equals(Path.GetFileName(e.Key), "d3d8.dll", StringComparison.OrdinalIgnoreCase));
+
+            if (d3dEntry == null)
             {
-                foreach (var entry in archive.Entries)
-                {
-                    if (entry.Name.Equals("d3d8.dll", StringComparison.OrdinalIgnoreCase))
-                    {
-                        dllFound = true;
-
-                        // Extract to Generals path if valid
-                        if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
-                        {
-                            var dest = Path.Combine(installation.GeneralsPath, "d3d8.dll");
-                            entry.ExtractToFile(dest, true);
-                            details.Add($"✓ Installed GenTool to Generals: {dest}");
-                        }
-
-                        // Extract to Zero Hour path if valid
-                        if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
-                        {
-                            var dest = Path.Combine(installation.ZeroHourPath, "d3d8.dll");
-                            entry.ExtractToFile(dest, true);
-                            details.Add($"✓ Installed GenTool to Zero Hour: {dest}");
-                        }
-
-                        break;
-                    }
-                }
+                return new ActionSetResult(false, "d3d8.dll not found in downloaded GenTool archive.", details);
             }
 
-            if (!dllFound)
+            var extractedDllPath = Path.Combine(tempExtractDir, "d3d8.dll");
+            using (var entryStream = d3dEntry.OpenEntryStream())
+            await using (var fs = new FileStream(extractedDllPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
             {
-                return new ActionSetResult(false, "d3d8.dll not found in downloaded archive.", details);
+                await entryStream.CopyToAsync(fs, cancellationToken);
+            }
+
+            // Authenticate extracted d3d8.dll against pinned SHA-256
+            var dllValidation = await DownloadSecurityValidator.ValidateFileAsync(
+                extractedDllPath,
+                allowedSha256Hashes: [ActionSetConstants.Security.GenToolD3D8DllSha256],
+                ct: cancellationToken);
+
+            if (!dllValidation.Success)
+            {
+                var errorSummary = string.Join("; ", dllValidation.Errors);
+                logger.LogWarning("Security validation failed for extracted GenTool d3d8.dll: {Error}", errorSummary);
+                return new ActionSetResult(false, $"Security validation failed for GenTool d3d8.dll: {errorSummary}", details);
+            }
+
+            // Deploy verified d3d8.dll to Generals path if valid
+            if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
+            {
+                var dest = Path.Combine(installation.GeneralsPath, "d3d8.dll");
+                File.Copy(extractedDllPath, dest, overwrite: true);
+                details.Add($"✓ Installed GenTool to Generals: {dest}");
+            }
+
+            // Deploy verified d3d8.dll to Zero Hour path if valid
+            if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
+            {
+                var dest = Path.Combine(installation.ZeroHourPath, "d3d8.dll");
+                File.Copy(extractedDllPath, dest, overwrite: true);
+                details.Add($"✓ Installed GenTool to Zero Hour: {dest}");
             }
 
             // Add Defender exclusions note
@@ -191,6 +211,18 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
             {
                 logger.LogDebug(ex, "Failed to delete temp file {TempFile}", tempFile);
             }
+
+            try
+            {
+                if (Directory.Exists(tempExtractDir))
+                {
+                    Directory.Delete(tempExtractDir, recursive: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Failed to delete temp directory {TempDir}", tempExtractDir);
+            }
         }
     }
 
@@ -200,13 +232,19 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
         if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
         {
             var p = Path.Combine(installation.GeneralsPath, "d3d8.dll");
-            if (File.Exists(p)) File.Delete(p);
+            if (File.Exists(p))
+            {
+                File.Delete(p);
+            }
         }
 
         if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
         {
             var p = Path.Combine(installation.ZeroHourPath, "d3d8.dll");
-            if (File.Exists(p)) File.Delete(p);
+            if (File.Exists(p))
+            {
+                File.Delete(p);
+            }
         }
 
         return Task.FromResult(new ActionSetResult(true, null, ["GenTool removed."]));
