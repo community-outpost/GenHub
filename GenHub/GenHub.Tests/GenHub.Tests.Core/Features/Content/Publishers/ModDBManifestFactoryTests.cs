@@ -429,7 +429,7 @@ public sealed class ModDBManifestFactoryTests : IDisposable
             Publisher = new PublisherInfo { Name = "Contra Mod Team" },
             Metadata = new ContentMetadata
             {
-                Title = "Contra X BETA 2",
+                Description = "Contra X BETA 2",
             },
         };
 
