@@ -57,7 +57,7 @@ public class EasyAntiCheatPrecondition : IInstallationStepPrecondition
     {
         try
         {
-            var productId = (step.Arguments != null && step.Arguments.Count > 1 && !string.IsNullOrWhiteSpace(step.Arguments[1]))
+            var productId = (step.Arguments is { Count: > 1 } && !string.IsNullOrWhiteSpace(step.Arguments[1]))
                 ? step.Arguments[1]
                 : GeneralsOnlineConstants.EacProductId;
 
@@ -68,22 +68,18 @@ public class EasyAntiCheatPrecondition : IInstallationStepPrecondition
 
             var subKeyPath = $@"SOFTWARE\EasyAntiCheat_EOS\{productId}";
 
-            using (var baseKey32 = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry32))
-            using (var key32 = baseKey32.OpenSubKey(subKeyPath))
+            using var baseKey32 = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry32);
+            using var key32 = baseKey32.OpenSubKey(subKeyPath);
+            if (key32 != null)
             {
-                if (key32 != null)
-                {
-                    return true;
-                }
+                return true;
             }
 
-            using (var baseKey64 = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64))
-            using (var key64 = baseKey64.OpenSubKey(subKeyPath))
+            using var baseKey64 = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
+            using var key64 = baseKey64.OpenSubKey(subKeyPath);
+            if (key64 != null)
             {
-                if (key64 != null)
-                {
-                    return true;
-                }
+                return true;
             }
         }
         catch
