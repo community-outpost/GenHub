@@ -150,13 +150,13 @@ public abstract class WorkspaceStrategyBase<T>(
         }
 
         // Essential directories - always copy content from these
-        if (EssentialDirectories.Any(dir => directory.Contains(dir)))
+        if (EssentialDirectories.Any(directory.Contains))
         {
             return true;
         }
 
         // Essential file patterns
-        if (EssentialPatterns.Any(pattern => fileName.Contains(pattern)))
+        if (EssentialPatterns.Any(fileName.Contains))
         {
             return true;
         }

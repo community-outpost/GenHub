@@ -471,17 +471,8 @@ public partial class ModDBDiscoverer(
         var keepPageOpenForVerification = false;
         try
         {
-            // Build URL for the section
-            var baseUrl = gameType == GameType.Generals
-                ? $"{ModDBConstants.GeneralsBaseUrl}/{section}"
-                : $"{ModDBConstants.ZeroHourBaseUrl}/{section}";
-
             var filter = BuildFilterFromQuery(query);
-            var queryString = filter.ToQueryString();
-
-            // ModDB uses path-based pagination: /page/2, /page/3, etc.
-            var pageSuffix = filter.Page > 1 ? $"/page/{filter.Page}" : string.Empty;
-            var url = baseUrl + pageSuffix + queryString;
+            var url = BuildSectionUrl(section, gameType, filter);
 
             logger.LogInformation(
                 "[ModDB] Fetching page {Page} from section '{Section}': {Url}",
@@ -489,114 +480,17 @@ public partial class ModDBDiscoverer(
                 section,
                 url);
 
-            // Commit is enough to begin observing the document. Waiting for DOMContentLoaded can
-            // itself consume the full navigation timeout on a Cloudflare challenge, which delayed
-            // the verification notification until after the user had already completed it.
             await page.GotoAsync(url, new PageGotoOptions { Timeout = ModDBConstants.DefaultGotoTimeout, WaitUntil = WaitUntilState.Commit });
 
-            // ModDB sits behind Cloudflare. The persistent headed profile usually carries a clearance
-            // cookie from a prior solve, but on a fresh session the listing URL serves the "Just a
-            // moment..." interstitial and the user must complete the check in the visible browser.
-            // Do NOT bail the instant a challenge appears: keep the page open and poll until the user
-            // solves it (the real listing markup then loads in the same tab), so the first click on
-            // ModDB returns real items instead of an empty grid with a misleading "Load more".
-            var listingReady = false;
-            var challengeObserved = false;
-            var deadline = DateTime.UtcNow.AddMilliseconds(ModDBConstants.VerificationWaitTimeoutMs);
-            while (DateTime.UtcNow < deadline)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                if (page.IsClosed)
-                {
-                    logger.LogInformation("[ModDB] Browser page was closed; ending verification wait for {Url}", url);
-                    break;
-                }
-
-                try
-                {
-                    var title = await page.TitleAsync();
-                    if (IsChallengePage(title))
-                    {
-                        if (!challengeObserved)
-                        {
-                            challengeObserved = true;
-                            logger.LogWarning(
-                                "[ModDB] Cloudflare challenge is blocking {Url} (title: '{Title}'). Waiting for the user to solve it in the browser window.",
-                                url,
-                                title);
-                            try
-                            {
-                                await page.BringToFrontAsync();
-                            }
-                            catch (PlaywrightException)
-                            {
-                            }
-                        }
-
-                        await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken);
-                        continue;
-                    }
-
-                    if (await page.QuerySelectorAsync(ModDBConstants.DefaultListItemSelector) != null)
-                    {
-                        if (challengeObserved)
-                        {
-                            logger.LogInformation("[ModDB] Cloudflare challenge cleared for {Url}; parsing the listing.", url);
-                        }
-
-                        listingReady = true;
-                        break;
-                    }
-                }
-                catch (PlaywrightException ex) when (Tools.PlaywrightService.IsContextClosedError(ex))
-                {
-                    if (page.IsClosed)
-                    {
-                        logger.LogInformation("[ModDB] Browser page was closed; ending verification wait for {Url}", url);
-                        break;
-                    }
-
-                    // The page navigated mid-probe (e.g. the challenge interstitial redirected to
-                    // the real listing after the user solved it). Retry on the next tick.
-                    logger.LogDebug(ex, "[ModDB] Transient navigation while waiting for listing {Url}; retrying", url);
-                }
-
-                await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken);
-            }
-
+            var (listingReady, challengeObserved) = await WaitForListingOrChallengeAsync(page, url, cancellationToken);
             if (!listingReady)
             {
-                string? pageTitle = null;
-                try
+                var isChallenge = await HandleVerificationFailureAsync(page, url, challengeObserved);
+                if (isChallenge)
                 {
-                    if (!page.IsClosed)
-                    {
-                        pageTitle = await page.TitleAsync();
-                    }
-                }
-                catch (PlaywrightException)
-                {
-                }
-
-                if (IsChallengePage(pageTitle) || challengeObserved)
-                {
-                    // The user did not finish the check within the wait window. Surface the
-                    // challenge state so the ViewModel can tell the user to complete verification,
-                    // and keep the page open so they can finish it and then retry.
                     keepPageOpenForVerification = !page.IsClosed;
-                    logger.LogWarning(
-                        "[ModDB] Verification was not completed within {Timeout} ms for {Url}. The page stays open; the user can retry after solving it.",
-                        ModDBConstants.VerificationWaitTimeoutMs,
-                        url);
                     return ([], false, keepPageOpenForVerification, true);
                 }
-
-                logger.LogWarning(
-                    "ModDB did not expose a listing selector within {Timeout} ms for {Url} (page title: '{Title}'), parsing the current document...",
-                    ModDBConstants.VerificationWaitTimeoutMs,
-                    url,
-                    pageTitle ?? "Unknown");
             }
 
             if (page.IsClosed)
@@ -605,39 +499,16 @@ public partial class ModDBDiscoverer(
             }
 
             var html = await page.ContentAsync();
-
-            // Use AngleSharp to parse the HTML (Robust and already implemented)
             var browsingContext = BrowsingContext.New(Configuration.Default);
             var document = await browsingContext.OpenAsync(req => req.Content(html), cancellationToken);
 
-            List<ContentSearchResult> results = [];
-            var contentItems = document.QuerySelectorAll(ModDBConstants.DefaultListItemSelector);
-
-            foreach (var item in contentItems)
-            {
-                try
-                {
-                    var searchResult = ParseContentItem(item, gameType, section);
-                    if (searchResult != null)
-                    {
-                        results.Add(searchResult);
-                    }
-                }
-                catch
-                {
-                    // Ignore parse errors for individual items
-                }
-            }
-
+            var results = ParseDocumentSearchResults(document, gameType, section);
             if (results.Count == 0)
             {
                 logger.LogWarning("[ModDB] Scrape returned no items for section '{Section}'", section);
             }
 
-            // Check for pagination "next" button
-            var nextLink = document.QuerySelector("div.pages a.next") ?? document.QuerySelector("a.next");
-            var hasMoreItems = nextLink != null;
-
+            var hasMoreItems = HasMorePages(document);
             if (hasMoreItems)
             {
                 logger.LogInformation("[ModDB] More items available for {Section}", section);
@@ -652,8 +523,151 @@ public partial class ModDBDiscoverer(
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to discover from {Section} with Playwright", section);
-            return (new List<ContentSearchResult>(), false, keepPageOpenForVerification, false);
+            return ([], false, keepPageOpenForVerification, false);
         }
+    }
+
+    private static string BuildSectionUrl(string section, GameType gameType, ModDBFilter filter)
+    {
+        var baseUrl = gameType == GameType.Generals
+            ? $"{ModDBConstants.GeneralsBaseUrl}/{section}"
+            : $"{ModDBConstants.ZeroHourBaseUrl}/{section}";
+        var pageSuffix = filter.Page > 1 ? $"/page/{filter.Page}" : string.Empty;
+        return baseUrl + pageSuffix + filter.ToQueryString();
+    }
+
+    private async Task<(bool ListingReady, bool ChallengeObserved)> WaitForListingOrChallengeAsync(
+        IPage page,
+        string url,
+        CancellationToken cancellationToken)
+    {
+        var challengeObserved = false;
+        var deadline = DateTime.UtcNow.AddMilliseconds(ModDBConstants.VerificationWaitTimeoutMs);
+
+        while (DateTime.UtcNow < deadline)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (page.IsClosed)
+            {
+                logger.LogInformation("[ModDB] Browser page was closed; ending verification wait for {Url}", url);
+                return (false, challengeObserved);
+            }
+
+            try
+            {
+                var title = await page.TitleAsync();
+                if (IsChallengePage(title))
+                {
+                    if (!challengeObserved)
+                    {
+                        challengeObserved = true;
+                        logger.LogWarning(
+                            "[ModDB] Cloudflare challenge is blocking {Url} (title: '{Title}'). Waiting for the user to solve it in the browser window.",
+                            url,
+                            title);
+                        try
+                        {
+                            await page.BringToFrontAsync();
+                        }
+                        catch (PlaywrightException)
+                        {
+                        }
+                    }
+
+                    await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken);
+                    continue;
+                }
+
+                if (await page.QuerySelectorAsync(ModDBConstants.DefaultListItemSelector) != null)
+                {
+                    if (challengeObserved)
+                    {
+                        logger.LogInformation("[ModDB] Cloudflare challenge cleared for {Url}; parsing the listing.", url);
+                    }
+
+                    return (true, challengeObserved);
+                }
+            }
+            catch (PlaywrightException ex) when (Tools.PlaywrightService.IsContextClosedError(ex))
+            {
+                if (page.IsClosed)
+                {
+                    logger.LogInformation("[ModDB] Browser page was closed; ending verification wait for {Url}", url);
+                    return (false, challengeObserved);
+                }
+
+                logger.LogDebug(ex, "[ModDB] Transient navigation while waiting for listing {Url}; retrying", url);
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken);
+        }
+
+        return (false, challengeObserved);
+    }
+
+    private async Task<bool> HandleVerificationFailureAsync(IPage page, string url, bool challengeObserved)
+    {
+        string? pageTitle = null;
+        try
+        {
+            if (!page.IsClosed)
+            {
+                pageTitle = await page.TitleAsync();
+            }
+        }
+        catch (PlaywrightException)
+        {
+        }
+
+        if (IsChallengePage(pageTitle) || challengeObserved)
+        {
+            logger.LogWarning(
+                "[ModDB] Verification was not completed within {Timeout} ms for {Url}. The page stays open; the user can retry after solving it.",
+                ModDBConstants.VerificationWaitTimeoutMs,
+                url);
+            return true;
+        }
+
+        logger.LogWarning(
+            "ModDB did not expose a listing selector within {Timeout} ms for {Url} (page title: '{Title}'), parsing the current document...",
+            ModDBConstants.VerificationWaitTimeoutMs,
+            url,
+            pageTitle ?? "Unknown");
+        return false;
+    }
+
+    private static List<ContentSearchResult> ParseDocumentSearchResults(
+        IDocument document,
+        GameType gameType,
+        string section)
+    {
+        List<ContentSearchResult> results = [];
+        var contentItems = document.QuerySelectorAll(ModDBConstants.DefaultListItemSelector);
+
+        foreach (var item in contentItems)
+        {
+            try
+            {
+                var searchResult = ParseContentItem(item, gameType, section);
+                if (searchResult != null)
+                {
+                    results.Add(searchResult);
+                }
+            }
+            catch
+            {
+                // Ignore parse errors for individual items
+            }
+        }
+
+        return results;
+    }
+
+    private static bool HasMorePages(IDocument document)
+    {
+        var nextLink = document.QuerySelector("div.pages a.next") ?? document.QuerySelector("a.next");
+        return nextLink != null;
     }
 
     /// <summary>
