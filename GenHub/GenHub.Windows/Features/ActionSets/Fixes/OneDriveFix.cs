@@ -99,6 +99,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
 
                 var cloudPath = Path.Combine(cloudDocs, folderName);
                 var localPath = Path.Combine(localDocs, folderName);
+                string? currentCloudArchive = null;
 
                 if (!Directory.Exists(cloudPath) && !Directory.Exists(localPath)) continue;
 
@@ -108,74 +109,83 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
                     continue;
                 }
 
-                // If cloud folder exists and is a real directory (not symlink)
-                if (Directory.Exists(cloudPath) && !IsSymbolicLink(cloudPath))
+                try
                 {
-                    var backupFolder = Path.Combine(backupBaseDir, folderName);
-                    details.Add($"Creating safety backup of '{folderName}' to {backupFolder}...");
-                    Directory.CreateDirectory(backupFolder);
-
-                    // Step 1: Create complete safety backup
-                    CopyDirectoryRecursive(cloudPath, backupFolder);
-                    details.Add($"  ✓ Backup created ({CountFiles(backupFolder)} files)");
-
-                    // Step 2: Merge or move into local destination with verification
-                    if (!Directory.Exists(localPath))
+                    // If cloud folder exists and is a real directory (not symlink)
+                    if (Directory.Exists(cloudPath) && !IsSymbolicLink(cloudPath))
                     {
-                        Directory.CreateDirectory(localPath);
-                    }
+                        var backupFolder = Path.Combine(backupBaseDir, folderName);
+                        details.Add($"Creating safety backup of '{folderName}' to {backupFolder}...");
+                        Directory.CreateDirectory(backupFolder);
 
-                    details.Add($"  Copying and verifying files into '{localPath}'...");
-                    var (copied, totalBytes) = CopyDirectoryWithVerification(cloudPath, localPath);
-                    details.Add($"  ✓ Copied and verified {copied} files ({totalBytes / 1024.0 / 1024.0:F2} MB)");
+                        // Step 1: Create complete safety backup
+                        CopyDirectoryRecursive(cloudPath, backupFolder);
+                        details.Add($"  ✓ Backup created ({CountFiles(backupFolder)} files)");
 
-                    // Step 3: Verify destination integrity before unlinking source
-                    if (!VerifyDirectoryIntegrity(cloudPath, localPath))
-                    {
-                        throw new IOException($"Integrity check failed between '{cloudPath}' and '{localPath}'. Aborting to prevent data loss.");
-                    }
-
-                    // Step 4: Safely move cloud folder to backup location instead of permanently deleting
-                    var cloudArchive = cloudPath + ".archived_" + DateTime.UtcNow.Ticks;
-                    Directory.Move(cloudPath, cloudArchive);
-                    details.Add($"  ✓ Original cloud folder archived to {Path.GetFileName(cloudArchive)}");
-                }
-
-                // Create symlink or junction in OneDrive pointing to local
-                if (Directory.Exists(localPath) && !Directory.Exists(cloudPath))
-                {
-                    details.Add($"Creating link in OneDrive for '{folderName}'...");
-                    try
-                    {
-                        Directory.CreateSymbolicLink(cloudPath, localPath);
-                        details.Add($"  ✓ Symlink created: {cloudPath} -> {localPath}");
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "CreateSymbolicLink failed, falling back to directory junction for {Path}", cloudPath);
-                        var psi = new ProcessStartInfo
+                        // Step 2: Merge or move into local destination with verification
+                        if (!Directory.Exists(localPath))
                         {
-                            FileName = "cmd.exe",
-                            Arguments = $"/c mklink /J \"{cloudPath}\" \"{localPath}\"",
-                            CreateNoWindow = true,
-                            UseShellExecute = false,
-                        };
-                        using var p = Process.Start(psi);
-                        p?.WaitForExit();
-                        if (p?.ExitCode == ProcessConstants.ExitCodeSuccess)
-                        {
-                            details.Add($"  ✓ Junction created: {cloudPath} -> {localPath}");
+                            Directory.CreateDirectory(localPath);
                         }
-                        else
+
+                        details.Add($"  Copying and verifying files into '{localPath}'...");
+                        var (copied, totalBytes) = CopyDirectoryWithVerification(cloudPath, localPath);
+                        details.Add($"  ✓ Copied and verified {copied} files ({totalBytes / 1024.0 / 1024.0:F2} MB)");
+
+                        // Step 3: Verify destination integrity before unlinking source
+                        if (!VerifyDirectoryIntegrity(cloudPath, localPath))
                         {
-                            details.Add($"  ✗ Failed to create link: {cloudPath}");
+                            throw new IOException($"Integrity check failed between '{cloudPath}' and '{localPath}'. Aborting to prevent data loss.");
+                        }
+
+                        // Step 4: Safely move cloud folder to backup location instead of permanently deleting
+                        var cloudArchive = cloudPath + ".archived_" + DateTime.UtcNow.Ticks;
+                        currentCloudArchive = cloudArchive;
+                        Directory.Move(cloudPath, cloudArchive);
+                        details.Add($"  ✓ Original cloud folder archived to {Path.GetFileName(cloudArchive)}");
+                    }
+
+                    // Create symlink or junction in OneDrive pointing to local
+                    if (Directory.Exists(localPath) && !Directory.Exists(cloudPath))
+                    {
+                        details.Add($"Creating link in OneDrive for '{folderName}'...");
+                        bool linkSuccess = CreateSymlinkOrJunction(cloudPath, localPath, details);
+                        if (!linkSuccess)
+                        {
+                            // Roll back archive to restore user folder
+                            if (!string.IsNullOrEmpty(currentCloudArchive) && Directory.Exists(currentCloudArchive) && !Directory.Exists(cloudPath))
+                            {
+                                Directory.Move(currentCloudArchive, cloudPath);
+                                details.Add($"  ✓ Restored original cloud folder from archive due to link creation failure");
+                                currentCloudArchive = null;
+                            }
+
+                            return new ActionSetResult(false, $"Failed to create symlink or junction for '{folderName}'. Restored original folder from archive.", details);
                         }
                     }
-                }
 
-                // Apply Pin attribute to local folder
-                await ApplyPinAttributeAsync(localPath, cancellationToken);
-                foldersProcessed++;
+                    // Apply Pin attribute to local folder
+                    await ApplyPinAttributeAsync(localPath, cancellationToken);
+                    foldersProcessed++;
+                }
+                catch (Exception)
+                {
+                    // Rollback archive on error if needed
+                    if (!string.IsNullOrEmpty(currentCloudArchive) && Directory.Exists(currentCloudArchive) && !Directory.Exists(cloudPath))
+                    {
+                        try
+                        {
+                            Directory.Move(currentCloudArchive, cloudPath);
+                            details.Add($"  ✓ Restored original cloud folder from archive after error");
+                        }
+                        catch (Exception rollbackEx)
+                        {
+                            logger.LogError(rollbackEx, "Failed to rollback archived folder {Archive} to {CloudPath}", currentCloudArchive, cloudPath);
+                        }
+                    }
+
+                    throw;
+                }
             }
 
             details.Add(string.Empty);
@@ -189,6 +199,44 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
             logger.LogError(ex, "Error applying OneDrive protection");
             details.Add($"✗ Error: {ex.Message}");
             return new ActionSetResult(false, ex.Message, details);
+        }
+    }
+
+    private bool CreateSymlinkOrJunction(string linkPath, string targetPath, List<string> details)
+    {
+        try
+        {
+            Directory.CreateSymbolicLink(linkPath, targetPath);
+            details.Add($"  ✓ Symlink created: {linkPath} -> {targetPath}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "CreateSymbolicLink failed, falling back to directory junction for {Path}", linkPath);
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = $"/c mklink /J \"{linkPath}\" \"{targetPath}\"",
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                };
+                using var p = Process.Start(psi);
+                p?.WaitForExit();
+                if (p?.ExitCode == ProcessConstants.ExitCodeSuccess)
+                {
+                    details.Add($"  ✓ Junction created: {linkPath} -> {targetPath}");
+                    return true;
+                }
+            }
+            catch (Exception juncEx)
+            {
+                logger.LogWarning(juncEx, "Junction creation failed for {Path}", linkPath);
+            }
+
+            details.Add($"  ✗ Failed to create link: {linkPath}");
+            return false;
         }
     }
 

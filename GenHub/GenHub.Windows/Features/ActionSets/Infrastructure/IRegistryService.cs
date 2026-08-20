@@ -86,15 +86,23 @@ public interface IRegistryService
     bool SetIntValue(string keyPath, string valueName, int value, bool useWow6432Node = true);
 
     /// <summary>
-    /// Sets an integer value in the specified registry hive.
+    /// Deletes a value from the registry using HKLM.
     /// </summary>
     /// <param name="keyPath">The path to the registry key.</param>
-    /// <param name="valueName">The name of the value to set.</param>
-    /// <param name="value">The value to set.</param>
+    /// <param name="valueName">The name of the value to delete.</param>
+    /// <param name="useWow6432Node">Whether to use the Wow6432Node (32-bit registry view).</param>
+    /// <returns>True if successful, false otherwise.</returns>
+    bool DeleteValue(string keyPath, string valueName, bool useWow6432Node = true);
+
+    /// <summary>
+    /// Deletes a value from the specified registry hive.
+    /// </summary>
+    /// <param name="keyPath">The path to the registry key.</param>
+    /// <param name="valueName">The name of the value to delete.</param>
     /// <param name="useWow6432Node">Whether to use the Wow6432Node (32-bit registry view).</param>
     /// <param name="hive">The registry hive to access.</param>
     /// <returns>True if successful, false otherwise.</returns>
-    bool SetIntValue(string keyPath, string valueName, int value, bool useWow6432Node, RegistryHive hive);
+    bool DeleteValue(string keyPath, string valueName, bool useWow6432Node, RegistryHive hive);
 }
 
 /// <summary>
@@ -199,6 +207,32 @@ public class RegistryService(ILogger<RegistryService> logger) : IRegistryService
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to write registry key {KeyPath}\\{ValueName}", keyPath, valueName);
+            return false;
+        }
+    }
+
+    /// <inheritdoc/>
+    public bool DeleteValue(string keyPath, string valueName, bool useWow6432Node = true)
+        => DeleteValue(keyPath, valueName, useWow6432Node, RegistryHive.LocalMachine);
+
+    /// <inheritdoc/>
+    public bool DeleteValue(string keyPath, string valueName, bool useWow6432Node, RegistryHive hive)
+    {
+        try
+        {
+            using var baseKey = RegistryKey.OpenBaseKey(hive, useWow6432Node ? RegistryView.Registry32 : RegistryView.Default);
+            using var subKey = baseKey.OpenSubKey(keyPath, true);
+            if (subKey != null)
+            {
+                subKey.DeleteValue(valueName, false);
+                return true;
+            }
+
+            return false;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to delete registry value {KeyPath}\\{ValueName}", keyPath, valueName);
             return false;
         }
     }

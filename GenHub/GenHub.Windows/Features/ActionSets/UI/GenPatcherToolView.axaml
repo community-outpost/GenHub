@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:models="using:GenHub.Core.Models.GameInstallations"
              xmlns:vm="using:GenHub.Windows.Features.ActionSets.UI"
              mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="600"
              x:Class="GenHub.Windows.Features.ActionSets.UI.GenPatcherToolView"
@@ -132,7 +133,7 @@
             <!-- Red-tinted Glassmorphic Header Card -->
             <Border Grid.Row="0" Margin="0,0,0,16" Padding="18,14" CornerRadius="10"
                     Background="#1EC62828" BorderBrush="#35EF5350" BorderThickness="1">
-                <Grid ColumnDefinitions="*, Auto">
+                <Grid ColumnDefinitions="*, Auto, Auto">
                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
                         <!-- GenPatcher Logo -->
                         <Image Source="avares://GenHub/Assets/Logos/genpatcher-logo.png" Height="50" VerticalAlignment="Center"/>
@@ -147,7 +148,25 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <Button Grid.Column="1" Classes="GenPatcherPrimaryBtn" Command="{Binding ApplyAllFixesCommand}">
+                    <!-- Target Installation Selector -->
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,16,0" Spacing="3">
+                        <TextBlock Text="Target Installation:" FontSize="11" Foreground="#CCCCCC" FontWeight="SemiBold"/>
+                        <ComboBox ItemsSource="{Binding AvailableInstallations}"
+                                  SelectedItem="{Binding SelectedInstallation}"
+                                  MinWidth="220"
+                                  VerticalAlignment="Center">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="models:GameInstallation">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <TextBlock Text="{Binding InstallationType}" FontWeight="Bold" Foreground="White"/>
+                                        <TextBlock Text="{Binding InstallationPath}" FontSize="11" Foreground="#AAAAAA" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <Button Grid.Column="2" Classes="GenPatcherPrimaryBtn" Command="{Binding ApplyAllFixesCommand}">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock Text="⚡" VerticalAlignment="Center"/>
                             <TextBlock Text="Apply All Recommended" VerticalAlignment="Center" FontWeight="Bold"/>

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -15,6 +16,43 @@ using GenHub.Core.Models.Results;
 /// </summary>
 public static class DownloadSecurityValidator
 {
+    private static readonly Guid WinTrustActionGenericVerifyV2 = new("00AAC56B-CD44-11d0-8CC2-00C04FC295EE");
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct WinTrustFileInfo
+    {
+        public uint CbStruct;
+        [MarshalAs(UnmanagedType.LPWStr)]
+        public string PszFilePath;
+        public IntPtr HFile;
+        public IntPtr PgKnownSubject;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct WinTrustData
+    {
+        public uint CbStruct;
+        public IntPtr PPolicyCallbackData;
+        public IntPtr PSIPClientData;
+        public uint DwUIChoice;
+        public uint FdwRevocationChecks;
+        public uint DwUnionChoice;
+        public IntPtr PFile;
+        public uint DwStateAction;
+        public IntPtr HWVTStateData;
+        [MarshalAs(UnmanagedType.LPWStr)]
+        public string? PwszURLReference;
+        public uint DwProvFlags;
+        public uint DwUIContext;
+        public IntPtr PSignatureSettings;
+    }
+
+    [DllImport("wintrust.dll", ExactSpelling = true, SetLastError = false, CharSet = CharSet.Unicode)]
+    private static extern int WinVerifyTrust(
+        IntPtr hwnd,
+        [MarshalAs(UnmanagedType.LPStruct)] Guid pgActionID,
+        IntPtr pWVTData);
+
     /// <summary>
     /// Computes the SHA-256 hash of a file as a lowercase hexadecimal string.
     /// </summary>
@@ -30,41 +68,108 @@ public static class DownloadSecurityValidator
     }
 
     /// <summary>
-    /// Validates the Authenticode signature publisher of a file.
+    /// Validates the Authenticode signature and publisher of a file.
+    /// On Windows, performs WinVerifyTrust trust and integrity verification.
     /// </summary>
     /// <param name="filePath">Path to the executable or library file.</param>
     /// <param name="expectedPublisher">Expected publisher subject or issuer substring (e.g. "Microsoft Corporation").</param>
     /// <returns>Operation result indicating success or failure.</returns>
-    public static OperationResult<bool> ValidateAuthenticodeSignature(string filePath, string expectedPublisher)
+    public static OperationResult<bool> ValidateAuthenticodeSignature(string filePath, string? expectedPublisher = null)
     {
         if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
         {
             return OperationResult<bool>.CreateFailure("File to validate does not exist.");
         }
 
-        if (string.IsNullOrWhiteSpace(expectedPublisher))
+        // On Windows, verify signature trust and integrity via WinVerifyTrust
+        if (OperatingSystem.IsWindows())
         {
-            return OperationResult<bool>.CreateSuccess(true);
+            var trustResult = VerifyWindowsAuthenticodeTrust(filePath);
+            if (!trustResult.Success)
+            {
+                return trustResult;
+            }
         }
 
+        // Verify publisher from the embedded certificate
         try
         {
             using var cert = new X509Certificate2(X509Certificate.CreateFromSignedFile(filePath));
-            var subject = cert.Subject;
-            var issuer = cert.Issuer;
 
-            if (subject.Contains(expectedPublisher, StringComparison.OrdinalIgnoreCase) ||
-                issuer.Contains(expectedPublisher, StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(expectedPublisher))
             {
-                return OperationResult<bool>.CreateSuccess(true);
+                var subject = cert.Subject;
+                var issuer = cert.Issuer;
+
+                if (!subject.Contains(expectedPublisher, StringComparison.OrdinalIgnoreCase) &&
+                    !issuer.Contains(expectedPublisher, StringComparison.OrdinalIgnoreCase))
+                {
+                    return OperationResult<bool>.CreateFailure(
+                        $"Authenticode signature publisher mismatch. Expected publisher containing '{expectedPublisher}', but found subject '{subject}' and issuer '{issuer}'.");
+                }
             }
 
-            return OperationResult<bool>.CreateFailure(
-                $"Authenticode signature publisher mismatch. Expected publisher containing '{expectedPublisher}', but found subject '{subject}' and issuer '{issuer}'.");
+            return OperationResult<bool>.CreateSuccess(true);
         }
         catch (Exception ex)
         {
-            return OperationResult<bool>.CreateFailure($"Authenticode signature verification failed: {ex.Message}");
+            return OperationResult<bool>.CreateFailure($"Authenticode certificate verification failed: {ex.Message}");
+        }
+    }
+
+    private static OperationResult<bool> VerifyWindowsAuthenticodeTrust(string filePath)
+    {
+        var fileInfo = new WinTrustFileInfo
+        {
+            CbStruct = (uint)Marshal.SizeOf<WinTrustFileInfo>(),
+            PszFilePath = Path.GetFullPath(filePath),
+            HFile = IntPtr.Zero,
+            PgKnownSubject = IntPtr.Zero,
+        };
+
+        var pFileInfo = Marshal.AllocHGlobal(Marshal.SizeOf<WinTrustFileInfo>());
+        var pData = Marshal.AllocHGlobal(Marshal.SizeOf<WinTrustData>());
+
+        try
+        {
+            Marshal.StructureToPtr(fileInfo, pFileInfo, false);
+
+            var trustData = new WinTrustData
+            {
+                CbStruct = (uint)Marshal.SizeOf<WinTrustData>(),
+                PPolicyCallbackData = IntPtr.Zero,
+                PSIPClientData = IntPtr.Zero,
+                DwUIChoice = 2, // WTD_UI_NONE
+                FdwRevocationChecks = 0, // WTD_REVOKE_NONE
+                DwUnionChoice = 1, // WTD_CHOICE_FILE
+                PFile = pFileInfo,
+                DwStateAction = 0, // WTD_STATEACTION_IGNORE
+                HWVTStateData = IntPtr.Zero,
+                PwszURLReference = null,
+                DwProvFlags = 0x00000040, // WTD_CACHE_ONLY_URL_RETRIEVAL
+                DwUIContext = 0,
+                PSignatureSettings = IntPtr.Zero,
+            };
+
+            Marshal.StructureToPtr(trustData, pData, false);
+
+            int result = WinVerifyTrust(IntPtr.Zero, WinTrustActionGenericVerifyV2, pData);
+            if (result != 0)
+            {
+                return OperationResult<bool>.CreateFailure(
+                    $"Authenticode trust verification failed for '{Path.GetFileName(filePath)}' with error code 0x{result:X8}.");
+            }
+
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (Exception ex)
+        {
+            return OperationResult<bool>.CreateFailure($"WinVerifyTrust exception: {ex.Message}");
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(pData);
+            Marshal.FreeHGlobal(pFileInfo);
         }
     }
 
@@ -88,7 +193,7 @@ public static class DownloadSecurityValidator
             return OperationResult<bool>.CreateFailure($"File '{filePath}' does not exist for validation.");
         }
 
-        // 1. Verify Authenticode publisher if specified
+        // 1. Verify Authenticode publisher / trust if specified
         if (!string.IsNullOrWhiteSpace(expectedAuthenticodePublisher))
         {
             var authResult = ValidateAuthenticodeSignature(filePath, expectedAuthenticodePublisher);
