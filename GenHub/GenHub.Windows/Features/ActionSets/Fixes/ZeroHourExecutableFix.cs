@@ -36,13 +36,13 @@ public class ZeroHourExecutableFix(ILogger<ZeroHourExecutableFix> logger) : Base
     public override string DetailedDescription => "Zero Hour requires official executable version 1.04 to support online multiplayer, GenTool, and modern community mods. This check validates your game executables and ensures your installation is ready for competitive play.";
 
     /// <inheritdoc/>
-    public override string Category => "Core & Stability";
+    public override string Category => ActionSetConstants.Categories.CoreAndStability;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => true;
 
     /// <inheritdoc/>
-    public override bool IsCrucialFix => true;
+    public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
     public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
@@ -71,8 +71,8 @@ public class ZeroHourExecutableFix(ILogger<ZeroHourExecutableFix> logger) : Base
             var versionInfo = System.Diagnostics.FileVersionInfo.GetVersionInfo(gameExePath);
             var version = versionInfo.FileVersion;
 
-            // 1.04 version should be 1.4.0.0 or similar
-            if (version?.StartsWith("1.4") == true)
+            // 1.04 version should be 1.4.0.0, 1.04, or similar
+            if (version != null && (version.StartsWith("1.4", StringComparison.OrdinalIgnoreCase) || version.StartsWith("1.04", StringComparison.OrdinalIgnoreCase)))
             {
                 return Task.FromResult(true);
             }

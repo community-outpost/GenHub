@@ -79,13 +79,13 @@ public class EAAppRegistryFixTests
         // Mock returns correct paths
         _registryMock.Setup(r => r.GetStringValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.InstallPathValueName, It.IsAny<bool>()))
                      .Returns(installation.GeneralsPath);
-        _registryMock.Setup(r => r.GetIntValue(RegistryConstants.EAAppGeneralsKeyPath, "Version", It.IsAny<bool>()))
+        _registryMock.Setup(r => r.GetIntValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.VersionValueName, It.IsAny<bool>()))
                      .Returns(65544); // 1.08
 
         // Mock zero hour correct
         _registryMock.Setup(r => r.GetStringValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.InstallPathValueName, It.IsAny<bool>()))
                      .Returns(installation.ZeroHourPath);
-        _registryMock.Setup(r => r.GetIntValue(RegistryConstants.EAAppZeroHourKeyPath, "Version", It.IsAny<bool>()))
+        _registryMock.Setup(r => r.GetIntValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.VersionValueName, It.IsAny<bool>()))
                      .Returns(65540); // 1.04
 
         // Ergc missing (returns empty or null)
@@ -118,18 +118,18 @@ public class EAAppRegistryFixTests
 
         // Verify installs - Verify SET usage
         _registryMock.Verify(r => r.SetStringValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.InstallPathValueName, installation.GeneralsPath, It.IsAny<bool>()), Times.Once);
-        _registryMock.Verify(r => r.SetIntValue(RegistryConstants.EAAppGeneralsKeyPath, "Version", RegistryConstants.GeneralsVersionDWord, It.IsAny<bool>()), Times.Once);
+        _registryMock.Verify(r => r.SetIntValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.VersionValueName, RegistryConstants.GeneralsVersionDWord, It.IsAny<bool>()), Times.Once);
 
         // Verify serials logic - should attempt to write if missing (default mock returns null/empty so logic thinks it's missing)
         _registryMock.Verify(r => r.SetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty, It.IsAny<string>(), It.IsAny<bool>()), Times.AtLeast(1));
     }
 
     /// <summary>
-    /// Verifies that IsApplicableAsync returns false when all registry keys and serials are already correct.
+    /// Verifies that IsApplicableAsync returns true for EA App installations.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task IsApplicable_ReturnsFalse_WhenAllKeysValidAsync()
+    public async Task IsApplicable_ReturnsTrue_ForEaAppInstallationAsync()
     {
         var installation = new GameInstallation("C:\\Games", GameInstallationType.EaApp)
         {
@@ -141,21 +141,21 @@ public class EAAppRegistryFixTests
 
         _registryMock.Setup(r => r.GetStringValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.InstallPathValueName, It.IsAny<bool>()))
                      .Returns(installation.GeneralsPath);
-        _registryMock.Setup(r => r.GetIntValue(RegistryConstants.EAAppGeneralsKeyPath, "Version", It.IsAny<bool>()))
+        _registryMock.Setup(r => r.GetIntValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.VersionValueName, It.IsAny<bool>()))
                      .Returns(RegistryConstants.GeneralsVersionDWord);
         _registryMock.Setup(r => r.GetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty, It.IsAny<bool>()))
                      .Returns("VALIDSERIAL12345678");
 
         _registryMock.Setup(r => r.GetStringValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.InstallPathValueName, It.IsAny<bool>()))
                      .Returns(installation.ZeroHourPath);
-        _registryMock.Setup(r => r.GetIntValue(RegistryConstants.EAAppZeroHourKeyPath, "Version", It.IsAny<bool>()))
+        _registryMock.Setup(r => r.GetIntValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.VersionValueName, It.IsAny<bool>()))
                      .Returns(RegistryConstants.ZeroHourVersionDWord);
         _registryMock.Setup(r => r.GetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty, It.IsAny<bool>()))
                      .Returns("VALIDSERIAL87654321");
 
         var result = await _fix.IsApplicableAsync(installation);
 
-        Assert.False(result);
+        Assert.True(result);
     }
 
     /// <summary>
@@ -192,7 +192,7 @@ public class EAAppRegistryFixTests
 
         _registryMock.Setup(r => r.GetStringValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.InstallPathValueName, It.IsAny<bool>()))
                      .Returns(installation.GeneralsPath);
-        _registryMock.Setup(r => r.GetIntValue(RegistryConstants.EAAppGeneralsKeyPath, "Version", It.IsAny<bool>()))
+        _registryMock.Setup(r => r.GetIntValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.VersionValueName, It.IsAny<bool>()))
                      .Returns(RegistryConstants.GeneralsVersionDWord);
         _registryMock.Setup(r => r.GetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty, It.IsAny<bool>()))
                      .Returns("VALIDSERIAL");

@@ -21,7 +21,6 @@ namespace GenHub.Windows.Features.ActionSets.Fixes;
 /// <param name="logger">The logger instance.</param>
 public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104Fix> logger) : BaseActionSet(logger)
 {
-    /// <summary>
     /// <inheritdoc/>
     public override string Id => "Patch104";
 
@@ -35,7 +34,7 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
     public override string DetailedDescription => "Patch 1.04 is the definitive official update for Command & Conquer: Generals Zero Hour, addressing balance exploits, memory leaks, and multiplayer desync errors. Upgrading to 1.04 is strictly required to play online via C&C:Online/GameRanger and to run modern mods.";
 
     /// <inheritdoc/>
-    public override string Category => "Core & Stability";
+    public override string Category => ActionSetConstants.Categories.CoreAndStability;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => true;
@@ -169,23 +168,23 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
         {
             logger.LogInformation("Attempting download from {Url}", url);
 
-            using var response = await client.GetAsync(url, cancellationToken);
+            using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             response.EnsureSuccessStatusCode();
 
-            var fileSize = response.Content.Headers.ContentLength ?? 0;
-            if (fileSize < 1024 * 1024)
+            logger.LogInformation("Streaming response content to disk at {Path}...", downloadPath);
+            await using (var fileStream = new FileStream(downloadPath, FileMode.Create, FileAccess.Write, FileShare.None))
             {
-                logger.LogWarning("Downloaded file from {Url} is too small ({Size} bytes). Likely blocked.", url, fileSize);
+                await response.Content.CopyToAsync(fileStream, cancellationToken);
+            }
+
+            var downloadedFileInfo = new FileInfo(downloadPath);
+            if (downloadedFileInfo.Length < ActionSetConstants.Validation.PatchMinSize)
+            {
+                logger.LogWarning("Downloaded file from {Url} is too small ({Size} bytes). Likely blocked.", url, downloadedFileInfo.Length);
                 return (false, downloadPath, isExe);
             }
 
-            details.Add($"✓ Downloaded {fileSize / 1024 / 1024:F2} MB from {uri.Host}");
-
-            logger.LogInformation("Reading response content to memory...");
-            var fileBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-
-            logger.LogInformation("Writing {Size} bytes to disk...", fileBytes.Length);
-            await File.WriteAllBytesAsync(downloadPath, fileBytes, cancellationToken);
+            details.Add($"✓ Downloaded {downloadedFileInfo.Length / 1024.0 / 1024.0:F2} MB from {uri.Host}");
 
             if (!isExe)
             {
@@ -263,7 +262,7 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
 
         await process.WaitForExitAsync(cancellationToken);
 
-        if (process.ExitCode != 0)
+        if (process.ExitCode != ProcessConstants.ExitCodeSuccess)
         {
             details.Add($"✗ Patch installer exited with code {process.ExitCode}");
             return new ActionSetResult(false, $"Patch installer exited with code {process.ExitCode}", details);

@@ -65,8 +65,9 @@ public class VCRedist2005Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
             using var key2 = Registry.LocalMachine.OpenSubKey(RegistryConstants.VCRedist2005InstallerProductsKeyWow64);
             if (key2 != null) return Task.FromResult(true);
         }
-        catch
+        catch (Exception ex)
         {
+            logger.LogDebug(ex, "Failed to inspect VC++ 2005 redistributable registry subkey");
         }
 
         return Task.FromResult(false);
