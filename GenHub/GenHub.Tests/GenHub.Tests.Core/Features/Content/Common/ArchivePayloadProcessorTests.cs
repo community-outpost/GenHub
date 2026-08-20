@@ -744,7 +744,7 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
             if (useBzip2)
             {
                 using var bzMs = new MemoryStream();
-                using (var bz = SharpCompress.Compressors.BZip2.BZip2Stream.Create(bzMs, SharpCompress.Compressors.CompressionMode.Compress, decompressConcatenated: false, leaveOpen: true))
+                using (var bz = SharpCompress.Compressors.BZip2.BZip2Stream.Create(bzMs, SharpCompress.Compressors.CompressionMode.Compress, decompressConcatenated: false, leaveOpen: false))
                 {
                     bz.Write(content, 0, content.Length);
                 }
@@ -756,7 +756,7 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
                 using var defMs = new MemoryStream();
                 defMs.WriteByte(0x78);
                 defMs.WriteByte(0xDA);
-                using (var def = new DeflateStream(defMs, CompressionLevel.Optimal, leaveOpen: true))
+                using (var def = new DeflateStream(defMs, CompressionLevel.Optimal, leaveOpen: false))
                 {
                     def.Write(content, 0, content.Length);
                 }
@@ -789,7 +789,7 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         {
             defTableMs.WriteByte(0x78);
             defTableMs.WriteByte(0xDA);
-            using (var def = new DeflateStream(defTableMs, CompressionLevel.Optimal, leaveOpen: true))
+            using (var def = new DeflateStream(defTableMs, CompressionLevel.Optimal, leaveOpen: false))
             {
                 var tableRaw = tableMs.ToArray();
                 def.Write(tableRaw, 0, tableRaw.Length);
