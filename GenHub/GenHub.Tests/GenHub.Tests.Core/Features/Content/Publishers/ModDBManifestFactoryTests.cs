@@ -421,7 +421,7 @@ public sealed class ModDBManifestFactoryTests : IDisposable
         var originalManifest = new ContentManifest
         {
             SchemaVersion = "1.0.0",
-            Id = ManifestId.Create("moddb:mod:contra-x-beta-2:1"),
+            Id = ManifestId.Create("1.1.moddb.mod.contra-x-beta-2"),
             Name = "Contra X BETA 2",
             Version = "1.0",
             ContentType = ContentType.Mod,

@@ -625,9 +625,15 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
     {
         // Arrange
         Directory.CreateDirectory(_stagingDirectory);
-        var bigContent = System.Text.Encoding.Latin1.GetBytes("BIGF\x10\x00\x00\x00\x01\x00\x00\x00\x20\x00\x00\x00TestIniDataInsideBig");
-        var exeContent = System.Text.Encoding.Latin1.GetBytes("MZ\x90\x00\x03\x00\x00\x00\x04\x00\x00\x00\xff\xff\x00\x00LauncherCode");
-        var iniContent = System.Text.Encoding.Latin1.GetBytes("GameData=1\r\nVersion=1.0\r\n");
+        var bigHeader = new byte[] { (byte)'B', (byte)'I', (byte)'G', (byte)'F', 0x10, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00 };
+        var bigPayload = System.Text.Encoding.ASCII.GetBytes("TestIniDataInsideBig");
+        var bigContent = bigHeader.Concat(bigPayload).ToArray();
+
+        var exeHeader = new byte[] { (byte)'M', (byte)'Z', 0x90, 0x00, 0x03, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00 };
+        var exePayload = System.Text.Encoding.ASCII.GetBytes("LauncherCode");
+        var exeContent = exeHeader.Concat(exePayload).ToArray();
+
+        var iniContent = System.Text.Encoding.ASCII.GetBytes("GameData=1\r\nVersion=1.0\r\n");
 
         var syntheticSimBytes = CreateSyntheticSmartInstallMakerExecutable(
         [
