@@ -561,6 +561,74 @@ public class GeneralsOnlineDelivererTests : IDisposable
         Assert.False(Directory.Exists(Path.Combine(targetDir, "extracted")));
     }
 
+    /// <summary>
+    /// Verifies that DeliverContentAsync passes the declared expected hash to IDownloadService.DownloadFileAsync.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task DeliverContentAsync_WithDeclaredHash_PassesExpectedHashToDownloadServiceAsync()
+    {
+        // Arrange
+        const string expectedHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        var zipPath = Path.Combine(_tempDir, "test_hash.zip");
+        CreateTestZip(zipPath);
+
+        string? capturedExpectedHash = null;
+        _downloadServiceMock
+            .Setup(d => d.DownloadFileAsync(
+                It.IsAny<Uri>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<IProgress<DownloadProgress>?>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<Uri, string, string?, IProgress<DownloadProgress>?, CancellationToken>((url, path, hash, prog, token) =>
+            {
+                capturedExpectedHash = hash;
+                File.Copy(zipPath, path, true);
+            })
+            .ReturnsAsync(DownloadResult.CreateSuccess(zipPath, 100, TimeSpan.FromSeconds(1)));
+
+        _manifestPoolMock
+            .Setup(p => p.AddManifestAsync(
+                It.IsAny<ContentManifest>(),
+                It.IsAny<string>(),
+                It.IsAny<IProgress<ContentStorageProgress>?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        var manifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.1015255.generalsonline.gameclient.60hz"),
+            Name = GameClientConstants.GeneralsOnline60HzDisplayName,
+            Version = "101525_QFE5",
+            ContentType = ContentType.GameClient,
+            Publisher = new PublisherInfo { PublisherType = PublisherTypeConstants.GeneralsOnline },
+            Files =
+            [
+                new ManifestFile
+                {
+                    DownloadUrl = "https://example.com/GeneralsOnline_101525_QFE5.zip",
+                    SourceType = ContentSourceType.RemoteDownload,
+                    Hash = expectedHash,
+                },
+            ],
+            InstallationInstructions = new InstallationInstructions
+            {
+                DownloadHash = expectedHash,
+            },
+        };
+
+        var targetDir = Path.Combine(_tempDir, "hash_delivery");
+        Directory.CreateDirectory(targetDir);
+
+        // Act
+        var result = await _deliverer.DeliverContentAsync(manifest, targetDir);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(expectedHash, capturedExpectedHash);
+    }
+
     private static void CreateTestZip(string zipPath)
     {
         using var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create);

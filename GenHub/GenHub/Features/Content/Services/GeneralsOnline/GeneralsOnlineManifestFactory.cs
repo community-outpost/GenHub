@@ -111,13 +111,14 @@ public class GeneralsOnlineManifestFactory(
                     DownloadUrl = release.PortableUrl,
                     Size = release.PortableSize ?? 0, // Use 0 when size is unknown
                     SourceType = ContentSourceType.RemoteDownload,
-                    Hash = string.Empty,
+                    Hash = release.Sha256 ?? string.Empty,
                 },
             ],
             Dependencies = GeneralsOnlineDependencyBuilder.GetDependenciesFor60Hz(userVersion),
             InstallationInstructions = new InstallationInstructions
             {
                 WorkspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy,
+                DownloadHash = release.Sha256,
                 PostInstallSteps =
                 [
                     new InstallationStep

@@ -401,4 +401,33 @@ public class GeneralsOnlineManifestFactoryTests : IDisposable
         var resolvedClientDep = resolvedDeps.First(d => d.DependencyType == ContentType.GameClient);
         Assert.Equal(expectedClientId.Value, resolvedClientDep.Id.Value);
     }
+
+    /// <summary>
+    /// Verifies that CreateManifests propagates Sha256 to file hash and installation instructions download hash.
+    /// </summary>
+    [Fact]
+    public void CreateManifests_WithSha256_SetsFileHashAndDownloadHash()
+    {
+        // Arrange
+        const string expectedHash = "abc123hash";
+        var release = new GeneralsOnlineRelease
+        {
+            Version = "101525_QFE5",
+            ReleaseDate = DateTime.UtcNow,
+            PortableUrl = "https://example.com/GeneralsOnline_portable_101525_QFE5.zip",
+            PortableSize = 1048576,
+            Sha256 = expectedHash,
+            Changelog = "https://example.com/changelog",
+        };
+
+        // Act
+        var manifests = _factory.CreateManifests(release);
+
+        // Assert
+        var gameClient = manifests.FirstOrDefault(m => m.ContentType == ContentType.GameClient);
+        Assert.NotNull(gameClient);
+        Assert.Equal(expectedHash, gameClient.InstallationInstructions?.DownloadHash);
+        var zipFile = Assert.Single(gameClient.Files);
+        Assert.Equal(expectedHash, zipFile.Hash);
+    }
 }
