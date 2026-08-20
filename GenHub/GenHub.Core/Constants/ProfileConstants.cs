@@ -29,9 +29,4 @@ public static class ProfileConstants
     /// The format string used for numbered profile copy names.
     /// </summary>
     public const string CopyNameNumberedFormat = "(Copy {0})";
-
-    /// <summary>
-    /// Default name for new profiles.
-    /// </summary>
-    public const string DefaultProfileName = "New Profile";
 }
