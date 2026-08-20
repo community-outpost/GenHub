@@ -864,6 +864,8 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             }
 
             Directory.CreateDirectory(stagingDir);
+            var stagingRoot = Path.GetFullPath(stagingDir);
+
             // 1. Check if legacy 32-bit records exist
             var legacyRecords = ParseSmartInstallMakerFileTable(fileTableData, stream, payloadOffset);
             if (legacyRecords.Count > 0)
