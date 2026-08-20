@@ -69,8 +69,6 @@ public partial class GameProfileLauncherViewModel(
     private string? _expectedProfileIdForSuccess;
     private bool _isCreatingNewProfile;
 
-    private bool _isHovering;
-
     [ObservableProperty]
     private ObservableCollection<GameProfileItemViewModel> _profiles = [];
 
