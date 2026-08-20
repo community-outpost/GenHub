@@ -44,11 +44,7 @@ public class GameProcessManager(
     /// <summary>
     /// Periodic timer to send anonymous heartbeats for active game sessions.
     /// </summary>
-    private readonly Timer _heartbeatTimer = new(
-        state => ((GameProcessManager?)state)?.EmitHeartbeats(),
-        null,
-        TimeSpan.FromMinutes(TelemetryConstants.SessionHeartbeatIntervalMinutes),
-        TimeSpan.FromMinutes(TelemetryConstants.SessionHeartbeatIntervalMinutes));
+    private Timer? _heartbeatTimer;
 
     private bool _disposed;
 
@@ -1426,6 +1422,12 @@ public class GameProcessManager(
 
         if (telemetryService != null)
         {
+            if (_heartbeatTimer == null)
+            {
+                var interval = TimeSpan.FromMinutes(TelemetryConstants.SessionHeartbeatIntervalMinutes);
+                _heartbeatTimer = new Timer(_ => EmitHeartbeats(), null, interval, interval);
+            }
+
             telemetryService.TrackEvent(TelemetryConstants.Events.GameSessionStarted, new Dictionary<string, object?>
             {
                 [TelemetryConstants.Properties.SessionId] = sessionId,

@@ -159,6 +159,9 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         GC.SuppressFinalize(this);
     }
 
+    private string TelemetryChannel =>
+        _subscribedPrNumber.HasValue ? $"PR-{_subscribedPrNumber}" : _subscribedBranch ?? "Release";
+
     /// <inheritdoc/>
     public async Task<UpdateInfo?> CheckForUpdatesAsync(CancellationToken cancellationToken = default)
     {
@@ -174,7 +177,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         _telemetryService?.TrackEvent(TelemetryConstants.Events.AppUpdateChecked, new Dictionary<string, object?>
         {
             [TelemetryConstants.Properties.FromVersion] = AppConstants.AppVersion,
-            [TelemetryConstants.Properties.Channel] = _subscribedPrNumber.HasValue ? $"PR-{_subscribedPrNumber}" : _subscribedBranch ?? "Release",
+            [TelemetryConstants.Properties.Channel] = TelemetryChannel,
             [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
         });
 
@@ -345,7 +348,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             {
                 [TelemetryConstants.Properties.FromVersion] = AppConstants.AppVersion,
                 [TelemetryConstants.Properties.ToVersion] = updateInfo.TargetFullRelease.Version.ToString(),
-                [TelemetryConstants.Properties.Channel] = _subscribedPrNumber.HasValue ? $"PR-{_subscribedPrNumber}" : _subscribedBranch ?? "Release",
+                [TelemetryConstants.Properties.Channel] = TelemetryChannel,
                 [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
             });
 
