@@ -346,5 +346,26 @@ public class WorkspaceStrategyBaseTests : IDisposable
             // For testing, just simulate a completed task.
             return Task.CompletedTask;
         }
+
+        /// <inheritdoc/>
+        protected override Task ProcessGameInstallationFileAsync(
+            ManifestFile file,
+            string targetPath,
+            WorkspaceConfiguration configuration,
+            CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+
+        /// <inheritdoc/>
+        protected override Task ProcessLocalFileAsync(
+            ManifestFile file,
+            ContentManifest manifest,
+            string targetPath,
+            WorkspaceConfiguration configuration,
+            CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
     }
 }

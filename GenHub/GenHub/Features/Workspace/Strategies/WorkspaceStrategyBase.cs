@@ -619,21 +619,21 @@ public abstract class WorkspaceStrategyBase<T>(
     }
 
     /// <summary>
-    /// Stub for processing game installation files. Should be implemented in concrete strategies as needed.
+    /// Processes a game installation file in the strategy.
     /// </summary>
     /// <param name="file">The manifest file representing the game installation content.</param>
     /// <param name="targetPath">The target path for the file in the workspace.</param>
     /// <param name="configuration">The workspace configuration.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    protected virtual Task ProcessGameInstallationFileAsync(ManifestFile file, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
-    {
-        // Default: throw if not implemented
-        throw new NotImplementedException("ProcessGameInstallationFileAsync must be implemented in the strategy if used.");
-    }
+    protected abstract Task ProcessGameInstallationFileAsync(
+        ManifestFile file,
+        string targetPath,
+        WorkspaceConfiguration configuration,
+        CancellationToken cancellationToken);
 
     /// <summary>
-    /// Stub for processing local files. Should be implemented in concrete strategies as needed.
+    /// Processes a local file in the strategy.
     /// </summary>
     /// <param name="file">The manifest file representing the local file content.</param>
     /// <param name="manifest">The manifest containing the file.</param>
@@ -641,11 +641,12 @@ public abstract class WorkspaceStrategyBase<T>(
     /// <param name="configuration">The workspace configuration.</param>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    protected virtual Task ProcessLocalFileAsync(ManifestFile file, ContentManifest manifest, string targetPath, WorkspaceConfiguration configuration, CancellationToken cancellationToken)
-    {
-        // Default: throw if not implemented
-        throw new NotImplementedException("ProcessLocalFileAsync must be implemented in the strategy if used.");
-    }
+    protected abstract Task ProcessLocalFileAsync(
+        ManifestFile file,
+        ContentManifest manifest,
+        string targetPath,
+        WorkspaceConfiguration configuration,
+        CancellationToken cancellationToken);
 
     /// <summary>
     /// Processes a file from an extracted package (e.g., downloaded and extracted from Community Outpost).
