@@ -1,10 +1,12 @@
 using System;
 using System.IO;
 using System.Runtime.Versioning;
+using System.Security;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
+using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 
 namespace GenHub.Features.Content.Services.GeneralsOnline;
@@ -12,7 +14,8 @@ namespace GenHub.Features.Content.Services.GeneralsOnline;
 /// <summary>
 /// Precondition that checks whether Easy Anti-Cheat EOS product ID is already registered in the Windows registry.
 /// </summary>
-public class EasyAntiCheatPrecondition : IInstallationStepPrecondition
+/// <param name="logger">Optional logger instance for diagnostics.</param>
+public class EasyAntiCheatPrecondition(ILogger<EasyAntiCheatPrecondition>? logger = null) : IInstallationStepPrecondition
 {
     /// <inheritdoc />
     public bool CanHandle(InstallationStep step, ContentManifest manifest)
@@ -53,7 +56,7 @@ public class EasyAntiCheatPrecondition : IInstallationStepPrecondition
     }
 
     [SupportedOSPlatform("windows")]
-    private static bool IsProductRegisteredOnWindows(InstallationStep step)
+    private bool IsProductRegisteredOnWindows(InstallationStep step)
     {
         try
         {
@@ -82,8 +85,19 @@ public class EasyAntiCheatPrecondition : IInstallationStepPrecondition
                 return true;
             }
         }
-        catch
+        catch (SecurityException ex)
         {
+            logger?.LogWarning(ex, "Insufficient permissions to inspect Easy Anti-Cheat registry keys for step '{StepName}'", step.Name);
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger?.LogWarning(ex, "Access denied when inspecting Easy Anti-Cheat registry keys for step '{StepName}'", step.Name);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            logger?.LogDebug(ex, "Error while checking Easy Anti-Cheat registry registration for step '{StepName}'", step.Name);
             return false;
         }
 

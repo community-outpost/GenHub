@@ -104,8 +104,6 @@ public class InstallationInstructionsService(
         await _executionGate.WaitAsync(cancellationToken);
         try
         {
-            var keysToRecord = new List<string>();
-
             for (var i = 0; i < steps.Count; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -116,34 +114,10 @@ public class InstallationInstructionsService(
                     continue;
                 }
 
-                var stepResult = await ExecuteSingleStepAsync(step, manifest, workingDirectory, providerSource, force, progress, keysToRecord, cancellationToken);
+                var stepResult = await ExecuteSingleStepAsync(step, manifest, workingDirectory, providerSource, force, progress, cancellationToken);
                 if (!stepResult.Success)
                 {
                     return stepResult;
-                }
-            }
-
-            if (userSettingsService != null && keysToRecord.Count > 0)
-            {
-                userSettingsService.Update(s =>
-                {
-                    foreach (var key in keysToRecord)
-                    {
-                        s.RecordInstallationStepExecuted(key);
-                    }
-                });
-
-                try
-                {
-                    await userSettingsService.SaveAsync(cancellationToken);
-                }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to persist executed installation step keys");
                 }
             }
 
@@ -162,18 +136,11 @@ public class InstallationInstructionsService(
         string? providerSource,
         bool force,
         IProgress<ContentAcquisitionProgress>? progress,
-        List<string> keysToRecord,
         CancellationToken cancellationToken)
     {
-        var authResult = ValidateProviderAuthorization(providerSource, manifest, step);
-        if (!authResult.Success)
-        {
-            return authResult;
-        }
-
         var stepKey = GetStepKey(step, manifest);
 
-        if (!force && step.RunOnce && ShouldSkipStep(step, stepKey, manifest, keysToRecord))
+        if (!force && step.RunOnce && await ShouldSkipStepAsync(step, stepKey, manifest, cancellationToken))
         {
             logger.LogInformation(
                 "Skipping installation step '{StepName}' for manifest {ManifestId} because it has already been executed (key: {StepKey})",
@@ -189,6 +156,12 @@ public class InstallationInstructionsService(
             });
 
             return OperationResult.CreateSuccess();
+        }
+
+        var authResult = ValidateProviderAuthorization(providerSource, manifest, step);
+        if (!authResult.Success)
+        {
+            return authResult;
         }
 
         var result = OperationResult.CreateFailure("Uninitialized step result");
@@ -211,19 +184,19 @@ public class InstallationInstructionsService(
                 return OperationResult.CreateFailure($"Unsupported installation step kind '{step.Kind}' for step '{step.Name}'.");
         }
 
-        if (result.Success && step.RunOnce && !string.IsNullOrWhiteSpace(stepKey) && !keysToRecord.Contains(stepKey))
+        if (result.Success && step.RunOnce && !string.IsNullOrWhiteSpace(stepKey))
         {
-            keysToRecord.Add(stepKey);
+            await RecordStepExecutedAsync(stepKey, cancellationToken);
         }
 
         return result;
     }
 
-    private bool ShouldSkipStep(
+    private async Task<bool> ShouldSkipStepAsync(
         InstallationStep step,
         string stepKey,
         ContentManifest manifest,
-        List<string> keysToRecord)
+        CancellationToken cancellationToken)
     {
         if (userSettingsService?.Get().IsInstallationStepExecuted(stepKey) == true)
         {
@@ -236,9 +209,9 @@ public class InstallationInstructionsService(
             {
                 if (precondition.CanHandle(step, manifest) && precondition.IsAlreadyFulfilled(step, manifest))
                 {
-                    if (!string.IsNullOrWhiteSpace(stepKey) && !keysToRecord.Contains(stepKey))
+                    if (!string.IsNullOrWhiteSpace(stepKey))
                     {
-                        keysToRecord.Add(stepKey);
+                        await RecordStepExecutedAsync(stepKey, cancellationToken);
                     }
 
                     return true;
@@ -247,6 +220,29 @@ public class InstallationInstructionsService(
         }
 
         return false;
+    }
+
+    private async Task RecordStepExecutedAsync(string stepKey, CancellationToken cancellationToken)
+    {
+        if (userSettingsService == null || string.IsNullOrWhiteSpace(stepKey))
+        {
+            return;
+        }
+
+        userSettingsService.Update(s => s.RecordInstallationStepExecuted(stepKey));
+
+        try
+        {
+            await userSettingsService.SaveAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to persist executed installation step key '{StepKey}'", stepKey);
+        }
     }
 
     private string GetStepKey(InstallationStep step, ContentManifest manifest)

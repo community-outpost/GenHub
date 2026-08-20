@@ -911,6 +911,84 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
         Assert.Contains("failed with exit code", result.FirstError);
     }
 
+    /// <summary>
+    /// Verifies that a successful RunOnce step persists its key immediately even if a subsequent step fails.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExecutePostInstallStepsAsync_RunOnceStep_PersistsKeyImmediatelyEvenIfLaterStepFails()
+    {
+        var successFile = "success.tmp";
+        var fullPath = Path.Combine(_tempDirectory, successFile);
+        await File.WriteAllTextAsync(fullPath, "temporary");
+
+        const string step1Key = "step:runonce:first";
+        var manifest = CreateBaseManifest();
+        manifest.InstallationInstructions = new InstallationInstructions
+        {
+            PostInstallSteps =
+            [
+                new InstallationStep
+                {
+                    Name = "Step 1 Remove",
+                    Kind = InstallationStepKind.RemoveFile,
+                    TargetRelativePath = successFile,
+                    StepKey = step1Key,
+                    RunOnce = true,
+                },
+                new InstallationStep
+                {
+                    Name = "Step 2 Unknown Kind",
+                    Kind = InstallationStepKind.Unknown,
+                },
+            ],
+        };
+
+        var result = await _service.ExecutePostInstallStepsAsync(
+            manifest,
+            _tempDirectory,
+            providerSource: PublisherTypeConstants.GeneralsOnline);
+
+        Assert.False(result.Success);
+        Assert.False(File.Exists(fullPath));
+        Assert.True(_userSettings.IsInstallationStepExecuted(step1Key));
+        _userSettingsServiceMock.Verify(u => u.SaveAsync(It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+    }
+
+    /// <summary>
+    /// Verifies that an already-executed RunOnce step is skipped without failing provider authorization.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExecutePostInstallStepsAsync_RunOnceAlreadyExecuted_DoesNotFailAuthorizationForUntrustedProvider()
+    {
+        const string stepKey = "step:untrusted:runonce";
+        _userSettings.RecordInstallationStepExecuted(stepKey);
+
+        var manifest = CreateBaseManifest();
+        manifest.InstallationInstructions = new InstallationInstructions
+        {
+            PostInstallSteps =
+            [
+                new InstallationStep
+                {
+                    Name = "Already Executed Step",
+                    Kind = InstallationStepKind.RunVerifiedInstaller,
+                    TargetRelativePath = "installer.exe",
+                    StepKey = stepKey,
+                    RunOnce = true,
+                },
+            ],
+        };
+
+        var result = await _service.ExecutePostInstallStepsAsync(
+            manifest,
+            _tempDirectory,
+            providerSource: "untrusted_source");
+
+        Assert.True(result.Success);
+    }
+
     private static ContentManifest CreateBaseManifest() => new()
     {
         Id = "1.0.test.gameclient.variant",
