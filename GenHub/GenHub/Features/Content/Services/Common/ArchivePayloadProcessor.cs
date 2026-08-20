@@ -119,8 +119,8 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 // 4. Heuristic root content detection (single mod directory alongside loose documentation files)
                 ReconcileContentRootWithDocumentation(extractedDirectory, contentType, cancellationToken);
 
-                // 5. Normalize inactive .gib mod archive files to .big
-                NormalizeGibExtensions(extractedDirectory, contentType);
+                // 5. Normalize inactive .gib and .ctr mod archive files to .big
+                NormalizeInactiveBigExtensions(extractedDirectory, contentType);
 
                 // 6. Cleanup empty directories
                 CleanupEmptyDirectories(extractedDirectory);
@@ -1399,7 +1399,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         }
     }
 
-    private void NormalizeGibExtensions(string extractedDirectory, ContentType contentType)
+    private void NormalizeInactiveBigExtensions(string extractedDirectory, ContentType contentType)
     {
         if (contentType is ContentType.ModdingTool or ContentType.Executable or ContentType.GameClient or ContentType.GameInstallation)
         {
@@ -1408,33 +1408,37 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
         try
         {
-            foreach (var gibFile in Directory.GetFiles(extractedDirectory, "*.gib", SearchOption.AllDirectories))
+            foreach (var extension in GenLauncherConstants.InactiveBigExtensions)
             {
-                var bigFile = Path.ChangeExtension(gibFile, ".big");
-                if (File.Exists(bigFile))
+                var searchPattern = "*" + extension;
+                foreach (var inactiveFile in Directory.GetFiles(extractedDirectory, searchPattern, SearchOption.AllDirectories))
                 {
-                    if (FilesHaveIdenticalContent(gibFile, bigFile))
+                    var bigFile = Path.ChangeExtension(inactiveFile, GenLauncherConstants.BigExtension);
+                    if (File.Exists(bigFile))
                     {
-                        File.Delete(gibFile);
-                        logger.LogInformation("Removed duplicate identical inactive file '{GibFile}' as '{BigFile}' already exists", gibFile, bigFile);
+                        if (FilesHaveIdenticalContent(inactiveFile, bigFile))
+                        {
+                            File.Delete(inactiveFile);
+                            logger.LogInformation("Removed duplicate identical inactive file '{InactiveFile}' as '{BigFile}' already exists", inactiveFile, bigFile);
+                        }
+                        else
+                        {
+                            var nonCollidingBigPath = GetNonCollidingDestinationPath(bigFile);
+                            File.Move(inactiveFile, nonCollidingBigPath);
+                            logger.LogInformation("Preserved differing inactive file '{InactiveFile}' by renaming to '{NewBigFile}'", inactiveFile, nonCollidingBigPath);
+                        }
                     }
                     else
                     {
-                        var nonCollidingBigPath = GetNonCollidingDestinationPath(bigFile);
-                        File.Move(gibFile, nonCollidingBigPath);
-                        logger.LogInformation("Preserved differing inactive file '{GibFile}' by renaming to '{NewBigFile}'", gibFile, nonCollidingBigPath);
+                        File.Move(inactiveFile, bigFile);
+                        logger.LogInformation("Normalized inactive mod archive '{InactiveFile}' to '{BigFile}'", inactiveFile, bigFile);
                     }
-                }
-                else
-                {
-                    File.Move(gibFile, bigFile);
-                    logger.LogInformation("Normalized inactive mod archive '{GibFile}' to '{BigFile}'", gibFile, bigFile);
                 }
             }
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to normalize .gib file extensions in: {Directory}", extractedDirectory);
+            logger.LogWarning(ex, "Failed to normalize inactive mod archive file extensions in: {Directory}", extractedDirectory);
         }
     }
 

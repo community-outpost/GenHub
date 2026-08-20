@@ -507,6 +507,12 @@ public partial class ModDBDiscoverer(
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
+                if (page.IsClosed)
+                {
+                    logger.LogInformation("[ModDB] Browser page was closed; ending verification wait for {Url}", url);
+                    break;
+                }
+
                 try
                 {
                     var title = await page.TitleAsync();
@@ -519,6 +525,13 @@ public partial class ModDBDiscoverer(
                                 "[ModDB] Cloudflare challenge is blocking {Url} (title: '{Title}'). Waiting for the user to solve it in the browser window.",
                                 url,
                                 title);
+                            try
+                            {
+                                await page.BringToFrontAsync();
+                            }
+                            catch (PlaywrightException)
+                            {
+                            }
                         }
 
                         await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken);
@@ -538,6 +551,12 @@ public partial class ModDBDiscoverer(
                 }
                 catch (PlaywrightException ex) when (Tools.PlaywrightService.IsContextClosedError(ex))
                 {
+                    if (page.IsClosed)
+                    {
+                        logger.LogInformation("[ModDB] Browser page was closed; ending verification wait for {Url}", url);
+                        break;
+                    }
+
                     // The page navigated mid-probe (e.g. the challenge interstitial redirected to
                     // the real listing after the user solved it). Retry on the next tick.
                     logger.LogDebug(ex, "[ModDB] Transient navigation while waiting for listing {Url}; retrying", url);
@@ -548,13 +567,24 @@ public partial class ModDBDiscoverer(
 
             if (!listingReady)
             {
-                var pageTitle = await page.TitleAsync();
+                string? pageTitle = null;
+                try
+                {
+                    if (!page.IsClosed)
+                    {
+                        pageTitle = await page.TitleAsync();
+                    }
+                }
+                catch (PlaywrightException)
+                {
+                }
+
                 if (IsChallengePage(pageTitle) || challengeObserved)
                 {
                     // The user did not finish the check within the wait window. Surface the
                     // challenge state so the ViewModel can tell the user to complete verification,
                     // and keep the page open so they can finish it and then retry.
-                    keepPageOpenForVerification = true;
+                    keepPageOpenForVerification = !page.IsClosed;
                     logger.LogWarning(
                         "[ModDB] Verification was not completed within {Timeout} ms for {Url}. The page stays open; the user can retry after solving it.",
                         ModDBConstants.VerificationWaitTimeoutMs,
@@ -566,7 +596,12 @@ public partial class ModDBDiscoverer(
                     "ModDB did not expose a listing selector within {Timeout} ms for {Url} (page title: '{Title}'), parsing the current document...",
                     ModDBConstants.VerificationWaitTimeoutMs,
                     url,
-                    pageTitle);
+                    pageTitle ?? "Unknown");
+            }
+
+            if (page.IsClosed)
+            {
+                return ([], false, false, challengeObserved);
             }
 
             var html = await page.ContentAsync();

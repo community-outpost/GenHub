@@ -69,6 +69,24 @@ public class GenLauncherNormalizationServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Tests that .ctr files are converted to .big.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeFilesAsync_ConvertsCtrToBigAsync()
+    {
+        var ctrPath = Path.Combine(_tempDir, "!ContraXBeta2_INI.ctr");
+        await File.WriteAllTextAsync(ctrPath, "contra-content");
+
+        var result = await _service.NormalizeFilesAsync(_tempDir);
+
+        Assert.True(result.Success);
+        Assert.Equal(1, result.Data.NormalizedCount);
+        Assert.False(File.Exists(ctrPath));
+        Assert.True(File.Exists(Path.Combine(_tempDir, "!ContraXBeta2_INI.big")));
+    }
+
+    /// <summary>
     /// Tests that GenLauncher suffixes are removed from files.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>

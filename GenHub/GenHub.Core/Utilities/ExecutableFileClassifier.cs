@@ -56,7 +56,7 @@ public static class ExecutableFileClassifier
     /// <summary>
     /// Extensions that are directly runnable and therefore need the execute bit on Unix.
     /// </summary>
-    private static readonly string[] RunnableExtensions = [".exe", ".sh", ".command", ".ctr"];
+    private static readonly string[] RunnableExtensions = [".exe", ".sh", ".command"];
 
     /// <summary>
     /// Determines whether a file needs the Unix execute bit to be runnable, from its
@@ -171,7 +171,7 @@ public static class ExecutableFileClassifier
             return false;
         }
 
-        if (extension.Equals(".exe", StringComparison.OrdinalIgnoreCase) || extension.Equals(".ctr", StringComparison.OrdinalIgnoreCase))
+        if (extension.Equals(".exe", StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
