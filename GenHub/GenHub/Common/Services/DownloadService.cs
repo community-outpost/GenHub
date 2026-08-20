@@ -1,10 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
@@ -17,7 +20,8 @@ namespace GenHub.Common.Services;
 public class DownloadService(
     ILogger<DownloadService> logger,
     HttpClient httpClient,
-    IFileHashProvider hashProvider) : IDownloadService
+    IFileHashProvider hashProvider,
+    ITelemetryService? telemetryService = null) : IDownloadService
 {
     /// <inheritdoc/>
     public async Task<DownloadResult> DownloadFileAsync(
@@ -179,6 +183,18 @@ public class DownloadService(
                 return DownloadResult.CreateFailure($"Hash verification failed. Expected: {configuration.ExpectedHash}, Actual: {actualHash}", downloadedBytes, stopwatch.Elapsed);
             }
         }
+
+        var elapsedSeconds = stopwatch.Elapsed.TotalSeconds;
+        var sizeMb = downloadedBytes / (1024.0 * 1024.0);
+        var speedMbps = elapsedSeconds > 0 ? (sizeMb * 8.0) / elapsedSeconds : 0.0;
+
+        telemetryService?.TrackEvent(TelemetryConstants.Events.ContentDownloadCompleted, new Dictionary<string, object?>
+        {
+            [TelemetryConstants.Properties.SizeMb] = Math.Round(sizeMb, 2),
+            [TelemetryConstants.Properties.DurationSeconds] = Math.Round(elapsedSeconds, 2),
+            [TelemetryConstants.Properties.SpeedMbps] = Math.Round(speedMbps, 2),
+            [TelemetryConstants.Properties.SourceProvider] = configuration.Url.Host,
+        });
 
         return DownloadResult.CreateSuccess(configuration.DestinationPath, downloadedBytes, stopwatch.Elapsed, hashVerified);
     }

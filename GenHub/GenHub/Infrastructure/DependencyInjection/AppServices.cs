@@ -25,6 +25,7 @@ public static class AppServices
 
         // Register core services in dependency order
         services.AddLoggingModule();
+        services.AddTelemetryServices();
         services.AddValidationServices();
         services.AddGameDetectionService();
         services.AddGameInstallation();

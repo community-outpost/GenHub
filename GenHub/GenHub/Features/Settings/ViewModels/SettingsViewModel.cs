@@ -49,6 +49,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     public static IEnumerable<WorkspaceStrategy> AvailableWorkspaceStrategies => Enum.GetValues<WorkspaceStrategy>();
 
     /// <summary>
+    /// Gets the available telemetry consent levels for selection in the UI.
+    /// </summary>
+    public static IEnumerable<TelemetryLevel> AvailableTelemetryLevels => Enum.GetValues<TelemetryLevel>();
+
+    /// <summary>
     /// Gets the current application version for display.
     /// </summary>
     public static string CurrentVersion => AppConstants.FullDisplayVersion;
@@ -140,6 +145,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private bool _enableDetailedLogging = false;
+
+    [ObservableProperty]
+    private TelemetryLevel _telemetryPreference = TelemetryLevel.AnonymousMetrics;
 
     [ObservableProperty]
     private WorkspaceStrategy _defaultWorkspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy;
@@ -494,6 +502,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             PeriodicUpdateCheckIntervalMinutes = settings.PeriodicUpdateCheckIntervalMinutes;
             AllowBackgroundDownloads = settings.AllowBackgroundDownloads;
             EnableDetailedLogging = settings.EnableDetailedLogging;
+            TelemetryPreference = settings.TelemetryPreference;
             DefaultWorkspaceStrategy = settings.DefaultWorkspaceStrategy;
             DownloadBufferSizeKB = settings.DownloadBufferSize / (double)ConversionConstants.BytesPerKilobyte; // Convert bytes to KB
             DownloadTimeoutSeconds = settings.DownloadTimeoutSeconds;
@@ -550,6 +559,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 settings.PeriodicUpdateCheckIntervalMinutes = PeriodicUpdateCheckIntervalMinutes;
                 settings.AllowBackgroundDownloads = AllowBackgroundDownloads;
                 settings.EnableDetailedLogging = EnableDetailedLogging;
+                settings.TelemetryPreference = TelemetryPreference;
                 settings.DefaultWorkspaceStrategy = DefaultWorkspaceStrategy;
 
                 settings.SubscribedBranch = string.IsNullOrWhiteSpace(SubscribedBranchInput) ? null : SubscribedBranchInput;
@@ -622,6 +632,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             PeriodicUpdateCheckIntervalMinutes = AppUpdateConstants.DefaultPeriodicUpdateCheckIntervalMinutes;
             AllowBackgroundDownloads = true;
             EnableDetailedLogging = false;
+            TelemetryPreference = TelemetryLevel.AnonymousMetrics;
             DefaultWorkspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy;
             DownloadBufferSizeKB = DownloadDefaults.BufferSizeKB; // 80KB default
             DownloadTimeoutSeconds = DownloadDefaults.TimeoutSeconds;

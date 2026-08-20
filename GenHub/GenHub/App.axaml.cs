@@ -12,6 +12,7 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Enums;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -27,6 +28,7 @@ public partial class App : Application
     private readonly IUserSettingsService _userSettingsService;
     private readonly IConfigurationProviderService _configurationProvider;
     private readonly IProfileLauncherFacade _profileLauncherFacade;
+    private readonly ITelemetryService? _telemetryService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="App"/> class with the specified service provider.
@@ -38,6 +40,7 @@ public partial class App : Application
         _userSettingsService = _serviceProvider.GetService<IUserSettingsService>() ?? throw new InvalidOperationException("IUserSettingsService not registered");
         _configurationProvider = _serviceProvider.GetService<IConfigurationProviderService>() ?? throw new InvalidOperationException("IConfigurationProviderService not registered");
         _profileLauncherFacade = _serviceProvider.GetRequiredService<IProfileLauncherFacade>();
+        _telemetryService = _serviceProvider.GetService<ITelemetryService>();
     }
 
     /// <summary>
@@ -56,6 +59,22 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            // Hook global unhandled exceptions to telemetry
+            AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
+            {
+                if (args.ExceptionObject is Exception ex)
+                {
+                    _telemetryService?.TrackException(ex, "AppDomain.UnhandledException", isFatal: true);
+                }
+            };
+
+            TaskScheduler.UnobservedTaskException += (sender, args) =>
+            {
+                _telemetryService?.TrackException(args.Exception, "TaskScheduler.UnobservedTaskException", isFatal: false);
+            };
+
+            _telemetryService?.AddBreadcrumb("Application initialized", "lifecycle");
+
             var mainWindow = new MainWindow
             {
                 DataContext = _serviceProvider.GetService<MainViewModel>(),
@@ -163,6 +182,18 @@ public partial class App : Application
         }
         finally
         {
+            if (_telemetryService != null)
+            {
+                try
+                {
+                    await _telemetryService.FlushAsync();
+                }
+                catch
+                {
+                    // Suppress telemetry flush errors during application exit
+                }
+            }
+
             if (_serviceProvider is IDisposable disposable)
             {
                 disposable.Dispose();

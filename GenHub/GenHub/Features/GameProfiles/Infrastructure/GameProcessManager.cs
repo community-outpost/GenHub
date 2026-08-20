@@ -5,12 +5,14 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Events;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Results;
@@ -22,10 +24,12 @@ namespace GenHub.Features.GameProfiles.Infrastructure;
 /// Manages game processes and their lifecycle.
 /// </summary>
 public class GameProcessManager(
-    ILogger<GameProcessManager> logger) : IGameProcessManager, IDisposable
+    ILogger<GameProcessManager> logger,
+    ITelemetryService? telemetryService = null) : IGameProcessManager, IDisposable
 {
     private const int CleanupIntervalMs = ProcessConstants.ProcessCleanupIntervalMs;
     private readonly ConcurrentDictionary<int, Process> _managedProcesses = new();
+    private readonly ConcurrentDictionary<int, (string SessionId, DateTime StartTime, string ExecName)> _sessionMetadata = new();
     private readonly SemaphoreSlim _terminationSemaphore = new(1, 1);
 
     /// <summary>
@@ -36,6 +40,15 @@ public class GameProcessManager(
         null,
         TimeSpan.FromMilliseconds(CleanupIntervalMs),
         TimeSpan.FromMilliseconds(CleanupIntervalMs));
+
+    /// <summary>
+    /// Periodic timer to send anonymous heartbeats for active game sessions.
+    /// </summary>
+    private readonly Timer _heartbeatTimer = new(
+        state => ((GameProcessManager?)state)?.EmitHeartbeats(),
+        null,
+        TimeSpan.FromMinutes(TelemetryConstants.SessionHeartbeatIntervalMinutes),
+        TimeSpan.FromMinutes(TelemetryConstants.SessionHeartbeatIntervalMinutes));
 
     private bool _disposed;
 
@@ -107,6 +120,7 @@ public class GameProcessManager(
             }
 
             _managedProcesses[process.Id] = process;
+            RegisterSessionAndEmitStarted(process, configuration.ExecutablePath);
 
             if (configuration.WaitForExit)
             {
@@ -361,6 +375,7 @@ public class GameProcessManager(
         logger.LogInformation("[Process] Registering existing process for tracking: {ProcessId} ({ProcessName})", process.Id, process.ProcessName);
 
         _managedProcesses[process.Id] = process;
+        RegisterSessionAndEmitStarted(process, process.ProcessName);
 
         try
         {
@@ -477,8 +492,9 @@ public class GameProcessManager(
 
         logger.LogDebug("Disposing GameProcessManager with {Count} managed processes", _managedProcesses.Count);
 
-        // Dispose cleanup timer first
+        // Dispose timers first
         _cleanupTimer?.Dispose();
+        _heartbeatTimer?.Dispose();
 
         // Clean up all managed processes
         foreach (var kvp in _managedProcesses)
@@ -896,6 +912,19 @@ public class GameProcessManager(
         // Remove from managed processes
         _managedProcesses.TryRemove(processId, out _);
 
+        if (_sessionMetadata.TryRemove(processId, out var sessionMeta) && telemetryService != null)
+        {
+            var duration = (DateTime.UtcNow - sessionMeta.StartTime).TotalSeconds;
+            telemetryService.TrackEvent(TelemetryConstants.Events.GameSessionEnded, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.SessionId] = sessionMeta.SessionId,
+                [TelemetryConstants.Properties.DurationSeconds] = duration,
+                [TelemetryConstants.Properties.ExitCode] = exitCode,
+                [TelemetryConstants.Properties.ExecutablePath] = sessionMeta.ExecName,
+                [TelemetryConstants.Properties.Runner] = DetectRunnerEnvironment(),
+            });
+        }
+
         // Raise the event
         var args = new GameProcessExitedEventArgs
         {
@@ -973,6 +1002,7 @@ public class GameProcessManager(
                 if (child != null)
                 {
                     _managedProcesses[child.Id] = child;
+                    RegisterSessionAndEmitStarted(child, expectedName);
 
                     try
                     {
@@ -1350,13 +1380,69 @@ public class GameProcessManager(
         return string.IsNullOrWhiteSpace(detail) ? message : $"{message} {detail}";
     }
 
+    private static string DetectRunnerEnvironment()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return "Native";
+        }
+
+        if (Environment.GetEnvironmentVariable("PROTON_VERSION") is { Length: > 0 } proton)
+        {
+            return $"Proton-{proton}";
+        }
+
+        if (Environment.GetEnvironmentVariable("WINEPREFIX") is { Length: > 0 })
+        {
+            return "Wine";
+        }
+
+        return RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ? "Linux-Runner" :
+               RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? "macOS-Runner" : "Native";
+    }
+
+    private void RegisterSessionAndEmitStarted(Process process, string executableName)
+    {
+        var sessionId = Guid.NewGuid().ToString("N")[..8];
+        var execName = Path.GetFileName(executableName);
+        _sessionMetadata[process.Id] = (sessionId, DateTime.UtcNow, execName);
+
+        if (telemetryService != null)
+        {
+            telemetryService.TrackEvent(TelemetryConstants.Events.GameSessionStarted, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.SessionId] = sessionId,
+                [TelemetryConstants.Properties.ExecutablePath] = execName,
+                [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
+                [TelemetryConstants.Properties.Runner] = DetectRunnerEnvironment(),
+            });
+        }
+    }
+
+    private void EmitHeartbeats()
+    {
+        if (_disposed || telemetryService == null || _sessionMetadata.IsEmpty)
+        {
+            return;
+        }
+
+        foreach (var (_, (sessionId, startTime, execName)) in _sessionMetadata)
+        {
+            telemetryService.TrackEvent(TelemetryConstants.Events.GameSessionHeartbeat, new Dictionary<string, object?>
+            {
+                [TelemetryConstants.Properties.SessionId] = sessionId,
+                [TelemetryConstants.Properties.DurationSeconds] = (DateTime.UtcNow - startTime).TotalSeconds,
+                [TelemetryConstants.Properties.ExecutablePath] = execName,
+                [TelemetryConstants.Properties.Runner] = DetectRunnerEnvironment(),
+            });
+        }
+    }
+
     /// <summary>
-    /// Waits for the asynchronous stderr handlers to finish before the capture is read.
+    /// Waits for asynchronous stderr reads to finish draining so the buffer holds the complete output.
     /// </summary>
     /// <remarks>
-    /// <see cref="Process.WaitForExit()"/> without a timeout additionally waits for
-    /// redirected-output handlers to complete; the timed overloads do not, so reading the
-    /// buffer straight after the process exits can miss the final lines. Only stderr is
+    /// Standard output is left inherited by the process rather than being
     /// redirected, so there is no stdout stream to drain.
     /// </remarks>
     /// <param name="process">The exited process.</param>

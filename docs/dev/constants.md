@@ -1578,14 +1578,38 @@ Constants specifically for the Map Manager feature.
 
 ---
 
-## UserDataConstants Class
+## TelemetryConstants Class
 
-Constants for tracked user data installations — content GenHub deploys into the user's game data
-folder under `Documents`.
+Constants for telemetry event names, properties, data scrubbing masks, and queue buffering limits.
 
-| Constant             | Value              | Description                                                                                                       |
-| -------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| `UserModifiedSuffix` | `".user-modified"` | Suffix appended to a deployed file that no longer matches its recorded hash when it is moved aside so the pristine backup can be restored over it |
+| Constant                             | Value/Type | Description                                                   |
+| ------------------------------------ | ---------- | ------------------------------------------------------------- |
+| `AppName`                            | `"GenHub"` | Application identifier for telemetry                          |
+| `DefaultFlushIntervalSeconds`        | `30`       | Default flush interval in seconds for background batching     |
+| `MaxQueueCapacity`                   | `500`      | Maximum capacity of the bounded event channel queue           |
+| `SessionHeartbeatIntervalMinutes`    | `5`        | Heartbeat interval in minutes for active game sessions        |
+| `MaxBreadcrumbsCount`                | `50`       | Maximum number of breadcrumbs in circular buffer for crashes  |
+| `UserDirectoryMask`                  | `"<USER_DIR>"` | Replacement mask for user directories                     |
+| `WorkspaceDirectoryMask`             | `"<WORKSPACE_DIR>"` | Replacement mask for workspace paths                   |
+| `WinePrefixMask`                     | `"<WINE_PREFIX>"` | Replacement mask for Wine prefixes                     |
+| `IpAddressMask`                      | `"<IP_MASKED>"` | Replacement mask for IP addresses                         |
+| `SecretTokenMask`                    | `"<TOKEN_MASKED>"` | Replacement mask for sensitive tokens and keys         |
+| `DefaultSentryDsn`                   | `"https://06a9...ingest.de.sentry.io/4511943606927440"` | Default Sentry DSN endpoint for crash reporting |
+| `DefaultPostHogApiKey`               | `"phc_yJwFR...K98g"` | Default PostHog project API key for anonymous analytics |
+| `DefaultPostHogHost`                 | `"https://us.i.posthog.com"` | Default PostHog host URL                   |
+| `DefaultPostHogCaptureEndpoint`      | `"https://us.i.posthog.com/capture/"` | Default PostHog event capture endpoint   |
+| `DefaultPostHogProjectId`            | `"567732"` | Default PostHog project identifier                          |
+
+### Telemetry Events (`TelemetryConstants.Events`)
+
+- `GameSessionStarted`: `"game_session_started"` - Emitted when a game process starts.
+- `GameSessionHeartbeat`: `"game_session_heartbeat"` - Emitted periodically while a game process is running.
+- `GameSessionEnded`: `"game_session_ended"` - Emitted when a game process exits.
+- `ContentDownloadCompleted`: `"content_download_completed"` - Emitted when a content or mod download completes.
+- `AppUpdateChecked`: `"app_update_checked"` - Emitted when an application update check finishes.
+- `AppUpdateApplied`: `"app_update_applied"` - Emitted when an application update is applied.
+- `CasReconcileCompleted`: `"cas_reconcile_completed"` - Emitted when CAS workspace reconciliation completes.
+- `AppCrash`: `"app_unhandled_crash"` - Emitted when an unhandled application exception or crash occurs.
 
 ---
 
