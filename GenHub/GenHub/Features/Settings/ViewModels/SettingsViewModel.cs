@@ -1777,7 +1777,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 var files = Directory.GetFiles(logsPath, "*.log", SearchOption.TopDirectoryOnly);
                 var activeLogPath = LoggingModule.ActiveLogFilePath;
                 var activeLogFileName = Path.GetFileName(activeLogPath);
-                var todayLocalLogFileName = $"{AppConstants.AppName.ToLowerInvariant()}-{DateTime.Now:yyyy-MM-dd}.log";
                 var todayUtcLogFileName = $"{AppConstants.AppName.ToLowerInvariant()}-{DateTime.UtcNow:yyyy-MM-dd}.log";
 
                 foreach (var file in files)
@@ -1789,7 +1788,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                         var length = info.Length;
 
                         var isActiveLog = string.Equals(fileName, activeLogFileName, StringComparison.OrdinalIgnoreCase) ||
-                                          string.Equals(fileName, todayLocalLogFileName, StringComparison.OrdinalIgnoreCase) ||
                                           string.Equals(fileName, todayUtcLogFileName, StringComparison.OrdinalIgnoreCase) ||
                                           string.Equals(Path.GetFullPath(file), Path.GetFullPath(activeLogPath), StringComparison.OrdinalIgnoreCase);
 
@@ -1814,7 +1812,18 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                                 deletedCount++;
                                 freedBytes += length;
                             }
-                            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                            catch (IOException)
+                            {
+                                using (var stream = new FileStream(file, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite))
+                                {
+                                    stream.SetLength(0);
+                                    stream.Flush();
+                                }
+
+                                deletedCount++;
+                                freedBytes += length;
+                            }
+                            catch (UnauthorizedAccessException)
                             {
                                 using (var stream = new FileStream(file, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite))
                                 {
@@ -1827,7 +1836,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                             }
                         }
                     }
-                    catch (Exception ex)
+                    catch (IOException ex)
+                    {
+                        lockedCount++;
+                        _logger.LogWarning(ex, "Could not clear log file: {File}", file);
+                    }
+                    catch (UnauthorizedAccessException ex)
                     {
                         lockedCount++;
                         _logger.LogWarning(ex, "Could not clear log file: {File}", file);

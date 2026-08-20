@@ -958,7 +958,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                     decompressConcatenated: false,
                     leaveOpen: true);
 
-                int rBz;
+                var rBz = 0;
                 while ((rBz = bz.Read(copyBuffer, 0, copyBuffer.Length)) > 0)
                 {
                     outStream.Write(copyBuffer, 0, rBz);
@@ -970,7 +970,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 var nonDisp = new NonDisposingStream(stream);
                 var z = new SharpCompress.Compressors.Deflate.ZlibStream(nonDisp, SharpCompress.Compressors.CompressionMode.Decompress);
 
-                int rZ;
+                var rZ = 0;
                 while ((rZ = z.Read(copyBuffer, 0, copyBuffer.Length)) > 0)
                 {
                     outStream.Write(copyBuffer, 0, rZ);
