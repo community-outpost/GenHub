@@ -16,8 +16,8 @@
   <Window.Resources>
     <ResourceDictionary>
       <ResourceDictionary.MergedDictionaries>
-        <ResourceInclude Source="/Features/Tools/ModBuilder/Styles/ModBuilderStyles.axaml"/>
-        <ResourceInclude Source="/Features/Tools/ModBuilder/Styles/ModBuilderIcons.axaml"/>
+        <ResourceInclude Source="avares://GenHub/Features/Tools/ModBuilder/Styles/ModBuilderStyles.axaml"/>
+        <ResourceInclude Source="avares://GenHub/Features/Tools/ModBuilder/Styles/ModBuilderIcons.axaml"/>
       </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
   </Window.Resources>
@@ -37,9 +37,9 @@
 
       <Button Grid.Column="1" Click="OnCloseClicked" VerticalAlignment="Center" Padding="16,8" CornerRadius="8"
               Background="#20FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1">
-        <StackPanel Orientation="Horizontal" Spacing="6">
-          <TextBlock Text="✖" FontSize="12" Foreground="White"/>
-          <TextBlock Text="Close" FontWeight="Medium" Foreground="White"/>
+        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+          <Path Width="12" Height="12" Fill="White" Data="{StaticResource IconClear}" Stretch="Uniform" VerticalAlignment="Center"/>
+          <TextBlock Text="Close" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
         </StackPanel>
       </Button>
     </Grid>

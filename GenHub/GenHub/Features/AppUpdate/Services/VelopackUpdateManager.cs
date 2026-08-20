@@ -536,21 +536,21 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 prTasks.Add(Task.Run(
                     async () =>
                 {
-                    var prNumber = prJson.GetProperty("number").GetInt32();
-                    var title = prJson.GetProperty("title").GetString() ?? GameClientConstants.UnknownVersion;
-                    var branchName = prJson.TryGetProperty("head", out var head)
-                        ? head.GetProperty("ref").GetString() ?? "unknown"
+                    var prNumber = prJson.TryGetProperty("number", out var numProp) && numProp.TryGetInt32(out var n) ? n : 0;
+                    var title = prJson.TryGetProperty("title", out var titleProp) ? titleProp.GetString() ?? GameClientConstants.UnknownVersion : GameClientConstants.UnknownVersion;
+                    var branchName = prJson.TryGetProperty("head", out var head) && head.ValueKind == JsonValueKind.Object && head.TryGetProperty("ref", out var headRef)
+                        ? headRef.GetString() ?? "unknown"
                         : "unknown";
-                    var author = prJson.TryGetProperty("user", out var user)
-                        ? user.GetProperty("login").GetString() ?? "unknown"
+                    var author = prJson.TryGetProperty("user", out var user) && user.ValueKind == JsonValueKind.Object && user.TryGetProperty("login", out var userLogin)
+                        ? userLogin.GetString() ?? "unknown"
                         : "unknown";
-                    var state = prJson.GetProperty("state").GetString() ?? "open";
-                    var updatedAt = prJson.TryGetProperty("updated_at", out var updatedAtProp)
+                    var state = prJson.TryGetProperty("state", out var stateProp) ? stateProp.GetString() ?? "open" : "open";
+                    var updatedAt = prJson.TryGetProperty("updated_at", out var updatedAtProp) && updatedAtProp.ValueKind == JsonValueKind.String
                         ? updatedAtProp.GetDateTimeOffset()
                         : (DateTimeOffset?)null;
 
                     // Find latest artifact for this PR
-                    ArtifactUpdateInfo? latestArtifact = await FindLatestArtifactForPrAsync(client, prNumber, cancellationToken);
+                    ArtifactUpdateInfo? latestArtifact = prNumber > 0 ? await FindLatestArtifactForPrAsync(client, prNumber, cancellationToken) : null;
 
                     return new PullRequestInfo
                     {
@@ -568,6 +568,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
             var prInfos = await Task.WhenAll(prTasks);
             var sortedPrs = prInfos
+                .Where(p => p.Number > 0)
                 .OrderByDescending(p => p.UpdatedAt ?? DateTimeOffset.MinValue)
                 .ToList();
             results.AddRange(sortedPrs);
@@ -584,7 +585,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 {
                     var statusJson = await statusResponse.Content.ReadAsStringAsync(cancellationToken);
                     var statusData = JsonSerializer.Deserialize<JsonElement>(statusJson);
-                    var statusState = statusData.GetProperty("state").GetString();
+                    var statusState = statusData.TryGetProperty("state", out var stProp) ? stProp.GetString() : null;
 
                     IsPrMergedOrClosed = statusState != null && !statusState.Equals("open", StringComparison.OrdinalIgnoreCase);
                     if (IsPrMergedOrClosed)
@@ -1380,7 +1381,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
 
             foreach (var run in runs.EnumerateArray())
             {
-                var runId = run.GetProperty("id").GetInt64();
+                var runId = run.TryGetProperty("id", out var idProp) && idProp.TryGetInt64(out var rId) ? rId : 0;
                 var runBranch = run.TryGetProperty("head_branch", out var hb) ? hb.GetString() : string.Empty;
 
                 _logger.LogDebug("Checking workflow run {RunId} for branch {Branch}", runId, runBranch);
@@ -1391,19 +1392,22 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                     continue;
                 }
 
-                var runUrl = run.GetProperty("html_url").GetString() ?? string.Empty;
+                var runUrl = run.TryGetProperty("html_url", out var huProp) ? huProp.GetString() ?? string.Empty : string.Empty;
                 var createdAt = DateTime.MinValue;
-                try
+                if (run.TryGetProperty("created_at", out var catProp))
                 {
-                    createdAt = run.GetProperty("created_at").GetDateTime();
-                }
-                catch (FormatException ex)
-                {
-                    _logger.LogWarning(ex, "Failed to parse created_at date from workflow run");
-                    createdAt = DateTime.MinValue;
+                    try
+                    {
+                        createdAt = catProp.GetDateTime();
+                    }
+                    catch (FormatException ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to parse created_at date from workflow run");
+                        createdAt = DateTime.MinValue;
+                    }
                 }
 
-                var headSha = run.GetProperty("head_sha").GetString() ?? string.Empty;
+                var headSha = run.TryGetProperty("head_sha", out var hsProp) ? hsProp.GetString() ?? string.Empty : string.Empty;
                 var shortHash = headSha.Length >= AppConstants.GitShortHashLength ? headSha[..AppConstants.GitShortHashLength] : headSha;
 
                 _logger.LogInformation("Fetching artifacts for workflow run {RunId} (PR #{PrNumber})", runId, prNumber);
@@ -1529,10 +1533,10 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         string repo,
         CancellationToken cancellationToken)
     {
-        var runId = run.GetProperty("id").GetInt64();
-        var runUrl = run.GetProperty("html_url").GetString() ?? string.Empty;
+        var runId = run.TryGetProperty("id", out var idProp) && idProp.TryGetInt64(out var rId) ? rId : 0;
+        var runUrl = run.TryGetProperty("html_url", out var huProp) ? huProp.GetString() ?? string.Empty : string.Empty;
         var eventType = run.TryGetProperty("event", out var e) ? e.GetString() : "unknown";
-        var headSha = run.GetProperty("head_sha").GetString() ?? string.Empty;
+        var headSha = run.TryGetProperty("head_sha", out var hsProp) ? hsProp.GetString() ?? string.Empty : string.Empty;
         var shortHash = headSha.Length >= AppConstants.GitShortHashLength ? headSha[..AppConstants.GitShortHashLength] : headSha;
         var actualBranch = run.TryGetProperty("head_branch", out var b) ? b.GetString() : branch ?? "unknown";
 
@@ -1551,13 +1555,16 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         }
 
         var createdAt = DateTime.MinValue;
-        try
+        if (run.TryGetProperty("created_at", out var catProp))
         {
-            createdAt = run.GetProperty("created_at").GetDateTime();
-        }
-        catch (FormatException)
-        {
-            createdAt = DateTime.MinValue;
+            try
+            {
+                createdAt = catProp.GetDateTime();
+            }
+            catch (FormatException)
+            {
+                createdAt = DateTime.MinValue;
+            }
         }
 
         _logger.LogDebug("Checking run {RunId} on branch {Branch} ({Hash}) for artifacts...", runId, actualBranch, shortHash);
@@ -1757,8 +1764,8 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
             return null;
         }
 
-        var id = artifact.GetProperty("id").GetInt64();
-        var size = artifact.GetProperty("size_in_bytes").GetInt64();
+        var id = artifact.TryGetProperty("id", out var idProp) && idProp.TryGetInt64(out var aId) ? aId : 0;
+        var size = artifact.TryGetProperty("size_in_bytes", out var sizeProp) && sizeProp.TryGetInt64(out var s) ? s : 0;
         var downloadUrl = artifact.TryGetProperty("archive_download_url", out var dl) ? dl.GetString() : null;
 
         return new ArtifactUpdateInfo(

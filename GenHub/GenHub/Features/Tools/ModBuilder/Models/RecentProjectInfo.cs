@@ -41,4 +41,16 @@ public sealed class RecentProjectInfo
     /// Gets the project author.
     /// </summary>
     public string? Author { get; init; }
+
+    /// <summary>
+    /// Gets the display directory path.
+    /// </summary>
+    public string DisplayPath => System.IO.Path.GetDirectoryName(Path) ?? Path;
+
+    /// <summary>
+    /// Gets the formatted last modified or built date string.
+    /// </summary>
+    public string DisplayLastModified => LastBuildTime.HasValue
+        ? $"Modified: {LastBuildTime.Value:MMM dd, yyyy}"
+        : "Recent Project";
 }
