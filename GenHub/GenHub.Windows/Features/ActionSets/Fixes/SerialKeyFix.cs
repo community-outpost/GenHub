@@ -35,7 +35,7 @@ public class SerialKeyFix(
     public override string DetailedDescription => "Digital releases from Steam and the EA App install identical placeholder serial keys for all users, making online multiplayer impossible due to serial key conflicts. This fix generates and registers a unique, valid CD key in your Windows registry so you can play on C&C:Online and LAN without conflicts.";
 
     /// <inheritdoc/>
-    public override string Category => "Core & Stability";
+    public override string Category => ActionSetConstants.Categories.CoreAndStability;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => true;

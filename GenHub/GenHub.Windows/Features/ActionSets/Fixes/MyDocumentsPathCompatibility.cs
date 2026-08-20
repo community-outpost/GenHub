@@ -30,7 +30,7 @@ public partial class MyDocumentsPathCompatibility(ILogger<MyDocumentsPathCompati
     public override string DetailedDescription => "The 2003 Generals engine relies on legacy ANSI file I/O to load user settings (Options.ini), savegames, and replays from the Documents folder. If your Windows username or Documents path contains non-ASCII, accented, or non-English characters, the game crashes with Technical Difficulties on startup. This fix validates the path and provides relocation steps.";
 
     /// <inheritdoc/>
-    public override string Category => "Core & Stability";
+    public override string Category => ActionSetConstants.Categories.CoreAndStability;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => false;

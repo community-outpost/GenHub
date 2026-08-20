@@ -37,7 +37,7 @@ public class VCRedist2008Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
     public override string DetailedDescription => "Community tools, mod launchers, and map editors compiled against Visual Studio 2008 require the x86 Visual C++ 2008 redistributable. This fix automatically verifies, downloads, and silently installs the necessary runtime libraries.";
 
     /// <inheritdoc/>
-    public override string Category => "Core & Stability";
+    public override string Category => ActionSetConstants.Categories.CoreAndStability;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => true;

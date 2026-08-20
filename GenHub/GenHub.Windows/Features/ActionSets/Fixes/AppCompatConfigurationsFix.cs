@@ -35,7 +35,7 @@ public class AppCompatConfigurationsFix(
     public override string DetailedDescription => "Registers HIGHDPIAWARE and RUNASADMIN flags in the Windows AppCompat registry for all Generals and Zero Hour binaries (automatically differentiating Steam vs. non-Steam installations). This ensures the game renders at native monitor resolution without blurry scaling or privilege errors.";
 
     /// <inheritdoc/>
-    public override string Category => "Core & Stability";
+    public override string Category => ActionSetConstants.Categories.CoreAndStability;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => true;

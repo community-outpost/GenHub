@@ -32,7 +32,7 @@ public class IntelGfxDriverCompatibility(ILogger<IntelGfxDriverCompatibility> lo
     public override string DetailedDescription => "Older DirectX 8 titles frequently encounter rendering anomalies, flashing water shaders, or black-screen crashes on Intel integrated and Arc graphics. This fix identifies Intel display adapters and guides installing the latest driver revisions to maintain rendering stability.";
 
     /// <inheritdoc/>
-    public override string Category => "Compatibility";
+    public override string Category => ActionSetConstants.Categories.Compatibility;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => false;

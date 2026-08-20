@@ -83,7 +83,7 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
     public override string DetailedDescription => "Older CD installations and archive extractions frequently lock game directories as Read-Only, preventing Generals from saving configuration changes, downloading custom maps, or recording replays. This fix clears all read-only attributes across your installation and user data directories.";
 
     /// <inheritdoc/>
-    public override string Category => "Core & Stability";
+    public override string Category => ActionSetConstants.Categories.CoreAndStability;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => true;

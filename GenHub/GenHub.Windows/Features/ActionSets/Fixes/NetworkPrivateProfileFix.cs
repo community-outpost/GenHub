@@ -29,7 +29,7 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
     public override string DetailedDescription => "Windows marks unfamiliar networks as Public by default, which blocks peer-to-peer game discovery and UDP packets. Configuring your network connection as Private unblocks Generals multiplayer traffic, enabling seamless LAN, GameRanger, and online connectivity.";
 
     /// <inheritdoc/>
-    public override string Category => "Multiplayer";
+    public override string Category => ActionSetConstants.Categories.Multiplayer;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => false;

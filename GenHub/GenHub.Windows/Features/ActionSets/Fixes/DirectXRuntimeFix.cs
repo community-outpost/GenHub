@@ -32,7 +32,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
     public override string DetailedDescription => "Generals and Zero Hour require legacy DirectX 8.1/9.0c runtime components that are missing from fresh Windows 10 and 11 setups. This fix downloads and validates the official DirectX redistributable, then silently installs the required 32-bit D3D runtime libraries (d3d8.dll, d3dx9_43.dll) into SysWOW64.";
 
     /// <inheritdoc/>
-    public override string Category => "Core & Stability";
+    public override string Category => ActionSetConstants.Categories.CoreAndStability;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => true;

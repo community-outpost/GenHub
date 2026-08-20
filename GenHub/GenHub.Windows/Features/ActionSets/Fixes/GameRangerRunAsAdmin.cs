@@ -33,7 +33,7 @@ public class GameRangerRunAsAdmin(ILogger<GameRangerRunAsAdmin> logger) : BaseAc
     public override string DetailedDescription => "When playing via the GameRanger client, the game executable must run with administrator privileges so GameRanger can inject its room and network parameters. This fix detects GameRanger installations and verifies compatibility flags to prevent launch freezes.";
 
     /// <inheritdoc/>
-    public override string Category => "Multiplayer";
+    public override string Category => ActionSetConstants.Categories.Multiplayer;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => false;

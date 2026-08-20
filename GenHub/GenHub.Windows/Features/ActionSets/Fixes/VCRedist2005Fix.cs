@@ -38,7 +38,7 @@ public class VCRedist2005Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
     public override string DetailedDescription => "Several legacy mod tools, video decoding plugins, and game utilities require the 32-bit Visual C++ 2005 runtime. This fix downloads and silently installs the official Microsoft runtime package, resolving side-by-side configuration startup crashes.";
 
     /// <inheritdoc/>
-    public override string Category => "Core & Stability";
+    public override string Category => ActionSetConstants.Categories.CoreAndStability;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => true;

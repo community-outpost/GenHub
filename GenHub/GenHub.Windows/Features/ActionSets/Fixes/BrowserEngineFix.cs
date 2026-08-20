@@ -32,7 +32,7 @@ public class BrowserEngineFix(ILogger<BrowserEngineFix> logger) : BaseActionSet(
     public override string DetailedDescription => "Generals originally bundled an embedded web browser DLL from 2002 to display EA in-game news. On modern Windows, this outdated library triggers memory access violations that crash the game before reaching the main menu. This fix renames BrowserEngine.dll to safely bypass the crash.";
 
     /// <inheritdoc/>
-    public override string Category => "Core & Stability";
+    public override string Category => ActionSetConstants.Categories.CoreAndStability;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => true;

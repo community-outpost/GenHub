@@ -31,7 +31,7 @@ public class ProxyLauncher(ILogger<ProxyLauncher> logger) : BaseActionSet(logger
     public override string DetailedDescription => "GenHub uses a specialized proxy launcher to manage game execution, apply environment fixes dynamically, and isolate legacy game processes from modern Windows quirks. This entry tracks and verifies status of the proxy launcher subsystem.";
 
     /// <inheritdoc/>
-    public override string Category => "Quality of Life";
+    public override string Category => ActionSetConstants.Categories.QualityOfLife;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => false;

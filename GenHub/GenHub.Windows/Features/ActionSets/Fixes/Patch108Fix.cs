@@ -36,7 +36,7 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
     public override string DetailedDescription => "The official 1.08 patch is required for base Command & Conquer: Generals to fix multiplayer desyncs, campaign crashes, and engine stability issues. This fix safely downloads, verifies, backs up existing files, and deploys the 1.08 update.";
 
     /// <inheritdoc/>
-    public override string Category => "Core & Stability";
+    public override string Category => ActionSetConstants.Categories.CoreAndStability;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => true;

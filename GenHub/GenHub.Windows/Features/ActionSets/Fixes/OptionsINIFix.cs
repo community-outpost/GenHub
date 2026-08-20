@@ -33,7 +33,7 @@ public class OptionsINIFix(IGameSettingsService gameSettingsService, ILogger<Opt
     public override string DetailedDescription => "Generals and Zero Hour crash on initial launch if configuration files are missing or specify incompatible display modes. This fix creates an optimized Options.ini, disables crash-prone legacy 3D shadow volumes, configures modern 1080p widescreen defaults, and applies essential community engine performance settings.";
 
     /// <inheritdoc/>
-    public override string Category => "Core & Stability";
+    public override string Category => ActionSetConstants.Categories.CoreAndStability;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => true;

@@ -42,7 +42,7 @@ public class GenArial(ILogger<GenArial> logger) : BaseActionSet(logger)
     public override string DetailedDescription => "Generals and Zero Hour depend on standard TrueType Arial fonts to render in-game menus, UI buttons, and chat overlays. On streamlined or modified Windows editions lacking standard fonts, in-game text can render as invisible or corrupted boxes. This fix checks font availability and guides installation if needed.";
 
     /// <inheritdoc/>
-    public override string Category => "Compatibility";
+    public override string Category => ActionSetConstants.Categories.Compatibility;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => false;

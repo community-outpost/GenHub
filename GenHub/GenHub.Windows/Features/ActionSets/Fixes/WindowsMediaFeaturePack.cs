@@ -30,7 +30,7 @@ public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : 
     public override string DetailedDescription => "Windows N and KN editions lack essential media codecs required to play Generals and Zero Hour intro movies, campaign briefings, and background audio. This fix detects missing media components and guides you through enabling the Windows Media Feature Pack.";
 
     /// <inheritdoc/>
-    public override string Category => "Compatibility";
+    public override string Category => ActionSetConstants.Categories.Compatibility;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => false;

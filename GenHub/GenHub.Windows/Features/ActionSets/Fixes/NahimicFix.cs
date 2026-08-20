@@ -33,7 +33,7 @@ public class NahimicFix(ILogger<NahimicFix> logger) : BaseActionSet(logger)
     public override string DetailedDescription => "Nahimic audio enhancement software hooks into older DirectX 8 audio pipelines, causing Generals and Zero Hour to freeze or crash on launch. This fix scans running services for Nahimic drivers and guides you through disabling the background service.";
 
     /// <inheritdoc/>
-    public override string Category => "Compatibility";
+    public override string Category => ActionSetConstants.Categories.Compatibility;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => false;

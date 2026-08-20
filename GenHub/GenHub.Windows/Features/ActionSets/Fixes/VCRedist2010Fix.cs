@@ -35,7 +35,7 @@ public class VCRedist2010Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
     public override string DetailedDescription => "GenTool, modern widescreen hooks, and community security updates depend directly on the 32-bit Visual C++ 2010 runtime. This fix downloads and installs the official Microsoft runtime package, ensuring GenTool operates without missing DLL errors.";
 
     /// <inheritdoc/>
-    public override string Category => "Core & Stability";
+    public override string Category => ActionSetConstants.Categories.CoreAndStability;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => true;

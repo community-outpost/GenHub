@@ -25,13 +25,13 @@ public class ExpandedLANLobbyMenu(ILogger<ExpandedLANLobbyMenu> logger) : BaseAc
     public override string Title => "Expanded LAN Lobby Menu";
 
     /// <inheritdoc/>
-    public override string Description => "Provides guidance and optimal network configuration steps for hosting and joining local and virtual LAN games.";
+    public override string Description => "Expands the in-game LAN multiplayer lobby window layout and interface for widescreen displays to fit more game rooms.";
 
     /// <inheritdoc/>
-    public override string DetailedDescription => "Hosting or joining local and virtual LAN games (e.g. Radmin VPN or ZeroTier) often fails due to firewall blocks or subnet mismatches. This fix provides validated configuration instructions to ensure smooth discovery and connection in the game's LAN lobby menu.";
+    public override string DetailedDescription => "The original Generals LAN lobby menu only displays a tiny window showing 4 games at a time. This UI addon replaces the LAN lobby window definitions and textures with an expanded, widescreen-friendly layout that displays significantly more concurrent games and player names without cramped scrolling.";
 
     /// <inheritdoc/>
-    public override string Category => "Multiplayer";
+    public override string Category => ActionSetConstants.Categories.QualityOfLife;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => false;

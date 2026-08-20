@@ -32,7 +32,7 @@ public class CncOnlineLauncherFix(
     public override string DetailedDescription => "Since EA GameSpy servers were decommissioned, C&C:Online provides the primary multiplayer network for Generals and Zero Hour. This fix writes the necessary installation path and version metadata into the registry so community launcher hooks can direct multiplayer traffic to active community servers.";
 
     /// <inheritdoc/>
-    public override string Category => "Multiplayer";
+    public override string Category => ActionSetConstants.Categories.Multiplayer;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => false;

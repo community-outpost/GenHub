@@ -40,7 +40,7 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
     public override string DetailedDescription => "Windows Firewall frequently blocks the peer-to-peer UDP and TCP packets used by Generals and Zero Hour for multiplayer networking, leading to connection timeouts. This fix creates dedicated inbound firewall rules for game executables and open multiplayer ports (UDP 16000, UDP 16001, TCP 16001).";
 
     /// <inheritdoc/>
-    public override string Category => "Multiplayer";
+    public override string Category => ActionSetConstants.Categories.Multiplayer;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => false;

@@ -32,7 +32,7 @@ public class TheFirstDecadeRegistryFix(
     public override string DetailedDescription => "Command & Conquer: The First Decade compilation installs rely on central registry keys to link Generals and Zero Hour to official patches and tools. This fix locates your TFD base folder and rebuilds the required registry entries so expansions recognize your installation.";
 
     /// <inheritdoc/>
-    public override string Category => "Compatibility";
+    public override string Category => ActionSetConstants.Categories.Compatibility;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => false;
