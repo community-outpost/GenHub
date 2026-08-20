@@ -176,16 +176,16 @@ public sealed class SentryTelemetrySink(
             ["platform"] = "csharp",
             ["level"] = isFatal ? "fatal" : "error",
             ["logger"] = TelemetryConstants.AppName,
-            ["release"] = telemetryEvent.AppVersion,
+            ["release"] = telemetryEvent.AppVersion ?? string.Empty,
             ["environment"] = AppConstants.BuildChannel,
             ["tags"] = new Dictionary<string, string>
             {
-                ["os"] = telemetryEvent.Platform,
+                ["os"] = telemetryEvent.Platform ?? string.Empty,
                 ["arch"] = RuntimeInformation.ProcessArchitecture.ToString(),
             },
             ["user"] = new Dictionary<string, string>
             {
-                ["id"] = telemetryEvent.InstallationId,
+                ["id"] = telemetryEvent.InstallationId ?? string.Empty,
             },
             ["extra"] = extra,
         };

@@ -99,9 +99,11 @@ public class TelemetryServiceTests : IDisposable
         // Allow background loop to process
         await Task.Delay(100);
 
-        _mockSink.Verify(s => s.EmitAsync(
-            It.Is<TelemetryEvent>(e => e.EventName == TelemetryConstants.Events.GameSessionStarted && e.SessionId == "test-session"),
-            It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+        _mockSink.Verify(
+            s => s.EmitAsync(
+                It.Is<TelemetryEvent>(e => e.EventName == TelemetryConstants.Events.GameSessionStarted && e.SessionId == "test-session"),
+                It.IsAny<CancellationToken>()),
+            Times.AtLeastOnce);
     }
 
     /// <summary>
@@ -132,11 +134,13 @@ public class TelemetryServiceTests : IDisposable
 
         await Task.Delay(100);
 
-        _mockSink.Verify(s => s.EmitAsync(
-            It.Is<TelemetryEvent>(e => e.EventName == TelemetryConstants.Events.AppCrash &&
-                                       e.Level == TelemetryLevel.CrashReportsOnly &&
-                                       e.Properties.ContainsKey(TelemetryConstants.Properties.ExceptionType)),
-            It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+        _mockSink.Verify(
+            s => s.EmitAsync(
+                It.Is<TelemetryEvent>(e => e.EventName == TelemetryConstants.Events.AppCrash &&
+                                           e.Level == TelemetryLevel.CrashReportsOnly &&
+                                           e.Properties.ContainsKey(TelemetryConstants.Properties.ExceptionType)),
+                It.IsAny<CancellationToken>()),
+            Times.AtLeastOnce);
     }
 
     /// <summary>
