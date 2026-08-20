@@ -26,6 +26,15 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
     public override string Title => "GenTool";
 
     /// <inheritdoc/>
+    public override string Description => "Installs the community GenTool engine wrapper (d3d8.dll) for native widescreen resolution, zoom controls, and anti-cheat.";
+
+    /// <inheritdoc/>
+    public override string DetailedDescription => "GenTool is the essential community add-on for Generals and Zero Hour operating via Direct3D hook (d3d8.dll). It enables true widescreen display rendering without vertical image cropping, uncap/smooth camera controls, enhanced match recording, and tournament-standard anti-cheat validation.";
+
+    /// <inheritdoc/>
+    public override string Category => "Quality of Life";
+
+    /// <inheritdoc/>
     public override bool IsCoreFix => false;
 
     /// <inheritdoc/>

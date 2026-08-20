@@ -32,6 +32,15 @@ public class PreferIPv4Fix(
     public override string Title => "Prefer IPv4";
 
     /// <inheritdoc/>
+    public override string Description => "Configures Windows TCP/IP to prefer IPv4 networking, fixing LAN lobby discovery and multiplayer connection drops.";
+
+    /// <inheritdoc/>
+    public override string DetailedDescription => "The vintage network engine in Generals does not support IPv6 and often binds to inactive tunnel adapters when IPv6 is prioritized. This fix adjusts Windows TCP/IP parameters to prefer IPv4, resolving IP binding errors, invisible LAN hosts, and multiplayer disconnects.";
+
+    /// <inheritdoc/>
+    public override string Category => "Multiplayer";
+
+    /// <inheritdoc/>
     public override bool IsCoreFix => false;
 
     /// <inheritdoc/>

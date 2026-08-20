@@ -31,6 +31,15 @@ public class D3D8XDLLCheck(ILogger<D3D8XDLLCheck> logger) : BaseActionSet(logger
     public override string Title => "DirectX 8 DLL Check";
 
     /// <inheritdoc/>
+    public override string Description => "Scans system directories for legacy DirectX 8/9 runtime DLLs (d3d8.dll, d3dx9_43.dll) required to launch the game.";
+
+    /// <inheritdoc/>
+    public override string DetailedDescription => "Modern Windows systems do not pre-install legacy DirectX 8 and 9 runtime libraries by default. This diagnostic check verifies whether essential graphics binaries (d3d8.dll, d3d8thk.dll, and d3dx9_43.dll) exist in SysWOW64 or the game directory to prevent missing DLL startup errors.";
+
+    /// <inheritdoc/>
+    public override string Category => "Compatibility";
+
+    /// <inheritdoc/>
     public override bool IsCoreFix => false;
 
     /// <inheritdoc/>

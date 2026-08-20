@@ -23,6 +23,15 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
     public override string Title => "Network Private Profile";
 
     /// <inheritdoc/>
+    public override string Description => "Sets active network connections to Private mode so Windows Defender Firewall permits LAN and direct IP multiplayer.";
+
+    /// <inheritdoc/>
+    public override string DetailedDescription => "Windows marks unfamiliar networks as Public by default, which blocks peer-to-peer game discovery and UDP packets. Configuring your network connection as Private unblocks Generals multiplayer traffic, enabling seamless LAN, GameRanger, and online connectivity.";
+
+    /// <inheritdoc/>
+    public override string Category => "Multiplayer";
+
+    /// <inheritdoc/>
     public override bool IsCoreFix => false;
 
     /// <inheritdoc/>

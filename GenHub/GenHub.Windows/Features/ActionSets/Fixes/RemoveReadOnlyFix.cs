@@ -77,6 +77,15 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
     public override string Title => "Remove Read-Only Attributes";
 
     /// <inheritdoc/>
+    public override string Description => "Recursively removes Read-Only file locks from game and document folders so settings, maps, and replays can be saved.";
+
+    /// <inheritdoc/>
+    public override string DetailedDescription => "Older CD installations and archive extractions frequently lock game directories as Read-Only, preventing Generals from saving configuration changes, downloading custom maps, or recording replays. This fix clears all read-only attributes across your installation and user data directories.";
+
+    /// <inheritdoc/>
+    public override string Category => "Core & Stability";
+
+    /// <inheritdoc/>
     public override bool IsCoreFix => true;
 
     /// <inheritdoc/>

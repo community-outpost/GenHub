@@ -26,6 +26,15 @@ public class DbgHelpFix(ILogger<DbgHelpFix> logger) : BaseActionSet(logger)
     public override string Title => "Debug Help DLL Fix";
 
     /// <inheritdoc/>
+    public override string Description => "Disables the outdated dbghelp.dll in the game folder so Windows uses the modern, stable system library.";
+
+    /// <inheritdoc/>
+    public override string DetailedDescription => "The legacy dbghelp.dll bundled inside 2003 game installations causes memory faults and random crash-to-desktop errors on modern Windows. Renaming this local DLL allows the game to safely fall back to the stable system version in SysWOW64.";
+
+    /// <inheritdoc/>
+    public override string Category => "Core & Stability";
+
+    /// <inheritdoc/>
     public override bool IsCoreFix => true;
 
     /// <inheritdoc/>

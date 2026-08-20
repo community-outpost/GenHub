@@ -25,6 +25,15 @@ public class ExpandedLANLobbyMenu(ILogger<ExpandedLANLobbyMenu> logger) : BaseAc
     public override string Title => "Expanded LAN Lobby Menu";
 
     /// <inheritdoc/>
+    public override string Description => "Provides guidance and optimal network configuration steps for hosting and joining local and virtual LAN games.";
+
+    /// <inheritdoc/>
+    public override string DetailedDescription => "Hosting or joining local and virtual LAN games (e.g. Radmin VPN or ZeroTier) often fails due to firewall blocks or subnet mismatches. This fix provides validated configuration instructions to ensure smooth discovery and connection in the game's LAN lobby menu.";
+
+    /// <inheritdoc/>
+    public override string Category => "Multiplayer";
+
+    /// <inheritdoc/>
     public override bool IsCoreFix => false;
 
     /// <inheritdoc/>

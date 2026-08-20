@@ -22,15 +22,20 @@ namespace GenHub.Windows.Features.ActionSets.Fixes;
 public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104Fix> logger) : BaseActionSet(logger)
 {
     /// <summary>
-    /// Gets the description of the fix.
-    /// </summary>
-    public static string Description => "Official Zero Hour 1.04 patch - required for multiplayer and compatibility.";
-
     /// <inheritdoc/>
     public override string Id => "Patch104";
 
     /// <inheritdoc/>
     public override string Title => "Zero Hour 1.04 Patch";
+
+    /// <inheritdoc/>
+    public override string Description => "Installs the official Zero Hour 1.04 patch required for online multiplayer, mod compatibility, and critical bug fixes.";
+
+    /// <inheritdoc/>
+    public override string DetailedDescription => "Patch 1.04 is the definitive official update for Command & Conquer: Generals Zero Hour, addressing balance exploits, memory leaks, and multiplayer desync errors. Upgrading to 1.04 is strictly required to play online via C&C:Online/GameRanger and to run modern mods.";
+
+    /// <inheritdoc/>
+    public override string Category => "Core & Stability";
 
     /// <inheritdoc/>
     public override bool IsCoreFix => true;

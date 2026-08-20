@@ -23,6 +23,15 @@ public class VanillaExecutableFix(ILogger<VanillaExecutableFix> logger) : BaseAc
     public override string Title => "Generals Executable Fix";
 
     /// <inheritdoc/>
+    public override string Description => "Verifies that the Generals executable is properly installed and updated to official version 1.08.";
+
+    /// <inheritdoc/>
+    public override string DetailedDescription => "Running an unpatched version of the base Generals executable causes multiplayer version mismatch errors and mod incompatibilities. This check verifies that your base game executable is present, healthy, and updated to official version 1.08.";
+
+    /// <inheritdoc/>
+    public override string Category => "Compatibility";
+
+    /// <inheritdoc/>
     public override bool IsCoreFix => false;
 
     /// <inheritdoc/>

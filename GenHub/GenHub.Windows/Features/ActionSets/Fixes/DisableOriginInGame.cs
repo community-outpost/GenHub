@@ -25,6 +25,15 @@ public class DisableOriginInGame(ILogger<DisableOriginInGame> logger) : BaseActi
     public override string Title => "Disable Origin In-Game Overlay";
 
     /// <inheritdoc/>
+    public override string Description => "Detects if the Origin in-game overlay is active and guides disabling it to prevent rendering conflicts and crashes.";
+
+    /// <inheritdoc/>
+    public override string DetailedDescription => "The legacy Origin overlay attempts to hook into the game's 32-bit DirectX 8 graphics pipeline, causing frame drops, mouse desync, and startup crashes. This fix checks your Origin configuration (Origin.ini) and provides instructions on disabling the overlay.";
+
+    /// <inheritdoc/>
+    public override string Category => "Compatibility";
+
+    /// <inheritdoc/>
     public override bool IsCoreFix => false;
 
     /// <inheritdoc/>

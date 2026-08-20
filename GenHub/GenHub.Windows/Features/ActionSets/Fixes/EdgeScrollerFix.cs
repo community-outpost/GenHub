@@ -26,6 +26,15 @@ public class EdgeScrollerFix(ILogger<EdgeScrollerFix> logger, IGameSettingsServi
     public override string Title => "Edge Scrolling Fix";
 
     /// <inheritdoc/>
+    public override string Description => "Calibrates camera edge-scrolling zones and speed in Options.ini for responsive map scrolling on high-resolution displays.";
+
+    /// <inheritdoc/>
+    public override string DetailedDescription => "On modern 1080p, 1440p, and 4K displays, legacy camera edge scrolling can feel sluggish or unresponsive when the cursor reaches screen borders. This fix injects optimized edge-scrolling parameters (ScrollEdgeZone, ScrollEdgeSpeed, ScrollEdgeAcceleration) into Options.ini.";
+
+    /// <inheritdoc/>
+    public override string Category => "Quality of Life";
+
+    /// <inheritdoc/>
     public override bool IsCoreFix => false;
 
     /// <inheritdoc/>

@@ -29,6 +29,15 @@ public class SerialKeyFix(
     public override string Title => "Fix Serial Keys";
 
     /// <inheritdoc/>
+    public override string Description => "Replaces shared placeholder CD keys in the registry with unique keys to eliminate \"Serial key already in use\" errors.";
+
+    /// <inheritdoc/>
+    public override string DetailedDescription => "Digital releases from Steam and the EA App install identical placeholder serial keys for all users, making online multiplayer impossible due to serial key conflicts. This fix generates and registers a unique, valid CD key in your Windows registry so you can play on C&C:Online and LAN without conflicts.";
+
+    /// <inheritdoc/>
+    public override string Category => "Core & Stability";
+
+    /// <inheritdoc/>
     public override bool IsCoreFix => true;
 
     /// <inheritdoc/>

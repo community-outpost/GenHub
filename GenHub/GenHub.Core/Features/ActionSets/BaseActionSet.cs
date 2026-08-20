@@ -18,6 +18,15 @@ public abstract class BaseActionSet(ILogger logger) : IActionSet
     public abstract string Title { get; }
 
     /// <inheritdoc/>
+    public virtual string Description => Title;
+
+    /// <inheritdoc/>
+    public virtual string DetailedDescription => string.Empty;
+
+    /// <inheritdoc/>
+    public virtual string Category => IsCoreFix ? "Core & Stability" : "Compatibility";
+
+    /// <inheritdoc/>
     public abstract bool IsCoreFix { get; }
 
     /// <inheritdoc/>

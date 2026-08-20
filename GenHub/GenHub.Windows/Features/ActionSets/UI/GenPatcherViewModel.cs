@@ -34,6 +34,51 @@ public partial class GenPatcherViewModel(
     [ObservableProperty]
     private ObservableCollection<ActionSetViewModel> actionSets = [];
 
+    [ObservableProperty]
+    private ObservableCollection<ActionSetViewModel> filteredActionSets = [];
+
+    [ObservableProperty]
+    private string searchQuery = string.Empty;
+
+    [ObservableProperty]
+    private string selectedCategory = "All";
+
+    [ObservableProperty]
+    private string selectedStatus = "All";
+
+    [ObservableProperty]
+    private int totalFixesCount;
+
+    [ObservableProperty]
+    private int applicableFixesCount;
+
+    [ObservableProperty]
+    private int appliedFixesCount;
+
+    [ObservableProperty]
+    private int unappliedFixesCount;
+
+    [ObservableProperty]
+    private double progressPercentage;
+
+    [ObservableProperty]
+    private string progressSummaryText = string.Empty;
+
+    [ObservableProperty]
+    private int allCategoryCount;
+
+    [ObservableProperty]
+    private int coreCategoryCount;
+
+    [ObservableProperty]
+    private int compatibilityCategoryCount;
+
+    [ObservableProperty]
+    private int multiplayerCategoryCount;
+
+    [ObservableProperty]
+    private int qolCategoryCount;
+
     /// <summary>
     /// Initializes the ViewModel asynchronously.
     /// </summary>
@@ -193,6 +238,7 @@ public partial class GenPatcherViewModel(
                         vm.IsApplicable,
                         vm.IsApplied);
                 }
+                ApplyFilter();
             });
 
             var applicableCount = ActionSets.Count(x => x.IsApplicable);
@@ -335,6 +381,99 @@ public partial class GenPatcherViewModel(
         }
     }
 
+    partial void OnSearchQueryChanged(string value) => ApplyFilter();
+
+    partial void OnSelectedCategoryChanged(string value) => ApplyFilter();
+
+    partial void OnSelectedStatusChanged(string value) => ApplyFilter();
+
+    [RelayCommand]
+    private void SetCategory(string category)
+    {
+        SelectedCategory = category;
+    }
+
+    [RelayCommand]
+    private void SetStatusFilter(string status)
+    {
+        SelectedStatus = status;
+    }
+
+    [RelayCommand]
+    private void ClearSearch()
+    {
+        SearchQuery = string.Empty;
+    }
+
+    private void ApplyFilter()
+    {
+        var query = SearchQuery.Trim();
+        var category = SelectedCategory;
+        var status = SelectedStatus;
+
+        var filtered = ActionSets.AsEnumerable();
+
+        if (!string.IsNullOrEmpty(category) && !string.Equals(category, "All", StringComparison.OrdinalIgnoreCase))
+        {
+            filtered = filtered.Where(x => string.Equals(x.Category, category, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrEmpty(status) && !string.Equals(status, "All", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.Equals(status, "Applied", StringComparison.OrdinalIgnoreCase))
+            {
+                filtered = filtered.Where(x => x.IsApplied);
+            }
+            else if (string.Equals(status, "Not Applied", StringComparison.OrdinalIgnoreCase))
+            {
+                filtered = filtered.Where(x => x.IsApplicable && !x.IsApplied);
+            }
+            else if (string.Equals(status, "Not Applicable", StringComparison.OrdinalIgnoreCase))
+            {
+                filtered = filtered.Where(x => !x.IsApplicable);
+            }
+        }
+
+        if (!string.IsNullOrEmpty(query))
+        {
+            filtered = filtered.Where(x =>
+                x.Title.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                x.Description.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                x.DetailedDescription.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                x.Category.Contains(query, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var resultList = filtered.ToList();
+
+        FilteredActionSets.Clear();
+        foreach (var item in resultList)
+        {
+            FilteredActionSets.Add(item);
+        }
+
+        UpdateMetrics();
+    }
+
+    private void UpdateMetrics()
+    {
+        TotalFixesCount = ActionSets.Count;
+        ApplicableFixesCount = ActionSets.Count(x => x.IsApplicable);
+        AppliedFixesCount = ActionSets.Count(x => x.IsApplicable && x.IsApplied);
+        UnappliedFixesCount = ActionSets.Count(x => x.IsApplicable && !x.IsApplied);
+
+        ProgressPercentage = ApplicableFixesCount > 0
+            ? (double)AppliedFixesCount / ApplicableFixesCount * 100.0
+            : 0.0;
+
+        ProgressSummaryText = $"{AppliedFixesCount} of {ApplicableFixesCount} applied";
+
+        AllCategoryCount = ActionSets.Count;
+        CoreCategoryCount = ActionSets.Count(x => string.Equals(x.Category, "Core & Stability", StringComparison.OrdinalIgnoreCase));
+        CompatibilityCategoryCount = ActionSets.Count(x => string.Equals(x.Category, "Compatibility", StringComparison.OrdinalIgnoreCase));
+        MultiplayerCategoryCount = ActionSets.Count(x => string.Equals(x.Category, "Multiplayer", StringComparison.OrdinalIgnoreCase));
+        QolCategoryCount = ActionSets.Count(x => string.Equals(x.Category, "Quality of Life", StringComparison.OrdinalIgnoreCase));
+    }
+
     private int GetSortPriority(ActionSetViewModel vm)
     {
         // 0: NOT APPLIED (applicable and needs fix) -> top
@@ -379,5 +518,7 @@ public partial class GenPatcherViewModel(
                 ActionSets.Add(vm);
             }
         }
+
+        ApplyFilter();
     }
 }

@@ -31,14 +31,43 @@ public partial class ActionSetViewModel(
     public string Title => ActionSet.Title;
 
     /// <summary>
-    /// Gets the description of the action set.
+    /// Gets the concise description of the action set.
     /// </summary>
-    public string Description => ActionSet.Title;
+    public string Description => ActionSet.Description;
+
+    /// <summary>
+    /// Gets the detailed description of what the action set does.
+    /// </summary>
+    public string DetailedDescription => ActionSet.DetailedDescription;
+
+    /// <summary>
+    /// Gets the category of the action set.
+    /// </summary>
+    public string Category => ActionSet.Category;
 
     /// <summary>
     /// Gets a value indicating whether this is a core fix.
     /// </summary>
     public bool IsCore => ActionSet.IsCoreFix;
+
+    /// <summary>
+    /// Gets a value indicating whether this is a crucial fix for game stability.
+    /// </summary>
+    public bool IsCrucial => ActionSet.IsCrucialFix;
+
+    /// <summary>
+    /// Gets a value indicating whether this fix has a detailed description available.
+    /// </summary>
+    public bool HasDetailedDescription => !string.IsNullOrWhiteSpace(ActionSet.DetailedDescription);
+
+    [ObservableProperty]
+    private bool isExpanded;
+
+    [ObservableProperty]
+    private string lastActionResultDetails = string.Empty;
+
+    [ObservableProperty]
+    private bool hasActionResultDetails;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanApply))]
@@ -134,6 +163,9 @@ public partial class ActionSetViewModel(
     }
 
     [RelayCommand]
+    private void ToggleExpanded() => IsExpanded = !IsExpanded;
+
+    [RelayCommand]
     private Task ApplyAsync() => ExecuteApplyAsync(isForce: false);
 
     [RelayCommand]
@@ -169,6 +201,9 @@ public partial class ActionSetViewModel(
                     detailsText = $"{ActionSet.Title} has been successfully applied.";
                 }
 
+                LastActionResultDetails = detailsText;
+                HasActionResultDetails = true;
+
                 logger.LogInformation(
                     isForce ? "✓ {Title} force applied successfully in {Duration}ms - {Details}" : "✓ {Title} applied successfully in {Duration}ms - {Details}",
                     ActionSet.Title,
@@ -184,6 +219,9 @@ public partial class ActionSetViewModel(
                 var detailsText = result.Details.Count > 0
                     ? result.FormatDetails()
                     : result.ErrorMessage ?? "Unknown error occurred.";
+
+                LastActionResultDetails = detailsText;
+                HasActionResultDetails = true;
 
                 logger.LogError(
                     isForce ? "✗ [GENPATCHER_FIX_014] {Title} force apply failed in {Duration}ms - {Error} - {Details}" : "✗ [GENPATCHER_FIX_010] {Title} failed in {Duration}ms - {Error} - {Details}",
