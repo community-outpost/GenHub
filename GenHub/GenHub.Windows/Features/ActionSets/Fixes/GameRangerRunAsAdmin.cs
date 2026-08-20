@@ -33,7 +33,7 @@ public class GameRangerRunAsAdmin(ILogger<GameRangerRunAsAdmin> logger) : BaseAc
     public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation)
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
         // Only applicable if GameRanger IS installed
         var gameRangerInstalled = IsGameRangerInstalled();
@@ -41,7 +41,7 @@ public class GameRangerRunAsAdmin(ILogger<GameRangerRunAsAdmin> logger) : BaseAc
     }
 
     /// <inheritdoc/>
-    public override Task<bool> IsAppliedAsync(GameInstallation installation)
+    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         try
         {

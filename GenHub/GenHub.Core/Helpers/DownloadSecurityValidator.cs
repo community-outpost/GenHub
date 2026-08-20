@@ -75,14 +75,16 @@ public static class DownloadSecurityValidator
             return OperationResult<bool>.CreateFailure("File to validate does not exist.");
         }
 
-        // On Windows, verify signature trust and integrity via WinVerifyTrust
-        if (OperatingSystem.IsWindows())
+        // On non-Windows, Authenticode trust verification is not supported; fail closed
+        if (!OperatingSystem.IsWindows())
         {
-            var trustResult = VerifyWindowsAuthenticodeTrust(filePath);
-            if (!trustResult.Success)
-            {
-                return trustResult;
-            }
+            return OperationResult<bool>.CreateFailure("Authenticode signature validation is only supported on Windows.");
+        }
+
+        var trustResult = VerifyWindowsAuthenticodeTrust(filePath);
+        if (!trustResult.Success)
+        {
+            return trustResult;
         }
 
         // Verify publisher from the embedded certificate
@@ -166,12 +168,16 @@ public static class DownloadSecurityValidator
             PgKnownSubject = IntPtr.Zero,
         };
 
-        var pFileInfo = Marshal.AllocHGlobal(Marshal.SizeOf<WinTrustFileInfo>());
-        var pData = Marshal.AllocHGlobal(Marshal.SizeOf<WinTrustData>());
+        var pFileInfo = IntPtr.Zero;
+        var pData = IntPtr.Zero;
+        bool fileInfoMarshaled = false;
+        bool trustDataMarshaled = false;
 
         try
         {
+            pFileInfo = Marshal.AllocHGlobal(Marshal.SizeOf<WinTrustFileInfo>());
             Marshal.StructureToPtr(fileInfo, pFileInfo, false);
+            fileInfoMarshaled = true;
 
             var trustData = new WinTrustData
             {
@@ -179,7 +185,7 @@ public static class DownloadSecurityValidator
                 PPolicyCallbackData = IntPtr.Zero,
                 PSIPClientData = IntPtr.Zero,
                 DwUIChoice = 2, // WTD_UI_NONE
-                FdwRevocationChecks = 0, // WTD_REVOKE_NONE
+                FdwRevocationChecks = 1, // WTD_REVOKE_WHOLECHAIN
                 DwUnionChoice = 1, // WTD_CHOICE_FILE
                 PFile = pFileInfo,
                 DwStateAction = 0, // WTD_STATEACTION_IGNORE
@@ -190,7 +196,9 @@ public static class DownloadSecurityValidator
                 PSignatureSettings = IntPtr.Zero,
             };
 
+            pData = Marshal.AllocHGlobal(Marshal.SizeOf<WinTrustData>());
             Marshal.StructureToPtr(trustData, pData, false);
+            trustDataMarshaled = true;
 
             int result = WinVerifyTrust(IntPtr.Zero, WinTrustActionGenericVerifyV2, pData);
             if (result != 0)
@@ -207,8 +215,25 @@ public static class DownloadSecurityValidator
         }
         finally
         {
-            Marshal.FreeHGlobal(pData);
-            Marshal.FreeHGlobal(pFileInfo);
+            if (trustDataMarshaled)
+            {
+                Marshal.DestroyStructure<WinTrustData>(pData);
+            }
+
+            if (pData != IntPtr.Zero)
+            {
+                Marshal.FreeHGlobal(pData);
+            }
+
+            if (fileInfoMarshaled)
+            {
+                Marshal.DestroyStructure<WinTrustFileInfo>(pFileInfo);
+            }
+
+            if (pFileInfo != IntPtr.Zero)
+            {
+                Marshal.FreeHGlobal(pFileInfo);
+            }
         }
     }
 

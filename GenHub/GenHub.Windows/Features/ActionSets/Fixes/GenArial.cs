@@ -41,7 +41,7 @@ public class GenArial(ILogger<GenArial> logger) : BaseActionSet(logger)
     public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation)
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
         // Only applicable if Arial is NOT installed (needs to be fixed)
         var arialInstalled = IsArialFontInstalled();
@@ -49,7 +49,7 @@ public class GenArial(ILogger<GenArial> logger) : BaseActionSet(logger)
     }
 
     /// <inheritdoc/>
-    public override Task<bool> IsAppliedAsync(GameInstallation installation)
+    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         if (File.Exists(_markerPath)) return Task.FromResult(true);
         return Task.FromResult(IsArialFontInstalled());

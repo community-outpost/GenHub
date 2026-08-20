@@ -32,7 +32,7 @@ public class DbgHelpFix(ILogger<DbgHelpFix> logger) : BaseActionSet(logger)
     public override bool IsCrucialFix => true;
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation)
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
         // Applicable if the file exists in either Generals or Zero Hour path
         // This fix is needed because the old dbghelp.dll causes crashes on modern Windows
@@ -50,7 +50,7 @@ public class DbgHelpFix(ILogger<DbgHelpFix> logger) : BaseActionSet(logger)
     }
 
     /// <inheritdoc/>
-    public override Task<bool> IsAppliedAsync(GameInstallation installation)
+    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         // Considered applied if the DLL is missing (renamed) in all present installations
         bool generalsOk = !installation.HasGenerals || !File.Exists(Path.Combine(installation.GeneralsPath, DbgHelpDll));

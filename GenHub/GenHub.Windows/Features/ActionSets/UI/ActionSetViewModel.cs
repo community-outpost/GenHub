@@ -136,106 +136,28 @@ public partial class ActionSetViewModel(
     }
 
     [RelayCommand]
-    private async Task ApplyAsync()
-    {
-        if (!registryService.IsRunningAsAdministrator())
-        {
-            logger.LogWarning(
-                "[GENPATCHER_FIX_008] Cannot apply {Title} - not running as administrator",
-                ActionSet.Title);
-            notificationService.ShowError(
-                "Administrator Rights Required",
-                "Please restart GenHub as Administrator to apply this fix.");
-            return;
-        }
-
-        try
-        {
-            logger.LogInformation(
-                "[GENPATCHER_FIX_009] Starting application of {Title} (ID={Id}) to {InstallPath}",
-                ActionSet.Title,
-                ActionSet.Id,
-                installation.InstallationPath);
-
-            var startTime = DateTime.UtcNow;
-            var result = await ActionSet.ApplyAsync(installation);
-            var duration = (DateTime.UtcNow - startTime).TotalMilliseconds;
-
-            if (result.Success)
-            {
-                var detailsText = result.Details.Count > 0
-                    ? result.FormatDetails()
-                    : $"{ActionSet.Title} has been successfully applied.";
-
-                logger.LogInformation(
-                    "✓ {Title} applied successfully in {Duration}ms - {Details}",
-                    ActionSet.Title,
-                    (int)duration,
-                    result.Details.Count > 0 ? string.Join("; ", result.Details) : "No details provided");
-
-                notificationService.ShowSuccess(
-                    $"Fix Applied: {ActionSet.Title}",
-                    detailsText);
-            }
-            else
-            {
-                var detailsText = result.Details.Count > 0
-                    ? result.FormatDetails()
-                    : result.ErrorMessage ?? "Unknown error occurred.";
-
-                logger.LogError(
-                    "✗ [GENPATCHER_FIX_010] {Title} failed in {Duration}ms - {Error} - {Details}",
-                    ActionSet.Title,
-                    (int)duration,
-                    result.ErrorMessage ?? "Unknown error",
-                    result.Details.Count > 0 ? string.Join("; ", result.Details) : "No details");
-
-                notificationService.ShowError(
-                    $"Fix Failed: {ActionSet.Title}",
-                    detailsText);
-            }
-
-            try
-            {
-                await CheckStatusAsync();
-                onStatusChanged?.Invoke();
-            }
-            catch (Exception statusEx)
-            {
-                logger.LogWarning(statusEx, "Error refreshing status after fix application for {Title}", ActionSet.Title);
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(
-                ex,
-                "[GENPATCHER_FIX_011] Exception applying {Title} (ID={Id})",
-                ActionSet.Title,
-                ActionSet.Id);
-            notificationService.ShowError(
-                "Failed to Apply Fix",
-                $"Could not apply {ActionSet.Title}: {ex.Message}");
-        }
-    }
+    private Task ApplyAsync() => ExecuteApplyAsync(isForce: false);
 
     [RelayCommand]
-    private async Task ForceApplyAsync()
+    private Task ForceApplyAsync() => ExecuteApplyAsync(isForce: true);
+
+    private async Task ExecuteApplyAsync(bool isForce)
     {
         if (!registryService.IsRunningAsAdministrator())
         {
             logger.LogWarning(
-                "[GENPATCHER_FIX_012] Cannot force apply {Title} - not running as administrator",
+                isForce ? "[GENPATCHER_FIX_012] Cannot force apply {Title} - not running as administrator" : "[GENPATCHER_FIX_008] Cannot apply {Title} - not running as administrator",
                 ActionSet.Title);
             notificationService.ShowError(
                 "Administrator Rights Required",
-                "Please restart GenHub as Administrator for force apply.");
+                isForce ? "Please restart GenHub as Administrator for force apply." : "Please restart GenHub as Administrator to apply this fix.");
             return;
         }
 
         try
         {
             logger.LogInformation(
-                "[GENPATCHER_FIX_013] Starting FORCE application of {Title} (ID={Id}) to {InstallPath}",
+                isForce ? "[GENPATCHER_FIX_013] Starting FORCE application of {Title} (ID={Id}) to {InstallPath}" : "[GENPATCHER_FIX_009] Starting application of {Title} (ID={Id}) to {InstallPath}",
                 ActionSet.Title,
                 ActionSet.Id,
                 installation.InstallationPath);
@@ -248,16 +170,16 @@ public partial class ActionSetViewModel(
             {
                 var detailsText = result.Details.Count > 0
                     ? result.FormatDetails()
-                    : $"{ActionSet.Title} has been force applied successfully.";
+                    : isForce ? $"{ActionSet.Title} has been force applied successfully." : $"{ActionSet.Title} has been successfully applied.";
 
                 logger.LogInformation(
-                    "✓ {Title} force applied successfully in {Duration}ms - {Details}",
+                    isForce ? "✓ {Title} force applied successfully in {Duration}ms - {Details}" : "✓ {Title} applied successfully in {Duration}ms - {Details}",
                     ActionSet.Title,
                     (int)duration,
                     result.Details.Count > 0 ? string.Join("; ", result.Details) : "No details provided");
 
                 notificationService.ShowSuccess(
-                    $"Fix Force Applied: {ActionSet.Title}",
+                    isForce ? $"Fix Force Applied: {ActionSet.Title}" : $"Fix Applied: {ActionSet.Title}",
                     detailsText);
             }
             else
@@ -267,7 +189,7 @@ public partial class ActionSetViewModel(
                     : result.ErrorMessage ?? "Unknown error occurred.";
 
                 logger.LogError(
-                    "✗ [GENPATCHER_FIX_014] {Title} force apply failed in {Duration}ms - {Error} - {Details}",
+                    isForce ? "✗ [GENPATCHER_FIX_014] {Title} force apply failed in {Duration}ms - {Error} - {Details}" : "✗ [GENPATCHER_FIX_010] {Title} failed in {Duration}ms - {Error} - {Details}",
                     ActionSet.Title,
                     (int)duration,
                     result.ErrorMessage ?? "Unknown error",
@@ -285,18 +207,18 @@ public partial class ActionSetViewModel(
             }
             catch (Exception statusEx)
             {
-                logger.LogWarning(statusEx, "Error refreshing status after force apply for {Title}", ActionSet.Title);
+                logger.LogWarning(statusEx, "Error refreshing status after apply for {Title}", ActionSet.Title);
             }
         }
         catch (Exception ex)
         {
             logger.LogError(
                 ex,
-                "[GENPATCHER_FIX_015] Exception force applying {Title} (ID={Id})",
+                isForce ? "[GENPATCHER_FIX_015] Exception force applying {Title} (ID={Id})" : "[GENPATCHER_FIX_011] Exception applying {Title} (ID={Id})",
                 ActionSet.Title,
                 ActionSet.Id);
             notificationService.ShowError(
-                "Failed to Force Apply Fix",
+                isForce ? "Failed to Force Apply Fix" : "Failed to Apply Fix",
                 $"Could not apply {ActionSet.Title}: {ex.Message}");
         }
     }

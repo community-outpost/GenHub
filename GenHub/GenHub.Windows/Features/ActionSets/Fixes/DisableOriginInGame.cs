@@ -31,7 +31,7 @@ public class DisableOriginInGame(ILogger<DisableOriginInGame> logger) : BaseActi
     public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation)
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
         // Only applicable if Origin is actually installed (something to disable)
         var originInstalled = IsOriginInstalled();
@@ -39,7 +39,7 @@ public class DisableOriginInGame(ILogger<DisableOriginInGame> logger) : BaseActi
     }
 
     /// <inheritdoc/>
-    public override Task<bool> IsAppliedAsync(GameInstallation installation)
+    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         return Task.FromResult(IsOriginOverlayDisabled() || File.Exists(_markerPath));
     }
@@ -169,12 +169,25 @@ public class DisableOriginInGame(ILogger<DisableOriginInGame> logger) : BaseActi
                 return false;
             }
 
-            var configContent = File.ReadAllText(originConfigPath);
+            var lines = File.ReadAllLines(originConfigPath);
+            foreach (var rawLine in lines)
+            {
+                var line = rawLine.Trim();
+                if (line.StartsWith(';') || line.StartsWith('#') || string.IsNullOrEmpty(line))
+                {
+                    continue;
+                }
 
-            // Check if overlay is disabled
-            // The setting is typically in the format: [General] OverlayEnabled=0
-            return configContent.Contains("OverlayEnabled=0", StringComparison.OrdinalIgnoreCase) ||
-                   configContent.Contains("OverlayEnabled=false", StringComparison.OrdinalIgnoreCase);
+                var parts = line.Split('=', 2);
+                if (parts.Length == 2 && parts[0].Trim().Equals("OverlayEnabled", StringComparison.OrdinalIgnoreCase))
+                {
+                    var val = parts[1].Trim();
+                    return val.Equals("0", StringComparison.OrdinalIgnoreCase) ||
+                           val.Equals("false", StringComparison.OrdinalIgnoreCase);
+                }
+            }
+
+            return false;
         }
         catch (Exception ex)
         {

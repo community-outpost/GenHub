@@ -33,7 +33,7 @@ public class NahimicFix(ILogger<NahimicFix> logger) : BaseActionSet(logger)
     public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation)
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
         // Only applicable if Nahimic is actually installed (something to check/warn about)
         var nahimicInstalled = IsNahimicInstalled();
@@ -41,7 +41,7 @@ public class NahimicFix(ILogger<NahimicFix> logger) : BaseActionSet(logger)
     }
 
     /// <inheritdoc/>
-    public override Task<bool> IsAppliedAsync(GameInstallation installation)
+    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         // This is an informational fix - always returns false since it requires manual action
         // Users must manually disable Nahimic service

@@ -32,13 +32,13 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
     public override bool IsCrucialFix => false; // Recommended but not strictly crucial for launch (though highly recommended)
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation)
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
         return Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
     }
 
     /// <inheritdoc/>
-    public override Task<bool> IsAppliedAsync(GameInstallation installation)
+    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         bool appliedGenerals = !installation.HasGenerals || File.Exists(Path.Combine(installation.GeneralsPath, "d3d8.dll"));
         bool appliedZeroHour = !installation.HasZeroHour || File.Exists(Path.Combine(installation.ZeroHourPath, "d3d8.dll"));
@@ -79,8 +79,8 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
                     var fileInfo = new FileInfo(tempFile);
                     var fileSize = fileInfo.Length;
 
-                    // GenTool zip is small but definitely > 100KB
-                    if (fileSize < 100 * 1024)
+                    // GenTool zip must meet minimum size
+                    if (fileSize < ActionSetConstants.Validation.GenToolMinSize)
                     {
                         logger.LogWarning("Downloaded file from {Url} is too small ({Size} bytes). Likely blocked.", url, fileSize);
                         if (File.Exists(tempFile)) File.Delete(tempFile);

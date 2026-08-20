@@ -427,15 +427,13 @@ public partial class GameProfileLauncherViewModel(
                 {
                     existingItem.UpdateFromProfile(profile);
 
-                    if (!string.IsNullOrEmpty(profile.IconPath))
-                    {
-                        existingItem.IconPath = profile.IconPath;
-                    }
-
-                    if (!string.IsNullOrEmpty(profile.CoverPath))
-                    {
-                        existingItem.CoverPath = profile.CoverPath;
-                    }
+                    var gameType = profile.GameClient?.GameType.ToString() ?? "ZeroHour";
+                    existingItem.IconPath = !string.IsNullOrEmpty(profile.IconPath)
+                        ? profile.IconPath
+                        : UriConstants.DefaultIconUri;
+                    existingItem.CoverPath = !string.IsNullOrEmpty(profile.CoverPath)
+                        ? profile.CoverPath
+                        : profileResourceService.GetDefaultCoverPath(gameType);
 
                     logger.LogInformation("Refreshed profile {ProfileId} in-place (Running: {IsRunning})", profileId, existingItem.IsProcessRunning);
                 }

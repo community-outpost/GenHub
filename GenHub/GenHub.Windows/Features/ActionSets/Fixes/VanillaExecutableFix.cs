@@ -23,20 +23,20 @@ public class VanillaExecutableFix(ILogger<VanillaExecutableFix> logger) : BaseAc
     public override string Title => "Generals Executable Fix";
 
     /// <inheritdoc/>
-    public override bool IsCoreFix => true;
+    public override bool IsCoreFix => false;
 
     /// <inheritdoc/>
-    public override bool IsCrucialFix => true;
+    public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation)
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
         // Only applicable for Generals installations
         return Task.FromResult(installation.HasGenerals);
     }
 
     /// <inheritdoc/>
-    public override Task<bool> IsAppliedAsync(GameInstallation installation)
+    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         try
         {
@@ -101,25 +101,17 @@ public class VanillaExecutableFix(ILogger<VanillaExecutableFix> logger) : BaseAc
                 if (version?.StartsWith("1.8") == true)
                 {
                     details.Add("✓ Generals 1.08 patch is already applied");
+                    return Task.FromResult(new ActionSetResult(true, null, details));
                 }
-                else
-                {
-                    details.Add("⚠ Generals 1.08 patch needs to be applied");
-                    details.Add("  Please apply the 'Generals 1.08 Patch' fix");
-                }
-            }
-            else
-            {
-                details.Add("⚠ Generals executable not found");
-                details.Add($"  Expected location: {generalsExePath}");
+
+                details.Add("⚠ Generals 1.08 patch needs to be applied");
+                details.Add("  Please apply the 'Generals 1.08 Patch' fix");
+                return Task.FromResult(new ActionSetResult(false, "Generals executable is not version 1.08. Please apply Patch108Fix.", details));
             }
 
-            logger.LogInformation("VanillaExecutableFix ensures Generals 1.08 patch is applied via Patch108Fix.");
-
-            // This fix is a wrapper that ensures that the official patch is applied.
-            // The actual patching is done by Patch108Fix.
-            // This fix exists for compatibility with GenPatcher's fix structure.
-            return Task.FromResult(new ActionSetResult(true, null, details));
+            details.Add("⚠ Generals executable not found");
+            details.Add($"  Expected location: {generalsExePath}");
+            return Task.FromResult(new ActionSetResult(false, $"Generals executable not found at {generalsExePath}", details));
         }
         catch (Exception ex)
         {

@@ -300,7 +300,8 @@ public partial class GenPatcherViewModel(
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(SortActionSets);
 
             int successCount = batchResult.Data;
-            int failureCount = applicableFixes.Count - successCount;
+            int errorCount = batchResult.Errors.Count;
+            int notAttemptedCount = Math.Max(0, applicableFixes.Count - successCount - errorCount);
 
             if (batchResult.Success)
             {
@@ -319,9 +320,13 @@ public partial class GenPatcherViewModel(
             {
                 var errorDetails = string.Join("\n", batchResult.Errors);
                 logger.LogWarning("Batch completed with errors: {Errors}", errorDetails);
+                var failureSummary = notAttemptedCount > 0
+                    ? $"Target: {targetInstallation.InstallationType} ({targetInstallation.InstallationPath})\n✓ Successfully applied: {successCount}\n✗ Failed: {errorCount}\n⚠ Not attempted: {notAttemptedCount}\n\nErrors:\n{errorDetails}"
+                    : $"Target: {targetInstallation.InstallationType} ({targetInstallation.InstallationPath})\n✓ Successfully applied: {successCount}\n✗ Failed: {errorCount}\n\nErrors:\n{errorDetails}";
+
                 notificationService.ShowError(
                     $"Fixes Completed with Errors ({successCount}/{applicableFixes.Count} successful)",
-                    $"Target: {targetInstallation.InstallationType} ({targetInstallation.InstallationPath})\n✓ Successfully applied: {successCount}\n✗ Failed: {failureCount}\n\nErrors:\n{errorDetails}");
+                    failureSummary);
             }
         }
         catch (Exception ex)

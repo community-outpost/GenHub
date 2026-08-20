@@ -35,7 +35,7 @@ public class SerialKeyFix(
     public override bool IsCrucialFix => true;
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation)
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
         if (installation.HasGenerals)
         {
@@ -53,7 +53,7 @@ public class SerialKeyFix(
     }
 
     /// <inheritdoc/>
-    public override Task<bool> IsAppliedAsync(GameInstallation installation)
+    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         try
         {
@@ -164,7 +164,9 @@ public class SerialKeyFix(
         var s = serial.Trim();
         return s == PlaceholderSerial1 ||
                s == PlaceholderSerialZero ||
-               s == PlaceholderSerialDashes;
+               s == PlaceholderSerialDashes ||
+               s == ActionSetConstants.Serials.DefaultEAAppGeneralsSerial ||
+               s == ActionSetConstants.Serials.DefaultEAAppZeroHourSerial;
     }
 
     private static string GenerateRandomSerial()

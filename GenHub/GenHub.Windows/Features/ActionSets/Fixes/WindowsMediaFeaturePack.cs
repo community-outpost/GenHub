@@ -30,7 +30,7 @@ public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : 
     public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation)
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
         // Only applicable if Media Feature Pack is NOT installed (needs fixing)
         var mediaPackInstalled = IsMediaFeaturePackInstalled();
@@ -38,7 +38,7 @@ public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : 
     }
 
     /// <inheritdoc/>
-    public override Task<bool> IsAppliedAsync(GameInstallation installation)
+    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         if (File.Exists(_markerPath)) return Task.FromResult(true);
         return Task.FromResult(IsMediaFeaturePackInstalled());
