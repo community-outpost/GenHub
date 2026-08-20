@@ -349,7 +349,7 @@ public class CommunityOutpostResolver(
     /// </summary>
     private static string GetMetadataValue(ContentSearchResult item, string key, string defaultValue)
     {
-        if (item.ResolverMetadata?.TryGetValue(key, out var value) == true)
+        if (item.ResolverMetadata != null && item.ResolverMetadata.TryGetValue(key, out var value))
         {
             return value;
         }

@@ -196,16 +196,16 @@ public class GameRangerRunAsAdmin(ILogger<GameRangerRunAsAdmin> logger) : BaseAc
                 }
             }
 
+            using var hklmKey = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(RegistryConstants.AppCompatLayersKeyPath, false);
+            using var hkcuKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RegistryConstants.AppCompatLayersKeyPath, false);
+
             foreach (var exePath in executables)
             {
-                // Check for compatibility flags in AppCompat registry (HKLM and HKCU)
-                using var hklmKey = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(RegistryConstants.AppCompatLayersKeyPath, false);
                 if (hklmKey?.GetValue(exePath) is string hklmFlags && hklmFlags.Contains("RUNASADMIN", StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
 
-                using var hkcuKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RegistryConstants.AppCompatLayersKeyPath, false);
                 if (hkcuKey?.GetValue(exePath) is string hkcuFlags && hkcuFlags.Contains("RUNASADMIN", StringComparison.OrdinalIgnoreCase))
                 {
                     return true;

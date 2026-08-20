@@ -19,7 +19,6 @@ public class ZeroHourExecutableFix(ILogger<ZeroHourExecutableFix> logger) : Base
     private static readonly IReadOnlyList<string> CandidateExes =
     [
         ActionSetConstants.FileNames.GeneralsExe,
-        ActionSetConstants.FileNames.GameDat,
         ActionSetConstants.FileNames.GameExe,
     ];
 

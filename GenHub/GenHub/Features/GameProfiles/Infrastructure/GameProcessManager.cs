@@ -817,7 +817,7 @@ public class GameProcessManager(
             Process? spawnedProcess = null;
             var deadline = DateTime.UtcNow + TimeSpan.FromMilliseconds(ProcessConstants.LauncherExitGracePeriodMs);
 
-            while (true)
+            while (launcherStartTime.HasValue)
             {
                 spawnedProcess = FindAdoptableGameProcess(
                     executableName,

@@ -294,32 +294,6 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
 
                 File.Delete(_markerPath);
             }
-
-            if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
-            {
-                foreach (var file in KnownMenuBigFiles)
-                {
-                    var p = Path.Combine(installation.ZeroHourPath, file);
-                    if (File.Exists(p))
-                    {
-                        File.Delete(p);
-                        removedCount++;
-                    }
-                }
-            }
-
-            if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
-            {
-                foreach (var file in KnownMenuBigFiles)
-                {
-                    var p = Path.Combine(installation.GeneralsPath, file);
-                    if (File.Exists(p))
-                    {
-                        File.Delete(p);
-                        removedCount++;
-                    }
-                }
-            }
         }
         catch (IOException ex)
         {

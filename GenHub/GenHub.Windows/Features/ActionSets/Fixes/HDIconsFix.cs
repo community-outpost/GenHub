@@ -24,8 +24,6 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
         "generals_hd.ico",
         "game_hd.ico",
         "zh_hd.ico",
-        "generals.ico",
-        "generalszh.ico",
     ];
 
     private readonly string _markerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", ActionSetConstants.Paths.SubActionSetMarkers, "HDIconsFix.done");
@@ -60,12 +58,7 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
     /// <inheritdoc/>
     public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
-        if (File.Exists(_markerPath) && AreHDIconsPresent(installation))
-        {
-            return Task.FromResult(true);
-        }
-
-        return Task.FromResult(AreHDIconsPresent(installation));
+        return Task.FromResult(File.Exists(_markerPath) || AreHDIconsPresent(installation));
     }
 
     /// <inheritdoc/>

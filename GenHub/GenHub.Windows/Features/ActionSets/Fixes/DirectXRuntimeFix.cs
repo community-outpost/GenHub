@@ -77,11 +77,9 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
         try
         {
             details.Add("Starting DirectX Runtime installation...");
-            details.Add($"Download URL: {ExternalUrls.DirectXRuntimeDownloadUrl}");
-
             Directory.CreateDirectory(extractPath);
             details.Add($"Temp directory: {tempFolder}");
-            details.Add("Downloading DirectX Runtime...");
+            details.Add("Downloading DirectX Runtime package...");
 
             var downloadResult = await DownloadAndValidateAsync(tempFolder, zipFile, details, cancellationToken);
             if (!downloadResult.Success || downloadResult.Data == default)

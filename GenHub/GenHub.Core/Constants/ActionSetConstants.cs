@@ -266,6 +266,24 @@ public static class ActionSetConstants
 
         /// <summary>Hex color for error state.</summary>
         public const string Error = "#dc3545";
+
+        /// <summary>Hex background color for applied state badge.</summary>
+        public const string AppliedBackground = "#2228A745";
+
+        /// <summary>Hex background color for unapplied state badge.</summary>
+        public const string UnappliedBackground = "#22FFC107";
+
+        /// <summary>Hex background color for not applicable state badge.</summary>
+        public const string NotApplicableBackground = "#15FFFFFF";
+
+        /// <summary>Hex border color for applied state badge.</summary>
+        public const string AppliedBorder = "#4428A745";
+
+        /// <summary>Hex border color for unapplied state badge.</summary>
+        public const string UnappliedBorder = "#44FFC107";
+
+        /// <summary>Hex border color for not applicable state badge.</summary>
+        public const string NotApplicableBorder = "#25FFFFFF";
     }
 
     /// <summary>

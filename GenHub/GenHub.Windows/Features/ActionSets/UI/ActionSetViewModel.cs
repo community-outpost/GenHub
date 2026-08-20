@@ -115,9 +115,9 @@ public partial class ActionSetViewModel(
     /// </summary>
     public string StatusBackground => (IsApplied, IsApplicable) switch
     {
-        (true, _) => "#2228A745",
-        (false, true) => "#22FFC107",
-        (false, false) => "#15FFFFFF",
+        (true, _) => ActionSetConstants.StatusColors.AppliedBackground,
+        (false, true) => ActionSetConstants.StatusColors.UnappliedBackground,
+        (false, false) => ActionSetConstants.StatusColors.NotApplicableBackground,
     };
 
     /// <summary>
@@ -125,9 +125,9 @@ public partial class ActionSetViewModel(
     /// </summary>
     public string StatusBorder => (IsApplied, IsApplicable) switch
     {
-        (true, _) => "#4428A745",
-        (false, true) => "#44FFC107",
-        (false, false) => "#25FFFFFF",
+        (true, _) => ActionSetConstants.StatusColors.AppliedBorder,
+        (false, true) => ActionSetConstants.StatusColors.UnappliedBorder,
+        (false, false) => ActionSetConstants.StatusColors.NotApplicableBorder,
     };
 
     /// <summary>

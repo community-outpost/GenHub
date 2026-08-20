@@ -284,6 +284,9 @@ public partial class GenPatcherViewModel(
         catch (Exception ex)
         {
             logger.LogError(ex, "Error refreshing fixes for installation {Path}", installation.InstallationPath);
+            notificationService.ShowError(
+                "Failed to Load Fixes",
+                $"An error occurred while loading fixes: {ex.Message}");
         }
     }
 
@@ -327,7 +330,7 @@ public partial class GenPatcherViewModel(
             var applicableFixes = new List<IActionSet>();
             foreach (var vm in ActionSets)
             {
-                if (vm.IsApplicable && !vm.IsApplied && (vm.IsCore || coreFixIds.Contains(vm.ActionSet.Id)))
+                if (vm.IsApplicable && !vm.IsApplied && coreFixIds.Contains(vm.ActionSet.Id))
                 {
                     applicableFixes.Add(vm.ActionSet);
                 }
@@ -480,10 +483,10 @@ public partial class GenPatcherViewModel(
         if (!string.IsNullOrEmpty(query))
         {
             filtered = filtered.Where(x =>
-                x.Title.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                x.Description.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                x.DetailedDescription.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                x.Category.Contains(query, StringComparison.OrdinalIgnoreCase));
+                (x.Title?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (x.Description?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (x.DetailedDescription?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (x.Category?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false));
         }
 
         var resultList = filtered.ToList();
