@@ -212,7 +212,10 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
                             File.SetAttributes(downloadPath, FileAttributes.Normal);
                             File.Delete(downloadPath);
                         }
-                        catch (Exception)
+                        catch (IOException)
+                        {
+                        }
+                        catch (UnauthorizedAccessException)
                         {
                         }
                     }
@@ -342,7 +345,10 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
                 File.SetAttributes(downloadPath, FileAttributes.Normal);
                 File.Delete(downloadPath);
             }
-            catch
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
             {
             }
         }
@@ -357,14 +363,20 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
                     {
                         File.SetAttributes(file, FileAttributes.Normal);
                     }
-                    catch
+                    catch (IOException)
+                    {
+                    }
+                    catch (UnauthorizedAccessException)
                     {
                     }
                 }
 
                 Directory.Delete(extractPath, true);
             }
-            catch
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
             {
             }
         }

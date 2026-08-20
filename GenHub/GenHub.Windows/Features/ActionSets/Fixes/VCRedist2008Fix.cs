@@ -127,7 +127,11 @@ public class VCRedist2008Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
                                 File.SetAttributes(tempFile, FileAttributes.Normal);
                                 File.Delete(tempFile);
                             }
-                            catch (Exception)
+                            catch (IOException)
+                            {
+                                // Ignore cleanup failure
+                            }
+                            catch (UnauthorizedAccessException)
                             {
                                 // Ignore cleanup failure
                             }
@@ -151,7 +155,11 @@ public class VCRedist2008Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
                             File.SetAttributes(tempFile, FileAttributes.Normal);
                             File.Delete(tempFile);
                         }
-                        catch (Exception)
+                        catch (IOException)
+                        {
+                            // Ignore cleanup failure
+                        }
+                        catch (UnauthorizedAccessException)
                         {
                             // Ignore cleanup failure
                         }
@@ -209,9 +217,13 @@ public class VCRedist2008Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
                     File.Delete(tempFile);
                 }
             }
-            catch (Exception ex)
+            catch (IOException ex)
             {
                 logger.LogDebug(ex, "Failed to delete temp file {TempFile}", tempFile);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                logger.LogDebug(ex, "Access denied deleting temp file {TempFile}", tempFile);
             }
         }
     }
@@ -229,7 +241,15 @@ public class VCRedist2008Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
             using var key = Registry.LocalMachine.OpenSubKey($@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{productCode}");
             return key != null;
         }
-        catch
+        catch (System.Security.SecurityException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (IOException)
         {
             return false;
         }

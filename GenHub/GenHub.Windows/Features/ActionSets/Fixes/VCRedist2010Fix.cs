@@ -135,7 +135,10 @@ public class VCRedist2010Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
                         File.SetAttributes(tempPath, FileAttributes.Normal);
                         File.Delete(tempPath);
                     }
-                    catch (Exception)
+                    catch (IOException)
+                    {
+                    }
+                    catch (UnauthorizedAccessException)
                     {
                     }
                 }
@@ -143,54 +146,53 @@ public class VCRedist2010Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
                 return new ActionSetResult(false, $"Security validation failed: {errorSummary}", details);
             }
 
-            await using (var lockStream = securityValidation.Data)
+            await using var lockStream = securityValidation.Data;
+
+            details.Add($"✓ Downloaded and verified {fileSize / 1024.0 / 1024.0:F2} MB");
+
+            details.Add("Installing VCRedist 2010 (silent mode)...");
+            details.Add("  ⚠ This may require administrator privileges");
+            logger.LogInformation("Installing VCRedist 2010...");
+
+            var psi = new ProcessStartInfo
             {
-                details.Add($"✓ Downloaded and verified {fileSize / 1024.0 / 1024.0:F2} MB");
+                FileName = tempPath,
+                Arguments = "/q /norestart", // Silent install
+                UseShellExecute = true,
+                Verb = "runas", // Request elevation just in case
+            };
 
-                details.Add("Installing VCRedist 2010 (silent mode)...");
-                details.Add("  ⚠ This may require administrator privileges");
-                logger.LogInformation("Installing VCRedist 2010...");
-
-                var psi = new ProcessStartInfo
-                {
-                    FileName = tempPath,
-                    Arguments = "/q /norestart", // Silent install
-                    UseShellExecute = true,
-                    Verb = "runas", // Request elevation just in case
-                };
-
-                using var process = Process.Start(psi);
-                if (process == null)
-                {
-                    details.Add("✗ Failed to start VCRedist installer process");
-                    return new ActionSetResult(false, "Failed to start VCRedist installer process", details);
-                }
-
-                await process.WaitForExitAsync(cancellationToken);
-
-                if (process.ExitCode != ProcessConstants.ExitCodeSuccess && process.ExitCode != ProcessConstants.ExitCodeRebootRequired)
-                {
-                    logger.LogWarning("VCRedist install exited with code {Code}", process.ExitCode);
-                    details.Add($"⚠ VCRedist install exited with code {process.ExitCode}");
-                    details.Add("✗ Installation may have failed");
-                    return new ActionSetResult(false, $"VCRedist install failed with code {process.ExitCode}", details);
-                }
-
-                if (process.ExitCode == ProcessConstants.ExitCodeRebootRequired)
-                {
-                    details.Add("✓ VCRedist 2010 installed successfully");
-                    details.Add("  ⚠ System restart may be required");
-                }
-                else
-                {
-                    details.Add("✓ VCRedist 2010 installed successfully");
-                }
-
-                logger.LogInformation("VCRedist 2010 installed successfully");
-
-                details.Add("✓ VCRedist 2010 installation completed");
-                return new ActionSetResult(true, null, details);
+            using var process = Process.Start(psi);
+            if (process == null)
+            {
+                details.Add("✗ Failed to start VCRedist installer process");
+                return new ActionSetResult(false, "Failed to start VCRedist installer process", details);
             }
+
+            await process.WaitForExitAsync(cancellationToken);
+
+            if (process.ExitCode != ProcessConstants.ExitCodeSuccess && process.ExitCode != ProcessConstants.ExitCodeRebootRequired)
+            {
+                logger.LogWarning("VCRedist install exited with code {Code}", process.ExitCode);
+                details.Add($"⚠ VCRedist install exited with code {process.ExitCode}");
+                details.Add("✗ Installation may have failed");
+                return new ActionSetResult(false, $"VCRedist install failed with code {process.ExitCode}", details);
+            }
+
+            if (process.ExitCode == ProcessConstants.ExitCodeRebootRequired)
+            {
+                details.Add("✓ VCRedist 2010 installed successfully");
+                details.Add("  ⚠ System restart may be required");
+            }
+            else
+            {
+                details.Add("✓ VCRedist 2010 installed successfully");
+            }
+
+            logger.LogInformation("VCRedist 2010 installed successfully");
+
+            details.Add("✓ VCRedist 2010 installation completed");
+            return new ActionSetResult(true, null, details);
         }
         catch (Exception ex)
         {
@@ -208,9 +210,13 @@ public class VCRedist2010Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
                     File.Delete(tempPath);
                 }
             }
-            catch (Exception ex)
+            catch (IOException ex)
             {
                 logger.LogDebug(ex, "Failed to delete temp file {TempFile}", tempPath);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                logger.LogDebug(ex, "Access denied deleting temp file {TempFile}", tempPath);
             }
         }
     }

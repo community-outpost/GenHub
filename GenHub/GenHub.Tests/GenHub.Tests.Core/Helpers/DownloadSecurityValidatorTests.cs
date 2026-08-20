@@ -98,11 +98,9 @@ public class DownloadSecurityValidatorTests
             Assert.True(result.Success);
             Assert.NotNull(result.Data);
 
-            await using (var stream = result.Data)
-            {
-                Assert.True(stream.CanRead);
-                Assert.False(stream.CanWrite);
-            }
+            await using var stream = result.Data;
+            Assert.True(stream.CanRead);
+            Assert.False(stream.CanWrite);
         }
         finally
         {
@@ -113,7 +111,10 @@ public class DownloadSecurityValidatorTests
                     File.SetAttributes(tempFile, FileAttributes.Normal);
                     File.Delete(tempFile);
                 }
-                catch (Exception)
+                catch (IOException)
+                {
+                }
+                catch (UnauthorizedAccessException)
                 {
                 }
             }
@@ -152,7 +153,10 @@ public class DownloadSecurityValidatorTests
                     File.SetAttributes(tempFile, FileAttributes.Normal);
                     File.Delete(tempFile);
                 }
-                catch (Exception)
+                catch (IOException)
+                {
+                }
+                catch (UnauthorizedAccessException)
                 {
                 }
             }

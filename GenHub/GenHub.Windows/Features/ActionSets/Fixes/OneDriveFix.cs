@@ -177,9 +177,9 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
                     await ApplyPinAttributeAsync(localPath, cancellationToken);
                     foldersProcessed++;
                 }
-                catch (Exception)
+                catch (IOException ex)
                 {
-                    // Rollback archive on error if needed
+                    logger.LogWarning(ex, "I/O error processing folder {LocalPath}", localPath);
                     if (!string.IsNullOrEmpty(currentCloudArchive) && Directory.Exists(currentCloudArchive) && !Directory.Exists(cloudPath))
                     {
                         try
@@ -187,9 +187,35 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
                             Directory.Move(currentCloudArchive, cloudPath);
                             details.Add("  ✓ Restored original cloud folder from archive after error");
                         }
-                        catch (Exception rollbackEx)
+                        catch (IOException rollbackEx)
                         {
                             logger.LogError(rollbackEx, "Failed to rollback archived folder {Archive} to {CloudPath}", currentCloudArchive, cloudPath);
+                        }
+                        catch (UnauthorizedAccessException rollbackEx)
+                        {
+                            logger.LogError(rollbackEx, "Access denied rolling back archived folder {Archive} to {CloudPath}", currentCloudArchive, cloudPath);
+                        }
+                    }
+
+                    throw;
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    logger.LogWarning(ex, "Access denied processing folder {LocalPath}", localPath);
+                    if (!string.IsNullOrEmpty(currentCloudArchive) && Directory.Exists(currentCloudArchive) && !Directory.Exists(cloudPath))
+                    {
+                        try
+                        {
+                            Directory.Move(currentCloudArchive, cloudPath);
+                            details.Add("  ✓ Restored original cloud folder from archive after error");
+                        }
+                        catch (IOException rollbackEx)
+                        {
+                            logger.LogError(rollbackEx, "Failed to rollback archived folder {Archive} to {CloudPath}", currentCloudArchive, cloudPath);
+                        }
+                        catch (UnauthorizedAccessException rollbackEx)
+                        {
+                            logger.LogError(rollbackEx, "Access denied rolling back archived folder {Archive} to {CloudPath}", currentCloudArchive, cloudPath);
                         }
                     }
 

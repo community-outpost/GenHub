@@ -140,7 +140,10 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
                         File.SetAttributes(tempPath, FileAttributes.Normal);
                         File.Delete(tempPath);
                     }
-                    catch (Exception)
+                    catch (IOException)
+                    {
+                    }
+                    catch (UnauthorizedAccessException)
                     {
                     }
                 }
@@ -345,9 +348,13 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
                 File.Delete(tempPath);
             }
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             logger.LogDebug(ex, "Failed to delete temp file {TempFile}", tempPath);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogDebug(ex, "Access denied deleting temp file {TempFile}", tempPath);
         }
 
         try
@@ -360,7 +367,10 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
                     {
                         File.SetAttributes(file, FileAttributes.Normal);
                     }
-                    catch
+                    catch (IOException)
+                    {
+                    }
+                    catch (UnauthorizedAccessException)
                     {
                     }
                 }
@@ -368,9 +378,13 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
                 Directory.Delete(extractPath, true);
             }
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             logger.LogDebug(ex, "Failed to delete extract folder {ExtractPath}", extractPath);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogDebug(ex, "Access denied deleting extract folder {ExtractPath}", extractPath);
         }
     }
 }

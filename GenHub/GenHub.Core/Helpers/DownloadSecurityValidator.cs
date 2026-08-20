@@ -241,7 +241,11 @@ public static class DownloadSecurityValidator
         {
             File.SetAttributes(filePath, File.GetAttributes(filePath) | FileAttributes.ReadOnly);
         }
-        catch (Exception)
+        catch (IOException)
+        {
+            // Non-critical if filesystem does not support read-only attribute
+        }
+        catch (UnauthorizedAccessException)
         {
             // Non-critical if filesystem does not support read-only attribute
         }
