@@ -941,17 +941,38 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             }
 
             var streamStartPos = stream.Position;
-            var compType = stream.ReadByte();
-            if (compType < 0)
+            var byte0 = stream.ReadByte();
+            if (byte0 < 0)
             {
                 break;
             }
 
+            var byte1 = stream.ReadByte();
+            if (byte1 < 0)
+            {
+                break;
+            }
+
+            stream.Position = streamStartPos;
             using var outStream = File.Create(destinationPath);
 
-            if (compType == 2)
+            if (byte0 == 0x78)
             {
-                // BZip2 stream
+                // ZLib stream
+                var nonDisp = new NonDisposingStream(stream);
+                var z = new SharpCompress.Compressors.Deflate.ZlibStream(nonDisp, SharpCompress.Compressors.CompressionMode.Decompress);
+
+                var rZ = 0;
+                while ((rZ = z.Read(copyBuffer, 0, copyBuffer.Length)) > 0)
+                {
+                    outStream.Write(copyBuffer, 0, rZ);
+                }
+
+                stream.Position = streamStartPos + z.TotalIn;
+            }
+            else if (byte0 == 0x42 && byte1 == 0x5A)
+            {
+                // BZip2 stream ('BZ')
                 using var bz = SharpCompress.Compressors.BZip2.BZip2Stream.Create(
                     stream,
                     SharpCompress.Compressors.CompressionMode.Decompress,
@@ -964,9 +985,26 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                     outStream.Write(copyBuffer, 0, rBz);
                 }
             }
-            else if (compType == 1)
+            else if (byte0 == 2)
             {
-                // ZLib / Deflate stream
+                // Legacy SIM BZip2 with prefix
+                stream.Position = streamStartPos + 1;
+                using var bz = SharpCompress.Compressors.BZip2.BZip2Stream.Create(
+                    stream,
+                    SharpCompress.Compressors.CompressionMode.Decompress,
+                    decompressConcatenated: false,
+                    leaveOpen: true);
+
+                var rBz = 0;
+                while ((rBz = bz.Read(copyBuffer, 0, copyBuffer.Length)) > 0)
+                {
+                    outStream.Write(copyBuffer, 0, rBz);
+                }
+            }
+            else if (byte0 == 1)
+            {
+                // Legacy SIM ZLib with prefix
+                stream.Position = streamStartPos + 1;
                 var nonDisp = new NonDisposingStream(stream);
                 var z = new SharpCompress.Compressors.Deflate.ZlibStream(nonDisp, SharpCompress.Compressors.CompressionMode.Decompress);
 
