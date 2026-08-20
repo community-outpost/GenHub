@@ -568,4 +568,26 @@ public class UpdateNotificationViewModelTests
         Assert.False(string.IsNullOrEmpty(vm.StatusMessage));
         Assert.Null(mockVelopack.Object.SubscribedPrNumber);
     }
+
+    /// <summary>
+    /// Verifies that InitializeAsync seeds SubscribedPr immediately from user settings.
+    /// </summary>
+    [Fact]
+    public void Constructor_WhenPrSubscribedInSettings_SeedsSubscribedPr()
+    {
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings { SubscribedPrNumber = 242 });
+
+        var mockVelopack = new Mock<IVelopackUpdateManager>();
+        mockVelopack.SetupProperty(x => x.SubscribedPrNumber);
+
+        var vm = new UpdateNotificationViewModel(
+            mockVelopack.Object,
+            Mock.Of<ILogger<UpdateNotificationViewModel>>(),
+            mockUserSettings.Object);
+
+        Assert.Equal(242, mockVelopack.Object.SubscribedPrNumber);
+        Assert.NotNull(vm.SubscribedPr);
+        Assert.Equal(242, vm.SubscribedPr.Number);
+    }
 }

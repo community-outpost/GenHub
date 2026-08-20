@@ -1,4 +1,5 @@
 using GenHub.Core.Helpers;
+using Xunit;
 
 namespace GenHub.Tests.Core.Helpers;
 
@@ -7,6 +8,29 @@ namespace GenHub.Tests.Core.Helpers;
 /// </summary>
 public class AppUpdateVersionHelperTests
 {
+    /// <summary>
+    /// Tests that ExtractChannelKey extracts expected channel identifiers.
+    /// </summary>
+    /// <param name="version">The version string to extract the channel from.</param>
+    /// <param name="expectedChannel">The expected channel key.</param>
+    [Theory]
+    [InlineData("0.0.1520-pr242", "pr242")]
+    [InlineData("0.0.1525-pr265", "pr265")]
+    [InlineData("0.0.1287-main", "main")]
+    [InlineData("0.0.1287-development", "development")]
+    [InlineData("0.0.0-ci.500", "ci")]
+    [InlineData("0.0.1300-fix-ci.9", "fix-ci.9")]
+    [InlineData("1.0.42", "release")]
+    [InlineData("0.0.1287", "release")]
+    [InlineData("", null)]
+    [InlineData("   ", null)]
+    [InlineData(null, null)]
+    public void ExtractChannelKey_WithVariousFormats_ShouldReturnExpectedChannel(string? version, string? expectedChannel)
+    {
+        var result = AppUpdateVersionHelper.ExtractChannelKey(version);
+        Assert.Equal(expectedChannel, result);
+    }
+
     /// <summary>
     /// Tests that ExtractRunNumber extracts expected run numbers.
     /// </summary>
@@ -33,12 +57,46 @@ public class AppUpdateVersionHelperTests
     }
 
     /// <summary>
-    /// Tests that IsArtifactVersionNewer returns true when new run is greater.
+    /// Tests that IsArtifactVersionNewer returns true when new run is greater within the same channel.
     /// </summary>
     [Fact]
     public void IsArtifactVersionNewer_WhenNewerRun_ShouldReturnTrue()
     {
         var result = AppUpdateVersionHelper.IsArtifactVersionNewer("0.0.1287-pr265", "0.0.1282-pr265");
+        Assert.True(result);
+    }
+
+    /// <summary>
+    /// Tests that IsArtifactVersionNewer returns false when comparing builds from different PR channels.
+    /// </summary>
+    [Fact]
+    public void IsArtifactVersionNewer_WhenDifferentPrChannels_ShouldReturnFalse()
+    {
+        // PR #265 at run 1525 vs PR #242 at run 1520 must NOT be considered an upgrade
+        var result = AppUpdateVersionHelper.IsArtifactVersionNewer("0.0.1525-pr265", "0.0.1520-pr242");
+        Assert.False(result);
+    }
+
+    /// <summary>
+    /// Tests that IsArtifactVersionNewer returns false when comparing PR builds with branch builds.
+    /// </summary>
+    [Fact]
+    public void IsArtifactVersionNewer_WhenDifferentBranchChannels_ShouldReturnFalse()
+    {
+        var result = AppUpdateVersionHelper.IsArtifactVersionNewer("0.0.1525-main", "0.0.1520-development");
+        Assert.False(result);
+
+        var prVsBranch = AppUpdateVersionHelper.IsArtifactVersionNewer("0.0.1525-main", "0.0.1520-pr242");
+        Assert.False(prVsBranch);
+    }
+
+    /// <summary>
+    /// Tests that IsArtifactVersionNewer allows cross-channel comparison when explicitly requested.
+    /// </summary>
+    [Fact]
+    public void IsArtifactVersionNewer_WhenCrossChannelExplicitlyAllowed_ShouldReturnTrueForHigherRun()
+    {
+        var result = AppUpdateVersionHelper.IsArtifactVersionNewer("0.0.1525-pr265", "0.0.1520-pr242", allowCrossChannel: true);
         Assert.True(result);
     }
 
