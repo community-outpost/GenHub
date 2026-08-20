@@ -32,13 +32,13 @@ public class CncOnlineLauncherFix(
     public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation)
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
         return Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
     }
 
     /// <inheritdoc/>
-    public override Task<bool> IsAppliedAsync(GameInstallation installation)
+    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         try
         {
@@ -134,37 +134,40 @@ public class CncOnlineLauncherFix(
                 }
             }
 
-            // Create main C&C Online entry
+            // Create main C&C Online entry if a valid base path exists
             var basePath = installation.HasGenerals
                 ? installation.GeneralsPath
                 : installation.ZeroHourPath;
 
-            details.Add("Creating main C&C Online registry entry...");
-
-            bool mainOk1 = registryService.SetStringValue(
-                RegistryConstants.CncOnlineKeyPath,
-                RegistryConstants.InstallPathValueName,
-                basePath,
-                useWow6432Node: true,
-                hive: RegistryHive.CurrentUser);
-
-            bool mainOk2 = registryService.SetStringValue(
-                RegistryConstants.CncOnlineKeyPath,
-                RegistryConstants.VersionValueName,
-                RegistryConstants.CncOnlineVersion,
-                useWow6432Node: true,
-                hive: RegistryHive.CurrentUser);
-
-            if (mainOk1 && mainOk2)
+            if (!string.IsNullOrEmpty(basePath))
             {
-                details.Add("✓ Created: HKCU\\SOFTWARE\\Revora\\CNCOnline");
-                details.Add($"  • InstallPath = {basePath}");
-                details.Add($"  • Version = {RegistryConstants.CncOnlineVersion}");
-            }
-            else
-            {
-                allSucceeded = false;
-                details.Add("✗ Failed to write main C&C Online registry entries");
+                details.Add("Creating main C&C Online registry entry...");
+
+                bool mainOk1 = registryService.SetStringValue(
+                    RegistryConstants.CncOnlineKeyPath,
+                    RegistryConstants.InstallPathValueName,
+                    basePath,
+                    useWow6432Node: true,
+                    hive: RegistryHive.CurrentUser);
+
+                bool mainOk2 = registryService.SetStringValue(
+                    RegistryConstants.CncOnlineKeyPath,
+                    RegistryConstants.VersionValueName,
+                    RegistryConstants.CncOnlineVersion,
+                    useWow6432Node: true,
+                    hive: RegistryHive.CurrentUser);
+
+                if (mainOk1 && mainOk2)
+                {
+                    details.Add("✓ Created: HKCU\\SOFTWARE\\Revora\\CNCOnline");
+                    details.Add($"  • InstallPath = {basePath}");
+                    details.Add($"  • Version = {RegistryConstants.CncOnlineVersion}");
+                }
+                else
+                {
+                    allSucceeded = false;
+                    details.Add("✗ Failed to write main C&C Online registry entries");
+                }
             }
 
             if (!allSucceeded)

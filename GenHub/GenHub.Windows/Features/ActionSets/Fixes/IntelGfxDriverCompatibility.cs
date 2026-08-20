@@ -32,7 +32,7 @@ public class IntelGfxDriverCompatibility(ILogger<IntelGfxDriverCompatibility> lo
     public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation)
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
         // Only applicable if Intel graphics are present
         var hasIntelGfx = HasIntelGraphics();
@@ -40,7 +40,7 @@ public class IntelGfxDriverCompatibility(ILogger<IntelGfxDriverCompatibility> lo
     }
 
     /// <inheritdoc/>
-    public override Task<bool> IsAppliedAsync(GameInstallation installation)
+    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         try
         {

@@ -32,7 +32,7 @@ public class BrowserEngineFix(ILogger<BrowserEngineFix> logger) : BaseActionSet(
     public override bool IsCrucialFix => true;
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation)
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
         // Applicable if the file exists in either Generals or Zero Hour path
         if (installation.HasGenerals && File.Exists(Path.Combine(installation.GeneralsPath, BrowserEngineDll)))
@@ -49,7 +49,7 @@ public class BrowserEngineFix(ILogger<BrowserEngineFix> logger) : BaseActionSet(
     }
 
     /// <inheritdoc/>
-    public override Task<bool> IsAppliedAsync(GameInstallation installation)
+    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         // Considered applied if the .bak file exists (indicating we renamed it)
         bool generalsApplied = !installation.HasGenerals || File.Exists(Path.Combine(installation.GeneralsPath, BrowserEngineDllBak));
@@ -136,13 +136,7 @@ public class BrowserEngineFix(ILogger<BrowserEngineFix> logger) : BaseActionSet(
 
         if (File.Exists(dllPath))
         {
-            if (File.Exists(bakPath))
-            {
-                File.Delete(bakPath);
-                details.Add($"  • Deleted existing backup: {BrowserEngineDllBak}");
-            }
-
-            File.Move(dllPath, bakPath);
+            File.Move(dllPath, bakPath, overwrite: true);
             details.Add($"  ✓ Renamed {BrowserEngineDll} → {BrowserEngineDllBak}");
             return true;
         }
@@ -155,13 +149,14 @@ public class BrowserEngineFix(ILogger<BrowserEngineFix> logger) : BaseActionSet(
         var dllPath = Path.Combine(path, BrowserEngineDll);
         var bakPath = Path.Combine(path, BrowserEngineDllBak);
 
+        if (File.Exists(dllPath))
+        {
+            details.Add($"  ✓ {BrowserEngineDll} is already present");
+            return;
+        }
+
         if (File.Exists(bakPath))
         {
-            if (File.Exists(dllPath))
-            {
-                File.Delete(dllPath);
-            }
-
             File.Move(bakPath, dllPath);
             details.Add($"  ✓ Restored {BrowserEngineDllBak} → {BrowserEngineDll}");
         }

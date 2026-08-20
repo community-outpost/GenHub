@@ -24,13 +24,13 @@ public partial class MyDocumentsPathCompatibility(ILogger<MyDocumentsPathCompati
     public override string Title => "My Documents Path Compatibility";
 
     /// <inheritdoc/>
-    public override bool IsCoreFix => true;
+    public override bool IsCoreFix => false;
 
     /// <inheritdoc/>
     public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation)
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
         // This fix applies to the User Profile / Documents path, not the game installation itself.
         // But we check it in context of an installation being present.
@@ -44,7 +44,7 @@ public partial class MyDocumentsPathCompatibility(ILogger<MyDocumentsPathCompati
     }
 
     /// <inheritdoc/>
-    public override Task<bool> IsAppliedAsync(GameInstallation installation)
+    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         string documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
 

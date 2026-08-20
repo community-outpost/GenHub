@@ -33,7 +33,7 @@ public class OptionsINIFix(IGameSettingsService gameSettingsService, ILogger<Opt
     public override bool IsCrucialFix => true;
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation)
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
         // This fix is applicable for both Generals and Zero Hour
         return Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
@@ -136,13 +136,13 @@ public class OptionsINIFix(IGameSettingsService gameSettingsService, ILogger<Opt
 
                 // Log what was changed
                 details.Add("✓ Video settings optimized:");
-                details.Add("  • AntiAliasing = 1");
-                details.Add("  • TextureReduction = 0");
-                details.Add("  • ExtraAnimations = yes");
-                details.Add("  • Gamma = 50");
-                details.Add("  • UseShadowDecals = yes");
-                details.Add("  • UseShadowVolumes = no");
-                details.Add("  • Windowed = no");
+                details.Add($"  • AntiAliasing = {GameSettingsConstants.OptimalSettings.AntiAliasing}");
+                details.Add($"  • TextureReduction = {GameSettingsConstants.OptimalSettings.TextureReduction}");
+                details.Add($"  • ExtraAnimations = {(GameSettingsConstants.OptimalSettings.ExtraAnimations ? "yes" : "no")}");
+                details.Add($"  • Gamma = {GameSettingsConstants.OptimalSettings.Gamma}");
+                details.Add($"  • UseShadowDecals = {(GameSettingsConstants.OptimalSettings.UseShadowDecals ? "yes" : "no")}");
+                details.Add($"  • UseShadowVolumes = {(GameSettingsConstants.OptimalSettings.UseShadowVolumes ? "yes" : "no")}");
+                details.Add($"  • Windowed = {(GameSettingsConstants.OptimalSettings.Windowed ? "yes" : "no")}");
 
                 if (resolutionChanged)
                 {
@@ -150,24 +150,24 @@ public class OptionsINIFix(IGameSettingsService gameSettingsService, ILogger<Opt
                 }
 
                 details.Add("✓ Audio settings optimized:");
-                details.Add("  • SFXVolume = 70");
-                details.Add("  • SFX3DVolume = 70");
-                details.Add("  • MusicVolume = 70");
-                details.Add("  • VoiceVolume = 70");
-                details.Add("  • NumSounds = 16");
+                details.Add($"  • SFXVolume = {GameSettingsConstants.OptimalSettings.VolumeLevel}");
+                details.Add($"  • SFX3DVolume = {GameSettingsConstants.OptimalSettings.VolumeLevel}");
+                details.Add($"  • MusicVolume = {GameSettingsConstants.OptimalSettings.VolumeLevel}");
+                details.Add($"  • VoiceVolume = {GameSettingsConstants.OptimalSettings.VolumeLevel}");
+                details.Add($"  • NumSounds = {GameSettingsConstants.OptimalSettings.NumSounds}");
 
                 details.Add("✓ Network settings optimized:");
-                details.Add("  • GameSpyIPAddress = 0.0.0.0");
+                details.Add($"  • GameSpyIPAddress = {GameSettingsConstants.OptimalSettings.GameSpyIPAddress}");
 
                 details.Add("✓ TheSuperHackers settings optimized:");
-                details.Add("  • DynamicLOD = no");
-                details.Add("  • HeatEffects = no");
-                details.Add("  • MaxParticleCount = 1000");
-                details.Add("  • SendDelay = no");
-                details.Add("  • ShowSoftWaterEdge = yes");
-                details.Add("  • ShowTrees = yes");
-                details.Add("  • UseAlternateMouse = no");
-                details.Add("  • UseDoubleClickAttackMove = no");
+                details.Add($"  • DynamicLOD = {GameSettingsConstants.OptimalSettings.DynamicLOD}");
+                details.Add($"  • HeatEffects = {GameSettingsConstants.OptimalSettings.HeatEffects}");
+                details.Add($"  • MaxParticleCount = {GameSettingsConstants.OptimalSettings.MaxParticleCount}");
+                details.Add($"  • SendDelay = {GameSettingsConstants.OptimalSettings.SendDelay}");
+                details.Add($"  • ShowSoftWaterEdge = {GameSettingsConstants.OptimalSettings.ShowSoftWaterEdge}");
+                details.Add($"  • ShowTrees = {GameSettingsConstants.OptimalSettings.ShowTrees}");
+                details.Add($"  • UseAlternateMouse = {GameSettingsConstants.OptimalSettings.UseAlternateMouse}");
+                details.Add($"  • UseDoubleClickAttackMove = {GameSettingsConstants.OptimalSettings.UseDoubleClickAttackMove}");
 
                 details.Add($"Saving optimized Options.ini for {gameType}...");
                 var saveResult = await gameSettingsService.SaveOptionsAsync(gameType, options);

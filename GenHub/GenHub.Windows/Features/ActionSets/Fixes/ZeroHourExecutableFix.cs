@@ -36,14 +36,14 @@ public class ZeroHourExecutableFix(ILogger<ZeroHourExecutableFix> logger) : Base
     public override bool IsCrucialFix => true;
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation)
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
         // User requested to disable this fix as it is handled by the Downloads tab
         return Task.FromResult(false);
     }
 
     /// <inheritdoc/>
-    public override Task<bool> IsAppliedAsync(GameInstallation installation)
+    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         try
         {

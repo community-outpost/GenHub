@@ -36,14 +36,14 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
     public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation)
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
         // Fix is only applicable if Documents is redirected to OneDrive
         return Task.FromResult(IsOneDriveRedirected() && (installation.HasGenerals || installation.HasZeroHour));
     }
 
     /// <inheritdoc/>
-    public override Task<bool> IsAppliedAsync(GameInstallation installation)
+    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         try
         {

@@ -37,36 +37,18 @@ public class D3D8XDLLCheck(ILogger<D3D8XDLLCheck> logger) : BaseActionSet(logger
     public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation)
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
         return Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
     }
 
     /// <inheritdoc/>
-    public override Task<bool> IsAppliedAsync(GameInstallation installation)
+    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         try
         {
-            // Check if required DirectX DLLs are present in system directories
-            var system32 = Environment.GetFolderPath(Environment.SpecialFolder.System);
-            var sysWow64 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "SysWOW64");
-            var gameDir = installation.InstallationPath;
-
-            var allPresent = true;
-            var missingDLLs = new List<string>();
-
-            foreach (var dll in RequiredDLLs)
-            {
-                var inSystem32 = File.Exists(Path.Combine(system32, dll));
-                var inSysWow64 = File.Exists(Path.Combine(sysWow64, dll));
-                var inGameDir = !string.IsNullOrEmpty(gameDir) && File.Exists(Path.Combine(gameDir, dll));
-
-                if (!inSystem32 && !inSysWow64 && !inGameDir)
-                {
-                    allPresent = false;
-                    missingDLLs.Add(dll);
-                }
-            }
+            var missingDLLs = GetMissingDlls(installation.InstallationPath);
+            var allPresent = missingDLLs.Count == 0;
 
             if (allPresent)
             {
@@ -91,23 +73,7 @@ public class D3D8XDLLCheck(ILogger<D3D8XDLLCheck> logger) : BaseActionSet(logger
     {
         try
         {
-            // This fix is informational - it checks for DLLs and provides guidance
-            // The actual DirectX installation is handled by DirectXRuntimeFix
-            var system32 = Environment.GetFolderPath(Environment.SpecialFolder.System);
-            var sysWow64 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "SysWOW64");
-
-            var missingDLLs = new List<string>();
-
-            foreach (var dll in RequiredDLLs)
-            {
-                var inSystem32 = File.Exists(Path.Combine(system32, dll));
-                var inSysWow64 = File.Exists(Path.Combine(sysWow64, dll));
-
-                if (!inSystem32 && !inSysWow64)
-                {
-                    missingDLLs.Add(dll);
-                }
-            }
+            var missingDLLs = GetMissingDlls(installation.InstallationPath);
 
             if (missingDLLs.Count == 0)
             {
@@ -126,7 +92,7 @@ public class D3D8XDLLCheck(ILogger<D3D8XDLLCheck> logger) : BaseActionSet(logger
             logger.LogInformation("2. This will install all required DirectX 8 DLLs");
             logger.LogInformation("3. Restart your computer after installation");
 
-            return Task.FromResult(new ActionSetResult(true, null, [$"Missing {missingDLLs.Count} DirectX 8 DLLs in system directories. Please run DirectXRuntimeFix."]));
+            return Task.FromResult(new ActionSetResult(true, null, [$"Missing {missingDLLs.Count} DirectX 8 DLLs. Please run DirectXRuntimeFix."]));
         }
         catch (Exception ex)
         {
@@ -140,5 +106,26 @@ public class D3D8XDLLCheck(ILogger<D3D8XDLLCheck> logger) : BaseActionSet(logger
     {
         logger.LogWarning("D3D8XDLLCheck is informational only. No undo action needed.");
         return Task.FromResult(new ActionSetResult(true));
+    }
+
+    private static IReadOnlyList<string> GetMissingDlls(string? gameDir)
+    {
+        var system32 = Environment.GetFolderPath(Environment.SpecialFolder.System);
+        var sysWow64 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "SysWOW64");
+
+        var missing = new List<string>();
+        foreach (var dll in RequiredDLLs)
+        {
+            var inSystem32 = File.Exists(Path.Combine(system32, dll));
+            var inSysWow64 = File.Exists(Path.Combine(sysWow64, dll));
+            var inGameDir = !string.IsNullOrEmpty(gameDir) && File.Exists(Path.Combine(gameDir, dll));
+
+            if (!inSystem32 && !inSysWow64 && !inGameDir)
+            {
+                missing.Add(dll);
+            }
+        }
+
+        return missing;
     }
 }

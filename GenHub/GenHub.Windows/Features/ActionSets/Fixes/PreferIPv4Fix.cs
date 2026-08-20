@@ -18,6 +18,12 @@ public class PreferIPv4Fix(
     IRegistryService registryService,
     ILogger<PreferIPv4Fix> logger) : BaseActionSet(logger)
 {
+    private readonly string _backupPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "GenHub",
+        ActionSetConstants.Paths.SubActionSetMarkers,
+        "PreferIPv4Fix.original");
+
     /// <inheritdoc/>
     public override string Id => "PreferIPv4Fix";
 
@@ -31,13 +37,13 @@ public class PreferIPv4Fix(
     public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation)
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
         return Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
     }
 
     /// <inheritdoc/>
-    public override Task<bool> IsAppliedAsync(GameInstallation installation)
+    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         try
         {
@@ -75,6 +81,26 @@ public class PreferIPv4Fix(
                 details.Add("✓ IPv4 preference is already enabled (IPv6 tunnels disabled)");
                 logger.LogInformation("IPv4 preference is already enabled. No action needed.");
                 return Task.FromResult(new ActionSetResult(true, null, details));
+            }
+
+            // Save original value to backup file before modifying
+            try
+            {
+                var dir = Path.GetDirectoryName(_backupPath);
+                if (!string.IsNullOrEmpty(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                if (!File.Exists(_backupPath))
+                {
+                    var backupValue = currentValue.HasValue ? currentValue.Value.ToString() : "absent";
+                    File.WriteAllText(_backupPath, backupValue);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not save original DisabledComponents value to backup file");
             }
 
             details.Add("Configuring system to prefer IPv4...");
@@ -132,20 +158,50 @@ public class PreferIPv4Fix(
                 return Task.FromResult(new ActionSetResult(true, null, details));
             }
 
-            logger.LogInformation("Removing IPv4 preference...");
+            logger.LogInformation("Restoring original IPv4/IPv6 configuration...");
 
-            var writeSuccess = registryService.SetIntValue(
-                RegistryConstants.Tcpip6ParametersKeyPath,
-                RegistryConstants.DisabledComponentsValueName,
-                0);
+            bool restoreSuccess = false;
+            if (File.Exists(_backupPath))
+            {
+                var savedVal = File.ReadAllText(_backupPath).Trim();
+                if (savedVal.Equals("absent", StringComparison.OrdinalIgnoreCase))
+                {
+                    restoreSuccess = registryService.DeleteValue(
+                        RegistryConstants.Tcpip6ParametersKeyPath,
+                        RegistryConstants.DisabledComponentsValueName);
+                }
+                else if (int.TryParse(savedVal, out var origInt))
+                {
+                    restoreSuccess = registryService.SetIntValue(
+                        RegistryConstants.Tcpip6ParametersKeyPath,
+                        RegistryConstants.DisabledComponentsValueName,
+                        origInt);
+                }
 
-            if (!writeSuccess)
+                try
+                {
+                    File.Delete(_backupPath);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to clean up backup file");
+                }
+            }
+            else
+            {
+                restoreSuccess = registryService.SetIntValue(
+                    RegistryConstants.Tcpip6ParametersKeyPath,
+                    RegistryConstants.DisabledComponentsValueName,
+                    0);
+            }
+
+            if (!restoreSuccess)
             {
                 details.Add("✗ Failed to reset DisabledComponents registry key");
                 return Task.FromResult(new ActionSetResult(false, "Failed to reset DisabledComponents registry key", details));
             }
 
-            details.Add("✓ IPv4 preference removed successfully");
+            details.Add("✓ IPv4 preference restored successfully");
             details.Add("⚠ Computer restart required for changes to take effect");
 
             logger.LogInformation("IPv4 preference removed successfully.");

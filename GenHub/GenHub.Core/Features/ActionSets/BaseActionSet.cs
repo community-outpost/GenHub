@@ -9,19 +9,8 @@ using Microsoft.Extensions.Logging;
 /// <summary>
 /// Abstract base class for action sets, providing common functionality.
 /// </summary>
-public abstract class BaseActionSet : IActionSet
+public abstract class BaseActionSet(ILogger logger) : IActionSet
 {
-    private readonly ILogger _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="BaseActionSet"/> class.
-    /// </summary>
-    /// <param name="logger">The logger instance.</param>
-    protected BaseActionSet(ILogger logger)
-    {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    }
-
     /// <inheritdoc/>
     public abstract string Id { get; }
 
@@ -36,54 +25,38 @@ public abstract class BaseActionSet : IActionSet
 
     /// <inheritdoc/>
     public virtual Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
-        => IsApplicableAsync(installation);
-
-    /// <summary>
-    /// Checks if the action set is applicable to the installation.
-    /// </summary>
-    /// <param name="installation">The game installation to check.</param>
-    /// <returns>A task returning true if applicable.</returns>
-    public virtual Task<bool> IsApplicableAsync(GameInstallation installation)
         => Task.FromResult(true);
 
     /// <inheritdoc/>
     public virtual Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
-        => IsAppliedAsync(installation);
-
-    /// <summary>
-    /// Checks if the action set has already been applied.
-    /// </summary>
-    /// <param name="installation">The game installation to check.</param>
-    /// <returns>A task returning true if applied.</returns>
-    public virtual Task<bool> IsAppliedAsync(GameInstallation installation)
         => Task.FromResult(false);
 
     /// <inheritdoc/>
     public async Task<ActionSetResult> ApplyAsync(GameInstallation installation, CancellationToken ct = default)
     {
-        _logger.LogInformation("Applying ActionSet {Title} ({Id}) to {InstallationPath}...", Title, Id, installation.InstallationPath);
+        logger.LogInformation("Applying ActionSet {Title} ({Id}) to {InstallationPath}...", Title, Id, installation.InstallationPath);
         try
         {
             var result = await ApplyInternalAsync(installation, ct);
             if (result.Success)
             {
-                _logger.LogInformation("Successfully applied ActionSet {Title} ({Id})", Title, Id);
+                logger.LogInformation("Successfully applied ActionSet {Title} ({Id})", Title, Id);
             }
             else
             {
-                _logger.LogWarning("Failed to apply ActionSet {Title} ({Id}): {Error}", Title, Id, result.ErrorMessage);
+                logger.LogWarning("Failed to apply ActionSet {Title} ({Id}): {Error}", Title, Id, result.ErrorMessage);
             }
 
             return result;
         }
         catch (OperationCanceledException)
         {
-            _logger.LogWarning("ActionSet {Title} ({Id}) application was cancelled", Title, Id);
+            logger.LogWarning("ActionSet {Title} ({Id}) application was cancelled", Title, Id);
             throw;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error applying ActionSet {Title} ({Id})", Title, Id);
+            logger.LogError(ex, "Error applying ActionSet {Title} ({Id})", Title, Id);
             return new ActionSetResult(false, ex.Message);
         }
     }
@@ -91,29 +64,29 @@ public abstract class BaseActionSet : IActionSet
     /// <inheritdoc/>
     public async Task<ActionSetResult> UndoAsync(GameInstallation installation, CancellationToken ct = default)
     {
-        _logger.LogInformation("Undoing ActionSet {Title} ({Id}) from {InstallationPath}...", Title, Id, installation.InstallationPath);
+        logger.LogInformation("Undoing ActionSet {Title} ({Id}) from {InstallationPath}...", Title, Id, installation.InstallationPath);
         try
         {
             var result = await UndoInternalAsync(installation, ct);
             if (result.Success)
             {
-                _logger.LogInformation("Successfully undid ActionSet {Title} ({Id})", Title, Id);
+                logger.LogInformation("Successfully undid ActionSet {Title} ({Id})", Title, Id);
             }
             else
             {
-                _logger.LogWarning("Failed to undo ActionSet {Title} ({Id}): {Error}", Title, Id, result.ErrorMessage);
+                logger.LogWarning("Failed to undo ActionSet {Title} ({Id}): {Error}", Title, Id, result.ErrorMessage);
             }
 
             return result;
         }
         catch (OperationCanceledException)
         {
-            _logger.LogWarning("ActionSet {Title} ({Id}) undo was cancelled", Title, Id);
+            logger.LogWarning("ActionSet {Title} ({Id}) undo was cancelled", Title, Id);
             throw;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error undoing ActionSet {Title} ({Id})", Title, Id);
+            logger.LogError(ex, "Error undoing ActionSet {Title} ({Id})", Title, Id);
             return new ActionSetResult(false, ex.Message);
         }
     }

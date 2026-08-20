@@ -38,13 +38,13 @@ public class HDIconsFix(ILogger<HDIconsFix> logger) : BaseActionSet(logger)
     public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation)
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
         return Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
     }
 
     /// <inheritdoc/>
-    public override Task<bool> IsAppliedAsync(GameInstallation installation)
+    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         if (File.Exists(_markerPath)) return Task.FromResult(true);
         return Task.FromResult(AreHDIconsPresent(installation));

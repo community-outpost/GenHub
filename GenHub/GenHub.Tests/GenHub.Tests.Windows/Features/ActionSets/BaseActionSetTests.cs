@@ -66,9 +66,9 @@ public class BaseActionSetTests
 
         public override bool IsCrucialFix => false;
 
-        public override Task<bool> IsApplicableAsync(GameInstallation installation) => Task.FromResult(true);
+        public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default) => Task.FromResult(true);
 
-        public override Task<bool> IsAppliedAsync(GameInstallation installation) => Task.FromResult(false);
+        public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default) => Task.FromResult(false);
 
         protected override Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, System.Threading.CancellationToken ct)
         {

@@ -30,13 +30,13 @@ public class ExpandedLANLobbyMenu(ILogger<ExpandedLANLobbyMenu> logger) : BaseAc
     public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation)
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
         return Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
     }
 
     /// <inheritdoc/>
-    public override Task<bool> IsAppliedAsync(GameInstallation installation)
+    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         try
         {
@@ -54,35 +54,39 @@ public class ExpandedLANLobbyMenu(ILogger<ExpandedLANLobbyMenu> logger) : BaseAc
     {
         try
         {
-            // Provide guidance for LAN play
-            logger.LogInformation("LAN Lobby Menu Information:");
-            logger.LogInformation("Generals and Zero Hour have built-in LAN support.");
-            logger.LogInformation(string.Empty);
-            logger.LogInformation("To play on LAN:");
-            logger.LogInformation("1. Ensure all players are on the same network");
-            logger.LogInformation("2. Launch the game");
-            logger.LogInformation("3. Go to 'Multiplayer' > 'Network' > 'LAN'");
-            logger.LogInformation("4. Create or host a LAN game");
-            logger.LogInformation("5. Other players can join from the LAN lobby");
-            logger.LogInformation(string.Empty);
-            logger.LogInformation("Note: For best LAN experience:");
-            logger.LogInformation("- Ensure Windows Firewall allows the game");
-            logger.LogInformation("- Disable VPN if not needed");
-            logger.LogInformation("- Use wired network connection if possible");
-            logger.LogInformation("- Ensure all players have the same game version");
-            logger.LogInformation(string.Empty);
+            var details = new List<string>
+            {
+                "LAN Lobby Menu Information:",
+                "Generals and Zero Hour have built-in LAN support.",
+                "To play on LAN:",
+                "1. Ensure all players are on the same network",
+                "2. Launch the game",
+                "3. Go to 'Multiplayer' > 'Network' > 'LAN'",
+                "4. Create or host a LAN game",
+                "5. Other players can join from the LAN lobby",
+                "Note: For best LAN experience:",
+                "- Ensure Windows Firewall allows the game",
+                "- Disable VPN if not needed",
+                "- Use wired network connection if possible",
+                "- Ensure all players have the same game version",
+            };
 
             try
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(_markerPath)!);
-                File.WriteAllText(_markerPath, DateTime.UtcNow.ToString());
+                var dir = Path.GetDirectoryName(_markerPath);
+                if (!string.IsNullOrEmpty(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                File.WriteAllText(_markerPath, DateTime.UtcNow.ToString("O"));
             }
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Failed to create marker file for ExpandedLANLobbyMenu");
             }
 
-            return Task.FromResult(new ActionSetResult(true, null, ["LAN lobby menu is built into the game. See logs for details."]));
+            return Task.FromResult(new ActionSetResult(true, null, details));
         }
         catch (Exception ex)
         {

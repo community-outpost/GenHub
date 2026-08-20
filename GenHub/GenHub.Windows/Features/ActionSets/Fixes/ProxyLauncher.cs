@@ -30,13 +30,13 @@ public class ProxyLauncher(ILogger<ProxyLauncher> logger) : BaseActionSet(logger
     public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation)
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
         return Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
     }
 
     /// <inheritdoc/>
-    public override Task<bool> IsAppliedAsync(GameInstallation installation)
+    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         try
         {
@@ -54,31 +54,29 @@ public class ProxyLauncher(ILogger<ProxyLauncher> logger) : BaseActionSet(logger
     {
         try
         {
-            // Provide information about proxy launcher
-            logger.LogInformation("Proxy Launcher Information:");
-            logger.LogInformation("GenHub uses a proxy launcher system for game execution.");
-            logger.LogInformation(string.Empty);
-            logger.LogInformation("Benefits of Proxy Launcher:");
-            logger.LogInformation("- Improved compatibility with modern Windows versions");
-            logger.LogInformation("- Better process isolation");
-            logger.LogInformation("- Enhanced error handling and logging");
-            logger.LogInformation("- Support for custom launch parameters");
-            logger.LogInformation("- Integration with GenHub's ActionSet framework");
-            logger.LogInformation(string.Empty);
-            logger.LogInformation("The proxy launcher is automatically used when launching games through GenHub.");
-            logger.LogInformation("No manual configuration is required.");
+            var details = new List<string>
+            {
+                "Proxy Launcher Information:",
+                "GenHub uses a proxy launcher system for game execution.",
+                "Benefits of Proxy Launcher:",
+                "- Improved compatibility with modern Windows versions",
+                "- Better process isolation",
+                "- Enhanced error handling and logging",
+                "- Support for custom launch parameters",
+                "- Integration with GenHub's ActionSet framework",
+                "The proxy launcher is automatically used when launching games through GenHub.",
+                "No manual configuration is required.",
+            };
 
-            try
+            var dir = Path.GetDirectoryName(_markerPath);
+            if (!string.IsNullOrEmpty(dir))
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(_markerPath)!);
-                File.WriteAllText(_markerPath, DateTime.UtcNow.ToString());
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to create marker file for ProxyLauncher");
+                Directory.CreateDirectory(dir);
             }
 
-            return Task.FromResult(new ActionSetResult(true, null, ["Proxy launcher is built into GenHub and automatically used."]));
+            File.WriteAllText(_markerPath, DateTime.UtcNow.ToString("O"));
+
+            return Task.FromResult(new ActionSetResult(true, null, details));
         }
         catch (Exception ex)
         {

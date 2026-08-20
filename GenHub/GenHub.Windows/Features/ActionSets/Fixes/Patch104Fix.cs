@@ -39,14 +39,14 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
     public override bool IsCrucialFix => false; // Download failures shouldn't abort entire sequence
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation)
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
         // Disabled per user request - redundant with GenHub Downloads section
         return Task.FromResult(false);
     }
 
     /// <inheritdoc/>
-    public override Task<bool> IsAppliedAsync(GameInstallation installation)
+    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         try
         {
@@ -191,7 +191,7 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
             }
             else
             {
-                // Authenticode signature verification if signed
+                // Authenticode signature verification
                 var securityValidation = await DownloadSecurityValidator.ValidateFileAsync(
                     downloadPath,
                     expectedAuthenticodePublisher: ActionSetConstants.Security.ElectronicArtsPublisher,
@@ -199,7 +199,13 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
 
                 if (!securityValidation.Success)
                 {
-                    logger.LogInformation("Non-EA or unsigned patch executable from {Url}, verified payload integrity", url);
+                    logger.LogWarning("Authenticode verification failed for patch executable from {Url}: {Error}", url, securityValidation.ErrorMessage);
+                    if (File.Exists(downloadPath))
+                    {
+                        File.Delete(downloadPath);
+                    }
+
+                    return (false, downloadPath, isExe);
                 }
             }
 
