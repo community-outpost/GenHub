@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -260,7 +261,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets the progress text for display.
     /// </summary>
-    public string ProgressText => $"{PercentComplete:F1}%";
+    public string ProgressText => $"{PercentComplete.ToString("F1", CultureInfo.InvariantCulture)}%";
 
     /// <summary>
     /// Gets or sets the estimated time remaining.
