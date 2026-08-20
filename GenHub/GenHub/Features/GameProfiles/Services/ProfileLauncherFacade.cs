@@ -568,8 +568,8 @@ public class ProfileLauncherFacade(
                 hasNotifiedWorkspacePrep = true;
                 notificationService.ShowInfo(
                     "Preparing Workspace",
-                    $"Materializing game files for '{profile.Name}'...",
-                    NotificationDurations.Short);
+                    $"Initializing workspace for '{profile.Name}'. First launch may take a moment while files are set up...",
+                    NotificationDurations.Medium);
             }
         });
 

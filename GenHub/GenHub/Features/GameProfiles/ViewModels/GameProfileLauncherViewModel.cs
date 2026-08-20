@@ -1011,7 +1011,7 @@ public partial class GameProfileLauncherViewModel(
     /// </summary>
     private async Task ExecuteLaunchAsync(GameProfileItemViewModel profile)
     {
-        StatusMessage = $"Launching {profile.Name}...";
+        StatusMessage = $"Launching {profile.Name} (initializing workspace if first launch)...";
 
         // With CAS hardlinks, profile switching is instant - maps are just symlinks
         var launchResult = await profileLauncherFacade.LaunchProfileAsync(profile.ProfileId, skipUserDataCleanup: false);
