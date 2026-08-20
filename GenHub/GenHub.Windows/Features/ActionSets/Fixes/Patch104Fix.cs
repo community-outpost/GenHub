@@ -199,7 +199,7 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
 
                 if (!securityValidation.Success)
                 {
-                    logger.LogWarning("Authenticode verification failed for patch executable from {Url}: {Error}", url, securityValidation.ErrorMessage);
+                    logger.LogWarning("Authenticode verification failed for patch executable from {Url}: {Error}", url, securityValidation.FirstError);
                     if (File.Exists(downloadPath))
                     {
                         File.Delete(downloadPath);

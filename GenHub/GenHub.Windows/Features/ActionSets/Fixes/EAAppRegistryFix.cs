@@ -50,38 +50,6 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
         return Task.FromResult(applied);
     }
 
-    private bool IsGeneralsRegistryValid(GameInstallation installation)
-    {
-        if (!installation.HasGenerals)
-        {
-            return true;
-        }
-
-        var installPath = registryService.GetStringValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.InstallPathValueName);
-        var version = registryService.GetIntValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.VersionValueName);
-        var serial = registryService.GetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty);
-
-        return string.Equals(installPath, installation.GeneralsPath, StringComparison.OrdinalIgnoreCase) &&
-               version == RegistryConstants.GeneralsVersionDWord &&
-               !string.IsNullOrEmpty(serial);
-    }
-
-    private bool IsZeroHourRegistryValid(GameInstallation installation)
-    {
-        if (!installation.HasZeroHour)
-        {
-            return true;
-        }
-
-        var installPath = registryService.GetStringValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.InstallPathValueName);
-        var version = registryService.GetIntValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.VersionValueName);
-        var serial = registryService.GetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty);
-
-        return string.Equals(installPath, installation.ZeroHourPath, StringComparison.OrdinalIgnoreCase) &&
-               version == RegistryConstants.ZeroHourVersionDWord &&
-               !string.IsNullOrEmpty(serial);
-    }
-
     /// <inheritdoc/>
     protected override Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
     {
@@ -231,5 +199,37 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
     {
         // Undoing registry fixes is tricky - usually we don't want to revert to a broken state.
         return Task.FromResult(Success());
+    }
+
+    private bool IsGeneralsRegistryValid(GameInstallation installation)
+    {
+        if (!installation.HasGenerals)
+        {
+            return true;
+        }
+
+        var installPath = registryService.GetStringValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.InstallPathValueName);
+        var version = registryService.GetIntValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.VersionValueName);
+        var serial = registryService.GetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty);
+
+        return string.Equals(installPath, installation.GeneralsPath, StringComparison.OrdinalIgnoreCase) &&
+               version == RegistryConstants.GeneralsVersionDWord &&
+               !string.IsNullOrEmpty(serial);
+    }
+
+    private bool IsZeroHourRegistryValid(GameInstallation installation)
+    {
+        if (!installation.HasZeroHour)
+        {
+            return true;
+        }
+
+        var installPath = registryService.GetStringValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.InstallPathValueName);
+        var version = registryService.GetIntValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.VersionValueName);
+        var serial = registryService.GetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty);
+
+        return string.Equals(installPath, installation.ZeroHourPath, StringComparison.OrdinalIgnoreCase) &&
+               version == RegistryConstants.ZeroHourVersionDWord &&
+               !string.IsNullOrEmpty(serial);
     }
 }
