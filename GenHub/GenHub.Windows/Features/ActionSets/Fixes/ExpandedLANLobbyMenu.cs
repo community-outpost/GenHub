@@ -66,19 +66,10 @@ public class ExpandedLANLobbyMenu(ILogger<ExpandedLANLobbyMenu> logger) : BaseAc
         {
             var details = new List<string>
             {
-                "LAN Lobby Menu Information:",
-                "Generals and Zero Hour have built-in LAN support.",
-                "To play on LAN:",
-                "1. Ensure all players are on the same network",
-                "2. Launch the game",
-                "3. Go to 'Multiplayer' > 'Network' > 'LAN'",
-                "4. Create or host a LAN game",
-                "5. Other players can join from the LAN lobby",
-                "Note: For best LAN experience:",
-                "- Ensure Windows Firewall allows the game",
-                "- Disable VPN if not needed",
-                "- Use wired network connection if possible",
-                "- Ensure all players have the same game version",
+                "Expanded LAN Lobby Menu UI Mod:",
+                "• Modifies in-game window definitions and textures for widescreen displays.",
+                "• Expands the LAN lobby room list to show more games and player names without cramped scrolling.",
+                "• Available as a Community Outpost Addon in Downloads to enable on Game Profiles.",
             };
 
             try

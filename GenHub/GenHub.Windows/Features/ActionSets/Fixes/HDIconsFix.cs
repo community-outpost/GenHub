@@ -66,28 +66,16 @@ public class HDIconsFix(ILogger<HDIconsFix> logger) : BaseActionSet(logger)
 
         try
         {
-            details.Add("High-Definition Icons - Informational");
-            details.Add(string.Empty);
-            details.Add("⚠ NOTE: HD Icons are provided by mods or community content");
-            details.Add("  GenHub's Content system handles icon downloads");
-            details.Add(string.Empty);
-            details.Add("To get HD Icons:");
-            details.Add("  1. Open GenHub");
-            details.Add("  2. Go to Downloads section");
-            details.Add("  3. Browse 'Icons' category");
-            details.Add("  4. Download and install HD icon packs");
-            details.Add(string.Empty);
-
-            // Check current status
+            details.Add("High-Definition Icons Pack:");
+            details.Add("• Provides 256x256 high-resolution shortcut and executable icons.");
             var hdIconsPresent = AreHDIconsPresent(installation);
             if (hdIconsPresent)
             {
-                details.Add("✓ HD icons are already installed");
+                details.Add("✓ HD icon assets detected in installation.");
             }
             else
             {
-                details.Add("⚠ No HD icons found");
-                details.Add("  Use GenHub's Content system to download icon packs");
+                details.Add("• Available as a Community Outpost Addon in Downloads to attach to game profiles.");
             }
 
             logger.LogInformation("HD Icons are typically provided by mods or community content.");
