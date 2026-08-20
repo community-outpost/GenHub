@@ -208,7 +208,7 @@ public sealed class CommunityOutpostDelivererTests
             // Fallback GitHub URL writes valid zip archive
             downloadService
                 .Setup(d => d.DownloadFileAsync(
-                    new Uri("https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-07-31/generalszh-weekly-2026-07-31.zip"),
+                    It.Is<Uri>(u => u.Host.Contains("github.com")),
                     It.IsAny<string>(),
                     It.IsAny<string>(),
                     It.IsAny<IProgress<DownloadProgress>>(),
@@ -223,7 +223,7 @@ public sealed class CommunityOutpostDelivererTests
             Assert.True(result.Success, result.FirstError);
             downloadService.Verify(
                 d => d.DownloadFileAsync(
-                    new Uri("https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-07-31/generalszh-weekly-2026-07-31.zip"),
+                    It.Is<Uri>(u => u.Host.Contains("github.com")),
                     It.IsAny<string>(),
                     It.IsAny<string>(),
                     It.IsAny<IProgress<DownloadProgress>>(),

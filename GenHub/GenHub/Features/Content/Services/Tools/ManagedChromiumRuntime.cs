@@ -114,11 +114,19 @@ internal sealed class ManagedChromiumRuntime(
                     var hasExtractedDirs = Directory.Exists(runtimeDirectory) &&
                                            Directory.GetDirectories(runtimeDirectory).Length > 0;
 
-                    string statusMessage = hasExtractedDirs
-                        ? ModDBConstants.ChromiumExtractingMessage
-                        : elapsedSec > 10
-                            ? $"{ModDBConstants.ChromiumDownloadingMessage} ({elapsedSec}s)"
-                            : ModDBConstants.ChromiumDownloadingMessage;
+                    string statusMessage;
+                    if (hasExtractedDirs)
+                    {
+                        statusMessage = ModDBConstants.ChromiumExtractingMessage;
+                    }
+                    else if (elapsedSec > 10)
+                    {
+                        statusMessage = $"{ModDBConstants.ChromiumDownloadingMessage} ({elapsedSec}s)";
+                    }
+                    else
+                    {
+                        statusMessage = ModDBConstants.ChromiumDownloadingMessage;
+                    }
 
                     notificationService?.Update(toastId, statusMessage, ModDBConstants.ChromiumInstallTitle);
                 }
