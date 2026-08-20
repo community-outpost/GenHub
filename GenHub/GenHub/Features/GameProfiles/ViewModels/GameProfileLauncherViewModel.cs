@@ -772,6 +772,8 @@ public partial class GameProfileLauncherViewModel(
             // Logic must match GameInstallationService.GenerateAndPoolManifestForGameTypeAsync to ensure ID alignment
             string installationManifestId;
             if (string.IsNullOrEmpty(gameClient.Version) ||
+                gameClient.Version.Equals(GameClientConstants.UnknownVersion, StringComparison.OrdinalIgnoreCase) ||
+                gameClient.Version.Equals("Auto-Updated", StringComparison.OrdinalIgnoreCase) ||
                 gameClient.Version.Equals(GameClientConstants.AutoDetectedVersion, StringComparison.OrdinalIgnoreCase))
             {
                 // For unknown/auto versions, use the default version for the game type (1.04/1.08)
