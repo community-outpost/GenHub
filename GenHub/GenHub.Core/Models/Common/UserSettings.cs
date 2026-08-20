@@ -114,7 +114,7 @@ public class UserSettings
     /// <returns><see langword="true"/> if already executed; otherwise, <see langword="false"/>.</returns>
     public bool IsInstallationStepExecuted(string stepKey)
     {
-        return !string.IsNullOrWhiteSpace(stepKey) && ExecutedInstallationSteps.Contains(stepKey);
+        return !string.IsNullOrWhiteSpace(stepKey) && (ExecutedInstallationSteps?.Contains(stepKey) ?? false);
     }
 
     /// <summary>
@@ -125,6 +125,7 @@ public class UserSettings
     {
         if (!string.IsNullOrWhiteSpace(stepKey))
         {
+            ExecutedInstallationSteps ??= [];
             ExecutedInstallationSteps.Add(stepKey);
         }
     }

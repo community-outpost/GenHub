@@ -721,10 +721,10 @@ public class GeneralsOnlineManifestFactory(
             IsArchiveRootFile(file.RelativePath, GameClientConstants.GeneralsOnlineEacSetupExecutable));
 
         var inheritedPostSteps = (manifest.InstallationInstructions?.PostInstallSteps ?? [])
-            .Where(s => hasEacSetup || !string.Equals(
+            .Where(s => s != null && (hasEacSetup || !string.Equals(
                 s.TargetRelativePath,
                 GameClientConstants.GeneralsOnlineEacSetupExecutable,
-                StringComparison.OrdinalIgnoreCase));
+                StringComparison.OrdinalIgnoreCase)));
 
         var instructions = new InstallationInstructions
         {
@@ -735,7 +735,7 @@ public class GeneralsOnlineManifestFactory(
 
         if (manifest.ContentType == ContentType.GameClient &&
             hasEacSetup &&
-            instructions.PostInstallSteps.All(s => !string.Equals(s.TargetRelativePath, GameClientConstants.GeneralsOnlineEacSetupExecutable, StringComparison.OrdinalIgnoreCase)))
+            instructions.PostInstallSteps.All(s => s == null || !string.Equals(s.TargetRelativePath, GameClientConstants.GeneralsOnlineEacSetupExecutable, StringComparison.OrdinalIgnoreCase)))
         {
             instructions.PostInstallSteps.Add(new InstallationStep
             {

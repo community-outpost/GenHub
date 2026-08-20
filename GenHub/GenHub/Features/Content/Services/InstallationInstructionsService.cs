@@ -53,22 +53,11 @@ public class InstallationInstructionsService(
     }
 
     /// <inheritdoc />
-    public Task<OperationResult> ExecutePostInstallStepsAsync(
-        ContentManifest manifest,
-        string workingDirectory,
-        string? providerSource = null,
-        IProgress<ContentAcquisitionProgress>? progress = null,
-        CancellationToken cancellationToken = default)
-    {
-        return ExecutePostInstallStepsAsync(manifest, workingDirectory, providerSource, force: false, progress, cancellationToken);
-    }
-
-    /// <inheritdoc />
     public async Task<OperationResult> ExecutePostInstallStepsAsync(
         ContentManifest manifest,
         string workingDirectory,
-        string? providerSource,
-        bool force,
+        string? providerSource = null,
+        bool force = false,
         IProgress<ContentAcquisitionProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {

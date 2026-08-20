@@ -240,9 +240,6 @@ public static class ContentPipelineModule
         services.AddScoped<GeneralsOnlineProfileReconciler>();
         services.AddScoped<IGeneralsOnlineProfileReconciler>(sp => sp.GetRequiredService<GeneralsOnlineProfileReconciler>());
         services.AddScoped<IPublisherReconciler>(sp => sp.GetRequiredService<GeneralsOnlineProfileReconciler>());
-
-        // Register Easy Anti-Cheat installation step precondition
-        services.AddSingleton<IInstallationStepPrecondition, EasyAntiCheatPrecondition>();
     }
 
     /// <summary>
@@ -364,6 +361,9 @@ public static class ContentPipelineModule
 
         // Register content orchestrator and validator
         services.AddSingleton<IContentValidator, ContentValidator>();
+
+        // Register installation step preconditions
+        services.AddSingleton<IInstallationStepPrecondition, EasyAntiCheatPrecondition>();
 
         // Register installation instructions execution service
         services.AddSingleton<IInstallationInstructionsService, InstallationInstructionsService>();

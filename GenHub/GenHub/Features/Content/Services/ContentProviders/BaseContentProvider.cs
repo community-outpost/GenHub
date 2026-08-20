@@ -172,7 +172,18 @@ public abstract class BaseContentProvider : IContentProvider
 
             if (result.Success && result.Data != null)
             {
-                if (_installationInstructionsService != null)
+                if (_installationInstructionsService == null)
+                {
+                    if (result.Data.InstallationInstructions?.PostInstallSteps?.Count > 0)
+                    {
+                        Logger.LogWarning(
+                            "Manifest {ManifestId} declares {Count} post-installation step(s), but {ProviderName} has no installation instructions service; the steps were not executed",
+                            manifest.Id,
+                            result.Data.InstallationInstructions.PostInstallSteps.Count,
+                            SourceName);
+                    }
+                }
+                else
                 {
                     try
                     {
@@ -240,6 +251,8 @@ public abstract class BaseContentProvider : IContentProvider
                 {
                     Logger.LogWarning("Content validation found {IssueCount} issues for {ManifestId}", fullResult.Issues.Count, manifest.Id);
                 }
+
+                await OnContentPreparationCompletedAsync(manifest, result.Data, workingDirectory, cancellationToken);
             }
 
             return result;
@@ -265,6 +278,23 @@ public abstract class BaseContentProvider : IContentProvider
     /// <param name="cancellationToken">A token to cancel rollback operations.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     protected virtual Task RollbackPreparedContentAsync(
+        ContentManifest originalManifest,
+        ContentManifest preparedManifest,
+        string workingDirectory,
+        CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Executes cleanup or finalization when content preparation and validation succeed.
+    /// </summary>
+    /// <param name="originalManifest">The original requested manifest.</param>
+    /// <param name="preparedManifest">The prepared manifest returned by PrepareContentInternalAsync.</param>
+    /// <param name="workingDirectory">The working directory where content was prepared.</param>
+    /// <param name="cancellationToken">A token to cancel finalization operations.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    protected virtual Task OnContentPreparationCompletedAsync(
         ContentManifest originalManifest,
         ContentManifest preparedManifest,
         string workingDirectory,

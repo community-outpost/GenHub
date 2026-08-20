@@ -29,7 +29,7 @@ public class SuperHackersProvider(
     IEnumerable<IContentDeliverer> deliverers,
     IContentValidator contentValidator,
     ILogger<SuperHackersProvider> logger,
-    IInstallationInstructionsService? installationInstructionsService = null)
+    IInstallationInstructionsService installationInstructionsService)
     : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
     private readonly IContentResolver _resolver = resolvers.FirstOrDefault(r =>

@@ -72,7 +72,6 @@ public static class PublisherTypeConstants
         GeneralsOnline,
         CommunityOutpost,
         TheSuperHackers,
-        GenHubInternal,
     };
 
     /// <summary>

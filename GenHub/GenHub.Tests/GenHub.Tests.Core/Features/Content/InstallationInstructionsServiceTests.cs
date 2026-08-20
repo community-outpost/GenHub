@@ -626,18 +626,102 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that caller cancellation terminates the running child installer process.
+    /// Verifies that remove file steps reject paths that escape the working directory.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExecutePostInstallStepsAsync_RemoveFile_PathTraversalTarget_FailsExecution()
+    {
+        var manifest = CreateBaseManifest();
+        manifest.InstallationInstructions = new InstallationInstructions
+        {
+            PostInstallSteps =
+            [
+                new InstallationStep
+                {
+                    Name = "Remove Escape",
+                    Kind = InstallationStepKind.RemoveFile,
+                    TargetRelativePath = "../../outside.tmp",
+                },
+            ],
+        };
+
+        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory, providerSource: PublisherTypeConstants.GeneralsOnline);
+
+        Assert.False(result.Success);
+        Assert.Contains("escapes the working directory", result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies that rename file steps reject source paths that escape the working directory.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExecutePostInstallStepsAsync_RenameFile_SourcePathTraversal_FailsExecution()
+    {
+        var manifest = CreateBaseManifest();
+        manifest.InstallationInstructions = new InstallationInstructions
+        {
+            PostInstallSteps =
+            [
+                new InstallationStep
+                {
+                    Name = "Rename Source Escape",
+                    Kind = InstallationStepKind.RenameFile,
+                    TargetRelativePath = "../../outside.tmp",
+                    DestinationRelativePath = "dest.tmp",
+                },
+            ],
+        };
+
+        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory, providerSource: PublisherTypeConstants.GeneralsOnline);
+
+        Assert.False(result.Success);
+        Assert.Contains("escapes the working directory", result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies that rename file steps reject destination paths that escape the working directory.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExecutePostInstallStepsAsync_RenameFile_DestinationPathTraversal_FailsExecution()
+    {
+        var manifest = CreateBaseManifest();
+        manifest.InstallationInstructions = new InstallationInstructions
+        {
+            PostInstallSteps =
+            [
+                new InstallationStep
+                {
+                    Name = "Rename Destination Escape",
+                    Kind = InstallationStepKind.RenameFile,
+                    TargetRelativePath = "source.tmp",
+                    DestinationRelativePath = "../../outside.tmp",
+                },
+            ],
+        };
+
+        var result = await _service.ExecutePostInstallStepsAsync(manifest, _tempDirectory, providerSource: PublisherTypeConstants.GeneralsOnline);
+
+        Assert.False(result.Success);
+        Assert.Contains("escapes the working directory", result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies that cancellation token terminates the running process and throws OperationCanceledException.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
     public async Task ExecutePostInstallStepsAsync_CallerCancellation_TerminatesProcessAndThrows()
     {
-        var scriptName = OperatingSystem.IsWindows() ? "sleep_installer.bat" : "sleep_installer.sh";
+        var scriptName = OperatingSystem.IsWindows() ? "sleep_installer.exe" : "sleep_installer.sh";
         var fullPath = Path.Combine(_tempDirectory, scriptName);
 
         if (OperatingSystem.IsWindows())
         {
-            File.WriteAllText(fullPath, "@echo off\r\nping -n 30 127.0.0.1 > nul\r\n");
+            var systemCmd = Path.Combine(Environment.SystemDirectory, "cmd.exe");
+            File.Copy(systemCmd, fullPath, overwrite: true);
         }
         else
         {
@@ -668,6 +752,7 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
                     Name = "Long Running Step",
                     Kind = InstallationStepKind.RunVerifiedInstaller,
                     TargetRelativePath = scriptName,
+                    Arguments = OperatingSystem.IsWindows() ? ["/c", "ping", "-n", "30", "127.0.0.1"] : [],
                 },
             ],
         };

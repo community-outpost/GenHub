@@ -52,6 +52,7 @@ public class BaseContentProviderTests
                 It.IsAny<ContentManifest>(),
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
+                It.IsAny<bool>(),
                 It.IsAny<IProgress<ContentAcquisitionProgress>>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult.CreateSuccess());
@@ -70,7 +71,7 @@ public class BaseContentProviderTests
         // Assert
         Assert.True(result.Success);
         validatorMock.Verify(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()), Times.Once);
-        instructionsMock.Verify(i => i.ExecutePostInstallStepsAsync(manifest, "/tmp/test", "Test Provider", It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
+        instructionsMock.Verify(i => i.ExecutePostInstallStepsAsync(manifest, "/tmp/test", "Test Provider", false, It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
         validatorMock.Verify(v => v.ValidateAllAsync(It.IsAny<string>(), manifest, It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -99,6 +100,7 @@ public class BaseContentProviderTests
                 It.IsAny<ContentManifest>(),
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
+                It.IsAny<bool>(),
                 It.IsAny<IProgress<ContentAcquisitionProgress>>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult.CreateFailure("Post-install step execution error"));
@@ -145,6 +147,7 @@ public class BaseContentProviderTests
                 It.IsAny<ContentManifest>(),
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
+                It.IsAny<bool>(),
                 It.IsAny<IProgress<ContentAcquisitionProgress>>(),
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new OperationCanceledException());

@@ -57,10 +57,7 @@ public class EasyAntiCheatPrecondition : IInstallationStepPrecondition
     {
         try
         {
-            var productId = step.Arguments is { Count: > 1 }
-                ? step.Arguments[1]
-                : GeneralsOnlineConstants.EacProductId;
-
+            var productId = GeneralsOnlineConstants.EacProductId;
             if (string.IsNullOrWhiteSpace(productId))
             {
                 return false;

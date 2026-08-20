@@ -51,6 +51,7 @@ public class GitHubContentProviderTests
                 It.IsAny<ContentManifest>(),
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
+                It.IsAny<bool>(),
                 It.IsAny<IProgress<ContentAcquisitionProgress>>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult.CreateSuccess());

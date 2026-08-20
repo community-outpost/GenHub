@@ -621,7 +621,9 @@ public partial class ContentManifestBuilder(
             {
                 WorkspaceStrategy = workspaceStrategy,
                 DownloadHash = _manifest.InstallationInstructions.DownloadHash,
-                PostInstallSteps = [.. _manifest.InstallationInstructions.PostInstallSteps],
+                PostInstallSteps = _manifest.InstallationInstructions.PostInstallSteps == null
+                    ? []
+                    : [.. _manifest.InstallationInstructions.PostInstallSteps],
             };
 
         logger.LogDebug("Set workspace strategy: {Strategy}", workspaceStrategy);
@@ -631,14 +633,16 @@ public partial class ContentManifestBuilder(
     /// <inheritdoc />
     public IContentManifestBuilder WithInstallationInstructions(InstallationInstructions installationInstructions)
     {
-        _manifest.InstallationInstructions = installationInstructions == null
-            ? new InstallationInstructions()
-            : new InstallationInstructions
-            {
-                WorkspaceStrategy = installationInstructions.WorkspaceStrategy,
-                DownloadHash = installationInstructions.DownloadHash,
-                PostInstallSteps = [.. installationInstructions.PostInstallSteps],
-            };
+        ArgumentNullException.ThrowIfNull(installationInstructions);
+
+        _manifest.InstallationInstructions = new InstallationInstructions
+        {
+            WorkspaceStrategy = installationInstructions.WorkspaceStrategy,
+            DownloadHash = installationInstructions.DownloadHash,
+            PostInstallSteps = installationInstructions.PostInstallSteps == null
+                ? []
+                : [.. installationInstructions.PostInstallSteps],
+        };
 
         logger.LogDebug(
             "Set installation instructions with strategy {Strategy}, {PostCount} post-install steps",

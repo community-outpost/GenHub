@@ -55,7 +55,8 @@ public class SuperHackersProviderTests
             [_resolverMock.Object],
             [_delivererMock.Object],
             _validatorMock.Object,
-            NullLogger<SuperHackersProvider>.Instance);
+            NullLogger<SuperHackersProvider>.Instance,
+            new Mock<IInstallationInstructionsService>().Object);
     }
 
     /// <summary>

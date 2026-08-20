@@ -310,4 +310,15 @@ public class GeneralsOnlineProvider(
             Logger.LogError(ex, "Error occurred during Generals Online manifest registration rollback");
         }
     }
+
+    /// <inheritdoc />
+    protected override Task OnContentPreparationCompletedAsync(
+        ContentManifest originalManifest,
+        ContentManifest preparedManifest,
+        string workingDirectory,
+        CancellationToken cancellationToken)
+    {
+        _preExistingManifestIdsByManifest.TryRemove(originalManifest.Id, out _);
+        return Task.CompletedTask;
+    }
 }

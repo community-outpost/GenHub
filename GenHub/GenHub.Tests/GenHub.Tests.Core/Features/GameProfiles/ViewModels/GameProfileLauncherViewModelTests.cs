@@ -337,7 +337,8 @@ public class GameProfileLauncherViewModelTests
             [resolverMock.Object],
             [delivererMock.Object],
             new Mock<GenHub.Core.Interfaces.Content.IContentValidator>().Object,
-            NullLogger<SuperHackersProvider>.Instance);
+            NullLogger<SuperHackersProvider>.Instance,
+            new Mock<IInstallationInstructionsService>().Object);
     }
 
     /// <summary>

@@ -13,22 +13,6 @@ namespace GenHub.Core.Interfaces.Content;
 public interface IInstallationInstructionsService
 {
     /// <summary>
-    /// Executes post-installation steps for the specified manifest.
-    /// </summary>
-    /// <param name="manifest">The content manifest declaring post-installation steps.</param>
-    /// <param name="workingDirectory">The working directory containing the content files.</param>
-    /// <param name="providerSource">The provider source name supplying the content, used for step authorization.</param>
-    /// <param name="progress">Optional progress reporter for acquisition status.</param>
-    /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A result indicating whether all post-installation steps succeeded.</returns>
-    Task<OperationResult> ExecutePostInstallStepsAsync(
-        ContentManifest manifest,
-        string workingDirectory,
-        string? providerSource = null,
-        IProgress<ContentAcquisitionProgress>? progress = null,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Executes post-installation steps for the specified manifest, optionally forcing run-once steps.
     /// </summary>
     /// <param name="manifest">The content manifest declaring post-installation steps.</param>
@@ -41,8 +25,8 @@ public interface IInstallationInstructionsService
     Task<OperationResult> ExecutePostInstallStepsAsync(
         ContentManifest manifest,
         string workingDirectory,
-        string? providerSource,
-        bool force,
+        string? providerSource = null,
+        bool force = false,
         IProgress<ContentAcquisitionProgress>? progress = null,
         CancellationToken cancellationToken = default);
 }
