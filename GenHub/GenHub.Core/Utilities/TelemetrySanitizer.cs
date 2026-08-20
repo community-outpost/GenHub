@@ -33,7 +33,7 @@ public partial class TelemetrySanitizer : ITelemetrySanitizer
     [GeneratedRegex(@"/(?:home|Users)/[^/]+", RegexOptions.Compiled)]
     private static partial Regex UnixUserDirRegex();
 
-    [GeneratedRegex(@"/[^\s""]+/\.wine(?:-[^\s""]+)?/drive_c", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+    [GeneratedRegex(@"(?:[^\s""]+)?/\.wine(?:-[^\s""]+)?/drive_c", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
     private static partial Regex WinePrefixRegex();
 
     private readonly string? _userProfilePath;
@@ -66,6 +66,9 @@ public partial class TelemetrySanitizer : ITelemetrySanitizer
 
         var result = input;
 
+        // Mask Wine prefix paths
+        result = WinePrefixRegex().Replace(result, TelemetryConstants.WinePrefixMask);
+
         // Mask exact user profile path if available
         if (!string.IsNullOrEmpty(_userProfilePath) && _userProfilePath.Length > 2)
         {
@@ -77,9 +80,6 @@ public partial class TelemetrySanitizer : ITelemetrySanitizer
 
         // Mask generic Unix/macOS user directory patterns (e.g. /home/john or /Users/john)
         result = UnixUserDirRegex().Replace(result, TelemetryConstants.UserDirectoryMask);
-
-        // Mask Wine prefix paths
-        result = WinePrefixRegex().Replace(result, TelemetryConstants.WinePrefixMask);
 
         // Mask GitHub & authorization tokens
         result = GitHubTokenRegex().Replace(result, TelemetryConstants.SecretTokenMask);
