@@ -158,4 +158,3 @@ public sealed class AnalyticsTelemetrySink(
             : OperationResult<bool>.CreateSuccess(true);
     }
 }
-

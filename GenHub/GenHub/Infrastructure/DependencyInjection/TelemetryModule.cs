@@ -50,4 +50,3 @@ public static class TelemetryModule
         return services;
     }
 }
-

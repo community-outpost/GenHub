@@ -184,14 +184,14 @@ public class DownloadService(
             }
         }
 
-        var elapsedSeconds = stopwatch.Elapsed.TotalSeconds;
+        var totalElapsedSeconds = stopwatch.Elapsed.TotalSeconds;
         var sizeMb = downloadedBytes / (1024.0 * 1024.0);
-        var speedMbps = elapsedSeconds > 0 ? (sizeMb * 8.0) / elapsedSeconds : 0.0;
+        var speedMbps = totalElapsedSeconds > 0 ? (sizeMb * 8.0) / totalElapsedSeconds : 0.0;
 
         telemetryService?.TrackEvent(TelemetryConstants.Events.ContentDownloadCompleted, new Dictionary<string, object?>
         {
             [TelemetryConstants.Properties.SizeMb] = Math.Round(sizeMb, 2),
-            [TelemetryConstants.Properties.DurationSeconds] = Math.Round(elapsedSeconds, 2),
+            [TelemetryConstants.Properties.DurationSeconds] = Math.Round(totalElapsedSeconds, 2),
             [TelemetryConstants.Properties.SpeedMbps] = Math.Round(speedMbps, 2),
             [TelemetryConstants.Properties.SourceProvider] = configuration.Url.Host,
         });

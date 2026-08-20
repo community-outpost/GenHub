@@ -105,7 +105,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
             var sanitizedProperties = _sanitizer.SanitizeProperties(properties);
 
             string? sessionId = null;
-            if (properties != null && properties.TryGetValue(TelemetryConstants.Properties.SessionId, out var rawSessionId) && rawSessionId != null)
+            if (properties?.TryGetValue(TelemetryConstants.Properties.SessionId, out var rawSessionId) is true && rawSessionId != null)
             {
                 sessionId = rawSessionId.ToString();
             }

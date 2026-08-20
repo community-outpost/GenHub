@@ -589,6 +589,36 @@ public class GameProcessManager(
         }
     }
 
+    private static string DetectRunnerEnvironment()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return "Native";
+        }
+
+        if (Environment.GetEnvironmentVariable("PROTON_VERSION") is { Length: > 0 } proton)
+        {
+            return $"Proton-{proton}";
+        }
+
+        if (Environment.GetEnvironmentVariable("WINEPREFIX") is { Length: > 0 })
+        {
+            return "Wine";
+        }
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            return "Linux-Runner";
+        }
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            return "macOS-Runner";
+        }
+
+        return "Native";
+    }
+
     /// <summary>
     /// Reads a process's start time in UTC, or reports that it could not be read.
     /// </summary>
@@ -1378,27 +1408,6 @@ public class GameProcessManager(
         var detail = capturedErrors.ToString();
 
         return string.IsNullOrWhiteSpace(detail) ? message : $"{message} {detail}";
-    }
-
-    private static string DetectRunnerEnvironment()
-    {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            return "Native";
-        }
-
-        if (Environment.GetEnvironmentVariable("PROTON_VERSION") is { Length: > 0 } proton)
-        {
-            return $"Proton-{proton}";
-        }
-
-        if (Environment.GetEnvironmentVariable("WINEPREFIX") is { Length: > 0 })
-        {
-            return "Wine";
-        }
-
-        return RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ? "Linux-Runner" :
-               RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? "macOS-Runner" : "Native";
     }
 
     private void RegisterSessionAndEmitStarted(Process process, string executableName)

@@ -69,9 +69,7 @@ public partial class App : Application
             };
 
             TaskScheduler.UnobservedTaskException += (sender, args) =>
-            {
                 _telemetryService?.TrackException(args.Exception, "TaskScheduler.UnobservedTaskException", isFatal: false);
-            };
 
             _telemetryService?.AddBreadcrumb("Application initialized", "lifecycle");
 

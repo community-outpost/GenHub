@@ -26,19 +26,17 @@ public class TelemetryServiceTests : IDisposable
     private readonly Mock<IUserSettingsService> _mockUserSettingsService = new();
     private readonly TelemetrySanitizer _sanitizer = new();
     private readonly Mock<ITelemetrySink> _mockSink = new();
-    private UserSettings _settings;
+    private readonly UserSettings _settings = new()
+    {
+        TelemetryPreference = TelemetryLevel.AnonymousMetrics,
+        AnonymousInstallationId = "test-installation-guid",
+    };
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TelemetryServiceTests"/> class.
     /// </summary>
     public TelemetryServiceTests()
     {
-        _settings = new UserSettings
-        {
-            TelemetryPreference = TelemetryLevel.AnonymousMetrics,
-            AnonymousInstallationId = "test-installation-guid",
-        };
-
         _mockUserSettingsService.Setup(s => s.Get()).Returns(() => _settings);
         _mockSink.Setup(s => s.CanHandle(It.IsAny<TelemetryEvent>())).Returns(true);
         _mockSink.Setup(s => s.EmitAsync(It.IsAny<TelemetryEvent>(), It.IsAny<CancellationToken>()))

@@ -79,76 +79,7 @@ public sealed class SentryTelemetrySink(
         try
         {
             var (storeUrl, publicKey) = ParseDsn(dsn);
-            var extra = new Dictionary<string, object?>(telemetryEvent.Properties ?? new Dictionary<string, object?>());
-
-            string? exceptionType = null;
-            string? exceptionMessage = null;
-            string? stackTrace = null;
-            var isFatal = false;
-
-            if (extra.Remove(TelemetryConstants.Properties.ExceptionType, out var exTypeObj) && exTypeObj != null)
-            {
-                exceptionType = exTypeObj.ToString();
-            }
-
-            if (extra.Remove(TelemetryConstants.Properties.ExceptionMessage, out var exMsgObj) && exMsgObj != null)
-            {
-                exceptionMessage = exMsgObj.ToString();
-            }
-
-            if (extra.Remove(TelemetryConstants.Properties.StackTrace, out var stackObj) && stackObj != null)
-            {
-                stackTrace = stackObj.ToString();
-            }
-
-            if (extra.Remove(TelemetryConstants.Properties.IsFatal, out var fatalObj) && fatalObj is bool b)
-            {
-                isFatal = b;
-            }
-
-            var payload = new Dictionary<string, object?>
-            {
-                ["event_id"] = Guid.NewGuid().ToString("N"),
-                ["timestamp"] = telemetryEvent.Timestamp.ToString("o"),
-                ["platform"] = "csharp",
-                ["level"] = isFatal ? "fatal" : "error",
-                ["logger"] = TelemetryConstants.AppName,
-                ["release"] = telemetryEvent.AppVersion,
-                ["environment"] = AppConstants.BuildChannel,
-                ["tags"] = new Dictionary<string, string>
-                {
-                    ["os"] = telemetryEvent.Platform,
-                    ["arch"] = RuntimeInformation.ProcessArchitecture.ToString(),
-                },
-                ["user"] = new Dictionary<string, string>
-                {
-                    ["id"] = telemetryEvent.InstallationId,
-                },
-                ["extra"] = extra,
-            };
-
-            if (!string.IsNullOrEmpty(exceptionMessage) || !string.IsNullOrEmpty(exceptionType))
-            {
-                payload["message"] = new Dictionary<string, object?>
-                {
-                    ["formatted"] = exceptionMessage ?? exceptionType ?? "Application Crash",
-                };
-
-                payload["exception"] = new Dictionary<string, object?>
-                {
-                    ["values"] = new[]
-                    {
-                        new Dictionary<string, object?>
-                        {
-                            ["type"] = exceptionType ?? "Exception",
-                            ["value"] = exceptionMessage ?? string.Empty,
-                            ["stacktrace"] = !string.IsNullOrEmpty(stackTrace)
-                                ? new Dictionary<string, object?> { ["raw"] = stackTrace }
-                                : null,
-                        },
-                    },
-                };
-            }
+            var payload = BuildSentryPayload(telemetryEvent);
 
             var json = JsonSerializer.Serialize(payload, JsonOptions);
             using var request = new HttpRequestMessage(HttpMethod.Post, storeUrl)
@@ -209,6 +140,82 @@ public sealed class SentryTelemetrySink(
             : OperationResult<bool>.CreateSuccess(true);
     }
 
+    private static Dictionary<string, object?> BuildSentryPayload(TelemetryEvent telemetryEvent)
+    {
+        var extra = new Dictionary<string, object?>(telemetryEvent.Properties ?? new Dictionary<string, object?>());
+
+        string? exceptionType = null;
+        string? exceptionMessage = null;
+        string? stackTrace = null;
+        var isFatal = false;
+
+        if (extra.Remove(TelemetryConstants.Properties.ExceptionType, out var exTypeObj) && exTypeObj != null)
+        {
+            exceptionType = exTypeObj.ToString();
+        }
+
+        if (extra.Remove(TelemetryConstants.Properties.ExceptionMessage, out var exMsgObj) && exMsgObj != null)
+        {
+            exceptionMessage = exMsgObj.ToString();
+        }
+
+        if (extra.Remove(TelemetryConstants.Properties.StackTrace, out var stackObj) && stackObj != null)
+        {
+            stackTrace = stackObj.ToString();
+        }
+
+        if (extra.Remove(TelemetryConstants.Properties.IsFatal, out var fatalObj) && fatalObj is bool b)
+        {
+            isFatal = b;
+        }
+
+        var payload = new Dictionary<string, object?>
+        {
+            ["event_id"] = Guid.NewGuid().ToString("N"),
+            ["timestamp"] = telemetryEvent.Timestamp.ToString("o"),
+            ["platform"] = "csharp",
+            ["level"] = isFatal ? "fatal" : "error",
+            ["logger"] = TelemetryConstants.AppName,
+            ["release"] = telemetryEvent.AppVersion,
+            ["environment"] = AppConstants.BuildChannel,
+            ["tags"] = new Dictionary<string, string>
+            {
+                ["os"] = telemetryEvent.Platform,
+                ["arch"] = RuntimeInformation.ProcessArchitecture.ToString(),
+            },
+            ["user"] = new Dictionary<string, string>
+            {
+                ["id"] = telemetryEvent.InstallationId,
+            },
+            ["extra"] = extra,
+        };
+
+        if (!string.IsNullOrEmpty(exceptionMessage) || !string.IsNullOrEmpty(exceptionType))
+        {
+            payload["message"] = new Dictionary<string, object?>
+            {
+                ["formatted"] = exceptionMessage ?? exceptionType ?? "Application Crash",
+            };
+
+            payload["exception"] = new Dictionary<string, object?>
+            {
+                ["values"] = new[]
+                {
+                    new Dictionary<string, object?>
+                    {
+                        ["type"] = exceptionType ?? "Exception",
+                        ["value"] = exceptionMessage ?? string.Empty,
+                        ["stacktrace"] = !string.IsNullOrEmpty(stackTrace)
+                            ? new Dictionary<string, object?> { ["raw"] = stackTrace }
+                            : new Dictionary<string, object?>(),
+                    },
+                },
+            };
+        }
+
+        return payload;
+    }
+
     private static (string StoreUrl, string? PublicKey) ParseDsn(string dsn)
     {
         if (string.IsNullOrWhiteSpace(dsn))
@@ -233,4 +240,3 @@ public sealed class SentryTelemetrySink(
         return (storeUrl, publicKey);
     }
 }
-
