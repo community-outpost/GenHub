@@ -9,6 +9,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
 using GenHub.Core.Models.Tools.ModBuilder;
+using GenHub.Features.Tools.ModBuilder.Models;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -107,9 +108,24 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets the list of recent projects.
     /// </summary>
-    public ObservableCollection<string> RecentProjects { get; } = [];
+    public ObservableCollection<RecentProjectInfo> RecentProjects { get; } = [];
 
-    private readonly List<string> _allRecentProjects = [];
+    private readonly List<RecentProjectInfo> _allRecentProjects = [];
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the quick start guide is visible.
+    /// </summary>
+    [ObservableProperty]
+    private bool _showQuickStartGuide = true;
+
+    /// <summary>
+    /// Dismisses the quick start guide.
+    /// </summary>
+    [RelayCommand]
+    private void DismissQuickStartGuide()
+    {
+        ShowQuickStartGuide = false;
+    }
 
     /// <summary>
     /// Gets or sets the search query for filtering projects.
@@ -128,11 +144,11 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         var query = SearchQuery?.Trim() ?? string.Empty;
         var filtered = string.IsNullOrEmpty(query)
             ? _allRecentProjects
-            : _allRecentProjects.Where(p => Path.GetFileName(p).Contains(query, StringComparison.OrdinalIgnoreCase) || p.Contains(query, StringComparison.OrdinalIgnoreCase));
+            : _allRecentProjects.Where(p => p.Name.Contains(query, StringComparison.OrdinalIgnoreCase) || p.Path.Contains(query, StringComparison.OrdinalIgnoreCase));
 
-        foreach (var projectPath in filtered)
+        foreach (var project in filtered)
         {
-            RecentProjects.Add(projectPath);
+            RecentProjects.Add(project);
         }
 
         OnPropertyChanged(nameof(HasRecentProjects));
@@ -426,14 +442,54 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             var result = await _projectConfigService.GetRecentProjectsAsync(10).ConfigureAwait(false);
             if (result.Success && result.Data != null)
             {
+                var projectInfos = new List<RecentProjectInfo>();
+                foreach (var path in result.Data)
+                {
+                    var name = Path.GetFileNameWithoutExtension(path);
+                    if (string.IsNullOrWhiteSpace(name))
+                    {
+                        name = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                    }
+
+                    if (string.IsNullOrWhiteSpace(name))
+                    {
+                        name = "Untitled Project";
+                    }
+
+                    DateTime? lastWriteTime = null;
+                    try
+                    {
+                        if (File.Exists(path))
+                        {
+                            lastWriteTime = File.GetLastWriteTime(path);
+                        }
+                        else if (Directory.Exists(path))
+                        {
+                            lastWriteTime = Directory.GetLastWriteTime(path);
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore I/O errors reading timestamp
+                    }
+
+                    projectInfos.Add(new RecentProjectInfo
+                    {
+                        Name = name,
+                        Path = path,
+                        LastBuildTime = lastWriteTime,
+                        Version = "1.0.0",
+                    });
+                }
+
                 await InvokeOnUIThreadAsync(() =>
                 {
                     _allRecentProjects.Clear();
-                    _allRecentProjects.AddRange(result.Data);
+                    _allRecentProjects.AddRange(projectInfos);
                     ApplyProjectFilter();
                 });
 
-                _logger.LogInformation("Loaded {Count} recent projects", result.Data.Count);
+                _logger.LogInformation("Loaded {Count} recent projects", projectInfos.Count);
             }
         }
         catch (Exception ex)
@@ -585,13 +641,20 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Opens a recent project from its file path.
+    /// Opens a recent project from its file path or info object.
     /// </summary>
-    /// <param name="path">The file path of the project to open.</param>
+    /// <param name="parameter">The file path or recent project info to open.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [RelayCommand]
-    private async Task OpenRecentProjectAsync(string? path)
+    private async Task OpenRecentProjectAsync(object? parameter)
     {
+        var path = parameter switch
+        {
+            RecentProjectInfo info => info.Path,
+            string s => s,
+            _ => null,
+        };
+
         _logger.LogInformation("OpenRecentProjectAsync requested for: {Path}", path);
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
         {
@@ -651,6 +714,19 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
+    /// Gets the current active window or main application window.
+    /// </summary>
+    private static Window? GetOwnerWindow()
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime lifetime)
+        {
+            return lifetime.Windows.FirstOrDefault(w => w.IsActive) ?? lifetime.MainWindow ?? lifetime.Windows.FirstOrDefault();
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Opens the dedicated File and Asset Manager dialog.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanOpenFileManager))]
@@ -665,7 +741,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         try
         {
-            var projectDir = Path.GetDirectoryName(ProjectPath) ?? CurrentProject.ProjectDir;
+            var projectDir = !string.IsNullOrEmpty(ProjectPath) ? Path.GetDirectoryName(ProjectPath) : CurrentProject.ProjectDir;
             if (!string.IsNullOrEmpty(projectDir))
             {
                 await FileManager.InitializeAsync(projectDir).ConfigureAwait(false);
@@ -673,16 +749,18 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
             await InvokeOnUIThreadAsync(async () =>
             {
-                var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
-                var mainWindow = lifetime?.MainWindow;
-                if (mainWindow == null)
+                var dialog = new Views.FileManagerDialog(FileManager);
+                var owner = GetOwnerWindow();
+                if (owner != null)
                 {
-                    return;
+                    await dialog.ShowDialog(owner);
+                }
+                else
+                {
+                    dialog.Show();
                 }
 
-                var dialog = new Views.FileManagerDialog(FileManager);
-                await dialog.ShowDialog(mainWindow).ConfigureAwait(false);
-                await RefreshFileCountAsync().ConfigureAwait(false);
+                await RefreshFileCountAsync();
             });
         }
         catch (Exception ex)
@@ -761,6 +839,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 ProjectPath = projectPath;
                 ProjectName = result.Data.Name;
                 IsProjectLoaded = true;
+                ShowQuickStartGuide = true;
 
                 await LoadProjectDataAsync().ConfigureAwait(false);
                 await _projectConfigService.AddToRecentProjectsAsync(projectPath).ConfigureAwait(false);
@@ -857,13 +936,6 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         try
         {
-            var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
-            var mainWindow = lifetime?.MainWindow;
-            if (mainWindow == null)
-            {
-                return;
-            }
-
             // Create the ConfigEditorViewModel
             var configEditorViewModel = new ConfigEditorViewModel(
                 _configurationLoaderService,
@@ -877,7 +949,15 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             await InvokeOnUIThreadAsync(async () =>
             {
                 var dialog = new Views.ConfigEditorDialog(configEditorViewModel);
-                await dialog.ShowDialog(mainWindow).ConfigureAwait(false);
+                var owner = GetOwnerWindow();
+                if (owner != null)
+                {
+                    await dialog.ShowDialog(owner);
+                }
+                else
+                {
+                    dialog.Show();
+                }
 
                 // Reload bundles after dialog closes
                 await LoadBundlesAsync().ConfigureAwait(false);
@@ -1341,7 +1421,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     private void OpenProjectFolder()
     {
         _logger.LogInformation("OpenProjectFolder requested for: {Path}", ProjectPath);
-        if (string.IsNullOrEmpty(ProjectPath))
+        var projectDir = !string.IsNullOrEmpty(ProjectPath) ? Path.GetDirectoryName(ProjectPath) : CurrentProject?.ProjectDir;
+        if (string.IsNullOrEmpty(projectDir))
         {
             _notificationService.ShowWarning("No Project", "Please load or create a project first");
             return;
@@ -1349,17 +1430,9 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         try
         {
-            var projectDir = Path.GetDirectoryName(ProjectPath);
-            if (string.IsNullOrEmpty(projectDir))
-            {
-                _notificationService.ShowWarning("Invalid Path", "Project path is invalid");
-                return;
-            }
-
             if (!Directory.Exists(projectDir))
             {
-                _notificationService.ShowWarning("Folder Not Found", "Project folder does not exist");
-                return;
+                Directory.CreateDirectory(projectDir);
             }
 
             Process.Start(new ProcessStartInfo
@@ -1382,7 +1455,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     private void OpenEditFolder()
     {
         _logger.LogInformation("OpenEditFolder requested for project: {Path}", ProjectPath);
-        if (string.IsNullOrEmpty(ProjectPath))
+        var projectDir = !string.IsNullOrEmpty(ProjectPath) ? Path.GetDirectoryName(ProjectPath) : CurrentProject?.ProjectDir;
+        if (string.IsNullOrEmpty(projectDir))
         {
             _notificationService.ShowWarning("No Project", "Please load or create a project first");
             return;
@@ -1390,12 +1464,6 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         try
         {
-            var projectDir = Path.GetDirectoryName(ProjectPath);
-            if (string.IsNullOrEmpty(projectDir))
-            {
-                return;
-            }
-
             var editFolder = Path.Combine(projectDir, "GameFilesEdited");
             if (!Directory.Exists(editFolder))
             {
@@ -1632,6 +1700,9 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         PostToUIThread(() =>
         {
+            OpenFileManagerCommand.NotifyCanExecuteChanged();
+            OpenConfigEditorCommand.NotifyCanExecuteChanged();
+            SaveProjectCommand.NotifyCanExecuteChanged();
             BuildCommand.NotifyCanExecuteChanged();
             CleanCommand.NotifyCanExecuteChanged();
             AbortBuildCommand.NotifyCanExecuteChanged();
@@ -1665,12 +1736,15 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         // Dispatch UI updates to UI thread
         PostToUIThread(() =>
         {
+            OpenFileManagerCommand.NotifyCanExecuteChanged();
+            OpenConfigEditorCommand.NotifyCanExecuteChanged();
             SaveProjectCommand.NotifyCanExecuteChanged();
             CloseProjectCommand.NotifyCanExecuteChanged();
             BuildCommand.NotifyCanExecuteChanged();
             CleanCommand.NotifyCanExecuteChanged();
             AddBundleCommand.NotifyCanExecuteChanged();
             OnPropertyChanged(nameof(CurrentProjectPath));
+            OnPropertyChanged(nameof(IsProjectLoaded));
         });
     }
 
