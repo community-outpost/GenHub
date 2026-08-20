@@ -1774,7 +1774,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             await Task.Run(() =>
             {
                 var files = Directory.GetFiles(logsPath, "*.log", SearchOption.TopDirectoryOnly);
-                var todayLogFileName = $"{AppConstants.AppName.ToLowerInvariant()}-{DateTime.Now:yyyy-MM-dd}.log";
+                var todayLogFileName = $"{AppConstants.AppName.ToLowerInvariant()}-{DateTime.UtcNow:yyyy-MM-dd}.log";
 
                 foreach (var file in files)
                 {

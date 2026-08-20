@@ -714,8 +714,10 @@ public class SettingsViewModelTests
 
         try
         {
-            var logFile1 = Path.Combine(tempLogsDir, "genhub-2026-08-19.log");
-            var logFile2 = Path.Combine(tempLogsDir, "genhub-2026-08-20.log");
+            var todayLogName = $"genhub-{DateTime.UtcNow:yyyy-MM-dd}.log";
+            var pastLogName = $"genhub-{DateTime.UtcNow.AddDays(-1):yyyy-MM-dd}.log";
+            var logFile1 = Path.Combine(tempLogsDir, pastLogName);
+            var logFile2 = Path.Combine(tempLogsDir, todayLogName);
             await File.WriteAllTextAsync(logFile1, "Sample log content 1");
             await File.WriteAllTextAsync(logFile2, "Sample log content 2");
 
