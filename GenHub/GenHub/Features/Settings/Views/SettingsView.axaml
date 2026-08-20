@@ -499,26 +499,23 @@
 
             <TextBlock Text="Application Logs" Classes="setting-label" Margin="0,10,0,0" />
 
-            <TextBlock Text="Access diagnostic logs to help troubleshoot issues or report bugs."
-                       Classes="setting-description" />
-
-            <Grid ColumnDefinitions="*,10,*,10,*,10,*" Margin="0,10,0,0">
-                <Button Grid.Column="0"
+            <Grid ColumnDefinitions="*,10,*" RowDefinitions="Auto,10,Auto" Margin="0,10,0,0">
+                <Button Grid.Row="0" Grid.Column="0"
                         Content="Open Logs Directory"
                         Command="{Binding OpenLogsDirectoryCommand}"
                         Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
 
-                <Button Grid.Column="2"
+                <Button Grid.Row="0" Grid.Column="2"
                         Content="Open Latest Log"
                         Command="{Binding OpenLatestLogCommand}"
                         Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
 
-                <Button Grid.Column="4"
+                <Button Grid.Row="2" Grid.Column="0"
                         Content="Copy Latest Log Content"
                         Command="{Binding CopyLatestLogCommand}"
                         Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>
 
-                <Button Grid.Column="6"
+                <Button Grid.Row="2" Grid.Column="2"
                         Content="Clear Logs"
                         Command="{Binding ClearLogsCommand}"
                         Classes="secondary-button" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"/>

@@ -137,6 +137,17 @@ public partial class ModDBManifestFactory(
             throw new InvalidDataException("ModDB download did not produce any usable files.");
         }
 
+        if (files.Count == 1 &&
+            originalManifest.ContentType is ContentType.Mod or ContentType.Patch or ContentType.Addon &&
+            files[0].RelativePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) &&
+            (files[0].RelativePath.Contains("setup", StringComparison.OrdinalIgnoreCase) ||
+             files[0].RelativePath.Contains("install", StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidDataException(
+                $"ModDB download produced only an unextracted installer executable '{files[0].RelativePath}' for a {originalManifest.ContentType}. " +
+                "The installer archive could not be unpacked into valid game modification files.");
+        }
+
         return
         [
             new ContentManifest

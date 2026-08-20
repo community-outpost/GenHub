@@ -29,6 +29,7 @@ using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Features.AppUpdate.Interfaces;
+using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Settings.ViewModels;
@@ -1774,7 +1775,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             await Task.Run(() =>
             {
                 var files = Directory.GetFiles(logsPath, "*.log", SearchOption.TopDirectoryOnly);
-                var todayLogFileName = $"{AppConstants.AppName.ToLowerInvariant()}-{DateTime.UtcNow:yyyy-MM-dd}.log";
+                var activeLogPath = LoggingModule.ActiveLogFilePath;
+                var activeLogFileName = Path.GetFileName(activeLogPath);
+                var todayLocalLogFileName = $"{AppConstants.AppName.ToLowerInvariant()}-{DateTime.Now:yyyy-MM-dd}.log";
+                var todayUtcLogFileName = $"{AppConstants.AppName.ToLowerInvariant()}-{DateTime.UtcNow:yyyy-MM-dd}.log";
 
                 foreach (var file in files)
                 {
@@ -1784,12 +1788,18 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                         var info = new FileInfo(file);
                         var length = info.Length;
 
-                        if (string.Equals(fileName, todayLogFileName, StringComparison.OrdinalIgnoreCase))
+                        var isActiveLog = string.Equals(fileName, activeLogFileName, StringComparison.OrdinalIgnoreCase) ||
+                                          string.Equals(fileName, todayLocalLogFileName, StringComparison.OrdinalIgnoreCase) ||
+                                          string.Equals(fileName, todayUtcLogFileName, StringComparison.OrdinalIgnoreCase) ||
+                                          string.Equals(Path.GetFullPath(file), Path.GetFullPath(activeLogPath), StringComparison.OrdinalIgnoreCase);
+
+                        if (isActiveLog)
                         {
                             // Active log file: Do not delete, as deleting puts the handle in DeletePending state
                             // on Windows and breaks Serilog's shared file sink. Truncate in-place instead.
-                            using (var stream = new FileStream(file, FileMode.Truncate, FileAccess.Write, FileShare.ReadWrite))
+                            using (var stream = new FileStream(file, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite))
                             {
+                                stream.SetLength(0);
                                 stream.Flush();
                             }
 
@@ -1804,10 +1814,14 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                                 deletedCount++;
                                 freedBytes += length;
                             }
-                            catch (IOException)
+                            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                             {
-                                using var stream = new FileStream(file, FileMode.Truncate, FileAccess.Write, FileShare.ReadWrite);
-                                stream.Flush();
+                                using (var stream = new FileStream(file, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite))
+                                {
+                                    stream.SetLength(0);
+                                    stream.Flush();
+                                }
+
                                 deletedCount++;
                                 freedBytes += length;
                             }

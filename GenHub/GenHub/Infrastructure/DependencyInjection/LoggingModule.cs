@@ -16,6 +16,12 @@ namespace GenHub.Infrastructure.DependencyInjection;
 public static class LoggingModule
 {
     private static LoggingLevelSwitch? _levelSwitch;
+    private static string? _activeLogFilePath;
+
+    /// <summary>
+    /// Gets the active log file path for the running application instance.
+    /// </summary>
+    public static string ActiveLogFilePath => _activeLogFilePath ??= GetLogFilePath();
 
     /// <summary>
     /// Adds logging configuration to the service collection.
@@ -25,7 +31,7 @@ public static class LoggingModule
     /// <returns>The updated service collection.</returns>
     public static IServiceCollection AddLoggingModule(this IServiceCollection services)
     {
-        var logPath = GetLogFilePath();
+        var logPath = ActiveLogFilePath;
         var enableDetailedLogging = ReadEnableDetailedLoggingFromSettings();
         var logLevel = enableDetailedLogging ? LogEventLevel.Debug : LogEventLevel.Information;
         var minLogLevel = enableDetailedLogging ? LogLevel.Debug : LogLevel.Information;
@@ -69,7 +75,7 @@ public static class LoggingModule
     /// <returns>An <see cref="ILoggerFactory"/> instance.</returns>
     public static ILoggerFactory CreateBootstrapLoggerFactory()
     {
-        var logPath = GetLogFilePath();
+        var logPath = ActiveLogFilePath;
 
         return LoggerFactory.Create(builder =>
         {
@@ -83,6 +89,22 @@ public static class LoggingModule
             builder.AddSerilog(logger);
             builder.SetMinimumLevel(LogLevel.Debug);
         });
+    }
+
+    /// <summary>
+    /// Gets the path to the current day's log file.
+    /// </summary>
+    /// <returns>The full path to the log file.</returns>
+    public static string GetLogFilePath()
+    {
+        var logDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            AppConstants.AppName,
+            DirectoryNames.Logs);
+
+        Directory.CreateDirectory(logDir);
+        var timestamp = DateTime.Now.ToString("yyyy-MM-dd");
+        return Path.Combine(logDir, $"{AppConstants.AppName.ToLowerInvariant()}-{timestamp}.log");
     }
 
     private static bool ReadEnableDetailedLoggingFromSettings()
@@ -117,18 +139,6 @@ public static class LoggingModule
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             AppConstants.AppName,
             FileTypes.SettingsFileName);
-    }
-
-    private static string GetLogFilePath()
-    {
-        var logDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            AppConstants.AppName,
-            DirectoryNames.Logs);
-
-        Directory.CreateDirectory(logDir);
-        var timestamp = DateTime.Now.ToString("yyyy-MM-dd");
-        return Path.Combine(logDir, $"{AppConstants.AppName.ToLowerInvariant()}-{timestamp}.log");
     }
 
     private static string ToCamelCase(this string str)

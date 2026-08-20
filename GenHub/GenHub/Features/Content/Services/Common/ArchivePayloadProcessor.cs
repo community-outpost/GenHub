@@ -86,6 +86,8 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                     throw new InvalidDataException(
                         $"Payload contains nested archives exceeding maximum extraction depth of {MaxNestedExtractionDepth}: {string.Join(", ", remainingArchives.Select(Path.GetFileName))}");
                 }
+
+                ValidateExtractedPayload(extractedDirectory, contentType);
             },
             cancellationToken);
     }
@@ -721,23 +723,39 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 return false;
             }
 
-            var records = ParseSmartInstallMakerFileTable(fileTableData, stream, payloadOffset);
-            if (records.Count == 0)
-            {
-                return false;
-            }
-
             Directory.CreateDirectory(stagingDir);
             var stagingRoot = Path.GetFullPath(stagingDir);
-            var extractedCount = ExtractSmartInstallMakerPayload(stream, payloadOffset, records, stagingRoot, cancellationToken);
-            if (extractedCount != records.Count)
+
+            // 1. Check if legacy 32-bit records exist
+            var legacyRecords = ParseSmartInstallMakerFileTable(fileTableData, stream, payloadOffset);
+            if (legacyRecords.Count > 0)
             {
-                throw new InvalidDataException(
-                    $"Smart Install Maker extraction incomplete: extracted {extractedCount} of {records.Count} entries.");
+                var extractedCount = ExtractSmartInstallMakerPayload(stream, payloadOffset, legacyRecords, stagingRoot, cancellationToken);
+                if (extractedCount != legacyRecords.Count)
+                {
+                    throw new InvalidDataException(
+                        $"Smart Install Maker extraction incomplete: extracted {extractedCount} of {legacyRecords.Count} entries.");
+                }
+
+                PromoteDirectoryContents(stagingDir, extractPath);
+                return true;
             }
 
-            PromoteDirectoryContents(stagingDir, extractPath);
-            return true;
+            // 2. Check if modern 64-bit SIM records exist
+            var modernFileNames = ParseModernSmartInstallMakerFileTable(fileTableData);
+            if (modernFileNames.Count > 0)
+            {
+                var extractedCount = ExtractModernSmartInstallMakerPayload(stream, payloadOffset, modernFileNames, stagingRoot, cancellationToken);
+                if (extractedCount == 0)
+                {
+                    throw new InvalidDataException("Smart Install Maker modern extraction yielded 0 files.");
+                }
+
+                PromoteDirectoryContents(stagingDir, extractPath);
+                return true;
+            }
+
+            return false;
         }
         catch (OperationCanceledException)
         {
@@ -818,7 +836,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             while ((r = def.Read(buf, 0, buf.Length)) > 0)
             {
                 totalDecompressed += r;
-                if (totalDecompressed > CatalogConstants.MaxCatalogSizeBytes)
+                if (totalDecompressed > CatalogConstants.MaxZipUncompressedSizeBytes)
                 {
                     throw new InvalidDataException("Smart Install Maker metadata table exceeds maximum allowed size.");
                 }
@@ -830,6 +848,151 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         }
 
         return (null, payloadOffset);
+    }
+
+    private static List<string> ParseModernSmartInstallMakerFileTable(byte[] tableData)
+    {
+        var names = new List<string>();
+        var pos = 0;
+
+        // Modern SIM 5.x header is at least 36 bytes + 120 uninstaller block (156 bytes).
+        if (tableData.Length > 156)
+        {
+            pos = 156;
+        }
+
+        while (pos < tableData.Length - 4)
+        {
+            var nullIdx = Array.IndexOf(tableData, (byte)0, pos);
+            if (nullIdx < 0)
+            {
+                break;
+            }
+
+            var strStart = nullIdx - 1;
+            while (strStart >= pos && tableData[strStart] >= 32 && tableData[strStart] <= 126)
+            {
+                strStart--;
+            }
+
+            strStart++;
+
+            var strLen = nullIdx - strStart;
+            if (strLen >= 3)
+            {
+                var s = Encoding.Latin1.GetString(tableData, strStart, strLen);
+                if (IsValidSimEntryName(s))
+                {
+                    names.Add(s);
+                }
+            }
+
+            pos = nullIdx + 1;
+        }
+
+        return names;
+    }
+
+    private static int ExtractModernSmartInstallMakerPayload(
+        Stream stream,
+        long payloadOffset,
+        IReadOnlyList<string> fileNames,
+        string extractRoot,
+        CancellationToken cancellationToken)
+    {
+        var extractedCount = 0;
+        stream.Position = payloadOffset;
+
+        // Skip stream 0 (uninstaller info script)
+        try
+        {
+            var nonDisp = new NonDisposingStream(stream);
+            var z0 = new SharpCompress.Compressors.Deflate.ZlibStream(nonDisp, SharpCompress.Compressors.CompressionMode.Decompress);
+            var buf0 = new byte[8192];
+            while (z0.Read(buf0, 0, buf0.Length) > 0)
+            {
+            }
+
+            stream.Position = payloadOffset + z0.TotalIn;
+        }
+        catch
+        {
+            // If stream 0 decompression fails, reset to payloadOffset
+            stream.Position = payloadOffset;
+        }
+
+        var copyBuffer = new byte[65536];
+        for (var fileIdx = 0; fileIdx < fileNames.Count && stream.Position < stream.Length - 4; fileIdx++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var fileName = fileNames[fileIdx];
+            var pathResult = ContentPathPolicy.ResolveContainedFile(extractRoot, fileName);
+            if (!pathResult.Success)
+            {
+                throw new InvalidDataException($"Smart Install Maker modern entry has an unsafe path: {fileName}");
+            }
+
+            var destinationPath = pathResult.Data!;
+            var destinationDir = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrEmpty(destinationDir))
+            {
+                Directory.CreateDirectory(destinationDir);
+            }
+
+            var streamStartPos = stream.Position;
+            var compType = stream.ReadByte();
+            if (compType < 0)
+            {
+                break;
+            }
+
+            using var outStream = File.Create(destinationPath);
+
+            if (compType == 2)
+            {
+                // BZip2 stream
+                using var bz = SharpCompress.Compressors.BZip2.BZip2Stream.Create(
+                    stream,
+                    SharpCompress.Compressors.CompressionMode.Decompress,
+                    decompressConcatenated: false,
+                    leaveOpen: true);
+
+                int rBz;
+                while ((rBz = bz.Read(copyBuffer, 0, copyBuffer.Length)) > 0)
+                {
+                    outStream.Write(copyBuffer, 0, rBz);
+                }
+            }
+            else if (compType == 1)
+            {
+                // ZLib / Deflate stream
+                var nonDisp = new NonDisposingStream(stream);
+                var z = new SharpCompress.Compressors.Deflate.ZlibStream(nonDisp, SharpCompress.Compressors.CompressionMode.Decompress);
+
+                int rZ;
+                while ((rZ = z.Read(copyBuffer, 0, copyBuffer.Length)) > 0)
+                {
+                    outStream.Write(copyBuffer, 0, rZ);
+                }
+
+                stream.Position = streamStartPos + 1 + z.TotalIn;
+            }
+            else
+            {
+                // Raw uncompressed copy
+                var rRaw = stream.Read(copyBuffer, 0, copyBuffer.Length);
+                outStream.Write(copyBuffer, 0, rRaw);
+            }
+
+            outStream.Flush();
+            if (new FileInfo(destinationPath).Length > 0)
+            {
+                extractedCount++;
+            }
+        }
+
+        return extractedCount;
     }
 
     private static int ExtractSmartInstallMakerPayload(
@@ -1599,5 +1762,84 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         public override void SetLength(long value) => throw new NotSupportedException();
 
         public override void Write(byte[] buffer, int offsetInBuffer, int count) => throw new NotSupportedException();
+    }
+
+    private static void ValidateExtractedPayload(string extractedDirectory, ContentType? contentType)
+    {
+        if (!contentType.HasValue)
+        {
+            return;
+        }
+
+        if (contentType.Value is ContentType.Mod or ContentType.Patch or ContentType.Map or ContentType.MapPack or ContentType.Addon)
+        {
+            var allFiles = Directory.GetFiles(extractedDirectory, "*", SearchOption.AllDirectories);
+            if (allFiles.Length == 0)
+            {
+                throw new InvalidDataException("Payload extraction resulted in an empty directory.");
+            }
+
+            var hasRecognizedContent = allFiles.Any(f =>
+            {
+                var ext = Path.GetExtension(f);
+                return ext.Equals(".big", StringComparison.OrdinalIgnoreCase) ||
+                       ext.Equals(".gib", StringComparison.OrdinalIgnoreCase) ||
+                       ext.Equals(".ctr", StringComparison.OrdinalIgnoreCase) ||
+                       ext.Equals(".ini", StringComparison.OrdinalIgnoreCase) ||
+                       ext.Equals(".map", StringComparison.OrdinalIgnoreCase) ||
+                       ext.Equals(".w3d", StringComparison.OrdinalIgnoreCase) ||
+                       ext.Equals(".tga", StringComparison.OrdinalIgnoreCase) ||
+                       ext.Equals(".dds", StringComparison.OrdinalIgnoreCase) ||
+                       ext.Equals(".bik", StringComparison.OrdinalIgnoreCase) ||
+                       ext.Equals(".vp6", StringComparison.OrdinalIgnoreCase) ||
+                       ext.Equals(".wav", StringComparison.OrdinalIgnoreCase) ||
+                       ext.Equals(".mp3", StringComparison.OrdinalIgnoreCase);
+            });
+
+            if (!hasRecognizedContent)
+            {
+                var setupExe = allFiles.FirstOrDefault(f =>
+                    f.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) &&
+                    (Path.GetFileName(f).Contains("setup", StringComparison.OrdinalIgnoreCase) ||
+                     Path.GetFileName(f).Contains("install", StringComparison.OrdinalIgnoreCase)));
+
+                if (setupExe != null)
+                {
+                    throw new InvalidDataException(
+                        $"Payload contains an unextracted installer executable '{Path.GetFileName(setupExe)}' without recognized game content (.big, .ini, etc.). The installer format could not be extracted.");
+                }
+            }
+        }
+    }
+
+    private sealed class NonDisposingStream(Stream inner) : Stream
+    {
+        public override bool CanRead => inner.CanRead;
+
+        public override bool CanSeek => inner.CanSeek;
+
+        public override bool CanWrite => inner.CanWrite;
+
+        public override long Length => inner.Length;
+
+        public override long Position
+        {
+            get => inner.Position;
+            set => inner.Position = value;
+        }
+
+        public override void Flush() => inner.Flush();
+
+        public override int Read(byte[] buffer, int offset, int count) => inner.Read(buffer, offset, count);
+
+        public override long Seek(long offset, SeekOrigin origin) => inner.Seek(offset, origin);
+
+        public override void SetLength(long value) => inner.SetLength(value);
+
+        public override void Write(byte[] buffer, int offset, int count) => inner.Write(buffer, offset, count);
+
+        protected override void Dispose(bool disposing)
+        {
+        }
     }
 }
