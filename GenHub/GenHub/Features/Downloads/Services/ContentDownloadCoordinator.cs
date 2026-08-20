@@ -37,14 +37,14 @@ public sealed class ContentDownloadCoordinator(
             ? $"{searchResult.ProviderName}::{searchResult.Id}"
             : $"{searchResult.ProviderName}::{searchResult.Name}";
 
-        return _inFlightDownloads.GetOrAdd(key, _ => ExecuteDownloadAsync(searchResult, progress, cancellationToken, key));
+        return _inFlightDownloads.GetOrAdd(key, _ => ExecuteDownloadAsync(searchResult, key, progress, cancellationToken));
     }
 
     private async Task<OperationResult<ContentManifest>> ExecuteDownloadAsync(
         ContentSearchResult searchResult,
+        string inFlightKey,
         IProgress<ContentAcquisitionProgress>? progress,
-        CancellationToken cancellationToken,
-        string inFlightKey)
+        CancellationToken cancellationToken)
     {
         try
         {
