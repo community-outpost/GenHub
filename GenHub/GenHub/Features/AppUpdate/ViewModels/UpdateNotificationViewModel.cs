@@ -446,8 +446,17 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         var settings = _userSettingsService.Get();
         if (settings.SubscribedPrNumber.HasValue)
         {
-            _velopackUpdateManager.SubscribedPrNumber = settings.SubscribedPrNumber;
-            _logger.LogInformation("Loaded subscribed PR #{PrNumber} from settings", settings.SubscribedPrNumber);
+            var prNumber = settings.SubscribedPrNumber.Value;
+            _velopackUpdateManager.SubscribedPrNumber = prNumber;
+            SubscribedPr = new PullRequestInfo
+            {
+                Number = prNumber,
+                Title = $"PR #{prNumber}",
+                BranchName = "unknown",
+                Author = "unknown",
+                State = "open",
+            };
+            _logger.LogInformation("Loaded subscribed PR #{PrNumber} from settings", prNumber);
         }
 
         if (!string.IsNullOrEmpty(settings.SubscribedBranch))

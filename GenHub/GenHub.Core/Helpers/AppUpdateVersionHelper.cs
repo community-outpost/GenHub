@@ -10,6 +10,38 @@ namespace GenHub.Core.Helpers;
 public static partial class AppUpdateVersionHelper
 {
     /// <summary>
+    /// Extracts the channel key (e.g., "pr242", "main", "development", "release", "ci") from a version string.
+    /// </summary>
+    /// <param name="version">The version string to extract the channel from.</param>
+    /// <returns>The normalized channel key, or null if the version is null or empty.</returns>
+    public static string? ExtractChannelKey(string? version)
+    {
+        if (string.IsNullOrWhiteSpace(version))
+        {
+            return null;
+        }
+
+        var clean = version.Split('+')[0].Trim();
+        var dashIndex = clean.IndexOf('-');
+        if (dashIndex >= 0 && dashIndex < clean.Length - 1)
+        {
+            var suffix = clean[(dashIndex + 1)..].Trim();
+            if (!string.IsNullOrEmpty(suffix))
+            {
+                var ciMatch = CiMarkerRegex().Match(clean);
+                if (ciMatch.Success && suffix.StartsWith("ci.", StringComparison.OrdinalIgnoreCase))
+                {
+                    return "ci";
+                }
+
+                return suffix.ToLowerInvariant();
+            }
+        }
+
+        return "release";
+    }
+
+    /// <summary>
     /// Extracts the workflow run number from a version string (e.g., "0.0.641-pr241" -> 641).
     /// Returns 0 for plain semantic versions without CI run markers.
     /// </summary>
@@ -39,11 +71,13 @@ public static partial class AppUpdateVersionHelper
 
     /// <summary>
     /// Checks whether an available artifact version is newer than the currently installed version.
+    /// Rejects cross-channel sequential comparisons when the current installation belongs to a specific channel.
     /// </summary>
     /// <param name="newVersion">The new artifact version string.</param>
     /// <param name="currentVersion">The current version string.</param>
+    /// <param name="allowCrossChannel">Whether to allow comparing versions from different channels.</param>
     /// <returns>True if newVersion is newer than currentVersion; otherwise false.</returns>
-    public static bool IsArtifactVersionNewer(string? newVersion, string? currentVersion)
+    public static bool IsArtifactVersionNewer(string? newVersion, string? currentVersion, bool allowCrossChannel = false)
     {
         if (string.IsNullOrWhiteSpace(newVersion))
         {
@@ -60,6 +94,21 @@ public static partial class AppUpdateVersionHelper
 
         var newRun = ExtractRunNumber(newVersionBase);
         var currentRun = ExtractRunNumber(currentVersionBase);
+
+        if (!allowCrossChannel)
+        {
+            var newChannel = ExtractChannelKey(newVersionBase);
+            var currentChannel = ExtractChannelKey(currentVersionBase);
+
+            // If the currently installed build belongs to a specific channel (e.g. "pr242", "main", "development"),
+            // reject updates from any different channel (e.g. "pr265").
+            if (!string.IsNullOrEmpty(currentChannel) &&
+                !string.Equals(currentChannel, "release", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(newChannel, currentChannel, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
 
         if (newRun > 0 && currentRun > 0)
         {
