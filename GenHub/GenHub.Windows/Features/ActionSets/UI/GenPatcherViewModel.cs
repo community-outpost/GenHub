@@ -164,7 +164,6 @@ public partial class GenPatcherViewModel(
                     var vm = new ActionSetViewModel(
                         fix,
                         installation,
-                        registryService,
                         notificationService,
                         logger,
                         () => Avalonia.Threading.Dispatcher.UIThread.Post(SortActionSets));

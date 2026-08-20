@@ -8,7 +8,6 @@ using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.GameInstallations;
-using GenHub.Windows.Features.ActionSets.Infrastructure;
 using Microsoft.Extensions.Logging;
 
 /// <summary>
@@ -17,7 +16,6 @@ using Microsoft.Extensions.Logging;
 public partial class ActionSetViewModel(
     IActionSet actionSet,
     GameInstallation installation,
-    IRegistryService registryService,
     INotificationService notificationService,
     ILogger logger,
     Action? onStatusChanged = null) : ObservableObject
@@ -143,17 +141,6 @@ public partial class ActionSetViewModel(
 
     private async Task ExecuteApplyAsync(bool isForce)
     {
-        if (!registryService.IsRunningAsAdministrator())
-        {
-            logger.LogWarning(
-                isForce ? "[GENPATCHER_FIX_012] Cannot force apply {Title} - not running as administrator" : "[GENPATCHER_FIX_008] Cannot apply {Title} - not running as administrator",
-                ActionSet.Title);
-            notificationService.ShowError(
-                "Administrator Rights Required",
-                isForce ? "Please restart GenHub as Administrator for force apply." : "Please restart GenHub as Administrator to apply this fix.");
-            return;
-        }
-
         try
         {
             logger.LogInformation(

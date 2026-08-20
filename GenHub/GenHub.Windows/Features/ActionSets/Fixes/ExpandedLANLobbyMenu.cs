@@ -85,6 +85,8 @@ public class ExpandedLANLobbyMenu(ILogger<ExpandedLANLobbyMenu> logger) : BaseAc
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Failed to create marker file for ExpandedLANLobbyMenu");
+                details.Add($"✗ Failed to create completion marker: {ex.Message}");
+                return Task.FromResult(new ActionSetResult(false, $"Failed to create completion marker: {ex.Message}", details));
             }
 
             return Task.FromResult(new ActionSetResult(true, null, details));

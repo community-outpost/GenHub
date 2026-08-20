@@ -102,6 +102,11 @@ public class PreferIPv4Fix(
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Could not save original DisabledComponents value to backup file");
+                details.Add("✗ Could not back up the current IPv6 configuration");
+                return Task.FromResult(new ActionSetResult(
+                    false,
+                    "Could not back up the current IPv6 configuration.",
+                    details));
             }
 
             details.Add("Configuring system to prefer IPv4...");
