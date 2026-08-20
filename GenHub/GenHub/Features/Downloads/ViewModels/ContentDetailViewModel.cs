@@ -595,6 +595,143 @@ public partial class ContentDetailViewModel(
         return (providerName, string.Empty, string.Empty);
     }
 
+    private static string? GetDeduplicationKey(string? url, string? name, string? filename = null)
+    {
+        if (!string.IsNullOrWhiteSpace(filename))
+        {
+            return filename.Trim().ToLowerInvariant();
+        }
+
+        if (!string.IsNullOrWhiteSpace(url))
+        {
+            var trimmed = url.Trim().TrimEnd('/');
+            var segments = trimmed.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Length > 0)
+            {
+                var last = segments[^1].ToLowerInvariant();
+                if (!last.Equals("downloads", StringComparison.OrdinalIgnoreCase) &&
+                    !last.Equals("addons", StringComparison.OrdinalIgnoreCase) &&
+                    !last.Equals("files", StringComparison.OrdinalIgnoreCase))
+                {
+                    return last;
+                }
+            }
+
+            return trimmed.ToLowerInvariant();
+        }
+
+        return !string.IsNullOrWhiteSpace(name) ? name.Trim().ToLowerInvariant() : null;
+    }
+
+    /// <summary>
+    /// Computes selection priority for a release, prioritizing full mod releases over patches.
+    /// </summary>
+    private static int GetReleasePriority(ReleaseItemViewModel release)
+    {
+        var category = release.Category?.Trim() ?? string.Empty;
+        var name = release.Name?.Trim() ?? string.Empty;
+
+        var isExplicitPatch = category.Contains("patch", StringComparison.OrdinalIgnoreCase) ||
+                              name.Contains("patch", StringComparison.OrdinalIgnoreCase) ||
+                              name.Contains("hotfix", StringComparison.OrdinalIgnoreCase) ||
+                              name.Contains("update", StringComparison.OrdinalIgnoreCase);
+
+        var isFullVersion = category.Contains("full version", StringComparison.OrdinalIgnoreCase) ||
+                            category.Contains("full", StringComparison.OrdinalIgnoreCase) ||
+                            name.Contains("full version", StringComparison.OrdinalIgnoreCase) ||
+                            name.Contains("standalone", StringComparison.OrdinalIgnoreCase);
+
+        if (isFullVersion && !isExplicitPatch)
+        {
+            return 3;
+        }
+
+        if (!isExplicitPatch)
+        {
+            return 2;
+        }
+
+        return 1;
+    }
+
+    /// <summary>
+    /// Finds the preferred initial release from a list of releases, prioritizing full mod releases over patches.
+    /// </summary>
+    private static ReleaseItemViewModel? FindPreferredRelease(IReadOnlyList<ReleaseItemViewModel> releases)
+    {
+        if (releases.Count == 0)
+        {
+            return null;
+        }
+
+        return releases.OrderByDescending(GetReleasePriority).FirstOrDefault() ?? releases[0];
+    }
+
+    private static bool IsFileDetailsAlreadyLoaded(DownloadableFile file) =>
+        !string.IsNullOrEmpty(file.Filename) ||
+        !string.IsNullOrEmpty(file.Md5Hash) ||
+        file.DownloadCount.HasValue ||
+        (file.PreviewImages is { Count: > 0 }) ||
+        !string.IsNullOrEmpty(file.Description);
+
+    private static ContentVariantInfo MatchVariantInfo(ContentSearchResult sibling, string key)
+    {
+        var variantInfo = sibling.Variants?.FirstOrDefault(v =>
+            string.Equals(v.Id, sibling.Id, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(v.Id, key, StringComparison.OrdinalIgnoreCase) ||
+            (!string.IsNullOrEmpty(v.Id) && sibling.Id?.EndsWith($".{v.Id}", StringComparison.OrdinalIgnoreCase) == true) ||
+            (!string.IsNullOrEmpty(v.Id) && key.EndsWith($".{v.Id}", StringComparison.OrdinalIgnoreCase)));
+
+        if (variantInfo == null && sibling.Variants != null)
+        {
+            var gameSuffix = sibling.TargetGame switch
+            {
+                GameType.Generals => "generals",
+                GameType.ZeroHour => "zerohour",
+                _ => null,
+            };
+            if (gameSuffix != null)
+            {
+                variantInfo = sibling.Variants.FirstOrDefault(v =>
+                    v.Id.EndsWith($".{gameSuffix}", StringComparison.OrdinalIgnoreCase) ||
+                    v.Name.Contains(gameSuffix, StringComparison.OrdinalIgnoreCase) ||
+                    (sibling.TargetGame == GameType.ZeroHour && v.Name.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase)) ||
+                    (sibling.TargetGame == GameType.Generals && v.Name.Contains("Generals", StringComparison.OrdinalIgnoreCase) && !v.Name.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase)));
+            }
+        }
+
+        return variantInfo ?? new ContentVariantInfo
+        {
+            Id = !string.IsNullOrEmpty(key) ? key : (sibling.Id ?? string.Empty),
+            Name = sibling.Name ?? sibling.Id ?? "Unknown",
+            ManifestId = !string.IsNullOrEmpty(key) ? key : (sibling.Id ?? string.Empty),
+        };
+    }
+
+    private static ContentSearchResult PrepareVariantSnapshot(ContentSearchResult sibling, ContentVariantInfo info, string catalogKey)
+    {
+        var snapshot = VariantSwap.Clone(sibling);
+
+        if (!string.IsNullOrEmpty(catalogKey) &&
+            ManifestIdValidator.IsValid(snapshot.Id ?? string.Empty, out _) &&
+            !string.Equals(snapshot.Id, catalogKey, StringComparison.OrdinalIgnoreCase))
+        {
+        }
+        else if (!string.IsNullOrEmpty(catalogKey))
+        {
+            snapshot.Id = catalogKey;
+        }
+
+        var displayName = VariantSwap.ResolveDisplayName(sibling, info);
+        if (string.Equals(snapshot.Name, snapshot.VariantFamilyName, StringComparison.Ordinal) ||
+            string.IsNullOrWhiteSpace(snapshot.Name))
+        {
+            snapshot.Name = displayName;
+        }
+
+        return snapshot;
+    }
+
     private async Task InitializeVariantsAsync()
     {
         EnsureSynthesizedVariantSearchResults();
@@ -1119,7 +1256,7 @@ public partial class ContentDetailViewModel(
 
             logger.LogInformation("Parsing web page: {Url}", searchResult.SourceUrl);
 
-            ParsedWebPage parsedPage = null!;
+            ParsedWebPage? parsedPage = null;
             var isModDb = string.Equals(parser.ParserId, ModDBConstants.ResolverId, StringComparison.OrdinalIgnoreCase);
             if (isModDb)
             {
@@ -1151,6 +1288,12 @@ public partial class ContentDetailViewModel(
                     logger.LogWarning("Timed out parsing {Url}; showing catalog data only", searchResult.SourceUrl);
                     return;
                 }
+            }
+
+            if (parsedPage == null)
+            {
+                logger.LogWarning("No parsed page data returned for {Url}; showing catalog data only", searchResult.SourceUrl);
+                return;
             }
 
             // A bot-protection interstitial parses "successfully" but carries no real content.
@@ -3443,85 +3586,6 @@ public partial class ContentDetailViewModel(
         }
     }
 
-    private static string? GetDeduplicationKey(string? url, string? name, string? filename = null)
-    {
-        if (!string.IsNullOrWhiteSpace(filename))
-        {
-            return filename.Trim().ToLowerInvariant();
-        }
-
-        if (!string.IsNullOrWhiteSpace(url))
-        {
-            var trimmed = url.Trim().TrimEnd('/');
-            var segments = trimmed.Split('/', StringSplitOptions.RemoveEmptyEntries);
-            if (segments.Length > 0)
-            {
-                var last = segments[^1].ToLowerInvariant();
-                if (!last.Equals("downloads", StringComparison.OrdinalIgnoreCase) &&
-                    !last.Equals("addons", StringComparison.OrdinalIgnoreCase) &&
-                    !last.Equals("files", StringComparison.OrdinalIgnoreCase))
-                {
-                    return last;
-                }
-            }
-
-            return trimmed.ToLowerInvariant();
-        }
-
-        return !string.IsNullOrWhiteSpace(name) ? name.Trim().ToLowerInvariant() : null;
-    }
-
-    /// <summary>
-    /// Computes selection priority for a release, prioritizing full mod releases over patches.
-    /// </summary>
-    private static int GetReleasePriority(ReleaseItemViewModel release)
-    {
-        var category = release.Category?.Trim() ?? string.Empty;
-        var name = release.Name?.Trim() ?? string.Empty;
-
-        var isExplicitPatch = category.Contains("patch", StringComparison.OrdinalIgnoreCase) ||
-                              name.Contains("patch", StringComparison.OrdinalIgnoreCase) ||
-                              name.Contains("hotfix", StringComparison.OrdinalIgnoreCase) ||
-                              name.Contains("update", StringComparison.OrdinalIgnoreCase);
-
-        var isFullVersion = category.Contains("full version", StringComparison.OrdinalIgnoreCase) ||
-                            category.Contains("full", StringComparison.OrdinalIgnoreCase) ||
-                            name.Contains("full version", StringComparison.OrdinalIgnoreCase) ||
-                            name.Contains("standalone", StringComparison.OrdinalIgnoreCase);
-
-        if (isFullVersion && !isExplicitPatch)
-        {
-            return 3;
-        }
-
-        if (!isExplicitPatch)
-        {
-            return 2;
-        }
-
-        return 1;
-    }
-
-    /// <summary>
-    /// Finds the preferred initial release from a list of releases, prioritizing full mod releases over patches.
-    /// </summary>
-    private static ReleaseItemViewModel? FindPreferredRelease(IReadOnlyList<ReleaseItemViewModel> releases)
-    {
-        if (releases.Count == 0)
-        {
-            return null;
-        }
-
-        return releases.OrderByDescending(GetReleasePriority).FirstOrDefault() ?? releases[0];
-    }
-
-    private static bool IsFileDetailsAlreadyLoaded(DownloadableFile file) =>
-        !string.IsNullOrEmpty(file.Filename) ||
-        !string.IsNullOrEmpty(file.Md5Hash) ||
-        file.DownloadCount.HasValue ||
-        (file.PreviewImages is { Count: > 0 }) ||
-        !string.IsNullOrEmpty(file.Description);
-
     private async Task PreloadRecentItemDetailsCoreAsync(CancellationToken cancellationToken = default)
     {
         if (parsers == null || parsers.Count == 0)
@@ -3879,63 +3943,5 @@ public partial class ContentDetailViewModel(
         }
 
         return fallbackResult.TargetGame != GameType.Unknown ? fallbackResult.TargetGame.ToString() : null;
-    }
-
-    private static ContentVariantInfo MatchVariantInfo(ContentSearchResult sibling, string key)
-    {
-        var variantInfo = sibling.Variants?.FirstOrDefault(v =>
-            string.Equals(v.Id, sibling.Id, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(v.Id, key, StringComparison.OrdinalIgnoreCase) ||
-            (!string.IsNullOrEmpty(v.Id) && sibling.Id?.EndsWith($".{v.Id}", StringComparison.OrdinalIgnoreCase) == true) ||
-            (!string.IsNullOrEmpty(v.Id) && key.EndsWith($".{v.Id}", StringComparison.OrdinalIgnoreCase)));
-
-        if (variantInfo == null && sibling.Variants != null)
-        {
-            var gameSuffix = sibling.TargetGame switch
-            {
-                GameType.Generals => "generals",
-                GameType.ZeroHour => "zerohour",
-                _ => null,
-            };
-            if (gameSuffix != null)
-            {
-                variantInfo = sibling.Variants.FirstOrDefault(v =>
-                    v.Id.EndsWith($".{gameSuffix}", StringComparison.OrdinalIgnoreCase) ||
-                    v.Name.Contains(gameSuffix, StringComparison.OrdinalIgnoreCase) ||
-                    (sibling.TargetGame == GameType.ZeroHour && v.Name.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase)) ||
-                    (sibling.TargetGame == GameType.Generals && v.Name.Contains("Generals", StringComparison.OrdinalIgnoreCase) && !v.Name.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase)));
-            }
-        }
-
-        return variantInfo ?? new ContentVariantInfo
-        {
-            Id = !string.IsNullOrEmpty(key) ? key : (sibling.Id ?? string.Empty),
-            Name = sibling.Name ?? sibling.Id ?? "Unknown",
-            ManifestId = !string.IsNullOrEmpty(key) ? key : (sibling.Id ?? string.Empty),
-        };
-    }
-
-    private static ContentSearchResult PrepareVariantSnapshot(ContentSearchResult sibling, ContentVariantInfo info, string catalogKey)
-    {
-        var snapshot = VariantSwap.Clone(sibling);
-
-        if (!string.IsNullOrEmpty(catalogKey) &&
-            ManifestIdValidator.IsValid(snapshot.Id ?? string.Empty, out _) &&
-            !string.Equals(snapshot.Id, catalogKey, StringComparison.OrdinalIgnoreCase))
-        {
-        }
-        else if (!string.IsNullOrEmpty(catalogKey))
-        {
-            snapshot.Id = catalogKey;
-        }
-
-        var displayName = VariantSwap.ResolveDisplayName(sibling, info);
-        if (string.Equals(snapshot.Name, snapshot.VariantFamilyName, StringComparison.Ordinal) ||
-            string.IsNullOrWhiteSpace(snapshot.Name))
-        {
-            snapshot.Name = displayName;
-        }
-
-        return snapshot;
     }
 }

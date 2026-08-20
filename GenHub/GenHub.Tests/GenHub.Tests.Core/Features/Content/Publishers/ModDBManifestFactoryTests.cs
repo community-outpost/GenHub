@@ -128,7 +128,6 @@ public sealed class ModDBManifestFactoryTests : IDisposable
             new Mock<IPlaywrightService>(MockBehavior.Strict).Object,
             new Mock<ILogger<ModDBPageParser>>().Object);
         var resolver = new ModDBResolver(
-            new HttpClient(),
             factory,
             parser,
             new Mock<ILogger<ModDBResolver>>().Object);
@@ -208,7 +207,6 @@ public sealed class ModDBManifestFactoryTests : IDisposable
             playwright.Object,
             new Mock<ILogger<ModDBPageParser>>().Object);
         var resolver = new ModDBResolver(
-            new HttpClient(),
             factory,
             parser,
             new Mock<ILogger<ModDBResolver>>().Object);
@@ -271,7 +269,6 @@ public sealed class ModDBManifestFactoryTests : IDisposable
             playwright.Object,
             new Mock<ILogger<ModDBPageParser>>().Object);
         var resolver = new ModDBResolver(
-            new HttpClient(),
             factory,
             parser,
             new Mock<ILogger<ModDBResolver>>().Object);

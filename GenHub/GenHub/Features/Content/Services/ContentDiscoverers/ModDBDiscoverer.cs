@@ -450,6 +450,48 @@ public partial class ModDBDiscoverer(
     [GeneratedRegex(@"(https?://[^/]+/mods/[^/]+)")]
     private static partial Regex ParentModUrlRegex();
 
+    private static string BuildSectionUrl(string section, GameType gameType, ModDBFilter filter)
+    {
+        var baseUrl = gameType == GameType.Generals
+            ? $"{ModDBConstants.GeneralsBaseUrl}/{section}"
+            : $"{ModDBConstants.ZeroHourBaseUrl}/{section}";
+        var pageSuffix = filter.Page > 1 ? $"/page/{filter.Page}" : string.Empty;
+        return baseUrl + pageSuffix + filter.ToQueryString();
+    }
+
+    private static List<ContentSearchResult> ParseDocumentSearchResults(
+        IDocument document,
+        GameType gameType,
+        string section)
+    {
+        List<ContentSearchResult> results = [];
+        var contentItems = document.QuerySelectorAll(ModDBConstants.DefaultListItemSelector);
+
+        foreach (var item in contentItems)
+        {
+            try
+            {
+                var searchResult = ParseContentItem(item, gameType, section);
+                if (searchResult != null)
+                {
+                    results.Add(searchResult);
+                }
+            }
+            catch
+            {
+                // Ignore parse errors for individual items
+            }
+        }
+
+        return results;
+    }
+
+    private static bool HasMorePages(IDocument document)
+    {
+        var nextLink = document.QuerySelector("div.pages a.next") ?? document.QuerySelector("a.next");
+        return nextLink != null;
+    }
+
     private async Task<(List<ContentSearchResult> Items, bool HasMoreItems, bool KeepPageOpen, bool ChallengeDetected)> DiscoverFromSectionAsync(
         IPage page,
         string section,
@@ -567,15 +609,6 @@ public partial class ModDBDiscoverer(
         }
     }
 
-    private static string BuildSectionUrl(string section, GameType gameType, ModDBFilter filter)
-    {
-        var baseUrl = gameType == GameType.Generals
-            ? $"{ModDBConstants.GeneralsBaseUrl}/{section}"
-            : $"{ModDBConstants.ZeroHourBaseUrl}/{section}";
-        var pageSuffix = filter.Page > 1 ? $"/page/{filter.Page}" : string.Empty;
-        return baseUrl + pageSuffix + filter.ToQueryString();
-    }
-
     private async Task<(bool ListingReady, bool ChallengeObserved)> WaitForListingOrChallengeAsync(
         IPage page,
         string url,
@@ -691,39 +724,6 @@ public partial class ModDBDiscoverer(
         return false;
     }
 
-    private static List<ContentSearchResult> ParseDocumentSearchResults(
-        IDocument document,
-        GameType gameType,
-        string section)
-    {
-        List<ContentSearchResult> results = [];
-        var contentItems = document.QuerySelectorAll(ModDBConstants.DefaultListItemSelector);
-
-        foreach (var item in contentItems)
-        {
-            try
-            {
-                var searchResult = ParseContentItem(item, gameType, section);
-                if (searchResult != null)
-                {
-                    results.Add(searchResult);
-                }
-            }
-            catch
-            {
-                // Ignore parse errors for individual items
-            }
-        }
-
-        return results;
-    }
-
-    private static bool HasMorePages(IDocument document)
-    {
-        var nextLink = document.QuerySelector("div.pages a.next") ?? document.QuerySelector("a.next");
-        return nextLink != null;
-    }
-
     /// <summary>
     /// Fallback discovery via ModDB's public RSS feeds (https://rss.moddb.com/...), which are not
     /// behind the site's bot protection. Returns up to the feed size (currently 10 items).
@@ -744,7 +744,7 @@ public partial class ModDBDiscoverer(
             var gameSlug = gameType == GameType.Generals ? "cc-generals" : "cc-generals-zero-hour";
             var feedUrl = $"https://rss.moddb.com/games/{gameSlug}/{section}/feed/rss.xml";
 
-            using var client = httpClientFactory.CreateClient();
+            using var client = httpClientFactory.CreateClient(ModDBConstants.PublisherPrefix);
             if (client.DefaultRequestHeaders.UserAgent.Count == 0)
             {
                 client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");

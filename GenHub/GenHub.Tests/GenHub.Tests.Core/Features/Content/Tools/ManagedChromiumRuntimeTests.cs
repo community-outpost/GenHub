@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Notifications;
 using GenHub.Features.Content.Services.Tools;
 using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
@@ -95,6 +98,47 @@ public sealed class ManagedChromiumRuntimeTests : IDisposable
         Assert.Equal(["install", "chromium"], installerArguments);
         Assert.True(File.Exists(executablePath));
         Assert.Equal(_runtimeDirectory, Environment.GetEnvironmentVariable(ManagedChromiumRuntime.BrowserPathEnvironmentVariable));
+    }
+
+    /// <summary>
+    /// Verifies that when a notification service is provided, progress notifications are displayed and updated.
+    /// </summary>
+    /// <returns>A task that represents the asynchronous test.</returns>
+    [Fact]
+    public async Task EnsureInstalledAsync_WithNotificationService_ShowsAndUpdatesProgressNotificationAsync()
+    {
+        // Arrange
+        var executablePath = Path.Combine(_runtimeDirectory, "chromium.exe");
+        var chromium = new Mock<IBrowserType>(MockBehavior.Strict);
+        chromium.SetupGet(browser => browser.ExecutablePath).Returns(executablePath);
+
+        var notificationServiceMock = new Mock<INotificationService>(MockBehavior.Loose);
+        NotificationMessage? shownNotification = null;
+        notificationServiceMock
+            .Setup(n => n.Show(It.IsAny<NotificationMessage>()))
+            .Callback<NotificationMessage>(msg => shownNotification = msg);
+
+        var runtime = new ManagedChromiumRuntime(
+            _runtimeDirectory,
+            _ =>
+            {
+                Directory.CreateDirectory(_runtimeDirectory);
+                File.WriteAllText(executablePath, "browser");
+                return 0;
+            },
+            _ => Task.FromResult(true),
+            new Mock<ILogger>().Object,
+            notificationServiceMock.Object);
+
+        // Act
+        await runtime.EnsureInstalledAsync(chromium.Object, default);
+
+        // Assert
+        Assert.NotNull(shownNotification);
+        Assert.Equal(ModDBConstants.ChromiumInstallTitle, shownNotification.Title);
+        Assert.Equal(ModDBConstants.ChromiumDownloadingMessage, shownNotification.Message);
+        notificationServiceMock.Verify(n => n.Show(It.IsAny<NotificationMessage>()), Times.Once);
+        notificationServiceMock.Verify(n => n.Update(It.IsAny<Guid>(), ModDBConstants.ChromiumReadyMessage, ModDBConstants.ChromiumReadyTitle), Times.Once);
     }
 
     /// <summary>

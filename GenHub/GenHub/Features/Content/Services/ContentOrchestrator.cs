@@ -614,6 +614,108 @@ public class ContentOrchestrator(
         }
     }
 
+    private static ConcurrentDictionary<string, IContentResolver> InitializeResolvers(
+        IEnumerable<IContentResolver> resolvers,
+        ILogger<ContentOrchestrator> logger)
+    {
+        var dictionary = new ConcurrentDictionary<string, IContentResolver>(StringComparer.OrdinalIgnoreCase);
+        foreach (var resolver in resolvers)
+        {
+            if (!dictionary.TryAdd(resolver.ResolverId, resolver))
+            {
+                logger.LogWarning("Duplicate ResolverId found: {ResolverId}. Skipping resolver.", resolver.ResolverId);
+            }
+
+            var normalized = resolver.ResolverId.Replace("-", string.Empty);
+            if (!string.Equals(normalized, resolver.ResolverId, StringComparison.OrdinalIgnoreCase))
+            {
+                dictionary.TryAdd(normalized, resolver);
+            }
+        }
+
+        return dictionary;
+    }
+
+    private static IEnumerable<ContentSearchResult> ApplySorting(
+        IEnumerable<ContentSearchResult> results, ContentSortField sortOrder)
+    {
+        return sortOrder switch
+        {
+            ContentSortField.Name => results.OrderBy(r => r.Name),
+            ContentSortField.DateCreated => results.OrderByDescending(r => r.LastUpdated),
+            ContentSortField.DownloadCount => results.OrderByDescending(r => r.DownloadCount),
+            ContentSortField.Rating => results.OrderByDescending(r => r.Rating),
+            _ => results, // Relevance - keep original order
+        };
+    }
+
+    private static ContentManifest SelectPrimaryManifest(
+        IReadOnlyList<ContentManifest> manifests,
+        ContentSearchResult searchResult)
+    {
+        if (manifests.Count == 0)
+        {
+            throw new InvalidOperationException("Cannot select primary manifest from empty collection");
+        }
+
+        if (manifests.Count == 1)
+        {
+            return manifests[0];
+        }
+
+        // direct manifest id match
+        var directMatch = manifests.FirstOrDefault(m =>
+            string.Equals(m.Id.Value, searchResult.Id, StringComparison.OrdinalIgnoreCase));
+        if (directMatch != null)
+        {
+            return directMatch;
+        }
+
+        // match by SelectedVariantId against search result id or name
+        var variantMatch = manifests.FirstOrDefault(m =>
+        {
+            var variantId = m.Metadata?.SelectedVariantId;
+            if (string.IsNullOrEmpty(variantId))
+            {
+                return false;
+            }
+
+            var cleanVariantId = variantId.Replace("-", string.Empty).Trim();
+            var searchId = searchResult.Id ?? string.Empty;
+            var searchName = searchResult.Name ?? string.Empty;
+
+            if (searchId.EndsWith($"-{variantId}", StringComparison.OrdinalIgnoreCase) ||
+                searchId.EndsWith(variantId, StringComparison.OrdinalIgnoreCase) ||
+                searchId.Replace("-", string.Empty).EndsWith(cleanVariantId, StringComparison.OrdinalIgnoreCase))
+            {
+                return searchResult.TargetGame == GameType.Unknown || m.TargetGame == searchResult.TargetGame;
+            }
+
+            if (searchName.Contains(variantId, StringComparison.OrdinalIgnoreCase))
+            {
+                return searchResult.TargetGame == GameType.Unknown || m.TargetGame == searchResult.TargetGame;
+            }
+
+            return false;
+        });
+        if (variantMatch != null)
+        {
+            return variantMatch;
+        }
+
+        // match by TargetGame if specified
+        if (searchResult.TargetGame is GameType.Generals or GameType.ZeroHour)
+        {
+            var gameMatch = manifests.FirstOrDefault(m => m.TargetGame == searchResult.TargetGame);
+            if (gameMatch != null)
+            {
+                return gameMatch;
+            }
+        }
+
+        return manifests[0];
+    }
+
     private async Task<OperationResult<ContentManifest>> ResolveAndValidateManifestAsync(
         ContentSearchResult searchResult,
         IContentProvider? provider,
@@ -924,108 +1026,6 @@ public class ContentOrchestrator(
         }
 
         return OperationResult<bool>.CreateSuccess(true);
-    }
-
-    private static ConcurrentDictionary<string, IContentResolver> InitializeResolvers(
-        IEnumerable<IContentResolver> resolvers,
-        ILogger<ContentOrchestrator> logger)
-    {
-        var dictionary = new ConcurrentDictionary<string, IContentResolver>(StringComparer.OrdinalIgnoreCase);
-        foreach (var resolver in resolvers)
-        {
-            if (!dictionary.TryAdd(resolver.ResolverId, resolver))
-            {
-                logger.LogWarning("Duplicate ResolverId found: {ResolverId}. Skipping resolver.", resolver.ResolverId);
-            }
-
-            var normalized = resolver.ResolverId.Replace("-", string.Empty);
-            if (!string.Equals(normalized, resolver.ResolverId, StringComparison.OrdinalIgnoreCase))
-            {
-                dictionary.TryAdd(normalized, resolver);
-            }
-        }
-
-        return dictionary;
-    }
-
-    private static IEnumerable<ContentSearchResult> ApplySorting(
-        IEnumerable<ContentSearchResult> results, ContentSortField sortOrder)
-    {
-        return sortOrder switch
-        {
-            ContentSortField.Name => results.OrderBy(r => r.Name),
-            ContentSortField.DateCreated => results.OrderByDescending(r => r.LastUpdated),
-            ContentSortField.DownloadCount => results.OrderByDescending(r => r.DownloadCount),
-            ContentSortField.Rating => results.OrderByDescending(r => r.Rating),
-            _ => results, // Relevance - keep original order
-        };
-    }
-
-    private static ContentManifest SelectPrimaryManifest(
-        IReadOnlyList<ContentManifest> manifests,
-        ContentSearchResult searchResult)
-    {
-        if (manifests.Count == 0)
-        {
-            throw new InvalidOperationException("Cannot select primary manifest from empty collection");
-        }
-
-        if (manifests.Count == 1)
-        {
-            return manifests[0];
-        }
-
-        // direct manifest id match
-        var directMatch = manifests.FirstOrDefault(m =>
-            string.Equals(m.Id.Value, searchResult.Id, StringComparison.OrdinalIgnoreCase));
-        if (directMatch != null)
-        {
-            return directMatch;
-        }
-
-        // match by SelectedVariantId against search result id or name
-        var variantMatch = manifests.FirstOrDefault(m =>
-        {
-            var variantId = m.Metadata?.SelectedVariantId;
-            if (string.IsNullOrEmpty(variantId))
-            {
-                return false;
-            }
-
-            var cleanVariantId = variantId.Replace("-", string.Empty).Trim();
-            var searchId = searchResult.Id ?? string.Empty;
-            var searchName = searchResult.Name ?? string.Empty;
-
-            if (searchId.EndsWith($"-{variantId}", StringComparison.OrdinalIgnoreCase) ||
-                searchId.EndsWith(variantId, StringComparison.OrdinalIgnoreCase) ||
-                searchId.Replace("-", string.Empty).EndsWith(cleanVariantId, StringComparison.OrdinalIgnoreCase))
-            {
-                return searchResult.TargetGame == GameType.Unknown || m.TargetGame == searchResult.TargetGame;
-            }
-
-            if (searchName.Contains(variantId, StringComparison.OrdinalIgnoreCase))
-            {
-                return searchResult.TargetGame == GameType.Unknown || m.TargetGame == searchResult.TargetGame;
-            }
-
-            return false;
-        });
-        if (variantMatch != null)
-        {
-            return variantMatch;
-        }
-
-        // match by TargetGame if specified
-        if (searchResult.TargetGame is GameType.Generals or GameType.ZeroHour)
-        {
-            var gameMatch = manifests.FirstOrDefault(m => m.TargetGame == searchResult.TargetGame);
-            if (gameMatch != null)
-            {
-                return gameMatch;
-            }
-        }
-
-        return manifests[0];
     }
 
     /// <summary>

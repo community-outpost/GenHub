@@ -524,7 +524,7 @@ public partial class CommunityOutpostDeliverer(
                     logger.LogDebug(ex, "Could not scrape live community patch URL from {Url}", CommunityOutpostConstants.PatchPageUrl);
                 }
 
-                const string githubFallbackUrl = "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-07-31/generalszh-weekly-2026-07-31.zip";
+                var githubFallbackUrl = $"https://github.com/{SuperHackersConstants.GeneralsGameCodeOwner}/{SuperHackersConstants.GeneralsGameCodeRepo}/releases/latest/download/generalszh-latest.zip";
                 if (!candidateUrls.Contains(githubFallbackUrl, StringComparer.OrdinalIgnoreCase))
                 {
                     candidateUrls.Add(githubFallbackUrl);

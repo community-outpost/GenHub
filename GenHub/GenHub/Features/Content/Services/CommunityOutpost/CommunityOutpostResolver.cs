@@ -160,6 +160,21 @@ public class CommunityOutpostResolver(
         }
     }
 
+    /// <summary>
+    /// Gets the filename from the download URI or generates one from the content code.
+    /// </summary>
+    private static string ExtractFileName(Uri downloadUri, string contentCode)
+    {
+        var lastSegment = downloadUri.Segments.Length > 0 ? downloadUri.Segments[^1].Trim('/') : string.Empty;
+
+        if (!string.IsNullOrEmpty(lastSegment) && lastSegment.Contains('.'))
+        {
+            return lastSegment;
+        }
+
+        return $"{contentCode}{CommunityOutpostConstants.DatFileExtension}";
+    }
+
     private string DetermineManifestVersion(
         ContentSearchResult discoveredItem,
         GenPatcherContentMetadata contentMetadata)
@@ -509,20 +524,5 @@ public class CommunityOutpostResolver(
             logger.LogWarning(ex, "Failed to deserialize mirror URLs");
             return [];
         }
-    }
-
-    /// <summary>
-    /// Gets the filename from the download URI or generates one from the content code.
-    /// </summary>
-    private static string ExtractFileName(Uri downloadUri, string contentCode)
-    {
-        var lastSegment = downloadUri.Segments.Length > 0 ? downloadUri.Segments[^1].Trim('/') : string.Empty;
-
-        if (!string.IsNullOrEmpty(lastSegment) && lastSegment.Contains('.'))
-        {
-            return lastSegment;
-        }
-
-        return $"{contentCode}{CommunityOutpostConstants.DatFileExtension}";
     }
 }

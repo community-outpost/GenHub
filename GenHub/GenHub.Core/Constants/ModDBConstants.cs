@@ -461,6 +461,29 @@ public static class ModDBConstants
     /// <summary>Timeframe: Year or older.</summary>
     public const string TimeframeYearOrOlder = "5";
 
+    // ===== Managed Chromium Runtime Notifications =====
+
+    /// <summary>Title for the Chromium runtime installation toast.</summary>
+    public const string ChromiumInstallTitle = "Installing Chromium Runtime";
+
+    /// <summary>Initial message when downloading the managed Chromium runtime.</summary>
+    public const string ChromiumDownloadingMessage = "Downloading Chromium (~240 MB)... Please wait.";
+
+    /// <summary>Message while extracting and configuring the managed Chromium runtime.</summary>
+    public const string ChromiumExtractingMessage = "Extracting and configuring Chromium runtime...";
+
+    /// <summary>Title when the Chromium runtime installation completes successfully.</summary>
+    public const string ChromiumReadyTitle = "Chromium Runtime Ready";
+
+    /// <summary>Message when the Chromium runtime installation completes successfully.</summary>
+    public const string ChromiumReadyMessage = "Chromium runtime installed successfully.";
+
+    /// <summary>Title when the Chromium runtime installation fails.</summary>
+    public const string ChromiumInstallFailedTitle = "Chromium Installation Failed";
+
+    /// <summary>Message when the Chromium runtime installation fails.</summary>
+    public const string ChromiumInstallFailedMessage = "GenHub could not install its managed Chromium runtime. Check your network connection and try again.";
+
     // ===== Content Tags =====
 
     /// <summary>Content tags for search and categorization.</summary>

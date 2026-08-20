@@ -779,6 +779,60 @@ public partial class GameProfileItemViewModel : ViewModelBase
         };
     }
 
+    private static string FormatManifestGameVersion(string publisherSegment, string versionSegment)
+    {
+        if (publisherSegment == "local")
+        {
+            return string.Empty;
+        }
+
+        if (!int.TryParse(versionSegment, out var versionNumber) || versionNumber <= 0)
+        {
+            return string.Empty;
+        }
+
+        if (publisherSegment == PublisherTypeConstants.GeneralsOnline)
+        {
+            return versionNumber.ToString("D6");
+        }
+
+        if (publisherSegment == PublisherTypeConstants.TheSuperHackers || (versionSegment.Length == 8 && versionNumber >= 20000000))
+        {
+            var year = versionNumber / 10000;
+            var month = (versionNumber % 10000) / 100;
+            var day = versionNumber % 100;
+            return $"v{year}.{month:D2}.{day:D2}";
+        }
+
+        return versionNumber >= 100
+            ? $"v{versionNumber / 100}.{versionNumber % 100:D2}"
+            : $"v{versionNumber}";
+    }
+
+    private static string FormatManifestContentType(string gameTypeSegment)
+    {
+        if (!gameTypeSegment.Contains('-'))
+        {
+            return string.Empty;
+        }
+
+        var parts = gameTypeSegment.Split('-');
+        return parts[1] switch
+        {
+            "gameinstallation" => "Game Installation",
+            "gameclient" => "Game Client",
+            "mod" => "Mod",
+            "patch" => "Patch",
+            "addon" => "Add-on",
+            "map" => "Map",
+            "mappack" => "Map Pack",
+            "executable" => "Executable",
+            "moddingtool" => "Modding Tool",
+            "mission" => "Mission",
+            _ => parts[1].ToUpperInvariant(),
+        };
+    }
+
     private void UpdateDescription(GameProfile gameProfile)
     {
         // Use actual profile description if available
@@ -923,59 +977,5 @@ public partial class GameProfileItemViewModel : ViewModelBase
             ColorValue = CommunityOutpostConstants.ThemeColor;
             CoverImagePath = CommunityOutpostConstants.CoverSource;
         }
-    }
-
-    private static string FormatManifestGameVersion(string publisherSegment, string versionSegment)
-    {
-        if (publisherSegment == "local")
-        {
-            return string.Empty;
-        }
-
-        if (!int.TryParse(versionSegment, out var versionNumber) || versionNumber <= 0)
-        {
-            return string.Empty;
-        }
-
-        if (publisherSegment == PublisherTypeConstants.GeneralsOnline)
-        {
-            return versionNumber.ToString("D6");
-        }
-
-        if (publisherSegment == PublisherTypeConstants.TheSuperHackers || (versionSegment.Length == 8 && versionNumber >= 20000000))
-        {
-            var year = versionNumber / 10000;
-            var month = (versionNumber % 10000) / 100;
-            var day = versionNumber % 100;
-            return $"v{year}.{month:D2}.{day:D2}";
-        }
-
-        return versionNumber >= 100
-            ? $"v{versionNumber / 100}.{versionNumber % 100:D2}"
-            : $"v{versionNumber}";
-    }
-
-    private static string FormatManifestContentType(string gameTypeSegment)
-    {
-        if (!gameTypeSegment.Contains('-'))
-        {
-            return string.Empty;
-        }
-
-        var parts = gameTypeSegment.Split('-');
-        return parts[1] switch
-        {
-            "gameinstallation" => "Game Installation",
-            "gameclient" => "Game Client",
-            "mod" => "Mod",
-            "patch" => "Patch",
-            "addon" => "Add-on",
-            "map" => "Map",
-            "mappack" => "Map Pack",
-            "executable" => "Executable",
-            "moddingtool" => "Modding Tool",
-            "mission" => "Mission",
-            _ => parts[1].ToUpperInvariant(),
-        };
     }
 }

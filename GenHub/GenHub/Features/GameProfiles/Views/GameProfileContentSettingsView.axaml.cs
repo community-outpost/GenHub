@@ -81,7 +81,7 @@ public partial class GameProfileContentSettingsView : UserControl
     protected override void OnUnloaded(RoutedEventArgs e)
     {
         base.OnUnloaded(e);
-        _animationTimer?.Stop();
+        StopAnimation();
 
         if (_boundViewModel != null)
         {

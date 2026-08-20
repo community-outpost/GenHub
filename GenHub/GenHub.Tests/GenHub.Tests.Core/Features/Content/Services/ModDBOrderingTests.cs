@@ -119,7 +119,6 @@ public sealed class ModDBOrderingTests
         var factory = CreateFactory(CreateManifestBuilder);
 
         var resolver = new ModDBResolver(
-            new HttpClient(),
             factory,
             new ModDBPageParser(new Mock<IPlaywrightService>().Object, new Mock<ILogger<ModDBPageParser>>().Object),
             new Mock<ILogger<ModDBResolver>>().Object);
@@ -133,6 +132,64 @@ public sealed class ModDBOrderingTests
 
         // The manifest ID contains the date of the newest file (20241101) rather than the oldest (20100501)
         Assert.Contains("20241101", result.Data.Id.Value, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Verifies that ModDBResolver selects an Archive package over a Setup installer executable
+    /// for mods (such as Contra) where both Setup and Archive packages are provided on ModDB.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ModDBResolver_PrioritizesArchiveOverSetupReleaseAsync()
+    {
+        // Arrange
+        const string modUrl = "https://www.moddb.com/mods/contra";
+        var setupFile = new DownloadableFile(
+            Name: "Contra X BETA 2 (Setup)",
+            Filename: "Contra_X_BETA_2_Setup.exe",
+            UploadDate: new DateTime(2024, 12, 1, 12, 0, 0, DateTimeKind.Utc),
+            DownloadUrl: "https://www.moddb.com/downloads/start/201",
+            FileSectionType: FileSectionType.Downloads);
+
+        var archiveFile = new DownloadableFile(
+            Name: "Contra X BETA 2 (Archive)",
+            Filename: "Contra_X_BETA_2_Archive.zip",
+            UploadDate: new DateTime(2024, 12, 1, 10, 0, 0, DateTimeKind.Utc),
+            DownloadUrl: "https://www.moddb.com/downloads/start/202",
+            FileSectionType: FileSectionType.Downloads);
+
+        var parsedPage = new ParsedWebPage(
+            Url: new Uri(modUrl),
+            Context: new GlobalContext("Contra", "Contra Team", new DateTime(2024, 12, 1, 0, 0, 0, DateTimeKind.Utc), "Zero Hour", "contra.png", "Contra Mod"),
+            Sections: [setupFile, archiveFile],
+            PageType: PageType.Detail);
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "moddb-contra",
+            Name = "Contra",
+            SourceUrl = modUrl,
+            ProviderName = "ModDB",
+            ContentType = GenHub.Core.Models.Enums.ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            ParsedPageData = parsedPage,
+        };
+
+        var factory = CreateFactory(CreateManifestBuilder);
+
+        var resolver = new ModDBResolver(
+            factory,
+            new ModDBPageParser(new Mock<IPlaywrightService>().Object, new Mock<ILogger<ModDBPageParser>>().Object),
+            new Mock<ILogger<ModDBResolver>>().Object);
+
+        // Act
+        var result = await resolver.ResolveAsync(searchResult, CancellationToken.None);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        var file = Assert.Single(result.Data.Files);
+        Assert.EndsWith(".zip", file.RelativePath, StringComparison.OrdinalIgnoreCase);
     }
 
     private static ModDBManifestFactory CreateFactory(Func<IContentManifestBuilder>? manifestBuilderFactory = null)

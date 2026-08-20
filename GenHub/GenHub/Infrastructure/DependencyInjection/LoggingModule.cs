@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Text.Json;
 using GenHub.Core.Constants;
+using GenHub.Infrastructure.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
@@ -48,10 +49,10 @@ public static class LoggingModule
 
             var logger = new LoggerConfiguration()
                 .MinimumLevel.ControlledBy(_levelSwitch)
-                .WriteTo.File(logPath, shared: true)
+                .WriteTo.Sink(new ResilientFileSink(logPath))
                 .CreateLogger();
 
-            builder.AddSerilog(logger);
+            builder.AddSerilog(logger, dispose: true);
             builder.SetMinimumLevel(minLogLevel);
         });
 
@@ -84,10 +85,10 @@ public static class LoggingModule
             builder.AddDebug();
 
             var logger = new LoggerConfiguration()
-                .WriteTo.File(logPath, restrictedToMinimumLevel: LogEventLevel.Debug, shared: true)
+                .WriteTo.Sink(new ResilientFileSink(logPath), restrictedToMinimumLevel: LogEventLevel.Debug)
                 .CreateLogger();
 
-            builder.AddSerilog(logger);
+            builder.AddSerilog(logger, dispose: true);
             builder.SetMinimumLevel(LogLevel.Debug);
         });
     }

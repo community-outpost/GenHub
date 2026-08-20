@@ -34,28 +34,6 @@ public class PlaywrightService(
     IDialogService dialogService,
     INotificationService? notificationService = null) : IPlaywrightService, IDisposable, IAsyncDisposable
 {
-    private static readonly SemaphoreSlim _browserLock = new(1, 1);
-    private static readonly SemaphoreSlim _persistentLock = new(1, 1);
-    private static readonly SemaphoreSlim _playwrightLock = new(1, 1);
-
-    /// <summary>
-    /// Serializes all headed persistent-profile operations (single fetch, multi-URL sweep, ModDB
-    /// download).
-    /// </summary>
-    private static readonly SemaphoreSlim _persistentFetchLock = new(1, 1);
-    private static readonly AsyncLocal<bool> _isInPersistentSession = new();
-    private static readonly HashSet<IPage> _inUsePersistentPages = [];
-    private static readonly HashSet<string> UnsafeExtraHeaders = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Connection",
-        "Content-Length",
-        "Cookie",
-        "Host",
-        "Proxy-Connection",
-        "Transfer-Encoding",
-        "Upgrade",
-    };
-
     private const string StealthInitScript = """
         // 1. Mask navigator.webdriver
         try {
@@ -126,6 +104,28 @@ public class PlaywrightService(
             }
         } catch (e) {}
         """;
+
+    private static readonly SemaphoreSlim _browserLock = new(1, 1);
+    private static readonly SemaphoreSlim _persistentLock = new(1, 1);
+    private static readonly SemaphoreSlim _playwrightLock = new(1, 1);
+
+    /// <summary>
+    /// Serializes all headed persistent-profile operations (single fetch, multi-URL sweep, ModDB
+    /// download).
+    /// </summary>
+    private static readonly SemaphoreSlim _persistentFetchLock = new(1, 1);
+    private static readonly AsyncLocal<bool> _isInPersistentSession = new();
+    private static readonly HashSet<IPage> _inUsePersistentPages = [];
+    private static readonly HashSet<string> UnsafeExtraHeaders = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Connection",
+        "Content-Length",
+        "Cookie",
+        "Host",
+        "Proxy-Connection",
+        "Transfer-Encoding",
+        "Upgrade",
+    };
 
     private static IPlaywright? _playwright;
     private static IBrowser? _browser;
@@ -644,8 +644,7 @@ public class PlaywrightService(
     }
 
     /// <summary>
-    /// Builds browser-safe request headers from a download configuration. Headers which Chromium
-    /// owns itself are ignored, while site-required headers such as <c>Referer</c> are preserved.
+    /// Builds headers safe to apply to a Playwright page.
     /// </summary>
     /// <param name="configuration">Download configuration containing optional request headers.</param>
     /// <returns>Headers safe to apply to a Playwright page.</returns>
@@ -1273,7 +1272,8 @@ public class PlaywrightService(
             Path.Combine(configurationProvider.GetApplicationDataPath(), DirectoryNames.BrowserRuntime),
             Microsoft.Playwright.Program.Main,
             RequestManagedChromiumInstallConsentAsync,
-            logger);
+            logger,
+            notificationService);
     }
 
     /// <summary>

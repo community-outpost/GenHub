@@ -26,12 +26,43 @@ namespace GenHub.Features.Content.Services.ContentResolvers;
 /// Creates separate manifest items for releases and addons based on FileSectionType.
 /// </summary>
 public class ModDBResolver(
-    HttpClient httpClient,
     ModDBManifestFactory manifestFactory,
     ModDBPageParser webPageParser,
     ILogger<ModDBResolver> logger) : IContentResolver
 {
-    private readonly HttpClient _httpClient = httpClient;
+    /// <summary>
+    /// Computes the format priority for automated workspace reconciliation.
+    /// Raw archive packages (.zip, .7z, .rar) are prioritized over executable installers (.exe, .msi).
+    /// </summary>
+    private static int GetFileFormatPriority(DownloadableFile file)
+    {
+        var name = file.Name ?? string.Empty;
+        var fileName = file.Filename ?? string.Empty;
+
+        // Archive releases are highest priority for automated extraction and hardlinking
+        if (name.Contains("(Archive)", StringComparison.OrdinalIgnoreCase) ||
+            name.Contains("[Archive]", StringComparison.OrdinalIgnoreCase) ||
+            fileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
+            fileName.EndsWith(".7z", StringComparison.OrdinalIgnoreCase) ||
+            fileName.EndsWith(".rar", StringComparison.OrdinalIgnoreCase) ||
+            fileName.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase) ||
+            fileName.EndsWith(".tar", StringComparison.OrdinalIgnoreCase))
+        {
+            return 2;
+        }
+
+        // Setup wizards / executable installers are lowest priority
+        if (name.Contains("(Setup)", StringComparison.OrdinalIgnoreCase) ||
+            name.Contains("[Setup]", StringComparison.OrdinalIgnoreCase) ||
+            name.Contains("Setup", StringComparison.OrdinalIgnoreCase) ||
+            fileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
+            fileName.EndsWith(".msi", StringComparison.OrdinalIgnoreCase))
+        {
+            return 0;
+        }
+
+        return 1;
+    }
 
     /// <inheritdoc />
     public string ResolverId => "ModDB";
@@ -54,7 +85,8 @@ public class ModDBResolver(
             cancellationToken.ThrowIfCancellationRequested();
 
             var allFiles = parsedPage.Sections.OfType<DownloadableFile>()
-                .OrderByDescending(file => file.ReleaseDate ?? file.UploadDate ?? DateTime.MinValue)
+                .OrderByDescending(GetFileFormatPriority)
+                .ThenByDescending(file => file.ReleaseDate ?? file.UploadDate ?? DateTime.MinValue)
                 .ThenByDescending(file => file.Version, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
@@ -148,7 +180,19 @@ public class ModDBResolver(
             }
         }
 
-        return primaryFile ?? allFiles.FirstOrDefault(file => file.FileSectionType == FileSectionType.Downloads) ?? allFiles.FirstOrDefault();
+        if (primaryFile != null)
+        {
+            return primaryFile;
+        }
+
+        var downloadFiles = allFiles.Where(file => file.FileSectionType == FileSectionType.Downloads).ToList();
+        var candidates = downloadFiles.Count > 0 ? downloadFiles : allFiles;
+
+        return candidates
+            .OrderByDescending(GetFileFormatPriority)
+            .ThenByDescending(file => file.ReleaseDate ?? file.UploadDate ?? DateTime.MinValue)
+            .ThenByDescending(file => file.Version, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
     }
 
     private async Task<DownloadableFile> ResolveDetailedPrimaryFileAsync(

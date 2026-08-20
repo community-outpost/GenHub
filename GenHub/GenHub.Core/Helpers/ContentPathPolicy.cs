@@ -89,7 +89,7 @@ public static class ContentPathPolicy
 
             return IsContainedInternal(fullRoot, fullCandidate);
         }
-        catch
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException or IOException or UnauthorizedAccessException)
         {
             return false;
         }

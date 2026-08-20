@@ -86,8 +86,6 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                     throw new InvalidDataException(
                         $"Payload contains nested archives exceeding maximum extraction depth of {MaxNestedExtractionDepth}: {string.Join(", ", remainingArchives.Select(Path.GetFileName))}");
                 }
-
-                ValidateExtractedPayload(extractedDirectory, contentType);
             },
             cancellationToken);
     }
@@ -1800,54 +1798,6 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         public override void SetLength(long value) => throw new NotSupportedException();
 
         public override void Write(byte[] buffer, int offsetInBuffer, int count) => throw new NotSupportedException();
-    }
-
-    private static void ValidateExtractedPayload(string extractedDirectory, ContentType? contentType)
-    {
-        if (!contentType.HasValue)
-        {
-            return;
-        }
-
-        if (contentType.Value is ContentType.Mod or ContentType.Patch or ContentType.Map or ContentType.MapPack or ContentType.Addon)
-        {
-            var allFiles = Directory.GetFiles(extractedDirectory, "*", SearchOption.AllDirectories);
-            if (allFiles.Length == 0)
-            {
-                throw new InvalidDataException("Payload extraction resulted in an empty directory.");
-            }
-
-            var hasRecognizedContent = allFiles.Any(f =>
-            {
-                var ext = Path.GetExtension(f);
-                return ext.Equals(".big", StringComparison.OrdinalIgnoreCase) ||
-                       ext.Equals(".gib", StringComparison.OrdinalIgnoreCase) ||
-                       ext.Equals(".ctr", StringComparison.OrdinalIgnoreCase) ||
-                       ext.Equals(".ini", StringComparison.OrdinalIgnoreCase) ||
-                       ext.Equals(".map", StringComparison.OrdinalIgnoreCase) ||
-                       ext.Equals(".w3d", StringComparison.OrdinalIgnoreCase) ||
-                       ext.Equals(".tga", StringComparison.OrdinalIgnoreCase) ||
-                       ext.Equals(".dds", StringComparison.OrdinalIgnoreCase) ||
-                       ext.Equals(".bik", StringComparison.OrdinalIgnoreCase) ||
-                       ext.Equals(".vp6", StringComparison.OrdinalIgnoreCase) ||
-                       ext.Equals(".wav", StringComparison.OrdinalIgnoreCase) ||
-                       ext.Equals(".mp3", StringComparison.OrdinalIgnoreCase);
-            });
-
-            if (!hasRecognizedContent)
-            {
-                var setupExe = allFiles.FirstOrDefault(f =>
-                    f.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) &&
-                    (Path.GetFileName(f).Contains("setup", StringComparison.OrdinalIgnoreCase) ||
-                     Path.GetFileName(f).Contains("install", StringComparison.OrdinalIgnoreCase)));
-
-                if (setupExe != null)
-                {
-                    throw new InvalidDataException(
-                        $"Payload contains an unextracted installer executable '{Path.GetFileName(setupExe)}' without recognized game content (.big, .ini, etc.). The installer format could not be extracted.");
-                }
-            }
-        }
     }
 
     private sealed class NonDisposingStream(Stream inner) : Stream

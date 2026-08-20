@@ -115,6 +115,341 @@ public class ProfileLauncherFacade(
         }
     }
 
+    /// <inheritdoc/>
+    public async Task<ProfileOperationResult<bool>> ValidateLaunchAsync(string profileId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            logger.LogDebug("Validating launch for profile {ProfileId}", profileId);
+
+            var profileResult = await profileManager.GetProfileAsync(profileId, cancellationToken);
+            if (profileResult.Failed)
+            {
+                return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", profileResult.Errors));
+            }
+
+            var profile = profileResult.Data!;
+
+            string? validationToolId = await DetectAndSetToolContentIdAsync(profile, cancellationToken);
+            if (validationToolId != null)
+            {
+                logger.LogInformation("[Launch] Validation: Detected implicit Tool Profile (mixed content)");
+                profile.ToolContentId = validationToolId;
+            }
+
+            if (profile.IsToolProfile)
+            {
+                return ValidateToolProfileLaunch(profile);
+            }
+
+            return await ValidateGameProfileLaunchAsync(profile, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to validate launch for profile {ProfileId}", profileId);
+            return ProfileOperationResult<bool>.CreateFailure($"Launch validation failed: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<ProfileOperationResult<GameProcessInfo>> GetLaunchStatusAsync(string profileId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            logger.LogDebug("Getting launch status for profile {ProfileId}", profileId);
+
+            var launches = await launchRegistry.GetAllActiveLaunchesAsync();
+            var launch = launches.FirstOrDefault(l => l.ProfileId == profileId);
+            if (launch == null)
+            {
+                logger.LogDebug("No active launch found for profile {ProfileId}, returning stopped status", profileId);
+                return ProfileOperationResult<GameProcessInfo>.CreateSuccess(new GameProcessInfo
+                {
+                    IsRunning = false,
+                    ProcessId = -1,
+                });
+            }
+
+            logger.LogDebug("Profile {ProfileId} launch status: {Status}", profileId, launch.ProcessInfo.IsRunning ? "Running" : "Not Running");
+
+            return ProfileOperationResult<GameProcessInfo>.CreateSuccess(launch.ProcessInfo);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to get launch status for profile {ProfileId}", profileId);
+            return ProfileOperationResult<GameProcessInfo>.CreateFailure($"Failed to get launch status: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<ProfileOperationResult<bool>> StopProfileAsync(string profileId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            logger.LogInformation("Stopping profile {ProfileId}", profileId);
+
+            var launches = await launchRegistry.GetAllActiveLaunchesAsync();
+            var launch = launches.FirstOrDefault(l => l.ProfileId == profileId);
+            if (launch == null)
+            {
+                logger.LogInformation("No active launch found for profile {ProfileId}, considering it already stopped.", profileId);
+                return ProfileOperationResult<bool>.CreateSuccess(true);
+            }
+
+            var stopResult = await gameLauncher.TerminateGameAsync(launch.LaunchId, cancellationToken);
+            if (stopResult.Failed)
+            {
+                return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", stopResult.Errors));
+            }
+
+            // Workspace is not cleaned up when stopping - it persists across launches.
+            // This allows quick re-launches without re-creating symlinks/copies.
+            // Workspace is only cleaned up when:
+            // 1. Profile is deleted
+            // 2. Content changes require workspace refresh
+            logger.LogInformation("Successfully stopped profile {ProfileId}", profileId);
+            return ProfileOperationResult<bool>.CreateSuccess(true);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to stop profile {ProfileId}", profileId);
+            return ProfileOperationResult<bool>.CreateFailure($"Failed to stop profile: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<ProfileOperationResult<WorkspaceInfo>> PrepareWorkspaceAsync(string profileId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            logger.LogInformation("Preparing workspace for profile {ProfileId}", profileId);
+
+            // Get the profile to understand what content needs to be prepared
+            var profileResult = await profileManager.GetProfileAsync(profileId, cancellationToken);
+            if (profileResult.Failed)
+            {
+                return ProfileOperationResult<WorkspaceInfo>.CreateFailure(string.Join(", ", profileResult.Errors));
+            }
+
+            var profile = profileResult.Data!;
+
+            // Try to resolve or rebind the installation if it's stale
+            var resolvedInstallationResult = await ResolveOrRebindInstallationAsync(profile, cancellationToken);
+            if (resolvedInstallationResult.Failed)
+            {
+                return ProfileOperationResult<WorkspaceInfo>.CreateFailure(resolvedInstallationResult.FirstError ?? "Could not resolve game installation for profile");
+            }
+
+            var resolvedInstallation = resolvedInstallationResult.Data;
+            if (resolvedInstallation == null)
+            {
+                return ProfileOperationResult<WorkspaceInfo>.CreateFailure("Resolved installation data is null");
+            }
+
+            // Update the profile with the resolved installation if it changed
+            if (resolvedInstallation.Id != profile.GameInstallationId)
+            {
+                var updateRequest = new UpdateProfileRequest
+                {
+                    GameInstallationId = resolvedInstallation.Id,
+                };
+                var updateResult = await profileManager.UpdateProfileAsync(profileId, updateRequest, cancellationToken);
+                if (updateResult.Success)
+                {
+                    profile.GameInstallationId = resolvedInstallation.Id;
+                    logger.LogInformation("Rebound profile {ProfileId} to installation {InstallationId} during workspace preparation", profileId, resolvedInstallation.Id);
+                }
+            }
+
+            // Build list of manifests from enabled content IDs only
+            var manifests = new List<ContentManifest>();
+
+            // Resolve dependencies recursively
+            var resolutionResult = await dependencyResolver.ResolveDependenciesWithManifestsAsync(profile.EnabledContentIds ?? Enumerable.Empty<string>(), cancellationToken);
+            if (!resolutionResult.Success)
+            {
+                return ProfileOperationResult<WorkspaceInfo>.CreateFailure(string.Join(", ", resolutionResult.Errors));
+            }
+
+            // Check for missing dependencies (can occur even on success-with-warnings)
+            if (resolutionResult.MissingContentIds?.Any() == true)
+            {
+                return ProfileOperationResult<WorkspaceInfo>.CreateFailure(
+                    $"Missing or invalid content IDs: {string.Join(", ", resolutionResult.MissingContentIds)}");
+            }
+
+            manifests = [.. resolutionResult.ResolvedManifests];
+
+            // CAS preflight check - verify all CAS content is available before workspace preparation.
+            // This prevents late failure and ensures early error detection.
+            logger.LogDebug("[Workspace] Running CAS preflight check for {ManifestCount} manifests", manifests.Count);
+            var casCheckResult = await VerifyCasContentAvailabilityAsync(manifests, cancellationToken);
+            if (!casCheckResult.Success)
+            {
+                logger.LogError("[Workspace] CAS preflight check failed: {Error}", casCheckResult.FirstError);
+                return ProfileOperationResult<WorkspaceInfo>.CreateFailure(casCheckResult.FirstError ?? "Required content is not available in CAS");
+            }
+
+            logger.LogDebug("[Workspace] CAS preflight check passed");
+
+            // Resolve source paths for all manifests
+            var manifestSourcePaths = await ResolveManifestSourcePathsAsync(manifests, profile, cancellationToken);
+
+            // Create workspace configuration
+            if (profile.GameClient == null)
+            {
+                return ProfileOperationResult<WorkspaceInfo>.CreateFailure("Profile has no GameClient configured");
+            }
+
+            var workspaceConfig = new WorkspaceConfiguration
+            {
+                Id = profileId,
+                Manifests = manifests,
+                GameClient = profile.GameClient!,
+                Strategy = ResolveSupportedWorkspaceStrategy(
+                    profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy()),
+                ForceRecreate = false,
+                ValidateAfterPreparation = true,
+                ManifestSourcePaths = manifestSourcePaths,
+            };
+
+            // Use resolved installation path and workspace root
+            if (resolvedInstallation == null || string.IsNullOrEmpty(resolvedInstallation.InstallationPath))
+            {
+                return ProfileOperationResult<WorkspaceInfo>.CreateFailure("Resolved installation has no valid installation path");
+            }
+
+            var installationPath = resolvedInstallation.InstallationPath;
+            workspaceConfig.BaseInstallationPath = installationPath;
+
+            // Use dynamic workspace path based on game installation location
+            workspaceConfig.WorkspaceRootPath = storageLocationService.GetWorkspacePath(resolvedInstallation);
+
+            var prepareResult = await workspaceManager.PrepareWorkspaceAsync(workspaceConfig, cancellationToken: cancellationToken);
+            if (prepareResult.Failed)
+            {
+                return ProfileOperationResult<WorkspaceInfo>.CreateFailure(string.Join(", ", prepareResult.Errors));
+            }
+
+            var workspaceInfo = prepareResult.Data;
+            if (workspaceInfo == null)
+            {
+                return ProfileOperationResult<WorkspaceInfo>.CreateFailure("Workspace preparation succeeded but returned null workspace info");
+            }
+
+            // Update the profile with the active workspace ID
+            var workspaceUpdateRequest = new UpdateProfileRequest
+            {
+                ActiveWorkspaceId = workspaceInfo.Id,
+            };
+            var updateProfileResult = await profileManager.UpdateProfileAsync(profileId, workspaceUpdateRequest, cancellationToken);
+            if (updateProfileResult.Failed)
+            {
+                logger.LogWarning("Failed to update profile {ProfileId} with active workspace ID: {Errors}", profileId, string.Join(", ", updateProfileResult.Errors));
+            }
+
+            logger.LogInformation("Successfully prepared workspace {WorkspaceId} for profile {ProfileId}", workspaceInfo.Id, profileId);
+
+            return ProfileOperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to prepare workspace for profile {ProfileId}", profileId);
+            return ProfileOperationResult<WorkspaceInfo>.CreateFailure($"Failed to prepare workspace: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<ProfileOperationResult<bool>> DeleteProfileAsync(string profileId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            logger.LogInformation("Deleting profile {ProfileId}", profileId);
+
+            if (string.IsNullOrWhiteSpace(profileId))
+            {
+                return ProfileOperationResult<bool>.CreateFailure("Profile ID cannot be empty");
+            }
+
+            // Acquire the profile launch lock to ensure we don't delete during launch registration
+            // This uses the same semaphore as launch operations, so deletion waits for launch
+            // to complete its initial registration without polling or timeouts
+            using (await gameLauncher.AcquireProfileLockAsync(profileId, cancellationToken))
+            {
+                // Check if the profile is currently running
+                var launches = await launchRegistry.GetAllActiveLaunchesAsync();
+                var activeLaunch = launches.FirstOrDefault(l => l.ProfileId == profileId);
+                if (activeLaunch != null)
+                {
+                    // Double-check that the process is actually running (not in a transitional state)
+                    var isProcessRunning = false;
+                    try
+                    {
+                        var process = Process.GetProcessById(activeLaunch.ProcessInfo.ProcessId);
+                        isProcessRunning = !process.HasExited;
+                        process.Dispose();
+                    }
+                    catch (ArgumentException)
+                    {
+                        // Process doesn't exist - safe to delete
+                        logger.LogDebug("Process {ProcessId} for profile {ProfileId} no longer exists, allowing deletion", activeLaunch.ProcessInfo.ProcessId, profileId);
+                        isProcessRunning = false;
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Failed to verify process status for profile {ProfileId}, blocking deletion for safety", profileId);
+                        isProcessRunning = true;
+                    }
+
+                    if (isProcessRunning)
+                    {
+                        logger.LogWarning("Cannot delete profile {ProfileId} - process {ProcessId} is still running", profileId, activeLaunch.ProcessInfo.ProcessId);
+                        return ProfileOperationResult<bool>.CreateFailure(
+                            "Cannot delete a running profile. Please stop the profile before deleting it.");
+                    }
+
+                    // Process has exited but registry hasn't been cleaned up yet - safe to proceed
+                    logger.LogDebug("Profile {ProfileId} launch is in registry but process has exited, allowing deletion", profileId);
+                }
+
+                // Get profile to check for active workspace before deleting
+                var profileResult = await profileManager.GetProfileAsync(profileId, cancellationToken);
+                if (profileResult.Success && profileResult.Data != null && !string.IsNullOrEmpty(profileResult.Data.ActiveWorkspaceId))
+                {
+                    logger.LogInformation("Cleaning up workspace {WorkspaceId} for profile {ProfileId} before deletion", profileResult.Data.ActiveWorkspaceId, profileId);
+                    var cleanupResult = await workspaceManager.CleanupWorkspaceAsync(profileResult.Data.ActiveWorkspaceId, cancellationToken);
+                    if (cleanupResult.Failed)
+                    {
+                        logger.LogWarning("Failed to cleanup workspace {WorkspaceId} for profile {ProfileId}: {Error}", profileResult.Data.ActiveWorkspaceId, profileId, cleanupResult.FirstError);
+
+                        // Continue with profile deletion even if workspace cleanup fails
+                    }
+                }
+
+                var deleteResult = await profileManager.DeleteProfileAsync(profileId, cancellationToken);
+                if (deleteResult.Success)
+                {
+                    logger.LogInformation("Successfully deleted profile {ProfileId}", profileId);
+                    return ProfileOperationResult<bool>.CreateSuccess(true);
+                }
+
+                logger.LogError("Failed to delete profile {ProfileId}: {Errors}", profileId, string.Join(", ", deleteResult.Errors));
+                return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", deleteResult.Errors));
+            }
+        }
+        catch (IOException ioEx) when (ioEx.Message.Contains("being used by another process"))
+        {
+            logger.LogError(ioEx, "Cannot delete profile {ProfileId} because workspace files are locked", profileId);
+            return ProfileOperationResult<bool>.CreateFailure(
+                "Cannot delete profile because workspace files are being used. Please ensure the game is fully stopped before deleting.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "An unexpected error occurred while deleting profile {ProfileId}.", profileId);
+            return ProfileOperationResult<bool>.CreateFailure("An unexpected error occurred.");
+        }
+    }
+
     private async Task<ProfileOperationResult<GameLaunchInfo>> LaunchToolProfileAsync(
         GameProfile profile,
         CancellationToken cancellationToken)
@@ -323,6 +658,10 @@ public class ProfileLauncherFacade(
 
             return ProfileOperationResult<GameLaunchInfo>.CreateSuccess(toolLaunchInfo);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "[Launch] Tool launch failed");
@@ -373,6 +712,10 @@ public class ProfileLauncherFacade(
             await ApplyWorkspaceStrategyAndNotifyAsync(profile, resolvedInstallation, cancellationToken);
 
             return await ExecuteGameLaunchAndPersistAsync(profile, resolvedInstallation, skipUserDataCleanup, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -631,42 +974,6 @@ public class ProfileLauncherFacade(
         return ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo);
     }
 
-    /// <inheritdoc/>
-    public async Task<ProfileOperationResult<bool>> ValidateLaunchAsync(string profileId, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            logger.LogDebug("Validating launch for profile {ProfileId}", profileId);
-
-            var profileResult = await profileManager.GetProfileAsync(profileId, cancellationToken);
-            if (profileResult.Failed)
-            {
-                return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", profileResult.Errors));
-            }
-
-            var profile = profileResult.Data!;
-
-            string? validationToolId = await DetectAndSetToolContentIdAsync(profile, cancellationToken);
-            if (validationToolId != null)
-            {
-                logger.LogInformation("[Launch] Validation: Detected implicit Tool Profile (mixed content)");
-                profile.ToolContentId = validationToolId;
-            }
-
-            if (profile.IsToolProfile)
-            {
-                return ValidateToolProfileLaunch(profile);
-            }
-
-            return await ValidateGameProfileLaunchAsync(profile, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to validate launch for profile {ProfileId}", profileId);
-            return ProfileOperationResult<bool>.CreateFailure($"Launch validation failed: {ex.Message}");
-        }
-    }
-
     private ProfileOperationResult<bool> ValidateToolProfileLaunch(GameProfile profile)
     {
         logger.LogDebug("Validating Tool profile {ProfileId}, skipping game-specific validation", profile.Id);
@@ -816,214 +1123,6 @@ public class ProfileLauncherFacade(
         return (hasGameInstallationManifest, hasGameClientManifest, manifests);
     }
 
-    /// <inheritdoc/>
-    public async Task<ProfileOperationResult<GameProcessInfo>> GetLaunchStatusAsync(string profileId, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            logger.LogDebug("Getting launch status for profile {ProfileId}", profileId);
-
-            var launches = await launchRegistry.GetAllActiveLaunchesAsync();
-            var launch = launches.FirstOrDefault(l => l.ProfileId == profileId);
-            if (launch == null)
-            {
-                logger.LogDebug("No active launch found for profile {ProfileId}, returning stopped status", profileId);
-                return ProfileOperationResult<GameProcessInfo>.CreateSuccess(new GameProcessInfo
-                {
-                    IsRunning = false,
-                    ProcessId = -1,
-                });
-            }
-
-            logger.LogDebug("Profile {ProfileId} launch status: {Status}", profileId, launch.ProcessInfo.IsRunning ? "Running" : "Not Running");
-
-            return ProfileOperationResult<GameProcessInfo>.CreateSuccess(launch.ProcessInfo);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to get launch status for profile {ProfileId}", profileId);
-            return ProfileOperationResult<GameProcessInfo>.CreateFailure($"Failed to get launch status: {ex.Message}");
-        }
-    }
-
-    /// <inheritdoc/>
-    public async Task<ProfileOperationResult<bool>> StopProfileAsync(string profileId, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            logger.LogInformation("Stopping profile {ProfileId}", profileId);
-
-            var launches = await launchRegistry.GetAllActiveLaunchesAsync();
-            var launch = launches.FirstOrDefault(l => l.ProfileId == profileId);
-            if (launch == null)
-            {
-                logger.LogInformation("No active launch found for profile {ProfileId}, considering it already stopped.", profileId);
-                return ProfileOperationResult<bool>.CreateSuccess(true);
-            }
-
-            var stopResult = await gameLauncher.TerminateGameAsync(launch.LaunchId, cancellationToken);
-            if (stopResult.Failed)
-            {
-                return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", stopResult.Errors));
-            }
-
-            // Workspace is not cleaned up when stopping - it persists across launches.
-            // This allows quick re-launches without re-creating symlinks/copies.
-            // Workspace is only cleaned up when:
-            // 1. Profile is deleted
-            // 2. Content changes require workspace refresh
-            logger.LogInformation("Successfully stopped profile {ProfileId}", profileId);
-            return ProfileOperationResult<bool>.CreateSuccess(true);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to stop profile {ProfileId}", profileId);
-            return ProfileOperationResult<bool>.CreateFailure($"Failed to stop profile: {ex.Message}");
-        }
-    }
-
-    /// <inheritdoc/>
-    public async Task<ProfileOperationResult<WorkspaceInfo>> PrepareWorkspaceAsync(string profileId, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            logger.LogInformation("Preparing workspace for profile {ProfileId}", profileId);
-
-            // Get the profile to understand what content needs to be prepared
-            var profileResult = await profileManager.GetProfileAsync(profileId, cancellationToken);
-            if (profileResult.Failed)
-            {
-                return ProfileOperationResult<WorkspaceInfo>.CreateFailure(string.Join(", ", profileResult.Errors));
-            }
-
-            var profile = profileResult.Data!;
-
-            // Try to resolve or rebind the installation if it's stale
-            var resolvedInstallationResult = await ResolveOrRebindInstallationAsync(profile, cancellationToken);
-            if (resolvedInstallationResult.Failed)
-            {
-                return ProfileOperationResult<WorkspaceInfo>.CreateFailure(resolvedInstallationResult.FirstError ?? "Could not resolve game installation for profile");
-            }
-
-            var resolvedInstallation = resolvedInstallationResult.Data;
-            if (resolvedInstallation == null)
-            {
-                return ProfileOperationResult<WorkspaceInfo>.CreateFailure("Resolved installation data is null");
-            }
-
-            // Update the profile with the resolved installation if it changed
-            if (resolvedInstallation.Id != profile.GameInstallationId)
-            {
-                var updateRequest = new UpdateProfileRequest
-                {
-                    GameInstallationId = resolvedInstallation.Id,
-                };
-                var updateResult = await profileManager.UpdateProfileAsync(profileId, updateRequest, cancellationToken);
-                if (updateResult.Success)
-                {
-                    profile.GameInstallationId = resolvedInstallation.Id;
-                    logger.LogInformation("Rebound profile {ProfileId} to installation {InstallationId} during workspace preparation", profileId, resolvedInstallation.Id);
-                }
-            }
-
-            // Build list of manifests from enabled content IDs only
-            var manifests = new List<ContentManifest>();
-
-            // Resolve dependencies recursively
-            var resolutionResult = await dependencyResolver.ResolveDependenciesWithManifestsAsync(profile.EnabledContentIds ?? Enumerable.Empty<string>(), cancellationToken);
-            if (!resolutionResult.Success)
-            {
-                return ProfileOperationResult<WorkspaceInfo>.CreateFailure(string.Join(", ", resolutionResult.Errors));
-            }
-
-            // Check for missing dependencies (can occur even on success-with-warnings)
-            if (resolutionResult.MissingContentIds?.Any() == true)
-            {
-                return ProfileOperationResult<WorkspaceInfo>.CreateFailure(
-                    $"Missing or invalid content IDs: {string.Join(", ", resolutionResult.MissingContentIds)}");
-            }
-
-            manifests = [.. resolutionResult.ResolvedManifests];
-
-            // CAS preflight check - verify all CAS content is available before workspace preparation.
-            // This prevents late failure and ensures early error detection.
-            logger.LogDebug("[Workspace] Running CAS preflight check for {ManifestCount} manifests", manifests.Count);
-            var casCheckResult = await VerifyCasContentAvailabilityAsync(manifests, cancellationToken);
-            if (!casCheckResult.Success)
-            {
-                logger.LogError("[Workspace] CAS preflight check failed: {Error}", casCheckResult.FirstError);
-                return ProfileOperationResult<WorkspaceInfo>.CreateFailure(casCheckResult.FirstError ?? "Required content is not available in CAS");
-            }
-
-            logger.LogDebug("[Workspace] CAS preflight check passed");
-
-            // Resolve source paths for all manifests
-            var manifestSourcePaths = await ResolveManifestSourcePathsAsync(manifests, profile, cancellationToken);
-
-            // Create workspace configuration
-            if (profile.GameClient == null)
-            {
-                return ProfileOperationResult<WorkspaceInfo>.CreateFailure("Profile has no GameClient configured");
-            }
-
-            var workspaceConfig = new WorkspaceConfiguration
-            {
-                Id = profileId,
-                Manifests = manifests,
-                GameClient = profile.GameClient!,
-                Strategy = ResolveSupportedWorkspaceStrategy(
-                    profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy()),
-                ForceRecreate = false,
-                ValidateAfterPreparation = true,
-                ManifestSourcePaths = manifestSourcePaths,
-            };
-
-            // Use resolved installation path and workspace root
-            if (resolvedInstallation == null || string.IsNullOrEmpty(resolvedInstallation.InstallationPath))
-            {
-                return ProfileOperationResult<WorkspaceInfo>.CreateFailure("Resolved installation has no valid installation path");
-            }
-
-            var installationPath = resolvedInstallation.InstallationPath;
-            workspaceConfig.BaseInstallationPath = installationPath;
-
-            // Use dynamic workspace path based on game installation location
-            workspaceConfig.WorkspaceRootPath = storageLocationService.GetWorkspacePath(resolvedInstallation);
-
-            var prepareResult = await workspaceManager.PrepareWorkspaceAsync(workspaceConfig, cancellationToken: cancellationToken);
-            if (prepareResult.Failed)
-            {
-                return ProfileOperationResult<WorkspaceInfo>.CreateFailure(string.Join(", ", prepareResult.Errors));
-            }
-
-            var workspaceInfo = prepareResult.Data;
-            if (workspaceInfo == null)
-            {
-                return ProfileOperationResult<WorkspaceInfo>.CreateFailure("Workspace preparation succeeded but returned null workspace info");
-            }
-
-            // Update the profile with the active workspace ID
-            var workspaceUpdateRequest = new UpdateProfileRequest
-            {
-                ActiveWorkspaceId = workspaceInfo.Id,
-            };
-            var updateProfileResult = await profileManager.UpdateProfileAsync(profileId, workspaceUpdateRequest, cancellationToken);
-            if (updateProfileResult.Failed)
-            {
-                logger.LogWarning("Failed to update profile {ProfileId} with active workspace ID: {Errors}", profileId, string.Join(", ", updateProfileResult.Errors));
-            }
-
-            logger.LogInformation("Successfully prepared workspace {WorkspaceId} for profile {ProfileId}", workspaceInfo.Id, profileId);
-
-            return ProfileOperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to prepare workspace for profile {ProfileId}", profileId);
-            return ProfileOperationResult<WorkspaceInfo>.CreateFailure($"Failed to prepare workspace: {ex.Message}");
-        }
-    }
-
     private async Task<Dictionary<string, string>> ResolveManifestSourcePathsAsync(
         List<ContentManifest> manifests,
         GameProfile profile,
@@ -1078,97 +1177,6 @@ public class ProfileLauncherFacade(
         }
 
         return manifestSourcePaths;
-    }
-
-    /// <inheritdoc/>
-    public async Task<ProfileOperationResult<bool>> DeleteProfileAsync(string profileId, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            logger.LogInformation("Deleting profile {ProfileId}", profileId);
-
-            if (string.IsNullOrWhiteSpace(profileId))
-            {
-                return ProfileOperationResult<bool>.CreateFailure("Profile ID cannot be empty");
-            }
-
-            // Acquire the profile launch lock to ensure we don't delete during launch registration
-            // This uses the same semaphore as launch operations, so deletion waits for launch
-            // to complete its initial registration without polling or timeouts
-            using (await gameLauncher.AcquireProfileLockAsync(profileId, cancellationToken))
-            {
-                // Check if the profile is currently running
-                var launches = await launchRegistry.GetAllActiveLaunchesAsync();
-                var activeLaunch = launches.FirstOrDefault(l => l.ProfileId == profileId);
-                if (activeLaunch != null)
-                {
-                    // Double-check that the process is actually running (not in a transitional state)
-                    var isProcessRunning = false;
-                    try
-                    {
-                        var process = Process.GetProcessById(activeLaunch.ProcessInfo.ProcessId);
-                        isProcessRunning = !process.HasExited;
-                        process.Dispose();
-                    }
-                    catch (ArgumentException)
-                    {
-                        // Process doesn't exist - safe to delete
-                        logger.LogDebug("Process {ProcessId} for profile {ProfileId} no longer exists, allowing deletion", activeLaunch.ProcessInfo.ProcessId, profileId);
-                        isProcessRunning = false;
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "Failed to verify process status for profile {ProfileId}, blocking deletion for safety", profileId);
-                        isProcessRunning = true;
-                    }
-
-                    if (isProcessRunning)
-                    {
-                        logger.LogWarning("Cannot delete profile {ProfileId} - process {ProcessId} is still running", profileId, activeLaunch.ProcessInfo.ProcessId);
-                        return ProfileOperationResult<bool>.CreateFailure(
-                            "Cannot delete a running profile. Please stop the profile before deleting it.");
-                    }
-
-                    // Process has exited but registry hasn't been cleaned up yet - safe to proceed
-                    logger.LogDebug("Profile {ProfileId} launch is in registry but process has exited, allowing deletion", profileId);
-                }
-
-                // Get profile to check for active workspace before deleting
-                var profileResult = await profileManager.GetProfileAsync(profileId, cancellationToken);
-                if (profileResult.Success && profileResult.Data != null && !string.IsNullOrEmpty(profileResult.Data.ActiveWorkspaceId))
-                {
-                    logger.LogInformation("Cleaning up workspace {WorkspaceId} for profile {ProfileId} before deletion", profileResult.Data.ActiveWorkspaceId, profileId);
-                    var cleanupResult = await workspaceManager.CleanupWorkspaceAsync(profileResult.Data.ActiveWorkspaceId, cancellationToken);
-                    if (cleanupResult.Failed)
-                    {
-                        logger.LogWarning("Failed to cleanup workspace {WorkspaceId} for profile {ProfileId}: {Error}", profileResult.Data.ActiveWorkspaceId, profileId, cleanupResult.FirstError);
-
-                        // Continue with profile deletion even if workspace cleanup fails
-                    }
-                }
-
-                var deleteResult = await profileManager.DeleteProfileAsync(profileId, cancellationToken);
-                if (deleteResult.Success)
-                {
-                    logger.LogInformation("Successfully deleted profile {ProfileId}", profileId);
-                    return ProfileOperationResult<bool>.CreateSuccess(true);
-                }
-
-                logger.LogError("Failed to delete profile {ProfileId}: {Errors}", profileId, string.Join(", ", deleteResult.Errors));
-                return ProfileOperationResult<bool>.CreateFailure(string.Join(", ", deleteResult.Errors));
-            }
-        }
-        catch (IOException ioEx) when (ioEx.Message.Contains("being used by another process"))
-        {
-            logger.LogError(ioEx, "Cannot delete profile {ProfileId} because workspace files are locked", profileId);
-            return ProfileOperationResult<bool>.CreateFailure(
-                "Cannot delete profile because workspace files are being used. Please ensure the game is fully stopped before deleting.");
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "An unexpected error occurred while deleting profile {ProfileId}.", profileId);
-            return ProfileOperationResult<bool>.CreateFailure("An unexpected error occurred.");
-        }
     }
 
     private async Task<ProfileOperationResult<GameLaunchInfo>> LaunchToolProfileAsync(

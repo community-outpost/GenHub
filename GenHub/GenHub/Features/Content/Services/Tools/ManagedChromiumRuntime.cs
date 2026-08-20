@@ -2,6 +2,10 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Notifications;
 using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
 
@@ -17,7 +21,8 @@ internal sealed class ManagedChromiumRuntime(
     string runtimeDirectory,
     Func<string[], int> installer,
     Func<string, Task<bool>> requestInstallConsentAsync,
-    ILogger logger)
+    ILogger logger,
+    INotificationService? notificationService = null)
 {
     /// <summary>
     /// Environment variable used by Playwright to locate app-owned browser binaries.
@@ -73,7 +78,61 @@ internal sealed class ManagedChromiumRuntime(
 
         logger.LogInformation("Managed Chromium install consented. Installing under {RuntimeDirectory}", runtimeDirectory);
 
+        var toastId = Guid.NewGuid();
+        if (notificationService != null)
+        {
+            notificationService.Show(new NotificationMessage(
+                NotificationType.Info,
+                ModDBConstants.ChromiumInstallTitle,
+                ModDBConstants.ChromiumDownloadingMessage,
+                autoDismissMilliseconds: null,
+                actions: null,
+                isPersistent: false,
+                showInBadge: false)
+            {
+                Id = toastId,
+            });
+        }
+
         int exitCode = 0;
+        using var progressCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var progressTask = Task.Run(async () =>
+        {
+            try
+            {
+                var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+                while (!progressCts.Token.IsCancellationRequested)
+                {
+                    await Task.Delay(2000, progressCts.Token);
+                    if (progressCts.Token.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
+                    var elapsedSec = (int)stopwatch.Elapsed.TotalSeconds;
+
+                    var hasExtractedDirs = Directory.Exists(runtimeDirectory) &&
+                                           Directory.GetDirectories(runtimeDirectory).Length > 0;
+
+                    string statusMessage = hasExtractedDirs
+                        ? ModDBConstants.ChromiumExtractingMessage
+                        : elapsedSec > 10
+                            ? $"{ModDBConstants.ChromiumDownloadingMessage} ({elapsedSec}s)"
+                            : ModDBConstants.ChromiumDownloadingMessage;
+
+                    notificationService?.Update(toastId, statusMessage, ModDBConstants.ChromiumInstallTitle);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Normal termination when progress is cancelled
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Error updating Chromium install progress notification");
+            }
+        });
+
         try
         {
             exitCode = await Task.Run(
@@ -86,23 +145,62 @@ internal sealed class ManagedChromiumRuntime(
         }
         catch (OperationCanceledException)
         {
+            progressCts.Cancel();
+            await progressTask;
+            notificationService?.Dismiss(toastId);
             throw;
         }
         catch (Exception ex)
         {
+            progressCts.Cancel();
+            await progressTask;
+            notificationService?.Dismiss(toastId);
+            notificationService?.ShowError(
+                ModDBConstants.ChromiumInstallFailedTitle,
+                ModDBConstants.ChromiumInstallFailedMessage,
+                autoDismissMs: NotificationDurations.VeryLong);
             throw new InvalidOperationException(
                 "GenHub could not install its managed Chromium runtime. Check the network connection and try the ModDB action again.",
                 ex);
+        }
+        finally
+        {
+            progressCts.Cancel();
+            await progressTask;
         }
 
         cancellationToken.ThrowIfCancellationRequested();
         if (exitCode != 0 || !File.Exists(chromium.ExecutablePath))
         {
+            notificationService?.Dismiss(toastId);
+            notificationService?.ShowError(
+                ModDBConstants.ChromiumInstallFailedTitle,
+                ModDBConstants.ChromiumInstallFailedMessage,
+                autoDismissMs: NotificationDurations.VeryLong);
             throw new InvalidOperationException(
                 "GenHub could not install its managed Chromium runtime. Check the network connection and try the ModDB action again.");
         }
 
         logger.LogInformation("Managed Chromium installation completed in {RuntimeDirectory}", runtimeDirectory);
+
+        if (notificationService != null)
+        {
+            notificationService.Update(
+                toastId,
+                ModDBConstants.ChromiumReadyMessage,
+                ModDBConstants.ChromiumReadyTitle);
+
+            _ = Task.Delay(NotificationDurations.Medium).ContinueWith(_ =>
+            {
+                try
+                {
+                    notificationService.Dismiss(toastId);
+                }
+                catch
+                {
+                }
+            });
+        }
     }
 
     private static string GetPlatformFolder()

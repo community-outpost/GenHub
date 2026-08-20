@@ -60,7 +60,7 @@
         </Style>
         <Style Selector="Button.wizard-item-card:disabled">
             <Setter Property="Opacity" Value="0.65"/>
-            <Setter Property="Cursor" Value="Default"/>
+            <Setter Property="Cursor" Value="Arrow"/>
         </Style>
         
         <Style Selector="CheckBox">
