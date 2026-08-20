@@ -354,7 +354,8 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         // Arrange
         Directory.CreateDirectory(_stagingDirectory);
         var gibPath = Path.Combine(_stagingDirectory, "!ShwAudio.gib");
-        await File.WriteAllTextAsync(gibPath, "Audio BIG payload");
+        var bigHeader = new byte[] { (byte)'B', (byte)'I', (byte)'G', (byte)'F', 0x00, 0x10, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00 };
+        await File.WriteAllBytesAsync(gibPath, bigHeader);
 
         var processor = CreateProcessor();
 
@@ -376,7 +377,8 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         // Arrange
         Directory.CreateDirectory(_stagingDirectory);
         var ctrPath = Path.Combine(_stagingDirectory, "!ContraXBeta2_INI.ctr");
-        await File.WriteAllTextAsync(ctrPath, "Contra INI payload");
+        var bigHeader = new byte[] { (byte)'B', (byte)'I', (byte)'G', (byte)'F', 0x00, 0x10, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00 };
+        await File.WriteAllBytesAsync(ctrPath, bigHeader);
 
         var processor = CreateProcessor();
 
