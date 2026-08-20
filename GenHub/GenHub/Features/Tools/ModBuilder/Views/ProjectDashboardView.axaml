@@ -2,9 +2,10 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-             xmlns:vm="using:GenHub.Features.Tools.ModBuilder.ViewModels"
+             xmlns:vm="clr-namespace:GenHub.Features.Tools.ModBuilder.ViewModels"
              mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
-             x:Class="GenHub.Features.Tools.ModBuilder.Views.ProjectDashboardView">
+             x:Class="GenHub.Features.Tools.ModBuilder.Views.ProjectDashboardView"
+             x:DataType="vm:ModBuilderViewModel">
 
   <UserControl.Resources>
     <ResourceDictionary>
@@ -162,7 +163,7 @@
                 </ItemsControl.ItemsPanel>
 
                 <ItemsControl.ItemTemplate>
-                  <DataTemplate>
+                  <DataTemplate x:DataType="x:String">
                     <!-- Project Card -->
                     <Button Background="Transparent" BorderThickness="0" Padding="0" Margin="0,0,16,16"
                             Command="{Binding $parent[UserControl].((vm:ModBuilderViewModel)DataContext).OpenRecentProjectCommand}"
