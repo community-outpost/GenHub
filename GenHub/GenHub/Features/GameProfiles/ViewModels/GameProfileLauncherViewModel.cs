@@ -63,6 +63,8 @@ public partial class GameProfileLauncherViewModel(
     private readonly SemaphoreSlim _launchSemaphore = new(1, 1);
     private readonly System.Timers.Timer _headerCollapseTimer = new(TimeIntervals.HeaderCollapseDelayMs);
     private readonly System.Timers.Timer _headerExpansionTimer = new(TimeIntervals.HeaderExpansionDelayMs);
+    private bool _isHovering;
+    private bool _isTimersConfigured;
     private bool _lastOperationSuccess;
     private string? _expectedProfileIdForSuccess;
     private bool _isCreatingNewProfile;
@@ -118,31 +120,39 @@ public partial class GameProfileLauncherViewModel(
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     public virtual async Task InitializeAsync()
     {
-        // Reset header state on initialization/activation
-        ResetHeaderState();
+        // On app launch, the header is expanded and persists without auto-collapsing
+        IsHeaderExpanded = true;
+        _isHovering = false;
 
         try
         {
-            // Set up timer
-            _headerCollapseTimer.AutoReset = false;
-            _headerCollapseTimer.Elapsed += (s, e) =>
-                Avalonia.Threading.Dispatcher.UIThread.Invoke(() => IsHeaderExpanded = false);
+            if (!_isTimersConfigured)
+            {
+                _isTimersConfigured = true;
 
-            _headerCollapseTimer.Start();
+                // Set up timer
+                _headerCollapseTimer.AutoReset = false;
+                _headerCollapseTimer.Elapsed += (s, e) =>
+                    Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
+                    {
+                        if (!_isHovering && !IsScanning)
+                        {
+                            IsHeaderExpanded = false;
+                        }
+                    });
 
-            // Set up expansion timer
-            _headerExpansionTimer.AutoReset = false;
-            _headerExpansionTimer.Elapsed += (s, e) =>
-                Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
-                {
-                    IsHeaderExpanded = true;
-                    _isHovering = true;
+                // Set up expansion timer
+                _headerExpansionTimer.AutoReset = false;
+                _headerExpansionTimer.Elapsed += (s, e) =>
+                    Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
+                    {
+                        IsHeaderExpanded = true;
+                        _isHovering = true;
+                        _headerCollapseTimer.Stop();
+                    });
 
-                    // Stop collapse timer just in case
-                    _headerCollapseTimer.Stop();
-                });
-
-            gameProcessManager.ProcessExited += OnProcessExited;
+                gameProcessManager.ProcessExited += OnProcessExited;
+            }
 
             StatusMessage = "Loading profiles...";
             ErrorMessage = string.Empty;
@@ -312,10 +322,8 @@ public partial class GameProfileLauncherViewModel(
         ResetHeaderState();
     }
 
-    private bool _isHovering;
-
     /// <summary>
-    /// Resets the header state to expanded and restarts the auto-collapse timer.
+    /// Resets the header state to expanded and starts the auto-collapse timer.
     /// </summary>
     public void ResetHeaderState()
     {
@@ -324,7 +332,7 @@ public partial class GameProfileLauncherViewModel(
         _headerExpansionTimer.Stop();
 
         // Only start the auto-collapse timer if the user is NOT currently hovering
-        if (!_isHovering)
+        if (!_isHovering && !IsScanning)
         {
             _headerCollapseTimer.Start();
         }
@@ -542,6 +550,12 @@ public partial class GameProfileLauncherViewModel(
         List<GameInstallation> installationsList,
         SetupWizardResult wizardResult)
     {
+        if (!wizardResult.Confirmed)
+        {
+            logger.LogInformation("Setup wizard was skipped by user, skipping profile creation");
+            return 0;
+        }
+
         var cpDecision = wizardResult.CommunityPatchAction;
         var goDecision = wizardResult.GeneralsOnlineAction;
         var shDecision = wizardResult.SuperHackersAction;

@@ -283,7 +283,7 @@ public class LegacyRootUpgradeTests : IDisposable
         """;
         File.WriteAllText(settingsPath, existingJson);
 
-        UserSettingsService service;
+        UserSettingsService service = null!;
         using (File.Open(settingsPath, System.IO.FileMode.Open, FileAccess.ReadWrite, FileShare.None))
         {
             service = CreateSettingsService();

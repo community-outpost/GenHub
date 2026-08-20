@@ -124,16 +124,18 @@ jobs:
         id: buildinfo
         shell: pwsh
         run: |
-          $shortHash = "${{ github.sha }}".Substring(0, 7)
           $prNumber = "${{ github.event.pull_request.number }}"
           $runNumber = "${{ github.run_number }}"
+          $headSha = "${{ github.event.pull_request.head.sha }}"
 
           # Velopack requires SemVer2 3-part version (MAJOR.MINOR.PATCH)
           # Using 0.0.X format to indicate alpha/pre-release status
-          if ($prNumber) {
+          if ($prNumber -and $headSha) {
+            $shortHash = $headSha.Substring(0, 7)
             $version = "0.0.$runNumber-pr$prNumber"
             $channel = "PR"
           } else {
+            $shortHash = "${{ github.sha }}".Substring(0, 7)
             $version = "0.0.$runNumber"
             $channel = "CI"
           }
@@ -277,16 +279,18 @@ jobs:
       - name: Extract Build Info
         id: buildinfo
         run: |
-          SHORT_HASH=$(echo "${{ github.sha }}" | cut -c1-7)
           PR_NUMBER="${{ github.event.pull_request.number }}"
           RUN_NUMBER="${{ github.run_number }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
 
           # Velopack requires SemVer2 3-part version (MAJOR.MINOR.PATCH)
           # Using 0.0.X format to indicate alpha/pre-release status
-          if [ -n "$PR_NUMBER" ]; then
+          if [ -n "$PR_NUMBER" ] && [ -n "$HEAD_SHA" ]; then
+            SHORT_HASH=$(echo "$HEAD_SHA" | cut -c1-7)
             VERSION="0.0.${RUN_NUMBER}-pr${PR_NUMBER}"
             CHANNEL="PR"
           else
+            SHORT_HASH=$(echo "${{ github.sha }}" | cut -c1-7)
             VERSION="0.0.${RUN_NUMBER}"
             CHANNEL="CI"
           fi
@@ -402,14 +406,16 @@ jobs:
       - name: Extract Build Info
         id: buildinfo
         run: |
-          SHORT_HASH=$(echo "${{ github.sha }}" | cut -c1-7)
           PR_NUMBER="${{ github.event.pull_request.number }}"
           RUN_NUMBER="${{ github.run_number }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
 
-          if [ -n "$PR_NUMBER" ]; then
+          if [ -n "$PR_NUMBER" ] && [ -n "$HEAD_SHA" ]; then
+            SHORT_HASH=$(echo "$HEAD_SHA" | cut -c1-7)
             VERSION="0.0.${RUN_NUMBER}-pr${PR_NUMBER}"
             CHANNEL="PR"
           else
+            SHORT_HASH=$(echo "${{ github.sha }}" | cut -c1-7)
             VERSION="0.0.${RUN_NUMBER}"
             CHANNEL="CI"
           fi

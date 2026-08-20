@@ -36,7 +36,7 @@ public partial class GameProfileSettingsViewModel
             }
 
             CurrentProfileId = null;
-            Name = "New Profile";
+            Name = ProfileConstants.DefaultProfileName;
             Description = "A new game profile";
             ColorValue = "#1976D2";
             SelectedWorkspaceStrategy = GetDefaultWorkspaceStrategy();

@@ -103,6 +103,9 @@ This repository uses **GitNexus** to maintain an AST-parsed structural knowledge
 - **No `this.`:** Never qualify instance members with `this.`.
 - **Namespaces:** Always use file-scoped or top-level namespace declarations. Alphabetize all `using` directives at the very top of the file. Never use inline namespaces.
 - **Comment Casing:** Use standard sentence casing in comments. Never capitalize arbitrary words mid-comment.
+- **Variables & Declarations:** Always initialize local variables upon declaration. Never leave uninitialized variables (`CS-W1022`) or unused variables (`CS-W1100`). Use discards (`_`) for unused `using` scopes or out parameters.
+- **Switch Statements:** Always include a `default` case (`CS-W1009`) in `switch` statements and expressions.
+- **Exception Handling:** Never catch generic `Exception` (`CS-R1008`) unless explicitly required for top-level process/worker boundaries. Always catch specific exception types (`IOException`, `UnauthorizedAccessException`, etc.) or re-throw.
 - **Formatting:** 4 spaces indentation, Allman bracing style (opening brace on its own line), nullable reference types enabled.
 - **Member Ordering (StyleCop):**
   1. Nested types

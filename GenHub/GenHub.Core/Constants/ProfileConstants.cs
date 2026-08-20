@@ -6,6 +6,11 @@ namespace GenHub.Core.Constants;
 public static class ProfileConstants
 {
     /// <summary>
+    /// The default profile name used for new profiles.
+    /// </summary>
+    public const string DefaultProfileName = "New Profile";
+
+    /// <summary>
     /// The workspace ID used for tool profiles.
     /// </summary>
     public const string ToolProfileWorkspaceId = "tool-profile";

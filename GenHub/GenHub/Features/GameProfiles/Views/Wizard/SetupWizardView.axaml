@@ -18,54 +18,101 @@
         TransparencyLevelHint="AcrylicBlur">
 
     <Window.Styles>
-        <Style Selector="Border.card">
-            <Setter Property="Background" Value="#20FFFFFF"/>
+        <Style Selector="Button.wizard-item-card">
+            <Setter Property="Background" Value="#12FFFFFF"/>
             <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="15"/>
-            <Setter Property="Margin" Value="0,0,0,10"/>
-            <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2"/>
-                </Transitions>
+            <Setter Property="Padding" Value="14"/>
+            <Setter Property="Margin" Value="0,0,0,12"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#1AFFFFFF"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border x:Name="RootBorder"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}"
+                            Padding="{TemplateBinding Padding}">
+                        <Border.Transitions>
+                            <Transitions>
+                                <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                                <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+                            </Transitions>
+                        </Border.Transitions>
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                    </Border>
+                </ControlTemplate>
             </Setter>
         </Style>
-        <Style Selector="Border.card:pointerover">
-            <Setter Property="Background" Value="#30FFFFFF"/>
-            <Setter Property="RenderTransform" Value="scale(1.01)"/>
+        <Style Selector="Button.wizard-item-card:pointerover /template/ Border#RootBorder">
+            <Setter Property="Background" Value="#22FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#35FFFFFF"/>
+        </Style>
+        <Style Selector="Button.wizard-item-card:pressed /template/ Border#RootBorder">
+            <Setter Property="Background" Value="#18FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+        </Style>
+        <Style Selector="Button.wizard-item-card:disabled">
+            <Setter Property="Opacity" Value="0.65"/>
+            <Setter Property="Cursor" Value="Default"/>
         </Style>
         
         <Style Selector="CheckBox">
+            <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <ControlTemplate>
-                    <Border Background="Transparent" Padding="5">
-                        <Grid ColumnDefinitions="30,*">
-                            <Border Grid.Column="0" 
+                    <Border Background="Transparent" Padding="4">
+                        <Grid ColumnDefinitions="24,*">
+                            <Border x:Name="CheckBorder"
+                                    Grid.Column="0" 
                                     Width="20" Height="20" 
                                     CornerRadius="4" 
                                     BorderBrush="{DynamicResource SystemAccentColor}"
-                                    BorderThickness="1"
+                                    BorderThickness="1.5"
                                     Background="{TemplateBinding Background}">
-                                <PathIcon Data="{StaticResource CheckmarkIcon}" 
+                                <PathIcon x:Name="CheckIcon"
+                                          Data="{StaticResource CheckmarkIcon}" 
                                           Width="12" Height="12"
                                           Foreground="White"
                                           IsVisible="{TemplateBinding IsChecked}"/>
                             </Border>
-                            <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}" Margin="10,0,0,0"/>
+                            <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}" Margin="8,0,0,0"/>
                         </Grid>
                     </Border>
                 </ControlTemplate>
             </Setter>
+        </Style>
+        <Style Selector="CheckBox:pointerover /template/ Border#CheckBorder">
+            <Setter Property="BorderBrush" Value="#8A5CF6"/>
+            <Setter Property="Background" Value="#20FFFFFF"/>
+        </Style>
+        <Style Selector="CheckBox:checked /template/ Border#CheckBorder">
+            <Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+        </Style>
+        <Style Selector="CheckBox:checked:pointerover /template/ Border#CheckBorder">
+            <Setter Property="Background" Value="#7C4DFF"/>
+            <Setter Property="BorderBrush" Value="#7C4DFF"/>
+        </Style>
+        <Style Selector="CheckBox:disabled">
+            <Setter Property="Opacity" Value="0.5"/>
+            <Setter Property="Cursor" Value="No"/>
         </Style>
     </Window.Styles>
 
     <Border CornerRadius="12" Background="#1E1E1E" ClipToBounds="True">
         <Grid RowDefinitions="Auto,*,Auto">
             <!-- Header -->
-            <Border Grid.Row="0" Padding="30,30,30,20">
+            <Border Grid.Row="0" Padding="30,24,30,16">
                 <StackPanel>
-                    <TextBlock Text="{Binding Title}" FontSize="24" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,5"/>
-                    <TextBlock Text="Select the components you wish to configure." FontSize="14" Foreground="#888888"/>
+                    <TextBlock Text="{Binding Title}" FontSize="22" FontWeight="SemiBold" Foreground="White" Margin="0,0,0,4"/>
+                    <TextBlock Text="Select the components you wish to configure." FontSize="13" Foreground="#888888"/>
                 </StackPanel>
             </Border>
 
@@ -74,72 +121,86 @@
                 <ItemsControl ItemsSource="{Binding Items}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Grid ColumnDefinitions="48,*,50" Margin="0,0,0,20">
-                                <!-- Icon -->
-                                <Border Grid.Column="0" Width="36" Height="36" CornerRadius="8" Background="#2A2A2A" VerticalAlignment="Top">
-                                    <Image Source="{Binding IconPath, Converter={StaticResource StringToImageConverter}}" Width="36" Height="36"/>
-                                </Border>
-                                
-                                <!-- Content -->
-                                <StackPanel Grid.Column="1" Margin="15,-2,10,0" VerticalAlignment="Top">
-                                    <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="Medium" Foreground="White"/>
-                                    <TextBlock Text="{Binding Description}" 
-                                               FontSize="13" 
-                                               Foreground="#888888" 
-                                               TextWrapping="Wrap" 
-                                               MaxWidth="500"
-                                               MaxLines="3" 
-                                               TextTrimming="CharacterEllipsis" 
-                                               Margin="0,2,0,0"/>
+                            <Button Classes="wizard-item-card"
+                                    x:CompileBindings="False"
+                                    IsEnabled="{Binding !IsMandatory}"
+                                    Command="{Binding $parent[Window].DataContext.ToggleSelectionCommand}"
+                                    CommandParameter="{Binding}">
+                                <Grid ColumnDefinitions="48,*,40">
+                                    <!-- Icon -->
+                                    <Border Grid.Column="0" Width="36" Height="36" CornerRadius="8" Background="#2A2A2A" VerticalAlignment="Top">
+                                        <Image Source="{Binding IconPath, Converter={StaticResource StringToImageConverter}}" Width="36" Height="36"/>
+                                    </Border>
                                     
-                                    <!-- Status / Action Badge -->
-                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0" Spacing="8">
-                                        <Border Background="#203040" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding Status}" FontSize="11" FontWeight="SemiBold" Foreground="#3297FD"/>
-                                        </Border>
+                                    <!-- Content -->
+                                    <StackPanel Grid.Column="1" Margin="12,-2,10,0" VerticalAlignment="Top">
+                                        <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="Medium" Foreground="White"/>
+                                        <TextBlock Text="{Binding Description}" 
+                                                   FontSize="13" 
+                                                   Foreground="#888888" 
+                                                   TextWrapping="Wrap" 
+                                                   MaxWidth="480"
+                                                   MaxLines="3" 
+                                                   TextTrimming="CharacterEllipsis" 
+                                                   Margin="0,2,0,0"/>
+                                        
+                                        <!-- Status / Action Badge -->
+                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0" Spacing="8">
+                                            <Border Background="#203040" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Status}" FontSize="11" FontWeight="SemiBold" Foreground="#3297FD"/>
+                                            </Border>
 
-                                        <!-- Version Badge -->
-                                        <Border Background="#252525" CornerRadius="4" Padding="6,2" VerticalAlignment="Center" IsVisible="{Binding Version, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                            <TextBlock Text="{Binding Version}" FontSize="11" Foreground="#AAAAAA"/>
-                                        </Border>
+                                            <!-- Version Badge -->
+                                            <Border Background="#252525" CornerRadius="4" Padding="6,2" VerticalAlignment="Center" IsVisible="{Binding Version, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                <TextBlock Text="{Binding Version}" FontSize="11" Foreground="#AAAAAA"/>
+                                            </Border>
 
-                                        <TextBlock Text="{Binding ActionLabel}" 
-                                                   FontSize="12" 
-                                                   Foreground="#3297FD" 
-                                                   VerticalAlignment="Center" 
-                                                   FontWeight="Medium"/>
+                                            <TextBlock Text="{Binding ActionLabel}" 
+                                                       FontSize="12" 
+                                                       Foreground="#3297FD" 
+                                                       VerticalAlignment="Center" 
+                                                       FontWeight="Medium"/>
+                                        </StackPanel>
                                     </StackPanel>
-                                </StackPanel>
 
-                                <!-- Selection Checkbox -->
-                                <CheckBox Grid.Column="2" 
-                                          x:CompileBindings="False"
-                                          HorizontalAlignment="Right"
-                                          IsChecked="{Binding IsSelected}" 
-                                          IsEnabled="{Binding !IsMandatory}"
-                                          VerticalAlignment="Top"
-                                          Command="{Binding $parent[Window].DataContext.ToggleSelectionCommand}"
-                                          CommandParameter="{Binding}">
-                                    <CheckBox.Styles>
-                                        <Style Selector="CheckBox /template/ Border#NormalRectangle">
-                                            <Setter Property="CornerRadius" Value="10"/>
-                                        </Style>
-                                    </CheckBox.Styles>
-                                </CheckBox>
-                            </Grid>
+                                    <!-- Selection Checkbox -->
+                                    <CheckBox Grid.Column="2" 
+                                              HorizontalAlignment="Right"
+                                              IsChecked="{Binding IsSelected}" 
+                                              IsEnabled="{Binding !IsMandatory}"
+                                              IsHitTestVisible="False"
+                                              Focusable="False"
+                                              VerticalAlignment="Center"/>
+                                </Grid>
+                            </Button>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </ScrollViewer>
 
             <!-- Footer -->
-            <Border Grid.Row="2" Padding="30" Background="#252525">
+            <Border Grid.Row="2" Padding="24,20" Background="#252525">
                 <Grid ColumnDefinitions="*,Auto">
                     <Button Grid.Column="0" Content="{Binding CancelLabel}" Command="{Binding CancelCommand}" 
-                            HorizontalAlignment="Left" Background="Transparent" Foreground="#888888" BorderThickness="0"/>
+                            HorizontalAlignment="Left" Background="Transparent" Foreground="#888888" BorderThickness="0"
+                            Cursor="Hand" Padding="12,8">
+                        <Button.Styles>
+                            <Style Selector="Button:pointerover">
+                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="Background" Value="#15FFFFFF"/>
+                            </Style>
+                        </Button.Styles>
+                    </Button>
                     
                     <Button Grid.Column="1" Content="{Binding ConfirmLabel}" Command="{Binding ConfirmCommand}" 
-                            Background="White" Foreground="Black" CornerRadius="6" FontWeight="Medium" Padding="20,8"/>
+                            Background="White" Foreground="Black" CornerRadius="6" FontWeight="Medium" Padding="20,8"
+                            Cursor="Hand">
+                        <Button.Styles>
+                            <Style Selector="Button:pointerover">
+                                <Setter Property="Background" Value="#E0E0E0"/>
+                            </Style>
+                        </Button.Styles>
+                    </Button>
                 </Grid>
             </Border>
         </Grid>

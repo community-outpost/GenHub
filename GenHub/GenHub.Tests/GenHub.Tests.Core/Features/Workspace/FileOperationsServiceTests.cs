@@ -469,7 +469,15 @@ public class FileOperationsServiceTests : IDisposable
             File.CreateSymbolicLink(linkPath, targetPath);
             return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (PlatformNotSupportedException)
         {
             return false;
         }

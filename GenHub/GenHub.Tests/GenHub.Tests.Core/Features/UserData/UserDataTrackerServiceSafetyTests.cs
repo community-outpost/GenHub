@@ -782,7 +782,19 @@ public sealed partial class UserDataTrackerServiceSafetyTests : IDisposable
                 ? CreateHardLinkWindows(linkPath, existingPath, IntPtr.Zero)
                 : LinkUnix(existingPath, linkPath) == 0;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or EntryPointNotFoundException or DllNotFoundException)
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (EntryPointNotFoundException)
+        {
+            return false;
+        }
+        catch (DllNotFoundException)
         {
             return false;
         }
@@ -803,7 +815,11 @@ public sealed partial class UserDataTrackerServiceSafetyTests : IDisposable
             File.Delete(path);
             return !File.Exists(path);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
         {
             return false;
         }

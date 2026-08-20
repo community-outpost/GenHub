@@ -18,6 +18,7 @@ using GenHub.Core.Models.Results;
 using GenHub.Features.Content.Services.Publishers;
 using GenHub.Features.GameProfiles.Services;
 using GenHub.Features.GameProfiles.ViewModels;
+using GenHub.Features.GameProfiles.ViewModels.Wizard;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -309,6 +310,95 @@ public class GameProfileLauncherViewModelTests
 
         // Assert
         Assert.Equal($"Test Profile {string.Format(ProfileConstants.CopyNameNumberedFormat, 3)}", uniqueName);
+    }
+
+    /// <summary>
+    /// Verifies that ScanForGamesCommand creates zero profiles when the wizard is skipped/cancelled.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task ScanForGamesCommand_WhenWizardCancelled_CreatesZeroProfilesAsync()
+    {
+        var installationService = new Mock<IGameInstallationService>();
+        var installation = new GameInstallation(Path.Combine("C:", "Steam", "Games"), GameInstallationType.Steam, new Mock<ILogger<GameInstallation>>().Object);
+        installation.PopulateGameClients([
+            new GameClient
+            {
+                Id = "cp-client",
+                Name = "Community Patch",
+                PublisherType = CommunityOutpostConstants.PublisherType,
+                GameType = GameType.ZeroHour,
+            },
+        ]);
+        var installations = new List<GameInstallation> { installation };
+
+        installationService.Setup(x => x.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess(installations));
+
+        var shortcutService = new Mock<IShortcutService>();
+        var notificationService = new Mock<INotificationService>();
+        var publisherOrchestrator = new Mock<IPublisherProfileOrchestrator>();
+        var profileManager = new Mock<IGameProfileManager>();
+        var editorFacade = new Mock<IProfileEditorFacade>();
+
+        var setupWizardService = new Mock<ISetupWizardService>();
+        setupWizardService.Setup(x => x.RunSetupWizardAsync(It.IsAny<IEnumerable<GameInstallation>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new SetupWizardResult
+            {
+                Confirmed = false,
+                CommunityPatchAction = GameClientConstants.WizardActionTypes.Install,
+            });
+
+        var vm = new GameProfileLauncherViewModel(
+            installationService.Object,
+            profileManager.Object,
+            null!,
+            null!,
+            editorFacade.Object,
+            null!,
+            null!,
+            shortcutService.Object,
+            publisherOrchestrator.Object,
+            new Mock<ISteamManifestPatcher>().Object,
+            CreateProfileResourceService(),
+            new Mock<IGameClientDetector>().Object,
+            notificationService.Object,
+            setupWizardService.Object,
+            new Mock<IDialogService>().Object,
+            NullLogger<GameProfileLauncherViewModel>.Instance);
+
+        await vm.ScanForGamesCommand.ExecuteAsync(null);
+
+        Assert.Equal("Scan complete. Found 1 installations, created 0 profiles", vm.StatusMessage);
+        publisherOrchestrator.Verify(
+            x => x.CreateProfilesForPublisherClientAsync(It.IsAny<GameInstallation>(), It.IsAny<GameClient>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        profileManager.Verify(
+            x => x.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that SetupWizardItemViewModel strips leading 'v' or 'V' prefix.
+    /// </summary>
+    /// <param name="rawVersion">The input version string.</param>
+    /// <param name="expectedVersion">The expected sanitized version string.</param>
+    [Theory]
+    [InlineData("v081326_QFE3", "081326_QFE3")]
+    [InlineData("vweekly-2026-08-14", "weekly-2026-08-14")]
+    [InlineData("v02-08-2026", "02-08-2026")]
+    [InlineData("V1.04", "1.04")]
+    [InlineData("1.08", "1.08")]
+    [InlineData("  v1.04  ", "1.04")]
+    [InlineData("  1.08  ", "1.08")]
+    public void SetupWizardItemViewModel_Version_StripsLeadingVPrefix(string rawVersion, string expectedVersion)
+    {
+        var item = new SetupWizardItemViewModel
+        {
+            Version = rawVersion,
+        };
+
+        Assert.Equal(expectedVersion, item.Version);
     }
 
     private static ProfileResourceService CreateProfileResourceService()

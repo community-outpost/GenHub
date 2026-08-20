@@ -27,7 +27,7 @@ public sealed partial class SetupWizardViewModel(IEnumerable<SetupWizardItemView
     /// Gets or sets the label for the cancel/skip button.
     /// </summary>
     [ObservableProperty]
-    private string _cancelLabel = "Skip & Create Base Profiles";
+    private string _cancelLabel = "Skip";
 
     /// <summary>
     /// Gets or sets the label for the confirm/continue button.
@@ -45,11 +45,16 @@ public sealed partial class SetupWizardViewModel(IEnumerable<SetupWizardItemView
     public bool Confirmed => _confirmed;
 
     [RelayCommand]
-    private void ToggleSelection(SetupWizardItemViewModel item)
+    private void ToggleSelection(SetupWizardItemViewModel? item)
     {
+        if (item == null)
+        {
+            return;
+        }
+
         if (!item.IsMandatory)
         {
-            // IsSelected is bound two-way, so we just need to update the summary labels
+            item.IsSelected = !item.IsSelected;
             UpdateLabels();
         }
     }

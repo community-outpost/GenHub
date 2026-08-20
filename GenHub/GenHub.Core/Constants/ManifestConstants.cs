@@ -101,6 +101,16 @@ public static class ManifestConstants
     public const string DefaultContentDependencyId = "1.0.genhub.content.defaultdependency";
 
     /// <summary>
+    /// Wildcard token representing any publisher in dependency declarations.
+    /// </summary>
+    public const string AnyPublisherToken = "any";
+
+    /// <summary>
+    /// Separator used to append variant identifiers to content names.
+    /// </summary>
+    public const string VariantSeparator = "-";
+
+    /// <summary>
     /// Version string for Generals game installation manifests.
     /// This represents the executable version 1.08.
     /// Note: When used in manifest IDs, dots are removed to create "108" for schema compliance.
