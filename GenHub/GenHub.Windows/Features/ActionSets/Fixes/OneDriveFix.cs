@@ -209,44 +209,6 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
         return Task.FromResult(new ActionSetResult(true));
     }
 
-    private bool CreateSymlinkOrJunction(string linkPath, string targetPath, List<string> details)
-    {
-        try
-        {
-            Directory.CreateSymbolicLink(linkPath, targetPath);
-            details.Add($"  ✓ Symlink created: {linkPath} -> {targetPath}");
-            return true;
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "CreateSymbolicLink failed, falling back to directory junction for {Path}", linkPath);
-            try
-            {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = "cmd.exe",
-                    Arguments = $"/c mklink /J \"{linkPath}\" \"{targetPath}\"",
-                    CreateNoWindow = true,
-                    UseShellExecute = false,
-                };
-                using var p = Process.Start(psi);
-                p?.WaitForExit();
-                if (p?.ExitCode == ProcessConstants.ExitCodeSuccess)
-                {
-                    details.Add($"  ✓ Junction created: {linkPath} -> {targetPath}");
-                    return true;
-                }
-            }
-            catch (Exception juncEx)
-            {
-                logger.LogWarning(juncEx, "Junction creation failed for {Path}", linkPath);
-            }
-
-            details.Add($"  ✗ Failed to create link: {linkPath}");
-            return false;
-        }
-    }
-
     private static void CopyDirectoryRecursive(string source, string target)
     {
         foreach (var dirPath in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
@@ -372,6 +334,44 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
         if (Directory.Exists(cloudPath) && !IsSymbolicLink(cloudPath)) return false;
 
         return false;
+    }
+
+    private bool CreateSymlinkOrJunction(string linkPath, string targetPath, List<string> details)
+    {
+        try
+        {
+            Directory.CreateSymbolicLink(linkPath, targetPath);
+            details.Add($"  ✓ Symlink created: {linkPath} -> {targetPath}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "CreateSymbolicLink failed, falling back to directory junction for {Path}", linkPath);
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = $"/c mklink /J \"{linkPath}\" \"{targetPath}\"",
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                };
+                using var p = Process.Start(psi);
+                p?.WaitForExit();
+                if (p?.ExitCode == ProcessConstants.ExitCodeSuccess)
+                {
+                    details.Add($"  ✓ Junction created: {linkPath} -> {targetPath}");
+                    return true;
+                }
+            }
+            catch (Exception juncEx)
+            {
+                logger.LogWarning(juncEx, "Junction creation failed for {Path}", linkPath);
+            }
+
+            details.Add($"  ✗ Failed to create link: {linkPath}");
+            return false;
+        }
     }
 
     private async Task ApplyPinAttributeAsync(string path, CancellationToken ct)
