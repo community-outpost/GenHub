@@ -516,15 +516,43 @@ public partial class FileManagerViewModel(
         return !excludedFiles.Contains(name, StringComparer.OrdinalIgnoreCase);
     }
 
+    private List<FileTreeNode> GetSelectedGameFiles()
+    {
+        if (SelectedGameFiles.Count > 0)
+        {
+            return SelectedGameFiles.ToList();
+        }
+
+        if (SelectedGameFile != null)
+        {
+            return [SelectedGameFile];
+        }
+
+        return [];
+    }
+
+    private List<FileTreeNode> GetSelectedProjectFiles()
+    {
+        if (SelectedProjectFiles.Count > 0)
+        {
+            return SelectedProjectFiles.ToList();
+        }
+
+        if (SelectedProjectFile != null)
+        {
+            return [SelectedProjectFile];
+        }
+
+        return [];
+    }
+
     /// <summary>
     /// Adds selected files from game installation to project.
     /// </summary>
     [RelayCommand]
     private async Task AddFilesToProjectAsync()
     {
-        var targetNodes = SelectedGameFiles.Count > 0
-            ? SelectedGameFiles.ToList()
-            : (SelectedGameFile != null ? new List<FileTreeNode> { SelectedGameFile } : []);
+        var targetNodes = GetSelectedGameFiles();
 
         if (targetNodes.Count == 0 || string.IsNullOrEmpty(_projectPath))
             return;
@@ -607,9 +635,7 @@ public partial class FileManagerViewModel(
     [RelayCommand]
     private async Task RemoveFilesFromProjectAsync()
     {
-        var targetNodes = SelectedProjectFiles.Count > 0
-            ? SelectedProjectFiles.ToList()
-            : (SelectedProjectFile != null ? new List<FileTreeNode> { SelectedProjectFile } : []);
+        var targetNodes = GetSelectedProjectFiles();
 
         if (targetNodes.Count == 0)
             return;
