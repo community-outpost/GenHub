@@ -140,6 +140,23 @@
         <Style Selector="Button.GenPatcherPrimaryBtn:pressed">
             <Setter Property="RenderTransform" Value="scale(0.98)"/>
         </Style>
+
+        <!-- GenPatcher Cancel Button -->
+        <Style Selector="Button.GenPatcherCancelBtn">
+            <Setter Property="Background" Value="#4A1525"/>
+            <Setter Property="BorderBrush" Value="#E57373"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Foreground" Value="#FFCDD2"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.GenPatcherCancelBtn:pointerover">
+            <Setter Property="Background" Value="#661C33"/>
+            <Setter Property="BorderBrush" Value="#FF8A80"/>
+        </Style>
     </UserControl.Styles>
 
     <Panel>
@@ -215,9 +232,20 @@
                     </StackPanel>
 
                     <!-- Batch Action Button -->
-                    <Button Grid.Column="2" Classes="GenPatcherPrimaryBtn" Command="{Binding ApplyAllFixesCommand}" VerticalAlignment="Center">
-                        <TextBlock Text="Apply All Recommended" VerticalAlignment="Center" FontWeight="Bold"/>
-                    </Button>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <Button Classes="GenPatcherPrimaryBtn" 
+                                Command="{Binding ApplyAllFixesCommand}" 
+                                IsVisible="{Binding !IsBatchApplying}" 
+                                VerticalAlignment="Center">
+                            <TextBlock Text="Apply All Recommended" VerticalAlignment="Center" FontWeight="Bold"/>
+                        </Button>
+                        <Button Classes="GenPatcherCancelBtn" 
+                                Command="{Binding CancelBatchApplyCommand}" 
+                                IsVisible="{Binding IsBatchApplying}" 
+                                VerticalAlignment="Center">
+                            <TextBlock Text="Cancel Batch" VerticalAlignment="Center" FontWeight="Bold"/>
+                        </Button>
+                    </StackPanel>
                 </Grid>
             </Border>
 

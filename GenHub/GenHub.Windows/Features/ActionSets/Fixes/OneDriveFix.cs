@@ -5,19 +5,16 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
-using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
 
 /// <summary>
 /// Fix that prevents OneDrive from syncing game folders.
-/// This fix creates desktop.ini files with ThisPCPolicy=DisableCloudSync
-/// to prevent OneDrive from syncing game installation and user data folders.
+/// Relocates game user data out of OneDrive and creates local symbolic links to prevent cloud sync locks and crashes.
 /// </summary>
 public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
 {
@@ -47,7 +44,6 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
     /// <inheritdoc/>
     public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
-        // Fix is only applicable if Documents is redirected to OneDrive
         return Task.FromResult(IsOneDriveRedirected() && (installation.HasGenerals || installation.HasZeroHour));
     }
 
@@ -56,7 +52,6 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
     {
         try
         {
-            // If not redirected, not applicable. Return false so it shows as NOT APPLICABLE instead of APPLIED
             if (!IsOneDriveRedirected()) return Task.FromResult(false);
 
             foreach (var folderName in CommonFolderNames)
@@ -100,126 +95,15 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
             }
 
             var backupBaseDir = Path.Combine(localDocs, "_GenHub_OneDrive_Backups", $"Backup_{DateTime.UtcNow:yyyyMMdd_HHmmss}");
-
             int foldersProcessed = 0;
+
             foreach (var folderName in CommonFolderNames)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-
-                var cloudPath = Path.Combine(cloudDocs, folderName);
-                var localPath = Path.Combine(localDocs, folderName);
-                string? currentCloudArchive = null;
-
-                if (!Directory.Exists(cloudPath) && !Directory.Exists(localPath)) continue;
-
-                if (IsFolderCorrectlySymlinked(folderName))
+                var processed = await ProcessFolderAsync(folderName, cloudDocs, localDocs, backupBaseDir, details, cancellationToken);
+                if (processed)
                 {
-                    details.Add($"✓ Folder '{folderName}' is already correctly symlinked.");
-                    continue;
-                }
-
-                try
-                {
-                    // If cloud folder exists and is a real directory (not symlink)
-                    if (Directory.Exists(cloudPath) && !IsSymbolicLink(cloudPath))
-                    {
-                        var backupFolder = Path.Combine(backupBaseDir, folderName);
-                        details.Add($"Creating safety backup of '{folderName}' to {backupFolder}...");
-                        Directory.CreateDirectory(backupFolder);
-
-                        // Step 1: Create complete safety backup
-                        CopyDirectoryRecursive(cloudPath, backupFolder);
-                        details.Add($"  ✓ Backup created ({CountFiles(backupFolder)} files)");
-
-                        // Step 2: Merge or move into local destination with verification
-                        if (!Directory.Exists(localPath))
-                        {
-                            Directory.CreateDirectory(localPath);
-                        }
-
-                        details.Add($"  Copying and verifying files into '{localPath}'...");
-                        var (copied, totalBytes) = CopyDirectoryWithVerification(cloudPath, localPath);
-                        details.Add($"  ✓ Copied and verified {copied} files ({totalBytes / 1024.0 / 1024.0:F2} MB)");
-
-                        // Step 3: Verify destination integrity before unlinking source
-                        if (!VerifyDirectoryIntegrity(cloudPath, localPath))
-                        {
-                            throw new IOException($"Integrity check failed between '{cloudPath}' and '{localPath}'. Aborting to prevent data loss.");
-                        }
-
-                        // Step 4: Safely move cloud folder to backup location instead of permanently deleting
-                        var cloudArchive = cloudPath + ".archived_" + DateTime.UtcNow.Ticks;
-                        currentCloudArchive = cloudArchive;
-                        Directory.Move(cloudPath, cloudArchive);
-                        details.Add($"  ✓ Original cloud folder archived to {Path.GetFileName(cloudArchive)}");
-                    }
-
-                    // Create symlink or junction in OneDrive pointing to local
-                    if (Directory.Exists(localPath) && !Directory.Exists(cloudPath))
-                    {
-                        details.Add($"Creating link in OneDrive for '{folderName}'...");
-                        bool linkSuccess = CreateSymlinkOrJunction(cloudPath, localPath, details);
-                        if (!linkSuccess)
-                        {
-                            // Roll back archive to restore user folder
-                            if (!string.IsNullOrEmpty(currentCloudArchive) && Directory.Exists(currentCloudArchive) && !Directory.Exists(cloudPath))
-                            {
-                                Directory.Move(currentCloudArchive, cloudPath);
-                                details.Add("  ✓ Restored original cloud folder from archive due to link creation failure");
-                                currentCloudArchive = null;
-                            }
-
-                            return new ActionSetResult(false, $"Failed to create symlink or junction for '{folderName}'. Restored original folder from archive.", details);
-                        }
-                    }
-
-                    // Apply Pin attribute to local folder
-                    await ApplyPinAttributeAsync(localPath, cancellationToken);
                     foldersProcessed++;
-                }
-                catch (IOException ex)
-                {
-                    logger.LogWarning(ex, "I/O error processing folder {LocalPath}", localPath);
-                    if (!string.IsNullOrEmpty(currentCloudArchive) && Directory.Exists(currentCloudArchive) && !Directory.Exists(cloudPath))
-                    {
-                        try
-                        {
-                            Directory.Move(currentCloudArchive, cloudPath);
-                            details.Add("  ✓ Restored original cloud folder from archive after error");
-                        }
-                        catch (IOException rollbackEx)
-                        {
-                            logger.LogError(rollbackEx, "Failed to rollback archived folder {Archive} to {CloudPath}", currentCloudArchive, cloudPath);
-                        }
-                        catch (UnauthorizedAccessException rollbackEx)
-                        {
-                            logger.LogError(rollbackEx, "Access denied rolling back archived folder {Archive} to {CloudPath}", currentCloudArchive, cloudPath);
-                        }
-                    }
-
-                    throw;
-                }
-                catch (UnauthorizedAccessException ex)
-                {
-                    logger.LogWarning(ex, "Access denied processing folder {LocalPath}", localPath);
-                    if (!string.IsNullOrEmpty(currentCloudArchive) && Directory.Exists(currentCloudArchive) && !Directory.Exists(cloudPath))
-                    {
-                        try
-                        {
-                            Directory.Move(currentCloudArchive, cloudPath);
-                            details.Add("  ✓ Restored original cloud folder from archive after error");
-                        }
-                        catch (IOException rollbackEx)
-                        {
-                            logger.LogError(rollbackEx, "Failed to rollback archived folder {Archive} to {CloudPath}", currentCloudArchive, cloudPath);
-                        }
-                        catch (UnauthorizedAccessException rollbackEx)
-                        {
-                            logger.LogError(rollbackEx, "Access denied rolling back archived folder {Archive} to {CloudPath}", currentCloudArchive, cloudPath);
-                        }
-                    }
-
-                    throw;
                 }
             }
 
@@ -240,8 +124,60 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        logger.LogWarning("Undoing OneDrive folder relocation is not supported automatically.");
-        return Task.FromResult(new ActionSetResult(true));
+        var details = new List<string>();
+
+        try
+        {
+            var cloudDocs = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            var localDocs = GetLocalDocumentsPath();
+
+            int restoredCount = 0;
+            foreach (var folderName in CommonFolderNames)
+            {
+                var cloudPath = Path.Combine(cloudDocs, folderName);
+                var localPath = Path.Combine(localDocs, folderName);
+
+                if (Directory.Exists(cloudPath) && IsSymbolicLink(cloudPath))
+                {
+                    try
+                    {
+                        Directory.Delete(cloudPath);
+                        details.Add($"✓ Removed symbolic link/junction for '{folderName}' in OneDrive");
+
+                        if (Directory.Exists(localPath))
+                        {
+                            Directory.CreateDirectory(cloudPath);
+                            CopyDirectoryRecursive(localPath, cloudPath);
+                            details.Add($"✓ Restored original files for '{folderName}' into OneDrive");
+                        }
+
+                        restoredCount++;
+                    }
+                    catch (IOException ex)
+                    {
+                        logger.LogWarning(ex, "Failed to restore OneDrive folder {Folder}", folderName);
+                        details.Add($"⚠ Warning restoring '{folderName}': {ex.Message}");
+                    }
+                    catch (UnauthorizedAccessException ex)
+                    {
+                        logger.LogWarning(ex, "Access denied restoring OneDrive folder {Folder}", folderName);
+                        details.Add($"⚠ Access denied restoring '{folderName}'");
+                    }
+                }
+            }
+
+            if (restoredCount == 0)
+            {
+                details.Add("ℹ No active OneDrive symlinks found to undo.");
+            }
+
+            return Task.FromResult(new ActionSetResult(true, null, details));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error undoing OneDrive folder relocation");
+            return Task.FromResult(new ActionSetResult(false, ex.Message, details));
+        }
     }
 
     private static void CopyDirectoryRecursive(string source, string target)
@@ -355,20 +291,120 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
         var cloudPath = Path.Combine(cloudDocs, folderName);
         var localPath = Path.Combine(localDocs, folderName);
 
-        // If neither exist, we consider it "fine" (it will be fixed when they appear)
         if (!Directory.Exists(cloudPath) && !Directory.Exists(localPath)) return true;
 
-        // If local exists and cloud is a symlink to it, it's applied
         if (Directory.Exists(localPath) && IsSymbolicLink(cloudPath))
         {
-            // We could check the target here, but Directory.Exists(localPath) + IsSymbolicLink(cloudPath) is 99% there.
             return true;
         }
 
-        // If cloud exists as real folder but local doesn't, it's NOT applied
         if (Directory.Exists(cloudPath) && !IsSymbolicLink(cloudPath)) return false;
 
         return false;
+    }
+
+    private async Task<bool> ProcessFolderAsync(
+        string folderName,
+        string cloudDocs,
+        string localDocs,
+        string backupBaseDir,
+        List<string> details,
+        CancellationToken ct)
+    {
+        var cloudPath = Path.Combine(cloudDocs, folderName);
+        var localPath = Path.Combine(localDocs, folderName);
+        string? currentCloudArchive = null;
+
+        if (!Directory.Exists(cloudPath) && !Directory.Exists(localPath))
+        {
+            return false;
+        }
+
+        if (IsFolderCorrectlySymlinked(folderName))
+        {
+            details.Add($"✓ Folder '{folderName}' is already correctly symlinked.");
+            return false;
+        }
+
+        try
+        {
+            if (Directory.Exists(cloudPath) && !IsSymbolicLink(cloudPath))
+            {
+                var backupFolder = Path.Combine(backupBaseDir, folderName);
+                details.Add($"Creating safety backup of '{folderName}' to {backupFolder}...");
+                Directory.CreateDirectory(backupFolder);
+
+                CopyDirectoryRecursive(cloudPath, backupFolder);
+                details.Add($"  ✓ Backup created ({CountFiles(backupFolder)} files)");
+
+                if (!Directory.Exists(localPath))
+                {
+                    Directory.CreateDirectory(localPath);
+                }
+
+                details.Add($"  Copying and verifying files into '{localPath}'...");
+                var (copied, totalBytes) = CopyDirectoryWithVerification(cloudPath, localPath);
+                details.Add($"  ✓ Copied and verified {copied} files ({totalBytes / 1024.0 / 1024.0:F2} MB)");
+
+                if (!VerifyDirectoryIntegrity(cloudPath, localPath))
+                {
+                    throw new IOException($"Integrity check failed between '{cloudPath}' and '{localPath}'. Aborting to prevent data loss.");
+                }
+
+                var cloudArchive = cloudPath + ".archived_" + DateTime.UtcNow.Ticks;
+                currentCloudArchive = cloudArchive;
+                Directory.Move(cloudPath, cloudArchive);
+                details.Add($"  ✓ Original cloud folder archived to {Path.GetFileName(cloudArchive)}");
+            }
+
+            if (Directory.Exists(localPath) && !Directory.Exists(cloudPath))
+            {
+                details.Add($"Creating link in OneDrive for '{folderName}'...");
+                bool linkSuccess = CreateSymlinkOrJunction(cloudPath, localPath, details);
+                if (!linkSuccess)
+                {
+                    TryRestoreArchive(currentCloudArchive, cloudPath, details);
+                    throw new IOException($"Failed to create symlink or junction for '{folderName}'. Restored original folder from archive.");
+                }
+            }
+
+            await ApplyPinAttributeAsync(localPath, ct);
+            return true;
+        }
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "I/O error processing folder {LocalPath}", localPath);
+            TryRestoreArchive(currentCloudArchive, cloudPath, details);
+            throw;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Access denied processing folder {LocalPath}", localPath);
+            TryRestoreArchive(currentCloudArchive, cloudPath, details);
+            throw;
+        }
+    }
+
+    private void TryRestoreArchive(string? currentCloudArchive, string cloudPath, List<string> details)
+    {
+        if (string.IsNullOrEmpty(currentCloudArchive) || !Directory.Exists(currentCloudArchive) || Directory.Exists(cloudPath))
+        {
+            return;
+        }
+
+        try
+        {
+            Directory.Move(currentCloudArchive, cloudPath);
+            details.Add("  ✓ Restored original cloud folder from archive");
+        }
+        catch (IOException rollbackEx)
+        {
+            logger.LogError(rollbackEx, "Failed to rollback archived folder {Archive} to {CloudPath}", currentCloudArchive, cloudPath);
+        }
+        catch (UnauthorizedAccessException rollbackEx)
+        {
+            logger.LogError(rollbackEx, "Access denied rolling back archived folder {Archive} to {CloudPath}", currentCloudArchive, cloudPath);
+        }
     }
 
     private bool CreateSymlinkOrJunction(string linkPath, string targetPath, List<string> details)
@@ -415,8 +451,6 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
         {
             if (!Directory.Exists(path)) return;
 
-            // Use PowerShell to apply 'Pinned' attribute which is specific to modern Windows / OneDrive
-            // Attrib +P -U
             var psi = new ProcessStartInfo
             {
                 FileName = ProcessConstants.PowerShellExecutable,

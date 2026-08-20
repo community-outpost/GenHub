@@ -80,6 +80,11 @@ public partial class GenPatcherViewModel(
     [ObservableProperty]
     private int qolCategoryCount;
 
+    [ObservableProperty]
+    private bool isBatchApplying;
+
+    private System.Threading.CancellationTokenSource? _batchCts;
+
     /// <summary>
     /// Initializes the ViewModel asynchronously.
     /// </summary>
@@ -107,6 +112,20 @@ public partial class GenPatcherViewModel(
         }
 
         await LoadFixesCommand.ExecuteAsync(null);
+    }
+
+    /// <summary>
+    /// Cancels the ongoing batch fix application if running.
+    /// </summary>
+    [RelayCommand]
+    private void CancelBatchApply()
+    {
+        if (_batchCts != null && !_batchCts.IsCancellationRequested)
+        {
+            logger.LogInformation("User cancelled batch fix application");
+            _batchCts.Cancel();
+            notificationService.ShowWarning("Cancelling", "Cancelling batch application after the current fix completes...");
+        }
     }
 
     partial void OnSelectedInstallationChanged(GameInstallation? value)
@@ -271,6 +290,17 @@ public partial class GenPatcherViewModel(
     [RelayCommand]
     private async Task ApplyAllFixesAsync()
     {
+        if (IsBatchApplying)
+        {
+            return;
+        }
+
+        _batchCts?.Cancel();
+        _batchCts?.Dispose();
+        _batchCts = new System.Threading.CancellationTokenSource();
+        var ct = _batchCts.Token;
+
+        IsBatchApplying = true;
         try
         {
             if (SelectedInstallation == null)
@@ -291,7 +321,7 @@ public partial class GenPatcherViewModel(
                 return;
             }
 
-            var coreFixes = await orchestrator.GetApplicableCoreFixesAsync(targetInstallation);
+            var coreFixes = await orchestrator.GetApplicableCoreFixesAsync(targetInstallation, ct);
             var coreFixIds = new HashSet<string>(coreFixes.Select(f => f.Id), StringComparer.OrdinalIgnoreCase);
 
             var applicableFixes = new List<IActionSet>();
@@ -327,7 +357,7 @@ public partial class GenPatcherViewModel(
                 $"Applying {applicableFixes.Count} recommended fix(es) to {targetInstallation.InstallationType} ({targetInstallation.InstallationPath})...");
 
             var startTime = DateTime.UtcNow;
-            var batchResult = await orchestrator.ApplyActionSetsAsync(targetInstallation, applicableFixes);
+            var batchResult = await orchestrator.ApplyActionSetsAsync(targetInstallation, applicableFixes, ct);
             var totalDuration = (DateTime.UtcNow - startTime).TotalSeconds;
 
             // Refresh status
@@ -376,10 +406,21 @@ public partial class GenPatcherViewModel(
                     failureSummary);
             }
         }
+        catch (OperationCanceledException)
+        {
+            logger.LogWarning("Batch fix application was cancelled by user");
+            notificationService.ShowWarning("Batch Cancelled", "Batch fix application was cancelled.");
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Fatal error during batch fix application");
             notificationService.ShowError("Batch Apply Error", $"An error occurred: {ex.Message}");
+        }
+        finally
+        {
+            IsBatchApplying = false;
+            _batchCts?.Dispose();
+            _batchCts = null;
         }
     }
 

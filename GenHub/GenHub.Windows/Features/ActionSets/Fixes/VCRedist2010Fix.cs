@@ -146,7 +146,7 @@ public class VCRedist2010Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
                 return new ActionSetResult(false, $"Security validation failed: {errorSummary}", details);
             }
 
-            await using var lockStream = securityValidation.Data;
+            await securityValidation.Data.DisposeAsync();
 
             details.Add($"✓ Downloaded and verified {fileSize / 1024.0 / 1024.0:F2} MB");
 

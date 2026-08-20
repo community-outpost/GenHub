@@ -207,9 +207,19 @@ public class CommunityOutpostResolver(
 
             // Override the display name to be more user-friendly
             builtManifest.Name = discoveredItem.Name ?? contentMetadata.DisplayName;
-            builtManifest.Version = !string.IsNullOrEmpty(contentMetadata.Version)
-                ? contentMetadata.Version
-                : discoveredItem.Version;
+
+            // For community-patch, prioritize discoveredItem.Version (dynamic date from legi.cc/patch)
+            // over static metadata version which may be null/empty
+            if (contentCode == "community-patch" && !string.IsNullOrEmpty(discoveredItem.Version))
+            {
+                builtManifest.Version = discoveredItem.Version;
+            }
+            else
+            {
+                builtManifest.Version = !string.IsNullOrEmpty(contentMetadata.Version)
+                    ? contentMetadata.Version
+                    : discoveredItem.Version;
+            }
 
             logger.LogInformation(
                 "Successfully resolved Community Outpost manifest: {ManifestId} for {ContentCode} ({Category})",

@@ -161,8 +161,8 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
         var uri = new Uri(url);
         var isExe = uri.AbsolutePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase);
         var downloadPath = isExe
-            ? Path.Combine(Path.GetTempPath(), "GeneralsZH-104-english.exe")
-            : Path.Combine(Path.GetTempPath(), "zh104_patch.zip");
+            ? Path.Combine(Path.GetTempPath(), $"GeneralsZH-104-english_{Guid.NewGuid():N}.exe")
+            : Path.Combine(Path.GetTempPath(), $"zh104_patch_{Guid.NewGuid():N}.zip");
 
         try
         {
