@@ -1035,7 +1035,7 @@ public class GameProcessManager(
                 if (child != null)
                 {
                     _managedProcesses[child.Id] = child;
-                    RegisterSessionAndEmitStarted(child, expectedName);
+                    RegisterSessionAndEmitStarted(child, expectedName, configuration.EnvironmentVariables);
 
                     try
                     {

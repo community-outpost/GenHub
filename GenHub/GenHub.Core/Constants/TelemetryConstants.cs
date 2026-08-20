@@ -148,6 +148,18 @@ public static class TelemetryConstants
         /// <summary>Content type (e.g. Mod, Patch, Map).</summary>
         public const string ContentType = "content_type";
 
+        /// <summary>Content identifier.</summary>
+        public const string ContentId = "content_id";
+
+        /// <summary>Content name or display title.</summary>
+        public const string ContentName = "content_name";
+
+        /// <summary>Publisher identifier.</summary>
+        public const string PublisherId = "publisher_id";
+
+        /// <summary>Reconciliation strategy name.</summary>
+        public const string Strategy = "strategy";
+
         /// <summary>Size in megabytes.</summary>
         public const string SizeMb = "size_mb";
 

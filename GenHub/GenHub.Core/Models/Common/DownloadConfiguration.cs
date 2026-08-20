@@ -65,4 +65,16 @@ public sealed class DownloadConfiguration
 
     /// <summary>Gets or sets the delay between retry attempts.</summary>
     public TimeSpan RetryDelay { get; set; }
+
+    /// <summary>Gets or sets the display name or title of the content being downloaded.</summary>
+    public string? ContentName { get; set; }
+
+    /// <summary>Gets or sets the unique identifier of the content being downloaded.</summary>
+    public string? ContentId { get; set; }
+
+    /// <summary>Gets or sets the publisher identifier.</summary>
+    public string? PublisherId { get; set; }
+
+    /// <summary>Gets or sets the content type (e.g. Mod, Map, Patch, Addon).</summary>
+    public string? ContentType { get; set; }
 }

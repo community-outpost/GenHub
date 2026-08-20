@@ -1611,6 +1611,10 @@ Constants for telemetry event names, properties, data scrubbing masks, and queue
 - `CasReconcileCompleted`: `"cas_reconcile_completed"` - Emitted when CAS workspace reconciliation completes.
 - `AppCrash`: `"app_unhandled_crash"` - Emitted when an unhandled application exception or crash occurs.
 
+### Telemetry Properties (`TelemetryConstants.Properties`)
+
+Common property keys attached to telemetry payloads: `SessionId`, `GameType`, `ProfileId`, `ProfileName`, `DurationSeconds`, `ExitCode`, `Platform`, `Runner`, `Resolution`, `ManifestId`, `ContentType`, `ContentId`, `ContentName`, `PublisherId`, `Strategy`, `SizeMb`, `SpeedMbps`, `SourceProvider`, `RetryCount`, `FromVersion`, `ToVersion`, `Channel`, `RestartDurationMs`, `CacheHitRate`, `FileCount`, `BytesReconciled`, `ExceptionType`, `ExceptionMessage`, `StackTrace`, `IsFatal`, `Context`, `InstallationId`, `AppVersion`, `ExecutablePath`.
+
 ---
 
 ## Related Documentation
