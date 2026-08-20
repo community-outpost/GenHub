@@ -1425,7 +1425,11 @@ public class GameProcessManager(
             if (_heartbeatTimer == null)
             {
                 var interval = TimeSpan.FromMinutes(TelemetryConstants.SessionHeartbeatIntervalMinutes);
-                _heartbeatTimer = new Timer(_ => EmitHeartbeats(), null, interval, interval);
+                var newTimer = new Timer(_ => EmitHeartbeats(), null, interval, interval);
+                if (Interlocked.CompareExchange(ref _heartbeatTimer, newTimer, null) != null)
+                {
+                    newTimer.Dispose();
+                }
             }
 
             telemetryService.TrackEvent(TelemetryConstants.Events.GameSessionStarted, new Dictionary<string, object?>

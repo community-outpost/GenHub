@@ -30,6 +30,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
     private readonly ConcurrentQueue<Breadcrumb> _breadcrumbs = new();
     private readonly CancellationTokenSource _cts = new();
     private readonly Task _processingTask;
+    private Task? _installationIdSaveTask;
     private bool _disposed;
 
     /// <summary>
@@ -239,6 +240,18 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
                 spinCount++;
             }
 
+            if (_installationIdSaveTask is { IsCompleted: false } saveTask)
+            {
+                try
+                {
+                    await saveTask.WaitAsync(cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogTrace(ex, "Error while awaiting installation ID persistence");
+                }
+            }
+
             var tasks = _sinks.Select(sink => sink.FlushAsync(cancellationToken));
             var results = await Task.WhenAll(tasks);
             var failures = results.Where(r => !r.Success).ToList();
@@ -319,7 +332,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
 
             var newId = Guid.NewGuid().ToString("N");
             _userSettingsService.Update(s => s.AnonymousInstallationId = newId);
-            _ = _userSettingsService.SaveAsync(CancellationToken.None);
+            _installationIdSaveTask = _userSettingsService.SaveAsync(CancellationToken.None);
             return newId;
         }
         catch
