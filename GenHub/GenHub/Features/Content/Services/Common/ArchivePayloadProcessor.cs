@@ -272,15 +272,14 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             var overlayOffset = GetPeOverlayOffset(stream);
 
             // Fast path: check overlay offset first if PE executable
-            if (overlayOffset > 0 && overlayOffset < stream.Length)
+            if (overlayOffset > 0 &&
+                overlayOffset < stream.Length &&
+                (FindSignatureOffset(stream, SmartInstallMakerSignature, overlayOffset, maxScanBytes: 1024) >= 0 ||
+                 FindSignatureOffset(stream, SevenZipSignature, overlayOffset, maxScanBytes: 1024) >= 0 ||
+                 FindSignatureOffset(stream, RarSignature, overlayOffset, maxScanBytes: 1024) >= 0 ||
+                 FindSignatureOffset(stream, Rar5Signature, overlayOffset, maxScanBytes: 1024) >= 0))
             {
-                if (FindSignatureOffset(stream, SmartInstallMakerSignature, overlayOffset, maxScanBytes: 1024) >= 0 ||
-                    FindSignatureOffset(stream, SevenZipSignature, overlayOffset, maxScanBytes: 1024) >= 0 ||
-                    FindSignatureOffset(stream, RarSignature, overlayOffset, maxScanBytes: 1024) >= 0 ||
-                    FindSignatureOffset(stream, Rar5Signature, overlayOffset, maxScanBytes: 1024) >= 0)
-                {
-                    return true;
-                }
+                return true;
             }
 
             // Fallback scan: search stream for known SFX / installer signatures
@@ -970,14 +969,9 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             stream.Position = tableBlock.DataStart;
             var b0 = stream.ReadByte();
             var b1 = stream.ReadByte();
-            if (b0 == 0x78 && ((b0 * 256 + b1) % 31 == 0))
-            {
-                stream.Position = tableBlock.DataStart + 2; // skip zlib header
-            }
-            else
-            {
-                stream.Position = tableBlock.DataStart;
-            }
+            stream.Position = (b0 == 0x78 && ((b0 * 256 + b1) % 31 == 0))
+                ? tableBlock.DataStart + 2 // skip zlib header
+                : tableBlock.DataStart;
 
             try
             {

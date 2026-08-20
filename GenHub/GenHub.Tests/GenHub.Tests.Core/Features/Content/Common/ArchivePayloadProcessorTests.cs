@@ -784,7 +784,7 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
             tableMs.Write(new byte[40]); // separator padding
         }
 
-        byte[] compressedTable;
+        var compressedTable = Array.Empty<byte>();
         using (var defTableMs = new MemoryStream())
         {
             defTableMs.WriteByte(0x78);
