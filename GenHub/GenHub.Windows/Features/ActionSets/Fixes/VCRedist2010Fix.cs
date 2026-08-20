@@ -22,16 +22,20 @@ namespace GenHub.Windows.Features.ActionSets.Fixes;
 /// <param name="logger">The logger instance.</param>
 public class VCRedist2010Fix(IHttpClientFactory httpClientFactory, ILogger<VCRedist2010Fix> logger) : BaseActionSet(logger)
 {
-    /// <summary>
-    /// Gets the description of the fix.
-    /// </summary>
-    public static string Description => "Mandatory dependency for C&C Generals and Zero Hour errors.";
-
     /// <inheritdoc/>
     public override string Id => "VCRedist2010";
 
     /// <inheritdoc/>
     public override string Title => "Visual C++ 2010 Runtime";
+
+    /// <inheritdoc/>
+    public override string Description => "Installs the mandatory Visual C++ 2010 (x86) runtime required for GenTool and modern enhancements.";
+
+    /// <inheritdoc/>
+    public override string DetailedDescription => "GenTool, modern widescreen hooks, and community security updates depend directly on the 32-bit Visual C++ 2010 runtime. This fix downloads and installs the official Microsoft runtime package, ensuring GenTool operates without missing DLL errors.";
+
+    /// <inheritdoc/>
+    public override string Category => "Core & Stability";
 
     /// <inheritdoc/>
     public override bool IsCoreFix => true;

@@ -26,6 +26,15 @@ public class CncOnlineLauncherFix(
     public override string Title => "C&C Online Launcher Fix";
 
     /// <inheritdoc/>
+    public override string Description => "Configures Revora C&C:Online registry keys so community multiplayer services can detect and launch your game.";
+
+    /// <inheritdoc/>
+    public override string DetailedDescription => "Since EA GameSpy servers were decommissioned, C&C:Online provides the primary multiplayer network for Generals and Zero Hour. This fix writes the necessary installation path and version metadata into the registry so community launcher hooks can direct multiplayer traffic to active community servers.";
+
+    /// <inheritdoc/>
+    public override string Category => "Multiplayer";
+
+    /// <inheritdoc/>
     public override bool IsCoreFix => false;
 
     /// <inheritdoc/>

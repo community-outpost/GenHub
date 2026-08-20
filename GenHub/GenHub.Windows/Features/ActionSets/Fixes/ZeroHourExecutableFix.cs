@@ -30,6 +30,15 @@ public class ZeroHourExecutableFix(ILogger<ZeroHourExecutableFix> logger) : Base
     public override string Title => "Zero Hour Executable Fix";
 
     /// <inheritdoc/>
+    public override string Description => "Verifies that the Zero Hour game executable is present and updated to official version 1.04.";
+
+    /// <inheritdoc/>
+    public override string DetailedDescription => "Zero Hour requires official executable version 1.04 to support online multiplayer, GenTool, and modern community mods. This check validates your game executables and ensures your installation is ready for competitive play.";
+
+    /// <inheritdoc/>
+    public override string Category => "Core & Stability";
+
+    /// <inheritdoc/>
     public override bool IsCoreFix => true;
 
     /// <inheritdoc/>

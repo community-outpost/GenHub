@@ -4,7 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:models="using:GenHub.Core.Models.GameInstallations"
              xmlns:vm="using:GenHub.Windows.Features.ActionSets.UI"
-             mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="600"
+             mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
              x:Class="GenHub.Windows.Features.ActionSets.UI.GenPatcherToolView"
              x:DataType="vm:GenPatcherViewModel">
 
@@ -15,7 +15,7 @@
             <Setter Property="BorderBrush" Value="#669D4EDD"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="18,6"/>
+            <Setter Property="Padding" Value="16,6"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="12"/>
@@ -41,24 +41,66 @@
             <Setter Property="Opacity" Value="0.35"/>
         </Style>
 
-        <!-- Fix Row Card Translucent Glassmorphic Style -->
-        <Style Selector="Border.FixRow">
-            <Setter Property="Background" Value="#1C181B2A"/>
+        <!-- Fix Card Glassmorphic Style -->
+        <Style Selector="Border.FixCard">
+            <Setter Property="Background" Value="#1C182A"/>
             <Setter Property="BorderBrush" Value="#22FFFFFF"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="16,11"/>
-            <Setter Property="Margin" Value="0,0,2,0"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="16,14"/>
+            <Setter Property="Width" Value="460"/>
+            <Setter Property="Margin" Value="0,0,14,14"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.2"/>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.2"/>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Border.FixCard:pointerover">
+            <Setter Property="Background" Value="#28223C"/>
+            <Setter Property="BorderBrush" Value="#558B5CF6"/>
+            <Setter Property="RenderTransform" Value="translateY(-2px)"/>
+        </Style>
+
+        <!-- Category Chip Buttons -->
+        <Style Selector="Button.CategoryChip">
+            <Setter Property="Background" Value="#18FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="16"/>
+            <Setter Property="Padding" Value="12,5"/>
+            <Setter Property="Foreground" Value="#CCCCCC"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Transitions">
                 <Transitions>
                     <BrushTransition Property="Background" Duration="0:0:0.15"/>
                     <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+                    <BrushTransition Property="Foreground" Duration="0:0:0.15"/>
                 </Transitions>
             </Setter>
         </Style>
-        <Style Selector="Border.FixRow:pointerover">
-            <Setter Property="Background" Value="#2E282E44"/>
-            <Setter Property="BorderBrush" Value="#458B5CF6"/>
+        <Style Selector="Button.CategoryChip:pointerover">
+            <Setter Property="Background" Value="#30FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#40FFFFFF"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+
+        <!-- Details Toggle Button -->
+        <Style Selector="Button.DetailsToggleBtn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="Foreground" Value="#9D4EDD"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button.DetailsToggleBtn:pointerover">
+            <Setter Property="Foreground" Value="#C77DFF"/>
         </Style>
 
         <!-- GenPatcher Primary Red Accent Button -->
@@ -113,7 +155,7 @@
         </ExperimentalAcrylicBorder>
 
         <!-- Red Gradient Header Glow -->
-        <Border Height="160" VerticalAlignment="Top" IsHitTestVisible="False">
+        <Border Height="180" VerticalAlignment="Top" IsHitTestVisible="False">
             <Border.Background>
                 <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
                     <GradientStop Color="#40C62828" Offset="0"/>
@@ -127,23 +169,29 @@
         <Image Source="avares://GenHub/Assets/Logos/genpatcher-logo.png"
                Opacity="0.04" Stretch="UniformToFill" VerticalAlignment="Center" HorizontalAlignment="Center"/>
 
-        <!-- Decoration / Content -->
-        <Grid RowDefinitions="Auto, *" Margin="24,14,24,6">
+        <!-- Main Content Area -->
+        <Grid RowDefinitions="Auto, Auto, *" Margin="24,14,24,6">
 
             <!-- Red-tinted Glassmorphic Header Card -->
-            <Border Grid.Row="0" Margin="0,0,0,16" Padding="18,14" CornerRadius="10"
+            <Border Grid.Row="0" Margin="0,0,0,12" Padding="18,14" CornerRadius="10"
                     Background="#1EC62828" BorderBrush="#35EF5350" BorderThickness="1">
                 <Grid ColumnDefinitions="*, Auto, Auto">
+                    <!-- Title & Logo -->
                     <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
-                        <!-- GenPatcher Logo -->
                         <Image Source="avares://GenHub/Assets/Logos/genpatcher-logo.png" Height="50" VerticalAlignment="Center"/>
 
                         <StackPanel VerticalAlignment="Center" Spacing="3">
-                            <TextBlock Text="GenPatcher" FontSize="26" FontWeight="Bold" Foreground="White">
-                                 <TextBlock.Effect>
-                                    <DropShadowEffect Color="#C62828" BlurRadius="14" Opacity="0.85"/>
-                                 </TextBlock.Effect>
-                            </TextBlock>
+                            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                <TextBlock Text="GenPatcher" FontSize="26" FontWeight="Bold" Foreground="White">
+                                     <TextBlock.Effect>
+                                        <DropShadowEffect Color="#C62828" BlurRadius="14" Opacity="0.85"/>
+                                     </TextBlock.Effect>
+                                </TextBlock>
+                                <!-- Progress Pill -->
+                                <Border Background="#3328A745" BorderBrush="#5528A745" BorderThickness="1" CornerRadius="12" Padding="8,2" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding ProgressSummaryText}" FontSize="11" FontWeight="Bold" Foreground="#4ADE80"/>
+                                </Border>
+                            </StackPanel>
                             <TextBlock Text="Essential fixes and enhancements for Command &amp; Conquer" FontSize="13" Foreground="#E0D0D0"/>
                         </StackPanel>
                     </StackPanel>
@@ -166,7 +214,8 @@
                         </ComboBox>
                     </StackPanel>
 
-                    <Button Grid.Column="2" Classes="GenPatcherPrimaryBtn" Command="{Binding ApplyAllFixesCommand}">
+                    <!-- Batch Action Button -->
+                    <Button Grid.Column="2" Classes="GenPatcherPrimaryBtn" Command="{Binding ApplyAllFixesCommand}" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock Text="⚡" VerticalAlignment="Center"/>
                             <TextBlock Text="Apply All Recommended" VerticalAlignment="Center" FontWeight="Bold"/>
@@ -175,46 +224,120 @@
                 </Grid>
             </Border>
 
-            <!-- Content Area - Scrollable List of Fixes -->
-            <ScrollViewer Grid.Row="1" Padding="0,0,6,0">
-                <ItemsControl ItemsSource="{Binding ActionSets}">
+            <!-- Filter & Search Toolbar -->
+            <Grid Grid.Row="1" ColumnDefinitions="*, Auto" Margin="0,0,0,12">
+                <!-- Category Filter Tabs -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Button Classes="CategoryChip" Command="{Binding SetCategoryCommand}" CommandParameter="All">
+                        <TextBlock Text="{Binding AllCategoryCount, StringFormat='All ({0})'}"/>
+                    </Button>
+                    <Button Classes="CategoryChip" Command="{Binding SetCategoryCommand}" CommandParameter="Core &amp; Stability">
+                        <TextBlock Text="{Binding CoreCategoryCount, StringFormat='Core &amp; Stability ({0})'}"/>
+                    </Button>
+                    <Button Classes="CategoryChip" Command="{Binding SetCategoryCommand}" CommandParameter="Compatibility">
+                        <TextBlock Text="{Binding CompatibilityCategoryCount, StringFormat='Compatibility ({0})'}"/>
+                    </Button>
+                    <Button Classes="CategoryChip" Command="{Binding SetCategoryCommand}" CommandParameter="Multiplayer">
+                        <TextBlock Text="{Binding MultiplayerCategoryCount, StringFormat='Multiplayer ({0})'}"/>
+                    </Button>
+                    <Button Classes="CategoryChip" Command="{Binding SetCategoryCommand}" CommandParameter="Quality of Life">
+                        <TextBlock Text="{Binding QolCategoryCount, StringFormat='Quality of Life ({0})'}"/>
+                    </Button>
+                </StackPanel>
+
+                <!-- Search Box -->
+                <Grid Grid.Column="1" VerticalAlignment="Center">
+                    <TextBox Text="{Binding SearchQuery, Mode=TwoWay}"
+                             Watermark="Search fixes..."
+                             Width="240"
+                             Padding="10,6"
+                             CornerRadius="8"
+                             Background="#1C182A"
+                             BorderBrush="#33FFFFFF"
+                             BorderThickness="1"
+                             Foreground="White"
+                             FontSize="12"/>
+                </Grid>
+            </Grid>
+
+            <!-- Content Area - Scrollable Card Grid -->
+            <ScrollViewer Grid.Row="2" Padding="0,0,6,0">
+                <ItemsControl ItemsSource="{Binding FilteredActionSets}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Spacing="8"/>
+                            <WrapPanel Orientation="Horizontal"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:ActionSetViewModel">
-                            <Border Classes="FixRow">
+                            <Border Classes="FixCard">
                                 <Border.ContextMenu>
                                     <ContextMenu>
                                         <MenuItem Header="Force Re-Apply (Testing)" Command="{Binding ForceApplyCommand}" Foreground="White"/>
                                     </ContextMenu>
                                 </Border.ContextMenu>
 
-                                <Grid ColumnDefinitions="*, Auto, Auto">
-                                    <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
-                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <TextBlock Text="{Binding Title}" FontWeight="Bold" FontSize="15" Foreground="White"/>
-                                            <Border IsVisible="{Binding IsCore}" Background="#B71C1C" BorderBrush="#EF5350" BorderThickness="1" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
-                                                <TextBlock Text="CORE" FontSize="9" FontWeight="Bold" Foreground="White"/>
-                                            </Border>
+                                <Grid RowDefinitions="Auto, *, Auto, Auto">
+                                    <!-- Card Header: Title + Badges + Status -->
+                                    <Grid Grid.Row="0" ColumnDefinitions="*, Auto">
+                                        <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Title}" FontWeight="Bold" FontSize="14.5" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                                            <!-- Badges Row -->
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <Border IsVisible="{Binding IsCore}" Background="#B71C1C" BorderBrush="#EF5350" BorderThickness="1" CornerRadius="4" Padding="5,1">
+                                                    <TextBlock Text="CORE" FontSize="9" FontWeight="Bold" Foreground="White"/>
+                                                </Border>
+                                                <Border IsVisible="{Binding IsCrucial}" Background="#8E0000" BorderBrush="#E53935" BorderThickness="1" CornerRadius="4" Padding="5,1">
+                                                    <TextBlock Text="CRUCIAL" FontSize="9" FontWeight="Bold" Foreground="#FFCDD2"/>
+                                                </Border>
+                                                <Border Background="#15FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="4" Padding="6,1">
+                                                    <TextBlock Text="{Binding Category}" FontSize="9.5" Foreground="#AAAAAA"/>
+                                                </Border>
+                                            </StackPanel>
                                         </StackPanel>
-                                        <TextBlock Text="{Binding Description}" FontSize="12" Foreground="#888899"/>
-                                    </StackPanel>
 
-                                    <!-- Status Badge -->
-                                    <Border Grid.Column="1" Margin="16,0" VerticalAlignment="Center" CornerRadius="12" Padding="12,4"
-                                            Background="{Binding StatusBackground}"
-                                            BorderBrush="{Binding StatusBorder}"
-                                            BorderThickness="1">
-                                        <TextBlock Text="{Binding StatusDisplay}" FontWeight="Bold" FontSize="11" Foreground="{Binding StatusColor}" HorizontalAlignment="Center"/>
+                                        <!-- Status Badge -->
+                                        <Border Grid.Column="1" VerticalAlignment="Top" CornerRadius="10" Padding="10,3"
+                                                Background="{Binding StatusBackground}"
+                                                BorderBrush="{Binding StatusBorder}"
+                                                BorderThickness="1">
+                                            <TextBlock Text="{Binding StatusDisplay}" FontWeight="Bold" FontSize="10.5" Foreground="{Binding StatusColor}" HorizontalAlignment="Center"/>
+                                        </Border>
+                                    </Grid>
+
+                                    <!-- Card Body: Concise Description -->
+                                    <TextBlock Grid.Row="1" Text="{Binding Description}" FontSize="12" Foreground="#C4C4D4" TextWrapping="Wrap" Margin="0,8,0,8"/>
+
+                                    <!-- Expandable In-Depth Details Drawer -->
+                                    <Border Grid.Row="2" IsVisible="{Binding IsExpanded}"
+                                            Background="#14000000" BorderBrush="#20FFFFFF" BorderThickness="1"
+                                            CornerRadius="6" Padding="10,8" Margin="0,0,0,10">
+                                        <StackPanel Spacing="6">
+                                            <TextBlock Text="Why this fix is needed &amp; what it does:" FontSize="10.5" FontWeight="Bold" Foreground="#B0A0D0"/>
+                                            <TextBlock Text="{Binding DetailedDescription}" FontSize="11" Foreground="#9999AA" TextWrapping="Wrap"/>
+                                            <!-- Last result log if executed -->
+                                            <StackPanel IsVisible="{Binding HasActionResultDetails}" Spacing="2" Margin="0,4,0,0">
+                                                <TextBlock Text="Last Execution Result:" FontSize="10" FontWeight="Bold" Foreground="#88DD88"/>
+                                                <TextBlock Text="{Binding LastActionResultDetails}" FontSize="10.5" Foreground="#A0E0A0" TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                        </StackPanel>
                                     </Border>
 
-                                    <!-- Action Button (Purple GenHub Style) -->
-                                    <Button Grid.Column="2" Classes="ActionBtn" Command="{Binding ApplyCommand}" IsEnabled="{Binding CanApply}" VerticalAlignment="Center">
-                                        <TextBlock Text="Apply"/>
-                                    </Button>
+                                    <!-- Card Footer: Details Toggle + Action Button -->
+                                    <Grid Grid.Row="3" ColumnDefinitions="*, Auto" Margin="0,4,0,0">
+                                        <!-- Show More / Less Toggle Button -->
+                                        <Button Grid.Column="0" Classes="DetailsToggleBtn" Command="{Binding ToggleExpandedCommand}" HorizontalAlignment="Left">
+                                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <TextBlock Text="Details" FontSize="11"/>
+                                                <TextBlock Text="▾" FontSize="10" VerticalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Button>
+
+                                        <!-- Apply Action Button -->
+                                        <Button Grid.Column="1" Classes="ActionBtn" Command="{Binding ApplyCommand}" IsEnabled="{Binding CanApply}" VerticalAlignment="Center">
+                                            <TextBlock Text="Apply"/>
+                                        </Button>
+                                    </Grid>
                                 </Grid>
                             </Border>
                         </DataTemplate>

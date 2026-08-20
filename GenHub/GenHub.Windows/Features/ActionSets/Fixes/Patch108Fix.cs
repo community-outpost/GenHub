@@ -23,16 +23,20 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
 {
     private const string BackupDirectoryName = "_GenHub_Patch108_Backups";
 
-    /// <summary>
-    /// Gets the description of the fix.
-    /// </summary>
-    public static string Description => "Official Generals 1.08 patch - required for multiplayer and compatibility.";
-
     /// <inheritdoc/>
     public override string Id => "Patch108";
 
     /// <inheritdoc/>
     public override string Title => "Generals 1.08 Patch";
+
+    /// <inheritdoc/>
+    public override string Description => "Installs the official Generals 1.08 patch to resolve critical engine bugs, exploits, and multiplayer version mismatches.";
+
+    /// <inheritdoc/>
+    public override string DetailedDescription => "The official 1.08 patch is required for base Command & Conquer: Generals to fix multiplayer desyncs, campaign crashes, and engine stability issues. This fix safely downloads, verifies, backs up existing files, and deploys the 1.08 update.";
+
+    /// <inheritdoc/>
+    public override string Category => "Core & Stability";
 
     /// <inheritdoc/>
     public override bool IsCoreFix => true;

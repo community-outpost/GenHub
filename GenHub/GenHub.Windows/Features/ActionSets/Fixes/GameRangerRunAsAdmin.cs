@@ -27,6 +27,15 @@ public class GameRangerRunAsAdmin(ILogger<GameRangerRunAsAdmin> logger) : BaseAc
     public override string Title => "GameRanger Run as Administrator";
 
     /// <inheritdoc/>
+    public override string Description => "Verifies GameRanger integration and guides configuring administrator privileges to allow GameRanger to launch multiplayer lobbies.";
+
+    /// <inheritdoc/>
+    public override string DetailedDescription => "When playing via the GameRanger client, the game executable must run with administrator privileges so GameRanger can inject its room and network parameters. This fix detects GameRanger installations and verifies compatibility flags to prevent launch freezes.";
+
+    /// <inheritdoc/>
+    public override string Category => "Multiplayer";
+
+    /// <inheritdoc/>
     public override bool IsCoreFix => false;
 
     /// <inheritdoc/>

@@ -32,6 +32,15 @@ public class HDIconsFix(ILogger<HDIconsFix> logger) : BaseActionSet(logger)
     public override string Title => "High-Definition Icons";
 
     /// <inheritdoc/>
+    public override string Description => "Checks for high-definition game icons and guides downloading high-res icon packs through GenHub.";
+
+    /// <inheritdoc/>
+    public override string DetailedDescription => "Original Generals and Zero Hour desktop icons were mastered in low resolution for Windows XP and appear blurry on modern displays. This check verifies high-resolution (.ico) replacements and directs you to install community HD icon packs via GenHub for crisp shortcuts.";
+
+    /// <inheritdoc/>
+    public override string Category => "Quality of Life";
+
+    /// <inheritdoc/>
     public override bool IsCoreFix => false;
 
     /// <inheritdoc/>

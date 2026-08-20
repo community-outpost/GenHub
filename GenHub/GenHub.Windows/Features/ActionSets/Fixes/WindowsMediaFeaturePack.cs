@@ -24,6 +24,15 @@ public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : 
     public override string Title => "Windows Media Feature Pack";
 
     /// <inheritdoc/>
+    public override string Description => "Checks for Windows Media Feature Pack on Windows N editions to prevent video cutscene and audio crashes.";
+
+    /// <inheritdoc/>
+    public override string DetailedDescription => "Windows N and KN editions lack essential media codecs required to play Generals and Zero Hour intro movies, campaign briefings, and background audio. This fix detects missing media components and guides you through enabling the Windows Media Feature Pack.";
+
+    /// <inheritdoc/>
+    public override string Category => "Compatibility";
+
+    /// <inheritdoc/>
     public override bool IsCoreFix => false;
 
     /// <inheritdoc/>

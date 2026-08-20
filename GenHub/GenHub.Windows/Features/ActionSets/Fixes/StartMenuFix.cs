@@ -24,6 +24,15 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
     public override string Title => "Start Menu Shortcuts";
 
     /// <inheritdoc/>
+    public override string Description => "Creates Windows Start Menu shortcuts for Generals, Zero Hour, and Windowed Mode gameplay.";
+
+    /// <inheritdoc/>
+    public override string DetailedDescription => "Digital installations often fail to create clean Start Menu shortcuts or windowed mode launch targets. This fix generates official Windows Start Menu shortcuts, including dedicated windowed mode launchers and EdgeScroller entries for seamless multi-monitor gaming.";
+
+    /// <inheritdoc/>
+    public override string Category => "Quality of Life";
+
+    /// <inheritdoc/>
     public override bool IsCoreFix => false;
 
     /// <inheritdoc/>

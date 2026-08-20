@@ -30,6 +30,15 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
     public override string Title => "Prevent OneDrive Sync (Move & Symlink)";
 
     /// <inheritdoc/>
+    public override string Description => "Relocates game user data out of OneDrive and creates local symbolic links to prevent cloud sync locks and crashes.";
+
+    /// <inheritdoc/>
+    public override string DetailedDescription => "OneDrive cloud synchronization locks active game files and offloads save data, leading to severe stuttering, lost replays, and Technical Difficulties crashes. This fix safely migrates your Generals and Zero Hour data to local storage and creates NTFS directory junctions with local file pinning.";
+
+    /// <inheritdoc/>
+    public override string Category => "Core & Stability";
+
+    /// <inheritdoc/>
     public override bool IsCoreFix => false;
 
     /// <inheritdoc/>

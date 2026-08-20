@@ -27,6 +27,15 @@ public class OptionsINIFix(IGameSettingsService gameSettingsService, ILogger<Opt
     public override string Title => "Options.ini Fix";
 
     /// <inheritdoc/>
+    public override string Description => "Generates and configures optimal Options.ini settings to prevent startup crashes and set proper widescreen resolutions.";
+
+    /// <inheritdoc/>
+    public override string DetailedDescription => "Generals and Zero Hour crash on initial launch if configuration files are missing or specify incompatible display modes. This fix creates an optimized Options.ini, disables crash-prone legacy 3D shadow volumes, configures modern 1080p widescreen defaults, and applies essential community engine performance settings.";
+
+    /// <inheritdoc/>
+    public override string Category => "Core & Stability";
+
+    /// <inheritdoc/>
     public override bool IsCoreFix => true;
 
     /// <inheritdoc/>

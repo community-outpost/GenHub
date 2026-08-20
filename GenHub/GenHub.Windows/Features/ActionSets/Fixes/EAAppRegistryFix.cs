@@ -25,6 +25,15 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
     public override string Title => "EA App Registry Fix";
 
     /// <inheritdoc/>
+    public override string Description => "Restores missing EA App installation paths, version DWORDs, and registry serial keys required for the game to start.";
+
+    /// <inheritdoc/>
+    public override string DetailedDescription => "The modern EA App client frequently fails to write standard legacy registry keys for Generals and Zero Hour, triggering misleading DirectX 8.1 or Technical Difficulties startup errors. This fix creates the official EA Games registry paths, registers accurate version DWORDs, and populates necessary serial key entries (ergc).";
+
+    /// <inheritdoc/>
+    public override string Category => "Core & Stability";
+
+    /// <inheritdoc/>
     public override bool IsCoreFix => true;
 
     /// <inheritdoc/>

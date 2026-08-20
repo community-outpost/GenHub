@@ -21,6 +21,21 @@ public interface IActionSet
     string Title { get; }
 
     /// <summary>
+    /// Gets the concise user-facing description of what the action set does.
+    /// </summary>
+    string Description { get; }
+
+    /// <summary>
+    /// Gets the detailed description explaining the technical mechanics, files modified, and problem solved.
+    /// </summary>
+    string DetailedDescription { get; }
+
+    /// <summary>
+    /// Gets the category of the action set.
+    /// </summary>
+    string Category { get; }
+
+    /// <summary>
     /// Gets a value indicating whether this is a core fix applied by default.
     /// </summary>
     bool IsCoreFix { get; }

@@ -29,6 +29,15 @@ public class AppCompatConfigurationsFix(
     public override string Title => "Windows Compatibility Configurations";
 
     /// <inheritdoc/>
+    public override string Description => "Sets Windows compatibility flags (RUNASADMIN and HIGHDPIAWARE) to prevent startup crashes and DPI scaling distortion.";
+
+    /// <inheritdoc/>
+    public override string DetailedDescription => "Registers HIGHDPIAWARE and RUNASADMIN flags in the Windows AppCompat registry for all Generals and Zero Hour binaries (automatically differentiating Steam vs. non-Steam installations). This ensures the game renders at native monitor resolution without blurry scaling or privilege errors.";
+
+    /// <inheritdoc/>
+    public override string Category => "Core & Stability";
+
+    /// <inheritdoc/>
     public override bool IsCoreFix => true;
 
     /// <inheritdoc/>
