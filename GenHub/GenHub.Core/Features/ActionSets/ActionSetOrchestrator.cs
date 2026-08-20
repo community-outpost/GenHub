@@ -69,13 +69,9 @@ public class ActionSetOrchestrator(
 
         for (int i = 0; i < actionSetsList.Count; i++)
         {
+            ct.ThrowIfCancellationRequested();
+
             var actionSet = actionSetsList[i];
-            if (ct.IsCancellationRequested)
-            {
-                logger.LogWarning("Action set application cancelled by user");
-                errors.Add($"Cancelled after {successCount} of {totalCount} fixes");
-                return OperationResult<int>.CreateFailure(errors, successCount, stopwatch.Elapsed);
-            }
 
             // Double check applicability and applied state with exception shielding
             bool isApplicable = false;
@@ -83,13 +79,7 @@ public class ActionSetOrchestrator(
             {
                 isApplicable = await actionSet.IsApplicableAsync(installation, ct);
             }
-            catch (OperationCanceledException)
-            {
-                logger.LogWarning("Action set application cancelled by user");
-                errors.Add($"Cancelled after {successCount} of {totalCount} fixes");
-                return OperationResult<int>.CreateFailure(errors, successCount, stopwatch.Elapsed);
-            }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 logger.LogError(ex, "Error checking applicability for {Title}", actionSet.Title);
                 errors.Add($"Error checking applicability for {actionSet.Title}: {ex.Message}");
@@ -114,13 +104,7 @@ public class ActionSetOrchestrator(
             {
                 isApplied = await actionSet.IsAppliedAsync(installation, ct);
             }
-            catch (OperationCanceledException)
-            {
-                logger.LogWarning("Action set application cancelled by user");
-                errors.Add($"Cancelled after {successCount} of {totalCount} fixes");
-                return OperationResult<int>.CreateFailure(errors, successCount, stopwatch.Elapsed);
-            }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 logger.LogError(ex, "Error checking applied status for {Title}", actionSet.Title);
                 errors.Add($"Error checking applied status for {actionSet.Title}: {ex.Message}");
@@ -147,13 +131,7 @@ public class ActionSetOrchestrator(
             {
                 result = await actionSet.ApplyAsync(installation, ct);
             }
-            catch (OperationCanceledException)
-            {
-                logger.LogWarning("Action set application cancelled by user");
-                errors.Add($"Cancelled after {successCount} of {totalCount} fixes");
-                return OperationResult<int>.CreateFailure(errors, successCount, stopwatch.Elapsed);
-            }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 logger.LogError(ex, "Unexpected error applying {Title}", actionSet.Title);
                 result = new ActionSetResult(false, ex.Message);

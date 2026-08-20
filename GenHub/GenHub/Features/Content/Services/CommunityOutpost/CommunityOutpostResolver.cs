@@ -81,8 +81,13 @@ public class CommunityOutpostResolver(
             var contentMetadata = GenPatcherContentRegistry.GetMetadata(contentCode);
 
             // Determine filename from URL or content code
-            var downloadUrl = discoveredItem.SourceUrl ?? throw new InvalidOperationException(
-                "SourceUrl cannot be null for Community Outpost content");
+            if (string.IsNullOrEmpty(discoveredItem.SourceUrl))
+            {
+                return Task.FromResult(OperationResult<ContentManifest>.CreateFailure(
+                    "SourceUrl cannot be null or empty for Community Outpost content"));
+            }
+
+            var downloadUrl = discoveredItem.SourceUrl;
 
             var filename = Uri.TryCreate(downloadUrl, UriKind.Absolute, out var parsedUri)
                 ? ExtractFileName(parsedUri, contentCode)

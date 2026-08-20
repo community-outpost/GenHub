@@ -90,11 +90,11 @@ public class ActionSetOrchestratorTests
     }
 
     /// <summary>
-    /// Verifies that cancellation returns failure carrying partial success count and cancellation error.
+    /// Verifies that cancellation propagates OperationCanceledException.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the test.</returns>
     [Fact]
-    public async Task ApplyActionSetsAsync_WhenCancelled_ReturnsPartialSuccessCountAsync()
+    public async Task ApplyActionSetsAsync_WhenCancelled_ThrowsOperationCanceledExceptionAsync()
     {
         var fix1 = new Mock<IActionSet>();
         fix1.SetupGet(f => f.Id).Returns("Fix1");
@@ -110,11 +110,8 @@ public class ActionSetOrchestratorTests
         var orchestrator = new ActionSetOrchestrator([fix1.Object], [], _loggerMock.Object);
         var installation = new GameInstallation("C:\\TestPath", GameInstallationType.Steam);
 
-        var result = await orchestrator.ApplyActionSetsAsync(installation, [fix1.Object], cts.Token);
-
-        Assert.False(result.Success);
-        Assert.Equal(0, result.Data);
-        Assert.Contains(result.Errors, e => e.Contains("Cancelled"));
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            orchestrator.ApplyActionSetsAsync(installation, [fix1.Object], cts.Token));
     }
 
     /// <summary>
