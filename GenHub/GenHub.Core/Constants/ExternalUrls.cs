@@ -57,6 +57,16 @@ public static class ExternalUrls
     public const string HDIconsDownloadUrlMirror1 = "https://legi.cc/gp2/f/icon.dat";
 
     /// <summary>
+    /// Gets the primary download URL for Expanded LAN Lobby Menu &amp; Custom Windows (Gentool).
+    /// </summary>
+    public const string ExpandedLANLobbyDownloadUrlPrimary = "https://gentool.net/program_data/genpatcher/cbbs.dat";
+
+    /// <summary>
+    /// Gets the secondary download URL for Expanded LAN Lobby Menu &amp; Custom Windows (Legi.cc).
+    /// </summary>
+    public const string ExpandedLANLobbyDownloadUrlMirror1 = "https://legi.cc/gp2/f/cbbs.dat";
+
+    /// <summary>
     /// Gets the primary download URL for Visual C++ 2005 Redistributable (Gentool).
     /// </summary>
     public const string VCRedist2005DownloadUrlPrimary = "https://gentool.net/program_data/genpatcher/vcredist_x86-2005.exe";
