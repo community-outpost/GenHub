@@ -483,10 +483,10 @@ public partial class GenPatcherViewModel(
         if (!string.IsNullOrEmpty(query))
         {
             filtered = filtered.Where(x =>
-                (x.Title?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (x.Description?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (x.DetailedDescription?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (x.Category?.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false));
+                (!string.IsNullOrEmpty(x.Title) && x.Title.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(x.Description) && x.Description.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(x.DetailedDescription) && x.DetailedDescription.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(x.Category) && x.Category.Contains(query, StringComparison.OrdinalIgnoreCase)));
         }
 
         var resultList = filtered.ToList();
