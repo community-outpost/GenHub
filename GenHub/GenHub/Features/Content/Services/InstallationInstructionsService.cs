@@ -372,7 +372,7 @@ public class InstallationInstructionsService(
                 $"Installer '{step.TargetRelativePath}' has no declared hash and cannot be verified.");
         }
 
-        string computedHash;
+        var computedHash = string.Empty;
         try
         {
             computedHash = await hashProvider.ComputeFileHashAsync(targetFullPath, cancellationToken);
