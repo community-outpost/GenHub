@@ -272,5 +272,15 @@ public static class ActionSetConstants
         /// Gets the expected Electronic Arts Authenticode publisher string.
         /// </summary>
         public const string ElectronicArtsPublisher = "Electronic Arts";
+
+        /// <summary>
+        /// Gets the pinned SHA-256 hash for the Generals 1.08 patch archive.
+        /// </summary>
+        public const string Generals108PatchSha256 = "265ff414850ef92e94828508f849a363c7fbe994d6994c6405e9eeaaa0f6b5c5";
+
+        /// <summary>
+        /// Gets the pinned SHA-256 hash for the DirectX runtime ZIP archive.
+        /// </summary>
+        public const string DirectXRuntimeZipSha256 = "6fcc7cd1be32422d07f022424412d6fe3141c6ba3845b855cb6f1b18f9c3a0a7";
     }
 }

@@ -2,7 +2,6 @@ namespace GenHub.Windows.Features.ActionSets.Fixes;
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,8 +13,7 @@ using GenHub.Windows.Features.ActionSets.Infrastructure;
 using Microsoft.Extensions.Logging;
 
 /// <summary>
-/// Fix that applies Windows compatibility flags (Run as Admin, High DPI)
-/// and adds Windows Defender exclusions for game executables.
+/// Fix that applies Windows compatibility flags (Run as Admin, High DPI) for game executables.
 /// </summary>
 public class AppCompatConfigurationsFix(
     IRegistryService registryService,
@@ -130,14 +128,48 @@ public class AppCompatConfigurationsFix(
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        logger.LogWarning("Undoing Windows Compatibility Configurations is not supported via GenHub.");
-        return Task.FromResult(new ActionSetResult(true));
+        var details = new List<string>();
+        try
+        {
+            details.Add("Removing Windows compatibility registry flags...");
+
+            if (installation.HasGenerals)
+            {
+                foreach (var exe in GeneralsExecutables)
+                {
+                    var fullPath = Path.Combine(installation.GeneralsPath, exe);
+                    if (registryService.DeleteValue(RegistryConstants.AppCompatLayersKeyPath, fullPath))
+                    {
+                        details.Add($"  ✓ Removed compatibility flags for: {exe}");
+                    }
+                }
+            }
+
+            if (installation.HasZeroHour)
+            {
+                foreach (var exe in ZeroHourExecutables)
+                {
+                    var fullPath = Path.Combine(installation.ZeroHourPath, exe);
+                    if (registryService.DeleteValue(RegistryConstants.AppCompatLayersKeyPath, fullPath))
+                    {
+                        details.Add($"  ✓ Removed compatibility flags for: {exe}");
+                    }
+                }
+            }
+
+            details.Add("✓ Compatibility flags removed successfully");
+            return Task.FromResult(new ActionSetResult(true, null, details));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to undo AppCompat configurations");
+            return Task.FromResult(new ActionSetResult(false, ex.Message, details));
+        }
     }
 
-    private async Task<bool> ProcessExecutablesAsync(string installPath, IReadOnlyList<string> executables, string flag, List<string> details, CancellationToken ct)
+    private Task<bool> ProcessExecutablesAsync(string installPath, IReadOnlyList<string> executables, string flag, List<string> details, CancellationToken ct)
     {
         int processedCount = 0;
-        int defenderCount = 0;
         bool allSucceeded = true;
 
         foreach (var exe in executables)
@@ -147,7 +179,7 @@ public class AppCompatConfigurationsFix(
             var fullPath = Path.Combine(installPath, exe);
             if (!File.Exists(fullPath)) continue;
 
-            // 1. Set Registry AppCompat Flag
+            // Set Registry AppCompat Flag
             try
             {
                 if (registryService.SetStringValue(RegistryConstants.AppCompatLayersKeyPath, fullPath, flag))
@@ -167,52 +199,9 @@ public class AppCompatConfigurationsFix(
                 logger.LogWarning(ex, "Failed to set registry flag for {Path}", fullPath);
                 details.Add($"  ✗ Failed to set flags for: {exe}");
             }
-
-            // 2. Add Windows Defender Exclusion
-            var defenderResult = await AddDefenderExclusionAsync(fullPath, ct);
-            if (defenderResult)
-            {
-                details.Add($"  ✓ Added Windows Defender exclusion for: {exe}");
-                defenderCount++;
-            }
-            else
-            {
-                details.Add($"  ⚠ Could not add Defender exclusion for: {exe}");
-            }
         }
 
         details.Add($"✓ Processed {processedCount} executables");
-        details.Add($"✓ Added {defenderCount} Windows Defender exclusions");
-        return allSucceeded;
-    }
-
-    private async Task<bool> AddDefenderExclusionAsync(string path, CancellationToken ct)
-    {
-        try
-        {
-            var escapedPath = path.Replace("'", "''");
-            var psi = new ProcessStartInfo
-            {
-                FileName = ProcessConstants.PowerShellExecutable,
-                Arguments = $"-WindowStyle Hidden -NoProfile -NonInteractive -Command \"Add-MpPreference -ExclusionPath '{escapedPath}'\"",
-                CreateNoWindow = true,
-                UseShellExecute = true,
-                Verb = "runas",
-            };
-
-            using var process = Process.Start(psi);
-            if (process != null)
-            {
-                await process.WaitForExitAsync(ct);
-                return process.ExitCode == ProcessConstants.ExitCodeSuccess;
-            }
-
-            return false;
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to add Defender exclusion for {Path}", path);
-            return false;
-        }
+        return Task.FromResult(allSucceeded);
     }
 }

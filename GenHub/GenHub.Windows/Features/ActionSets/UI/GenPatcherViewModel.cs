@@ -25,7 +25,11 @@ public partial class GenPatcherViewModel(
     INotificationService notificationService,
     ILogger<GenPatcherViewModel> logger) : ObservableObject
 {
-    private GameInstallation? currentInstallation;
+    [ObservableProperty]
+    private ObservableCollection<GameInstallation> availableInstallations = [];
+
+    [ObservableProperty]
+    private GameInstallation? selectedInstallation;
 
     [ObservableProperty]
     private ObservableCollection<ActionSetViewModel> actionSets = [];
@@ -59,6 +63,15 @@ public partial class GenPatcherViewModel(
         await LoadFixesCommand.ExecuteAsync(null);
     }
 
+    partial void OnSelectedInstallationChanged(GameInstallation? value)
+    {
+        if (value != null)
+        {
+            logger.LogInformation("Selected installation changed to: {InstallType} at {Path}", value.InstallationType, value.InstallationPath);
+            _ = RefreshFixesForInstallationAsync(value);
+        }
+    }
+
     [RelayCommand]
     private async Task LoadFixesAsync()
     {
@@ -81,9 +94,12 @@ public partial class GenPatcherViewModel(
             }
 
             var detected = result.Items;
+            var validInstallations = detected
+                .Where(x => x.InstallationType != GameInstallationType.Unknown)
+                .ToList();
 
-            logger.LogInformation("Found {Count} game installation(s)", detected.Count);
-            foreach (var inst in detected)
+            logger.LogInformation("Found {Count} valid game installation(s)", validInstallations.Count);
+            foreach (var inst in validInstallations)
             {
                 logger.LogDebug(
                     "Installation: {InstallType} at {Path}",
@@ -91,19 +107,16 @@ public partial class GenPatcherViewModel(
                     inst.InstallationPath);
             }
 
-            GameInstallation? preferred = null;
-            foreach (var item in detected)
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
-                if (item.InstallationType != GameInstallationType.Unknown)
+                AvailableInstallations.Clear();
+                foreach (var inst in validInstallations)
                 {
-                    preferred = item;
-                    break;
+                    AvailableInstallations.Add(inst);
                 }
-            }
+            });
 
-            currentInstallation = preferred;
-
-            if (currentInstallation == null)
+            if (validInstallations.Count == 0)
             {
                 logger.LogError("[GENPATCHER_LOAD_003] No valid game installation found for GenPatcher");
                 notificationService.ShowError(
@@ -112,15 +125,35 @@ public partial class GenPatcherViewModel(
                 return;
             }
 
+            if (SelectedInstallation == null || !validInstallations.Contains(SelectedInstallation))
+            {
+                SelectedInstallation = validInstallations[0];
+            }
+            else
+            {
+                await RefreshFixesForInstallationAsync(SelectedInstallation);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[GENPATCHER_LOAD_004] Failed to load fixes");
+            notificationService.ShowError(
+                "Failed to Load Fixes",
+                $"An error occurred while loading fixes: {ex.Message}");
+        }
+    }
+
+    private async Task RefreshFixesForInstallationAsync(GameInstallation installation)
+    {
+        try
+        {
             logger.LogInformation(
                 "Using installation: {InstallType} at {Path}",
-                currentInstallation.InstallationType,
-                currentInstallation.InstallationPath);
+                installation.InstallationType,
+                installation.InstallationPath);
 
             var fixes = orchestrator.GetAllActionSets();
             logger.LogInformation("Loading {Count} action sets...", fixes.Count);
-
-            var installation = currentInstallation;
 
             // Parallelize status checks to prevent UI blocking
             var tasks = new List<Task<ActionSetViewModel>>();
@@ -180,14 +213,11 @@ public partial class GenPatcherViewModel(
 
             notificationService.ShowSuccess(
                 "GenPatcher Loaded",
-                $"Successfully loaded {ActionSets.Count} fixes.\nApplied: {appliedAndApplicableCount} / {applicableCount} applicable fixes.");
+                $"Successfully loaded {ActionSets.Count} fixes for {installation.InstallationType}.\nApplied: {appliedAndApplicableCount} / {applicableCount} applicable fixes.");
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "[GENPATCHER_LOAD_004] Failed to load fixes");
-            notificationService.ShowError(
-                "Failed to Load Fixes",
-                $"An error occurred while loading fixes: {ex.Message}");
+            logger.LogError(ex, "Error refreshing fixes for installation {Path}", installation.InstallationPath);
         }
     }
 
@@ -196,11 +226,14 @@ public partial class GenPatcherViewModel(
     {
         try
         {
-            if (currentInstallation == null)
+            if (SelectedInstallation == null)
             {
                 logger.LogError("[GENPATCHER_APPLY_004] Cannot apply fixes - no installation selected");
+                notificationService.ShowError("No Installation Selected", "Please select a game installation before applying fixes.");
                 return;
             }
+
+            var targetInstallation = SelectedInstallation;
 
             if (!registryService.IsRunningAsAdministrator())
             {
@@ -211,7 +244,7 @@ public partial class GenPatcherViewModel(
                 return;
             }
 
-            var coreFixes = await orchestrator.GetApplicableCoreFixesAsync(currentInstallation);
+            var coreFixes = await orchestrator.GetApplicableCoreFixesAsync(targetInstallation);
             var coreFixIds = new HashSet<string>(coreFixes.Select(f => f.Id), StringComparer.OrdinalIgnoreCase);
 
             var applicableFixes = new List<IActionSet>();
@@ -231,21 +264,23 @@ public partial class GenPatcherViewModel(
                 logger.LogInformation("No fixes to apply - {Applied}/{Total} already applied", alreadyApplied, totalSets);
                 notificationService.ShowInfo(
                     "No Fixes to Apply",
-                    $"All {alreadyApplied}/{totalSets} applicable fixes are already applied.");
+                    $"All {alreadyApplied}/{totalSets} applicable fixes are already applied for {targetInstallation.InstallationType}.");
                 return;
             }
 
             logger.LogInformation(
-                "[GENPATCHER_APPLY_006] Starting batch application of {Count} fixes via orchestrator: {FixList}",
+                "[GENPATCHER_APPLY_006] Starting batch application of {Count} fixes for {InstallType} ({Path}) via orchestrator: {FixList}",
                 applicableFixes.Count,
+                targetInstallation.InstallationType,
+                targetInstallation.InstallationPath,
                 string.Join(", ", applicableFixes.Select(f => f.Id)));
 
             notificationService.ShowInfo(
                 "Applying Fixes",
-                $"Applying {applicableFixes.Count} recommended fix(es)...");
+                $"Applying {applicableFixes.Count} recommended fix(es) to {targetInstallation.InstallationType} ({targetInstallation.InstallationPath})...");
 
             var startTime = DateTime.UtcNow;
-            var batchResult = await orchestrator.ApplyActionSetsAsync(currentInstallation, applicableFixes);
+            var batchResult = await orchestrator.ApplyActionSetsAsync(targetInstallation, applicableFixes);
             var totalDuration = (DateTime.UtcNow - startTime).TotalSeconds;
 
             // Refresh status
@@ -270,14 +305,15 @@ public partial class GenPatcherViewModel(
             if (batchResult.Success)
             {
                 logger.LogInformation(
-                    "Batch complete in {Duration:F1}s - {Success}/{Total} successful",
+                    "Batch complete in {Duration:F1}s - {Success}/{Total} successful for {InstallType}",
                     totalDuration,
                     successCount,
-                    applicableFixes.Count);
+                    applicableFixes.Count,
+                    targetInstallation.InstallationType);
 
                 notificationService.ShowSuccess(
                     "All Fixes Applied Successfully",
-                    $"✓ Successfully applied all {successCount} fix(es).\n\nYour game installation has been optimized!");
+                    $"✓ Successfully applied all {successCount} fix(es) to {targetInstallation.InstallationType} ({targetInstallation.InstallationPath}).\n\nYour game installation has been optimized!");
             }
             else
             {
@@ -285,7 +321,7 @@ public partial class GenPatcherViewModel(
                 logger.LogWarning("Batch completed with errors: {Errors}", errorDetails);
                 notificationService.ShowError(
                     $"Fixes Completed with Errors ({successCount}/{applicableFixes.Count} successful)",
-                    $"✓ Successfully applied: {successCount}\n✗ Failed: {failureCount}\n\nErrors:\n{errorDetails}");
+                    $"Target: {targetInstallation.InstallationType} ({targetInstallation.InstallationPath})\n✓ Successfully applied: {successCount}\n✗ Failed: {failureCount}\n\nErrors:\n{errorDetails}");
             }
         }
         catch (Exception ex)

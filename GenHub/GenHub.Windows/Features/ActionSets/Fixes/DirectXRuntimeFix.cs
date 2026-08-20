@@ -100,6 +100,18 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
 
                 setupExe = extractResult.Data;
                 arguments = "/silent";
+
+                var exeValidation = await DownloadSecurityValidator.ValidateFileAsync(
+                    setupExe,
+                    expectedAuthenticodePublisher: ActionSetConstants.Security.MicrosoftPublisher,
+                    ct: cancellationToken);
+
+                if (!exeValidation.Success)
+                {
+                    var errorSummary = string.Join("; ", exeValidation.Errors);
+                    logger.LogWarning("Security validation failed for extracted DirectX setup: {Error}", errorSummary);
+                    return new ActionSetResult(false, $"Extracted DirectX setup failed security validation: {errorSummary}", details);
+                }
             }
 
             return await RunSetupProcessAsync(setupExe, arguments, details, cancellationToken);
@@ -202,10 +214,26 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
                     return OperationResult<(bool IsExe, string DownloadPath)>.CreateFailure(securityValidation.Errors);
                 }
             }
-            else if (!ValidateZipArchive(downloadPath, url))
+            else
             {
-                DeleteFileIfExists(downloadPath);
-                return OperationResult<(bool IsExe, string DownloadPath)>.CreateFailure($"Corrupted zip archive from {url}.");
+                var securityValidation = await DownloadSecurityValidator.ValidateFileAsync(
+                    downloadPath,
+                    allowedSha256Hashes: [ActionSetConstants.Security.DirectXRuntimeZipSha256],
+                    ct: cancellationToken);
+
+                if (!securityValidation.Success)
+                {
+                    var errorSummary = string.Join("; ", securityValidation.Errors);
+                    logger.LogWarning("Security validation failed for DirectX zip archive from {Url}: {Error}", url, errorSummary);
+                    DeleteFileIfExists(downloadPath);
+                    return OperationResult<(bool IsExe, string DownloadPath)>.CreateFailure(securityValidation.Errors);
+                }
+
+                if (!ValidateZipArchive(downloadPath, url))
+                {
+                    DeleteFileIfExists(downloadPath);
+                    return OperationResult<(bool IsExe, string DownloadPath)>.CreateFailure($"Corrupted zip archive from {url}.");
+                }
             }
 
             details.Add($"✓ Downloaded and verified {fileSize / 1024.0 / 1024.0:F2} MB from {uri.Host}");
