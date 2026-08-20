@@ -148,7 +148,7 @@
                    BorderThickness="0">
 
             <ListBox.ItemTemplate>
-              <DataTemplate DataType="models:BundleFileInfo">
+              <DataTemplate x:DataType="models:BundleFileInfo">
                 <Grid ColumnDefinitions="Auto,*,Auto,Auto" Margin="4">
                   <!-- File icon -->
                   <Border Grid.Column="0"

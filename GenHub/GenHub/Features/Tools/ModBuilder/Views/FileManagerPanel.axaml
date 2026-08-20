@@ -25,7 +25,7 @@
                   SelectedItem="{Binding SelectedInstallation}"
                   MinWidth="300" HorizontalAlignment="Left">
           <ComboBox.ItemTemplate>
-            <DataTemplate>
+            <DataTemplate x:DataType="models:GameInstallationOption">
               <Grid ColumnDefinitions="Auto,*,Auto">
                 <Image Grid.Column="0" Source="{Binding IconPath}"
                        Width="20" Height="20" Margin="0,0,8,0"/>

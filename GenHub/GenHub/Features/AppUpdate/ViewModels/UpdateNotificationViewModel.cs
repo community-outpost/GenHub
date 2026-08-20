@@ -423,8 +423,11 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         var token = cts.Token;
 
         IsLoadingVersions = true;
-        AvailableVersions.Clear();
-        SelectedVersion = null;
+        await RunOnUiAsync(() =>
+        {
+            AvailableVersions.Clear();
+            SelectedVersion = null;
+        });
 
         try
         {
@@ -434,7 +437,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            PopulateAvailableVersions(artifacts);
+            await RunOnUiAsync(() => PopulateAvailableVersions(artifacts));
         }
         catch (OperationCanceledException)
         {
@@ -1369,6 +1372,30 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         LatestVersion = string.Empty;
     }
 
+    private static void RunOnUi(Action action)
+    {
+        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(action);
+        }
+    }
+
+    private static async Task RunOnUiAsync(Action action)
+    {
+        if (Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+        }
+        else
+        {
+            await Dispatcher.UIThread.InvokeAsync(action);
+        }
+    }
+
     partial void OnIsCheckingChanged(bool value)
     {
         OnPropertyChanged(nameof(IsCheckButtonEnabled));
@@ -1396,26 +1423,12 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
     partial void OnIsUpdateAvailableChanged(bool value)
     {
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            UpdateCommandStates();
-        }
-        else
-        {
-            Dispatcher.UIThread.InvokeAsync(UpdateCommandStates);
-        }
+        RunOnUi(UpdateCommandStates);
     }
 
     partial void OnIsInstallingChanged(bool value)
     {
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            UpdateCommandStates();
-        }
-        else
-        {
-            Dispatcher.UIThread.InvokeAsync(UpdateCommandStates);
-        }
+        RunOnUi(UpdateCommandStates);
     }
 
     private void UpdateCommandStates()
@@ -1437,7 +1450,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         if (_disposed || !IsAuthenticated || IsLoadingPullRequests) return;
 
         IsLoadingPullRequests = true;
-        AvailablePullRequests.Clear();
+        await RunOnUiAsync(() => AvailablePullRequests.Clear());
 
         try
         {
@@ -1448,7 +1461,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            await RunOnUiAsync(() =>
             {
                 _allPullRequests.Clear();
                 _allPullRequests.AddRange(prs);
@@ -1484,6 +1497,12 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
     private void ApplyPullRequestSorting()
     {
+        if (Avalonia.Application.Current != null && !Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(ApplyPullRequestSorting);
+            return;
+        }
+
         if (_allPullRequests.Count == 0 && AvailablePullRequests.Count == 0)
         {
             return;
@@ -1515,7 +1534,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         if (_disposed || !IsAuthenticated || IsLoadingBranches) return;
 
         IsLoadingBranches = true;
-        AvailableBranches.Clear();
+        await RunOnUiAsync(() => AvailableBranches.Clear());
 
         try
         {
@@ -1526,7 +1545,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            await RunOnUiAsync(() =>
             {
                 foreach (var branch in branches)
                 {
