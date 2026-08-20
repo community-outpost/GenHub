@@ -905,8 +905,8 @@ public partial class AddLocalContentViewModel(
             IsBusy = true;
             IsProgressIndeterminate = true;
             ProgressPercentage = 0;
-            ProgressDetailMessage = "Preparing content for storage...";
-            StatusMessage = "Processing content...";
+            ProgressDetailMessage = "Analyzing files and computing hashes...";
+            StatusMessage = IsEditing ? "Updating content manifest..." : "Scanning local content...";
 
             var targetGame = SelectedGameType;
 
@@ -916,14 +916,15 @@ public partial class AddLocalContentViewModel(
                 {
                     ProgressPercentage = p.Percentage;
                     IsProgressIndeterminate = false;
-                    ProgressDetailMessage = $"{p.ProcessedCount} of {p.TotalCount} files stored in CAS ({p.Percentage:0}%)";
-                    StatusMessage = $"{(IsEditing ? "Updating" : "Importing")}: {p.Percentage:0}% ({p.ProcessedCount}/{p.TotalCount} files)";
+                    var fileLabel = !string.IsNullOrWhiteSpace(p.CurrentFileName) ? $" ({Path.GetFileName(p.CurrentFileName)})" : string.Empty;
+                    ProgressDetailMessage = $"{p.ProcessedCount} of {p.TotalCount} files stored in CAS pool{fileLabel}";
+                    StatusMessage = $"{(IsEditing ? "Updating" : "Importing")} {ContentName}: {p.Percentage:0}% ({p.ProcessedCount}/{p.TotalCount} files)";
                 }
                 else
                 {
                     IsProgressIndeterminate = true;
-                    ProgressDetailMessage = "Processing files...";
-                    StatusMessage = "Processing content...";
+                    ProgressDetailMessage = !string.IsNullOrWhiteSpace(p.CurrentFileName) ? p.CurrentFileName : "Writing metadata...";
+                    StatusMessage = IsEditing ? "Updating content files..." : "Importing content files...";
                 }
             });
 

@@ -1113,7 +1113,7 @@ public class GameLauncher(
             Manifests = manifests,
             GameClient = gameClient,
             Strategy = effectiveStrategy,
-            ForceRecreate = isSteamLaunch,
+            ForceRecreate = false,
             WorkspaceRootPath = dynamicWorkspacePath,
             BaseInstallationPath = actualInstallationPath,
             ManifestSourcePaths = manifestSourcePaths,
@@ -1137,7 +1137,7 @@ public class GameLauncher(
                 progress?.Report(new LaunchProgress { Phase = LaunchPhase.PreparingWorkspace, PercentComplete = Math.Min(percentComplete, 80) });
             });
 
-        var workspaceResult = await workspaceManager.PrepareWorkspaceAsync(workspaceConfig, workspaceProgress, skipCleanup: isSteamLaunch, cancellationToken);
+        var workspaceResult = await workspaceManager.PrepareWorkspaceAsync(workspaceConfig, workspaceProgress, skipCleanup: false, cancellationToken);
         if (!workspaceResult.Success || workspaceResult.Data == null)
         {
             logger.LogError("[GameLauncher] Workspace preparation failed: {Error}", workspaceResult.FirstError);
@@ -1738,7 +1738,7 @@ public class GameLauncher(
             Manifests = workspaceManifests,
             GameClient = gameClient,
             Strategy = effectiveStrategy,
-            ForceRecreate = isSteamLaunch,
+            ForceRecreate = false,
             WorkspaceRootPath = dynamicWorkspacePath,
             BaseInstallationPath = actualInstallationPath,
             ManifestSourcePaths = manifestSourcePaths,
@@ -1759,7 +1759,7 @@ public class GameLauncher(
                 progress?.Report(new LaunchProgress { Phase = LaunchPhase.PreparingWorkspace, PercentComplete = Math.Min(percentComplete, 80) });
             });
 
-        return await workspaceManager.PrepareWorkspaceAsync(workspaceConfig, workspaceProgress, skipCleanup: isSteamLaunch, cancellationToken);
+        return await workspaceManager.PrepareWorkspaceAsync(workspaceConfig, workspaceProgress, skipCleanup: false, cancellationToken);
     }
 
     private void HandlePostWorkspacePreparation(

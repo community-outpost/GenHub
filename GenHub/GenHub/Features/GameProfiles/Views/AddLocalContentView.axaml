@@ -265,7 +265,7 @@
         </Grid>
 
         <!-- Loading Overlay -->
-        <Grid Background="#900D0D14" IsVisible="{Binding ShowLoadingOverlay}">
+        <Grid Background="Transparent" IsVisible="{Binding ShowLoadingOverlay}">
             <Border Background="#1C1C28"
                     BorderBrush="#35FFFFFF"
                     BorderThickness="1"
