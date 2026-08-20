@@ -23,48 +23,6 @@ public class ActionSetOrchestrator(
 {
     private readonly IReadOnlyList<IActionSet> _actionSets = InitializeActionSets(actionSets, providers, logger);
 
-    private static IReadOnlyList<IActionSet> InitializeActionSets(
-        IEnumerable<IActionSet> actionSets,
-        IEnumerable<IActionSetProvider> providers,
-        ILogger<ActionSetOrchestrator> logger)
-    {
-        var setMap = new Dictionary<string, IActionSet>(StringComparer.OrdinalIgnoreCase);
-
-        if (actionSets != null)
-        {
-            foreach (var set in actionSets)
-            {
-                if (!setMap.TryAdd(set.Id, set))
-                {
-                    logger.LogWarning("Duplicate action set ID {Id} ignored from direct registration", set.Id);
-                }
-            }
-        }
-
-        if (providers != null)
-        {
-            foreach (var provider in providers)
-            {
-                try
-                {
-                    foreach (var set in provider.GetActionSets())
-                    {
-                        if (!setMap.TryAdd(set.Id, set))
-                        {
-                            logger.LogWarning("Duplicate action set ID {Id} ignored from provider {Provider}", set.Id, provider.GetType().Name);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to load action sets from provider {Provider}", provider.GetType().Name);
-                }
-            }
-        }
-
-        return setMap.Values.ToList();
-    }
-
     /// <inheritdoc/>
     public IReadOnlyList<IActionSet> GetAllActionSets() => _actionSets;
 
@@ -249,5 +207,47 @@ public class ActionSetOrchestrator(
         }
 
         return OperationResult<int>.CreateSuccess(successCount, stopwatch.Elapsed);
+    }
+
+    private static IReadOnlyList<IActionSet> InitializeActionSets(
+        IEnumerable<IActionSet> actionSets,
+        IEnumerable<IActionSetProvider> providers,
+        ILogger<ActionSetOrchestrator> logger)
+    {
+        var setMap = new Dictionary<string, IActionSet>(StringComparer.OrdinalIgnoreCase);
+
+        if (actionSets != null)
+        {
+            foreach (var set in actionSets)
+            {
+                if (!setMap.TryAdd(set.Id, set))
+                {
+                    logger.LogWarning("Duplicate action set ID {Id} ignored from direct registration", set.Id);
+                }
+            }
+        }
+
+        if (providers != null)
+        {
+            foreach (var provider in providers)
+            {
+                try
+                {
+                    foreach (var set in provider.GetActionSets())
+                    {
+                        if (!setMap.TryAdd(set.Id, set))
+                        {
+                            logger.LogWarning("Duplicate action set ID {Id} ignored from provider {Provider}", set.Id, provider.GetType().Name);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to load action sets from provider {Provider}", provider.GetType().Name);
+                }
+            }
+        }
+
+        return setMap.Values.ToList();
     }
 }

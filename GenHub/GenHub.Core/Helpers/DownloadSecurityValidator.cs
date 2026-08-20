@@ -16,42 +16,36 @@ using GenHub.Core.Models.Results;
 /// </summary>
 public static class DownloadSecurityValidator
 {
-    private static readonly Guid WinTrustActionGenericVerifyV2 = new("00AAC56B-CD44-11d0-8CC2-00C04FC295EE");
-
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct WinTrustFileInfo
     {
-        public uint CbStruct;
+        internal uint CbStruct;
         [MarshalAs(UnmanagedType.LPWStr)]
-        public string PszFilePath;
-        public IntPtr HFile;
-        public IntPtr PgKnownSubject;
+        internal string PszFilePath;
+        internal IntPtr HFile;
+        internal IntPtr PgKnownSubject;
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct WinTrustData
     {
-        public uint CbStruct;
-        public IntPtr PPolicyCallbackData;
-        public IntPtr PSIPClientData;
-        public uint DwUIChoice;
-        public uint FdwRevocationChecks;
-        public uint DwUnionChoice;
-        public IntPtr PFile;
-        public uint DwStateAction;
-        public IntPtr HWVTStateData;
+        internal uint CbStruct;
+        internal IntPtr PPolicyCallbackData;
+        internal IntPtr PSIPClientData;
+        internal uint DwUIChoice;
+        internal uint FdwRevocationChecks;
+        internal uint DwUnionChoice;
+        internal IntPtr PFile;
+        internal uint DwStateAction;
+        internal IntPtr HWVTStateData;
         [MarshalAs(UnmanagedType.LPWStr)]
-        public string? PwszURLReference;
-        public uint DwProvFlags;
-        public uint DwUIContext;
-        public IntPtr PSignatureSettings;
+        internal string? PwszURLReference;
+        internal uint DwProvFlags;
+        internal uint DwUIContext;
+        internal IntPtr PSignatureSettings;
     }
 
-    [DllImport("wintrust.dll", ExactSpelling = true, SetLastError = false, CharSet = CharSet.Unicode)]
-    private static extern int WinVerifyTrust(
-        IntPtr hwnd,
-        [MarshalAs(UnmanagedType.LPStruct)] Guid pgActionID,
-        IntPtr pWVTData);
+    private static readonly Guid WinTrustActionGenericVerifyV2 = new("00AAC56B-CD44-11d0-8CC2-00C04FC295EE");
 
     /// <summary>
     /// Computes the SHA-256 hash of a file as a lowercase hexadecimal string.
@@ -117,6 +111,51 @@ public static class DownloadSecurityValidator
         }
     }
 
+    /// <summary>
+    /// Validates a downloaded file against pinned SHA-256 hashes and/or Authenticode publisher signatures.
+    /// Fails closed if any specified check fails.
+    /// </summary>
+    /// <param name="filePath">Path to the file to validate.</param>
+    /// <param name="allowedSha256Hashes">Optional list of allowed SHA-256 hashes.</param>
+    /// <param name="expectedAuthenticodePublisher">Optional expected Authenticode publisher substring.</param>
+    /// <param name="ct">The cancellation token.</param>
+    /// <returns>Operation result indicating validation success or failure.</returns>
+    public static async Task<OperationResult<bool>> ValidateFileAsync(
+        string filePath,
+        IReadOnlyList<string>? allowedSha256Hashes = null,
+        string? expectedAuthenticodePublisher = null,
+        CancellationToken ct = default)
+    {
+        if (!File.Exists(filePath))
+        {
+            return OperationResult<bool>.CreateFailure($"File '{filePath}' does not exist for validation.");
+        }
+
+        // 1. Verify Authenticode publisher / trust if specified
+        if (!string.IsNullOrWhiteSpace(expectedAuthenticodePublisher))
+        {
+            var authResult = ValidateAuthenticodeSignature(filePath, expectedAuthenticodePublisher);
+            if (!authResult.Success)
+            {
+                return authResult;
+            }
+        }
+
+        // 2. Verify SHA-256 hash if specified
+        if (allowedSha256Hashes is { Count: > 0 })
+        {
+            var actualHash = await ComputeSha256Async(filePath, ct);
+            bool matched = allowedSha256Hashes.Any(h => string.Equals(h, actualHash, StringComparison.OrdinalIgnoreCase));
+            if (!matched)
+            {
+                return OperationResult<bool>.CreateFailure(
+                    $"SHA-256 hash mismatch for '{Path.GetFileName(filePath)}'. Computed hash: '{actualHash}'. Expected one of: [{string.Join(", ", allowedSha256Hashes)}].");
+            }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
     private static OperationResult<bool> VerifyWindowsAuthenticodeTrust(string filePath)
     {
         var fileInfo = new WinTrustFileInfo
@@ -173,48 +212,9 @@ public static class DownloadSecurityValidator
         }
     }
 
-    /// <summary>
-    /// Validates a downloaded file against pinned SHA-256 hashes and/or Authenticode publisher signatures.
-    /// Fails closed if any specified check fails.
-    /// </summary>
-    /// <param name="filePath">Path to the file to validate.</param>
-    /// <param name="allowedSha256Hashes">Optional list of allowed SHA-256 hashes.</param>
-    /// <param name="expectedAuthenticodePublisher">Optional expected Authenticode publisher substring.</param>
-    /// <param name="ct">The cancellation token.</param>
-    /// <returns>Operation result indicating validation success or failure.</returns>
-    public static async Task<OperationResult<bool>> ValidateFileAsync(
-        string filePath,
-        IReadOnlyList<string>? allowedSha256Hashes = null,
-        string? expectedAuthenticodePublisher = null,
-        CancellationToken ct = default)
-    {
-        if (!File.Exists(filePath))
-        {
-            return OperationResult<bool>.CreateFailure($"File '{filePath}' does not exist for validation.");
-        }
-
-        // 1. Verify Authenticode publisher / trust if specified
-        if (!string.IsNullOrWhiteSpace(expectedAuthenticodePublisher))
-        {
-            var authResult = ValidateAuthenticodeSignature(filePath, expectedAuthenticodePublisher);
-            if (!authResult.Success)
-            {
-                return authResult;
-            }
-        }
-
-        // 2. Verify SHA-256 hash if specified
-        if (allowedSha256Hashes is { Count: > 0 })
-        {
-            var actualHash = await ComputeSha256Async(filePath, ct);
-            bool matched = allowedSha256Hashes.Any(h => string.Equals(h, actualHash, StringComparison.OrdinalIgnoreCase));
-            if (!matched)
-            {
-                return OperationResult<bool>.CreateFailure(
-                    $"SHA-256 hash mismatch for '{Path.GetFileName(filePath)}'. Computed hash: '{actualHash}'. Expected one of: [{string.Join(", ", allowedSha256Hashes)}].");
-            }
-        }
-
-        return OperationResult<bool>.CreateSuccess(true);
-    }
+    [DllImport("wintrust.dll", ExactSpelling = true, SetLastError = false, CharSet = CharSet.Unicode)]
+    private static extern int WinVerifyTrust(
+        IntPtr hwnd,
+        [MarshalAs(UnmanagedType.LPStruct)] Guid pgActionID,
+        IntPtr pWVTData);
 }

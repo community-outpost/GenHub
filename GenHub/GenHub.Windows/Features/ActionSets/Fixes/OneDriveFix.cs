@@ -202,6 +202,13 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
         }
     }
 
+    /// <inheritdoc/>
+    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    {
+        logger.LogWarning("Undoing OneDrive folder relocation is not supported automatically.");
+        return Task.FromResult(new ActionSetResult(true));
+    }
+
     private bool CreateSymlinkOrJunction(string linkPath, string targetPath, List<string> details)
     {
         try
@@ -238,13 +245,6 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
             details.Add($"  ✗ Failed to create link: {linkPath}");
             return false;
         }
-    }
-
-    /// <inheritdoc/>
-    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
-    {
-        logger.LogWarning("Undoing OneDrive folder relocation is not supported automatically.");
-        return Task.FromResult(new ActionSetResult(true));
     }
 
     private static void CopyDirectoryRecursive(string source, string target)

@@ -23,7 +23,7 @@ public class ActionSetOrchestratorTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the test.</returns>
     [Fact]
-    public async Task ApplyActionSetsAsync_WhenFixFails_ReturnsPartialSuccessCount()
+    public async Task ApplyActionSetsAsync_WhenFixFails_ReturnsPartialSuccessCountAsync()
     {
         var fix1 = new Mock<IActionSet>();
         fix1.SetupGet(f => f.Id).Returns("Fix1");
@@ -56,7 +56,7 @@ public class ActionSetOrchestratorTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the test.</returns>
     [Fact]
-    public async Task ApplyActionSetsAsync_WhenCrucialFixFails_AbortsAndReturnsPartialSuccessCount()
+    public async Task ApplyActionSetsAsync_WhenCrucialFixFails_AbortsAndReturnsPartialSuccessCountAsync()
     {
         var fix1 = new Mock<IActionSet>();
         fix1.SetupGet(f => f.Id).Returns("Fix1");

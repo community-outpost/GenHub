@@ -18,7 +18,7 @@ public class DownloadSecurityValidatorTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the test.</returns>
     [Fact]
-    public async Task ValidateFileAsync_WhenSha256Matches_ReturnsSuccess()
+    public async Task ValidateFileAsync_WhenSha256Matches_ReturnsSuccessAsync()
     {
         var tempFile = Path.GetTempFileName();
         try
@@ -49,7 +49,7 @@ public class DownloadSecurityValidatorTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the test.</returns>
     [Fact]
-    public async Task ValidateFileAsync_WhenSha256Mismatches_ReturnsFailure()
+    public async Task ValidateFileAsync_WhenSha256Mismatches_ReturnsFailureAsync()
     {
         var tempFile = Path.GetTempFileName();
         try
