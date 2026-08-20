@@ -560,10 +560,12 @@ public class ProfileLauncherFacade(
     {
         logger.LogDebug("[Launch] Step 6: Delegating to GameLauncher for workspace prep and process start");
 
+        var hasNotifiedWorkspacePrep = false;
         var launchProgress = new Progress<LaunchProgress>(p =>
         {
-            if (p.Phase == LaunchPhase.PreparingWorkspace)
+            if (p.Phase == LaunchPhase.PreparingWorkspace && !hasNotifiedWorkspacePrep)
             {
+                hasNotifiedWorkspacePrep = true;
                 notificationService.ShowInfo(
                     "Preparing Workspace",
                     $"Materializing game files for '{profile.Name}'...",
