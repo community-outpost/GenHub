@@ -19,30 +19,55 @@ public static class DownloadSecurityValidator
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct WinTrustFileInfo
     {
-        internal uint CbStruct;
+        private uint _cbStruct;
         [MarshalAs(UnmanagedType.LPWStr)]
-        internal string PszFilePath;
-        internal IntPtr HFile;
-        internal IntPtr PgKnownSubject;
+        private string _pszFilePath;
+        private IntPtr _hFile;
+        private IntPtr _pgKnownSubject;
+
+        public WinTrustFileInfo(string filePath)
+        {
+            _cbStruct = (uint)Marshal.SizeOf<WinTrustFileInfo>();
+            _pszFilePath = filePath;
+            _hFile = IntPtr.Zero;
+            _pgKnownSubject = IntPtr.Zero;
+        }
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct WinTrustData
     {
-        internal uint CbStruct;
-        internal IntPtr PPolicyCallbackData;
-        internal IntPtr PSIPClientData;
-        internal uint DwUIChoice;
-        internal uint FdwRevocationChecks;
-        internal uint DwUnionChoice;
-        internal IntPtr PFile;
-        internal uint DwStateAction;
-        internal IntPtr HWVTStateData;
+        private uint _cbStruct;
+        private IntPtr _pPolicyCallbackData;
+        private IntPtr _pSIPClientData;
+        private uint _dwUIChoice;
+        private uint _fdwRevocationChecks;
+        private uint _dwUnionChoice;
+        private IntPtr _pFile;
+        private uint _dwStateAction;
+        private IntPtr _hWVTStateData;
         [MarshalAs(UnmanagedType.LPWStr)]
-        internal string? PwszURLReference;
-        internal uint DwProvFlags;
-        internal uint DwUIContext;
-        internal IntPtr PSignatureSettings;
+        private string? _pwszURLReference;
+        private uint _dwProvFlags;
+        private uint _dwUIContext;
+        private IntPtr _pSignatureSettings;
+
+        public WinTrustData(IntPtr filePtr)
+        {
+            _cbStruct = (uint)Marshal.SizeOf<WinTrustData>();
+            _pPolicyCallbackData = IntPtr.Zero;
+            _pSIPClientData = IntPtr.Zero;
+            _dwUIChoice = 2; // WTD_UI_NONE
+            _fdwRevocationChecks = 1; // WTD_REVOKE_WHOLECHAIN
+            _dwUnionChoice = 1; // WTD_CHOICE_FILE
+            _pFile = filePtr;
+            _dwStateAction = 0; // WTD_STATEACTION_IGNORE
+            _hWVTStateData = IntPtr.Zero;
+            _pwszURLReference = null;
+            _dwProvFlags = 0x00000040; // WTD_CACHE_ONLY_URL_RETRIEVAL
+            _dwUIContext = 0;
+            _pSignatureSettings = IntPtr.Zero;
+        }
     }
 
     private static readonly Guid WinTrustActionGenericVerifyV2 = new("00AAC56B-CD44-11d0-8CC2-00C04FC295EE");
@@ -160,13 +185,7 @@ public static class DownloadSecurityValidator
 
     private static OperationResult<bool> VerifyWindowsAuthenticodeTrust(string filePath)
     {
-        var fileInfo = new WinTrustFileInfo
-        {
-            CbStruct = (uint)Marshal.SizeOf<WinTrustFileInfo>(),
-            PszFilePath = Path.GetFullPath(filePath),
-            HFile = IntPtr.Zero,
-            PgKnownSubject = IntPtr.Zero,
-        };
+        var fileInfo = new WinTrustFileInfo(Path.GetFullPath(filePath));
 
         var pFileInfo = IntPtr.Zero;
         var pData = IntPtr.Zero;
@@ -179,22 +198,7 @@ public static class DownloadSecurityValidator
             Marshal.StructureToPtr(fileInfo, pFileInfo, false);
             fileInfoMarshaled = true;
 
-            var trustData = new WinTrustData
-            {
-                CbStruct = (uint)Marshal.SizeOf<WinTrustData>(),
-                PPolicyCallbackData = IntPtr.Zero,
-                PSIPClientData = IntPtr.Zero,
-                DwUIChoice = 2, // WTD_UI_NONE
-                FdwRevocationChecks = 1, // WTD_REVOKE_WHOLECHAIN
-                DwUnionChoice = 1, // WTD_CHOICE_FILE
-                PFile = pFileInfo,
-                DwStateAction = 0, // WTD_STATEACTION_IGNORE
-                HWVTStateData = IntPtr.Zero,
-                PwszURLReference = null,
-                DwProvFlags = 0x00000040, // WTD_CACHE_ONLY_URL_RETRIEVAL
-                DwUIContext = 0,
-                PSignatureSettings = IntPtr.Zero,
-            };
+            var trustData = new WinTrustData(pFileInfo);
 
             pData = Marshal.AllocHGlobal(Marshal.SizeOf<WinTrustData>());
             Marshal.StructureToPtr(trustData, pData, false);

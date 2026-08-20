@@ -156,7 +156,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
                             if (!string.IsNullOrEmpty(currentCloudArchive) && Directory.Exists(currentCloudArchive) && !Directory.Exists(cloudPath))
                             {
                                 Directory.Move(currentCloudArchive, cloudPath);
-                                details.Add($"  ✓ Restored original cloud folder from archive due to link creation failure");
+                                details.Add("  ✓ Restored original cloud folder from archive due to link creation failure");
                                 currentCloudArchive = null;
                             }
 
@@ -176,7 +176,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
                         try
                         {
                             Directory.Move(currentCloudArchive, cloudPath);
-                            details.Add($"  ✓ Restored original cloud folder from archive after error");
+                            details.Add("  ✓ Restored original cloud folder from archive after error");
                         }
                         catch (Exception rollbackEx)
                         {
