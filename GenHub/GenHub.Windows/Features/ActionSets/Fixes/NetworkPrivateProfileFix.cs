@@ -35,7 +35,7 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
     }
 
     /// <inheritdoc/>
-    public override async Task<bool> IsAppliedAsync(GameInstallation installation)
+    public override async Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         try
         {

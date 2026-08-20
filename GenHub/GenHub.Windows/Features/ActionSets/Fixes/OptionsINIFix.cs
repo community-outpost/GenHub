@@ -40,7 +40,7 @@ public class OptionsINIFix(IGameSettingsService gameSettingsService, ILogger<Opt
     }
 
     /// <inheritdoc/>
-    public override async Task<bool> IsAppliedAsync(GameInstallation installation)
+    public override async Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         try
         {

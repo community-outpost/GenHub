@@ -38,7 +38,7 @@ public class EdgeScrollerFix(ILogger<EdgeScrollerFix> logger, IGameSettingsServi
     }
 
     /// <inheritdoc/>
-    public override async Task<bool> IsAppliedAsync(GameInstallation installation)
+    public override async Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         try
         {
