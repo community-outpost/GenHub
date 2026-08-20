@@ -102,7 +102,7 @@ public class GameProcessManager(
 
                 if (process.HasExited)
                 {
-                    return HandleImmediateProcessExit(process, configuration, launcherStartTime, capturedErrors);
+                    return await HandleImmediateProcessExitAsync(process, configuration, launcherStartTime, capturedErrors, cancellationToken);
                 }
             }
 
@@ -790,11 +790,12 @@ public class GameProcessManager(
         return processStartInfo;
     }
 
-    private OperationResult<GameProcessInfo> HandleImmediateProcessExit(
+    private async Task<OperationResult<GameProcessInfo>> HandleImmediateProcessExitAsync(
         Process process,
         GameLaunchConfiguration configuration,
         DateTime? launcherStartTime,
-        BoundedErrorBuffer capturedErrors)
+        BoundedErrorBuffer capturedErrors,
+        CancellationToken cancellationToken)
     {
         var exitCode = process.ExitCode;
 
@@ -828,7 +829,7 @@ public class GameProcessManager(
                     break;
                 }
 
-                Thread.Sleep(ProcessConstants.SpawnedChildPollIntervalMs);
+                await Task.Delay(ProcessConstants.SpawnedChildPollIntervalMs, cancellationToken);
             }
 
             if (spawnedProcess != null)
