@@ -512,7 +512,7 @@ public class SuperHackersProviderTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
-    public async Task SearchAsync_GeneralsGamePatch2_WhenReleaseNameIsVersionString_SetsDisplayName()
+    public async Task SearchAsync_GeneralsGamePatch2_WhenReleaseNameIsVersionString_SetsDisplayNameAsync()
     {
         // Arrange
         var release = new GitHubRelease

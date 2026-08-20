@@ -306,32 +306,23 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
         }
         else
         {
+            var providerName = isSuperHackers
+                ? PublisherTypeConstants.TheSuperHackers
+                : SourceName;
+
+            var iconUrl = isSuperHackers
+                ? PublisherInfoConstants.TheSuperHackers.LogoSource
+                : (PublisherInfoConstants.GetPublisherLogo(owner, repo) ?? PublisherInfoConstants.GitHub.LogoSource);
+
             string cardName;
-            string providerName;
-            string iconUrl;
-
-            if (isSuperHackers)
+            if (isSuperHackers && repo.Equals(SuperHackersConstants.GeneralsGamePatch2Repo, StringComparison.OrdinalIgnoreCase))
             {
-                providerName = PublisherTypeConstants.TheSuperHackers;
-                iconUrl = PublisherInfoConstants.TheSuperHackers.LogoSource;
-
-                if (repo.Equals(SuperHackersConstants.GeneralsGamePatch2Repo, StringComparison.OrdinalIgnoreCase))
-                {
-                    cardName = IsPureVersionString(release.Name, release.TagName)
-                        ? SuperHackersConstants.GeneralsGamePatch2DisplayName
-                        : release.Name!;
-                }
-                else
-                {
-                    cardName = IsPureVersionString(release.Name, release.TagName)
-                        ? $"{repo} {release.TagName}"
-                        : (release.Name ?? $"{repo} {release.TagName}");
-                }
+                cardName = IsPureVersionString(release.Name, release.TagName)
+                    ? SuperHackersConstants.GeneralsGamePatch2DisplayName
+                    : release.Name!;
             }
             else
             {
-                providerName = SourceName;
-                iconUrl = PublisherInfoConstants.GetPublisherLogo(owner, repo) ?? PublisherInfoConstants.GitHub.LogoSource;
                 cardName = IsPureVersionString(release.Name, release.TagName)
                     ? $"{repo} {release.TagName}"
                     : (release.Name ?? $"{repo} {release.TagName}");

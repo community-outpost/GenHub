@@ -725,9 +725,10 @@ public class SettingsViewModelTests
             // Act
             await viewModel.ClearLogsCommand.ExecuteAsync(null);
 
-            // Assert
+            // Assert - historical log deleted, active log truncated to preserve logging sink
             Assert.False(File.Exists(logFile1));
-            Assert.False(File.Exists(logFile2));
+            Assert.True(File.Exists(logFile2));
+            Assert.Equal(0, new FileInfo(logFile2).Length);
             _mockNotificationService.Verify(
                 x => x.ShowSuccess("Logs Cleared", It.Is<string>(s => s.Contains("2 log file(s)")), It.IsAny<int?>(), It.IsAny<bool>()),
                 Times.Once);

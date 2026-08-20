@@ -1774,26 +1774,43 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             await Task.Run(() =>
             {
                 var files = Directory.GetFiles(logsPath, "*.log", SearchOption.TopDirectoryOnly);
+                var todayLogFileName = $"{AppConstants.AppName.ToLowerInvariant()}-{DateTime.Now:yyyy-MM-dd}.log";
+
                 foreach (var file in files)
                 {
                     try
                     {
+                        var fileName = Path.GetFileName(file);
                         var info = new FileInfo(file);
                         var length = info.Length;
 
-                        try
+                        if (string.Equals(fileName, todayLogFileName, StringComparison.OrdinalIgnoreCase))
                         {
-                            File.Delete(file);
+                            // Active log file: Do not delete, as deleting puts the handle in DeletePending state
+                            // on Windows and breaks Serilog's shared file sink. Truncate in-place instead.
+                            using (var stream = new FileStream(file, FileMode.Truncate, FileAccess.Write, FileShare.ReadWrite))
+                            {
+                                stream.Flush();
+                            }
+
                             deletedCount++;
                             freedBytes += length;
                         }
-                        catch (IOException)
+                        else
                         {
-                            // File is likely locked by the active logging sink. Truncate it to clear contents.
-                            using var stream = new FileStream(file, FileMode.Truncate, FileAccess.Write, FileShare.ReadWrite);
-                            stream.Flush();
-                            deletedCount++;
-                            freedBytes += length;
+                            try
+                            {
+                                File.Delete(file);
+                                deletedCount++;
+                                freedBytes += length;
+                            }
+                            catch (IOException)
+                            {
+                                using var stream = new FileStream(file, FileMode.Truncate, FileAccess.Write, FileShare.ReadWrite);
+                                stream.Flush();
+                                deletedCount++;
+                                freedBytes += length;
+                            }
                         }
                     }
                     catch (Exception ex)
