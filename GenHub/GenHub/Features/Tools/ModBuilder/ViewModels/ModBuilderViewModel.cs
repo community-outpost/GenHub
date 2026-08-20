@@ -1190,6 +1190,28 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 buildConfig = new BuildConfiguration();
             }
 
+            // Ensure GameDir is populated in configuration folders
+            var resolvedGameDir = !string.IsNullOrEmpty(buildConfig.Folders.AbsGameDir)
+                ? buildConfig.Folders.AbsGameDir
+                : (!string.IsNullOrEmpty(CurrentProject.GameDir)
+                    ? CurrentProject.GameDir
+                    : (!string.IsNullOrEmpty(GameDirectory)
+                        ? GameDirectory
+                        : (FileManager.SelectedInstallationPath ?? FileManager.AvailableInstallations.FirstOrDefault()?.Path ?? string.Empty)));
+
+            if (!string.IsNullOrEmpty(resolvedGameDir))
+            {
+                buildConfig.Folders.AbsGameDir = resolvedGameDir;
+                if (string.IsNullOrEmpty(CurrentProject.GameDir))
+                {
+                    CurrentProject.GameDir = resolvedGameDir;
+                }
+                if (string.IsNullOrEmpty(GameDirectory))
+                {
+                    GameDirectory = resolvedGameDir;
+                }
+            }
+
             // Update compression level
             buildConfig.ZipCompressionLevel = SelectedCompressionLevel;
 
@@ -1637,6 +1659,16 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             if (!string.IsNullOrEmpty(projectDir))
             {
                 await FileManager.InitializeAsync(projectDir).ConfigureAwait(false);
+
+                if (string.IsNullOrEmpty(CurrentProject.GameDir))
+                {
+                    var fallbackGameDir = FileManager.SelectedInstallationPath ?? FileManager.AvailableInstallations.FirstOrDefault()?.Path;
+                    if (!string.IsNullOrEmpty(fallbackGameDir))
+                    {
+                        CurrentProject.GameDir = fallbackGameDir;
+                        await InvokeOnUIThreadAsync(() => GameDirectory = fallbackGameDir);
+                    }
+                }
             }
 
             // Notify command state changes on UI thread

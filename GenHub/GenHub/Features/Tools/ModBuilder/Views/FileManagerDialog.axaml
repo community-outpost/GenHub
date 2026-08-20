@@ -8,9 +8,15 @@
         x:Class="GenHub.Features.Tools.ModBuilder.Views.FileManagerDialog"
         x:DataType="vm:FileManagerViewModel"
         Title="ModBuilder - Game Asset &amp; File Manager"
+        Icon="/Assets/Icons/generalshub-icon.png"
         Width="1200" Height="750"
         MinWidth="950" MinHeight="550"
         WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        SystemDecorations="Full"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1"
         Background="{StaticResource BackgroundPrimaryBrush}">
 
   <Window.Resources>
@@ -22,41 +28,57 @@
     </ResourceDictionary>
   </Window.Resources>
 
-  <Grid RowDefinitions="Auto,*,Auto" Margin="{StaticResource PaddingLarge}">
-    <!-- Header -->
-    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
-      <StackPanel Grid.Column="0" Spacing="{StaticResource SpacingSmall}">
-        <TextBlock Text="Game Asset &amp; File Manager"
-                   FontSize="{StaticResource FontSizeHeading2}"
-                   FontWeight="{StaticResource FontWeightSemiBold}"
-                   Foreground="{StaticResource TextPrimaryBrush}"/>
-        <TextBlock Text="Browse game installation files and import textures, INIs, and models into your project"
-                   FontSize="{StaticResource FontSizeNormal}"
-                   Foreground="{StaticResource TextSecondaryBrush}"/>
+  <Grid RowDefinitions="Auto,*">
+    <!-- Custom Title Bar Header Area -->
+    <Grid Grid.Row="0" Height="48" Margin="16,8,16,8"
+          ColumnDefinitions="Auto,*,Auto"
+          Background="Transparent"
+          PointerPressed="OnTitleBarPointerPressed">
+      <!-- Title -->
+      <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+        <Path Width="18" Height="18" Fill="{StaticResource AccentPrimaryBrush}" Data="{StaticResource IconFolder}" Stretch="Uniform" VerticalAlignment="Center"/>
+        <StackPanel VerticalAlignment="Center">
+          <TextBlock Text="Game Asset &amp; File Manager"
+                     FontSize="15"
+                     FontWeight="SemiBold"
+                     Foreground="White"/>
+          <TextBlock Text="Browse game files and import textures, INIs, and models into your project"
+                     FontSize="11"
+                     Foreground="#A0A0B0"/>
+        </StackPanel>
       </StackPanel>
 
-      <Button Grid.Column="1" Click="OnCloseClicked" VerticalAlignment="Center" Padding="16,8" CornerRadius="8"
-              Background="#20FFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1">
-        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-          <Path Width="12" Height="12" Fill="White" Data="{StaticResource IconClear}" Stretch="Uniform" VerticalAlignment="Center"/>
-          <TextBlock Text="Close" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
-        </StackPanel>
-      </Button>
+      <!-- Right Header Actions (Done Button + Window Controls) -->
+      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <Button Click="OnCloseClicked" Classes="Primary"
+                Padding="16,6" CornerRadius="8" VerticalAlignment="Center"
+                ToolTip.Tip="Save changes and return to project">
+          <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <Path Width="12" Height="12" Fill="White" Data="{StaticResource IconCheckmark}" Stretch="Uniform" VerticalAlignment="Center"/>
+            <TextBlock Text="Done" FontWeight="SemiBold" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Button>
+
+        <!-- Minimize Button -->
+        <Button Click="MinimizeButton_Click" Background="Transparent" BorderThickness="0" Padding="6" CornerRadius="4" VerticalAlignment="Center" ToolTip.Tip="Minimize">
+          <Path Width="10" Height="2" Fill="#CCCCCC" Data="{StaticResource IconMinimize}" Stretch="Uniform"/>
+        </Button>
+
+        <!-- Maximize/Restore Button -->
+        <Button Click="MaximizeButton_Click" Background="Transparent" BorderThickness="0" Padding="6" CornerRadius="4" VerticalAlignment="Center" ToolTip.Tip="Maximize / Restore">
+          <Path Width="10" Height="10" Fill="#CCCCCC" Data="{StaticResource IconMaximize}" Stretch="Uniform"/>
+        </Button>
+
+        <!-- Close Button -->
+        <Button Click="CloseButton_Click" Background="Transparent" BorderThickness="0" Padding="6" CornerRadius="4" VerticalAlignment="Center" ToolTip.Tip="Close">
+          <Path Width="10" Height="10" Fill="#CCCCCC" Data="{StaticResource IconClear}" Stretch="Uniform"/>
+        </Button>
+      </StackPanel>
     </Grid>
 
     <!-- Main Content Panel -->
-    <Border Grid.Row="1" Background="#15FFFFFF" CornerRadius="12" Padding="12" BorderBrush="#20FFFFFF" BorderThickness="1">
+    <Border Grid.Row="1" Background="#15FFFFFF" CornerRadius="12" Padding="12" Margin="16,0,16,16" BorderBrush="#20FFFFFF" BorderThickness="1">
       <views:FileManagerPanel/>
     </Border>
-
-    <!-- Footer -->
-    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,12,0,0">
-      <TextBlock Grid.Column="0" Text="Select files from the left tree and click 'Add to Project' to copy them to GameFilesEdited"
-                 FontSize="{StaticResource FontSizeSmall}" Foreground="{StaticResource TextTertiaryBrush}" VerticalAlignment="Center"/>
-      <Button Grid.Column="1" Click="OnCloseClicked" MinWidth="100" Padding="16,8" CornerRadius="8"
-              Classes="Primary">
-        <TextBlock Text="Done"/>
-      </Button>
-    </Grid>
   </Grid>
 </Window>

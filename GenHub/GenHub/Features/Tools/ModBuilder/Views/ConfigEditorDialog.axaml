@@ -7,9 +7,15 @@
         x:Class="GenHub.Features.Tools.ModBuilder.Views.ConfigEditorDialog"
         x:DataType="vm:ConfigEditorViewModel"
         Title="Configuration Editor"
+        Icon="/Assets/Icons/generalshub-icon.png"
         Width="1200" Height="800"
         MinWidth="1000" MinHeight="600"
         WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        SystemDecorations="Full"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1"
         Background="{StaticResource BackgroundPrimaryBrush}">
 
   <Window.Resources>
@@ -23,7 +29,8 @@
 
   <Grid RowDefinitions="Auto,*,Auto" Margin="{StaticResource PaddingLarge}">
     <!-- Header -->
-    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16"
+          Background="Transparent" PointerPressed="OnTitleBarPointerPressed">
       <StackPanel Grid.Column="0" Spacing="{StaticResource SpacingSmall}">
         <TextBlock Text="Configuration Editor"
                    FontSize="{StaticResource FontSizeHeading2}"

@@ -775,7 +775,12 @@ public sealed class BuildEngineService(
         var gameDir = setup.Folders?.AbsGameDir;
         if (string.IsNullOrEmpty(gameDir))
         {
-            logger.LogError("Game directory not configured");
+            gameDir = _cachedBuildStructure?.Configuration?.Folders?.AbsGameDir;
+        }
+
+        if (string.IsNullOrEmpty(gameDir))
+        {
+            logger.LogError("Game directory not configured. Please specify a game directory in project settings or select an installation in Game Asset & File Manager.");
             return false;
         }
 
@@ -865,6 +870,24 @@ public sealed class BuildEngineService(
         var gameExePath = runnerConfig.AbsExe;
         if (string.IsNullOrEmpty(gameExePath))
         {
+            var resolvedGameDir = setup.Folders?.AbsGameDir ?? _cachedBuildStructure?.Configuration?.Folders?.AbsGameDir;
+            if (!string.IsNullOrEmpty(resolvedGameDir) && Directory.Exists(resolvedGameDir))
+            {
+                var candidateExes = new[] { "generals.exe", "game.dat", "EAC_LaunchGeneralsOnline.exe", "worldbuilder.exe" };
+                foreach (var exe in candidateExes)
+                {
+                    var fullCandidate = Path.Combine(resolvedGameDir, exe);
+                    if (File.Exists(fullCandidate))
+                    {
+                        gameExePath = fullCandidate;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (string.IsNullOrEmpty(gameExePath))
+        {
             logger.LogWarning("Game executable not configured, skipping run");
             return true;
         }
@@ -920,12 +943,11 @@ public sealed class BuildEngineService(
                 ? runnerConfig.ModFolder
                 : setup.Folders?.AbsReleaseDir;
 
-            if (!string.IsNullOrEmpty(modFolder) && Directory.Exists(modFolder))
+            if (!string.IsNullOrEmpty(modFolder))
             {
                 args = string.IsNullOrEmpty(args)
                     ? $"-mod \"{modFolder}\""
                     : $"{args} -mod \"{modFolder}\"";
-                logger.LogInformation("Using native game mod folder argument: -mod {ModFolder}", modFolder);
             }
         }
 
@@ -934,21 +956,17 @@ public sealed class BuildEngineService(
             startInfo.Arguments = args;
         }
 
-        using var process = new Process { StartInfo = startInfo };
+        logger.LogInformation("Process start: {FileName} {Arguments}", startInfo.FileName, startInfo.Arguments);
 
-        try
+        var process = Process.Start(startInfo);
+        if (process == null)
         {
-            process.Start();
-            logger.LogInformation("Game launched successfully (PID: {ProcessId})", process.Id);
-            progress?.Report(new BuildProgress { CurrentStep = "Game launched successfully" });
+            logger.LogError("Failed to start game process");
+            return false;
+        }
 
-            return await Task.FromResult(true).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to launch game: {Message}", ex.Message);
-            throw;
-        }
+        logger.LogInformation("Game launched successfully (PID: {Pid})", process.Id);
+        return true;
     }
 
     /// <summary>
@@ -961,7 +979,7 @@ public sealed class BuildEngineService(
     private async Task<bool> UninstallAsync(BuildSetup setup, IProgress<BuildProgress>? progress, CancellationToken cancellationToken)
     {
         logger.LogInformation("Uninstall stage started");
-        progress?.Report(new BuildProgress { CurrentStep = "Uninstalling from game directory" });
+        progress?.Report(new BuildProgress { CurrentStep = "Uninstalling bundle pack" });
 
         // fire OnUninstall event
         FireBundleEvent(BundleEventType.OnUninstall, null);
@@ -969,7 +987,12 @@ public sealed class BuildEngineService(
         var gameDir = setup.Folders?.AbsGameDir;
         if (string.IsNullOrEmpty(gameDir))
         {
-            logger.LogError("Game directory not configured");
+            gameDir = _cachedBuildStructure?.Configuration?.Folders?.AbsGameDir;
+        }
+
+        if (string.IsNullOrEmpty(gameDir))
+        {
+            logger.LogError("Game directory not configured. Please specify a game directory in project settings or select an installation in Game Asset & File Manager.");
             return false;
         }
 
@@ -1198,6 +1221,10 @@ public sealed class BuildEngineService(
         configuration = await configurationLoaderService.ResolveWildcardsAsync(configuration, cancellationToken)
             .ConfigureAwait(false);
 
+        var gameDir = !string.IsNullOrEmpty(configuration.Folders.AbsGameDir)
+            ? configuration.Folders.AbsGameDir
+            : (!string.IsNullOrEmpty(project.GameDir) ? project.GameDir : string.Empty);
+
         var setup = new BuildSetup
         {
             Step = buildSteps,
@@ -1205,7 +1232,7 @@ public sealed class BuildEngineService(
             {
                 AbsBuildDir = configuration.Folders.AbsBuildDir,
                 AbsReleaseDir = configuration.Folders.AbsReleaseDir,
-                AbsGameDir = configuration.Folders.AbsGameDir,
+                AbsGameDir = gameDir,
             },
             Bundles = new Bundles
             {
