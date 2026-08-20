@@ -99,6 +99,38 @@ public partial class AddLocalContentViewModel(
         return null;
     }
 
+    private static bool FilesHaveIdenticalContent(string file1, string file2)
+    {
+        const int bufferSize = 65536;
+        var buffer1 = new byte[bufferSize];
+        var buffer2 = new byte[bufferSize];
+
+        using var s1 = File.OpenRead(file1);
+        using var s2 = File.OpenRead(file2);
+
+        if (s1.Length != s2.Length)
+        {
+            return false;
+        }
+
+        var bytesRead1 = 0;
+        while ((bytesRead1 = s1.Read(buffer1, 0, bufferSize)) > 0)
+        {
+            var bytesRead2 = s2.Read(buffer2, 0, bufferSize);
+            if (bytesRead1 != bytesRead2)
+            {
+                return false;
+            }
+
+            if (!buffer1.AsSpan(0, bytesRead1).SequenceEqual(buffer2.AsSpan(0, bytesRead2)))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private readonly string _stagingPath = Path.Combine(Path.GetTempPath(), "GenHub_Staging_" + Guid.NewGuid());
 
     private string? _originalManifestId;
@@ -206,6 +238,12 @@ public partial class AddLocalContentViewModel(
     /// Gets a value indicating whether the executable selection should be shown.
     /// </summary>
     public bool ShowExecutableSelection => RequiresExecutable(SelectedContentType) && ExecutableCount > 0;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether inactive mod archives (.ctr, .gib, .skw) are present in the staging area.
+    /// </summary>
+    [ObservableProperty]
+    private bool _hasInactiveArchives;
 
     /// <summary>
     /// Gets the text to display in the preview area when no content is loaded.
@@ -376,7 +414,8 @@ public partial class AddLocalContentViewModel(
                         _stagingPath,
                         SelectedContentType,
                         SelectedGameType,
-                        cancellationToken);
+                        normalizeInactiveArchives: false,
+                        cancellationToken: cancellationToken);
                 }
                 else if (extension.Equals(".zip", StringComparison.OrdinalIgnoreCase))
                 {
@@ -407,7 +446,8 @@ public partial class AddLocalContentViewModel(
                         _stagingPath,
                         SelectedContentType,
                         SelectedGameType,
-                        cancellationToken);
+                        normalizeInactiveArchives: false,
+                        cancellationToken: cancellationToken);
                 }
             }
 
@@ -689,6 +729,58 @@ public partial class AddLocalContentViewModel(
     }
 
     [RelayCommand]
+    private async Task NormalizeArchivesAsync()
+    {
+        if (!Directory.Exists(_stagingPath))
+        {
+            return;
+        }
+
+        try
+        {
+            IsBusy = true;
+            StatusMessage = "Normalizing inactive archives (.ctr / .gib) to .big...";
+            logger?.LogInformation("User triggered archive normalization in staging: {StagingPath}", _stagingPath);
+
+            await Task.Run(() =>
+            {
+                foreach (var extension in GenLauncherConstants.InactiveBigExtensions)
+                {
+                    var searchPattern = "*" + extension;
+                    foreach (var inactiveFile in Directory.GetFiles(_stagingPath, searchPattern, SearchOption.AllDirectories))
+                    {
+                        var bigFile = Path.ChangeExtension(inactiveFile, GenLauncherConstants.BigExtension);
+                        if (File.Exists(bigFile))
+                        {
+                            if (FilesHaveIdenticalContent(inactiveFile, bigFile))
+                            {
+                                File.Delete(inactiveFile);
+                            }
+                        }
+                        else
+                        {
+                            File.Move(inactiveFile, bigFile);
+                        }
+                    }
+                }
+            });
+
+            await RefreshStagingTreeAsync();
+            StatusMessage = "Inactive archives normalized to .big successfully.";
+            Validate();
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Error normalizing inactive archives in staging");
+            StatusMessage = $"Normalization failed: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
     private void Cancel()
     {
         _cts?.Cancel();
@@ -960,6 +1052,7 @@ public partial class AddLocalContentViewModel(
                 SelectedExecutableItem = null;
             }
 
+            HasInactiveArchives = CheckForInactiveArchives();
             Validate();
         }
         catch (Exception ex)
@@ -1083,5 +1176,30 @@ public partial class AddLocalContentViewModel(
             SelectedExecutableItem = firstExe;
             logger?.LogInformation("Auto-selected first executable: {Name}", firstExe.Name);
         }
+    }
+
+    private bool CheckForInactiveArchives()
+    {
+        if (!Directory.Exists(_stagingPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            foreach (var extension in GenLauncherConstants.InactiveBigExtensions)
+            {
+                if (Directory.EnumerateFiles(_stagingPath, "*" + extension, SearchOption.AllDirectories).Any())
+                {
+                    return true;
+                }
+            }
+        }
+        catch
+        {
+            // Ignore enumeration errors
+        }
+
+        return false;
     }
 }

@@ -37,6 +37,23 @@ public interface IArchivePayloadProcessor
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Normalizes the directory structure of an extracted payload, removing extraneous wrapper directories
+    /// and reconciling the content root with the workspace/target directory with inactive archive normalization control.
+    /// </summary>
+    /// <param name="extractedDirectory">The directory containing extracted files.</param>
+    /// <param name="contentType">The content type (e.g. Mod, Map, GameClient, etc.).</param>
+    /// <param name="targetGame">The target game type (Generals or ZeroHour).</param>
+    /// <param name="normalizeInactiveArchives">Whether to convert inactive mod archives (.gib, .ctr, .skw) to .big.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous normalization operation.</returns>
+    Task NormalizeDirectoryStructureAsync(
+        string extractedDirectory,
+        ContentType contentType,
+        GameType targetGame,
+        bool normalizeInactiveArchives,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Extracts archives safely and normalizes the payload directory structure in one coordinated operation.
     /// </summary>
     /// <param name="extractedDirectory">The directory containing extracted or downloaded content.</param>
@@ -48,5 +65,21 @@ public interface IArchivePayloadProcessor
         string extractedDirectory,
         ContentType contentType,
         GameType targetGame,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Extracts archives safely and normalizes the payload directory structure in one coordinated operation with inactive archive normalization control.
+    /// </summary>
+    /// <param name="extractedDirectory">The directory containing extracted or downloaded content.</param>
+    /// <param name="contentType">The content type (e.g. Mod, Map, GameClient, etc.).</param>
+    /// <param name="targetGame">The target game type (Generals or ZeroHour).</param>
+    /// <param name="normalizeInactiveArchives">Whether to convert inactive mod archives (.gib, .ctr, .skw) to .big.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous processing operation.</returns>
+    Task ProcessPayloadAsync(
+        string extractedDirectory,
+        ContentType contentType,
+        GameType targetGame,
+        bool normalizeInactiveArchives,
         CancellationToken cancellationToken = default);
 }

@@ -271,10 +271,10 @@ public abstract class WorkspaceStrategyBase<T>(
                 var resolvedFullPath = Path.Combine(workspaceInfo.WorkspacePath, resolvedRelativePath);
                 var resolvedFileName = Path.GetFileName(resolvedRelativePath);
 
-                // If the resolved binary is a custom non-.exe entry point (e.g. generals.ctr),
-                // create generals.exe alias in workspace if generals.exe is missing
-                if (!resolvedFileName.Equals(GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase) &&
-                    !resolvedFileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                // Ensure workspace generals.exe is aliased to the selected GameClient if the GameClient binary is not named generals.exe.
+                // This allows 3rd-party mod launchers (e.g. Contra_Launcher.exe, ROTR Launcher) that hardcode Process.Start("generals.exe")
+                // to seamlessly execute the modern GameClient (generalszh.exe / GeneralsOnline 60Hz).
+                if (!resolvedFileName.Equals(GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase))
                 {
                     var aliasPath = Path.Combine(workspaceInfo.WorkspacePath, GameClientConstants.GeneralsExecutable);
                     if (File.Exists(resolvedFullPath) && !File.Exists(aliasPath))
@@ -282,8 +282,11 @@ public abstract class WorkspaceStrategyBase<T>(
                         try
                         {
                             File.Copy(resolvedFullPath, aliasPath, overwrite: true);
-                            logger.LogInformation("Created '{Alias}' alias for custom entry point '{Target}' in workspace", GameClientConstants.GeneralsExecutable, resolvedFullPath);
-                            resolvedFullPath = aliasPath;
+                            logger.LogInformation("Created '{Alias}' alias for GameClient '{Target}' in workspace", GameClientConstants.GeneralsExecutable, resolvedFullPath);
+                            if (!resolvedFileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                            {
+                                resolvedFullPath = aliasPath;
+                            }
                         }
                         catch (Exception ex)
                         {

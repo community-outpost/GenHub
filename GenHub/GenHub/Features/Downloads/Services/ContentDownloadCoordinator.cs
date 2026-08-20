@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Messaging;
@@ -22,11 +23,28 @@ public sealed class ContentDownloadCoordinator(
     INotificationService notificationService,
     ILogger<ContentDownloadCoordinator> logger) : IContentDownloadCoordinator
 {
+    private readonly ConcurrentDictionary<string, Task<OperationResult<ContentManifest>>> _inFlightDownloads = new(StringComparer.OrdinalIgnoreCase);
+
     /// <inheritdoc />
-    public async Task<OperationResult<ContentManifest>> DownloadContentAsync(
+    public Task<OperationResult<ContentManifest>> DownloadContentAsync(
         ContentSearchResult searchResult,
         IProgress<ContentAcquisitionProgress>? progress = null,
         CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(searchResult);
+
+        var key = !string.IsNullOrWhiteSpace(searchResult.Id)
+            ? $"{searchResult.ProviderName}::{searchResult.Id}"
+            : $"{searchResult.ProviderName}::{searchResult.Name}";
+
+        return _inFlightDownloads.GetOrAdd(key, _ => ExecuteDownloadAsync(searchResult, progress, cancellationToken, key));
+    }
+
+    private async Task<OperationResult<ContentManifest>> ExecuteDownloadAsync(
+        ContentSearchResult searchResult,
+        IProgress<ContentAcquisitionProgress>? progress,
+        CancellationToken cancellationToken,
+        string inFlightKey)
     {
         try
         {
@@ -83,6 +101,10 @@ public sealed class ContentDownloadCoordinator(
         {
             logger.LogError(ex, "Error downloading content: {Name}", searchResult.Name);
             return OperationResult<ContentManifest>.CreateFailure($"An unexpected error occurred: {ex.Message}");
+        }
+        finally
+        {
+            _inFlightDownloads.TryRemove(inFlightKey, out _);
         }
     }
 }

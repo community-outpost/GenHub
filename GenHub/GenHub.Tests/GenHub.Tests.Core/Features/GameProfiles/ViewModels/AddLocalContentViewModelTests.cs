@@ -836,8 +836,33 @@ public class AddLocalContentViewModelTests : IDisposable
                 It.IsAny<string>(),
                 ContentType.Mod,
                 GameType.ZeroHour,
+                false,
                 It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that importing content with .ctr files detects inactive archives, and executing NormalizeArchivesCommand converts them to .big.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeArchivesCommand_WithCtrFiles_ConvertsToBigAndUpdatesStateAsync()
+    {
+        var tempDir = CreateTempDirectory();
+        await File.WriteAllTextAsync(Path.Combine(tempDir, "!Contra_INI.ctr"), "INI Data");
+        await File.WriteAllTextAsync(Path.Combine(tempDir, "Contra_Launcher.exe"), "Launcher binary");
+
+        var vm = CreateViewModel();
+        vm.SelectedContentType = ContentType.Mod;
+
+        await vm.ImportContentAsync(tempDir);
+
+        Assert.True(vm.HasInactiveArchives);
+
+        await vm.NormalizeArchivesCommand.ExecuteAsync(null);
+
+        Assert.False(vm.HasInactiveArchives);
+        Assert.Contains(vm.FileTree, item => item.Name.Equals("!Contra_INI.big", StringComparison.OrdinalIgnoreCase));
     }
 
     private static FileTreeItem? FindInTree(IEnumerable<FileTreeItem> items, Func<FileTreeItem, bool> predicate)

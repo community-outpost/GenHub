@@ -367,6 +367,54 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that inactive .ctr mod files (e.g. Contra) are renamed to .big during default normalization.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_CtrFiles_NormalizesToBigAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var ctrPath = Path.Combine(_stagingDirectory, "!ContraXBeta2_INI.ctr");
+        await File.WriteAllTextAsync(ctrPath, "Contra INI payload");
+
+        var processor = CreateProcessor();
+
+        // Act
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Mod, GameType.ZeroHour);
+
+        // Assert
+        Assert.False(File.Exists(ctrPath));
+        Assert.True(File.Exists(Path.Combine(_stagingDirectory, "!ContraXBeta2_INI.big")));
+    }
+
+    /// <summary>
+    /// Verifies that when normalizeInactiveArchives is false, .ctr and .gib files are preserved intact for Launcher Flow.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_WithNormalizeInactiveArchivesFalse_PreservesCtrAndGibFilesAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var ctrPath = Path.Combine(_stagingDirectory, "!ContraXBeta2_INI.ctr");
+        var gibPath = Path.Combine(_stagingDirectory, "!ROTRAudio.gib");
+        await File.WriteAllTextAsync(ctrPath, "Contra INI");
+        await File.WriteAllTextAsync(gibPath, "ROTR Audio");
+
+        var processor = CreateProcessor();
+
+        // Act
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Mod, GameType.ZeroHour, normalizeInactiveArchives: false);
+
+        // Assert
+        Assert.True(File.Exists(ctrPath));
+        Assert.True(File.Exists(gibPath));
+        Assert.False(File.Exists(Path.Combine(_stagingDirectory, "!ContraXBeta2_INI.big")));
+        Assert.False(File.Exists(Path.Combine(_stagingDirectory, "!ROTRAudio.big")));
+    }
+
+    /// <summary>
     /// Verifies that self-extracting executable archives (e.g. ShockWaveV1201.exe with PE header followed by ZIP central directory)
     /// are detected and extracted safely for mod content types.
     /// </summary>

@@ -97,6 +97,17 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         GameType targetGame,
         CancellationToken cancellationToken = default)
     {
+        return NormalizeDirectoryStructureAsync(extractedDirectory, contentType, targetGame, normalizeInactiveArchives: true, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task NormalizeDirectoryStructureAsync(
+        string extractedDirectory,
+        ContentType contentType,
+        GameType targetGame,
+        bool normalizeInactiveArchives,
+        CancellationToken cancellationToken = default)
+    {
         if (!Directory.Exists(extractedDirectory))
         {
             return Task.CompletedTask;
@@ -119,8 +130,11 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 // 4. Heuristic root content detection (single mod directory alongside loose documentation files)
                 ReconcileContentRootWithDocumentation(extractedDirectory, contentType, cancellationToken);
 
-                // 5. Normalize inactive .gib and .ctr mod archive files to .big
-                NormalizeInactiveBigExtensions(extractedDirectory, contentType);
+                // 5. Normalize inactive .gib and .ctr mod archive files to .big if requested
+                if (normalizeInactiveArchives)
+                {
+                    NormalizeInactiveBigExtensions(extractedDirectory, contentType);
+                }
 
                 // 6. Cleanup empty directories
                 CleanupEmptyDirectories(extractedDirectory);
@@ -129,14 +143,25 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
     }
 
     /// <inheritdoc />
-    public async Task ProcessPayloadAsync(
+    public Task ProcessPayloadAsync(
         string extractedDirectory,
         ContentType contentType,
         GameType targetGame,
         CancellationToken cancellationToken = default)
     {
+        return ProcessPayloadAsync(extractedDirectory, contentType, targetGame, normalizeInactiveArchives: true, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task ProcessPayloadAsync(
+        string extractedDirectory,
+        ContentType contentType,
+        GameType targetGame,
+        bool normalizeInactiveArchives,
+        CancellationToken cancellationToken = default)
+    {
         await ExtractArchivesSafelyAsync(extractedDirectory, contentType, cancellationToken);
-        await NormalizeDirectoryStructureAsync(extractedDirectory, contentType, targetGame, cancellationToken);
+        await NormalizeDirectoryStructureAsync(extractedDirectory, contentType, targetGame, normalizeInactiveArchives, cancellationToken);
     }
 
     private static bool ShouldAttemptExecutableExtraction(ContentType? contentType)
@@ -789,7 +814,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         }
 
         var filePos = payloadOffset + rec.StreamOffset;
-        if (filePos < 0 || filePos + rec.CompressedSize > stream.Length)
+        if (filePos < 0 || filePos > stream.Length || filePos + rec.CompressedSize > stream.Length + 4)
         {
             throw new InvalidDataException($"Smart Install Maker entry '{rec.Name}' compressed range exceeds stream bounds.");
         }
@@ -1023,7 +1048,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         }
 
         if ((ulong)uncompSize > (ulong)CatalogConstants.MaxZipUncompressedSizeBytes ||
-            payloadOffset + streamOffset + compSize > stream.Length)
+            payloadOffset + streamOffset + compSize > stream.Length + 4)
         {
             return false;
         }

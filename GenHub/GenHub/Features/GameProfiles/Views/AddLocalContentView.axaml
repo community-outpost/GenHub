@@ -161,7 +161,20 @@
                 <Border Grid.Column="1" Background="#10FFFFFF" CornerRadius="8" BorderBrush="#20FFFFFF" BorderThickness="1">
                     <Grid RowDefinitions="Auto,*">
                         <Border Background="#10FFFFFF" CornerRadius="8,8,0,0" Padding="15,10">
-                            <TextBlock Text="CONTENT PREVIEW" FontSize="11" FontWeight="Bold" Foreground="#80FFFFFF" LetterSpacing="1"/>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" Text="CONTENT PREVIEW" FontSize="11" FontWeight="Bold" Foreground="#80FFFFFF" LetterSpacing="1" VerticalAlignment="Center"/>
+                                <Button Grid.Column="1"
+                                        Command="{Binding NormalizeArchivesCommand}"
+                                        Classes="icon-btn"
+                                        Padding="8,4"
+                                        IsVisible="{Binding HasInactiveArchives}"
+                                        ToolTip.Tip="Convert .ctr / .gib files to active .big format for direct modern GameClient launch">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="⚡" FontSize="11"/>
+                                        <TextBlock Text="Normalize to .big (Direct Launch)" FontSize="11" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
                         </Border>
 
                         <TreeView Grid.Row="1" ItemsSource="{Binding FileTree}" Background="Transparent" Foreground="#DDDDDD" Margin="5" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
