@@ -114,12 +114,26 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
             hasMoreItems,
             loadOnlyLatest);
 
+        int reportedTotalItems;
+        if (totalItems == 0)
+        {
+            reportedTotalItems = 0;
+        }
+        else if (loadOnlyLatest)
+        {
+            reportedTotalItems = -1;
+        }
+        else
+        {
+            reportedTotalItems = totalItems;
+        }
+
         return errors.Count > 0 && paginatedResults.Count == 0
             ? OperationResult<ContentDiscoveryResult>.CreateFailure(errors)
             : OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult
             {
                 Items = paginatedResults,
-                TotalItems = totalItems == 0 ? 0 : (loadOnlyLatest ? -1 : totalItems), // 0 for empty, -1 for unknown total when only latest loaded
+                TotalItems = reportedTotalItems,
                 HasMoreItems = hasMoreItems,
             });
     }
