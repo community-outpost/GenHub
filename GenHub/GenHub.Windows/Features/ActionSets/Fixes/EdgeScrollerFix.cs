@@ -177,10 +177,10 @@ public class EdgeScrollerFix(ILogger<EdgeScrollerFix> logger, IGameSettingsServi
             tshSection[ActionSetConstants.IniFiles.ScrollEdgeAccelerationKey] = GameSettingsConstants.OptimalSettings.ScrollEdgeAcceleration;
 
             // Also ensure default scroll factor is good if present
-            if (tshSection.ContainsKey("ScrollFactor"))
+            if (tshSection.ContainsKey(ActionSetConstants.IniFiles.ScrollFactorKey))
             {
-                tshSection["ScrollFactor"] = GameSettingsConstants.OptimalSettings.ScrollFactor;
-                details.Add($"✓ Set ScrollFactor={GameSettingsConstants.OptimalSettings.ScrollFactor} for {gameType}");
+                tshSection[ActionSetConstants.IniFiles.ScrollFactorKey] = GameSettingsConstants.OptimalSettings.ScrollFactor;
+                details.Add($"✓ Set {ActionSetConstants.IniFiles.ScrollFactorKey}={GameSettingsConstants.OptimalSettings.ScrollFactor} for {gameType}");
             }
 
             details.Add($"✓ Set {ActionSetConstants.IniFiles.ScrollEdgeZoneKey}={GameSettingsConstants.OptimalSettings.ScrollEdgeZone} for {gameType}");

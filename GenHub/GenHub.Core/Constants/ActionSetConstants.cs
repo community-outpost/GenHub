@@ -34,6 +34,11 @@ public static class ActionSetConstants
         /// Gets the game.exe file name, often used for Zero Hour.
         /// </summary>
         public const string GameExe = "game.exe"; // Often used for ZH
+
+        /// <summary>
+        /// Gets the DXSETUP.exe file name used for DirectX runtime installer.
+        /// </summary>
+        public const string DxSetupExe = "DXSETUP.exe";
     }
 
     /// <summary>
@@ -86,6 +91,42 @@ public static class ActionSetConstants
         /// Gets the ScrollEdgeAcceleration key name for edge scrolling settings.
         /// </summary>
         public const string ScrollEdgeAccelerationKey = "ScrollEdgeAcceleration";
+
+        /// <summary>
+        /// Gets the ScrollFactor key name for edge scrolling settings.
+        /// </summary>
+        public const string ScrollFactorKey = "ScrollFactor";
+    }
+
+    /// <summary>
+    /// ActionSet category constants.
+    /// </summary>
+    public static class Categories
+    {
+        /// <summary>
+        /// Gets the All category filter option.
+        /// </summary>
+        public const string All = "All";
+
+        /// <summary>
+        /// Gets the Core &amp; Stability category.
+        /// </summary>
+        public const string CoreAndStability = "Core & Stability";
+
+        /// <summary>
+        /// Gets the Compatibility category.
+        /// </summary>
+        public const string Compatibility = "Compatibility";
+
+        /// <summary>
+        /// Gets the Multiplayer category.
+        /// </summary>
+        public const string Multiplayer = "Multiplayer";
+
+        /// <summary>
+        /// Gets the Quality of Life category.
+        /// </summary>
+        public const string QualityOfLife = "Quality of Life";
     }
 
     /// <summary>

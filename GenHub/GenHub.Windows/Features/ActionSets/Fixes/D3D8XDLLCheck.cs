@@ -56,7 +56,7 @@ public class D3D8XDLLCheck(ILogger<D3D8XDLLCheck> logger) : BaseActionSet(logger
     {
         try
         {
-            var missingDLLs = GetMissingDlls(installation.InstallationPath);
+            var missingDLLs = GetMissingDlls(installation);
             var allPresent = missingDLLs.Count == 0;
 
             if (allPresent)
@@ -82,7 +82,7 @@ public class D3D8XDLLCheck(ILogger<D3D8XDLLCheck> logger) : BaseActionSet(logger
     {
         try
         {
-            var missingDLLs = GetMissingDlls(installation.InstallationPath);
+            var missingDLLs = GetMissingDlls(installation);
 
             if (missingDLLs.Count == 0)
             {
@@ -101,7 +101,7 @@ public class D3D8XDLLCheck(ILogger<D3D8XDLLCheck> logger) : BaseActionSet(logger
             logger.LogInformation("2. This will install all required DirectX 8 DLLs");
             logger.LogInformation("3. Restart your computer after installation");
 
-            return Task.FromResult(new ActionSetResult(true, null, [$"Missing {missingDLLs.Count} DirectX 8 DLLs. Please run DirectXRuntimeFix."]));
+            return Task.FromResult(new ActionSetResult(false, $"Missing {missingDLLs.Count} DirectX 8 DLL(s). Please run DirectX Runtime Fix to install required runtime libraries.", [$"Missing {missingDLLs.Count} DirectX 8 DLL(s). Please run DirectX Runtime Fix."]));
         }
         catch (Exception ex)
         {
@@ -117,17 +117,33 @@ public class D3D8XDLLCheck(ILogger<D3D8XDLLCheck> logger) : BaseActionSet(logger
         return Task.FromResult(new ActionSetResult(true));
     }
 
-    private static IReadOnlyList<string> GetMissingDlls(string? gameDir)
+    private static IReadOnlyList<string> GetMissingDlls(GameInstallation installation)
     {
         var system32 = Environment.GetFolderPath(Environment.SpecialFolder.System);
         var sysWow64 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "SysWOW64");
+
+        var checkPaths = new List<string>();
+        if (!string.IsNullOrEmpty(installation.InstallationPath))
+        {
+            checkPaths.Add(installation.InstallationPath);
+        }
+
+        if (!string.IsNullOrEmpty(installation.GeneralsPath))
+        {
+            checkPaths.Add(installation.GeneralsPath);
+        }
+
+        if (!string.IsNullOrEmpty(installation.ZeroHourPath))
+        {
+            checkPaths.Add(installation.ZeroHourPath);
+        }
 
         var missing = new List<string>();
         foreach (var dll in RequiredDLLs)
         {
             var inSystem32 = File.Exists(Path.Combine(system32, dll));
             var inSysWow64 = File.Exists(Path.Combine(sysWow64, dll));
-            var inGameDir = !string.IsNullOrEmpty(gameDir) && File.Exists(Path.Combine(gameDir, dll));
+            var inGameDir = checkPaths.Exists(p => File.Exists(Path.Combine(p, dll)));
 
             if (!inSystem32 && !inSysWow64 && !inGameDir)
             {

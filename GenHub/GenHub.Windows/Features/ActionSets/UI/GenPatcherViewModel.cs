@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
@@ -238,6 +239,7 @@ public partial class GenPatcherViewModel(
                         vm.IsApplicable,
                         vm.IsApplied);
                 }
+
                 ApplyFilter();
             });
 
@@ -468,10 +470,10 @@ public partial class GenPatcherViewModel(
         ProgressSummaryText = $"{AppliedFixesCount} of {ApplicableFixesCount} applied";
 
         AllCategoryCount = ActionSets.Count;
-        CoreCategoryCount = ActionSets.Count(x => string.Equals(x.Category, "Core & Stability", StringComparison.OrdinalIgnoreCase));
-        CompatibilityCategoryCount = ActionSets.Count(x => string.Equals(x.Category, "Compatibility", StringComparison.OrdinalIgnoreCase));
-        MultiplayerCategoryCount = ActionSets.Count(x => string.Equals(x.Category, "Multiplayer", StringComparison.OrdinalIgnoreCase));
-        QolCategoryCount = ActionSets.Count(x => string.Equals(x.Category, "Quality of Life", StringComparison.OrdinalIgnoreCase));
+        CoreCategoryCount = ActionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.CoreAndStability, StringComparison.OrdinalIgnoreCase));
+        CompatibilityCategoryCount = ActionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.Compatibility, StringComparison.OrdinalIgnoreCase));
+        MultiplayerCategoryCount = ActionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.Multiplayer, StringComparison.OrdinalIgnoreCase));
+        QolCategoryCount = ActionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.QualityOfLife, StringComparison.OrdinalIgnoreCase));
     }
 
     private int GetSortPriority(ActionSetViewModel vm)

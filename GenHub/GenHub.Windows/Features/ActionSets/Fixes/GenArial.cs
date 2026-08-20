@@ -3,6 +3,7 @@ namespace GenHub.Windows.Features.ActionSets.Fixes;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -95,7 +96,7 @@ public class GenArial(ILogger<GenArial> logger) : BaseActionSet(logger)
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(_markerPath)!);
-                File.WriteAllText(_markerPath, DateTime.UtcNow.ToString());
+                File.WriteAllText(_markerPath, DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture));
             }
             catch (Exception ex)
             {

@@ -29,7 +29,7 @@ public class VanillaExecutableFix(ILogger<VanillaExecutableFix> logger) : BaseAc
     public override string DetailedDescription => "Running an unpatched version of the base Generals executable causes multiplayer version mismatch errors and mod incompatibilities. This check verifies that your base game executable is present, healthy, and updated to official version 1.08.";
 
     /// <inheritdoc/>
-    public override string Category => "Compatibility";
+    public override string Category => ActionSetConstants.Categories.Compatibility;
 
     /// <inheritdoc/>
     public override bool IsCoreFix => false;
@@ -64,8 +64,8 @@ public class VanillaExecutableFix(ILogger<VanillaExecutableFix> logger) : BaseAc
             var versionInfo = System.Diagnostics.FileVersionInfo.GetVersionInfo(generalsExePath);
             var version = versionInfo.FileVersion;
 
-            // 1.08 version should be 1.8.0.0 or similar
-            if (version?.StartsWith("1.8") == true)
+            // 1.08 version should be 1.8.0.0, 1.08, or similar
+            if (version != null && (version.StartsWith("1.8", StringComparison.OrdinalIgnoreCase) || version.StartsWith("1.08", StringComparison.OrdinalIgnoreCase)))
             {
                 return Task.FromResult(true);
             }

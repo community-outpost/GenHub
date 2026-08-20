@@ -51,14 +51,35 @@ public class CncOnlineLauncherFix(
     {
         try
         {
-            // Check if C&C Online registry entries exist in HKCU
-            var cncOnlineInstalled = registryService.GetStringValue(
-                RegistryConstants.CncOnlineKeyPath,
-                RegistryConstants.InstallPathValueName,
-                useWow6432Node: true,
-                hive: RegistryHive.CurrentUser);
+            if (installation.HasGenerals)
+            {
+                var genInstalled = registryService.GetStringValue(
+                    RegistryConstants.CncOnlineGeneralsKeyPath,
+                    RegistryConstants.InstallPathValueName,
+                    useWow6432Node: true,
+                    hive: RegistryHive.CurrentUser);
 
-            return Task.FromResult(!string.IsNullOrEmpty(cncOnlineInstalled));
+                if (string.IsNullOrEmpty(genInstalled))
+                {
+                    return Task.FromResult(false);
+                }
+            }
+
+            if (installation.HasZeroHour)
+            {
+                var zhInstalled = registryService.GetStringValue(
+                    RegistryConstants.CncOnlineZeroHourKeyPath,
+                    RegistryConstants.InstallPathValueName,
+                    useWow6432Node: true,
+                    hive: RegistryHive.CurrentUser);
+
+                if (string.IsNullOrEmpty(zhInstalled))
+                {
+                    return Task.FromResult(false);
+                }
+            }
+
+            return Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
         }
         catch (Exception ex)
         {
@@ -98,7 +119,7 @@ public class CncOnlineLauncherFix(
 
                 if (ok1 && ok2)
                 {
-                    details.Add("✓ Created: HKCU\\SOFTWARE\\Revora\\CNCOnline\\Generals");
+                    details.Add($"✓ Created: HKCU\\{RegistryConstants.CncOnlineGeneralsKeyPath}");
                     details.Add($"  • InstallPath = {installation.GeneralsPath}");
                     details.Add($"  • Version = {RegistryConstants.CncOnlineGeneralsVersion}");
                     logger.LogInformation("Created C&C Online registry entries for Generals");
@@ -131,7 +152,7 @@ public class CncOnlineLauncherFix(
 
                 if (ok1 && ok2)
                 {
-                    details.Add("✓ Created: HKCU\\SOFTWARE\\Revora\\CNCOnline\\ZeroHour");
+                    details.Add($"✓ Created: HKCU\\{RegistryConstants.CncOnlineZeroHourKeyPath}");
                     details.Add($"  • InstallPath = {installation.ZeroHourPath}");
                     details.Add($"  • Version = {RegistryConstants.CncOnlineZeroHourVersion}");
                     logger.LogInformation("Created C&C Online registry entries for Zero Hour");
@@ -168,7 +189,7 @@ public class CncOnlineLauncherFix(
 
                 if (mainOk1 && mainOk2)
                 {
-                    details.Add("✓ Created: HKCU\\SOFTWARE\\Revora\\CNCOnline");
+                    details.Add($"✓ Created: HKCU\\{RegistryConstants.CncOnlineKeyPath}");
                     details.Add($"  • InstallPath = {basePath}");
                     details.Add($"  • Version = {RegistryConstants.CncOnlineVersion}");
                 }

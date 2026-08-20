@@ -48,8 +48,7 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
             return Task.FromResult(false);
         }
 
-        bool fixNeeded = !IsGeneralsRegistryValid(installation) || !IsZeroHourRegistryValid(installation);
-        return Task.FromResult(fixNeeded);
+        return Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
     }
 
     /// <inheritdoc/>
@@ -68,15 +67,16 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
         if (!registryService.IsRunningAsAdministrator())
         {
             details.Add("✗ Administrator privileges required");
-            details.Add("  Registry modifications require elevated permissions");
-            return Task.FromResult(new ActionSetResult(false, "Administrator privileges are required to modify registry keys. Please restart GenHub as administrator.", details));
+            details.Add("  Please restart GenHub as Administrator to apply registry fixes.");
+            return Task.FromResult(new ActionSetResult(false, "Administrator privileges required to write to HKEY_LOCAL_MACHINE.", details));
         }
 
         try
         {
             details.Add("Starting EA App registry configuration...");
-            bool allSucceeded = true;
             var failedOperations = new List<string>();
+            bool generalsSucceeded = true;
+            bool zeroHourSucceeded = true;
 
             if (installation.HasGenerals)
             {
@@ -84,7 +84,7 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
 
                 if (!registryService.SetStringValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.InstallPathValueName, installation.GeneralsPath))
                 {
-                    allSucceeded = false;
+                    generalsSucceeded = false;
                     failedOperations.Add($"{RegistryConstants.EAAppGeneralsKeyPath}\\{RegistryConstants.InstallPathValueName}");
                     details.Add("  ✗ Failed to set InstallPath");
                 }
@@ -95,7 +95,7 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
 
                 if (!registryService.SetIntValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.VersionValueName, RegistryConstants.GeneralsVersionDWord))
                 {
-                    allSucceeded = false;
+                    generalsSucceeded = false;
                     failedOperations.Add($"{RegistryConstants.EAAppGeneralsKeyPath}\\{RegistryConstants.VersionValueName}");
                     details.Add("  ✗ Failed to set Version");
                 }
@@ -110,7 +110,7 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
                     var defaultSerial = ActionSetConstants.Serials.DefaultEAAppGeneralsSerial;
                     if (!registryService.SetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty, defaultSerial))
                     {
-                        allSucceeded = false;
+                        generalsSucceeded = false;
                         failedOperations.Add($"{RegistryConstants.EAAppGeneralsErgcKeyPath}\\(Default)");
                         details.Add("  ✗ Failed to set serial key");
                     }
@@ -124,7 +124,7 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
                     details.Add("  ✓ Serial key already exists");
                 }
 
-                if (allSucceeded)
+                if (generalsSucceeded)
                 {
                     details.Add("✓ Generals registry configuration completed");
                 }
@@ -136,7 +136,7 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
 
                 if (!registryService.SetStringValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.InstallPathValueName, installation.ZeroHourPath))
                 {
-                    allSucceeded = false;
+                    zeroHourSucceeded = false;
                     failedOperations.Add($"{RegistryConstants.EAAppZeroHourKeyPath}\\{RegistryConstants.InstallPathValueName}");
                     details.Add("  ✗ Failed to set InstallPath");
                 }
@@ -147,7 +147,7 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
 
                 if (!registryService.SetIntValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.VersionValueName, RegistryConstants.ZeroHourVersionDWord))
                 {
-                    allSucceeded = false;
+                    zeroHourSucceeded = false;
                     failedOperations.Add($"{RegistryConstants.EAAppZeroHourKeyPath}\\{RegistryConstants.VersionValueName}");
                     details.Add("  ✗ Failed to set Version");
                 }
@@ -162,7 +162,7 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
                     var defaultSerial = ActionSetConstants.Serials.DefaultEAAppZeroHourSerial;
                     if (!registryService.SetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty, defaultSerial))
                     {
-                        allSucceeded = false;
+                        zeroHourSucceeded = false;
                         failedOperations.Add($"{RegistryConstants.EAAppZeroHourErgcKeyPath}\\(Default)");
                         details.Add("  ✗ Failed to set serial key");
                     }
@@ -176,12 +176,13 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
                     details.Add("  ✓ Serial key already exists");
                 }
 
-                if (allSucceeded)
+                if (zeroHourSucceeded)
                 {
                     details.Add("✓ Zero Hour registry configuration completed");
                 }
             }
 
+            bool allSucceeded = generalsSucceeded && zeroHourSucceeded;
             if (!allSucceeded)
             {
                 details.Add($"✗ Failed to write {failedOperations.Count} registry key(s)");

@@ -281,11 +281,11 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
         var extractedFiles = Directory.GetFiles(extractPath, "*.*", SearchOption.AllDirectories);
         details.Add($"✓ Extracted {extractedFiles.Length} files");
 
-        var setupExe = Path.Combine(extractPath, "DXSETUP.exe");
+        var setupExe = Path.Combine(extractPath, ActionSetConstants.FileNames.DxSetupExe);
         if (!File.Exists(setupExe))
         {
-            details.Add("✗ DXSETUP.exe not found in package");
-            return OperationResult<string>.CreateFailure("DXSETUP.exe not found in downloaded package.");
+            details.Add($"✗ {ActionSetConstants.FileNames.DxSetupExe} not found in package");
+            return OperationResult<string>.CreateFailure($"{ActionSetConstants.FileNames.DxSetupExe} not found in downloaded package.");
         }
 
         return OperationResult<string>.CreateSuccess(setupExe);
