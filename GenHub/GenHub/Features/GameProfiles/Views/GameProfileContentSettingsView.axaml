@@ -17,7 +17,6 @@
         <conv:ColorToBrushConverter x:Key="ColorToBrushConverter" />
         <conv:GameTypeDisplayConverter x:Key="GameTypeDisplayConverter" />
         <conv:ContentTypeDisplayConverter x:Key="ContentTypeDisplayConverter" />
-        <conv:GameTypeShortDisplayConverter x:Key="GameTypeShortDisplayConverter" />
         <conv:InvertedBoolToVisibilityConverter x:Key="InvertedBoolToVisibilityConverter" />
         <conv:EqualityConverter x:Key="EqualityConverter" />
     </UserControl.Resources>
@@ -104,9 +103,6 @@
                                                         <Border Background="#20FF5252" BorderBrush="#FF5252" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4"
                                                                 IsVisible="{Binding Publisher, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                                             <TextBlock Text="{Binding Publisher}" FontSize="10" Foreground="#FF8A80" FontWeight="SemiBold" />
-                                                        </Border>
-                                                        <Border Background="#20FFFFFF" BorderBrush="#40FFFFFF" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4">
-                                                            <TextBlock Text="{Binding GameType, Converter={x:Static conv:GameTypeShortDisplayConverter.Instance}}" FontSize="10" Foreground="#E0E0E0" />
                                                         </Border>
                                                     </WrapPanel>
                                                 </StackPanel>
@@ -204,9 +200,6 @@
                                                              <Border Background="#20FF6B6B" BorderBrush="#FF6B6B" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4"
                                                                     IsVisible="{Binding Publisher, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                                                 <TextBlock Text="{Binding Publisher}" FontSize="10" Foreground="#FF8A80" FontWeight="SemiBold" />
-                                                             </Border>
-                                                             <Border Background="#20FFFFFF" BorderBrush="#40FFFFFF" BorderThickness="1" CornerRadius="4" Padding="6,2" Margin="0,0,4,4">
-                                                                 <TextBlock Text="{Binding GameType, Converter={x:Static conv:GameTypeShortDisplayConverter.Instance}}" FontSize="10" Foreground="#E0E0E0" />
                                                              </Border>
                                                          </WrapPanel>
                                                      </StackPanel>
