@@ -870,7 +870,12 @@ public sealed class BuildEngineService(
         var gameExePath = runnerConfig.AbsExe;
         if (string.IsNullOrEmpty(gameExePath))
         {
-            var resolvedGameDir = setup.Folders?.AbsGameDir ?? _cachedBuildStructure?.Configuration?.Folders?.AbsGameDir;
+            var resolvedGameDir = setup.Folders?.AbsGameDir;
+            if (string.IsNullOrEmpty(resolvedGameDir))
+            {
+                resolvedGameDir = _cachedBuildStructure?.Configuration?.Folders?.AbsGameDir;
+            }
+
             if (!string.IsNullOrEmpty(resolvedGameDir) && Directory.Exists(resolvedGameDir))
             {
                 var candidateExes = new[] { "generals.exe", "game.dat", "EAC_LaunchGeneralsOnline.exe", "worldbuilder.exe" };
@@ -1221,9 +1226,15 @@ public sealed class BuildEngineService(
         configuration = await configurationLoaderService.ResolveWildcardsAsync(configuration, cancellationToken)
             .ConfigureAwait(false);
 
-        var gameDir = !string.IsNullOrEmpty(configuration.Folders.AbsGameDir)
-            ? configuration.Folders.AbsGameDir
-            : (!string.IsNullOrEmpty(project.GameDir) ? project.GameDir : string.Empty);
+        var gameDir = string.Empty;
+        if (!string.IsNullOrEmpty(configuration.Folders.AbsGameDir))
+        {
+            gameDir = configuration.Folders.AbsGameDir;
+        }
+        else if (!string.IsNullOrEmpty(project.GameDir))
+        {
+            gameDir = project.GameDir;
+        }
 
         var setup = new BuildSetup
         {

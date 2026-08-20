@@ -1191,14 +1191,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             }
 
             // Ensure GameDir is populated in configuration folders
-            var resolvedGameDir = !string.IsNullOrEmpty(buildConfig.Folders.AbsGameDir)
-                ? buildConfig.Folders.AbsGameDir
-                : (!string.IsNullOrEmpty(CurrentProject.GameDir)
-                    ? CurrentProject.GameDir
-                    : (!string.IsNullOrEmpty(GameDirectory)
-                        ? GameDirectory
-                        : (FileManager.SelectedInstallationPath ?? FileManager.AvailableInstallations.FirstOrDefault()?.Path ?? string.Empty)));
-
+            var resolvedGameDir = ResolveGameDirectory(buildConfig);
             if (!string.IsNullOrEmpty(resolvedGameDir))
             {
                 buildConfig.Folders.AbsGameDir = resolvedGameDir;
@@ -1206,6 +1199,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 {
                     CurrentProject.GameDir = resolvedGameDir;
                 }
+
                 if (string.IsNullOrEmpty(GameDirectory))
                 {
                     GameDirectory = resolvedGameDir;
@@ -1330,6 +1324,37 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     }
 
     private bool CanBuild() => IsProjectLoaded && !IsBuildRunning;
+
+    private string ResolveGameDirectory(BuildConfiguration buildConfig)
+    {
+        if (!string.IsNullOrEmpty(buildConfig.Folders.AbsGameDir))
+        {
+            return buildConfig.Folders.AbsGameDir;
+        }
+
+        if (CurrentProject != null && !string.IsNullOrEmpty(CurrentProject.GameDir))
+        {
+            return CurrentProject.GameDir;
+        }
+
+        if (!string.IsNullOrEmpty(GameDirectory))
+        {
+            return GameDirectory;
+        }
+
+        if (!string.IsNullOrEmpty(FileManager.SelectedInstallationPath))
+        {
+            return FileManager.SelectedInstallationPath;
+        }
+
+        var firstInstallation = FileManager.AvailableInstallations.FirstOrDefault();
+        if (firstInstallation != null && !string.IsNullOrEmpty(firstInstallation.Path))
+        {
+            return firstInstallation.Path;
+        }
+
+        return string.Empty;
+    }
 
     /// <summary>
     /// Counts the number of files that will be built.
