@@ -71,7 +71,7 @@ public static partial class AppUpdateVersionHelper
 
     /// <summary>
     /// Checks whether an available artifact version is newer than the currently installed version.
-    /// Rejects cross-channel sequential comparisons unless allowCrossChannel is explicitly specified.
+    /// Rejects cross-channel sequential comparisons between CI builds unless allowCrossChannel is explicitly specified.
     /// </summary>
     /// <param name="newVersion">The new artifact version string.</param>
     /// <param name="currentVersion">The current version string.</param>
@@ -92,34 +92,24 @@ public static partial class AppUpdateVersionHelper
         var newVersionBase = newVersion.Split('+')[0].Trim();
         var currentVersionBase = currentVersion.Split('+')[0].Trim();
 
-        if (IsZeroVersion(newVersionBase))
-        {
-            return false;
-        }
-
-        if (IsZeroVersion(currentVersionBase))
-        {
-            return true;
-        }
-
-        if (!allowCrossChannel)
-        {
-            var newChannel = ExtractChannelKey(newVersionBase);
-            var currentChannel = ExtractChannelKey(currentVersionBase);
-
-            if (!string.IsNullOrEmpty(newChannel) &&
-                !string.IsNullOrEmpty(currentChannel) &&
-                !string.Equals(newChannel, currentChannel, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-        }
-
         var newRun = ExtractRunNumber(newVersionBase);
         var currentRun = ExtractRunNumber(currentVersionBase);
 
         if (newRun > 0 && currentRun > 0)
         {
+            if (!allowCrossChannel)
+            {
+                var newChannel = ExtractChannelKey(newVersionBase);
+                var currentChannel = ExtractChannelKey(currentVersionBase);
+
+                if (!string.IsNullOrEmpty(newChannel) &&
+                    !string.IsNullOrEmpty(currentChannel) &&
+                    !string.Equals(newChannel, currentChannel, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+            }
+
             return newRun > currentRun;
         }
 
@@ -141,12 +131,6 @@ public static partial class AppUpdateVersionHelper
         }
 
         return false;
-    }
-
-    private static bool IsZeroVersion(string version)
-    {
-        var clean = version.Split('-')[0].Trim();
-        return clean is "0.0.0" or "0.0" or "0.0.0.0" or "0";
     }
 
     /// <summary>
