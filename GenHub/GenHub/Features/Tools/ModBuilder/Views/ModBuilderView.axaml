@@ -106,7 +106,14 @@
       </Border>
 
       <!-- Main Resizable 3-Column Content Area -->
-      <Grid Grid.Row="1" ColumnDefinitions="320,Auto,*,Auto,340">
+      <Grid Grid.Row="1">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="320" MinWidth="220" MaxWidth="500"/>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="*" MinWidth="300"/>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="340" MinWidth="240" MaxWidth="550"/>
+        </Grid.ColumnDefinitions>
 
         <!-- Left Panel: Configuration & Actions -->
         <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="0,0,6,0">
@@ -123,9 +130,20 @@
                     <TextBlock Text="Quick Start" FontSize="13" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
                   </StackPanel>
                   <Button Grid.Column="1" Command="{Binding DismissQuickStartGuideCommand}"
-                          Background="Transparent" BorderThickness="0" Padding="4"
+                          Background="#35EF4444" BorderBrush="#80EF4444" BorderThickness="1"
+                          CornerRadius="6" Width="24" Height="24" Padding="0"
+                          HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                           ToolTip.Tip="Dismiss Quick Start Guide" Cursor="Hand" VerticalAlignment="Center">
-                    <Path Width="10" Height="10" Fill="#A0A0B0" Data="{StaticResource IconClear}" Stretch="Uniform"/>
+                    <Button.Styles>
+                      <Style Selector="Button:pointerover">
+                        <Setter Property="Background" Value="#60EF4444"/>
+                        <Setter Property="BorderBrush" Value="#FFEF4444"/>
+                      </Style>
+                      <Style Selector="Button:pressed">
+                        <Setter Property="Background" Value="#80EF4444"/>
+                      </Style>
+                    </Button.Styles>
+                    <Path Width="10" Height="10" Fill="#FF8080" Data="{StaticResource IconClear}" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                   </Button>
                 </Grid>
                 <Separator Background="#25FFFFFF" Height="1"/>

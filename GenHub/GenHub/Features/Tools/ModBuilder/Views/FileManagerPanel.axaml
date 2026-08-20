@@ -11,11 +11,9 @@
   <Grid RowDefinitions="Auto,Auto,*,Auto">
 
     <!-- Installation Selector -->
-    <Border Grid.Row="0" Background="#80000000" CornerRadius="8"
-            Padding="12" Margin="0,0,0,8" ClipToBounds="False">
-      <Border.Effect>
-        <BlurEffect Radius="8"/>
-      </Border.Effect>
+    <Border Grid.Row="0" Background="{DynamicResource CardBackground}" CornerRadius="8"
+            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+            Padding="12" Margin="0,0,0,8">
       <Grid ColumnDefinitions="Auto,*">
         <TextBlock Grid.Column="0" Text="Game Installation:"
                    FontWeight="SemiBold" FontSize="13"
@@ -89,7 +87,12 @@
     </Border>
 
     <!-- Split View: Game Files | Project Files -->
-    <Grid Grid.Row="2" ColumnDefinitions="*,8,*">
+    <Grid Grid.Row="2">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" MinWidth="250"/>
+        <ColumnDefinition Width="8"/>
+        <ColumnDefinition Width="*" MinWidth="250"/>
+      </Grid.ColumnDefinitions>
 
       <!-- Left: Game Installation Files -->
       <Border Grid.Column="0" Background="{DynamicResource CardBackground}"
@@ -99,57 +102,55 @@
                      FontWeight="Bold" FontSize="14" Margin="0,0,0,8"/>
 
           <Border Grid.Row="1" BorderBrush="{DynamicResource BorderBrush}"
-                  BorderThickness="1" CornerRadius="4" Background="#05000000"
-                  MinHeight="400" MaxHeight="800">
-            <ScrollViewer VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Auto">
-              <TreeView ItemsSource="{Binding GameFiles}"
-                        SelectedItem="{Binding SelectedGameFile}">
-                <TreeView.ItemTemplate>
-                  <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="models:FileTreeNode">
-                    <Border Background="Transparent" Padding="4,2"
-                            CornerRadius="4">
-                      <Border.Styles>
-                        <Style Selector="Border:pointerover">
-                          <Setter Property="Background" Value="#10FFFFFF"/>
-                        </Style>
-                      </Border.Styles>
+                  BorderThickness="1" CornerRadius="4" Background="#05000000">
+            <TreeView ItemsSource="{Binding GameFiles}"
+                      SelectedItem="{Binding SelectedGameFile}"
+                      SelectionMode="Multiple"
+                      SelectedItems="{Binding SelectedGameFiles}">
+              <TreeView.ItemTemplate>
+                <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="models:FileTreeNode">
+                  <Border Background="Transparent" Padding="4,2"
+                          CornerRadius="4">
+                    <Border.Styles>
+                      <Style Selector="Border:pointerover">
+                        <Setter Property="Background" Value="#10FFFFFF"/>
+                      </Style>
+                    </Border.Styles>
 
-                      <Grid ColumnDefinitions="Auto,Auto,*,Auto">
-                        <!-- Icon -->
-                        <TextBlock Grid.Column="0" Margin="0,0,6,0"
-                                   FontSize="14" VerticalAlignment="Center">
-                          <TextBlock.Text>
-                            <MultiBinding Converter="{StaticResource FileIconConverter}">
-                              <Binding Path="IsDirectory"/>
-                              <Binding Path="Extension"/>
-                            </MultiBinding>
-                          </TextBlock.Text>
-                        </TextBlock>
+                    <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                      <!-- Icon -->
+                      <TextBlock Grid.Column="0" Margin="0,0,6,0"
+                                 FontSize="14" VerticalAlignment="Center">
+                        <TextBlock.Text>
+                          <MultiBinding Converter="{StaticResource FileIconConverter}">
+                            <Binding Path="IsDirectory"/>
+                            <Binding Path="Extension"/>
+                          </MultiBinding>
+                        </TextBlock.Text>
+                      </TextBlock>
 
-                        <!-- Name -->
-                        <TextBlock Grid.Column="2" Text="{Binding Name}"
-                                   VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis"
-                                   ToolTip.Tip="{Binding FullPath}"/>
+                      <!-- Name -->
+                      <TextBlock Grid.Column="2" Text="{Binding Name}"
+                                 VerticalAlignment="Center"
+                                 TextTrimming="CharacterEllipsis"
+                                 ToolTip.Tip="{Binding FullPath}"/>
 
-                        <!-- Size -->
-                        <TextBlock Grid.Column="3" Text="{Binding FormattedSize}"
-                                   FontSize="11" Opacity="0.6"
-                                   VerticalAlignment="Center" Margin="8,0,0,0"/>
-                      </Grid>
-                    </Border>
-                  </TreeDataTemplate>
-                </TreeView.ItemTemplate>
-              </TreeView>
-            </ScrollViewer>
+                      <!-- Size -->
+                      <TextBlock Grid.Column="3" Text="{Binding FormattedSize}"
+                                 FontSize="11" Opacity="0.6"
+                                 VerticalAlignment="Center" Margin="8,0,0,0"/>
+                    </Grid>
+                  </Border>
+                </TreeDataTemplate>
+              </TreeView.ItemTemplate>
+            </TreeView>
           </Border>
 
           <Button Grid.Row="2" Command="{Binding AddFilesToProjectCommand}"
                   Classes="Primary" HorizontalAlignment="Stretch"
                   Margin="0,8,0,0" Padding="0,10"
                   VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
-                  IsEnabled="{Binding SelectedGameFile, Converter={x:Static ObjectConverters.IsNotNull}}"
+                  IsEnabled="{Binding HasSelectedGameFiles}"
                   ToolTip.Tip="Add selected files to project">
             <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
               <Path Width="14" Height="14" Fill="White" Data="{StaticResource IconChevronRight}" Stretch="Uniform" VerticalAlignment="Center"/>
@@ -171,65 +172,63 @@
                      FontWeight="Bold" FontSize="14" Margin="0,0,0,8"/>
 
           <Border Grid.Row="1" BorderBrush="{DynamicResource BorderBrush}"
-                  BorderThickness="1" CornerRadius="4" Background="#05000000"
-                  MinHeight="400" MaxHeight="800">
-            <ScrollViewer VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Auto">
-              <TreeView ItemsSource="{Binding ProjectFiles}"
-                        SelectedItem="{Binding SelectedProjectFile}">
-                <TreeView.ItemTemplate>
-                  <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="models:FileTreeNode">
-                    <Border Background="Transparent" Padding="4,2"
-                            CornerRadius="4">
-                      <Border.Styles>
-                        <Style Selector="Border:pointerover">
-                          <Setter Property="Background" Value="#10FFFFFF"/>
-                        </Style>
-                      </Border.Styles>
+                  BorderThickness="1" CornerRadius="4" Background="#05000000">
+            <TreeView ItemsSource="{Binding ProjectFiles}"
+                      SelectedItem="{Binding SelectedProjectFile}"
+                      SelectionMode="Multiple"
+                      SelectedItems="{Binding SelectedProjectFiles}">
+              <TreeView.ItemTemplate>
+                <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="models:FileTreeNode">
+                  <Border Background="Transparent" Padding="4,2"
+                          CornerRadius="4">
+                    <Border.Styles>
+                      <Style Selector="Border:pointerover">
+                        <Setter Property="Background" Value="#10FFFFFF"/>
+                      </Style>
+                    </Border.Styles>
 
-                      <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
-                        <!-- Icon -->
-                        <TextBlock Grid.Column="0" Margin="0,0,6,0"
-                                   FontSize="14" VerticalAlignment="Center">
-                          <TextBlock.Text>
-                            <MultiBinding Converter="{StaticResource FileIconConverter}">
-                              <Binding Path="IsDirectory"/>
-                              <Binding Path="Extension"/>
-                            </MultiBinding>
-                          </TextBlock.Text>
-                        </TextBlock>
+                    <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
+                      <!-- Icon -->
+                      <TextBlock Grid.Column="0" Margin="0,0,6,0"
+                                 FontSize="14" VerticalAlignment="Center">
+                        <TextBlock.Text>
+                          <MultiBinding Converter="{StaticResource FileIconConverter}">
+                            <Binding Path="IsDirectory"/>
+                            <Binding Path="Extension"/>
+                          </MultiBinding>
+                        </TextBlock.Text>
+                      </TextBlock>
 
-                        <!-- Name -->
-                        <TextBlock Grid.Column="2" Text="{Binding Name}"
-                                   VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis"
-                                   ToolTip.Tip="{Binding FullPath}"/>
+                      <!-- Name -->
+                      <TextBlock Grid.Column="2" Text="{Binding Name}"
+                                 VerticalAlignment="Center"
+                                 TextTrimming="CharacterEllipsis"
+                                 ToolTip.Tip="{Binding FullPath}"/>
 
-                        <!-- Status Indicator -->
-                        <Border Grid.Column="3" Width="8" Height="8"
-                                CornerRadius="4" Margin="8,0"
-                                Background="{Binding StatusColor}"
-                                IsVisible="{Binding HasStatus}"
-                                ToolTip.Tip="{Binding StatusText}"
-                                VerticalAlignment="Center"/>
+                      <!-- Status Indicator -->
+                      <Border Grid.Column="3" Width="8" Height="8"
+                              CornerRadius="4" Margin="8,0"
+                              Background="{Binding StatusColor}"
+                              IsVisible="{Binding HasStatus}"
+                              ToolTip.Tip="{Binding StatusText}"
+                              VerticalAlignment="Center"/>
 
-                        <!-- Size -->
-                        <TextBlock Grid.Column="4" Text="{Binding FormattedSize}"
-                                   FontSize="11" Opacity="0.6"
-                                   VerticalAlignment="Center"/>
-                      </Grid>
-                    </Border>
-                  </TreeDataTemplate>
-                </TreeView.ItemTemplate>
-              </TreeView>
-            </ScrollViewer>
+                      <!-- Size -->
+                      <TextBlock Grid.Column="4" Text="{Binding FormattedSize}"
+                                 FontSize="11" Opacity="0.6"
+                                 VerticalAlignment="Center"/>
+                    </Grid>
+                  </Border>
+                </TreeDataTemplate>
+              </TreeView.ItemTemplate>
+            </TreeView>
           </Border>
 
           <Button Grid.Row="2" Command="{Binding RemoveFilesFromProjectCommand}"
                   Classes="Danger" HorizontalAlignment="Stretch"
                   Margin="0,8,0,0" Padding="0,10"
                   VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
-                  IsEnabled="{Binding SelectedProjectFile, Converter={x:Static ObjectConverters.IsNotNull}}"
+                  IsEnabled="{Binding HasSelectedProjectFiles}"
                   ToolTip.Tip="Remove selected files from project">
             <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
               <Path Width="14" Height="14" Fill="White" Data="{StaticResource IconClear}" Stretch="Uniform" VerticalAlignment="Center"/>
@@ -242,14 +241,17 @@
 
     <!-- Status Bar -->
     <Border Grid.Row="3" Background="{DynamicResource SurfaceBrush}"
-            CornerRadius="4" Padding="8,6" Margin="0,8,0,0">
+            CornerRadius="4" Padding="10,6" Margin="0,8,0,0">
       <Grid ColumnDefinitions="Auto,*">
-        <ProgressBar Grid.Column="0" IsIndeterminate="True"
-                     Width="120" Height="4" Margin="0,0,12,0"
+        <ProgressBar Grid.Column="0"
+                     Value="{Binding ProgressPercentage}"
+                     IsIndeterminate="{Binding IsIndeterminateProgress}"
+                     MinWidth="160" Height="6" CornerRadius="3"
+                     Margin="0,0,12,0"
                      IsVisible="{Binding IsLoading}"/>
 
         <TextBlock Grid.Column="1" Text="{Binding StatusMessage}"
-                   FontSize="12" Opacity="0.7" VerticalAlignment="Center"/>
+                   FontSize="12" Opacity="0.85" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
       </Grid>
     </Border>
   </Grid>

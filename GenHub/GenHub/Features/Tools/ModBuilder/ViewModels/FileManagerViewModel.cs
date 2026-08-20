@@ -21,11 +21,11 @@ namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 /// <summary>
 /// ViewModel for the file manager panel in ModBuilder.
 /// </summary>
-public partial class FileManagerViewModel : ObservableObject
+public partial class FileManagerViewModel(
+    IGameInstallationService gameInstallationService,
+    INotificationService notificationService,
+    ILogger<FileManagerViewModel> logger) : ObservableObject
 {
-    private readonly IGameInstallationService _gameInstallationService;
-    private readonly INotificationService _notificationService;
-    private readonly ILogger<FileManagerViewModel> _logger;
     private string? _projectPath;
     private string? _gameInstallationPath;
 
@@ -62,7 +62,7 @@ public partial class FileManagerViewModel : ObservableObject
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Failed to reload files on installation change");
+                        logger.LogError(ex, "Failed to reload files on installation change");
                     }
                 });
             }
@@ -80,6 +80,16 @@ public partial class FileManagerViewModel : ObservableObject
     public ObservableCollection<FileTreeNode> ProjectFiles { get; } = [];
 
     /// <summary>
+    /// Gets the collection of selected game file nodes.
+    /// </summary>
+    public ObservableCollection<FileTreeNode> SelectedGameFiles { get; } = [];
+
+    /// <summary>
+    /// Gets the collection of selected project file nodes.
+    /// </summary>
+    public ObservableCollection<FileTreeNode> SelectedProjectFiles { get; } = [];
+
+    /// <summary>
     /// Gets or sets the search text for filtering files.
     /// </summary>
     [ObservableProperty]
@@ -95,19 +105,45 @@ public partial class FileManagerViewModel : ObservableObject
     /// Gets or sets the selected game file node.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelectedGameFiles))]
+    [NotifyCanExecuteChangedFor(nameof(AddFilesToProjectCommand))]
     private FileTreeNode? _selectedGameFile;
 
     /// <summary>
     /// Gets or sets the selected project file node.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelectedProjectFiles))]
+    [NotifyCanExecuteChangedFor(nameof(RemoveFilesFromProjectCommand))]
     private FileTreeNode? _selectedProjectFile;
+
+    /// <summary>
+    /// Gets a value indicating whether there are selected game files.
+    /// </summary>
+    public bool HasSelectedGameFiles => SelectedGameFiles.Count > 0 || SelectedGameFile != null;
+
+    /// <summary>
+    /// Gets a value indicating whether there are selected project files.
+    /// </summary>
+    public bool HasSelectedProjectFiles => SelectedProjectFiles.Count > 0 || SelectedProjectFile != null;
 
     /// <summary>
     /// Gets or sets a value indicating whether files are being loaded.
     /// </summary>
     [ObservableProperty]
     private bool _isLoading;
+
+    /// <summary>
+    /// Gets or sets the progress percentage.
+    /// </summary>
+    [ObservableProperty]
+    private double _progressPercentage;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether progress is indeterminate.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isIndeterminateProgress = true;
 
     /// <summary>
     /// Gets or sets the status message.
@@ -147,16 +183,6 @@ public partial class FileManagerViewModel : ObservableObject
         "Text Files"
     ];
 
-    public FileManagerViewModel(
-        IGameInstallationService gameInstallationService,
-        INotificationService notificationService,
-        ILogger<FileManagerViewModel> logger)
-    {
-        _gameInstallationService = gameInstallationService;
-        _notificationService = notificationService;
-        _logger = logger;
-    }
-
     /// <summary>
     /// Initializes the file manager with project and game paths.
     /// </summary>
@@ -168,12 +194,13 @@ public partial class FileManagerViewModel : ObservableObject
         try
         {
             IsLoading = true;
+            IsIndeterminateProgress = true;
             StatusMessage = "Initializing file manager...";
 
             _projectPath = projectPath;
 
             // Load all available installations
-            var installationsResult = await _gameInstallationService.GetAllInstallationsAsync(cancellationToken).ConfigureAwait(false);
+            var installationsResult = await gameInstallationService.GetAllInstallationsAsync(cancellationToken).ConfigureAwait(false);
             if (installationsResult.Success && installationsResult.Data?.Count > 0)
             {
                 void PopulateInstallations()
@@ -207,7 +234,7 @@ public partial class FileManagerViewModel : ObservableObject
                     }
 
                     // Select first installation by default
-                    if (AvailableInstallations.Count > 0)
+                    if (AvailableInstallations.Count > 0 && SelectedInstallation == null)
                     {
                         SelectedInstallation = AvailableInstallations[0];
                         _gameInstallationPath = SelectedInstallation.Path;
@@ -232,7 +259,7 @@ public partial class FileManagerViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to initialize file manager");
+            logger.LogError(ex, "Failed to initialize file manager");
             StatusMessage = "Failed to load files";
         }
         finally
@@ -349,7 +376,7 @@ public partial class FileManagerViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to build file tree for {Path}", path);
+            logger.LogWarning(ex, "Failed to build file tree for {Path}", path);
         }
 
         return nodes;
@@ -358,22 +385,38 @@ public partial class FileManagerViewModel : ObservableObject
     /// <summary>
     /// Calculates file statuses by comparing with game installation.
     /// </summary>
-    private async Task CalculateFileStatusesAsync(List<FileTreeNode> nodes, CancellationToken cancellationToken)
+    private async Task CalculateFileStatusesAsync(List<FileTreeNode> rootNodes, CancellationToken cancellationToken)
     {
-        foreach (var node in nodes)
+        var allProjectFileNodes = GetAllFiles(rootNodes).ToList();
+        if (allProjectFileNodes.Count == 0 || string.IsNullOrEmpty(_gameInstallationPath))
         {
-            if (cancellationToken.IsCancellationRequested)
-                break;
-
-            if (node.IsDirectory)
-            {
-                await CalculateFileStatusesAsync(node.Children.ToList(), cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                node.Status = await DetermineFileStatusAsync(node, cancellationToken).ConfigureAwait(false);
-            }
+            return;
         }
+
+        var total = allProjectFileNodes.Count;
+        var processed = 0;
+
+        await Parallel.ForEachAsync(
+            allProjectFileNodes,
+            new ParallelOptions
+            {
+                MaxDegreeOfParallelism = Math.Max(2, Environment.ProcessorCount),
+                CancellationToken = cancellationToken
+            },
+            async (node, ct) =>
+            {
+                node.Status = await DetermineFileStatusAsync(node, ct).ConfigureAwait(false);
+                var count = Interlocked.Increment(ref processed);
+                if (count % 10 == 0 || count == total)
+                {
+                    var percent = (count / (double)total) * 100.0;
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        ProgressPercentage = percent;
+                        StatusMessage = $"Scanning project files ({count}/{total})...";
+                    });
+                }
+            }).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -400,15 +443,21 @@ public partial class FileManagerViewModel : ObservableObject
             if (projectInfo.Length != gameInfo.Length)
                 return FileStatus.Modified;
 
-            // If sizes match, check hash for accuracy
+            // Fast timestamp check
+            if (projectInfo.LastWriteTimeUtc == gameInfo.LastWriteTimeUtc)
+                return FileStatus.Unchanged;
+
+            // If sizes match but timestamps differ, check hash for accuracy
             var projectHash = await ComputeFileHashAsync(node.FullPath, cancellationToken).ConfigureAwait(false);
             var gameHash = await ComputeFileHashAsync(gameFilePath, cancellationToken).ConfigureAwait(false);
 
-            return projectHash == gameHash ? FileStatus.Unchanged : FileStatus.Modified;
+            return string.Equals(projectHash, gameHash, StringComparison.OrdinalIgnoreCase)
+                ? FileStatus.Unchanged
+                : FileStatus.Modified;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to compare file {Path}", node.FullPath);
+            logger.LogWarning(ex, "Failed to compare file {Path}", node.FullPath);
             return FileStatus.Unknown;
         }
     }
@@ -473,35 +522,62 @@ public partial class FileManagerViewModel : ObservableObject
     [RelayCommand]
     private async Task AddFilesToProjectAsync()
     {
-        if (SelectedGameFile == null || string.IsNullOrEmpty(_projectPath))
+        var targetNodes = SelectedGameFiles.Count > 0
+            ? SelectedGameFiles.ToList()
+            : (SelectedGameFile != null ? new List<FileTreeNode> { SelectedGameFile } : []);
+
+        if (targetNodes.Count == 0 || string.IsNullOrEmpty(_projectPath))
             return;
 
         try
         {
             IsLoading = true;
-            StatusMessage = "Adding files to project...";
+            IsIndeterminateProgress = false;
+            ProgressPercentage = 0;
+            StatusMessage = "Preparing files to add...";
 
-            var filesToAdd = SelectedGameFile.IsDirectory
-                ? GetAllFiles([SelectedGameFile]).ToList()
-                : [SelectedGameFile];
+            var filesToAdd = new Dictionary<string, FileTreeNode>(StringComparer.OrdinalIgnoreCase);
+            foreach (var node in targetNodes)
+            {
+                if (node.IsDirectory)
+                {
+                    foreach (var file in GetAllFiles([node]))
+                    {
+                        filesToAdd[file.FullPath] = file;
+                    }
+                }
+                else
+                {
+                    filesToAdd[node.FullPath] = node;
+                }
+            }
 
+            var fileList = filesToAdd.Values.ToList();
+            var total = fileList.Count;
             var gameFilesEditedPath = Path.Combine(_projectPath, "GameFilesEdited");
+
             var copiedCount = await Task.Run(() =>
             {
                 var count = 0;
-                foreach (var file in filesToAdd)
+                for (var i = 0; i < total; i++)
                 {
+                    var file = fileList[i];
                     var destPath = Path.Combine(gameFilesEditedPath, file.RelativePath);
                     var destDir = Path.GetDirectoryName(destPath);
 
                     if (!string.IsNullOrEmpty(destDir))
                         Directory.CreateDirectory(destDir);
 
-                    if (!File.Exists(destPath))
+                    File.Copy(file.FullPath, destPath, overwrite: true);
+                    count++;
+
+                    var current = i + 1;
+                    var percent = (current / (double)total) * 100.0;
+                    Dispatcher.UIThread.Post(() =>
                     {
-                        File.Copy(file.FullPath, destPath, overwrite: false);
-                        count++;
-                    }
+                        ProgressPercentage = percent;
+                        StatusMessage = $"Adding ({current}/{total}): {file.Name}";
+                    });
                 }
 
                 return count;
@@ -509,18 +585,19 @@ public partial class FileManagerViewModel : ObservableObject
 
             await LoadProjectFilesAsync(default).ConfigureAwait(false);
 
-            _notificationService.ShowSuccess("Files Added", $"Added {copiedCount} file(s) to project");
+            notificationService.ShowSuccess("Files Added", $"Added {copiedCount} file(s) to project");
             StatusMessage = $"Added {copiedCount} file(s)";
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to add files to project");
-            _notificationService.ShowError("Add Files Failed", "Failed to add files to project");
+            logger.LogError(ex, "Failed to add files to project");
+            notificationService.ShowError("Add Files Failed", "Failed to add files to project");
             StatusMessage = "Failed to add files";
         }
         finally
         {
             IsLoading = false;
+            IsIndeterminateProgress = true;
         }
     }
 
@@ -530,54 +607,93 @@ public partial class FileManagerViewModel : ObservableObject
     [RelayCommand]
     private async Task RemoveFilesFromProjectAsync()
     {
-        if (SelectedProjectFile == null)
+        var targetNodes = SelectedProjectFiles.Count > 0
+            ? SelectedProjectFiles.ToList()
+            : (SelectedProjectFile != null ? new List<FileTreeNode> { SelectedProjectFile } : []);
+
+        if (targetNodes.Count == 0)
             return;
 
         try
         {
             IsLoading = true;
-            StatusMessage = "Removing files from project...";
+            IsIndeterminateProgress = false;
+            ProgressPercentage = 0;
+            StatusMessage = "Preparing files to remove...";
 
-            var filesToRemove = SelectedProjectFile.IsDirectory
-                ? GetAllFiles([SelectedProjectFile]).ToList()
-                : [SelectedProjectFile];
+            var filesToRemove = new Dictionary<string, FileTreeNode>(StringComparer.OrdinalIgnoreCase);
+            var directoriesToRemove = new List<string>();
+
+            foreach (var node in targetNodes)
+            {
+                if (node.IsDirectory)
+                {
+                    directoriesToRemove.Add(node.FullPath);
+                    foreach (var file in GetAllFiles([node]))
+                    {
+                        filesToRemove[file.FullPath] = file;
+                    }
+                }
+                else
+                {
+                    filesToRemove[node.FullPath] = node;
+                }
+            }
+
+            var fileList = filesToRemove.Values.ToList();
+            var total = fileList.Count;
 
             await Task.Run(() =>
             {
-                foreach (var file in filesToRemove)
+                for (var i = 0; i < total; i++)
                 {
+                    var file = fileList[i];
                     if (File.Exists(file.FullPath))
+                    {
                         File.Delete(file.FullPath);
+                    }
+
+                    var current = i + 1;
+                    var percent = (current / (double)total) * 100.0;
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        ProgressPercentage = percent;
+                        StatusMessage = $"Removing ({current}/{total}): {file.Name}";
+                    });
                 }
 
                 // Remove empty directories
-                if (SelectedProjectFile.IsDirectory && Directory.Exists(SelectedProjectFile.FullPath))
+                foreach (var dir in directoriesToRemove)
                 {
-                    try
+                    if (Directory.Exists(dir))
                     {
-                        Directory.Delete(SelectedProjectFile.FullPath, recursive: true);
-                    }
-                    catch
-                    {
-                        // Directory might not be empty
+                        try
+                        {
+                            Directory.Delete(dir, recursive: true);
+                        }
+                        catch
+                        {
+                            // Ignore non-empty directory errors
+                        }
                     }
                 }
             }).ConfigureAwait(false);
 
             await LoadProjectFilesAsync(default).ConfigureAwait(false);
 
-            _notificationService.ShowSuccess("Files Removed", $"Removed {filesToRemove.Count} file(s) from project");
-            StatusMessage = $"Removed {filesToRemove.Count} file(s)";
+            notificationService.ShowSuccess("Files Removed", $"Removed {fileList.Count} file(s) from project");
+            StatusMessage = $"Removed {fileList.Count} file(s)";
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to remove files from project");
-            _notificationService.ShowError("Remove Files Failed", "Failed to remove files from project");
+            logger.LogError(ex, "Failed to remove files from project");
+            notificationService.ShowError("Remove Files Failed", "Failed to remove files from project");
             StatusMessage = "Failed to remove files";
         }
         finally
         {
             IsLoading = false;
+            IsIndeterminateProgress = true;
         }
     }
 
@@ -593,3 +709,4 @@ public partial class FileManagerViewModel : ObservableObject
         }
     }
 }
+

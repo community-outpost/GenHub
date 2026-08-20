@@ -8,9 +8,15 @@
         x:Class="GenHub.Features.Tools.ModBuilder.Views.BundlePackEditorDialog"
         x:DataType="vm:BundlePackEditorViewModel"
         Title="Bundle Pack Editor"
+        Icon="/Assets/Icons/generalshub-icon.png"
         Width="1000" Height="700"
         MinWidth="800" MinHeight="600"
         WindowStartupLocation="CenterOwner"
+        CanResize="True"
+        SystemDecorations="Full"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1"
         Background="{StaticResource BackgroundPrimaryBrush}">
 
   <Window.Resources>
@@ -24,7 +30,8 @@
 
   <Grid RowDefinitions="Auto,*,Auto" Margin="{StaticResource PaddingLarge}">
     <!-- Header -->
-    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16">
+    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16"
+          Background="Transparent" PointerPressed="OnTitleBarPointerPressed">
       <StackPanel Grid.Column="0" Spacing="{StaticResource SpacingSmall}">
         <TextBlock Text="Bundle Pack Editor"
                    FontSize="{StaticResource FontSizeHeading2}"

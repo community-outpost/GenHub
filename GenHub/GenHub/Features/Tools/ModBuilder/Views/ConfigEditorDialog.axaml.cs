@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using GenHub.Features.Tools.ModBuilder.ViewModels;
 
 namespace GenHub.Features.Tools.ModBuilder.Views;
@@ -25,4 +26,23 @@ public partial class ConfigEditorDialog : Window
     {
         DataContext = viewModel;
     }
+
+    /// <summary>
+    /// Handles pointer pressed events on the title bar for dragging and maximizing.
+    /// </summary>
+    private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            if (e.ClickCount == 2 && CanResize)
+            {
+                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+            }
+            else
+            {
+                BeginMoveDrag(e);
+            }
+        }
+    }
 }
+
