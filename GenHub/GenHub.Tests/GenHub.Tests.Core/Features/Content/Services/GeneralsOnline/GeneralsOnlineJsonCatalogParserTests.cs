@@ -1,5 +1,6 @@
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Providers;
+using GenHub.Core.Models.GeneralsOnline;
 using GenHub.Core.Models.Providers;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -90,5 +91,35 @@ public class GeneralsOnlineJsonCatalogParserTests
         Assert.True(result.Success);
         var item = result.Data.First();
         Assert.Equal("111825_QFE2", item.Version);
+    }
+
+    /// <summary>
+    /// Tests that ParseAsync correctly populates the SHA256 hash when present in the API response.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ParseAsync_WithSha256_PopulatesSha256OnReleaseAsync()
+    {
+        // Arrange
+        const string expectedSha256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        var json = $@"{{
+            ""version"": ""111825_QFE2"",
+            ""download_url"": ""https://example.com/download.zip"",
+            ""size"": 123456,
+            ""sha256"": ""{expectedSha256}"",
+            ""release_notes"": ""Fixes stuff""
+        }}";
+
+        var wrapper = $"{{\"source\":\"manifest\",\"data\":{json}}}";
+
+        // Act
+        var result = await _parser.ParseAsync(wrapper, _provider);
+
+        // Assert
+        Assert.True(result.Success);
+        var item = result.Data.First();
+        var release = item.GetData<GeneralsOnlineRelease>();
+        Assert.NotNull(release);
+        Assert.Equal(expectedSha256, release.Sha256);
     }
 }

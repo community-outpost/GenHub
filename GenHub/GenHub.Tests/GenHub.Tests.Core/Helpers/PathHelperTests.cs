@@ -115,6 +115,40 @@ public sealed class PathHelperTests
     }
 
     /// <summary>
+    /// Rejects a candidate that leaves the base directory through an intermediate symbolic link
+    /// when the target file on the outside destination already exists on disk.
+    /// </summary>
+    [Fact]
+    public void IsPathWithinDirectory_RejectsCandidateLeavingThroughASymbolicLink_WhenOutsideTargetFileExists()
+    {
+        var root = CreateWorkingDirectory();
+
+        try
+        {
+            var baseDirectory = Path.Combine(root, "extract");
+            var outside = Path.Combine(root, "outside");
+            Directory.CreateDirectory(baseDirectory);
+            Directory.CreateDirectory(outside);
+
+            var outsideFile = Path.Combine(outside, "installer.exe");
+            File.WriteAllText(outsideFile, "payload");
+
+            if (!TryCreateDirectorySymbolicLink(Path.Combine(baseDirectory, "link"), outside))
+            {
+                return;
+            }
+
+            var candidate = Path.Combine(baseDirectory, "link", "installer.exe");
+
+            Assert.False(PathHelper.IsPathWithinDirectory(baseDirectory, candidate));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Accepts a candidate beneath a symbolic link that stays inside the base directory, so
     /// following links tightens the check without refusing content a link merely reorganizes.
     /// </summary>
@@ -144,6 +178,51 @@ public sealed class PathHelperTests
         }
     }
 
+    /// <summary>
+    /// Rejects a candidate that is a direct file symbolic link pointing to a file outside the base directory.
+    /// </summary>
+    [Fact]
+    public void IsPathWithinDirectory_RejectsCandidateThatIsDirectFileSymbolicLink_PointingOutside()
+    {
+        var root = CreateWorkingDirectory();
+
+        try
+        {
+            var baseDirectory = Path.Combine(root, "extract");
+            var outside = Path.Combine(root, "outside");
+            Directory.CreateDirectory(baseDirectory);
+            Directory.CreateDirectory(outside);
+
+            var outsideFile = Path.Combine(outside, "secret.dat");
+            File.WriteAllText(outsideFile, "secret");
+
+            var linkFile = Path.Combine(baseDirectory, "link_file.dat");
+            if (!TryCreateFileSymbolicLink(linkFile, outsideFile))
+            {
+                return;
+            }
+
+            Assert.False(PathHelper.IsPathWithinDirectory(baseDirectory, linkFile));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that NormalizeRelativePath standardizes path separators.
+    /// </summary>
+    [Fact]
+    public void NormalizeRelativePath_StandardizesSeparators()
+    {
+        var input = @"folder\subfolder/file.exe";
+        var normalized = PathHelper.NormalizeRelativePath(input);
+
+        var expected = Path.Combine("folder", "subfolder", "file.exe");
+        Assert.Equal(expected, normalized);
+    }
+
     private static string CreateWorkingDirectory()
     {
         var root = Path.Combine(Path.GetTempPath(), "GenHubContainmentLinks", Guid.NewGuid().ToString("N"));
@@ -165,6 +244,28 @@ public sealed class PathHelperTests
             return false;
         }
         catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryCreateFileSymbolicLink(string linkPath, string targetPath)
+    {
+        try
+        {
+            File.CreateSymbolicLink(linkPath, targetPath);
+
+            return true;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (NotSupportedException)
         {
             return false;
         }

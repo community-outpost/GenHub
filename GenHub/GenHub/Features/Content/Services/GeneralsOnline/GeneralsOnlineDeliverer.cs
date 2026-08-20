@@ -274,11 +274,20 @@ public class GeneralsOnlineDeliverer(
             CurrentFile = zipFile.RelativePath,
         });
 
-        logger.LogDebug("Downloading ZIP from {Url} to {Path}", zipFile.DownloadUrl, zipPath);
+        var expectedHash = !string.IsNullOrWhiteSpace(zipFile.Hash)
+            ? zipFile.Hash
+            : packageManifest.InstallationInstructions?.DownloadHash;
+
+        if (string.IsNullOrWhiteSpace(expectedHash))
+        {
+            expectedHash = null;
+        }
+
+        logger.LogDebug("Downloading ZIP from {Url} to {Path} (expected hash: {Hash})", zipFile.DownloadUrl, zipPath, expectedHash);
         var downloadResult = await downloadService.DownloadFileAsync(
             new Uri(zipFile.DownloadUrl!),
             zipPath,
-            expectedHash: null,
+            expectedHash: expectedHash,
             progress: null,
             cancellationToken);
 

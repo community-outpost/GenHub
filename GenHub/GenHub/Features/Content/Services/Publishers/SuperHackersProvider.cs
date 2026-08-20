@@ -30,8 +30,9 @@ public partial class SuperHackersProvider(
     IEnumerable<IContentResolver> resolvers,
     IEnumerable<IContentDeliverer> deliverers,
     IContentValidator contentValidator,
-    ILogger<SuperHackersProvider> logger)
-    : BaseContentProvider(contentValidator, logger)
+    ILogger<SuperHackersProvider> logger,
+    IInstallationInstructionsService installationInstructionsService)
+    : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
     private readonly IContentResolver _resolver = resolvers.FirstOrDefault(r =>
             r.ResolverId?.Equals(SuperHackersConstants.ResolverId, StringComparison.OrdinalIgnoreCase) == true)

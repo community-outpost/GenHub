@@ -141,6 +141,7 @@ public class GeneralsOnlineJsonCatalogParser(ILogger<GeneralsOnlineJsonCatalogPa
             ReleaseDate = versionDate,
             PortableUrl = apiResponse.DownloadUrl,
             PortableSize = apiResponse.Size,
+            Sha256 = apiResponse.Sha256,
             Changelog = apiResponse.ReleaseNotes ?? $"Generals Online {apiResponse.Version}",
         };
     }

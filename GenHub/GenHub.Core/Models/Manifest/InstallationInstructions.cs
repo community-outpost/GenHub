@@ -11,11 +11,6 @@ namespace GenHub.Core.Models.Manifest;
 public class InstallationInstructions
 {
     /// <summary>
-    /// Gets or sets the steps to run before installation.
-    /// </summary>
-    public List<InstallationStep> PreInstallSteps { get; set; } = [];
-
-    /// <summary>
     /// Gets or sets the steps to run after installation.
     /// </summary>
     public List<InstallationStep> PostInstallSteps { get; set; } = [];

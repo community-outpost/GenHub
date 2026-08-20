@@ -25,6 +25,7 @@ namespace GenHub.Features.Content.Services.CommunityOutpost;
 /// <param name="resolvers">Available content resolvers.</param>
 /// <param name="deliverers">Available content deliverers.</param>
 /// <param name="contentValidator">The content validator.</param>
+/// <param name="installationInstructionsService">The installation instructions service.</param>
 /// <param name="logger">The logger.</param>
 public class CommunityOutpostProvider(
     IProviderDefinitionLoader providerDefinitionLoader,
@@ -32,11 +33,10 @@ public class CommunityOutpostProvider(
     IEnumerable<IContentResolver> resolvers,
     IEnumerable<IContentDeliverer> deliverers,
     IContentValidator contentValidator,
+    IInstallationInstructionsService installationInstructionsService,
     ILogger<CommunityOutpostProvider> logger)
-    : BaseContentProvider(contentValidator, logger)
+    : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
-    private readonly IProviderDefinitionLoader _providerDefinitionLoader = providerDefinitionLoader;
-
     private readonly IContentDiscoverer _discoverer = discoverers.FirstOrDefault(d =>
             d.SourceName.Contains(CommunityOutpostConstants.PublisherType, StringComparison.OrdinalIgnoreCase))
             ?? throw new InvalidOperationException("No Community Outpost discoverer found");
@@ -127,7 +127,7 @@ public class CommunityOutpostProvider(
         }
 
         // Try to get from the loader (it should already be loaded at startup)
-        _cachedProviderDefinition = _providerDefinitionLoader.GetProvider(CommunityOutpostConstants.PublisherId);
+        _cachedProviderDefinition = providerDefinitionLoader.GetProvider(CommunityOutpostConstants.PublisherId);
 
         if (_cachedProviderDefinition == null)
         {

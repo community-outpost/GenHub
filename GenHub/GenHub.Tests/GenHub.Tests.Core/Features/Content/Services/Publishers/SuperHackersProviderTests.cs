@@ -30,6 +30,7 @@ public class SuperHackersProviderTests
     private readonly Mock<IContentResolver> _resolverMock;
     private readonly Mock<IContentDeliverer> _delivererMock;
     private readonly Mock<IContentValidator> _validatorMock;
+    private readonly Mock<IInstallationInstructionsService> _instructionsServiceMock;
     private readonly SuperHackersProvider _provider;
 
     /// <summary>
@@ -42,6 +43,7 @@ public class SuperHackersProviderTests
         _resolverMock = new Mock<IContentResolver>();
         _delivererMock = new Mock<IContentDeliverer>();
         _validatorMock = new Mock<IContentValidator>();
+        _instructionsServiceMock = new Mock<IInstallationInstructionsService>();
 
         _resolverMock.Setup(r => r.ResolverId).Returns(SuperHackersConstants.ResolverId);
         _delivererMock.Setup(d => d.SourceName).Returns(ContentSourceNames.GitHubDeliverer);
@@ -49,13 +51,23 @@ public class SuperHackersProviderTests
         _validatorMock.Setup(v => v.ValidateManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult("test", []));
 
+        _instructionsServiceMock.Setup(s => s.ExecutePostInstallStepsAsync(
+            It.IsAny<ContentManifest>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<bool>(),
+            It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult.CreateSuccess());
+
         _provider = new SuperHackersProvider(
             _providerDefinitionLoaderMock.Object,
             _gitHubApiClientMock.Object,
             [_resolverMock.Object],
             [_delivererMock.Object],
             _validatorMock.Object,
-            NullLogger<SuperHackersProvider>.Instance);
+            NullLogger<SuperHackersProvider>.Instance,
+            _instructionsServiceMock.Object);
     }
 
     /// <summary>

@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using GenHub.Core.Extensions.GameInstallations;
 using GenHub.Core.Models.Enums;
 
@@ -55,6 +57,19 @@ public static class PublisherTypeConstants
 
     /// <summary>Art of Defense Maps community site.</summary>
     public const string AODMaps = "aodmaps";
+
+    /// <summary>GenHub internal system content publisher.</summary>
+    public const string GenHubInternal = "genhub";
+
+    /// <summary>
+    /// Set of publisher identifiers trusted to execute installation steps (e.g. installers).
+    /// </summary>
+    public static readonly IReadOnlySet<string> TrustedExecutablePublishers = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        GeneralsOnline,
+        CommunityOutpost,
+        TheSuperHackers,
+    };
 
     /// <summary>
     /// Maps GameInstallationType enum to publisher type string.

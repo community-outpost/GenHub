@@ -87,6 +87,13 @@ public interface IContentManifestBuilder
     IContentManifestBuilder WithPublisher(string name, string website = "", string supportUrl = "", string contactEmail = "", string publisherType = "");
 
     /// <summary>
+    /// Sets publisher information from an existing <see cref="PublisherInfo"/> instance.
+    /// </summary>
+    /// <param name="publisher">The publisher information.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder WithPublisher(PublisherInfo publisher);
+
+    /// <summary>
     /// Sets content metadata.
     /// </summary>
     /// <param name="description">Content description.</param>
@@ -209,26 +216,42 @@ public interface IContentManifestBuilder
     IContentManifestBuilder WithInstallationInstructions(WorkspaceStrategy workspaceStrategy = WorkspaceConstants.DefaultWorkspaceStrategy);
 
     /// <summary>
-    /// Adds a pre-installation step.
+    /// Sets the complete installation instructions object for the manifest.
     /// </summary>
-    /// <param name="name">Step name.</param>
-    /// <param name="command">Command to execute.</param>
-    /// <param name="arguments">Command arguments.</param>
-    /// <param name="workingDirectory">Working directory for the command.</param>
-    /// <param name="requiresElevation">Whether elevation is required.</param>
+    /// <param name="installationInstructions">The installation instructions object.</param>
     /// <returns>The builder instance for chaining.</returns>
-    IContentManifestBuilder AddPreInstallStep(string name, string command, List<string>? arguments = null, string workingDirectory = "", bool requiresElevation = false);
+    IContentManifestBuilder WithInstallationInstructions(InstallationInstructions installationInstructions);
 
     /// <summary>
     /// Adds a post-installation step.
     /// </summary>
     /// <param name="name">Step name.</param>
-    /// <param name="command">Command to execute.</param>
-    /// <param name="arguments">Command arguments.</param>
-    /// <param name="workingDirectory">Working directory for the command.</param>
+    /// <param name="kind">The kind of installation step to execute.</param>
+    /// <param name="targetRelativePath">Target relative path within workspace.</param>
+    /// <param name="arguments">Command arguments for executable steps.</param>
+    /// <param name="destinationRelativePath">Destination relative path for rename operations.</param>
     /// <param name="requiresElevation">Whether elevation is required.</param>
+    /// <param name="statusMessage">Optional user-facing status message.</param>
+    /// <param name="runOnce">Whether to execute only once and skip on future updates.</param>
+    /// <param name="stepKey">Optional unique step key for tracking execution.</param>
     /// <returns>The builder instance for chaining.</returns>
-    IContentManifestBuilder AddPostInstallStep(string name, string command, List<string>? arguments = null, string workingDirectory = "", bool requiresElevation = false);
+    IContentManifestBuilder AddPostInstallStep(
+        string name,
+        InstallationStepKind kind,
+        string? targetRelativePath = null,
+        List<string>? arguments = null,
+        string? destinationRelativePath = null,
+        bool requiresElevation = false,
+        string? statusMessage = null,
+        bool runOnce = false,
+        string? stepKey = null);
+
+    /// <summary>
+    /// Adds a post-installation step using an existing <see cref="InstallationStep"/> instance.
+    /// </summary>
+    /// <param name="step">The installation step to add.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder AddPostInstallStep(InstallationStep step);
 
     /// <summary>
     /// Adds a content reference for cross-publisher linking.
@@ -245,6 +268,13 @@ public interface IContentManifestBuilder
         ContentType contentType,
         string minVersion = "",
         string maxVersion = "");
+
+    /// <summary>
+    /// Sets content references for cross-publisher linking.
+    /// </summary>
+    /// <param name="contentReferences">The collection of content references.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder WithContentReferences(IEnumerable<ContentReference> contentReferences);
 
     /// <summary>
     /// Adds a file patching operation to the manifest.

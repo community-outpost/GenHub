@@ -1,11 +1,18 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Models.Content;
+using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Validation;
 using GenHub.Features.Content.Services.ContentProviders;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Xunit;
+using ContentType = GenHub.Core.Models.Enums.ContentType;
 
 namespace GenHub.Tests.Core.Features.Content;
 
@@ -15,14 +22,15 @@ namespace GenHub.Tests.Core.Features.Content;
 public class BaseContentProviderTests
 {
     /// <summary>
-    /// Verifies that PrepareContentAsync validates manifest before preparation.
+    /// Verifies that PrepareContentAsync validates manifest before preparation and executes post-install steps.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
     [Fact]
-    public async Task PrepareContentAsync_ValidatesManifestBeforePreparationAsync()
+    public async Task PrepareContentAsync_ValidatesManifestAndExecutesPostInstallStepsAsync()
     {
         // Arrange
         var validatorMock = new Mock<IContentValidator>();
+        var instructionsMock = new Mock<IInstallationInstructionsService>();
         var loggerMock = new Mock<ILogger>();
         var discovererMock = new Mock<IContentDiscoverer>();
         var resolverMock = new Mock<IContentResolver>();
@@ -40,7 +48,22 @@ public class BaseContentProviderTests
             })
             .ReturnsAsync(validationResult);
 
-        var provider = new TestContentProvider(validatorMock.Object, loggerMock.Object, discovererMock.Object, resolverMock.Object, delivererMock.Object);
+        instructionsMock.Setup(i => i.ExecutePostInstallStepsAsync(
+                It.IsAny<ContentManifest>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<bool>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult.CreateSuccess());
+
+        var provider = new TestContentProvider(
+            validatorMock.Object,
+            instructionsMock.Object,
+            loggerMock.Object,
+            discovererMock.Object,
+            resolverMock.Object,
+            delivererMock.Object);
 
         // Act
         var result = await provider.PrepareContentAsync(manifest, "/tmp/test");
@@ -48,7 +71,99 @@ public class BaseContentProviderTests
         // Assert
         Assert.True(result.Success);
         validatorMock.Verify(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()), Times.Once);
+        instructionsMock.Verify(i => i.ExecutePostInstallStepsAsync(manifest, "/tmp/test", "Test Provider", false, It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
         validatorMock.Verify(v => v.ValidateAllAsync(It.IsAny<string>(), manifest, It.IsAny<IProgress<ValidationProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Verifies that PrepareContentAsync fails and triggers rollback when post-install steps fail.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PrepareContentAsync_FailsWhenPostInstallStepsFailAsync()
+    {
+        // Arrange
+        var validatorMock = new Mock<IContentValidator>();
+        var instructionsMock = new Mock<IInstallationInstructionsService>();
+        var loggerMock = new Mock<ILogger>();
+        var discovererMock = new Mock<IContentDiscoverer>();
+        var resolverMock = new Mock<IContentResolver>();
+        var delivererMock = new Mock<IContentDeliverer>();
+
+        var manifest = new ContentManifest { Id = "1.0.genhub.mod.content", Name = "Test" };
+        var validationResult = new ValidationResult(manifest.Id, new List<ValidationIssue>());
+
+        validatorMock.Setup(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(validationResult);
+
+        instructionsMock.Setup(i => i.ExecutePostInstallStepsAsync(
+                It.IsAny<ContentManifest>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<bool>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult.CreateFailure("Post-install step execution error"));
+
+        var provider = new TestContentProvider(
+            validatorMock.Object,
+            instructionsMock.Object,
+            loggerMock.Object,
+            discovererMock.Object,
+            resolverMock.Object,
+            delivererMock.Object);
+
+        // Act
+        var result = await provider.PrepareContentAsync(manifest, "/tmp/test");
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Post-install step execution error", result.FirstError);
+        Assert.True(provider.RollbackCalled);
+    }
+
+    /// <summary>
+    /// Verifies that PrepareContentAsync triggers rollback when post-install steps are canceled.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task PrepareContentAsync_CancelsAndTriggersRollbackAsync()
+    {
+        // Arrange
+        var validatorMock = new Mock<IContentValidator>();
+        var instructionsMock = new Mock<IInstallationInstructionsService>();
+        var loggerMock = new Mock<ILogger>();
+        var discovererMock = new Mock<IContentDiscoverer>();
+        var resolverMock = new Mock<IContentResolver>();
+        var delivererMock = new Mock<IContentDeliverer>();
+
+        var manifest = new ContentManifest { Id = "1.0.genhub.mod.content", Name = "Test" };
+        var validationResult = new ValidationResult(manifest.Id, new List<ValidationIssue>());
+
+        validatorMock.Setup(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(validationResult);
+
+        instructionsMock.Setup(i => i.ExecutePostInstallStepsAsync(
+                It.IsAny<ContentManifest>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<bool>(),
+                It.IsAny<IProgress<ContentAcquisitionProgress>>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+
+        var provider = new TestContentProvider(
+            validatorMock.Object,
+            instructionsMock.Object,
+            loggerMock.Object,
+            discovererMock.Object,
+            resolverMock.Object,
+            delivererMock.Object);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<OperationCanceledException>(() => provider.PrepareContentAsync(manifest, "/tmp/test"));
+
+        Assert.True(provider.RollbackCalled);
     }
 
     /// <summary>
@@ -60,6 +175,7 @@ public class BaseContentProviderTests
     {
         // Arrange
         var validatorMock = new Mock<IContentValidator>();
+        var instructionsMock = new Mock<IInstallationInstructionsService>();
         var loggerMock = new Mock<ILogger>();
         var discovererMock = new Mock<IContentDiscoverer>();
         var resolverMock = new Mock<IContentResolver>();
@@ -75,7 +191,13 @@ public class BaseContentProviderTests
         validatorMock.Setup(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
             .ReturnsAsync(validationResult);
 
-        var provider = new TestContentProvider(validatorMock.Object, loggerMock.Object, discovererMock.Object, resolverMock.Object, delivererMock.Object);
+        var provider = new TestContentProvider(
+            validatorMock.Object,
+            instructionsMock.Object,
+            loggerMock.Object,
+            discovererMock.Object,
+            resolverMock.Object,
+            delivererMock.Object);
 
         // Act
         var result = await provider.PrepareContentAsync(manifest, "/tmp/test");
@@ -94,13 +216,16 @@ public class BaseContentProviderTests
         private readonly IContentResolver _resolver;
         private readonly IContentDeliverer _deliverer;
 
+        public bool RollbackCalled { get; private set; }
+
         public TestContentProvider(
             IContentValidator validator,
+            IInstallationInstructionsService instructionsService,
             ILogger logger,
             IContentDiscoverer discoverer,
             IContentResolver resolver,
             IContentDeliverer deliverer)
-            : base(validator, logger)
+            : base(validator, instructionsService, logger)
         {
             _discoverer = discoverer;
             _resolver = resolver;
@@ -117,9 +242,19 @@ public class BaseContentProviderTests
 
         protected override IContentDeliverer Deliverer => _deliverer;
 
-        public override Task<OperationResult<ContentManifest>> GetValidatedContentAsync(string contentId, CancellationToken cancellationToken = default)
+        public override Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
+            string contentId,
+            CancellationToken cancellationToken = default)
         {
-            var manifest = new ContentManifest { Id = contentId, Name = $"Content {contentId}" };
+            var manifest = new ContentManifest
+            {
+                Id = ManifestId.Create(contentId),
+                Name = "Test Content",
+                Version = "1.0.0",
+                ContentType = ContentType.Map,
+                TargetGame = GameType.Generals,
+            };
+
             return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
         }
 
@@ -127,6 +262,16 @@ public class BaseContentProviderTests
             ContentManifest manifest, string workingDirectory, IProgress<ContentAcquisitionProgress>? progress, CancellationToken cancellationToken)
         {
             return Task.FromResult(OperationResult<ContentManifest>.CreateSuccess(manifest));
+        }
+
+        protected override Task RollbackPreparedContentAsync(
+            ContentManifest originalManifest,
+            ContentManifest preparedManifest,
+            string workingDirectory,
+            CancellationToken cancellationToken)
+        {
+            RollbackCalled = true;
+            return Task.CompletedTask;
         }
     }
 }

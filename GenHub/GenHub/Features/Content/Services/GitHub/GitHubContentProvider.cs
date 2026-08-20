@@ -25,8 +25,9 @@ public class GitHubContentProvider(
     IEnumerable<IContentDeliverer> deliverers,
     ILogger<GitHubContentProvider> logger,
     IContentValidator contentValidator,
+    IInstallationInstructionsService installationInstructionsService,
     IArchivePayloadProcessor archiveProcessor)
-    : BaseContentProvider(contentValidator, logger)
+    : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
     /// <inheritdoc />
     public override string SourceName => "GitHub";

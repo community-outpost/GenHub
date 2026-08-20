@@ -92,11 +92,41 @@ public static class PathHelper
     /// <returns><see langword="true"/> when the candidate resolves inside the base directory; otherwise, <see langword="false"/>.</returns>
     public static bool IsPathWithinDirectory(string baseDirectory, string candidatePath)
     {
-        var normalizedRoot = Path.GetFullPath(baseDirectory);
-        var normalizedTarget = Path.GetFullPath(candidatePath);
+        if (string.IsNullOrWhiteSpace(baseDirectory) || string.IsNullOrWhiteSpace(candidatePath))
+        {
+            return false;
+        }
 
-        return IsContained(normalizedRoot, normalizedTarget) &&
-               IsContained(FollowLinks(normalizedRoot), FollowLinks(normalizedTarget));
+        try
+        {
+            var normalizedRoot = Path.GetFullPath(baseDirectory);
+            var normalizedTarget = Path.GetFullPath(candidatePath);
+
+            return IsContained(normalizedRoot, normalizedTarget) &&
+                   IsContained(FollowLinks(normalizedRoot), FollowLinks(normalizedTarget));
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Normalizes a relative path by standardizing directory separators and removing leading separators.
+    /// </summary>
+    /// <param name="relativePath">The relative path to normalize.</param>
+    /// <returns>The normalized relative path.</returns>
+    public static string NormalizeRelativePath(string relativePath)
+    {
+        if (string.IsNullOrWhiteSpace(relativePath))
+        {
+            return string.Empty;
+        }
+
+        return relativePath
+            .Replace('\\', '/')
+            .TrimStart('/')
+            .Replace('/', Path.DirectorySeparatorChar);
     }
 
     private static bool IsContained(string normalizedRoot, string normalizedTarget)
@@ -109,37 +139,62 @@ public static class PathHelper
                !Path.IsPathRooted(relative);
     }
 
-    private static string FollowLinks(string fullPath)
+    private static string FollowLinks(string fullPath, int maxDepth = 32)
     {
+        if (maxDepth <= 0)
+        {
+            return fullPath;
+        }
+
         try
         {
-            var existing = fullPath;
-            var remainder = string.Empty;
-
-            while (!Directory.Exists(existing) && !File.Exists(existing))
+            var normalized = Path.GetFullPath(fullPath);
+            var root = Path.GetPathRoot(normalized);
+            if (string.IsNullOrEmpty(root))
             {
-                var parent = Path.GetDirectoryName(existing);
-                if (string.IsNullOrEmpty(parent))
-                {
-                    return fullPath;
-                }
-
-                remainder = Path.Combine(Path.GetFileName(existing), remainder);
-                existing = parent;
+                return normalized;
             }
 
-            FileSystemInfo info = Directory.Exists(existing)
-                ? new DirectoryInfo(existing)
-                : new FileInfo(existing);
-            var resolved = info.ResolveLinkTarget(returnFinalTarget: true)?.FullName ?? existing;
+            var relativeFromRoot = Path.GetRelativePath(root, normalized);
+            if (relativeFromRoot == "." || relativeFromRoot.Length == 0)
+            {
+                return root;
+            }
 
-            return remainder.Length == 0 ? resolved : Path.GetFullPath(Path.Combine(resolved, remainder));
+            var segments = relativeFromRoot.Split(
+                [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                StringSplitOptions.RemoveEmptyEntries);
+
+            var current = root;
+            foreach (var segment in segments)
+            {
+                current = Path.Combine(current, segment);
+
+                if (Directory.Exists(current) || File.Exists(current))
+                {
+                    FileSystemInfo info = Directory.Exists(current)
+                        ? new DirectoryInfo(current)
+                        : new FileInfo(current);
+
+                    var target = info.ResolveLinkTarget(returnFinalTarget: true);
+                    if (target != null)
+                    {
+                        current = FollowLinks(target.FullName, maxDepth - 1);
+                    }
+                }
+            }
+
+            return Path.GetFullPath(current);
         }
         catch (IOException)
         {
             return fullPath;
         }
         catch (UnauthorizedAccessException)
+        {
+            return fullPath;
+        }
+        catch (SecurityException)
         {
             return fullPath;
         }

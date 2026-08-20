@@ -22,8 +22,9 @@ public class CNCLabsContentProvider(
     IEnumerable<IContentResolver> resolvers,
     IEnumerable<IContentDeliverer> deliverers,
     ILogger<CNCLabsContentProvider> logger,
-    IContentValidator contentValidator)
-    : BaseContentProvider(contentValidator, logger)
+    IContentValidator contentValidator,
+    IInstallationInstructionsService installationInstructionsService)
+    : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
     private readonly IContentDiscoverer _cncLabsDiscoverer = discoverers.FirstOrDefault(d => d.SourceName?.Equals(ContentSourceNames.CNCLabsDiscoverer, StringComparison.OrdinalIgnoreCase) == true)
         ?? throw new ArgumentException("CNC Labs discoverer not found", nameof(discoverers));

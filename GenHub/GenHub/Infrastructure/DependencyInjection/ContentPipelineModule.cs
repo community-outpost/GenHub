@@ -479,5 +479,11 @@ public static class ContentPipelineModule
         // Register collection of all content discoverers for components that need the full list
         services.AddSingleton<IReadOnlyList<IContentDiscoverer>>(sp =>
             sp.GetServices<IContentDiscoverer>().ToList());
+
+        // Register installation step preconditions
+        services.AddSingleton<IInstallationStepPrecondition, EasyAntiCheatPrecondition>();
+
+        // Register installation instructions execution service
+        services.AddSingleton<IInstallationInstructionsService, InstallationInstructionsService>();
     }
 }

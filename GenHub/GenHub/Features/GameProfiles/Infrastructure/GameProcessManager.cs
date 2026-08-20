@@ -956,7 +956,7 @@ public class GameProcessManager(
                 // Terminated first, so the launcher has exited and its stderr drains in full.
                 return OperationResult<GameProcessInfo>.CreateFailure(
                     AppendLauncherErrors(
-                        $"Cannot adopt {expectedName}: the launcher's start time could not be read.",
+                        $"Launcher exited without starting {expectedName}: the launcher's start time could not be read.",
                         launcher,
                         capturedErrors));
             }

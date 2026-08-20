@@ -125,6 +125,23 @@ public static class GeneralsOnlineConstants
     /// <summary>Description for Generals Online deliverer.</summary>
     public const string DelivererDescription = "Delivers Generals Online content via ZIP extraction and CAS storage";
 
+    // ===== Easy Anti-Cheat Installation =====
+
+    /// <summary>Product ID registered with Epic Online Services Easy Anti-Cheat for Generals Online.</summary>
+    public const string EacProductId = "fc1cc0d936424212b645105f084d08b0";
+
+    /// <summary>Setup command passed to EasyAntiCheat_EOS_Setup.exe.</summary>
+    public const string EacInstallCommand = "install";
+
+    /// <summary>Display name for the Easy Anti-Cheat installation step.</summary>
+    public const string EacStepName = "Install Easy Anti-Cheat";
+
+    /// <summary>Status message displayed to the user during Easy Anti-Cheat installation.</summary>
+    public const string EacStatusMessage = "Installing AntiCheat";
+
+    /// <summary>Unique step key identifying Easy Anti-Cheat installation for Generals Online.</summary>
+    public const string EacStepKey = PublisherType + ":eac:" + EacProductId;
+
     // ===== Content Tags =====
 
     /// <summary>Content tags for search and categorization.</summary>

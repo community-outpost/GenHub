@@ -22,7 +22,9 @@ public class AODMapsContentProvider(
     IEnumerable<IContentResolver> resolvers,
     IEnumerable<IContentDeliverer> deliverers,
     ILogger<AODMapsContentProvider> logger,
-    IContentValidator contentValidator) : BaseContentProvider(contentValidator, logger)
+    IContentValidator contentValidator,
+    IInstallationInstructionsService installationInstructionsService)
+    : BaseContentProvider(contentValidator, installationInstructionsService, logger)
 {
     private readonly IContentDiscoverer _aodMapsDiscoverer = discoverers.FirstOrDefault(d =>
         string.Equals(d.SourceName, AODMapsConstants.DiscovererSourceName, StringComparison.OrdinalIgnoreCase))

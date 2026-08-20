@@ -18,13 +18,27 @@ namespace GenHub.Features.Content.Services.ContentProviders;
 /// <summary>
 /// Base class for content providers with common pipeline orchestration logic.
 /// </summary>
-public abstract class BaseContentProvider(
-    IContentValidator contentValidator,
-    ILogger logger
-) : IContentProvider
+public abstract class BaseContentProvider : IContentProvider
 {
-    private readonly ILogger logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    private readonly IContentValidator _contentValidator = contentValidator ?? throw new ArgumentNullException(nameof(contentValidator));
+    private readonly IContentValidator _contentValidator;
+    private readonly IInstallationInstructionsService _installationInstructionsService;
+    private readonly ILogger _logger;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="BaseContentProvider"/> class.
+    /// </summary>
+    /// <param name="contentValidator">The content validator.</param>
+    /// <param name="installationInstructionsService">The installation instructions service.</param>
+    /// <param name="logger">The logger.</param>
+    protected BaseContentProvider(
+        IContentValidator contentValidator,
+        IInstallationInstructionsService installationInstructionsService,
+        ILogger logger)
+    {
+        _contentValidator = contentValidator;
+        _installationInstructionsService = installationInstructionsService;
+        _logger = logger;
+    }
 
     /// <inheritdoc />
     public abstract string SourceName { get; }
@@ -89,7 +103,7 @@ public abstract class BaseContentProvider(
                     Logger.LogWarning(
                         "Resolution failed for {ContentName}: {Error}",
                         discovered.Name,
-                        resolutionResult.FirstError ?? "Unknown error");
+                        resolutionResult.FirstError);
                 }
             }
             else
@@ -101,12 +115,7 @@ public abstract class BaseContentProvider(
         return OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess(resolvedResults);
     }
 
-    /// <summary>
-    /// Gets the manifest for the specified content ID.
-    /// </summary>
-    /// <param name="contentId">The content identifier.</param>
-    /// <param name="cancellationToken">A token to cancel the operation.</param>
-    /// <returns>A result containing the game manifest.</returns>
+    /// <inheritdoc/>
     public abstract Task<OperationResult<ContentManifest>> GetValidatedContentAsync(
         string contentId,
         CancellationToken cancellationToken = default);
@@ -149,49 +158,98 @@ public abstract class BaseContentProvider(
             // Delegate to implementation-specific preparation
             var result = await PrepareContentInternalAsync(manifest, workingDirectory, progress, cancellationToken);
 
-            if (result.Success)
+            if (!result.Success)
             {
-                // Final validation of prepared content
-                progress?.Report(new ContentAcquisitionProgress
-                {
-                    Phase = ContentAcquisitionPhase.ValidatingFiles,
-                    CurrentOperation = "Validating prepared content...",
-                });
+                return result;
+            }
 
-                // Forward provider progress into validation by adapting ValidationProgress -> ContentAcquisitionProgress
-                IProgress<ValidationProgress>? validationProgress = null;
-                if (progress != null)
-                {
-                    validationProgress = new Progress<ValidationProgress>(vp =>
-                    {
-                        // Map validation progress to content acquisition progress for UI display
-                        progress.Report(new ContentAcquisitionProgress
-                        {
-                            Phase = ContentAcquisitionPhase.ValidatingFiles,
-                            ProgressPercentage = vp.PercentComplete,
-                            CurrentOperation = vp.CurrentFile ?? "Validating files",
-                            FilesProcessed = vp.Processed,
-                            TotalFiles = vp.Total,
-                        });
-                    });
-                }
+            if (result.Data == null)
+            {
+                Logger.LogError("Content preparation returned success without manifest data for {ManifestId}", manifest.Id);
+                return OperationResult<ContentManifest>.CreateFailure($"Content preparation returned no manifest data for {manifest.Id}.");
+            }
 
-                var fullResult = await ContentValidator.ValidateAllAsync(
+            try
+            {
+                // Execute post-installation steps if declared on the delivered manifest
+                var stepExecutionResult = await _installationInstructionsService.ExecutePostInstallStepsAsync(
+                    result.Data,
                     workingDirectory,
-                    result.Data!,
-                    validationProgress,
+                    providerSource: SourceName,
+                    progress: progress,
                     cancellationToken: cancellationToken);
 
-                if (!fullResult.IsValid)
+                if (!stepExecutionResult.Success)
                 {
-                    // Log as warning only - content may have been moved to CAS already
-                    // CAS storage validates content hash on store, so this is informational
-                    Logger.LogWarning("Content validation found {IssueCount} issues for {ManifestId}", fullResult.Issues.Count, manifest.Id);
-                    foreach (var issue in fullResult.Issues.Take(5))
-                    {
-                        Logger.LogDebug("Validation issue: {Message}", issue.Message);
-                    }
+                    Logger.LogError("Post-installation steps failed for manifest {ManifestId}: {Error}", manifest.Id, stepExecutionResult.FirstError);
+                    await SafeRollbackPreparedContentAsync(manifest, result.Data, workingDirectory);
+                    return OperationResult<ContentManifest>.CreateFailure(stepExecutionResult.Errors);
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                Logger.LogInformation("Post-installation execution was canceled for manifest {ManifestId}; rolling back prepared content", manifest.Id);
+                await SafeRollbackPreparedContentAsync(manifest, result.Data, workingDirectory);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Unexpected error executing post-installation steps for manifest {ManifestId}; rolling back prepared content", manifest.Id);
+                await SafeRollbackPreparedContentAsync(manifest, result.Data, workingDirectory);
+                return OperationResult<ContentManifest>.CreateFailure($"Post-installation execution failed: {ex.Message}");
+            }
+
+            // Final validation of prepared content
+            progress?.Report(new ContentAcquisitionProgress
+            {
+                Phase = ContentAcquisitionPhase.ValidatingFiles,
+                CurrentOperation = "Validating prepared content...",
+            });
+
+            // Forward provider progress into validation by adapting ValidationProgress -> ContentAcquisitionProgress
+            IProgress<ValidationProgress>? validationProgress = null;
+            if (progress != null)
+            {
+                validationProgress = new Progress<ValidationProgress>(vp =>
+                {
+                    // Map validation progress to content acquisition progress for UI display
+                    progress.Report(new ContentAcquisitionProgress
+                    {
+                        Phase = ContentAcquisitionPhase.ValidatingFiles,
+                        ProgressPercentage = vp.PercentComplete,
+                        CurrentOperation = vp.CurrentFile ?? "Validating files",
+                        FilesProcessed = vp.Processed,
+                        TotalFiles = vp.Total,
+                    });
+                });
+            }
+
+            var fullResult = await ContentValidator.ValidateAllAsync(
+                workingDirectory,
+                result.Data,
+                validationProgress,
+                cancellationToken: cancellationToken);
+
+            if (!fullResult.IsValid)
+            {
+                Logger.LogWarning("Content validation found {IssueCount} issues for {ManifestId}", fullResult.Issues.Count, manifest.Id);
+            }
+
+            try
+            {
+                await OnContentPreparationCompletedAsync(manifest, result.Data, workingDirectory, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                Logger.LogInformation("Content preparation completion hook was canceled for manifest {ManifestId}; rolling back", manifest.Id);
+                await SafeRollbackPreparedContentAsync(manifest, result.Data, workingDirectory);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Content preparation completion hook failed for manifest {ManifestId}; rolling back", manifest.Id);
+                await SafeRollbackPreparedContentAsync(manifest, result.Data, workingDirectory);
+                return OperationResult<ContentManifest>.CreateFailure($"Content preparation completion hook failed: {ex.Message}");
             }
 
             return result;
@@ -209,14 +267,53 @@ public abstract class BaseContentProvider(
     }
 
     /// <summary>
+    /// Rolls back prepared content and registered manifests when post-preparation steps fail.
+    /// </summary>
+    /// <param name="originalManifest">The original requested manifest.</param>
+    /// <param name="preparedManifest">The prepared manifest returned by PrepareContentInternalAsync.</param>
+    /// <param name="workingDirectory">The working directory where content was prepared.</param>
+    /// <param name="cancellationToken">A token to cancel rollback operations.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    protected virtual Task RollbackPreparedContentAsync(
+        ContentManifest originalManifest,
+        ContentManifest preparedManifest,
+        string workingDirectory,
+        CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Executes cleanup or finalization when content preparation and validation succeed.
+    /// </summary>
+    /// <param name="originalManifest">The original requested manifest.</param>
+    /// <param name="preparedManifest">The prepared manifest returned by PrepareContentInternalAsync.</param>
+    /// <param name="workingDirectory">The working directory where content was prepared.</param>
+    /// <param name="cancellationToken">A token to cancel finalization operations.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    protected virtual Task OnContentPreparationCompletedAsync(
+        ContentManifest originalManifest,
+        ContentManifest preparedManifest,
+        string workingDirectory,
+        CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
     /// Gets the logger for this provider.
     /// </summary>
-    protected ILogger Logger => logger;
+    protected ILogger Logger => _logger;
 
     /// <summary>
     /// Gets the content validator for manifest validation.
     /// </summary>
     protected IContentValidator ContentValidator => _contentValidator;
+
+    /// <summary>
+    /// Gets the installation instructions service for post-install execution.
+    /// </summary>
+    protected IInstallationInstructionsService? InstallationInstructionsService => _installationInstructionsService;
 
     /// <summary>
     /// Gets the discoverer for this provider.
@@ -314,5 +411,20 @@ public abstract class BaseContentProvider(
 
         resolved.SetData(manifest);
         return resolved;
+    }
+
+    private async Task SafeRollbackPreparedContentAsync(
+        ContentManifest originalManifest,
+        ContentManifest preparedManifest,
+        string workingDirectory)
+    {
+        try
+        {
+            await RollbackPreparedContentAsync(originalManifest, preparedManifest, workingDirectory, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Rollback failed during error recovery for manifest {ManifestId}", originalManifest.Id);
+        }
     }
 }
