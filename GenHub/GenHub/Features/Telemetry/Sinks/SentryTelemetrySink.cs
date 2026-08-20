@@ -23,13 +23,14 @@ public sealed class SentryTelemetrySink(
     ILogger<SentryTelemetrySink> logger,
     HttpClient? httpClient = null) : ITelemetrySink
 {
+    private const int MaxBufferSize = 50;
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = false,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    private const int MaxBufferSize = 50;
     private readonly ConcurrentQueue<TelemetryEvent> _crashBuffer = new();
     private string? _dsnEndpoint = Environment.GetEnvironmentVariable("SENTRY_DSN") ?? Environment.GetEnvironmentVariable("GENHUB_SENTRY_DSN") ?? TelemetryConstants.DefaultSentryDsn;
 
@@ -112,15 +113,6 @@ public sealed class SentryTelemetrySink(
         }
     }
 
-    private void EnqueueBounded(TelemetryEvent telemetryEvent)
-    {
-        _crashBuffer.Enqueue(telemetryEvent);
-        while (_crashBuffer.Count > MaxBufferSize)
-        {
-            _crashBuffer.TryDequeue(out _);
-        }
-    }
-
     /// <inheritdoc/>
     public async Task<OperationResult<bool>> FlushAsync(CancellationToken cancellationToken = default)
     {
@@ -143,6 +135,15 @@ public sealed class SentryTelemetrySink(
         return failed
             ? OperationResult<bool>.CreateFailure("Failed to flush some buffered crash events")
             : OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private void EnqueueBounded(TelemetryEvent telemetryEvent)
+    {
+        _crashBuffer.Enqueue(telemetryEvent);
+        while (_crashBuffer.Count > MaxBufferSize)
+        {
+            _crashBuffer.TryDequeue(out _);
+        }
     }
 
     private static Dictionary<string, object?> BuildSentryPayload(TelemetryEvent telemetryEvent)

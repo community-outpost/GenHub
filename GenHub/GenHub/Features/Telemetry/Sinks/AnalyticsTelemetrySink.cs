@@ -22,13 +22,14 @@ public sealed class AnalyticsTelemetrySink(
     ILogger<AnalyticsTelemetrySink> logger,
     HttpClient? httpClient = null) : ITelemetrySink
 {
+    private const int MaxBufferSize = 100;
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = false,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    private const int MaxBufferSize = 100;
     private readonly ConcurrentQueue<TelemetryEvent> _buffer = new();
     private string? _endpointUrl = Environment.GetEnvironmentVariable("POSTHOG_CAPTURE_URL") ?? (Environment.GetEnvironmentVariable("POSTHOG_HOST") != null ? $"{Environment.GetEnvironmentVariable("POSTHOG_HOST")?.TrimEnd('/')}/capture/" : TelemetryConstants.DefaultPostHogCaptureEndpoint);
     private string? _apiKey = Environment.GetEnvironmentVariable("POSTHOG_API_KEY") ?? Environment.GetEnvironmentVariable("GENHUB_POSTHOG_API_KEY") ?? TelemetryConstants.DefaultPostHogApiKey;
@@ -131,15 +132,6 @@ public sealed class AnalyticsTelemetrySink(
         }
     }
 
-    private void EnqueueBounded(TelemetryEvent telemetryEvent)
-    {
-        _buffer.Enqueue(telemetryEvent);
-        while (_buffer.Count > MaxBufferSize)
-        {
-            _buffer.TryDequeue(out _);
-        }
-    }
-
     /// <inheritdoc/>
     public async Task<OperationResult<bool>> FlushAsync(CancellationToken cancellationToken = default)
     {
@@ -162,5 +154,14 @@ public sealed class AnalyticsTelemetrySink(
         return failed
             ? OperationResult<bool>.CreateFailure("Failed to flush some buffered events")
             : OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private void EnqueueBounded(TelemetryEvent telemetryEvent)
+    {
+        _buffer.Enqueue(telemetryEvent);
+        while (_buffer.Count > MaxBufferSize)
+        {
+            _buffer.TryDequeue(out _);
+        }
     }
 }
