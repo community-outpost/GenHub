@@ -235,7 +235,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
             var failures = results.Where(r => !r.Success).ToList();
             if (failures.Count > 0)
             {
-                var errors = string.Join("; ", failures.Select(r => r.ErrorMessage ?? "Sink flush failed"));
+                var errors = string.Join("; ", failures.Select(r => r.FirstError ?? "Sink flush failed"));
                 return OperationResult<bool>.CreateFailure(errors);
             }
 
