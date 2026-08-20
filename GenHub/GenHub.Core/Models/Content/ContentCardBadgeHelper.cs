@@ -181,9 +181,8 @@ public static partial class ContentCardBadgeHelper
     }
 
     /// <summary>
-    /// Resolves the best card/detail thumbnail URL: banner, then first screenshot, then icon, then publisher logo.
-    /// Catalog items often only set <see cref="ContentSearchResult.BannerUrl"/> while
-    /// <see cref="ContentSearchResult.IconUrl"/> is the publisher avatar.
+    /// Resolves the best card/detail thumbnail URL: banner, then first screenshot, then icon.
+    /// Returns null when no thumbnail is present so cards can fall back to publisher logo placeholders cleanly.
     /// </summary>
     /// <param name="result">The search result.</param>
     /// <returns>A thumbnail URL, or null when none is available.</returns>
@@ -207,7 +206,7 @@ public static partial class ContentCardBadgeHelper
             return result.IconUrl;
         }
 
-        return GetPublisherLogoUrl(result);
+        return null;
     }
 
     /// <summary>

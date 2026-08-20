@@ -413,7 +413,11 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
     private async Task OnContentTypeChangedAsync() => await LoadAvailableContentAsync();
 
-    private async Task EnableContentInternal(ContentDisplayItem? contentItem, bool bypassLoadingGuard = false)
+    private async Task EnableContentInternal(
+        ContentDisplayItem? contentItem,
+        bool bypassLoadingGuard = false,
+        bool isRootOperation = true,
+        List<string>? autoEnabledNames = null)
     {
         if (contentItem == null) return;
         if (IsLoadingContent && !bypassLoadingGuard) return;
@@ -491,19 +495,34 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         StatusMessage = $"Enabled {contentItem.DisplayName}";
         _logger?.LogInformation("Enabled content {ContentName} for profile", contentItem.DisplayName);
 
-        _localNotificationService.ShowSuccess(
-            "Content Enabled",
-            $"Enabled '{contentItem.DisplayName}'");
-
         if (contentItem.ContentType == ContentType.GameClient && Name == "New Profile")
         {
             Name = contentItem.DisplayName;
         }
 
-        await ResolveDependenciesAsync(contentItem);
+        var autoResolved = autoEnabledNames ?? [];
+        await ResolveDependenciesAsync(contentItem, autoResolved);
+
+        if (isRootOperation)
+        {
+            if (autoResolved.Count > 0)
+            {
+                _localNotificationService.ShowSuccess(
+                    "Content Enabled",
+                    $"Enabled '{contentItem.DisplayName}' and auto-resolved: {string.Join(", ", autoResolved)}");
+            }
+            else
+            {
+                _localNotificationService.ShowSuccess(
+                    "Content Enabled",
+                    $"Enabled '{contentItem.DisplayName}'");
+            }
+
+            await ValidateEnabledContentDependenciesAsync(contentItem.DisplayName);
+        }
     }
 
-    private async Task ResolveDependenciesAsync(ContentDisplayItem contentItem)
+    private async Task ResolveDependenciesAsync(ContentDisplayItem contentItem, List<string> autoEnabledNames)
     {
         try
         {
@@ -512,7 +531,6 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             var manifest = await GetOrSynthesizeManifestForContentAsync(contentItem);
             if (manifest?.Dependencies == null || manifest.Dependencies.Count == 0)
             {
-                _ = ValidateEnabledContentDependenciesAsync(contentItem.DisplayName);
                 return;
             }
 
@@ -520,20 +538,17 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             {
                 if (dependency.DependencyType == ContentType.GameInstallation)
                 {
-                    await ResolveGameInstallationDependencyAsync(contentItem, dependency);
+                    await ResolveGameInstallationDependencyAsync(contentItem, dependency, autoEnabledNames);
                 }
                 else
                 {
-                    await ResolveContentDependencyAsync(dependency);
+                    await ResolveContentDependencyAsync(dependency, autoEnabledNames);
                 }
             }
-
-            await ValidateEnabledContentDependenciesAsync(contentItem.DisplayName);
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Error resolving dependencies for {ContentName}", contentItem.DisplayName);
-            _ = ValidateEnabledContentDependenciesAsync(contentItem.DisplayName);
         }
     }
 
@@ -575,7 +590,10 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         return null;
     }
 
-    private async Task ResolveGameInstallationDependencyAsync(ContentDisplayItem contentItem, ContentDependency dependency)
+    private async Task ResolveGameInstallationDependencyAsync(
+        ContentDisplayItem contentItem,
+        ContentDependency dependency,
+        List<string> autoEnabledNames)
     {
         bool isSatisfied = false;
         var isDefaultDep = dependency.Id.ToString() == ManifestConstants.DefaultContentDependencyId;
@@ -621,12 +639,18 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
 
         if (compatibleInstallation != null)
         {
-            _localNotificationService.ShowSuccess("Auto-Resolved", $"Switched Game Installation to '{compatibleInstallation.DisplayName}' as required by '{contentItem.DisplayName}'.");
-            await EnableContentInternal(compatibleInstallation, bypassLoadingGuard: true);
+            if (!autoEnabledNames.Contains(compatibleInstallation.DisplayName))
+            {
+                autoEnabledNames.Add(compatibleInstallation.DisplayName);
+            }
+
+            await EnableContentInternal(compatibleInstallation, bypassLoadingGuard: true, isRootOperation: false, autoEnabledNames);
         }
     }
 
-    private async Task ResolveContentDependencyAsync(ContentDependency dependency)
+    private async Task ResolveContentDependencyAsync(
+        ContentDependency dependency,
+        List<string> autoEnabledNames)
     {
         var declaredId = dependency.Id.ToString();
         bool alreadyEnabled = declaredId != ManifestConstants.DefaultContentDependencyId
@@ -659,8 +683,12 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             var viewModelItem = ConvertToViewModelContentDisplayItem(match);
             if (!viewModelItem.IsEnabled)
             {
-                _localNotificationService.ShowSuccess("Auto-Resolved", $"Automatically enabled required content: '{viewModelItem.DisplayName}'");
-                await EnableContentInternal(viewModelItem, bypassLoadingGuard: true);
+                if (!autoEnabledNames.Contains(viewModelItem.DisplayName))
+                {
+                    autoEnabledNames.Add(viewModelItem.DisplayName);
+                }
+
+                await EnableContentInternal(viewModelItem, bypassLoadingGuard: true, isRootOperation: false, autoEnabledNames);
             }
         }
     }

@@ -209,8 +209,8 @@
                                    Stretch="UniformToFill"
                                    IsVisible="{Binding IconBitmap, Converter={x:Static ObjectConverters.IsNotNull}}" />
 
-                            <!-- Publisher logo badge (top-left overlay) -->
-                            <Border IsVisible="{Binding PublisherLogoBitmap, Converter={x:Static ObjectConverters.IsNotNull}}"
+                            <!-- Publisher logo badge (top-left overlay) - only shown when thumbnail banner is present -->
+                            <Border IsVisible="{Binding IconBitmap, Converter={x:Static ObjectConverters.IsNotNull}}"
                                     HorizontalAlignment="Left"
                                     VerticalAlignment="Top"
                                     Margin="6"
@@ -222,7 +222,8 @@
                                     BorderThickness="1"
                                     ClipToBounds="True"
                                     ToolTip.Tip="{Binding ProviderName}">
-                                <Image Source="{Binding PublisherLogoBitmap}" Stretch="Uniform" />
+                                <Image Source="{Binding PublisherLogoBitmap}" Stretch="Uniform"
+                                       IsVisible="{Binding PublisherLogoBitmap, Converter={x:Static ObjectConverters.IsNotNull}}" />
                             </Border>
 
                             <!-- Placeholder when no icon -->

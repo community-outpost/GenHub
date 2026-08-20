@@ -606,11 +606,16 @@ public partial class ContentGridItemViewModel(
 
     private async Task LoadIconAsync()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         var currentVersion = ++_iconLoadVersion;
 
         // 1. Load publisher logo if available
         var publisherLogoUrl = ContentCardBadgeHelper.GetPublisherLogoUrl(SearchResult);
-        if (!string.IsNullOrEmpty(publisherLogoUrl))
+        if (!string.IsNullOrEmpty(publisherLogoUrl) && PublisherLogoBitmap == null)
         {
             try
             {
@@ -626,9 +631,9 @@ public partial class ContentGridItemViewModel(
         var thumbnailUrl = ThumbnailUrl;
         if (string.IsNullOrEmpty(thumbnailUrl))
         {
-            if (PublisherLogoBitmap != null && currentVersion == _iconLoadVersion)
+            if (currentVersion == _iconLoadVersion)
             {
-                IconBitmap = PublisherLogoBitmap;
+                IconBitmap = null;
             }
 
             return;
@@ -639,14 +644,14 @@ public partial class ContentGridItemViewModel(
             var loadedBitmap = await ImageCacheService.Instance.GetBitmapAsync(thumbnailUrl);
             if (currentVersion == _iconLoadVersion)
             {
-                IconBitmap = loadedBitmap ?? PublisherLogoBitmap;
+                IconBitmap = loadedBitmap;
             }
         }
         catch
         {
-            if (currentVersion == _iconLoadVersion && PublisherLogoBitmap != null)
+            if (currentVersion == _iconLoadVersion)
             {
-                IconBitmap = PublisherLogoBitmap;
+                IconBitmap = null;
             }
         }
     }
@@ -919,6 +924,23 @@ public partial class ContentGridItemViewModel(
         OnPropertyChanged(nameof(ShowDownloadButton));
         OnPropertyChanged(nameof(ShowUpdateButton));
         OnPropertyChanged(nameof(ShowAddToProfileButton));
+    }
+
+    /// <summary>
+    /// Loads icon and logo bitmaps if not already loaded.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public async Task EnsureIconsLoadedAsync()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        if (PublisherLogoBitmap == null || (IconBitmap == null && !string.IsNullOrEmpty(ThumbnailUrl)))
+        {
+            await LoadIconAsync();
+        }
     }
 
     /// <summary>

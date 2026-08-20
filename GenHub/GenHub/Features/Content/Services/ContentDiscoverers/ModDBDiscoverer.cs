@@ -343,11 +343,35 @@ public partial class ModDBDiscoverer(
     private static string ExtractIconUrl(AngleSharp.Dom.IElement item)
     {
         var img = item.QuerySelector("img.image, img.screenshot, div.image img, td.content.image img") ?? item.QuerySelector("img");
-        var iconUrl = img?.GetAttribute("src") ?? string.Empty;
+        if (img == null)
+        {
+            return string.Empty;
+        }
+
+        var iconUrl = img.GetAttribute("data-src")
+            ?? img.GetAttribute("data-original")
+            ?? img.GetAttribute("data-lazy-src")
+            ?? img.GetAttribute("src")
+            ?? string.Empty;
+
+        if (!string.IsNullOrEmpty(iconUrl) && iconUrl.Contains("blank.gif", StringComparison.OrdinalIgnoreCase))
+        {
+            iconUrl = img.GetAttribute("data-src")
+                ?? img.GetAttribute("data-original")
+                ?? img.GetAttribute("data-lazy-src")
+                ?? string.Empty;
+        }
+
         if (!string.IsNullOrEmpty(iconUrl))
         {
-            if (iconUrl.Contains("blank.gif")) iconUrl = string.Empty;
-            else if (!iconUrl.StartsWith("http")) iconUrl = ModDBConstants.BaseUrl + iconUrl;
+            if (iconUrl.Contains("blank.gif", StringComparison.OrdinalIgnoreCase))
+            {
+                iconUrl = string.Empty;
+            }
+            else if (!iconUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            {
+                iconUrl = ModDBConstants.BaseUrl.TrimEnd('/') + (iconUrl.StartsWith('/') ? iconUrl : "/" + iconUrl);
+            }
         }
 
         return iconUrl;
@@ -451,8 +475,23 @@ public partial class ModDBDiscoverer(
             return (scrapeResults, hasMore, keepOpen, false);
         }
 
+        // Scrape returned 0 items.
+        // If the user performed a search or applied a filter, respect the 0 results.
+        // Do not fall back to RSS on custom queries as that would return random unrelated downloads.
+        var hasSearchOrFilters = !string.IsNullOrWhiteSpace(query.SearchTerm) ||
+            !string.IsNullOrWhiteSpace(query.ModDBCategory) ||
+            !string.IsNullOrWhiteSpace(query.ModDBAddonCategory) ||
+            !string.IsNullOrWhiteSpace(query.ModDBLicense) ||
+            !string.IsNullOrWhiteSpace(query.ModDBTimeframe) ||
+            (query.Page ?? 1) > 1;
+
+        if (hasSearchOrFilters)
+        {
+            return ([], false, keepOpen, false);
+        }
+
         // Scrape returned nothing (transient WAF block, outage, or the browser failed to launch).
-        // Fall back to the public RSS feed so the grid is never empty. RSS cannot paginate, so
+        // Fall back to the public RSS feed so the grid is never empty on default browse. RSS cannot paginate, so
         // HasMoreItems is false regardless of what the scrape thought.
         logger.LogWarning("[ModDB] Scrape returned no items for '{Section}', falling back to RSS", section);
         var rssSection = string.Equals(section, "mods", StringComparison.OrdinalIgnoreCase)
@@ -588,6 +627,20 @@ public partial class ModDBDiscoverer(
                     }
 
                     return (true, challengeObserved);
+                }
+
+                // If not a challenge page, check if the real page DOM container has fully loaded.
+                // When a query produces 0 results, the page is complete but DefaultListItemSelector is absent.
+                var readyState = await page.EvaluateAsync<string>("() => document.readyState");
+                if (string.Equals(readyState, "complete", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(readyState, "interactive", StringComparison.OrdinalIgnoreCase))
+                {
+                    var hasPageContainer = await page.QuerySelectorAsync("div#sitecontainer, div#body, div.panes, div.column, div.main, footer, form") != null;
+                    if (hasPageContainer)
+                    {
+                        // Page is fully rendered with 0 matching items. Do not spin polling for items.
+                        return (true, challengeObserved);
+                    }
                 }
             }
             catch (PlaywrightException ex) when (Tools.PlaywrightService.IsContextClosedError(ex))

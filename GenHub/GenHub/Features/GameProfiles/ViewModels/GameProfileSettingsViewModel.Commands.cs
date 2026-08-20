@@ -427,8 +427,6 @@ public partial class GameProfileSettingsViewModel
                     StatusMessage = "Profile created successfully";
                     _logger?.LogInformation("Created new profile {ProfileName} with {ContentCount} enabled content items", Name, enabledContentIds.Count);
 
-                    WeakReferenceMessenger.Default.Send(new ProfileCreatedMessage(result.Data));
-
                     ExecuteCancel();
                 }
                 else

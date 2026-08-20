@@ -493,10 +493,7 @@ public sealed class ImageCacheService
         }
         finally
         {
-            if (pendingDownloads.TryGetValue(initialUrl, out var task) && task.IsCompleted)
-            {
-                pendingDownloads.TryRemove(initialUrl, out _);
-            }
+            pendingDownloads.TryRemove(initialUrl, out _);
         }
     }
 
@@ -630,11 +627,6 @@ public sealed class ImageCacheService
                 if (cache.TryGetValue(key, out var existingNode))
                 {
                     lruList.Remove(existingNode);
-                    if (!ReferenceEquals(existingNode.Value.Bitmap, bitmap))
-                    {
-                        existingNode.Value.Bitmap.Dispose();
-                    }
-
                     existingNode.Value = new CacheItem(key, bitmap);
                     lruList.AddFirst(existingNode);
                 }
@@ -647,7 +639,6 @@ public sealed class ImageCacheService
                         {
                             lruList.RemoveLast();
                             cache.Remove(last.Value.Key);
-                            last.Value.Bitmap.Dispose();
                         }
                     }
 

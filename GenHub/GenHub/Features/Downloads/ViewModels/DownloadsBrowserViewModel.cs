@@ -206,6 +206,12 @@ public partial class DownloadsBrowserViewModel(
         if (ContentItems.Count == 0 && !IsLoading && SelectedContent == null)
         {
             await RefreshContentAsync();
+            return;
+        }
+
+        foreach (var item in ContentItems)
+        {
+            _ = item.EnsureIconsLoadedAsync();
         }
     }
 
@@ -327,13 +333,25 @@ public partial class DownloadsBrowserViewModel(
         var outgoingItems = ContentItems.ToList();
         ContentItems = [];
 
-        // If outgoing list was from a custom search/filter, dispose those items now.
+        // If outgoing list was from a custom search/filter, dispose only items not saved in browse cache.
         // Default browse items are preserved in _browseCache or the ongoing in-flight buffer.
         if (_hasCustomQuery)
         {
-            foreach (var item in outgoingItems)
+            lock (_cacheLock)
             {
-                item.Dispose();
+                var cachedItemSet = new HashSet<ContentGridItemViewModel>(_browseCache.Values.SelectMany(s => s.Items));
+                foreach (var inFlight in _inFlightOperations.Values)
+                {
+                    cachedItemSet.UnionWith(inFlight.ResolvedItems);
+                }
+
+                foreach (var item in outgoingItems)
+                {
+                    if (!cachedItemSet.Contains(item))
+                    {
+                        item.Dispose();
+                    }
+                }
             }
         }
 
@@ -351,6 +369,7 @@ public partial class DownloadsBrowserViewModel(
                 {
                     item.ClearInactiveDownloadStatus();
                     _ = item.RefreshVariantStatesAsync();
+                    _ = item.EnsureIconsLoadedAsync();
                 }
 
                 ContentItems = new ObservableCollection<ContentGridItemViewModel>(cached.Items);
@@ -373,6 +392,7 @@ public partial class DownloadsBrowserViewModel(
                 {
                     item.ClearInactiveDownloadStatus();
                     _ = item.RefreshVariantStatesAsync();
+                    _ = item.EnsureIconsLoadedAsync();
                 }
 
                 ContentItems = new ObservableCollection<ContentGridItemViewModel>(itemsSoFar);
@@ -456,9 +476,21 @@ public partial class DownloadsBrowserViewModel(
             {
                 if (isCustomQuery)
                 {
-                    foreach (var item in ContentItems)
+                    lock (_cacheLock)
                     {
-                        item.Dispose();
+                        var cachedItemSet = new HashSet<ContentGridItemViewModel>(_browseCache.Values.SelectMany(s => s.Items));
+                        foreach (var inFlight in _inFlightOperations.Values)
+                        {
+                            cachedItemSet.UnionWith(inFlight.ResolvedItems);
+                        }
+
+                        foreach (var item in ContentItems)
+                        {
+                            if (!cachedItemSet.Contains(item))
+                            {
+                                item.Dispose();
+                            }
+                        }
                     }
 
                     ContentItems.Clear();
