@@ -578,6 +578,41 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         Assert.NotEqual(rootText, wrapperText);
     }
 
+    /// <summary>
+    /// Verifies that archive normalization safely distinguishes between real BIG archives and MZ disguised executables.
+    /// Real BIG archives become .big, whereas MZ executables become .exe and are never named .big.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task NormalizeDirectoryStructureAsync_WithDisguisedExecutableAndBigArchive_NormalizesSafelyAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+
+        // Disguised executable (MZ header) named generals.ctr
+        var exeCtrPath = Path.Combine(_stagingDirectory, "generals.ctr");
+        var mzBytes = new byte[] { (byte)'M', (byte)'Z', 0x90, 0x00, 0x03, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00 };
+        await File.WriteAllBytesAsync(exeCtrPath, mzBytes);
+
+        // Real BIG archive (BIGF header) named !Contra.ctr
+        var bigCtrPath = Path.Combine(_stagingDirectory, "!Contra.ctr");
+        var bigBytes = new byte[] { (byte)'B', (byte)'I', (byte)'G', (byte)'F', 0x00, 0x10, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00 };
+        await File.WriteAllBytesAsync(bigCtrPath, bigBytes);
+
+        var processor = CreateProcessor();
+
+        // Act
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Mod, GameType.ZeroHour, normalizeInactiveArchives: true);
+
+        // Assert
+        Assert.True(File.Exists(Path.Combine(_stagingDirectory, "!Contra.big")), "!Contra.ctr with BIGF magic should become !Contra.big");
+        Assert.False(File.Exists(Path.Combine(_stagingDirectory, "!Contra.ctr")), "!Contra.ctr should no longer exist");
+
+        Assert.True(File.Exists(Path.Combine(_stagingDirectory, "generals.exe")), "generals.ctr with MZ magic should become generals.exe");
+        Assert.False(File.Exists(Path.Combine(_stagingDirectory, "generals.big")), "generals.ctr MUST NEVER become generals.big");
+        Assert.False(File.Exists(Path.Combine(_stagingDirectory, "generals.ctr")), "generals.ctr should no longer exist");
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {

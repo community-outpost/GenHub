@@ -131,6 +131,65 @@ public partial class AddLocalContentViewModel(
         return true;
     }
 
+    private static bool IsBigArchiveFile(string filePath)
+    {
+        if (!File.Exists(filePath))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var stream = File.OpenRead(filePath);
+            if (stream.Length < 16)
+            {
+                return false;
+            }
+
+            Span<byte> header = stackalloc byte[4];
+            if (stream.Read(header) < 4)
+            {
+                return false;
+            }
+
+            return header[0] == (byte)'B' && header[1] == (byte)'I' && header[2] == (byte)'G' &&
+                   (header[3] == (byte)'4' || header[3] == (byte)'F' || header[3] == (byte)'E' || header[3] == 0);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsExecutableFile(string filePath)
+    {
+        if (!File.Exists(filePath))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var stream = File.OpenRead(filePath);
+            if (stream.Length < 2)
+            {
+                return false;
+            }
+
+            Span<byte> header = stackalloc byte[2];
+            if (stream.Read(header) < 2)
+            {
+                return false;
+            }
+
+            return header[0] == (byte)'M' && header[1] == (byte)'Z';
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private readonly string _stagingPath = Path.Combine(Path.GetTempPath(), "GenHub_Staging_" + Guid.NewGuid());
 
     private string? _originalManifestId;
@@ -202,6 +261,24 @@ public partial class AddLocalContentViewModel(
     /// Virtual to allow demos to suppress it.
     /// </summary>
     public virtual bool ShowLoadingOverlay => IsBusy;
+
+    /// <summary>
+    /// Gets or sets the progress percentage (0-100).
+    /// </summary>
+    [ObservableProperty]
+    private double _progressPercentage;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the progress is indeterminate.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isProgressIndeterminate = true;
+
+    /// <summary>
+    /// Gets or sets a detailed progress subtitle message.
+    /// </summary>
+    [ObservableProperty]
+    private string _progressDetailMessage = string.Empty;
 
     /// <summary>
     /// Gets or sets the status message for the user.
@@ -739,6 +816,8 @@ public partial class AddLocalContentViewModel(
         try
         {
             IsBusy = true;
+            IsProgressIndeterminate = true;
+            ProgressDetailMessage = "Validating and converting archive formats...";
             StatusMessage = "Normalizing inactive archives (.ctr / .gib) to .big...";
             logger?.LogInformation("User triggered archive normalization in staging: {StagingPath}", _stagingPath);
 
@@ -749,6 +828,24 @@ public partial class AddLocalContentViewModel(
                     var searchPattern = "*" + extension;
                     foreach (var inactiveFile in Directory.GetFiles(_stagingPath, searchPattern, SearchOption.AllDirectories))
                     {
+                        if (IsExecutableFile(inactiveFile))
+                        {
+                            var exeFile = Path.ChangeExtension(inactiveFile, ".exe");
+                            if (!File.Exists(exeFile))
+                            {
+                                File.Move(inactiveFile, exeFile);
+                                logger?.LogInformation("Normalized disguised executable '{InactiveFile}' to '{ExeFile}'", inactiveFile, exeFile);
+                            }
+
+                            continue;
+                        }
+
+                        if (!IsBigArchiveFile(inactiveFile))
+                        {
+                            logger?.LogDebug("Skipping non-BIG inactive file '{InactiveFile}' during archive normalization", inactiveFile);
+                            continue;
+                        }
+
                         var bigFile = Path.ChangeExtension(inactiveFile, GenLauncherConstants.BigExtension);
                         if (File.Exists(bigFile))
                         {
@@ -806,6 +903,9 @@ public partial class AddLocalContentViewModel(
         try
         {
             IsBusy = true;
+            IsProgressIndeterminate = true;
+            ProgressPercentage = 0;
+            ProgressDetailMessage = "Preparing content for storage...";
             StatusMessage = "Processing content...";
 
             var targetGame = SelectedGameType;
@@ -814,7 +914,16 @@ public partial class AddLocalContentViewModel(
             {
                 if (p.TotalCount > 0)
                 {
+                    ProgressPercentage = p.Percentage;
+                    IsProgressIndeterminate = false;
+                    ProgressDetailMessage = $"{p.ProcessedCount} of {p.TotalCount} files stored in CAS ({p.Percentage:0}%)";
                     StatusMessage = $"{(IsEditing ? "Updating" : "Importing")}: {p.Percentage:0}% ({p.ProcessedCount}/{p.TotalCount} files)";
+                }
+                else
+                {
+                    IsProgressIndeterminate = true;
+                    ProgressDetailMessage = "Processing files...";
+                    StatusMessage = "Processing content...";
                 }
             });
 

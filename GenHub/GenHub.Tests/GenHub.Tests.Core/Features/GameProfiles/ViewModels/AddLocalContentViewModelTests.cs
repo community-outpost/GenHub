@@ -849,7 +849,10 @@ public class AddLocalContentViewModelTests : IDisposable
     public async Task NormalizeArchivesCommand_WithCtrFiles_ConvertsToBigAndUpdatesStateAsync()
     {
         var tempDir = CreateTempDirectory();
-        await File.WriteAllTextAsync(Path.Combine(tempDir, "!Contra_INI.ctr"), "INI Data");
+        var bigHeader = new byte[] { (byte)'B', (byte)'I', (byte)'G', (byte)'F', 0x00, 0x10, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00 };
+        var mzHeader = new byte[] { (byte)'M', (byte)'Z', 0x90, 0x00, 0x03, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00 };
+        await File.WriteAllBytesAsync(Path.Combine(tempDir, "!Contra_INI.ctr"), bigHeader);
+        await File.WriteAllBytesAsync(Path.Combine(tempDir, "generals.ctr"), mzHeader);
         await File.WriteAllTextAsync(Path.Combine(tempDir, "Contra_Launcher.exe"), "Launcher binary");
 
         var vm = CreateViewModel();
@@ -863,6 +866,8 @@ public class AddLocalContentViewModelTests : IDisposable
 
         Assert.False(vm.HasInactiveArchives);
         Assert.Contains(vm.FileTree, item => item.Name.Equals("!Contra_INI.big", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(vm.FileTree, item => item.Name.Equals("generals.exe", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(vm.FileTree, item => item.Name.Equals("generals.big", StringComparison.OrdinalIgnoreCase));
     }
 
     private static FileTreeItem? FindInTree(IEnumerable<FileTreeItem> items, Func<FileTreeItem, bool> predicate)

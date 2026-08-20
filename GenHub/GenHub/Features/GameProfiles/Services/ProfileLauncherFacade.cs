@@ -560,7 +560,18 @@ public class ProfileLauncherFacade(
     {
         logger.LogDebug("[Launch] Step 6: Delegating to GameLauncher for workspace prep and process start");
 
-        var launchResult = await gameLauncher.LaunchProfileAsync(profile, progress: null, skipUserDataCleanup: skipUserDataCleanup, cancellationToken: cancellationToken);
+        var launchProgress = new Progress<LaunchProgress>(p =>
+        {
+            if (p.Phase == LaunchPhase.PreparingWorkspace)
+            {
+                notificationService.ShowInfo(
+                    "Preparing Workspace",
+                    $"Materializing game files for '{profile.Name}'...",
+                    NotificationDurations.Short);
+            }
+        });
+
+        var launchResult = await gameLauncher.LaunchProfileAsync(profile, progress: launchProgress, skipUserDataCleanup: skipUserDataCleanup, cancellationToken: cancellationToken);
 
         if (launchResult.Failed)
         {

@@ -501,6 +501,65 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         }
     }
 
+    private static bool IsBigArchiveFile(string filePath)
+    {
+        if (!File.Exists(filePath))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var stream = File.OpenRead(filePath);
+            if (stream.Length < 16)
+            {
+                return false;
+            }
+
+            Span<byte> header = stackalloc byte[4];
+            if (stream.Read(header) < 4)
+            {
+                return false;
+            }
+
+            return header[0] == (byte)'B' && header[1] == (byte)'I' && header[2] == (byte)'G' &&
+                   (header[3] == (byte)'4' || header[3] == (byte)'F' || header[3] == (byte)'E' || header[3] == 0);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsExecutableFile(string filePath)
+    {
+        if (!File.Exists(filePath))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var stream = File.OpenRead(filePath);
+            if (stream.Length < 2)
+            {
+                return false;
+            }
+
+            Span<byte> header = stackalloc byte[2];
+            if (stream.Read(header) < 2)
+            {
+                return false;
+            }
+
+            return header[0] == (byte)'M' && header[1] == (byte)'Z';
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private static void CopyEntryWithCap(
         Stream source,
         string destinationPath,
@@ -1438,6 +1497,24 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 var searchPattern = "*" + extension;
                 foreach (var inactiveFile in Directory.GetFiles(extractedDirectory, searchPattern, SearchOption.AllDirectories))
                 {
+                    if (IsExecutableFile(inactiveFile))
+                    {
+                        var exeFile = Path.ChangeExtension(inactiveFile, ".exe");
+                        if (!File.Exists(exeFile))
+                        {
+                            File.Move(inactiveFile, exeFile);
+                            logger.LogInformation("Normalized disguised executable '{InactiveFile}' to '{ExeFile}'", inactiveFile, exeFile);
+                        }
+
+                        continue;
+                    }
+
+                    if (!IsBigArchiveFile(inactiveFile))
+                    {
+                        logger.LogDebug("Skipping non-BIG inactive file '{InactiveFile}' during archive normalization", inactiveFile);
+                        continue;
+                    }
+
                     var bigFile = Path.ChangeExtension(inactiveFile, GenLauncherConstants.BigExtension);
                     if (File.Exists(bigFile))
                     {

@@ -129,16 +129,22 @@ public partial class WindowsFileOperationsService(
                     }
 
                     casSourcePath = pathResult.Data;
-                    logger.LogInformation("Successfully migrated content {Hash} to correct CAS pool at {NewPath}", hash, casSourcePath);
+                    sameVolume = FileOperationsService.AreSameVolume(casSourcePath, destinationPath);
+                    if (sameVolume)
+                    {
+                        logger.LogInformation("Successfully migrated content {Hash} to correct CAS pool at {NewPath}", hash, casSourcePath);
+                    }
+                    else
+                    {
+                        logger.LogDebug("Content {Hash} remains on different volume after pool resolution; hard link not supported, fallback required", hash);
+                        return false;
+                    }
                 }
                 else if (!sameVolume)
                 {
-                    // No content type provided and volumes differ - hard link will fail
-                    var errorMessage = $"Cannot create hard link across different volumes/drives: Source={casSourcePath} (volume {sourceRoot}), Destination={destinationPath} (volume {destRoot})";
-
-                    // Exception will be caught and logged by the outer catch block
-                    throw new IOException(errorMessage);
-            }
+                    logger.LogDebug("Cannot create hard link across different volumes: Source={Source}, Destination={Destination}", casSourcePath, destinationPath);
+                    return false;
+                }
             }
 
             FileOperationsService.EnsureDirectoryExists(destinationPath);
