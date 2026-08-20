@@ -220,7 +220,36 @@ public class CncOnlineLauncherFix(
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        logger.LogWarning("Undoing C&C Online Registry Fix is not recommended as it may break multiplayer functionality.");
-        return Task.FromResult(new ActionSetResult(true));
+        var details = new List<string>();
+
+        try
+        {
+            details.Add("Removing C&C Online registry entries...");
+
+            if (installation.HasGenerals)
+            {
+                registryService.DeleteValue(RegistryConstants.CncOnlineGeneralsKeyPath, RegistryConstants.InstallPathValueName, true, Microsoft.Win32.RegistryHive.CurrentUser);
+                registryService.DeleteValue(RegistryConstants.CncOnlineGeneralsKeyPath, RegistryConstants.VersionValueName, true, Microsoft.Win32.RegistryHive.CurrentUser);
+                details.Add($"✓ Removed registry entries for HKCU\\{RegistryConstants.CncOnlineGeneralsKeyPath}");
+            }
+
+            if (installation.HasZeroHour)
+            {
+                registryService.DeleteValue(RegistryConstants.CncOnlineZeroHourKeyPath, RegistryConstants.InstallPathValueName, true, Microsoft.Win32.RegistryHive.CurrentUser);
+                registryService.DeleteValue(RegistryConstants.CncOnlineZeroHourKeyPath, RegistryConstants.VersionValueName, true, Microsoft.Win32.RegistryHive.CurrentUser);
+                details.Add($"✓ Removed registry entries for HKCU\\{RegistryConstants.CncOnlineZeroHourKeyPath}");
+            }
+
+            registryService.DeleteValue(RegistryConstants.CncOnlineKeyPath, RegistryConstants.InstallPathValueName, true, Microsoft.Win32.RegistryHive.CurrentUser);
+            registryService.DeleteValue(RegistryConstants.CncOnlineKeyPath, RegistryConstants.VersionValueName, true, Microsoft.Win32.RegistryHive.CurrentUser);
+            details.Add($"✓ Removed registry entries for HKCU\\{RegistryConstants.CncOnlineKeyPath}");
+
+            return Task.FromResult(new ActionSetResult(true, null, details));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error undoing C&C Online registry fix");
+            return Task.FromResult(new ActionSetResult(false, ex.Message, details));
+        }
     }
 }

@@ -224,7 +224,6 @@ public class VCRedist2010Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        logger.LogWarning("Uninstalling VCRedist 2010 is not supported via GenHub.");
-        return Task.FromResult(new ActionSetResult(true));
+        return Task.FromResult(new ActionSetResult(false, "Visual C++ 2010 Redistributable is a system runtime package and cannot be uninstalled automatically.", ["To uninstall, use Windows Settings > Installed Apps / Programs and Features."]));
     }
 }

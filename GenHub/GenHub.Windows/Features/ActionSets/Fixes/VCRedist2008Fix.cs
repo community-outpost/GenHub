@@ -231,7 +231,7 @@ public class VCRedist2008Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        return Task.FromResult(new ActionSetResult(true, null, ["Uninstalling runtime not supported automatically. Use Control Panel."]));
+        return Task.FromResult(new ActionSetResult(false, "Visual C++ 2008 Redistributable is a system runtime package and cannot be uninstalled automatically.", ["To uninstall, use Windows Settings > Installed Apps / Programs and Features."]));
     }
 
     private static bool IsProductInstalled(string productCode)

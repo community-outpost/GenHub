@@ -179,8 +179,57 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        logger.LogWarning("Undoing Start Menu Shortcuts Fix is not supported.");
-        return Task.FromResult(new ActionSetResult(true));
+        var details = new List<string>();
+        var commonPrograms = Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms);
+
+        try
+        {
+            if (installation.HasGenerals)
+            {
+                var folder = Path.Combine(commonPrograms, "Command and Conquer Generals");
+                var lnk = Path.Combine(folder, "Command & Conquer Generals Windowed.lnk");
+                if (File.Exists(lnk))
+                {
+                    File.Delete(lnk);
+                    details.Add("✓ Removed Generals windowed shortcut");
+                }
+
+                if (Directory.Exists(folder) && !Directory.EnumerateFileSystemEntries(folder).Any())
+                {
+                    Directory.Delete(folder);
+                }
+            }
+
+            if (installation.HasZeroHour)
+            {
+                var folder = Path.Combine(commonPrograms, "Command and Conquer Generals Zero Hour");
+                var lnk1 = Path.Combine(folder, "Command & Conquer Generals Zero Hour Windowed.lnk");
+                var lnk2 = Path.Combine(folder, "EdgeScroller.lnk");
+                if (File.Exists(lnk1))
+                {
+                    File.Delete(lnk1);
+                    details.Add("✓ Removed Zero Hour windowed shortcut");
+                }
+
+                if (File.Exists(lnk2))
+                {
+                    File.Delete(lnk2);
+                    details.Add("✓ Removed EdgeScroller shortcut");
+                }
+
+                if (Directory.Exists(folder) && !Directory.EnumerateFileSystemEntries(folder).Any())
+                {
+                    Directory.Delete(folder);
+                }
+            }
+
+            return Task.FromResult(new ActionSetResult(true, null, details));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error undoing Start Menu shortcuts fix");
+            return Task.FromResult(new ActionSetResult(false, ex.Message, details));
+        }
     }
 
     private bool DoShortcutsExist(GameInstallation installation)

@@ -131,8 +131,22 @@ public class TheFirstDecadeRegistryFix(
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        logger.LogWarning("Undoing TFD Registry Fix is not recommended as it may break game detection.");
-        return Task.FromResult(new ActionSetResult(true));
+        var details = new List<string>();
+
+        try
+        {
+            details.Add("Removing The First Decade registry entries...");
+            registryService.DeleteValue(RegistryConstants.TheFirstDecadeKeyPath, RegistryConstants.InstallPathValueName);
+            registryService.DeleteValue(RegistryConstants.TheFirstDecadeKeyPath, RegistryConstants.VersionValueName);
+            details.Add($"✓ Removed registry entries for HKLM\\{RegistryConstants.TheFirstDecadeKeyPath}");
+
+            return Task.FromResult(new ActionSetResult(true, null, details));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error undoing The First Decade registry fix");
+            return Task.FromResult(new ActionSetResult(false, ex.Message, details));
+        }
     }
 
     private string? FindTFDPath(string gamePath)

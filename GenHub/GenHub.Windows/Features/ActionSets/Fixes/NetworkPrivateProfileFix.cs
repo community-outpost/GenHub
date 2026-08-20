@@ -132,10 +132,54 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override async Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        logger.LogWarning("Network Private Profile Fix cannot be easily undone. Network profile must be manually changed through Windows Settings.");
-        return Task.FromResult(new ActionSetResult(true, null, ["To undo, manually change network profile in Windows Settings > Network & Internet > Network and Sharing Center"]));
+        var details = new List<string>();
+
+        try
+        {
+            details.Add("Reverting network profile to Public...");
+
+            var success = await Task.Run(
+                () =>
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = ProcessConstants.PowerShellExecutable,
+                    Arguments = "-WindowStyle Hidden -NonInteractive -Command \"Set-NetConnectionProfile -NetworkCategory Public\"",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                };
+
+                using var process = Process.Start(psi);
+                if (process != null)
+                {
+                    _ = process.StandardOutput.ReadToEnd();
+                    _ = process.StandardError.ReadToEnd();
+                    process.WaitForExit();
+                    return process.ExitCode == ProcessConstants.ExitCodeSuccess;
+                }
+
+                return false;
+            },
+                cancellationToken);
+
+            if (success)
+            {
+                details.Add("✓ Network connection profile reverted to Public");
+                return new ActionSetResult(true, null, details);
+            }
+
+            details.Add("✗ Failed to revert network connection profile");
+            return new ActionSetResult(false, "Failed to revert network connection profile", details);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error undoing network profile change");
+            return new ActionSetResult(false, ex.Message, details);
+        }
     }
 
     private List<string> GetNetworkProfiles()

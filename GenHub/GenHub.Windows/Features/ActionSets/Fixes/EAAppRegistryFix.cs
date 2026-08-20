@@ -207,8 +207,33 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
-        // Undoing registry fixes is tricky - usually we don't want to revert to a broken state.
-        return Task.FromResult(Success());
+        var details = new List<string>();
+
+        try
+        {
+            details.Add("Reverting EA App registry entries...");
+
+            if (installation.HasGenerals)
+            {
+                registryService.DeleteValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.InstallPathValueName);
+                registryService.DeleteValue(RegistryConstants.EAAppGeneralsKeyPath, RegistryConstants.VersionValueName);
+                details.Add($"✓ Removed EA App registry entries for Generals at {RegistryConstants.EAAppGeneralsKeyPath}");
+            }
+
+            if (installation.HasZeroHour)
+            {
+                registryService.DeleteValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.InstallPathValueName);
+                registryService.DeleteValue(RegistryConstants.EAAppZeroHourKeyPath, RegistryConstants.VersionValueName);
+                details.Add($"✓ Removed EA App registry entries for Zero Hour at {RegistryConstants.EAAppZeroHourKeyPath}");
+            }
+
+            return Task.FromResult(new ActionSetResult(true, null, details));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error undoing EA App registry fix");
+            return Task.FromResult(new ActionSetResult(false, ex.Message, details));
+        }
     }
 
     private bool IsGeneralsRegistryValid(GameInstallation installation)

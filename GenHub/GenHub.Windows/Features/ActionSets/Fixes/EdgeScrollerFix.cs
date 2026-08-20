@@ -123,10 +123,31 @@ public class EdgeScrollerFix(ILogger<EdgeScrollerFix> logger, IGameSettingsServi
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override async Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        logger.LogWarning("Undoing Edge Scrolling Fix is not supported via GenHub.");
-        return Task.FromResult(new ActionSetResult(true, null, ["Undo not supported for Edge Scrolling Fix."]));
+        var details = new List<string>();
+        var gamesToProcess = new List<GameType>();
+        if (installation.HasGenerals) gamesToProcess.Add(GameType.Generals);
+        if (installation.HasZeroHour) gamesToProcess.Add(GameType.ZeroHour);
+
+        foreach (var gameType in gamesToProcess)
+        {
+            var result = await gameSettingsService.LoadOptionsAsync(gameType);
+            if (result.Success && result.Data != null)
+            {
+                var options = result.Data;
+                if (options.AdditionalSections.TryGetValue(ActionSetConstants.IniFiles.TheSuperHackersSection, out var tshSection))
+                {
+                    tshSection.Remove(ActionSetConstants.IniFiles.ScrollEdgeZoneKey);
+                    tshSection.Remove(ActionSetConstants.IniFiles.ScrollEdgeSpeedKey);
+                    tshSection.Remove(ActionSetConstants.IniFiles.ScrollEdgeAccelerationKey);
+                    await gameSettingsService.SaveOptionsAsync(gameType, options);
+                    details.Add($"✓ Removed edge scrolling settings from Options.ini for {gameType}");
+                }
+            }
+        }
+
+        return new ActionSetResult(true, null, details);
     }
 
     private static bool IsEdgeScrollingOptimal(IniOptions options)

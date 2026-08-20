@@ -162,8 +162,8 @@ public class SerialKeyFix(
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        logger.LogWarning("Undoing Serial Key Fix is not supported.");
-        return Task.FromResult(new ActionSetResult(true));
+        logger.LogInformation("Undoing serial key generation is not supported as removing keys will prevent the game from starting.");
+        return Task.FromResult(new ActionSetResult(false, "Undoing serial key configuration is not supported as valid serial keys are required for game execution.", ["Valid serial keys remain in registry."]));
     }
 
     private static bool IsPlaceholder(string? serial)

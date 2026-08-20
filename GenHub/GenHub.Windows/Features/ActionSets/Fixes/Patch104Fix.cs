@@ -126,8 +126,7 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        logger.LogWarning("Uninstalling Zero Hour 1.04 patch is not supported via GenHub.");
-        return Task.FromResult(new ActionSetResult(true));
+        return Task.FromResult(new ActionSetResult(false, "Zero Hour 1.04 official patch executable cannot be automatically rolled back without base game archives. Please repair/re-verify files through your game launcher.", ["Official game patch binaries remain in place."]));
     }
 
     private async Task<(string DownloadPath, bool IsExe)> DownloadPatchAsync(List<string> details, CancellationToken cancellationToken)

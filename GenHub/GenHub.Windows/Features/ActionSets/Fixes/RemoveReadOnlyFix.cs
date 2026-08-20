@@ -227,8 +227,8 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        logger.LogWarning("Undoing Remove Read-Only Attributes is not supported via GenHub.");
-        return Task.FromResult(new ActionSetResult(true));
+        logger.LogInformation("Re-applying read-only attributes is not supported to ensure game and patch accessibility.");
+        return Task.FromResult(new ActionSetResult(false, "Re-applying read-only attributes is not supported as write access is required for game saves, settings, and mod updates.", ["Read-only attributes remain cleared."]));
     }
 
     private bool IsReadOnly(string path)

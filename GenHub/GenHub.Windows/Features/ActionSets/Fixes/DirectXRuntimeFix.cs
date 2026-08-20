@@ -140,8 +140,8 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        logger.LogWarning("Uninstalling DirectX Runtime is not supported via GenHub.");
-        return Task.FromResult(new ActionSetResult(true));
+        logger.LogInformation("DirectX Runtime is a core Windows component and cannot be uninstalled automatically.");
+        return Task.FromResult(new ActionSetResult(false, "DirectX Runtime is a system component that cannot be automatically uninstalled.", ["DirectX runtime components remain installed on the system."]));
     }
 
     private async Task<OperationResult<(bool IsExe, string DownloadPath)>> DownloadAndValidateAsync(
