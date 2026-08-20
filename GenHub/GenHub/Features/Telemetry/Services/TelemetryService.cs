@@ -231,7 +231,14 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
         try
         {
             var tasks = _sinks.Select(sink => sink.FlushAsync(cancellationToken));
-            await Task.WhenAll(tasks);
+            var results = await Task.WhenAll(tasks);
+            var failures = results.Where(r => !r.Success).ToList();
+            if (failures.Count > 0)
+            {
+                var errors = string.Join("; ", failures.Select(r => r.ErrorMessage ?? "Sink flush failed"));
+                return OperationResult<bool>.CreateFailure(errors);
+            }
+
             return OperationResult<bool>.CreateSuccess(true);
         }
         catch (Exception ex)
@@ -303,6 +310,7 @@ public sealed class TelemetryService : ITelemetryService, IAsyncDisposable, IDis
 
             var newId = Guid.NewGuid().ToString("N");
             _userSettingsService.Update(s => s.AnonymousInstallationId = newId);
+            _ = _userSettingsService.SaveAsync(CancellationToken.None);
             return newId;
         }
         catch
