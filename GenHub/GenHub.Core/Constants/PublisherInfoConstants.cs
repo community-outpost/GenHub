@@ -286,7 +286,16 @@ public static class PublisherInfoConstants
     /// <returns>An avares:// URI string pointing to the logo image asset, or null if unmapped.</returns>
     public static string? GetPublisherLogo(string? publisherIdOrName, string? contentIdOrName = null)
     {
-        return MatchLogo(publisherIdOrName) ?? MatchLogo(contentIdOrName);
+        var primary = MatchLogo(publisherIdOrName);
+        var secondary = MatchLogo(contentIdOrName);
+
+        // If primary matched generic GitHub, but secondary matched a specific publisher, prefer the specific publisher
+        if (primary == GitHub.LogoSource && secondary != null && secondary != GitHub.LogoSource)
+        {
+            return secondary;
+        }
+
+        return primary ?? secondary;
     }
 
     private static string? MatchLogo(string? input)

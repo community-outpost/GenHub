@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
@@ -21,7 +22,7 @@ namespace GenHub.Features.Content.Services.GitHub;
 /// Discovers content from GitHub releases.
 /// Optimized to minimize API calls by loading only the latest release by default.
 /// </summary>
-public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<GitHubReleasesDiscoverer> logger, IConfigurationProviderService configurationProvider) : IContentDiscoverer
+public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<GitHubReleasesDiscoverer> logger, IConfigurationProviderService configurationProvider) : IContentDiscoverer
 {
     /// <inheritdoc />
     public string SourceName => ContentSourceNames.GitHubDiscoverer;
@@ -123,6 +124,28 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
             });
     }
 
+    private static bool IsPureVersionString(string? text, string? tagName)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return true;
+        }
+
+        var trimmed = text.Trim();
+        if (!string.IsNullOrWhiteSpace(tagName) &&
+            (trimmed.Equals(tagName.Trim(), StringComparison.OrdinalIgnoreCase) ||
+             trimmed.Equals($"v{tagName.Trim()}", StringComparison.OrdinalIgnoreCase) ||
+             trimmed.TrimStart('v', 'V').Equals(tagName.Trim().TrimStart('v', 'V'), StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        return VersionPatternRegex().IsMatch(trimmed);
+    }
+
+    [GeneratedRegex(@"^v?\d+(\.\d+)*(-[a-zA-Z0-9\.\-_]+)?$", RegexOptions.CultureInvariant)]
+    private static partial Regex VersionPatternRegex();
+
     /// <summary>
     /// Builds a single SuperHackers game-client variant card. TheSuperHackers releases contain both
     /// a Generals and a Zero Hour executable; one card is emitted per game type so each variant has
@@ -159,17 +182,17 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
             Name = $"{baseName} — {gameDisplayName}",
             Description = string.IsNullOrEmpty(release.Body)
                 ? $"{gameDisplayName} game client from TheSuperHackers."
-                : ReleaseDescriptionHelper.ToSummary(release.Body),
+                : ReleaseDescriptionHelper.ToFormattedText(release.Body),
             Version = release.TagName.TrimStart('v', 'V'),
-            AuthorName = release.Author,
+            AuthorName = !string.IsNullOrWhiteSpace(release.Author) ? release.Author : SuperHackersConstants.PublisherName,
             ContentType = ContentType.GameClient,
             TargetGame = gameType,
             IsInferred = false,
-            ProviderName = ContentSourceNames.GitHubDiscoverer,
+            ProviderName = PublisherTypeConstants.TheSuperHackers,
             RequiresResolution = true,
             ResolverId = ContentSourceNames.GitHubResolverId,
             SourceUrl = release.HtmlUrl,
-            IconUrl = "avares://GenHub/Assets/Logos/thesuperhackers-logo.png",
+            IconUrl = PublisherInfoConstants.TheSuperHackers.LogoSource,
             LastUpdated = release.PublishedAt?.DateTime ?? release.CreatedAt.DateTime,
             DownloadSize = totalSize,
             ResolverMetadata =
@@ -267,20 +290,54 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
             isGameInferred = nameInference.IsInferred;
         }
 
-        var baseName = release.Name ?? $"{repo} {release.TagName}";
+        var isSuperHackers = owner.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
+                             owner.Equals(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase);
+
         var isSuperHackersGameClient = contentType == ContentType.GameClient
             && !isTypeInferred
-            && owner.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase);
+            && isSuperHackers;
 
         if (isSuperHackersGameClient)
         {
+            var baseName = release.Name ?? $"{repo} {release.TagName}";
             var variantGroupId = $"{owner}.{ContentType.GameClient.ToString().ToLowerInvariant()}.{release.TagName}";
             results.Add(BuildSuperHackersVariantCard(owner, repo, release, baseName, totalSize, variantCount, GameType.Generals, SuperHackersConstants.GeneralsDisplayName, variantGroupId));
             results.Add(BuildSuperHackersVariantCard(owner, repo, release, baseName, totalSize, variantCount, GameType.ZeroHour, SuperHackersConstants.ZeroHourDisplayName, variantGroupId));
         }
         else
         {
-            results.Add(BuildStandardSearchResult(release, owner, repo, baseName, contentType, gameType, isTypeInferred, isGameInferred, totalSize, variantCount));
+            string cardName;
+            string providerName;
+            string iconUrl;
+
+            if (isSuperHackers)
+            {
+                providerName = PublisherTypeConstants.TheSuperHackers;
+                iconUrl = PublisherInfoConstants.TheSuperHackers.LogoSource;
+
+                if (repo.Equals(SuperHackersConstants.GeneralsGamePatch2Repo, StringComparison.OrdinalIgnoreCase))
+                {
+                    cardName = IsPureVersionString(release.Name, release.TagName)
+                        ? SuperHackersConstants.GeneralsGamePatch2DisplayName
+                        : release.Name!;
+                }
+                else
+                {
+                    cardName = IsPureVersionString(release.Name, release.TagName)
+                        ? $"{repo} {release.TagName}"
+                        : (release.Name ?? $"{repo} {release.TagName}");
+                }
+            }
+            else
+            {
+                providerName = SourceName;
+                iconUrl = PublisherInfoConstants.GetPublisherLogo(owner, repo) ?? PublisherInfoConstants.GitHub.LogoSource;
+                cardName = IsPureVersionString(release.Name, release.TagName)
+                    ? $"{repo} {release.TagName}"
+                    : (release.Name ?? $"{repo} {release.TagName}");
+            }
+
+            results.Add(BuildStandardSearchResult(release, owner, repo, cardName, contentType, gameType, isTypeInferred, isGameInferred, totalSize, variantCount, providerName, iconUrl));
         }
     }
 
@@ -294,7 +351,9 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
         bool isTypeInferred,
         bool isGameInferred,
         long totalSize,
-        int variantCount)
+        int variantCount,
+        string providerName,
+        string iconUrl)
     {
         return new ContentSearchResult
         {
@@ -302,17 +361,17 @@ public class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILogger<Git
             Name = baseName,
             Description = string.IsNullOrEmpty(release.Body)
                 ? "GitHub release - full details available after resolution"
-                : ReleaseDescriptionHelper.ToSummary(release.Body),
+                : ReleaseDescriptionHelper.ToFormattedText(release.Body),
             Version = release.TagName.TrimStart('v', 'V'),
             AuthorName = release.Author,
             ContentType = contentType,
             TargetGame = gameType,
             IsInferred = isTypeInferred || isGameInferred,
-            ProviderName = SourceName,
+            ProviderName = providerName,
             RequiresResolution = true,
             ResolverId = ContentSourceNames.GitHubResolverId,
             SourceUrl = release.HtmlUrl,
-            IconUrl = PublisherInfoConstants.GitHub.LogoSource,
+            IconUrl = iconUrl,
             LastUpdated = release.PublishedAt?.DateTime ?? release.CreatedAt.DateTime,
             DownloadSize = totalSize,
             ResolverMetadata =

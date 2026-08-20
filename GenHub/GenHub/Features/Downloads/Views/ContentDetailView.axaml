@@ -157,6 +157,7 @@
                         <SolidColorBrush x:Key="TabItemHeaderForegroundSelectedPointerOver" Color="#FFFFFF" />
                         <SolidColorBrush x:Key="TabItemHeaderBackgroundUnselectedPointerOver" Color="Transparent" />
                         <SolidColorBrush x:Key="TabItemHeaderBackgroundSelectedPointerOver" Color="Transparent" />
+                        <SolidColorBrush x:Key="TabItemHeaderSelectedPipeFill" Color="Transparent" />
                     </TabControl.Resources>
                     <TabControl.Styles>
                         <Style Selector="TabItem">
@@ -167,6 +168,13 @@
                             <Setter Property="Margin" Value="0,0,16,0" />
                             <Setter Property="Padding" Value="8,12,8,14" />
                             <Setter Property="Cursor" Value="Arrow" />
+                        </Style>
+                        <!-- Hide the default Fluent selected pipe indicator so only the bottom border bar is shown -->
+                        <Style Selector="TabItem /template/ Border#PART_SelectedPipe">
+                            <Setter Property="IsVisible" Value="False" />
+                        </Style>
+                        <Style Selector="TabItem:selected /template/ Border#PART_SelectedPipe">
+                            <Setter Property="IsVisible" Value="False" />
                         </Style>
                         <!-- Neutralize the Fluent theme's accent hover on the header content. -->
                         <Style Selector="TabItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">

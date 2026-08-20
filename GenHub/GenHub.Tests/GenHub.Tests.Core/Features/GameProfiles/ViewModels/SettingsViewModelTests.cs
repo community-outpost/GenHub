@@ -701,6 +701,79 @@ public class SettingsViewModelTests
         Assert.Null(capturedSessionKey);
     }
 
+    /// <summary>
+    /// Verifies that ClearLogsCommand clears log files and shows success notification.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ClearLogsCommand_WhenLogsDirectoryHasFiles_ClearsFilesAndShowsSuccessAsync()
+    {
+        // Arrange
+        var tempLogsDir = Path.Combine(Path.GetTempPath(), "GenHubTestLogs_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempLogsDir);
+
+        try
+        {
+            var logFile1 = Path.Combine(tempLogsDir, "genhub-2026-08-19.log");
+            var logFile2 = Path.Combine(tempLogsDir, "genhub-2026-08-20.log");
+            await File.WriteAllTextAsync(logFile1, "Sample log content 1");
+            await File.WriteAllTextAsync(logFile2, "Sample log content 2");
+
+            _mockConfigurationProvider.Setup(x => x.GetLogsPath()).Returns(tempLogsDir);
+            var viewModel = CreateViewModel();
+
+            // Act
+            await viewModel.ClearLogsCommand.ExecuteAsync(null);
+
+            // Assert
+            Assert.False(File.Exists(logFile1));
+            Assert.False(File.Exists(logFile2));
+            _mockNotificationService.Verify(
+                x => x.ShowSuccess("Logs Cleared", It.Is<string>(s => s.Contains("2 log file(s)")), It.IsAny<int?>(), It.IsAny<bool>()),
+                Times.Once);
+        }
+        finally
+        {
+            if (Directory.Exists(tempLogsDir))
+            {
+                Directory.Delete(tempLogsDir, recursive: true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Verifies that ClearLogsCommand shows info notification when no log files exist.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ClearLogsCommand_WhenNoLogFiles_ShowsInfoNotificationAsync()
+    {
+        // Arrange
+        var tempLogsDir = Path.Combine(Path.GetTempPath(), "GenHubTestLogsEmpty_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempLogsDir);
+
+        try
+        {
+            _mockConfigurationProvider.Setup(x => x.GetLogsPath()).Returns(tempLogsDir);
+            var viewModel = CreateViewModel();
+
+            // Act
+            await viewModel.ClearLogsCommand.ExecuteAsync(null);
+
+            // Assert
+            _mockNotificationService.Verify(
+                x => x.ShowInfo("Logs Empty", It.IsAny<string>(), It.IsAny<int?>(), It.IsAny<bool>()),
+                Times.Once);
+        }
+        finally
+        {
+            if (Directory.Exists(tempLogsDir))
+            {
+                Directory.Delete(tempLogsDir, recursive: true);
+            }
+        }
+    }
+
     private void SetupDeletableData()
     {
         _mockProfileManager

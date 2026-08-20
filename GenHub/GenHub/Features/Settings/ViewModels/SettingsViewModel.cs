@@ -1754,6 +1754,80 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
+    private async Task ClearLogs()
+    {
+        try
+        {
+            var logsPath = _configurationProvider.GetLogsPath();
+            _logger.LogInformation("Clearing logs from: {Path}", logsPath);
+
+            if (string.IsNullOrWhiteSpace(logsPath) || !Directory.Exists(logsPath))
+            {
+                _notificationService.ShowInfo("Logs Empty", "No logs directory found.", 3000);
+                return;
+            }
+
+            var deletedCount = 0;
+            var lockedCount = 0;
+            long freedBytes = 0;
+
+            await Task.Run(() =>
+            {
+                var files = Directory.GetFiles(logsPath, "*.log", SearchOption.TopDirectoryOnly);
+                foreach (var file in files)
+                {
+                    try
+                    {
+                        var info = new FileInfo(file);
+                        var length = info.Length;
+
+                        try
+                        {
+                            File.Delete(file);
+                            deletedCount++;
+                            freedBytes += length;
+                        }
+                        catch (IOException)
+                        {
+                            // File is likely locked by the active logging sink. Truncate it to clear contents.
+                            using var stream = new FileStream(file, FileMode.Truncate, FileAccess.Write, FileShare.ReadWrite);
+                            stream.Flush();
+                            deletedCount++;
+                            freedBytes += length;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        lockedCount++;
+                        _logger.LogWarning(ex, "Could not clear log file: {File}", file);
+                    }
+                }
+            });
+
+            if (deletedCount == 0 && lockedCount == 0)
+            {
+                _notificationService.ShowInfo("Logs Empty", "No log files found to clear.", 3000);
+            }
+            else if (lockedCount > 0 && deletedCount == 0)
+            {
+                _notificationService.ShowError("Error", "Could not clear active log files (files in use).", 3000);
+            }
+            else
+            {
+                var freedMb = freedBytes / (1024.0 * 1024.0);
+                var sizeText = freedMb >= 0.1 ? $" ({freedMb:F1} MB freed)" : string.Empty;
+                _notificationService.ShowSuccess("Logs Cleared", $"Successfully cleared {deletedCount} log file(s){sizeText}.", 3000);
+                _logger.LogInformation("Cleared {Count} log files ({Bytes} bytes freed)", deletedCount, freedBytes);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to clear logs");
+            _notificationService.ShowError("Error", $"Failed to clear logs: {ex.Message}", 5000);
+        }
+    }
+
+    [RelayCommand]
     private async Task LoadSubscriptionsAsync()
     {
         try
