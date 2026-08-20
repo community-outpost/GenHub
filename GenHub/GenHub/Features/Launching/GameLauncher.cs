@@ -1412,10 +1412,23 @@ public class GameLauncher(
             }
             else
             {
-                logger.LogWarning(
-                    "[GameLauncher] Could not resolve source path for manifest {ManifestId} ({ContentType})",
-                    manifest.Id.Value,
-                    manifest.ContentType);
+                bool isCasBacked = manifest.Files is { Count: > 0 } &&
+                    manifest.Files.All(f => f.SourceType == ContentSourceType.ContentAddressable || !string.IsNullOrEmpty(f.Hash));
+
+                if (isCasBacked)
+                {
+                    logger.LogDebug(
+                        "[GameLauncher] Source path for CAS-backed manifest {ManifestId} ({ContentType}) is managed by CAS pool",
+                        manifest.Id.Value,
+                        manifest.ContentType);
+                }
+                else
+                {
+                    logger.LogWarning(
+                        "[GameLauncher] Could not resolve source path for manifest {ManifestId} ({ContentType})",
+                        manifest.Id.Value,
+                        manifest.ContentType);
+                }
             }
         }
 

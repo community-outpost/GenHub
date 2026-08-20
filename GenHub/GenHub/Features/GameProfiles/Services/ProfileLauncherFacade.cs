@@ -685,12 +685,12 @@ public class ProfileLauncherFacade(
 
         var (hasGameInstallationManifest, hasGameClientManifest, manifests) = await CollectValidationManifestsAsync(profile, cancellationToken);
 
-        if (!hasGameInstallationManifest)
+        if (!hasGameInstallationManifest && string.IsNullOrWhiteSpace(profile.GameInstallationId))
         {
             errors.Add(Core.Constants.ProfileValidationConstants.MissingGameInstallation);
         }
 
-        if (!hasGameClientManifest && string.IsNullOrWhiteSpace(profile.ToolContentId))
+        if (!hasGameClientManifest && string.IsNullOrWhiteSpace(profile.ToolContentId) && profile.GameClient == null)
         {
             errors.Add(Core.Constants.ProfileValidationConstants.MissingGameClient);
         }
@@ -760,6 +760,44 @@ public class ProfileLauncherFacade(
             catch (ArgumentException ex)
             {
                 logger.LogWarning(ex, "Skipping invalid manifest ID during validation: {ContentId}", contentId);
+            }
+        }
+
+        if (!hasGameInstallationManifest && !string.IsNullOrWhiteSpace(profile.GameInstallationId))
+        {
+            if (ManifestId.TryCreate(profile.GameInstallationId, out var installManifestId))
+            {
+                var installResult = await manifestPool.GetManifestAsync(installManifestId, cancellationToken);
+                if (installResult.Success && installResult.Data != null)
+                {
+                    if (!manifests.Any(m => m.Id == installManifestId))
+                    {
+                        manifests.Add(installResult.Data);
+                    }
+
+                    hasGameInstallationManifest = true;
+                }
+            }
+        }
+
+        if (!hasGameClientManifest && profile.GameClient != null && !string.IsNullOrEmpty(profile.GameClient.Id))
+        {
+            if (ManifestId.TryCreate(profile.GameClient.Id, out var clientManifestId))
+            {
+                var clientResult = await manifestPool.GetManifestAsync(clientManifestId, cancellationToken);
+                if (clientResult.Success && clientResult.Data != null)
+                {
+                    if (!manifests.Any(m => m.Id == clientManifestId))
+                    {
+                        manifests.Add(clientResult.Data);
+                    }
+
+                    hasGameClientManifest = true;
+                }
+            }
+            else
+            {
+                hasGameClientManifest = true;
             }
         }
 
@@ -1008,7 +1046,7 @@ public class ProfileLauncherFacade(
             else
             {
                 bool isCasBacked = manifest.Files is { Count: > 0 } &&
-                    manifest.Files.All(f => f.SourceType == ContentSourceType.ContentAddressable);
+                    manifest.Files.All(f => f.SourceType == ContentSourceType.ContentAddressable || !string.IsNullOrEmpty(f.Hash));
 
                 if (isCasBacked)
                 {

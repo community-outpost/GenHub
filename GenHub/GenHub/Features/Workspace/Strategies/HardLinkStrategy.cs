@@ -130,7 +130,11 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
 
                 try
                 {
-                    if (file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
+                    if ((file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable ||
+                         (!string.IsNullOrEmpty(file.Hash) &&
+                          file.SourceType != Core.Models.Enums.ContentSourceType.GameInstallation &&
+                          file.SourceType != Core.Models.Enums.ContentSourceType.LocalFile)) &&
+                        !string.IsNullOrEmpty(file.Hash))
                     {
                         var (hardLinked, bytes) = await ProcessCasFileAsync(file, manifest, destinationPath, sameVolume, cancellationToken);
                         if (hardLinked)

@@ -39,4 +39,9 @@ public class UserDataIndex
     /// Enables quick lookup of all profiles using a manifest.
     /// </summary>
     public Dictionary<string, List<string>> ManifestInstallations { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets the ID of the currently active profile whose user data is materialized.
+    /// </summary>
+    public string? ActiveProfileId { get; set; }
 }

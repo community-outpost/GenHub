@@ -148,6 +148,15 @@ public class ProfileContentLinkerService(
         bool skipCleanup = false,
         CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrEmpty(oldProfileId))
+        {
+            var activeProfileResult = await userDataTracker.GetActiveProfileIdAsync(cancellationToken);
+            if (activeProfileResult.Success && !string.IsNullOrEmpty(activeProfileResult.Data))
+            {
+                oldProfileId = activeProfileResult.Data;
+            }
+        }
+
         logger.LogInformation(
             "[ProfileContentLinker] Switching user data from profile {OldProfileId} to {NewProfileId} (skipCleanup: {SkipCleanup})",
             oldProfileId ?? "(none)",

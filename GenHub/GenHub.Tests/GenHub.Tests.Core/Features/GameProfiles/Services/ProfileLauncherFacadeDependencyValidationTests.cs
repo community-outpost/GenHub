@@ -305,6 +305,72 @@ public sealed class ProfileLauncherFacadeDependencyValidationTests
         Assert.Contains(result.Errors, err => err.Contains("GenTool"));
     }
 
+    /// <summary>
+    /// Verifies that when a profile has GameClient configured in its GameClient property but omitted from EnabledContentIds, launch validation resolves it and passes.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ValidateLaunchAsync_WhenGameClientOnlyInProfileGameClientProperty_PassesValidationAsync()
+    {
+        // Arrange
+        const string profileId = "profile-gameclient-prop-test";
+        const string installationManifestId = "1.104.steam.gameinstallation.zerohour";
+        const string clientManifestId = "1.104.steam.gameclient.zerohour";
+
+        var installationManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(installationManifestId),
+            Name = "Steam Zero Hour",
+            ContentType = ContentType.GameInstallation,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var clientManifest = new ContentManifest
+        {
+            Id = ManifestId.Create(clientManifestId),
+            Name = "Steam Zero Hour Client",
+            ContentType = ContentType.GameClient,
+            TargetGame = GameType.ZeroHour,
+        };
+
+        var profile = new GameProfile
+        {
+            Id = profileId,
+            Name = "ZH Profile",
+            GameInstallationId = "steam-zh-install-id",
+            GameClient = new GameClient
+            {
+                Id = clientManifestId,
+                Name = clientManifest.Name,
+                GameType = GameType.ZeroHour,
+                InstallationId = "steam-zh-install-id",
+            },
+            EnabledContentIds =
+            [
+                installationManifestId,
+            ],
+        };
+
+        _profileManagerMock
+            .Setup(p => p.GetProfileAsync(profileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(installationManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(installationManifest));
+        _manifestPoolMock
+            .Setup(m => m.GetManifestAsync(ManifestId.Create(clientManifestId), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(clientManifest));
+
+        var facade = CreateFacade();
+
+        // Act
+        var result = await facade.ValidateLaunchAsync(profileId);
+
+        // Assert: Validation succeeds because GameClient is resolved from profile.GameClient
+        Assert.True(result.Success);
+    }
+
     private ProfileLauncherFacade CreateFacade()
     {
         return new ProfileLauncherFacade(

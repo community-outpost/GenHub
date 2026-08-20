@@ -362,6 +362,21 @@ public partial class GameProfileSettingsViewModel
 
             var enabledContentIds = EnabledContent.Where(c => c.IsEnabled).Select(c => c.ManifestId.Value).ToList();
 
+            if (SelectedGameInstallation != null)
+            {
+                if (!string.IsNullOrEmpty(SelectedGameInstallation.GameClientId) &&
+                    !enabledContentIds.Contains(SelectedGameInstallation.GameClientId, StringComparer.OrdinalIgnoreCase))
+                {
+                    enabledContentIds.Add(SelectedGameInstallation.GameClientId);
+                }
+
+                if (!string.IsNullOrEmpty(SelectedGameInstallation.ManifestId.Value) &&
+                    !enabledContentIds.Contains(SelectedGameInstallation.ManifestId.Value, StringComparer.OrdinalIgnoreCase))
+                {
+                    enabledContentIds.Add(SelectedGameInstallation.ManifestId.Value);
+                }
+            }
+
             if (_manifestPool != null)
             {
                 var validationErrors = await ValidateAllDependenciesAsync(enabledContentIds);

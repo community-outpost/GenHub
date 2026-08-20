@@ -965,4 +965,99 @@ public sealed class UserDataTrackerServiceTests : IDisposable
         Assert.True(conflictResult.Success);
         Assert.Null(conflictResult.Data);
     }
+
+    /// <summary>
+    /// Verifies that multiple profiles can install the same map pack / user data manifest without encountering a conflict.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task InstallUserDataAsync_WhenMultipleProfilesUseSameManifestConcurrently_SucceedsWithoutConflictAsync()
+    {
+        // Arrange
+        var gameDataDir = Path.Combine(_zeroHourDataDir, "Maps", "Arabia v2");
+        Directory.CreateDirectory(gameDataDir);
+
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "Maps/Arabia v2/AdrianeMapSettings.ini",
+                Hash = "hash-map-settings-shared",
+                Size = 500,
+                InstallTarget = ContentInstallTarget.UserDataDirectory,
+            },
+        };
+
+        // 1. Profile A installs the map pack (and remains active)
+        var installA = await _trackerService.InstallUserDataAsync(
+            "1.813263.generalsonline.mappack.quickmatchmaps",
+            "42b186b61cc8471583f6ca18c49ddd7c",
+            GameType.ZeroHour,
+            files,
+            "1.0",
+            "QuickMatch Maps",
+            CancellationToken.None);
+
+        Assert.True(installA.Success);
+
+        // 2. Profile B installs the same map pack without prior deactivation of Profile A
+        var installB = await _trackerService.InstallUserDataAsync(
+            "1.813263.generalsonline.mappack.quickmatchmaps",
+            "964412add8364ac5bf266568e32e45e4",
+            GameType.ZeroHour,
+            files,
+            "1.0",
+            "QuickMatch Maps",
+            CancellationToken.None);
+
+        // Assert: Both installations succeed without file conflict
+        Assert.True(installB.Success);
+        Assert.NotNull(installB.Data);
+        Assert.Single(installB.Data.InstalledFiles);
+    }
+
+    /// <summary>
+    /// Verifies that activating and deactivating profile user data tracks the active profile ID.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ActivateAndDeactivateProfileUserDataAsync_TracksActiveProfileIdAsync()
+    {
+        // Arrange
+        var files = new List<ManifestFile>
+        {
+            new()
+            {
+                RelativePath = "Maps/ActiveTrackingTest/map.ini",
+                Hash = "hash-active-track",
+                Size = 250,
+                InstallTarget = ContentInstallTarget.UserDataDirectory,
+            },
+        };
+
+        await _trackerService.InstallUserDataAsync(
+            "track-manifest",
+            "profile-active-track",
+            GameType.ZeroHour,
+            files,
+            "1.0",
+            "Track Manifest",
+            CancellationToken.None);
+
+        // Act & Assert 1: Activate profile
+        var activateResult = await _trackerService.ActivateProfileUserDataAsync("profile-active-track", CancellationToken.None);
+        Assert.True(activateResult.Success);
+
+        var activeIdResult1 = await _trackerService.GetActiveProfileIdAsync(CancellationToken.None);
+        Assert.True(activeIdResult1.Success);
+        Assert.Equal("profile-active-track", activeIdResult1.Data);
+
+        // Act & Assert 2: Deactivate profile
+        var deactivateResult = await _trackerService.DeactivateProfileUserDataAsync("profile-active-track", CancellationToken.None);
+        Assert.True(deactivateResult.Success);
+
+        var activeIdResult2 = await _trackerService.GetActiveProfileIdAsync(CancellationToken.None);
+        Assert.True(activeIdResult2.Success);
+        Assert.Null(activeIdResult2.Data);
+    }
 }

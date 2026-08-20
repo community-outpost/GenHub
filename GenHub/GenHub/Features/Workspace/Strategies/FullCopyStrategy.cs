@@ -156,7 +156,11 @@ public sealed class FullCopyStrategy(
 
                         try
                         {
-                            if (item.File.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(item.File.Hash))
+                            if ((item.File.SourceType == ContentSourceType.ContentAddressable ||
+                                 (!string.IsNullOrEmpty(item.File.Hash) &&
+                                  item.File.SourceType != ContentSourceType.GameInstallation &&
+                                  item.File.SourceType != ContentSourceType.LocalFile)) &&
+                                !string.IsNullOrEmpty(item.File.Hash))
                             {
                                 // Use CAS content
                                 await CreateCasLinkAsync(item.File.Hash, destinationPath, item.Manifest.ContentType, ct);

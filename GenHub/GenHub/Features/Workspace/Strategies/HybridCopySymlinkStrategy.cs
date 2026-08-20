@@ -122,7 +122,11 @@ public sealed class HybridCopySymlinkStrategy(IFileOperationsService fileOperati
 
                     try
                     {
-                        if (file.SourceType == ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
+                        if ((file.SourceType == ContentSourceType.ContentAddressable ||
+                             (!string.IsNullOrEmpty(file.Hash) &&
+                              file.SourceType != ContentSourceType.GameInstallation &&
+                              file.SourceType != ContentSourceType.LocalFile)) &&
+                            !string.IsNullOrEmpty(file.Hash))
                         {
                             if (isEssential)
                             {
