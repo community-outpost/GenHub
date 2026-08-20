@@ -50,8 +50,8 @@ public class ProxyLauncher(ILogger<ProxyLauncher> logger) : BaseActionSet(logger
     public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
         var isSteam = installation.InstallationType == GameInstallationType.Steam ||
-                      (installation.GeneralsPath?.Contains("steamapps", StringComparison.OrdinalIgnoreCase) ?? false) ||
-                      (installation.ZeroHourPath?.Contains("steamapps", StringComparison.OrdinalIgnoreCase) ?? false);
+                      (!string.IsNullOrEmpty(installation.GeneralsPath) && installation.GeneralsPath.Contains("steamapps", StringComparison.OrdinalIgnoreCase)) ||
+                      (!string.IsNullOrEmpty(installation.ZeroHourPath) && installation.ZeroHourPath.Contains("steamapps", StringComparison.OrdinalIgnoreCase));
 
         return Task.FromResult(isSteam || installation.HasGenerals || installation.HasZeroHour);
     }
@@ -79,9 +79,14 @@ public class ProxyLauncher(ILogger<ProxyLauncher> logger) : BaseActionSet(logger
 
             return Task.FromResult(false);
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             logger.LogError(ex, "Error checking proxy launcher status");
+            return Task.FromResult(false);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogError(ex, "Permission error checking proxy launcher status");
             return Task.FromResult(false);
         }
     }

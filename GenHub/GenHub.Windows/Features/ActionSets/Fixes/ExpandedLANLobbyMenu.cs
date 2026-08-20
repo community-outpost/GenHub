@@ -65,27 +65,30 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
                 return Task.FromResult(true);
             }
 
-            if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
+            if (installation.HasZeroHour &&
+                !string.IsNullOrEmpty(installation.ZeroHourPath) &&
+                KnownMenuBigFiles.Any(f => File.Exists(Path.Combine(installation.ZeroHourPath, f))))
             {
-                if (KnownMenuBigFiles.Any(f => File.Exists(Path.Combine(installation.ZeroHourPath, f))))
-                {
-                    return Task.FromResult(true);
-                }
+                return Task.FromResult(true);
             }
 
-            if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
+            if (installation.HasGenerals &&
+                !string.IsNullOrEmpty(installation.GeneralsPath) &&
+                KnownMenuBigFiles.Any(f => File.Exists(Path.Combine(installation.GeneralsPath, f))))
             {
-                if (KnownMenuBigFiles.Any(f => File.Exists(Path.Combine(installation.GeneralsPath, f))))
-                {
-                    return Task.FromResult(true);
-                }
+                return Task.FromResult(true);
             }
 
             return Task.FromResult(false);
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             logger.LogError(ex, "Error checking LAN lobby menu status");
+            return Task.FromResult(false);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogError(ex, "Permission error checking LAN lobby menu status");
             return Task.FromResult(false);
         }
     }
