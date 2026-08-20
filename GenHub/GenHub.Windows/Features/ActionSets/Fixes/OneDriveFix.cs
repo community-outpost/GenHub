@@ -383,6 +383,12 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
             TryRestoreArchive(currentCloudArchive, cloudPath, details);
             throw;
         }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Unexpected error processing folder {LocalPath}", localPath);
+            TryRestoreArchive(currentCloudArchive, cloudPath, details);
+            throw;
+        }
     }
 
     private void TryRestoreArchive(string? currentCloudArchive, string cloudPath, List<string> details)

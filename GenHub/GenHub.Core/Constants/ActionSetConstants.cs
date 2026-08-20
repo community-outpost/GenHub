@@ -274,7 +274,7 @@ public static class ActionSetConstants
         public const string UnappliedBackground = "#22FFC107";
 
         /// <summary>Hex background color for not applicable state badge.</summary>
-        public const string NotApplicableBackground = "#15FFFFFF";
+        public const string NotApplicableBackground = "#156c757d";
 
         /// <summary>Hex border color for applied state badge.</summary>
         public const string AppliedBorder = "#4428A745";
@@ -283,7 +283,7 @@ public static class ActionSetConstants
         public const string UnappliedBorder = "#44FFC107";
 
         /// <summary>Hex border color for not applicable state badge.</summary>
-        public const string NotApplicableBorder = "#25FFFFFF";
+        public const string NotApplicableBorder = "#256c757d";
     }
 
     /// <summary>
@@ -351,5 +351,15 @@ public static class ActionSetConstants
         /// Gets the pinned SHA-256 hash for the GenTool d3d8.dll binary.
         /// </summary>
         public const string GenToolD3D8DllSha256 = "be5276180d04b3de9abd20aeaf2c1f65a2b65c800233ce49d5e77f1ab42441f7";
+
+        /// <summary>
+        /// Gets the pinned SHA-256 hash for the Expanded LAN Lobby / Custom Windows cbbs.dat package.
+        /// </summary>
+        public const string ExpandedLANLobbySha256 = "41f4c65c89bfae958d593a841b7f77aa6737cd12f810f5a3903a0a4cd6f7482d";
+
+        /// <summary>
+        /// Gets the pinned SHA-256 hash for the High-Definition Icons icon.dat package.
+        /// </summary>
+        public const string HDIconsSha256 = "1e47873c38fc25f6a085255ab56e40ef4970ed1aa838cd8b7495aaf6aec29843";
     }
 }

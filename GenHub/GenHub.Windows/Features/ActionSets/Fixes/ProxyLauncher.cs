@@ -21,7 +21,6 @@ using Microsoft.Extensions.Logging;
 public class ProxyLauncher(ILogger<ProxyLauncher> logger) : BaseActionSet(logger)
 {
     private const string ProxyLauncherFileName = SteamConstants.ProxyLauncherFileName;
-    private const string ProxyBackupExtension = ".ghbak";
 
     private readonly string _markerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", ActionSetConstants.Paths.SubActionSetMarkers, "ProxyLauncher.done");
 
@@ -194,13 +193,10 @@ public class ProxyLauncher(ILogger<ProxyLauncher> logger) : BaseActionSet(logger
                     restoredCount++;
                 }
 
-                var backupExe = Path.Combine(dir, ActionSetConstants.FileNames.GeneralsExe + ProxyBackupExtension);
-                var originalExe = Path.Combine(dir, ActionSetConstants.FileNames.GeneralsExe);
-                if (File.Exists(backupExe))
+                var proxyConfig = Path.Combine(dir, Path.ChangeExtension(ProxyLauncherFileName, ".runtimeconfig.json"));
+                if (File.Exists(proxyConfig))
                 {
-                    File.Copy(backupExe, originalExe, overwrite: true);
-                    File.Delete(backupExe);
-                    restoredCount++;
+                    File.Delete(proxyConfig);
                 }
             }
         }

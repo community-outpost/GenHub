@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
+using GenHub.Core.Helpers;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
 using SharpCompress.Archives;
@@ -122,6 +123,19 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
                 return new ActionSetResult(false, "Failed to download High-Definition Icons from all available mirrors.", details);
             }
 
+            var validation = await DownloadSecurityValidator.ValidateFileAsync(
+                tempFile,
+                allowedSha256Hashes: [ActionSetConstants.Security.HDIconsSha256],
+                ct: cancellationToken);
+
+            if (!validation.Success)
+            {
+                var errorSummary = string.Join("; ", validation.Errors);
+                logger.LogWarning("Security validation failed for HD icons package: {Error}", errorSummary);
+                return new ActionSetResult(false, $"Package failed security verification: {errorSummary}", details);
+            }
+
+            details.Add("✓ Package integrity verified via SHA-256 checksum.");
             details.Add("Extracting high-definition icon assets...");
             Directory.CreateDirectory(tempExtractDir);
 
