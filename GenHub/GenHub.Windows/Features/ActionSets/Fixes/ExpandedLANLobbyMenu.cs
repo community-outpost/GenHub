@@ -100,57 +100,12 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
         var details = new List<string>();
         var tempFile = Path.Combine(Path.GetTempPath(), $"cbbs_{Guid.NewGuid():N}.dat");
         var tempExtractDir = Path.Combine(Path.GetTempPath(), $"cbbs_extract_{Guid.NewGuid():N}");
-        var deployedFiles = new List<string>();
 
         try
         {
             details.Add("Downloading Expanded LAN Lobby & Custom Windows package...");
 
-            using var client = httpClientFactory.CreateClient("Downloader");
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-
-            var urls = new[] { ExternalUrls.ExpandedLANLobbyDownloadUrlPrimary, ExternalUrls.ExpandedLANLobbyDownloadUrlMirror1 };
-            var downloaded = false;
-
-            foreach (var url in urls)
-            {
-                try
-                {
-                    logger.LogInformation("Attempting Custom Windows / Expanded LAN download from {Url}", url);
-                    using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-                    response.EnsureSuccessStatusCode();
-
-                    await using (var fs = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
-                    {
-                        await response.Content.CopyToAsync(fs, cancellationToken);
-                    }
-
-                    var fileInfo = new FileInfo(tempFile);
-                    if (fileInfo.Length < 1024)
-                    {
-                        logger.LogWarning("Downloaded file from {Url} is too small ({Size} bytes).", url, fileInfo.Length);
-                        if (File.Exists(tempFile))
-                        {
-                            File.Delete(tempFile);
-                        }
-
-                        continue;
-                    }
-
-                    details.Add($"✓ Downloaded {fileInfo.Length / 1024.0:F2} KB package from {new Uri(url).Host}");
-                    downloaded = true;
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to download Custom Windows from {Url}", url);
-                    if (File.Exists(tempFile))
-                    {
-                        File.Delete(tempFile);
-                    }
-                }
-            }
-
+            var downloaded = await DownloadPackageAsync(tempFile, details, cancellationToken);
             if (!downloaded)
             {
                 return new ActionSetResult(false, "Failed to download Expanded LAN Lobby assets from all available mirrors.", details);
@@ -170,62 +125,11 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
 
             details.Add("✓ Package integrity verified via SHA-256 checksum.");
             details.Add("Extracting widescreen window and LAN lobby definitions...");
-            Directory.CreateDirectory(tempExtractDir);
 
-            using var archive = ArchiveFactory.OpenArchive(new FileInfo(tempFile));
-            var extractedCount = 0;
-
-            foreach (var entry in archive.Entries.Where(e => !e.IsDirectory && e.Key != null))
-            {
-                var fileName = Path.GetFileName(entry.Key);
-                if (string.IsNullOrEmpty(fileName))
-                {
-                    continue;
-                }
-
-                var extractedFilePath = Path.Combine(tempExtractDir, fileName);
-                using (var entryStream = entry.OpenEntryStream())
-                await using (var fs = new FileStream(extractedFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
-                {
-                    await entryStream.CopyToAsync(fs, cancellationToken);
-                }
-
-                extractedCount++;
-
-                // Deploy to Zero Hour installation directory if available
-                if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
-                {
-                    var zhDest = Path.Combine(installation.ZeroHourPath, fileName);
-                    File.Copy(extractedFilePath, zhDest, overwrite: true);
-                    deployedFiles.Add(zhDest);
-                }
-
-                // Deploy to Generals installation directory if available
-                if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
-                {
-                    var generalsDest = Path.Combine(installation.GeneralsPath, fileName);
-                    File.Copy(extractedFilePath, generalsDest, overwrite: true);
-                    deployedFiles.Add(generalsDest);
-                }
-            }
-
+            var (extractedCount, deployedFiles) = await ExtractAndDeployAssetsAsync(tempFile, tempExtractDir, installation, cancellationToken);
             details.Add($"✓ Extracted and deployed {extractedCount} widescreen window assets to game folders.");
 
-            try
-            {
-                var markerDir = Path.GetDirectoryName(_markerPath);
-                if (!string.IsNullOrEmpty(markerDir))
-                {
-                    Directory.CreateDirectory(markerDir);
-                }
-
-                File.WriteAllLines(_markerPath, deployedFiles);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to create marker file for ExpandedLANLobbyMenu");
-            }
-
+            RecordDeploymentMarker(deployedFiles);
             return new ActionSetResult(true, null, details);
         }
         catch (HttpRequestException ex)
@@ -254,29 +158,7 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
         }
         finally
         {
-            try
-            {
-                if (File.Exists(tempFile))
-                {
-                    File.Delete(tempFile);
-                }
-            }
-            catch (IOException ex)
-            {
-                logger.LogDebug(ex, "Failed to delete temp file {TempFile}", tempFile);
-            }
-
-            try
-            {
-                if (Directory.Exists(tempExtractDir))
-                {
-                    Directory.Delete(tempExtractDir, recursive: true);
-                }
-            }
-            catch (IOException ex)
-            {
-                logger.LogDebug(ex, "Failed to delete temp directory {TempDir}", tempExtractDir);
-            }
+            CleanupTempFiles(tempFile, tempExtractDir);
         }
     }
 
@@ -319,5 +201,156 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
         }
 
         return Task.FromResult(new ActionSetResult(true, null, [$"Removed {removedCount} custom window and expanded LAN lobby files."]));
+    }
+
+    private static void DeployEntryToInstallations(
+        GameInstallation installation,
+        string fileName,
+        string sourceFilePath,
+        List<string> deployedFiles)
+    {
+        if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
+        {
+            var zhDest = Path.Combine(installation.ZeroHourPath, fileName);
+            File.Copy(sourceFilePath, zhDest, overwrite: true);
+            deployedFiles.Add(zhDest);
+        }
+
+        if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
+        {
+            var generalsDest = Path.Combine(installation.GeneralsPath, fileName);
+            File.Copy(sourceFilePath, generalsDest, overwrite: true);
+            deployedFiles.Add(generalsDest);
+        }
+    }
+
+    private async Task<bool> DownloadPackageAsync(string tempFile, List<string> details, CancellationToken cancellationToken)
+    {
+        using var client = httpClientFactory.CreateClient("Downloader");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+
+        var urls = new[] { ExternalUrls.ExpandedLANLobbyDownloadUrlPrimary, ExternalUrls.ExpandedLANLobbyDownloadUrlMirror1 };
+
+        foreach (var url in urls)
+        {
+            try
+            {
+                logger.LogInformation("Attempting Custom Windows / Expanded LAN download from {Url}", url);
+                using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                response.EnsureSuccessStatusCode();
+
+                await using (var fs = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
+                {
+                    await response.Content.CopyToAsync(fs, cancellationToken);
+                }
+
+                var fileInfo = new FileInfo(tempFile);
+                if (fileInfo.Length < 1024)
+                {
+                    logger.LogWarning("Downloaded file from {Url} is too small ({Size} bytes).", url, fileInfo.Length);
+                    if (File.Exists(tempFile))
+                    {
+                        File.Delete(tempFile);
+                    }
+
+                    continue;
+                }
+
+                details.Add($"✓ Downloaded {fileInfo.Length / 1024.0:F2} KB package from {new Uri(url).Host}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to download Custom Windows from {Url}", url);
+                if (File.Exists(tempFile))
+                {
+                    File.Delete(tempFile);
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private async Task<(int ExtractedCount, List<string> DeployedFiles)> ExtractAndDeployAssetsAsync(
+        string tempFile,
+        string tempExtractDir,
+        GameInstallation installation,
+        CancellationToken cancellationToken)
+    {
+        Directory.CreateDirectory(tempExtractDir);
+        using var archive = ArchiveFactory.OpenArchive(new FileInfo(tempFile));
+        var extractedCount = 0;
+        var deployedFiles = new List<string>();
+
+        foreach (var entry in archive.Entries.Where(e => !e.IsDirectory && e.Key != null))
+        {
+            var fileName = Path.GetFileName(entry.Key);
+            if (string.IsNullOrEmpty(fileName))
+            {
+                continue;
+            }
+
+            var extractedFilePath = Path.Combine(tempExtractDir, fileName);
+            using (var entryStream = entry.OpenEntryStream())
+            await using (var fs = new FileStream(extractedFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
+            {
+                await entryStream.CopyToAsync(fs, cancellationToken);
+            }
+
+            extractedCount++;
+            DeployEntryToInstallations(installation, fileName, extractedFilePath, deployedFiles);
+        }
+
+        return (extractedCount, deployedFiles);
+    }
+
+    private void RecordDeploymentMarker(List<string> deployedFiles)
+    {
+        try
+        {
+            var markerDir = Path.GetDirectoryName(_markerPath);
+            if (!string.IsNullOrEmpty(markerDir))
+            {
+                Directory.CreateDirectory(markerDir);
+            }
+
+            File.WriteAllLines(_markerPath, deployedFiles);
+        }
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to create marker file for ExpandedLANLobbyMenu");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Permission denied creating marker file for ExpandedLANLobbyMenu");
+        }
+    }
+
+    private void CleanupTempFiles(string tempFile, string tempExtractDir)
+    {
+        try
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+        catch (IOException ex)
+        {
+            logger.LogDebug(ex, "Failed to delete temp file {TempFile}", tempFile);
+        }
+
+        try
+        {
+            if (Directory.Exists(tempExtractDir))
+            {
+                Directory.Delete(tempExtractDir, recursive: true);
+            }
+        }
+        catch (IOException ex)
+        {
+            logger.LogDebug(ex, "Failed to delete temp directory {TempDir}", tempExtractDir);
+        }
     }
 }
