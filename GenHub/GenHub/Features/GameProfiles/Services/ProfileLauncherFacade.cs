@@ -763,20 +763,19 @@ public class ProfileLauncherFacade(
             }
         }
 
-        if (!hasGameInstallationManifest && !string.IsNullOrWhiteSpace(profile.GameInstallationId))
+        if (!hasGameInstallationManifest &&
+            !string.IsNullOrWhiteSpace(profile.GameInstallationId) &&
+            ManifestId.TryCreate(profile.GameInstallationId, out var installManifestId))
         {
-            if (ManifestId.TryCreate(profile.GameInstallationId, out var installManifestId))
+            var installResult = await manifestPool.GetManifestAsync(installManifestId, cancellationToken);
+            if (installResult.Success && installResult.Data != null)
             {
-                var installResult = await manifestPool.GetManifestAsync(installManifestId, cancellationToken);
-                if (installResult.Success && installResult.Data != null)
+                if (manifests.All(m => m.Id != installManifestId))
                 {
-                    if (!manifests.Any(m => m.Id == installManifestId))
-                    {
-                        manifests.Add(installResult.Data);
-                    }
-
-                    hasGameInstallationManifest = true;
+                    manifests.Add(installResult.Data);
                 }
+
+                hasGameInstallationManifest = true;
             }
         }
 
@@ -787,7 +786,7 @@ public class ProfileLauncherFacade(
                 var clientResult = await manifestPool.GetManifestAsync(clientManifestId, cancellationToken);
                 if (clientResult.Success && clientResult.Data != null)
                 {
-                    if (!manifests.Any(m => m.Id == clientManifestId))
+                    if (manifests.All(m => m.Id != clientManifestId))
                     {
                         manifests.Add(clientResult.Data);
                     }
