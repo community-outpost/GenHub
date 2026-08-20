@@ -22,13 +22,13 @@ public class ExpandedLANLobbyMenu(ILogger<ExpandedLANLobbyMenu> logger) : BaseAc
     public override string Id => "ExpandedLANLobbyMenu";
 
     /// <inheritdoc/>
-    public override string Title => "Expanded LAN Lobby Menu";
+    public override string Title => "Expanded LAN Lobby Menu (Addon)";
 
     /// <inheritdoc/>
-    public override string Description => "Expands the in-game LAN multiplayer lobby window layout and interface for widescreen displays to fit more game rooms.";
+    public override string Description => "Replaces the LAN multiplayer lobby UI with an expanded widescreen layout (also managed in Downloads).";
 
     /// <inheritdoc/>
-    public override string DetailedDescription => "The original Generals LAN lobby menu only displays a tiny window showing 4 games at a time. This UI addon replaces the LAN lobby window definitions and textures with an expanded, widescreen-friendly layout that displays significantly more concurrent games and player names without cramped scrolling.";
+    public override string DetailedDescription => "Replaces the default 4-row LAN lobby interface with a widescreen-adapted layout that displays more games and player names without cramped scrolling. This UI addon can also be downloaded and managed from the Downloads section.";
 
     /// <inheritdoc/>
     public override string Category => ActionSetConstants.Categories.QualityOfLife;

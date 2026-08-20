@@ -25,13 +25,13 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
     public override string Id => "Patch104";
 
     /// <inheritdoc/>
-    public override string Title => "Zero Hour 1.04 Patch";
+    public override string Title => "Zero Hour 1.04 Patch (Game Client)";
 
     /// <inheritdoc/>
-    public override string Description => "Installs the official Zero Hour 1.04 patch required for online multiplayer, mod compatibility, and critical bug fixes.";
+    public override string Description => "Official game client patch updating Zero Hour to version 1.04 (also managed in Downloads).";
 
     /// <inheritdoc/>
-    public override string DetailedDescription => "Patch 1.04 is the definitive official update for Command & Conquer: Generals Zero Hour, addressing balance exploits, memory leaks, and multiplayer desync errors. Upgrading to 1.04 is strictly required to play online via C&C:Online/GameRanger and to run modern mods.";
+    public override string DetailedDescription => "Zero Hour 1.04 is the official game client patch required for multiplayer balance, anti-cheat, and mod compatibility. This patch installs the 1.04 game binaries directly into your Zero Hour directory. You can also download and manage this game patch from the Downloads section.";
 
     /// <inheritdoc/>
     public override string Category => ActionSetConstants.Categories.CoreAndStability;

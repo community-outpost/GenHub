@@ -29,13 +29,13 @@ public class VCRedist2005Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
     public override string Id => "VCRedist2005Fix";
 
     /// <inheritdoc/>
-    public override string Title => "Visual C++ 2005 Redistributable";
+    public override string Title => "Visual C++ 2005 Runtime";
 
     /// <inheritdoc/>
-    public override string Description => "Installs the Microsoft Visual C++ 2005 (x86) runtime to prevent side-by-side configuration and missing DLL errors.";
+    public override string Description => "Installs the Microsoft Visual C++ 2005 x86 system runtime package (also managed in Downloads).";
 
     /// <inheritdoc/>
-    public override string DetailedDescription => "Several legacy mod tools, video decoding plugins, and game utilities require the 32-bit Visual C++ 2005 runtime. This fix downloads and silently installs the official Microsoft runtime package, resolving side-by-side configuration startup crashes.";
+    public override string DetailedDescription => "Several legacy game tools and community plugins require the 32-bit Visual C++ 2005 runtime libraries (msvcr80.dll). This package downloads and installs the official Microsoft runtime to prevent missing DLL startup errors. You can also download and manage this package from the Downloads section.";
 
     /// <inheritdoc/>
     public override string Category => ActionSetConstants.Categories.CoreAndStability;

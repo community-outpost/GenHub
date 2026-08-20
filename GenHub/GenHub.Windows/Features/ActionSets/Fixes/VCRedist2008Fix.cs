@@ -28,13 +28,13 @@ public class VCRedist2008Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
     public override string Id => "VCRedist2008Fix";
 
     /// <inheritdoc/>
-    public override string Title => "Visual C++ 2008 Redistributable";
+    public override string Title => "Visual C++ 2008 Runtime";
 
     /// <inheritdoc/>
-    public override string Description => "Installs the Microsoft Visual C++ 2008 (x86) runtime required by modding tools and community patchers.";
+    public override string Description => "Installs the Microsoft Visual C++ 2008 x86 system runtime package (also managed in Downloads).";
 
     /// <inheritdoc/>
-    public override string DetailedDescription => "Community tools, mod launchers, and map editors compiled against Visual Studio 2008 require the x86 Visual C++ 2008 redistributable. This fix automatically verifies, downloads, and silently installs the necessary runtime libraries.";
+    public override string DetailedDescription => "Community tools, map editors, and mod patchers require the 32-bit Visual C++ 2008 runtime libraries (msvcr90.dll). This package downloads and installs the official Microsoft runtime to ensure community utilities start properly. You can also download and manage this package from the Downloads section.";
 
     /// <inheritdoc/>
     public override string Category => ActionSetConstants.Categories.CoreAndStability;

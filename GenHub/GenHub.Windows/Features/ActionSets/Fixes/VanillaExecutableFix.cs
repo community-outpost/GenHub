@@ -20,13 +20,13 @@ public class VanillaExecutableFix(ILogger<VanillaExecutableFix> logger) : BaseAc
     public override string Id => "VanillaExecutableFix";
 
     /// <inheritdoc/>
-    public override string Title => "Generals Executable Fix";
+    public override string Title => "Generals 1.08 Version Check";
 
     /// <inheritdoc/>
-    public override string Description => "Verifies that the Generals executable is properly installed and updated to official version 1.08.";
+    public override string Description => "Verifies that the Generals game client executable is updated to official version 1.08.";
 
     /// <inheritdoc/>
-    public override string DetailedDescription => "Running an unpatched version of the base Generals executable causes multiplayer version mismatch errors and mod incompatibilities. This check verifies that your base game executable is present, healthy, and updated to official version 1.08.";
+    public override string DetailedDescription => "Running an unpatched version of Generals causes multiplayer version mismatches and crashes. This diagnostic verifies that your base game executable is present and updated to official version 1.08. If outdated, use the Downloads section or Patch 1.08 to update your game client.";
 
     /// <inheritdoc/>
     public override string Category => ActionSetConstants.Categories.Compatibility;

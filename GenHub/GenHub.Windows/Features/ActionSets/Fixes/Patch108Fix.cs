@@ -27,13 +27,13 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
     public override string Id => "Patch108";
 
     /// <inheritdoc/>
-    public override string Title => "Generals 1.08 Patch";
+    public override string Title => "Generals 1.08 Patch (Game Client)";
 
     /// <inheritdoc/>
-    public override string Description => "Installs the official Generals 1.08 patch to resolve critical engine bugs, exploits, and multiplayer version mismatches.";
+    public override string Description => "Official game client patch updating Generals to version 1.08 (also managed in Downloads).";
 
     /// <inheritdoc/>
-    public override string DetailedDescription => "The official 1.08 patch is required for base Command & Conquer: Generals to fix multiplayer desyncs, campaign crashes, and engine stability issues. This fix safely downloads, verifies, backs up existing files, and deploys the 1.08 update.";
+    public override string DetailedDescription => "Generals 1.08 is the official game client patch fixing multiplayer desyncs, campaign crashes, and engine bugs. This patch updates your base Generals game files. You can also download and manage this game patch from the Downloads section.";
 
     /// <inheritdoc/>
     public override string Category => ActionSetConstants.Categories.CoreAndStability;

@@ -23,13 +23,13 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
     public override string Id => "DirectXRuntimeFix";
 
     /// <inheritdoc/>
-    public override string Title => "DirectX Runtime Fix";
+    public override string Title => "DirectX 8.1 / 9.0c Runtime";
 
     /// <inheritdoc/>
-    public override string Description => "Downloads and installs legacy DirectX 8.1 and 9.0c runtime libraries needed by the graphics engine.";
+    public override string Description => "Installs legacy DirectX 8.1 and 9.0c 32-bit runtime libraries (also managed in Downloads).";
 
     /// <inheritdoc/>
-    public override string DetailedDescription => "Generals and Zero Hour require legacy DirectX 8.1/9.0c runtime components that are missing from fresh Windows 10 and 11 setups. This fix downloads and validates the official DirectX redistributable, then silently installs the required 32-bit D3D runtime libraries (d3d8.dll, d3dx9_43.dll) into SysWOW64.";
+    public override string DetailedDescription => "Generals and Zero Hour require legacy DirectX 8.1/9.0c runtime components missing from modern Windows installations. This package downloads and installs the official DirectX redistributable, deploying required 32-bit graphics libraries (d3d8.dll, d3dx9_43.dll) into SysWOW64. You can also download and manage this runtime from the Downloads section.";
 
     /// <inheritdoc/>
     public override string Category => ActionSetConstants.Categories.CoreAndStability;

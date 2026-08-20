@@ -34,13 +34,13 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
     public override string Id => "HDIconsFix";
 
     /// <inheritdoc/>
-    public override string Title => "High-Definition Icons";
+    public override string Title => "HD Icons (Addon)";
 
     /// <inheritdoc/>
-    public override string Description => "Downloads and installs high-definition (256x256) icons for Generals and Zero Hour desktop shortcuts.";
+    public override string Description => "Installs high-definition 256x256 icon assets for game shortcuts (also managed in Downloads).";
 
     /// <inheritdoc/>
-    public override string DetailedDescription => "Original Generals and Zero Hour desktop icons were mastered at 32x32 for Windows XP and appear pixelated and blurry on modern high-DPI displays. This fix downloads the official Community Outpost HD icon asset pack (icon.dat), extracts the 256x256 icon files, and places them in your game installation folders for crisp shortcuts and window icons.";
+    public override string DetailedDescription => "Replaces low-resolution 32x32 icons with 256x256 icon files for desktop shortcuts and taskbar windows. This addon downloads icon.dat from Community Outpost and extracts HD icons directly into your game directories. You can also download and manage this addon from the Downloads section.";
 
     /// <inheritdoc/>
     public override string Category => ActionSetConstants.Categories.QualityOfLife;
