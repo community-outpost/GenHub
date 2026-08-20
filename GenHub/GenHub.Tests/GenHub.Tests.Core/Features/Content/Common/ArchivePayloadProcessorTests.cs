@@ -615,6 +615,49 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
         Assert.False(File.Exists(Path.Combine(_stagingDirectory, "generals.ctr")), "generals.ctr should no longer exist");
     }
 
+    /// <summary>
+    /// Verifies that Smart Install Maker executables with BZip2 and ZLib streams, uninstaller entries, and .ctr archives
+    /// are successfully unpacked and normalized without requiring external assets.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExtractArchivesSafelyAsync_WithSyntheticSmartInstallMakerExecutable_ExtractsAndNormalizesSuccessfully()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var bigContent = System.Text.Encoding.Latin1.GetBytes("BIGF\x10\x00\x00\x00\x01\x00\x00\x00\x20\x00\x00\x00TestIniDataInsideBig");
+        var exeContent = System.Text.Encoding.Latin1.GetBytes("MZ\x90\x00\x03\x00\x00\x00\x04\x00\x00\x00\xff\xff\x00\x00LauncherCode");
+        var iniContent = System.Text.Encoding.Latin1.GetBytes("GameData=1\r\nVersion=1.0\r\n");
+
+        var syntheticSimBytes = CreateSyntheticSmartInstallMakerExecutable(
+        [
+            ("!ContraData.ctr", bigContent, true),
+            ("Contra_Launcher.exe", exeContent, true),
+            ("Data/INI/GameData.ini", iniContent, false),
+        ],
+        includeUninstallerEntry: true);
+
+        var installerPath = Path.Combine(_stagingDirectory, "ContraXBeta2Setup.exe");
+        await File.WriteAllBytesAsync(installerPath, syntheticSimBytes);
+
+        var processor = CreateProcessor();
+
+        // Act: 1. Extract archive safely
+        await processor.ExtractArchivesSafelyAsync(_stagingDirectory, ContentType.Mod);
+
+        // Assert: installer executable should be deleted after successful extraction
+        Assert.False(File.Exists(installerPath), "Installer executable should be deleted after extraction.");
+
+        // Act: 2. Normalize directory structure
+        await processor.NormalizeDirectoryStructureAsync(_stagingDirectory, ContentType.Mod, GameType.ZeroHour, normalizeInactiveArchives: true);
+
+        // Assert: extracted files exist and .ctr is normalized to .big
+        Assert.True(File.Exists(Path.Combine(_stagingDirectory, "!ContraData.big")), "Expected !ContraData.ctr to be normalized to !ContraData.big");
+        Assert.True(File.Exists(Path.Combine(_stagingDirectory, "Contra_Launcher.exe")), "Expected Contra_Launcher.exe to exist");
+        Assert.True(File.Exists(Path.Combine(_stagingDirectory, "Data", "INI", "GameData.ini")), "Expected Data/INI/GameData.ini to exist");
+        Assert.False(File.Exists(Path.Combine(_stagingDirectory, "ModUninstaller.exe")), "Uninstaller executable should not be extracted");
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {
@@ -627,5 +670,152 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
     private static ArchivePayloadProcessor CreateProcessor()
     {
         return new ArchivePayloadProcessor(new Mock<ILogger<ArchivePayloadProcessor>>().Object);
+    }
+
+    private static byte[] CreateSyntheticSmartInstallMakerExecutable(
+        (string Name, byte[] Content, bool UseBzip2)[] files,
+        bool includeUninstallerEntry = true)
+    {
+        using var ms = new MemoryStream();
+
+        // 1. DOS Header (64 bytes)
+        var dosHeader = new byte[64];
+        dosHeader[0] = (byte)'M';
+        dosHeader[1] = (byte)'Z';
+        BitConverter.GetBytes(0x80).CopyTo(dosHeader, 0x3C); // e_lfanew = 0x80
+        ms.Write(dosHeader, 0, 64);
+
+        // Pad to 0x80 (128 bytes)
+        while (ms.Length < 0x80)
+        {
+            ms.WriteByte(0);
+        }
+
+        // 2. PE Header at 0x80
+        ms.Write([(byte)'P', (byte)'E', 0, 0]);
+        var coffHeader = new byte[20];
+        BitConverter.GetBytes((ushort)0x14C).CopyTo(coffHeader, 0);
+        BitConverter.GetBytes((ushort)1).CopyTo(coffHeader, 2);
+        BitConverter.GetBytes((ushort)0).CopyTo(coffHeader, 16);
+        BitConverter.GetBytes((ushort)0x102).CopyTo(coffHeader, 18);
+        ms.Write(coffHeader, 0, 20);
+
+        // Section header (40 bytes): Name=.text, VirtualSize=0x200, VirtualAddress=0x1000, SizeOfRawData=0x200, PointerToRawData=0x200
+        var secHeader = new byte[40];
+        System.Text.Encoding.ASCII.GetBytes(".text").CopyTo(secHeader, 0);
+        BitConverter.GetBytes(0x200).CopyTo(secHeader, 8);
+        BitConverter.GetBytes(0x1000).CopyTo(secHeader, 12);
+        BitConverter.GetBytes(0x200).CopyTo(secHeader, 16);
+        BitConverter.GetBytes(0x200).CopyTo(secHeader, 20);
+        ms.Write(secHeader, 0, 40);
+
+        // Pad to Raw End = 0x200 + 0x200 = 0x400 (1024 bytes)
+        while (ms.Length < 0x400)
+        {
+            ms.WriteByte(0);
+        }
+
+        // Overlay starts at 0x400 (1024)
+        var simSig = new byte[] { 0x77, 0x77, 0x67, 0x54, 0x29, 0x48, 0x35, 0x14 };
+        ms.Write(simSig, 0, simSig.Length);
+
+        // Prepare compressed payloads
+        using var payloadMs = new MemoryStream();
+        var uninstallerText = System.Text.Encoding.Latin1.GetBytes("UninstallerStubText");
+        payloadMs.Write(uninstallerText, 0, uninstallerText.Length);
+
+        var tableRecords = new List<(string Name, uint UncompSize, uint Offset, uint CompSize)>();
+
+        if (includeUninstallerEntry)
+        {
+            tableRecords.Add(("ModUninstaller.exe", 100, 0, (uint)uninstallerText.Length));
+        }
+
+        foreach (var (name, content, useBzip2) in files)
+        {
+            var offset = (uint)payloadMs.Length;
+            byte[] compressed;
+            if (useBzip2)
+            {
+                using var bzMs = new MemoryStream();
+                using (var bz = SharpCompress.Compressors.BZip2.BZip2Stream.Create(bzMs, SharpCompress.Compressors.CompressionMode.Compress, leaveOpen: true))
+                {
+                    bz.Write(content, 0, content.Length);
+                }
+
+                compressed = bzMs.ToArray();
+            }
+            else
+            {
+                using var defMs = new MemoryStream();
+                defMs.WriteByte(0x78);
+                defMs.WriteByte(0xDA);
+                using (var def = new DeflateStream(defMs, CompressionLevel.Optimal, leaveOpen: true))
+                {
+                    def.Write(content, 0, content.Length);
+                }
+
+                compressed = defMs.ToArray();
+            }
+
+            payloadMs.Write(compressed, 0, compressed.Length);
+            tableRecords.Add((name, (uint)content.Length, offset, (uint)compressed.Length));
+        }
+
+        // Prepare table data
+        using var tableMs = new MemoryStream();
+        tableMs.Write(new byte[40]); // initial padding
+        foreach (var (name, uncomp, offset, comp) in tableRecords)
+        {
+            var recordHeader = new byte[40];
+            BitConverter.GetBytes(uncomp).CopyTo(recordHeader, 0);
+            BitConverter.GetBytes(offset).CopyTo(recordHeader, 4);
+            BitConverter.GetBytes(comp).CopyTo(recordHeader, 8);
+            tableMs.Write(recordHeader, 0, 40);
+
+            var nameBytes = System.Text.Encoding.Latin1.GetBytes(name + "\0");
+            tableMs.Write(nameBytes, 0, nameBytes.Length);
+            tableMs.Write(new byte[40]); // separator padding
+        }
+
+        byte[] compressedTable;
+        using (var defTableMs = new MemoryStream())
+        {
+            defTableMs.WriteByte(0x78);
+            defTableMs.WriteByte(0xDA);
+            using (var def = new DeflateStream(defTableMs, CompressionLevel.Optimal, leaveOpen: true))
+            {
+                var tableRaw = tableMs.ToArray();
+                def.Write(tableRaw, 0, tableRaw.Length);
+            }
+
+            compressedTable = defTableMs.ToArray();
+        }
+
+        // Block 0: Dummy Info Block
+        byte[] dummyData = [0x78, 0xDA, 0x01, 0x00, 0x00, 0xFF, 0xFF];
+        using var writer = new BinaryWriter(ms, System.Text.Encoding.UTF8, leaveOpen: true);
+        writer.Write((short)1);
+        writer.Write(dummyData.Length + 5);
+        writer.Write(0);
+        writer.Write((byte)1);
+        writer.Write(dummyData);
+
+        // Block 1: Table Block (second to last)
+        writer.Write((int)1);
+        writer.Write(compressedTable.Length + 5);
+        writer.Write(0);
+        writer.Write((byte)1);
+        writer.Write(compressedTable);
+
+        // Block 2: Payload Block (last)
+        var payloadBytes = payloadMs.ToArray();
+        writer.Write((int)2);
+        writer.Write(payloadBytes.Length + 5);
+        writer.Write(0);
+        writer.Write((byte)1);
+        writer.Write(payloadBytes);
+
+        return ms.ToArray();
     }
 }

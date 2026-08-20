@@ -406,6 +406,44 @@ public sealed class ModDBManifestFactoryTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that if a Mod download results only in an unextracted setup/installer executable,
+    /// CreateManifestsFromExtractedContentAsync throws an InvalidDataException.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateManifestsFromExtractedContentAsync_WithUnextractedInstallerExe_ThrowsInvalidDataExceptionAsync()
+    {
+        // Arrange
+        Directory.CreateDirectory(_stagingDirectory);
+        var setupExePath = Path.Combine(_stagingDirectory, "Contra X BETA 2 (Setup).exe");
+        await File.WriteAllTextAsync(setupExePath, "dummy installer binary");
+
+        var originalManifest = new ContentManifest
+        {
+            SchemaVersion = 1,
+            Id = ManifestId.Create("moddb:mod:contra-x-beta-2:1"),
+            Name = "Contra X BETA 2",
+            Version = 1,
+            ContentType = ContentType.Mod,
+            TargetGame = GameType.ZeroHour,
+            Publisher = "Contra Mod Team",
+            Metadata = new ManifestMetadata
+            {
+                Title = "Contra X BETA 2",
+            },
+        };
+
+        var factory = CreateFactory();
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<InvalidDataException>(() =>
+            factory.CreateManifestsFromExtractedContentAsync(originalManifest, _stagingDirectory, CancellationToken.None));
+
+        Assert.Contains("unextracted installer executable", exception.Message);
+        Assert.Contains("Contra X BETA 2 (Setup).exe", exception.Message);
+    }
+
+    /// <summary>
     /// Deletes the test staging directory.
     /// </summary>
     public void Dispose()
