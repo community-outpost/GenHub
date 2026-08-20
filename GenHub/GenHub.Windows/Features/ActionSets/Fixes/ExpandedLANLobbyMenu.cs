@@ -129,7 +129,12 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
             var (extractedCount, deployedFiles) = await ExtractAndDeployAssetsAsync(tempFile, tempExtractDir, installation, cancellationToken);
             details.Add($"✓ Extracted and deployed {extractedCount} widescreen window assets to game folders.");
 
-            RecordDeploymentMarker(deployedFiles);
+            if (!RecordDeploymentMarker(deployedFiles))
+            {
+                details.Add("✗ Failed to record the deployment marker. Undo cannot remove the deployed files.");
+                return new ActionSetResult(false, "Failed to record the deployment marker for ExpandedLANLobbyMenu.", details);
+            }
+
             return new ActionSetResult(true, null, details);
         }
         catch (HttpRequestException ex)
@@ -245,7 +250,7 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
                 }
 
                 var fileInfo = new FileInfo(tempFile);
-                if (fileInfo.Length < 1024)
+                if (fileInfo.Length < ActionSetConstants.Validation.MinimumAddonPackageSizeBytes)
                 {
                     logger.LogWarning("Downloaded file from {Url} is too small ({Size} bytes).", url, fileInfo.Length);
                     if (File.Exists(tempFile))
@@ -305,7 +310,7 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
         return (extractedCount, deployedFiles);
     }
 
-    private void RecordDeploymentMarker(List<string> deployedFiles)
+    private bool RecordDeploymentMarker(List<string> deployedFiles)
     {
         try
         {
@@ -316,14 +321,17 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
             }
 
             File.WriteAllLines(_markerPath, deployedFiles);
+            return true;
         }
         catch (IOException ex)
         {
             logger.LogWarning(ex, "Failed to create marker file for ExpandedLANLobbyMenu");
+            return false;
         }
         catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Permission denied creating marker file for ExpandedLANLobbyMenu");
+            return false;
         }
     }
 

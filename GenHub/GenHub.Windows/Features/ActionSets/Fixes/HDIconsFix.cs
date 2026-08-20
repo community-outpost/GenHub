@@ -93,7 +93,7 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
                     }
 
                     var fileInfo = new FileInfo(tempFile);
-                    if (fileInfo.Length < 1024)
+                    if (fileInfo.Length < ActionSetConstants.Validation.MinimumAddonPackageSizeBytes)
                     {
                         logger.LogWarning("Downloaded file from {Url} is too small ({Size} bytes).", url, fileInfo.Length);
                         if (File.Exists(tempFile))

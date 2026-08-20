@@ -315,6 +315,11 @@ public static class ActionSetConstants
         /// Minimum file size for GenTool archive (200 KB).
         /// </summary>
         public const long GenToolMinSize = 200 * 1024;
+
+        /// <summary>
+        /// Minimum file size for addon packages like custom windows and high-definition icons (1 KB).
+        /// </summary>
+        public const long MinimumAddonPackageSizeBytes = 1024;
     }
 
     /// <summary>

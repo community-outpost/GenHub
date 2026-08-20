@@ -203,10 +203,12 @@ public class ProxyLauncher(ILogger<ProxyLauncher> logger) : BaseActionSet(logger
         catch (IOException ex)
         {
             logger.LogWarning(ex, "Failed to cleanup proxy launcher during undo");
+            return Task.FromResult(new ActionSetResult(false, $"Failed to cleanup proxy launcher: {ex.Message}"));
         }
         catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Access denied during proxy launcher undo");
+            return Task.FromResult(new ActionSetResult(false, $"Access denied during proxy launcher cleanup: {ex.Message}"));
         }
 
         return Task.FromResult(new ActionSetResult(true, null, [$"Cleaned up proxy launcher assets (restored {restoredCount} items)."]));

@@ -113,6 +113,10 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
 
             return new ActionSetResult(true, null, details);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error applying OneDrive protection");
@@ -470,6 +474,10 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
             {
                 await process.WaitForExitAsync(ct);
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
