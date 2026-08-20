@@ -179,6 +179,38 @@ public sealed class PathHelperTests
     }
 
     /// <summary>
+    /// Rejects a candidate that is a direct file symbolic link pointing to a file outside the base directory.
+    /// </summary>
+    [Fact]
+    public void IsPathWithinDirectory_RejectsCandidateThatIsDirectFileSymbolicLink_PointingOutside()
+    {
+        var root = CreateWorkingDirectory();
+
+        try
+        {
+            var baseDirectory = Path.Combine(root, "extract");
+            var outside = Path.Combine(root, "outside");
+            Directory.CreateDirectory(baseDirectory);
+            Directory.CreateDirectory(outside);
+
+            var outsideFile = Path.Combine(outside, "secret.dat");
+            File.WriteAllText(outsideFile, "secret");
+
+            var linkFile = Path.Combine(baseDirectory, "link_file.dat");
+            if (!TryCreateFileSymbolicLink(linkFile, outsideFile))
+            {
+                return;
+            }
+
+            Assert.False(PathHelper.IsPathWithinDirectory(baseDirectory, linkFile));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// Verifies that NormalizeRelativePath standardizes path separators.
     /// </summary>
     [Fact]
@@ -212,6 +244,20 @@ public sealed class PathHelperTests
             return false;
         }
         catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryCreateFileSymbolicLink(string linkPath, string targetPath)
+    {
+        try
+        {
+            File.CreateSymbolicLink(linkPath, targetPath);
+
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {
             return false;
         }

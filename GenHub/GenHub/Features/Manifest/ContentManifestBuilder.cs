@@ -255,6 +255,28 @@ public partial class ContentManifestBuilder(
         return this;
     }
 
+    /// <inheritdoc />
+    public IContentManifestBuilder WithPublisher(PublisherInfo publisher)
+    {
+        ArgumentNullException.ThrowIfNull(publisher);
+
+        _manifest.Publisher = new PublisherInfo
+        {
+            Name = publisher.Name,
+            PublisherType = publisher.PublisherType,
+            Website = publisher.Website,
+            SupportUrl = publisher.SupportUrl,
+            ContactEmail = publisher.ContactEmail,
+            UpdateApiEndpoint = publisher.UpdateApiEndpoint,
+            ContentIndexUrl = publisher.ContentIndexUrl,
+            UpdateCheckIntervalHours = publisher.UpdateCheckIntervalHours,
+            SupportsIncrementalUpdates = publisher.SupportsIncrementalUpdates,
+            AuthenticationMethod = publisher.AuthenticationMethod,
+        };
+        logger.LogDebug("Set publisher: {PublisherName} (Type: {PublisherType})", publisher.Name, publisher.PublisherType);
+        return this;
+    }
+
     /// <summary>
     /// Sets the metadata for the manifest.
     /// </summary>
@@ -355,6 +377,16 @@ public partial class ContentManifestBuilder(
             "Added content reference: {ContentId} from publisher {PublisherId}",
             contentId,
             publisherId);
+        return this;
+    }
+
+    /// <inheritdoc />
+    public IContentManifestBuilder WithContentReferences(IEnumerable<ContentReference> contentReferences)
+    {
+        ArgumentNullException.ThrowIfNull(contentReferences);
+
+        _manifest.ContentReferences = [.. contentReferences];
+        logger.LogDebug("Set {Count} content references", _manifest.ContentReferences.Count);
         return this;
     }
 
@@ -682,6 +714,16 @@ public partial class ContentManifestBuilder(
     public IContentManifestBuilder AddPostInstallStep(InstallationStep step)
     {
         ArgumentNullException.ThrowIfNull(step);
+        if (step.Kind == InstallationStepKind.Unknown)
+        {
+            throw new ArgumentException("Installation step kind cannot be Unknown.", nameof(step));
+        }
+
+        if (string.IsNullOrWhiteSpace(step.Name))
+        {
+            throw new ArgumentException("Installation step name cannot be empty or whitespace.", nameof(step));
+        }
+
         _manifest.InstallationInstructions ??= new InstallationInstructions();
         _manifest.InstallationInstructions.PostInstallSteps.Add(step);
         logger.LogDebug("Added post-install step: {StepName} (Kind: {Kind}, RunOnce: {RunOnce})", step.Name, step.Kind, step.RunOnce);

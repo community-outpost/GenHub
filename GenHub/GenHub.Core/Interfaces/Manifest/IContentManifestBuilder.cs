@@ -87,6 +87,13 @@ public interface IContentManifestBuilder
     IContentManifestBuilder WithPublisher(string name, string website = "", string supportUrl = "", string contactEmail = "", string publisherType = "");
 
     /// <summary>
+    /// Sets publisher information from an existing <see cref="PublisherInfo"/> instance.
+    /// </summary>
+    /// <param name="publisher">The publisher information.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder WithPublisher(PublisherInfo publisher);
+
+    /// <summary>
     /// Sets content metadata.
     /// </summary>
     /// <param name="description">Content description.</param>
@@ -259,6 +266,13 @@ public interface IContentManifestBuilder
         ContentType contentType,
         string minVersion = "",
         string maxVersion = "");
+
+    /// <summary>
+    /// Sets content references for cross-publisher linking.
+    /// </summary>
+    /// <param name="contentReferences">The collection of content references.</param>
+    /// <returns>The builder instance for chaining.</returns>
+    IContentManifestBuilder WithContentReferences(IEnumerable<ContentReference> contentReferences);
 
     /// <summary>
     /// Adds a file patching operation to the manifest.

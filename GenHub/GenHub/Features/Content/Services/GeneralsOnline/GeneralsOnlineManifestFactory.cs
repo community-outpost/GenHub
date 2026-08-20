@@ -25,6 +25,21 @@ public class GeneralsOnlineManifestFactory(
     ILogger<GeneralsOnlineManifestFactory> logger,
     IProviderDefinitionLoader providerLoader) : IPublisherManifestFactory
 {
+    /// <summary>
+    /// File info extracted from archive for manifest generation.
+    /// </summary>
+    /// <param name="RelativePath">The relative path within archive.</param>
+    /// <param name="FileInfo">The file info.</param>
+    /// <param name="Hash">The SHA-256 hash.</param>
+    /// <param name="IsMap">Whether this is a map file.</param>
+    /// <param name="IsGameData">Whether this is a game data file.</param>
+    private readonly record struct ExtractedFileInfo(
+        string RelativePath,
+        FileInfo FileInfo,
+        string Hash,
+        bool IsMap,
+        bool IsGameData);
+
     /// <inheritdoc />
     public string PublisherId => PublisherTypeConstants.GeneralsOnline;
 
@@ -527,21 +542,6 @@ public class GeneralsOnlineManifestFactory(
     }
 
     /// <summary>
-    /// File info extracted from archive for manifest generation.
-    /// </summary>
-    /// <param name="RelativePath">The relative path within archive.</param>
-    /// <param name="FileInfo">The file info.</param>
-    /// <param name="Hash">The SHA-256 hash.</param>
-    /// <param name="IsMap">Whether this is a map file.</param>
-    /// <param name="IsGameData">Whether this is a game data file.</param>
-    private readonly record struct ExtractedFileInfo(
-        string RelativePath,
-        FileInfo FileInfo,
-        string Hash,
-        bool IsMap,
-        bool IsGameData);
-
-    /// <summary>
     /// Updates manifests (60Hz, QuickMatch MapPack, and GeneralsOnlineGameData data patch) with extracted file information.
     /// Computes SHA-256 hashes for all files for CAS integration.
     /// Each variant gets only the files it needs plus shared files.
@@ -735,7 +735,7 @@ public class GeneralsOnlineManifestFactory(
 
         if (manifest.ContentType == ContentType.GameClient &&
             hasEacSetup &&
-            instructions.PostInstallSteps.All(s => s == null || !string.Equals(s.TargetRelativePath, GameClientConstants.GeneralsOnlineEacSetupExecutable, StringComparison.OrdinalIgnoreCase)))
+            instructions.PostInstallSteps.All(s => s == null || (!string.Equals(s.TargetRelativePath, GameClientConstants.GeneralsOnlineEacSetupExecutable, StringComparison.OrdinalIgnoreCase) && !string.Equals(s.StepKey, GeneralsOnlineConstants.EacStepKey, StringComparison.OrdinalIgnoreCase))))
         {
             instructions.PostInstallSteps.Add(new InstallationStep
             {

@@ -21,35 +21,23 @@ namespace GenHub.Features.Content.Services.ContentProviders;
 public abstract class BaseContentProvider : IContentProvider
 {
     private readonly IContentValidator _contentValidator;
-    private readonly IInstallationInstructionsService? _installationInstructionsService;
+    private readonly IInstallationInstructionsService _installationInstructionsService;
     private readonly ILogger _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="BaseContentProvider"/> class.
     /// </summary>
     /// <param name="contentValidator">The content validator.</param>
-    /// <param name="installationInstructionsService">The optional installation instructions service.</param>
+    /// <param name="installationInstructionsService">The installation instructions service.</param>
     /// <param name="logger">The logger.</param>
     protected BaseContentProvider(
         IContentValidator contentValidator,
-        IInstallationInstructionsService? installationInstructionsService,
+        IInstallationInstructionsService installationInstructionsService,
         ILogger logger)
     {
         _contentValidator = contentValidator;
         _installationInstructionsService = installationInstructionsService;
         _logger = logger;
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="BaseContentProvider"/> class without an installation instructions service.
-    /// </summary>
-    /// <param name="contentValidator">The content validator.</param>
-    /// <param name="logger">The logger.</param>
-    protected BaseContentProvider(
-        IContentValidator contentValidator,
-        ILogger logger)
-        : this(contentValidator, null, logger)
-    {
     }
 
     /// <inheritdoc />
@@ -170,89 +158,98 @@ public abstract class BaseContentProvider : IContentProvider
             // Delegate to implementation-specific preparation
             var result = await PrepareContentInternalAsync(manifest, workingDirectory, progress, cancellationToken);
 
-            if (result.Success && result.Data != null)
+            if (!result.Success)
             {
-                if (_installationInstructionsService == null)
-                {
-                    if (result.Data.InstallationInstructions?.PostInstallSteps?.Count > 0)
-                    {
-                        Logger.LogWarning(
-                            "Manifest {ManifestId} declares {Count} post-installation step(s), but {ProviderName} has no installation instructions service; the steps were not executed",
-                            manifest.Id,
-                            result.Data.InstallationInstructions.PostInstallSteps.Count,
-                            SourceName);
-                    }
-                }
-                else
-                {
-                    try
-                    {
-                        // Execute post-installation steps if declared on the delivered manifest
-                        var stepExecutionResult = await _installationInstructionsService.ExecutePostInstallStepsAsync(
-                            result.Data,
-                            workingDirectory,
-                            providerSource: SourceName,
-                            progress: progress,
-                            cancellationToken: cancellationToken);
+                return result;
+            }
 
-                        if (!stepExecutionResult.Success)
-                        {
-                            Logger.LogError("Post-installation steps failed for manifest {ManifestId}: {Error}", manifest.Id, stepExecutionResult.FirstError);
-                            await RollbackPreparedContentAsync(manifest, result.Data, workingDirectory, CancellationToken.None);
-                            return OperationResult<ContentManifest>.CreateFailure(stepExecutionResult.Errors);
-                        }
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        Logger.LogInformation("Post-installation execution was canceled for manifest {ManifestId}; rolling back prepared content", manifest.Id);
-                        await RollbackPreparedContentAsync(manifest, result.Data, workingDirectory, CancellationToken.None);
-                        throw;
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.LogError(ex, "Unexpected error executing post-installation steps for manifest {ManifestId}; rolling back prepared content", manifest.Id);
-                        await RollbackPreparedContentAsync(manifest, result.Data, workingDirectory, CancellationToken.None);
-                        return OperationResult<ContentManifest>.CreateFailure($"Post-installation execution failed: {ex.Message}");
-                    }
-                }
+            if (result.Data == null)
+            {
+                Logger.LogError("Content preparation returned success without manifest data for {ManifestId}", manifest.Id);
+                return OperationResult<ContentManifest>.CreateFailure($"Content preparation returned no manifest data for {manifest.Id}.");
+            }
 
-                // Final validation of prepared content
-                progress?.Report(new ContentAcquisitionProgress
-                {
-                    Phase = ContentAcquisitionPhase.ValidatingFiles,
-                    CurrentOperation = "Validating prepared content...",
-                });
-
-                // Forward provider progress into validation by adapting ValidationProgress -> ContentAcquisitionProgress
-                IProgress<ValidationProgress>? validationProgress = null;
-                if (progress != null)
-                {
-                    validationProgress = new Progress<ValidationProgress>(vp =>
-                    {
-                        // Map validation progress to content acquisition progress for UI display
-                        progress.Report(new ContentAcquisitionProgress
-                        {
-                            Phase = ContentAcquisitionPhase.ValidatingFiles,
-                            ProgressPercentage = vp.PercentComplete,
-                            CurrentOperation = vp.CurrentFile ?? "Validating files",
-                            FilesProcessed = vp.Processed,
-                            TotalFiles = vp.Total,
-                        });
-                    });
-                }
-
-                var fullResult = await ContentValidator.ValidateAllAsync(
-                    workingDirectory,
+            try
+            {
+                // Execute post-installation steps if declared on the delivered manifest
+                var stepExecutionResult = await _installationInstructionsService.ExecutePostInstallStepsAsync(
                     result.Data,
-                    validationProgress,
+                    workingDirectory,
+                    providerSource: SourceName,
+                    progress: progress,
                     cancellationToken: cancellationToken);
 
-                if (!fullResult.IsValid)
+                if (!stepExecutionResult.Success)
                 {
-                    Logger.LogWarning("Content validation found {IssueCount} issues for {ManifestId}", fullResult.Issues.Count, manifest.Id);
+                    Logger.LogError("Post-installation steps failed for manifest {ManifestId}: {Error}", manifest.Id, stepExecutionResult.FirstError);
+                    await SafeRollbackPreparedContentAsync(manifest, result.Data, workingDirectory);
+                    return OperationResult<ContentManifest>.CreateFailure(stepExecutionResult.Errors);
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                Logger.LogInformation("Post-installation execution was canceled for manifest {ManifestId}; rolling back prepared content", manifest.Id);
+                await SafeRollbackPreparedContentAsync(manifest, result.Data, workingDirectory);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Unexpected error executing post-installation steps for manifest {ManifestId}; rolling back prepared content", manifest.Id);
+                await SafeRollbackPreparedContentAsync(manifest, result.Data, workingDirectory);
+                return OperationResult<ContentManifest>.CreateFailure($"Post-installation execution failed: {ex.Message}");
+            }
 
+            // Final validation of prepared content
+            progress?.Report(new ContentAcquisitionProgress
+            {
+                Phase = ContentAcquisitionPhase.ValidatingFiles,
+                CurrentOperation = "Validating prepared content...",
+            });
+
+            // Forward provider progress into validation by adapting ValidationProgress -> ContentAcquisitionProgress
+            IProgress<ValidationProgress>? validationProgress = null;
+            if (progress != null)
+            {
+                validationProgress = new Progress<ValidationProgress>(vp =>
+                {
+                    // Map validation progress to content acquisition progress for UI display
+                    progress.Report(new ContentAcquisitionProgress
+                    {
+                        Phase = ContentAcquisitionPhase.ValidatingFiles,
+                        ProgressPercentage = vp.PercentComplete,
+                        CurrentOperation = vp.CurrentFile ?? "Validating files",
+                        FilesProcessed = vp.Processed,
+                        TotalFiles = vp.Total,
+                    });
+                });
+            }
+
+            var fullResult = await ContentValidator.ValidateAllAsync(
+                workingDirectory,
+                result.Data,
+                validationProgress,
+                cancellationToken: cancellationToken);
+
+            if (!fullResult.IsValid)
+            {
+                Logger.LogWarning("Content validation found {IssueCount} issues for {ManifestId}", fullResult.Issues.Count, manifest.Id);
+            }
+
+            try
+            {
                 await OnContentPreparationCompletedAsync(manifest, result.Data, workingDirectory, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                Logger.LogInformation("Content preparation completion hook was canceled for manifest {ManifestId}; rolling back", manifest.Id);
+                await SafeRollbackPreparedContentAsync(manifest, result.Data, workingDirectory);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Content preparation completion hook failed for manifest {ManifestId}; rolling back", manifest.Id);
+                await SafeRollbackPreparedContentAsync(manifest, result.Data, workingDirectory);
+                return OperationResult<ContentManifest>.CreateFailure($"Content preparation completion hook failed: {ex.Message}");
             }
 
             return result;
@@ -414,5 +411,20 @@ public abstract class BaseContentProvider : IContentProvider
 
         resolved.SetData(manifest);
         return resolved;
+    }
+
+    private async Task SafeRollbackPreparedContentAsync(
+        ContentManifest originalManifest,
+        ContentManifest preparedManifest,
+        string workingDirectory)
+    {
+        try
+        {
+            await RollbackPreparedContentAsync(originalManifest, preparedManifest, workingDirectory, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Rollback failed during error recovery for manifest {ManifestId}", originalManifest.Id);
+        }
     }
 }

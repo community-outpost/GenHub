@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Content;
@@ -766,6 +767,148 @@ public sealed class InstallationInstructionsServiceTests : IDisposable
                 _tempDirectory,
                 providerSource: PublisherTypeConstants.GeneralsOnline,
                 cancellationToken: cts.Token));
+    }
+
+    /// <summary>
+    /// Verifies that when a precondition is fulfilled, execution is skipped and the step key is recorded.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExecutePostInstallStepsAsync_PreconditionFulfilled_SkipsExecutionAndRecordsStepKey()
+    {
+        var preconditionMock = new Mock<IInstallationStepPrecondition>();
+        preconditionMock.Setup(p => p.CanHandle(It.IsAny<InstallationStep>(), It.IsAny<ContentManifest>())).Returns(true);
+        preconditionMock.Setup(p => p.IsAlreadyFulfilled(It.IsAny<InstallationStep>(), It.IsAny<ContentManifest>())).Returns(true);
+
+        var serviceWithPrecondition = new InstallationInstructionsService(
+            _hashProviderMock.Object,
+            _notificationServiceMock.Object,
+            _userSettingsServiceMock.Object,
+            [preconditionMock.Object],
+            NullLogger<InstallationInstructionsService>.Instance);
+
+        const string stepKey = "test:precondition:step";
+        var manifest = CreateBaseManifest();
+        manifest.InstallationInstructions = new InstallationInstructions
+        {
+            PostInstallSteps =
+            [
+                new InstallationStep
+                {
+                    Name = "Preconditioned Step",
+                    Kind = InstallationStepKind.RunVerifiedInstaller,
+                    TargetRelativePath = "nonexistent.exe",
+                    StepKey = stepKey,
+                    RunOnce = true,
+                },
+            ],
+        };
+
+        var result = await serviceWithPrecondition.ExecutePostInstallStepsAsync(
+            manifest,
+            _tempDirectory,
+            providerSource: PublisherTypeConstants.GeneralsOnline);
+
+        Assert.True(result.Success);
+        Assert.True(_userSettings.IsInstallationStepExecuted(stepKey));
+    }
+
+    /// <summary>
+    /// Verifies that verification fails when a step target file has no declared hash in the manifest.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExecutePostInstallStepsAsync_NoDeclaredHash_FailsVerification()
+    {
+        var scriptName = "installer_nohash.exe";
+        var fullPath = Path.Combine(_tempDirectory, scriptName);
+        File.WriteAllText(fullPath, "binary content");
+
+        var manifest = CreateBaseManifest();
+        manifest.Files =
+        [
+            new ManifestFile
+            {
+                RelativePath = scriptName,
+                Hash = string.Empty,
+            },
+        ];
+        manifest.InstallationInstructions = new InstallationInstructions
+        {
+            PostInstallSteps =
+            [
+                new InstallationStep
+                {
+                    Name = "No Hash Step",
+                    Kind = InstallationStepKind.RunVerifiedInstaller,
+                    TargetRelativePath = scriptName,
+                },
+            ],
+        };
+
+        var result = await _service.ExecutePostInstallStepsAsync(
+            manifest,
+            _tempDirectory,
+            providerSource: PublisherTypeConstants.GeneralsOnline);
+
+        Assert.False(result.Success);
+        Assert.Contains("has no declared hash", result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies that an installer process exiting with a non-zero exit code produces an execution failure.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task ExecutePostInstallStepsAsync_NonZeroExitCode_FailsExecution()
+    {
+        var scriptName = OperatingSystem.IsWindows() ? "exit_error.cmd" : "exit_error.sh";
+        var fullPath = Path.Combine(_tempDirectory, scriptName);
+
+        if (OperatingSystem.IsWindows())
+        {
+            File.WriteAllText(fullPath, "exit /b 42\r\n");
+        }
+        else
+        {
+            File.WriteAllText(fullPath, "#!/bin/sh\nexit 42\n");
+            File.SetUnixFileMode(fullPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+
+        const string expectedHash = "exit_error_hash";
+        _hashProviderMock
+            .Setup(h => h.ComputeFileHashAsync(fullPath, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expectedHash);
+
+        var manifest = CreateBaseManifest();
+        manifest.Files =
+        [
+            new ManifestFile
+            {
+                RelativePath = scriptName,
+                Hash = expectedHash,
+            },
+        ];
+        manifest.InstallationInstructions = new InstallationInstructions
+        {
+            PostInstallSteps =
+            [
+                new InstallationStep
+                {
+                    Name = "Failing Step",
+                    Kind = InstallationStepKind.RunVerifiedInstaller,
+                    TargetRelativePath = scriptName,
+                },
+            ],
+        };
+
+        var result = await _service.ExecutePostInstallStepsAsync(
+            manifest,
+            _tempDirectory,
+            providerSource: PublisherTypeConstants.GeneralsOnline);
+
+        Assert.False(result.Success);
+        Assert.Contains("failed with exit code", result.FirstError);
     }
 
     private static ContentManifest CreateBaseManifest() => new()

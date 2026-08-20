@@ -35,6 +35,7 @@ public class InstallationInstructionsService(
     ILogger<InstallationInstructionsService> logger) : IInstallationInstructionsService
 {
     private static readonly TimeSpan InstallerStepTimeout = TimeSpan.FromMinutes(10);
+    private readonly SemaphoreSlim _executionGate = new(1, 1);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="InstallationInstructionsService"/> class.
@@ -100,46 +101,58 @@ public class InstallationInstructionsService(
             return OperationResult.CreateFailure($"Working directory does not exist: '{workingDirectory}'");
         }
 
-        var keysToRecord = new List<string>();
-
-        for (var i = 0; i < steps.Count; i++)
+        await _executionGate.WaitAsync(cancellationToken);
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var step = steps[i];
+            var keysToRecord = new List<string>();
 
-            if (step == null)
+            for (var i = 0; i < steps.Count; i++)
             {
-                continue;
-            }
+                cancellationToken.ThrowIfCancellationRequested();
+                var step = steps[i];
 
-            var stepResult = await ExecuteSingleStepAsync(step, manifest, workingDirectory, providerSource, force, progress, keysToRecord, cancellationToken);
-            if (!stepResult.Success)
-            {
-                return stepResult;
-            }
-        }
-
-        if (userSettingsService != null && keysToRecord.Count > 0)
-        {
-            userSettingsService.Update(s =>
-            {
-                foreach (var key in keysToRecord)
+                if (step == null)
                 {
-                    s.RecordInstallationStepExecuted(key);
+                    continue;
                 }
-            });
 
-            try
-            {
-                await userSettingsService.SaveAsync(cancellationToken);
+                var stepResult = await ExecuteSingleStepAsync(step, manifest, workingDirectory, providerSource, force, progress, keysToRecord, cancellationToken);
+                if (!stepResult.Success)
+                {
+                    return stepResult;
+                }
             }
-            catch (Exception ex)
+
+            if (userSettingsService != null && keysToRecord.Count > 0)
             {
-                logger.LogWarning(ex, "Failed to persist executed installation step keys");
+                userSettingsService.Update(s =>
+                {
+                    foreach (var key in keysToRecord)
+                    {
+                        s.RecordInstallationStepExecuted(key);
+                    }
+                });
+
+                try
+                {
+                    await userSettingsService.SaveAsync(cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to persist executed installation step keys");
+                }
             }
+
+            return OperationResult.CreateSuccess();
         }
-
-        return OperationResult.CreateSuccess();
+        finally
+        {
+            _executionGate.Release();
+        }
     }
 
     private async Task<OperationResult> ExecuteSingleStepAsync(
@@ -170,7 +183,7 @@ public class InstallationInstructionsService(
 
             progress?.Report(new ContentAcquisitionProgress
             {
-                Phase = ContentAcquisitionPhase.Extracting,
+                Phase = ContentAcquisitionPhase.Delivering,
                 CurrentOperation = $"Skipping {step.Name} (already installed)",
                 CurrentFile = step.TargetRelativePath ?? string.Empty,
             });
@@ -244,11 +257,12 @@ public class InstallationInstructionsService(
         }
 
         var publisher = manifest.Publisher?.PublisherType ?? "generic";
+        var manifestId = manifest.Id.Value ?? string.Empty;
         var name = step.Name;
         var target = step.TargetRelativePath ?? string.Empty;
         var args = step.Arguments is { Count: > 0 } ? string.Join(" ", step.Arguments) : string.Empty;
 
-        return $"{publisher}:{name}:{target}:{args}".TrimEnd(':');
+        return $"{publisher}:{manifestId}:{name}:{target}:{args}".TrimEnd(':');
     }
 
     private async Task<OperationResult> ExecuteRunVerifiedInstallerAsync(
@@ -358,7 +372,21 @@ public class InstallationInstructionsService(
                 $"Installer '{step.TargetRelativePath}' has no declared hash and cannot be verified.");
         }
 
-        var computedHash = await hashProvider.ComputeFileHashAsync(targetFullPath, cancellationToken);
+        string computedHash;
+        try
+        {
+            computedHash = await hashProvider.ComputeFileHashAsync(targetFullPath, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to compute hash for installer '{Target}' in manifest {ManifestId}", step.TargetRelativePath, manifest.Id);
+            return OperationResult.CreateFailure($"Failed to compute hash for installer '{step.TargetRelativePath}': {ex.Message}");
+        }
+
         if (!string.Equals(computedHash, manifestFile.Hash, StringComparison.OrdinalIgnoreCase))
         {
             logger.LogError(
@@ -389,7 +417,7 @@ public class InstallationInstructionsService(
 
         progress?.Report(new ContentAcquisitionProgress
         {
-            Phase = ContentAcquisitionPhase.Extracting,
+            Phase = ContentAcquisitionPhase.Delivering,
             CurrentOperation = displayMessage,
             CurrentFile = step.TargetRelativePath ?? string.Empty,
         });
@@ -458,6 +486,7 @@ public class InstallationInstructionsService(
                     if (!process.HasExited)
                     {
                         process.Kill(entireProcessTree: true);
+                        await process.WaitForExitAsync(CancellationToken.None);
                     }
                 }
                 catch (Exception killEx)
@@ -476,6 +505,7 @@ public class InstallationInstructionsService(
                     if (!process.HasExited)
                     {
                         process.Kill(entireProcessTree: true);
+                        await process.WaitForExitAsync(CancellationToken.None);
                     }
                 }
                 catch (Exception killEx)

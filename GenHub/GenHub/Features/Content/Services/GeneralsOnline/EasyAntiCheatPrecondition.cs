@@ -57,22 +57,33 @@ public class EasyAntiCheatPrecondition : IInstallationStepPrecondition
     {
         try
         {
-            var productId = GeneralsOnlineConstants.EacProductId;
+            var productId = (step.Arguments != null && step.Arguments.Count > 1 && !string.IsNullOrWhiteSpace(step.Arguments[1]))
+                ? step.Arguments[1]
+                : GeneralsOnlineConstants.EacProductId;
+
             if (string.IsNullOrWhiteSpace(productId))
             {
                 return false;
             }
 
-            using var key32 = Registry.LocalMachine.OpenSubKey($@"SOFTWARE\WOW6432Node\EasyAntiCheat_EOS\{productId}");
-            if (key32 != null)
+            var subKeyPath = $@"SOFTWARE\EasyAntiCheat_EOS\{productId}";
+
+            using (var baseKey32 = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry32))
+            using (var key32 = baseKey32.OpenSubKey(subKeyPath))
             {
-                return true;
+                if (key32 != null)
+                {
+                    return true;
+                }
             }
 
-            using var key64 = Registry.LocalMachine.OpenSubKey($@"SOFTWARE\EasyAntiCheat_EOS\{productId}");
-            if (key64 != null)
+            using (var baseKey64 = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64))
+            using (var key64 = baseKey64.OpenSubKey(subKeyPath))
             {
-                return true;
+                if (key64 != null)
+                {
+                    return true;
+                }
             }
         }
         catch

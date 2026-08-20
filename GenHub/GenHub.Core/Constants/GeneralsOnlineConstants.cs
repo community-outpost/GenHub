@@ -140,7 +140,7 @@ public static class GeneralsOnlineConstants
     public const string EacStatusMessage = "Installing AntiCheat";
 
     /// <summary>Unique step key identifying Easy Anti-Cheat installation for Generals Online.</summary>
-    public const string EacStepKey = "generalsonline:eac:fc1cc0d936424212b645105f084d08b0";
+    public const string EacStepKey = PublisherType + ":eac:" + EacProductId;
 
     // ===== Content Tags =====
 

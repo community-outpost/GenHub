@@ -222,13 +222,16 @@ public class GeneralsOnlineProvider(
             }
 
             var existingPool = await manifestPool.GetAllManifestsAsync(cancellationToken);
-            var preExisting = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            if (existingPool.Success && existingPool.Data != null)
+            if (!existingPool.Success || existingPool.Data == null)
             {
-                foreach (var m in existingPool.Data)
-                {
-                    preExisting.Add(m.Id);
-                }
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"Failed to query existing manifests before delivery: {existingPool.FirstError}");
+            }
+
+            var preExisting = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var m in existingPool.Data)
+            {
+                preExisting.Add(m.Id);
             }
 
             _preExistingManifestIdsByManifest[manifest.Id] = preExisting;

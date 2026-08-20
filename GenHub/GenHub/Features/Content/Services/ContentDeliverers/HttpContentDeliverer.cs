@@ -130,6 +130,9 @@ public class HttpContentDeliverer(
             SourceType = ContentSourceType.ContentAddressable,
             InstallTarget = file.InstallTarget,
             IsExecutable = file.IsExecutable,
+            IsRequired = file.IsRequired,
+            PackageInfo = file.PackageInfo,
+            PatchSourceFile = file.PatchSourceFile,
             Hash = !string.IsNullOrEmpty(file.Hash) ? file.Hash : string.Empty,
             DownloadUrl = file.DownloadUrl,
             Size = fileInfo.Exists ? fileInfo.Length : file.Size,
@@ -151,6 +154,9 @@ public class HttpContentDeliverer(
                 SourceType = ContentSourceType.ContentAddressable,
                 InstallTarget = file.InstallTarget,
                 IsExecutable = file.IsExecutable,
+                IsRequired = file.IsRequired,
+                PackageInfo = file.PackageInfo,
+                PatchSourceFile = file.PatchSourceFile,
                 Hash = file.Hash,
                 DownloadUrl = file.DownloadUrl,
                 Size = file.Size,
@@ -168,19 +174,29 @@ public class HttpContentDeliverer(
 
         var builder = manifestBuilder
             .WithBasicInfo(publisherId, packageManifest.Name, manifestVersionInt)
-            .WithContentType(packageManifest.ContentType, packageManifest.TargetGame)
-            .WithPublisher(
-                packageManifest.Publisher?.Name ?? string.Empty,
-                packageManifest.Publisher?.Website ?? string.Empty,
-                packageManifest.Publisher?.SupportUrl ?? string.Empty,
-                packageManifest.Publisher?.ContactEmail ?? string.Empty,
-                packageManifest.Publisher?.PublisherType ?? string.Empty)
-            .WithMetadata(
-                packageManifest.Metadata?.Description ?? string.Empty,
-                packageManifest.Metadata?.Tags,
-                packageManifest.Metadata?.IconUrl ?? string.Empty,
-                packageManifest.Metadata?.ScreenshotUrls,
-                packageManifest.Metadata?.ChangelogUrl ?? string.Empty);
+            .WithContentType(packageManifest.ContentType, packageManifest.TargetGame);
+
+        if (packageManifest.Publisher != null)
+        {
+            builder.WithPublisher(packageManifest.Publisher);
+        }
+
+        builder.WithMetadata(
+            packageManifest.Metadata?.Description ?? string.Empty,
+            packageManifest.Metadata?.Tags,
+            packageManifest.Metadata?.IconUrl ?? string.Empty,
+            packageManifest.Metadata?.ScreenshotUrls,
+            packageManifest.Metadata?.ChangelogUrl ?? string.Empty);
+
+        if (packageManifest.ContentReferences is { Count: > 0 })
+        {
+            builder.WithContentReferences(packageManifest.ContentReferences);
+        }
+
+        if (packageManifest.InstallationInstructions != null)
+        {
+            builder.WithInstallationInstructions(packageManifest.InstallationInstructions);
+        }
 
         foreach (var dep in packageManifest.Dependencies)
         {
