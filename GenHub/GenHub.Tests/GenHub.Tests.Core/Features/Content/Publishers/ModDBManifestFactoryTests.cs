@@ -420,14 +420,14 @@ public sealed class ModDBManifestFactoryTests : IDisposable
 
         var originalManifest = new ContentManifest
         {
-            SchemaVersion = 1,
+            SchemaVersion = "1.0.0",
             Id = ManifestId.Create("moddb:mod:contra-x-beta-2:1"),
             Name = "Contra X BETA 2",
-            Version = 1,
+            Version = "1.0",
             ContentType = ContentType.Mod,
             TargetGame = GameType.ZeroHour,
-            Publisher = "Contra Mod Team",
-            Metadata = new ManifestMetadata
+            Publisher = new PublisherInfo { Name = "Contra Mod Team" },
+            Metadata = new ContentMetadata
             {
                 Title = "Contra X BETA 2",
             },

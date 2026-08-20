@@ -738,7 +738,7 @@ public sealed class ArchivePayloadProcessorTests : IDisposable
             if (useBzip2)
             {
                 using var bzMs = new MemoryStream();
-                using (var bz = SharpCompress.Compressors.BZip2.BZip2Stream.Create(bzMs, SharpCompress.Compressors.CompressionMode.Compress, leaveOpen: true))
+                using (var bz = SharpCompress.Compressors.BZip2.BZip2Stream.Create(bzMs, SharpCompress.Compressors.CompressionMode.Compress, decompressConcatenated: false, leaveOpen: true))
                 {
                     bz.Write(content, 0, content.Length);
                 }
