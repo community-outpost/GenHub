@@ -155,9 +155,19 @@ public partial class ActionSetViewModel(
 
             if (result.Success)
             {
-                var detailsText = result.Details.Count > 0
-                    ? result.FormatDetails()
-                    : isForce ? $"{ActionSet.Title} has been force applied successfully." : $"{ActionSet.Title} has been successfully applied.";
+                string detailsText;
+                if (result.Details.Count > 0)
+                {
+                    detailsText = result.FormatDetails();
+                }
+                else if (isForce)
+                {
+                    detailsText = $"{ActionSet.Title} has been force applied successfully.";
+                }
+                else
+                {
+                    detailsText = $"{ActionSet.Title} has been successfully applied.";
+                }
 
                 logger.LogInformation(
                     isForce ? "✓ {Title} force applied successfully in {Duration}ms - {Details}" : "✓ {Title} applied successfully in {Duration}ms - {Details}",
