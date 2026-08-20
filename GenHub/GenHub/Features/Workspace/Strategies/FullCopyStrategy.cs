@@ -90,7 +90,14 @@ public sealed class FullCopyStrategy(
             if (Directory.Exists(workspacePath) && configuration.ForceRecreate)
             {
                 Logger.LogDebug("Removing existing workspace directory: {WorkspacePath}", workspacePath);
-                Directory.Delete(workspacePath, true);
+                try
+                {
+                    Directory.Delete(workspacePath, true);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "Could not delete workspace directory {WorkspacePath}, overwriting files in-place", workspacePath);
+                }
             }
 
             // Create workspace directory

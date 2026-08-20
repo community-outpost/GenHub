@@ -86,7 +86,14 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             if (Directory.Exists(workspacePath) && configuration.ForceRecreate)
             {
                 Logger.LogDebug("Removing existing workspace directory: {WorkspacePath}", workspacePath);
-                Directory.Delete(workspacePath, true);
+                try
+                {
+                    Directory.Delete(workspacePath, true);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning(ex, "Could not delete workspace directory {WorkspacePath}, overwriting files in-place", workspacePath);
+                }
             }
 
             // Create workspace directory
@@ -271,8 +278,8 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             verifyHash = true;
         }
 
-        // Verify file integrity if hash is provided and file was copied
-        if (verifyHash && !string.IsNullOrEmpty(file.Hash))
+        // Verify file integrity if hash is provided and small file was copied
+        if (verifyHash && !string.IsNullOrEmpty(file.Hash) && file.Size < 5 * 1024 * 1024)
         {
             var hashValid = await FileOperations.VerifyFileHashAsync(targetPath, file.Hash, cancellationToken);
             if (!hashValid)
@@ -357,7 +364,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             bytesProcessed = result.BytesProcessed;
         }
 
-        if (verifyHash && !string.IsNullOrEmpty(file.Hash))
+        if (verifyHash && !string.IsNullOrEmpty(file.Hash) && file.Size < 5 * 1024 * 1024)
         {
             var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
             if (!hashValid)

@@ -11,6 +11,7 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameClients;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
@@ -29,12 +30,13 @@ namespace GenHub.Features.GameInstallations;
 /// content manifests for detected installations and populate their AvailableClients.
 /// </remarks>
 public class GameInstallationService(
-IGameInstallationDetectionOrchestrator detectionOrchestrator,
-IGameClientDetectionOrchestrator clientOrchestrator,
-ILogger<GameInstallationService> logger,
-IManifestGenerationService? manifestGenerationService = null,
-IContentManifestPool? contentManifestPool = null,
-IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDisposable
+    IGameInstallationDetectionOrchestrator detectionOrchestrator,
+    IGameClientDetectionOrchestrator clientOrchestrator,
+    ILogger<GameInstallationService> logger,
+    IManifestGenerationService? manifestGenerationService = null,
+    IContentManifestPool? contentManifestPool = null,
+    IInstallationPathResolver? pathResolver = null,
+    IInstallationCasPoolService? installationCasPoolService = null) : IGameInstallationService, IDisposable
 {
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
     private ReadOnlyCollection<GameInstallation>? _cachedInstallations;
@@ -865,6 +867,11 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
 
             // Generate manifests and populate AvailableVersions for each installation
             await PopulateGameClientsAndManifestsAsync(installations, cancellationToken);
+
+            if (installationCasPoolService != null)
+            {
+                await installationCasPoolService.EnsurePoolPathAsync(installations, cancellationToken);
+            }
 
             _cachedInstallations = installations.AsReadOnly();
 

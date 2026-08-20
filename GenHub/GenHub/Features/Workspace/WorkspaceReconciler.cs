@@ -130,6 +130,19 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
 
             if (!existingFiles.Contains(relativePath))
             {
+                if (IsOptionalOrSkippedFile(relativePath))
+                {
+                    // Optional media skipped or removed by launcher settings is not a missing file defect
+                    deltas.Add(new WorkspaceDelta
+                    {
+                        Operation = WorkspaceDeltaOperation.Skip,
+                        File = manifestFile,
+                        WorkspacePath = fullPath,
+                        Reason = "Optional file skipped or removed by configuration",
+                    });
+                    continue;
+                }
+
                 // File missing from workspace - needs to be added
                 deltas.Add(new WorkspaceDelta
                 {
@@ -172,6 +185,11 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
         {
             if (!expectedFiles.ContainsKey(relativePath))
             {
+                if (IsRuntimeOrIgnoredWorkspaceFile(relativePath))
+                {
+                    continue;
+                }
+
                 var fullPath = Path.Combine(workspacePath, relativePath);
                 deltas.Add(new WorkspaceDelta
                 {
@@ -287,5 +305,22 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
             logger.LogWarning(ex, "Error checking if file needs update: {FilePath}", filePath);
             return true; // Assume needs update if we can't verify
         }
+    }
+
+    private bool IsOptionalOrSkippedFile(string relativePath)
+    {
+        var fileName = Path.GetFileName(relativePath.Replace('\\', '/'));
+        return string.Equals(fileName, "EA_LOGO.BIK", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(fileName, "EA_LOGO640.BIK", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool IsRuntimeOrIgnoredWorkspaceFile(string relativePath)
+    {
+        var fileName = Path.GetFileName(relativePath.Replace('\\', '/'));
+        return fileName.StartsWith(".gh", StringComparison.OrdinalIgnoreCase) ||
+               fileName.EndsWith(".log", StringComparison.OrdinalIgnoreCase) ||
+               fileName.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(fileName, "launch.receipt.json", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(fileName, "ReleaseCrashInfo.txt", StringComparison.OrdinalIgnoreCase);
     }
 }
