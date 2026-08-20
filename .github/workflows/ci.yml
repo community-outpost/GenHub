@@ -84,6 +84,8 @@ jobs:
               - '**/*.axaml'
               - '**/*.csproj'
               - '**/*.sln'
+              - '**/*.props'
+              - '**/*.targets'
               - '.github/workflows/**'
 
       - name: Changes Summary
@@ -535,20 +537,99 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # Launches the real native engine with no game data at all and requires the abort the
+  # engine is known to produce (exit code 1 once INI loading finds nothing to read). No
+  # licensed retail content is involved; what this covers is everything before that
+  # point — the binary loads, its dylibs resolve, and startup fails fast instead of
+  # hanging. No other job executes the native launch path at all.
+  engine-launch-smoke:
+    name: Engine Launch Smoke Test
+    needs: detect-changes
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.any == 'true' }}
+    # macos-14 and newer are Apple Silicon, matching the arm64 engine asset.
+    runs-on: macos-15
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache NuGet Packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      # `latest-bgfx` is a moving tag, republished as the engine advances. Deliberate
+      # tradeoff: this job tracks the current engine build rather than pinning a
+      # reproducible one, so an engine regression surfaces here first.
+      - name: Download Native Engine
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download latest-bgfx \
+            --repo bobtista/GeneralsGameCode \
+            --pattern 'GeneralsZH-macos-arm64.zip' \
+            --dir engine-download
+          # The archive wraps everything in a GeneralsZH-macos-arm64/ directory, so it is
+          # staged and the wrapper's contents lifted out. Not `unzip -j`: that would also
+          # flatten Data/INI/, which the engine reads by path.
+          unzip -q engine-download/GeneralsZH-macos-arm64.zip -d engine-staging
+          root="$(find engine-staging -mindepth 1 -maxdepth 1 -type d)"
+          if [ ! -f "$root/generalszh" ]; then
+            echo "::error::generalszh not found in the release archive; contents were:"
+            find engine-staging -maxdepth 2
+            exit 1
+          fi
+          mv "$root" native-client
+          chmod +x native-client/generalszh
+          ls -l native-client
+
+      # GENHUB_REQUIRE_NATIVE_SMOKE turns "no client found" from a silent skip into a
+      # failure. Without it a broken download would leave the test skipping and this
+      # job permanently, meaninglessly green.
+      - name: Run Engine Launch Smoke Test
+        env:
+          GENHUB_NATIVE_CLIENT_DIR: ${{ github.workspace }}/native-client
+          GENHUB_REQUIRE_NATIVE_SMOKE: '1'
+        run: |
+          dotnet test GenHub/GenHub.Tests/GenHub.Tests.Core/GenHub.Tests.Core.csproj \
+            -c ${{ env.BUILD_CONFIGURATION }} \
+            --filter "FullyQualifiedName~EngineLaunchSmokeTests" \
+            --verbosity normal
+
   summary:
     name: Build Summary
-    needs: [build-windows, build-linux, build-macos]
+    # detect-changes is in `needs` so its own failure reaches the gate below. Without it a
+    # failed detect-changes skips every build, and all-skipped reads as a clean pass.
+    needs: [detect-changes, build-windows, build-linux, build-macos, engine-launch-smoke]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
+      # A job skipped by detect-changes gating is a legitimate outcome, rendered as
+      # such rather than as a failure.
       - name: Generate Summary
         run: |
           echo "### 🚀 GenHub Build Results" >> $GITHUB_STEP_SUMMARY
           echo "| Platform | Status |" >> $GITHUB_STEP_SUMMARY
           echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
-          echo "| Windows | ${{ needs.build-windows.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Linux | ${{ needs.build-linux.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| macOS | ${{ needs.build-macos.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Windows | ${{ needs.build-windows.result == 'success' && '✅ Passed' || needs.build-windows.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Linux | ${{ needs.build-linux.result == 'success' && '✅ Passed' || needs.build-linux.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| macOS | ${{ needs.build-macos.result == 'success' && '✅ Passed' || needs.build-macos.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Engine Smoke | ${{ needs.engine-launch-smoke.result == 'success' && '✅ Passed' || needs.engine-launch-smoke.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+
+      # Turns the summary into a real gate: branch protection can require this one
+      # check and a failed or cancelled job anywhere in `needs` blocks the merge.
+      # Skipped jobs pass — being gated off by detect-changes is not a failure.
+      - name: Fail when a required job failed
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: exit 1

@@ -108,10 +108,9 @@ Address all actionable items in a single systematic pass:
 2. **Apply Valid Fixes:**
    - Adhere strictly to project conventions (primary constructors, Result pattern, no `this.`, centralized constants).
    - Keep changes minimal and focused directly on the reported defect.
-3. **Reply & Resolve Threads:**
-   - **For Valid Fixes:** Reply confirming the resolution (e.g., `Fixed: Materialized collection eagerly to prevent deferred enumeration.`).
-   - **For False Positives:** Reply with concise technical reasoning explaining why the current pattern is intentional or required.
-   - Resolve the discussion thread on GitHub.
+3. **Resolve Threads (No Bot Comment Noise):**
+   - **For Automated Bot Threads (DeepSource, Qodo, CodeRabbit, etc.):** Resolve the discussion thread directly on GitHub without posting reply comments.
+   - **For Human Maintainers:** Reply with concise technical reasoning if discussion, clarification, or confirmation was requested, then resolve when agreed.
 
 ---
 

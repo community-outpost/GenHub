@@ -733,7 +733,7 @@
           <StackPanel>
             <StackPanel HorizontalAlignment="Left">
                 <TextBlock Text="Workspace Simulator" Classes="demo-title"/>
-                <TextBlock Text="Visualizes virtual file system construction via symlinks." Classes="demo-subtitle"/>
+                <TextBlock Text="Visualizes virtual file system construction using hardlinks, symlinks, and copies." Classes="demo-subtitle"/>
             </StackPanel>
 
             <Border Classes="demo-container">

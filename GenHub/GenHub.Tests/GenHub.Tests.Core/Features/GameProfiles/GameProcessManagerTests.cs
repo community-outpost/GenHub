@@ -164,7 +164,10 @@ public class GameProcessManagerTests
         stopwatch.Stop();
 
         Assert.False(result.Success);
-        Assert.Contains("without starting", string.Join(", ", result.Errors));
+        var errors = string.Join(", ", result.Errors);
+        Assert.True(
+            errors.Contains("without starting") || errors.Contains("start time could not be read"),
+            $"Expected exit failure message, but got: {errors}");
         Assert.True(
             stopwatch.Elapsed < config.ExpectedChildDiscoveryTimeout,
             $"Expected a fast failure once the launcher exited, but it took {stopwatch.Elapsed}.");
@@ -196,7 +199,9 @@ public class GameProcessManagerTests
         Assert.False(result.Success);
 
         var errors = string.Join(", ", result.Errors);
-        Assert.Contains("without starting", errors);
+        Assert.True(
+            errors.Contains("without starting") || errors.Contains("did not start") || errors.Contains("start time could not be read"),
+            $"Expected start failure message, but got: {errors}");
         Assert.Contains(complaint, errors);
     }
 

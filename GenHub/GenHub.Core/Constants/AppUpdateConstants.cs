@@ -286,6 +286,26 @@ public static class AppUpdateConstants
     public const int PeriodicUpdateCheckIntervalIncrementMinutes = 5;
 
     /// <summary>
+    /// Default buffer size for stream operations (128KB).
+    /// </summary>
+    public const int DefaultStreamBufferSize = 131072;
+
+    /// <summary>
+    /// Chunk size in bytes for parallel range downloads (2MB).
+    /// </summary>
+    public const long DownloadChunkSizeBytes = 2 * 1024 * 1024;
+
+    /// <summary>
+    /// Maximum number of concurrent connections for parallel downloads.
+    /// </summary>
+    public const int ParallelDownloadConcurrency = 8;
+
+    /// <summary>
+    /// Minimum file size threshold in bytes to trigger parallel chunked downloading (4MB).
+    /// </summary>
+    public const long ParallelDownloadThresholdBytes = 4 * 1024 * 1024;
+
+    /// <summary>
     /// Delay before exit after applying update (5 seconds).
     /// </summary>
     public static readonly TimeSpan PostUpdateExitDelay = TimeSpan.FromSeconds(5);
