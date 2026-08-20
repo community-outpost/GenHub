@@ -150,10 +150,16 @@ public class ProxyLauncher(ILogger<ProxyLauncher> logger) : BaseActionSet(logger
             details.Add("✓ Steam proxy launcher subsystem successfully configured.");
             return Task.FromResult(new ActionSetResult(true, null, details));
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
-            logger.LogError(ex, "Error applying proxy launcher fix");
-            details.Add($"✗ Error: {ex.Message}");
+            logger.LogError(ex, "I/O error applying proxy launcher fix");
+            details.Add($"✗ Disk error: {ex.Message}");
+            return Task.FromResult(new ActionSetResult(false, ex.Message, details));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogError(ex, "Permission error applying proxy launcher fix");
+            details.Add($"✗ Access denied: {ex.Message}");
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
     }
@@ -193,9 +199,13 @@ public class ProxyLauncher(ILogger<ProxyLauncher> logger) : BaseActionSet(logger
                 }
             }
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             logger.LogWarning(ex, "Failed to cleanup proxy launcher during undo");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Access denied during proxy launcher undo");
         }
 
         return Task.FromResult(new ActionSetResult(true, null, [$"Cleaned up proxy launcher assets (restored {restoredCount} items)."]));

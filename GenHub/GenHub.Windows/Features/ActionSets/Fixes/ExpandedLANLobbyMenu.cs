@@ -211,10 +211,28 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
 
             return new ActionSetResult(true, null, details);
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
-            logger.LogError(ex, "Error applying LAN lobby menu fix");
-            details.Add($"✗ Error: {ex.Message}");
+            logger.LogError(ex, "Network error downloading LAN lobby menu fix");
+            details.Add($"✗ Network error: {ex.Message}");
+            return new ActionSetResult(false, ex.Message, details);
+        }
+        catch (IOException ex)
+        {
+            logger.LogError(ex, "Disk I/O error applying LAN lobby menu fix");
+            details.Add($"✗ Disk error: {ex.Message}");
+            return new ActionSetResult(false, ex.Message, details);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogError(ex, "Permission error applying LAN lobby menu fix");
+            details.Add($"✗ Access denied: {ex.Message}");
+            return new ActionSetResult(false, ex.Message, details);
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogError(ex, "Archive extraction error applying LAN lobby menu fix");
+            details.Add($"✗ Archive error: {ex.Message}");
             return new ActionSetResult(false, ex.Message, details);
         }
         finally
@@ -226,7 +244,7 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
                     File.Delete(tempFile);
                 }
             }
-            catch (Exception ex)
+            catch (IOException ex)
             {
                 logger.LogDebug(ex, "Failed to delete temp file {TempFile}", tempFile);
             }
@@ -238,7 +256,7 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
                     Directory.Delete(tempExtractDir, recursive: true);
                 }
             }
-            catch (Exception ex)
+            catch (IOException ex)
             {
                 logger.LogDebug(ex, "Failed to delete temp directory {TempDir}", tempExtractDir);
             }
@@ -266,7 +284,7 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
                         }
                     }
                 }
-                catch (Exception ex)
+                catch (IOException ex)
                 {
                     logger.LogWarning(ex, "Failed to read installed file paths from marker {MarkerPath}", _markerPath);
                 }
@@ -300,9 +318,13 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
                 }
             }
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             logger.LogWarning(ex, "Failed to remove custom window files during undo");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Access denied removing custom window files during undo");
         }
 
         return Task.FromResult(new ActionSetResult(true, null, [$"Removed {removedCount} custom window and expanded LAN lobby files."]));
