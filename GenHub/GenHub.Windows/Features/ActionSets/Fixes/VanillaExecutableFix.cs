@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Models.GameInstallations;
-using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 
 /// <summary>

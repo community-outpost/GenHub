@@ -25,9 +25,9 @@ public class OneDriveFixTests
         var fix = new OneDriveFix(_loggerMock.Object);
 
         Assert.Equal("OneDriveFix", fix.Id);
-        Assert.Equal("OneDrive Protection & Relocation", fix.Title);
-        Assert.True(fix.IsCoreFix);
-        Assert.True(fix.IsCrucialFix);
+        Assert.Equal("Prevent OneDrive Sync (Move & Symlink)", fix.Title);
+        Assert.False(fix.IsCoreFix);
+        Assert.False(fix.IsCrucialFix);
     }
 
     /// <summary>
@@ -35,7 +35,7 @@ public class OneDriveFixTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task UndoAsync_WhenNoBackupsExist_ReturnsSuccess()
+    public async Task UndoAsync_WhenNoBackupsExist_ReturnsSuccessAsync()
     {
         var fix = new OneDriveFix(_loggerMock.Object);
         var installation = new GameInstallation("C:\\TestPath", GameInstallationType.Steam);
