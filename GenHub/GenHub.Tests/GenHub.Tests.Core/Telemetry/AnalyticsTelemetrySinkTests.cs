@@ -66,6 +66,7 @@ public class AnalyticsTelemetrySinkTests
     /// <summary>
     /// Verifies EmitAsync succeeds and buffers locally when no HTTP client is configured.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task EmitAsync_WhenNoHttpClient_BuffersAndReturnsSuccess()
     {
@@ -87,6 +88,7 @@ public class AnalyticsTelemetrySinkTests
     /// <summary>
     /// Verifies EmitAsync sends request formatted for PostHog capture API.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task EmitAsync_WhenHttpClientProvided_SendsPostHogFormattedPayload()
     {
@@ -142,6 +144,7 @@ public class AnalyticsTelemetrySinkTests
     /// <summary>
     /// Verifies EmitAsync buffers and returns failure when endpoint returns error.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task EmitAsync_WhenEndpointReturnsError_BuffersAndReturnsFailure()
     {
@@ -162,6 +165,7 @@ public class AnalyticsTelemetrySinkTests
     /// <summary>
     /// Verifies FlushAsync flushes buffered events when client is active.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task FlushAsync_FlushesBufferedEventsSuccessfully()
     {
@@ -181,4 +185,3 @@ public class AnalyticsTelemetrySinkTests
         }
     }
 }
-

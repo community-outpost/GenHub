@@ -56,6 +56,7 @@ public class TelemetryServiceTests : IDisposable
     /// <summary>
     /// Verifies that TrackEvent does not emit when telemetry is Disabled.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task TrackEvent_WhenDisabled_DoesNotEmit()
     {
@@ -78,6 +79,7 @@ public class TelemetryServiceTests : IDisposable
     /// <summary>
     /// Verifies that TrackEvent emits when telemetry is AnonymousMetrics.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task TrackEvent_WhenAnonymousMetrics_EmitsToSink()
     {
@@ -105,6 +107,7 @@ public class TelemetryServiceTests : IDisposable
     /// <summary>
     /// Verifies that TrackException captures exception details, sanitized message, and breadcrumbs.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task TrackException_RecordsSanitizedCrashEvent()
     {
@@ -139,6 +142,7 @@ public class TelemetryServiceTests : IDisposable
     /// <summary>
     /// Verifies that breadcrumbs circular buffer is capped at MaxBreadcrumbsCount.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task AddBreadcrumb_CappedAtMaxCount()
     {
@@ -161,6 +165,7 @@ public class TelemetryServiceTests : IDisposable
     /// <summary>
     /// Verifies that FlushAsync flushes all registered sinks.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task FlushAsync_CallsFlushOnAllSinks()
     {

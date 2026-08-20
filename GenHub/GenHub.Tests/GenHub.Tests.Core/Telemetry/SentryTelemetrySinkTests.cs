@@ -66,6 +66,7 @@ public class SentryTelemetrySinkTests
     /// <summary>
     /// Verifies EmitAsync succeeds and buffers locally when no HTTP client is configured.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task EmitAsync_WhenNoHttpClient_BuffersAndReturnsSuccess()
     {
@@ -87,6 +88,7 @@ public class SentryTelemetrySinkTests
     /// <summary>
     /// Verifies EmitAsync sends request to Sentry store endpoint with auth headers.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task EmitAsync_WhenHttpClientProvided_SendsSentryStorePayloadWithAuthHeader()
     {
@@ -142,6 +144,7 @@ public class SentryTelemetrySinkTests
     /// <summary>
     /// Verifies EmitAsync handles endpoint failure gracefully by buffering and returning failure.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task EmitAsync_WhenEndpointReturnsError_BuffersAndReturnsFailure()
     {
@@ -162,6 +165,7 @@ public class SentryTelemetrySinkTests
     /// <summary>
     /// Verifies FlushAsync flushes buffered events when client is active.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task FlushAsync_FlushesBufferedEventsSuccessfully()
     {
@@ -187,4 +191,3 @@ public class SentryTelemetrySinkTests
         }
     }
 }
-

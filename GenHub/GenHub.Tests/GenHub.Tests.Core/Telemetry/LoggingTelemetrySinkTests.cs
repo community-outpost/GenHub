@@ -46,6 +46,7 @@ public class LoggingTelemetrySinkTests
     /// <summary>
     /// Verifies EmitAsync succeeds for normal event.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task EmitAsync_StandardEvent_ReturnsSuccess()
     {
@@ -64,6 +65,7 @@ public class LoggingTelemetrySinkTests
     /// <summary>
     /// Verifies EmitAsync succeeds for crash event.
     /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
     public async Task EmitAsync_CrashEvent_ReturnsSuccess()
     {

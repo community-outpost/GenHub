@@ -120,7 +120,7 @@ public class GameProcessManager(
             }
 
             _managedProcesses[process.Id] = process;
-            RegisterSessionAndEmitStarted(process, configuration.ExecutablePath);
+            RegisterSessionAndEmitStarted(process, configuration.ExecutablePath, configuration.EnvironmentVariables);
 
             if (configuration.WaitForExit)
             {
@@ -412,6 +412,7 @@ public class GameProcessManager(
 
                 // Track it
                 _managedProcesses[process.Id] = process;
+                RegisterSessionAndEmitStarted(process, processName);
 
                 try
                 {
@@ -589,11 +590,16 @@ public class GameProcessManager(
         }
     }
 
-    private static string DetectRunnerEnvironment()
+    private static string DetectRunnerEnvironment(IReadOnlyDictionary<string, string>? envVars = null)
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             return "Native";
+        }
+
+        if (envVars != null && envVars.TryGetValue("PROTON_VERSION", out var configProton) && !string.IsNullOrWhiteSpace(configProton))
+        {
+            return $"Proton-{configProton}";
         }
 
         if (Environment.GetEnvironmentVariable("PROTON_VERSION") is { Length: > 0 } proton)
@@ -601,7 +607,8 @@ public class GameProcessManager(
             return $"Proton-{proton}";
         }
 
-        if (Environment.GetEnvironmentVariable("WINEPREFIX") is { Length: > 0 })
+        if ((envVars != null && envVars.ContainsKey("WINEPREFIX"))
+            || Environment.GetEnvironmentVariable("WINEPREFIX") is { Length: > 0 })
         {
             return "Wine";
         }
@@ -873,6 +880,7 @@ public class GameProcessManager(
                 process.Dispose();
 
                 _managedProcesses[spawnedProcess.Id] = spawnedProcess;
+                RegisterSessionAndEmitStarted(spawnedProcess, configuration.ExecutablePath, configuration.EnvironmentVariables);
 
                 try
                 {
@@ -1410,7 +1418,7 @@ public class GameProcessManager(
         return string.IsNullOrWhiteSpace(detail) ? message : $"{message} {detail}";
     }
 
-    private void RegisterSessionAndEmitStarted(Process process, string executableName)
+    private void RegisterSessionAndEmitStarted(Process process, string executableName, IReadOnlyDictionary<string, string>? envVars = null)
     {
         var sessionId = Guid.NewGuid().ToString("N")[..8];
         var execName = Path.GetFileName(executableName);
@@ -1423,7 +1431,7 @@ public class GameProcessManager(
                 [TelemetryConstants.Properties.SessionId] = sessionId,
                 [TelemetryConstants.Properties.ExecutablePath] = execName,
                 [TelemetryConstants.Properties.Platform] = RuntimeInformation.OSDescription,
-                [TelemetryConstants.Properties.Runner] = DetectRunnerEnvironment(),
+                [TelemetryConstants.Properties.Runner] = DetectRunnerEnvironment(envVars),
             });
         }
     }
