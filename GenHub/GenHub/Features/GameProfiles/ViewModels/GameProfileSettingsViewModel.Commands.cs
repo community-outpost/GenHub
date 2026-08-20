@@ -403,8 +403,8 @@ public partial class GameProfileSettingsViewModel
                 {
                     Name = Name,
                     Description = Description,
-                    GameInstallationId = SelectedGameInstallation.SourceId,
-                    GameClientId = SelectedGameInstallation.GameClientId,
+                    GameInstallationId = SelectedGameInstallation?.SourceId,
+                    GameClientId = SelectedGameInstallation?.GameClientId,
                     WorkspaceStrategy = SelectedWorkspaceStrategy,
                     EnabledContentIds = enabledContentIds,
                     CommandLineArguments = CommandLineArguments,

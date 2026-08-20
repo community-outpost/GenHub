@@ -945,7 +945,7 @@ public class GameProcessManager(
             // user already had running, so without it no candidate can ever qualify. Polling that
             // out would repeat the refusal once per interval and then report a discovery timeout,
             // which describes a launcher that was never given the chance to fail.
-            if (!launcherStartTime.HasValue)
+            if (!launcherStartTime.HasValue && !launcher.HasExited)
             {
                 logger.LogError(
                     "[Process] Not waiting for {ExpectedName}: the launcher's start time is unknown, so a process that predates this launch cannot be ruled out",
