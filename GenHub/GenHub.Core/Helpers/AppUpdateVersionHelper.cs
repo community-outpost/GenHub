@@ -71,7 +71,7 @@ public static partial class AppUpdateVersionHelper
 
     /// <summary>
     /// Checks whether an available artifact version is newer than the currently installed version.
-    /// Rejects cross-channel sequential comparisons between CI builds unless allowCrossChannel is explicitly specified.
+    /// Rejects cross-channel sequential comparisons when the current installation belongs to a specific channel.
     /// </summary>
     /// <param name="newVersion">The new artifact version string.</param>
     /// <param name="currentVersion">The current version string.</param>
@@ -95,21 +95,23 @@ public static partial class AppUpdateVersionHelper
         var newRun = ExtractRunNumber(newVersionBase);
         var currentRun = ExtractRunNumber(currentVersionBase);
 
+        if (!allowCrossChannel)
+        {
+            var newChannel = ExtractChannelKey(newVersionBase);
+            var currentChannel = ExtractChannelKey(currentVersionBase);
+
+            // If the currently installed build belongs to a specific channel (e.g. "pr242", "main", "development"),
+            // reject updates from any different channel (e.g. "pr265").
+            if (!string.IsNullOrEmpty(currentChannel) &&
+                !string.Equals(currentChannel, "release", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(newChannel, currentChannel, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
         if (newRun > 0 && currentRun > 0)
         {
-            if (!allowCrossChannel)
-            {
-                var newChannel = ExtractChannelKey(newVersionBase);
-                var currentChannel = ExtractChannelKey(currentVersionBase);
-
-                if (!string.IsNullOrEmpty(newChannel) &&
-                    !string.IsNullOrEmpty(currentChannel) &&
-                    !string.Equals(newChannel, currentChannel, StringComparison.OrdinalIgnoreCase))
-                {
-                    return false;
-                }
-            }
-
             return newRun > currentRun;
         }
 
