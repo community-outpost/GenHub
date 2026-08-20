@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -200,7 +201,7 @@ public partial class ModDBManifestFactory(
         var contentName = SlugifyTitle(details.Name);
 
         // 3. Use release date for manifest ID generation
-        // Format: 1.YYYYMMDD.moddb-{author}.{contentType}.{contentName}
+        // Format: 1.YYYYMMDD.moddb.{contentType}.{contentName}
         var releaseDate = details.SubmissionDate;
 
         // 4. Generate manifest ID with release date using ManifestIdGenerator
@@ -216,16 +217,16 @@ public partial class ModDBManifestFactory(
             details.Name,
             details.Author,
             details.ContentType,
-            releaseDate.ToString("yyyy-MM-dd"));
+            releaseDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
 
         // 5. Build manifest using the pre-generated manifest ID
         var provider = providerLoader.GetProvider(ModDBConstants.PublisherPrefix);
         var websiteUrl = provider?.Endpoints.WebsiteUrl ?? ModDBConstants.PublisherWebsite;
-        var publisherName = string.Format(System.Globalization.CultureInfo.InvariantCulture, ModDBConstants.PublisherNameFormat, details.Author);
+        var publisherName = string.Format(CultureInfo.InvariantCulture, ModDBConstants.PublisherNameFormat, details.Author);
         var supportUrl = !string.IsNullOrWhiteSpace(detailPageUrl) ? detailPageUrl : (provider?.Endpoints.SupportUrl ?? websiteUrl);
 
         // Format release date as YYYYMMDD for the manifest version
-        var releaseDateVersion = releaseDate.ToString("yyyyMMdd");
+        var releaseDateVersion = releaseDate.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
 
         var manifest = manifestBuilder
             .WithBasicInfo(publisherId, details.Name, releaseDateVersion)

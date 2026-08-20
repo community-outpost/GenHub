@@ -680,8 +680,14 @@ public partial class AODMapsDiscoverer(
 
         if (nextLink != null)
         {
-            logger.LogInformation("[AODMaps] Found 'Next' link: {Url}", nextLink.GetAttribute("href"));
-            return true;
+            var href = nextLink.GetAttribute("href");
+            if (!string.IsNullOrWhiteSpace(href) &&
+                !href.Equals("#", StringComparison.Ordinal) &&
+                !href.StartsWith("javascript:", StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogInformation("[AODMaps] Found 'Next' link: {Url}", href);
+                return true;
+            }
         }
 
         // Method 2: Look for numbered pagination links and check if any are greater than current page
