@@ -192,6 +192,12 @@ public class PreferIPv4Fix(
                         RegistryConstants.DisabledComponentsValueName,
                         origInt);
                 }
+                else
+                {
+                    restoreSuccess = registryService.DeleteValue(
+                        RegistryConstants.Tcpip6ParametersKeyPath,
+                        RegistryConstants.DisabledComponentsValueName);
+                }
 
                 try
                 {
@@ -204,10 +210,9 @@ public class PreferIPv4Fix(
             }
             else
             {
-                restoreSuccess = registryService.SetIntValue(
+                restoreSuccess = registryService.DeleteValue(
                     RegistryConstants.Tcpip6ParametersKeyPath,
-                    RegistryConstants.DisabledComponentsValueName,
-                    0);
+                    RegistryConstants.DisabledComponentsValueName);
             }
 
             if (!restoreSuccess)

@@ -216,10 +216,7 @@
 
                     <!-- Batch Action Button -->
                     <Button Grid.Column="2" Classes="GenPatcherPrimaryBtn" Command="{Binding ApplyAllFixesCommand}" VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="⚡" VerticalAlignment="Center"/>
-                            <TextBlock Text="Apply All Recommended" VerticalAlignment="Center" FontWeight="Bold"/>
-                        </StackPanel>
+                        <TextBlock Text="Apply All Recommended" VerticalAlignment="Center" FontWeight="Bold"/>
                     </Button>
                 </Grid>
             </Border>

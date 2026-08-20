@@ -69,6 +69,7 @@ public class VCRedist2008Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
     {
         var tempFile = Path.Combine(Path.GetTempPath(), $"vcredist_2008_x86_{Guid.NewGuid():N}.exe");
         var details = new List<string>();
+        FileStream? lockedStream = null;
 
         try
         {
@@ -101,24 +102,41 @@ public class VCRedist2008Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
                     if (new FileInfo(tempFile).Length < ActionSetConstants.Validation.VCRedistMinSize)
                     {
                         logger.LogWarning("Downloaded file too small, likely corrupt.");
-                        if (File.Exists(tempFile)) File.Delete(tempFile);
+                        if (File.Exists(tempFile))
+                        {
+                            File.Delete(tempFile);
+                        }
+
                         continue;
                     }
 
-                    // Security signature validation (Authenticode publisher verification)
-                    var securityValidation = await DownloadSecurityValidator.ValidateFileAsync(
+                    // Security signature validation (Authenticode publisher verification) and lock file immutable
+                    var securityValidation = await DownloadSecurityValidator.ValidateAndLockFileAsync(
                         tempFile,
                         expectedAuthenticodePublisher: ActionSetConstants.Security.MicrosoftPublisher,
                         ct: cancellationToken);
 
-                    if (!securityValidation.Success)
+                    if (!securityValidation.Success || securityValidation.Data == null)
                     {
                         var errorSummary = string.Join("; ", securityValidation.Errors);
                         logger.LogWarning("Security validation failed for download from {Url}: {Error}", url, errorSummary);
-                        if (File.Exists(tempFile)) File.Delete(tempFile);
+                        if (File.Exists(tempFile))
+                        {
+                            try
+                            {
+                                File.SetAttributes(tempFile, FileAttributes.Normal);
+                                File.Delete(tempFile);
+                            }
+                            catch (Exception)
+                            {
+                                // Ignore cleanup failure
+                            }
+                        }
+
                         continue;
                     }
 
+                    lockedStream = securityValidation.Data;
                     details.Add($"✓ Downloaded and verified from {new Uri(url).Host}");
                     downloaded = true;
                     break;
@@ -126,13 +144,24 @@ public class VCRedist2008Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
                 catch (Exception ex)
                 {
                     logger.LogWarning("Failed to download from {Url}: {Error}", url, ex.Message);
-                    if (File.Exists(tempFile)) File.Delete(tempFile);
+                    if (File.Exists(tempFile))
+                    {
+                        try
+                        {
+                            File.SetAttributes(tempFile, FileAttributes.Normal);
+                            File.Delete(tempFile);
+                        }
+                        catch (Exception)
+                        {
+                            // Ignore cleanup failure
+                        }
+                    }
                 }
             }
 
-            if (!downloaded)
+            if (!downloaded || lockedStream == null)
             {
-                return new ActionSetResult(false, "Failed to download VCRedist 2008 from all mirrors.", details);
+                return new ActionSetResult(false, "Failed to download and verify VCRedist 2008 from all mirrors.", details);
             }
 
             details.Add("Installing Visual C++ 2008...");
@@ -145,7 +174,11 @@ public class VCRedist2008Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
                 Verb = "runas",
             };
 
-            using var process = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start installer.");
+            using var process = Process.Start(psi);
+            if (process == null)
+            {
+                return new ActionSetResult(false, "Failed to start Visual C++ 2008 installer process.", details);
+            }
 
             await process.WaitForExitAsync(cancellationToken);
 
@@ -163,10 +196,16 @@ public class VCRedist2008Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
         }
         finally
         {
+            if (lockedStream != null)
+            {
+                await lockedStream.DisposeAsync();
+            }
+
             try
             {
                 if (File.Exists(tempFile))
                 {
+                    File.SetAttributes(tempFile, FileAttributes.Normal);
                     File.Delete(tempFile);
                 }
             }

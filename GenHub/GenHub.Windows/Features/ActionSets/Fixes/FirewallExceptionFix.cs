@@ -87,61 +87,66 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
                 return new ActionSetResult(true, null, details);
             }
 
-            var hasFailures = false;
+            int rulesAdded = 0;
+            int rulesFailed = 0;
 
             // Run firewall commands asynchronously to avoid UI blocking
             await Task.Run(
                 () =>
             {
                 // Add port rules (like GenPatcher does)
-                if (AddPortRule(PortRuleUdp16000, "UDP", 16000))
+                if (AddPortRule(PortRuleUdp16000, ActionSetConstants.FirewallRules.ProtocolUdp, 16000))
                 {
+                    rulesAdded++;
                     details.Add($"✓ Added rule: {PortRuleUdp16000}");
                 }
                 else
                 {
-                    hasFailures = true;
+                    rulesFailed++;
                     details.Add($"⚠ Failed: {PortRuleUdp16000}");
                 }
 
-                if (AddPortRule(PortRuleUdp16001, "UDP", 16001))
+                if (AddPortRule(PortRuleUdp16001, ActionSetConstants.FirewallRules.ProtocolUdp, 16001))
                 {
+                    rulesAdded++;
                     details.Add($"✓ Added rule: {PortRuleUdp16001}");
                 }
                 else
                 {
-                    hasFailures = true;
+                    rulesFailed++;
                     details.Add($"⚠ Failed: {PortRuleUdp16001}");
                 }
 
                 if (AddPortRule(
                     PortRuleTcp16001,
-                    "TCP",
+                    ActionSetConstants.FirewallRules.ProtocolTcp,
                     16001))
                 {
+                    rulesAdded++;
                     details.Add($"✓ Added rule: {PortRuleTcp16001}");
                 }
                 else
                 {
-                    hasFailures = true;
+                    rulesFailed++;
                     details.Add($"⚠ Failed: {PortRuleTcp16001}");
                 }
 
                 // Add Generals executable rules
                 if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
                 {
-                    var generalsExe = Path.Combine(installation.GeneralsPath, "Generals.exe");
-                    var generalsGameDat = Path.Combine(installation.GeneralsPath, "Game.dat");
+                    var generalsExe = Path.Combine(installation.GeneralsPath, ActionSetConstants.FileNames.GeneralsExe);
+                    var generalsGameDat = Path.Combine(installation.GeneralsPath, ActionSetConstants.FileNames.GameDat);
 
                     if (File.Exists(generalsExe))
                     {
                         if (AddProgramRule(GeneralsRule, generalsExe))
                         {
+                            rulesAdded++;
                             details.Add($"✓ Added rule: {GeneralsRule}");
                         }
                         else
                         {
-                            hasFailures = true;
+                            rulesFailed++;
                             details.Add($"⚠ Failed: {GeneralsRule}");
                         }
                     }
@@ -150,11 +155,12 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
                     {
                         if (AddProgramRule(GeneralsGameDatRule, generalsGameDat))
                         {
+                            rulesAdded++;
                             details.Add($"✓ Added rule: {GeneralsGameDatRule}");
                         }
                         else
                         {
-                            hasFailures = true;
+                            rulesFailed++;
                             details.Add($"⚠ Failed: {GeneralsGameDatRule}");
                         }
                     }
@@ -163,21 +169,18 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
                 // Add Zero Hour executable rules
                 if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
                 {
-                    // NOTE: Zero Hour often runs via generals.exe (the engine), not the launcher.
-                    // However, we add rules for both standard executables just in case.
-
-                    // Add Zero Hour executable rule
                     var zeroHourExe = Path.Combine(installation.ZeroHourPath, ActionSetConstants.FileNames.GeneralsExe);
                     var zeroHourGameDat = Path.Combine(installation.ZeroHourPath, ActionSetConstants.FileNames.GameDat);
                     if (File.Exists(zeroHourExe))
                     {
                         if (AddProgramRule(ZeroHourRule, zeroHourExe))
                         {
+                            rulesAdded++;
                             details.Add($"✓ Added rule: {ZeroHourRule}");
                         }
                         else
                         {
-                            hasFailures = true;
+                            rulesFailed++;
                             details.Add($"⚠ Failed: {ZeroHourRule}");
                         }
                     }
@@ -186,11 +189,12 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
                     {
                         if (AddProgramRule(ZeroHourGameDatRule, zeroHourGameDat))
                         {
+                            rulesAdded++;
                             details.Add($"✓ Added rule: {ZeroHourGameDatRule}");
                         }
                         else
                         {
-                            hasFailures = true;
+                            rulesFailed++;
                             details.Add($"⚠ Failed: {ZeroHourGameDatRule}");
                         }
                     }
@@ -198,13 +202,19 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
             },
                 cancellationToken);
 
-            if (hasFailures)
+            if (rulesAdded == 0 && rulesFailed > 0)
             {
-                logger.LogWarning("Firewall exceptions applied with one or more failures");
-                return new ActionSetResult(false, "Failed to add one or more firewall rules.", details);
+                logger.LogWarning("Firewall rule configuration failed completely. Administrative privileges may be required.");
+                return new ActionSetResult(false, "Failed to configure any firewall rules. Administrative privileges may be required.", details);
             }
 
-            logger.LogInformation("Firewall rules added");
+            if (rulesFailed > 0)
+            {
+                logger.LogWarning("Firewall exceptions applied with {FailedCount} failures out of {TotalCount}", rulesFailed, rulesAdded + rulesFailed);
+                return new ActionSetResult(false, $"Failed to add {rulesFailed} firewall rule(s).", details);
+            }
+
+            logger.LogInformation("All {Count} firewall rules added successfully", rulesAdded);
             return new ActionSetResult(true, null, details);
         }
         catch (Exception ex)
@@ -223,7 +233,8 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
         try
         {
             details.Add("Removing firewall rules...");
-            bool hasFailures = false;
+            int rulesRemoved = 0;
+            int rulesFailed = 0;
 
             // Run firewall commands asynchronously to avoid UI blocking
             await Task.Run(
@@ -232,62 +243,69 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
                 // Remove port rules
                 if (RemoveFirewallRule(PortRuleUdp16000))
                 {
+                    rulesRemoved++;
                     details.Add($"✓ Removed rule: {PortRuleUdp16000}");
                 }
                 else
                 {
-                    hasFailures = true;
+                    rulesFailed++;
                     details.Add($"⚠ Failed to remove rule: {PortRuleUdp16000}");
                 }
 
                 if (RemoveFirewallRule(PortRuleUdp16001))
                 {
+                    rulesRemoved++;
                     details.Add($"✓ Removed rule: {PortRuleUdp16001}");
                 }
                 else
                 {
-                    hasFailures = true;
+                    rulesFailed++;
                     details.Add($"⚠ Failed to remove rule: {PortRuleUdp16001}");
                 }
 
                 if (RemoveFirewallRule(PortRuleTcp16001))
                 {
+                    rulesRemoved++;
                     details.Add($"✓ Removed rule: {PortRuleTcp16001}");
                 }
                 else
                 {
-                    hasFailures = true;
+                    rulesFailed++;
                     details.Add($"⚠ Failed to remove rule: {PortRuleTcp16001}");
                 }
 
                 // Remove Generals executable rules
                 if (RemoveFirewallRule(GeneralsRule))
                 {
+                    rulesRemoved++;
                     details.Add($"✓ Removed rule: {GeneralsRule}");
                 }
 
                 if (RemoveFirewallRule(GeneralsGameDatRule))
                 {
+                    rulesRemoved++;
                     details.Add($"✓ Removed rule: {GeneralsGameDatRule}");
                 }
 
                 // Remove Zero Hour executable rules
                 if (RemoveFirewallRule(ZeroHourRule))
                 {
+                    rulesRemoved++;
                     details.Add($"✓ Removed rule: {ZeroHourRule}");
                 }
 
                 if (RemoveFirewallRule(ZeroHourGameDatRule))
                 {
+                    rulesRemoved++;
                     details.Add($"✓ Removed rule: {ZeroHourGameDatRule}");
                 }
             },
                 cancellationToken);
 
-            logger.LogInformation("Firewall rules removed");
-            if (hasFailures)
+            logger.LogInformation("Firewall rules removal finished: {RemovedCount} removed, {FailedCount} failed", rulesRemoved, rulesFailed);
+            if (rulesFailed > 0)
             {
-                return new ActionSetResult(false, "Failed to remove one or more firewall rules.", details);
+                return new ActionSetResult(false, $"Failed to remove {rulesFailed} firewall rule(s).", details);
             }
 
             return new ActionSetResult(true, null, details);

@@ -123,19 +123,32 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
                 return new ActionSetResult(false, "Downloaded Generals 1.08 patch is corrupted or incomplete.", details);
             }
 
-            // Authenticate package hash against pinned SHA-256
-            var securityValidation = await DownloadSecurityValidator.ValidateFileAsync(
+            // Authenticate package hash against pinned SHA-256 and lock file immutable
+            var securityValidation = await DownloadSecurityValidator.ValidateAndLockFileAsync(
                 tempPath,
                 allowedSha256Hashes: [ActionSetConstants.Security.Generals108PatchSha256],
                 ct: cancellationToken);
 
-            if (!securityValidation.Success)
+            if (!securityValidation.Success || securityValidation.Data == null)
             {
                 var errorSummary = string.Join("; ", securityValidation.Errors);
                 logger.LogWarning("Security validation failed for Generals 1.08 patch archive: {Error}", errorSummary);
-                if (File.Exists(tempPath)) File.Delete(tempPath);
+                if (File.Exists(tempPath))
+                {
+                    try
+                    {
+                        File.SetAttributes(tempPath, FileAttributes.Normal);
+                        File.Delete(tempPath);
+                    }
+                    catch (Exception)
+                    {
+                    }
+                }
+
                 return new ActionSetResult(false, $"Security validation failed for Generals 1.08 patch: {errorSummary}", details);
             }
+
+            await securityValidation.Data.DisposeAsync();
 
             // Validate zip integrity before extracting
             try
@@ -328,6 +341,7 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
         {
             if (File.Exists(tempPath))
             {
+                File.SetAttributes(tempPath, FileAttributes.Normal);
                 File.Delete(tempPath);
             }
         }
@@ -340,6 +354,17 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
         {
             if (Directory.Exists(extractPath))
             {
+                foreach (var file in Directory.GetFiles(extractPath, "*", SearchOption.AllDirectories))
+                {
+                    try
+                    {
+                        File.SetAttributes(file, FileAttributes.Normal);
+                    }
+                    catch
+                    {
+                    }
+                }
+
                 Directory.Delete(extractPath, true);
             }
         }

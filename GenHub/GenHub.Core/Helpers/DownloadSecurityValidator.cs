@@ -81,6 +81,17 @@ public static class DownloadSecurityValidator
     public static async Task<string> ComputeSha256Async(string filePath, CancellationToken ct = default)
     {
         await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, true);
+        return await ComputeSha256Async(stream, ct);
+    }
+
+    /// <summary>
+    /// Computes the SHA-256 hash of a stream as a lowercase hexadecimal string.
+    /// </summary>
+    /// <param name="stream">The stream to hash.</param>
+    /// <param name="ct">The cancellation token.</param>
+    /// <returns>Lowercase hex SHA-256 string.</returns>
+    public static async Task<string> ComputeSha256Async(Stream stream, CancellationToken ct = default)
+    {
         using var sha256 = SHA256.Create();
         var hashBytes = await sha256.ComputeHashAsync(stream, ct);
         return Convert.ToHexString(hashBytes).ToLowerInvariant();
@@ -92,8 +103,12 @@ public static class DownloadSecurityValidator
     /// </summary>
     /// <param name="filePath">Path to the executable or library file.</param>
     /// <param name="expectedPublisher">Expected publisher subject or issuer substring (e.g. "Microsoft Corporation").</param>
+    /// <param name="allowExpiredCertificates">Whether to accept legacy expired certificates if publisher matches.</param>
     /// <returns>Operation result indicating success or failure.</returns>
-    public static OperationResult<bool> ValidateAuthenticodeSignature(string filePath, string? expectedPublisher = null)
+    public static OperationResult<bool> ValidateAuthenticodeSignature(
+        string filePath,
+        string? expectedPublisher = null,
+        bool allowExpiredCertificates = false)
     {
         if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
         {
@@ -107,7 +122,7 @@ public static class DownloadSecurityValidator
         }
 
         var trustResult = VerifyWindowsAuthenticodeTrust(filePath);
-        if (!trustResult.Success)
+        if (!trustResult.Success && !allowExpiredCertificates)
         {
             return trustResult;
         }
@@ -145,12 +160,14 @@ public static class DownloadSecurityValidator
     /// <param name="filePath">Path to the file to validate.</param>
     /// <param name="allowedSha256Hashes">Optional list of allowed SHA-256 hashes.</param>
     /// <param name="expectedAuthenticodePublisher">Optional expected Authenticode publisher substring.</param>
+    /// <param name="allowExpiredCertificates">Whether to accept legacy expired certificates if publisher matches.</param>
     /// <param name="ct">The cancellation token.</param>
     /// <returns>Operation result indicating validation success or failure.</returns>
     public static async Task<OperationResult<bool>> ValidateFileAsync(
         string filePath,
         IReadOnlyList<string>? allowedSha256Hashes = null,
         string? expectedAuthenticodePublisher = null,
+        bool allowExpiredCertificates = false,
         CancellationToken ct = default)
     {
         if (!File.Exists(filePath))
@@ -158,29 +175,131 @@ public static class DownloadSecurityValidator
             return OperationResult<bool>.CreateFailure($"File '{filePath}' does not exist for validation.");
         }
 
-        // 1. Verify Authenticode publisher / trust if specified
-        if (!string.IsNullOrWhiteSpace(expectedAuthenticodePublisher))
+        bool hasHashCheck = allowedSha256Hashes is { Count: > 0 };
+        bool hasPublisherCheck = !string.IsNullOrWhiteSpace(expectedAuthenticodePublisher);
+
+        if (!hasHashCheck && !hasPublisherCheck)
         {
-            var authResult = ValidateAuthenticodeSignature(filePath, expectedAuthenticodePublisher);
+            return OperationResult<bool>.CreateFailure("No validation criteria (hash or publisher) specified.");
+        }
+
+        // Check SHA-256 hash if specified
+        bool hashMatched = false;
+        if (hasHashCheck)
+        {
+            var actualHash = await ComputeSha256Async(filePath, ct);
+            hashMatched = allowedSha256Hashes!.Any(h => string.Equals(h, actualHash, StringComparison.OrdinalIgnoreCase));
+            if (!hashMatched && !hasPublisherCheck)
+            {
+                return OperationResult<bool>.CreateFailure(
+                    $"SHA-256 hash mismatch for '{Path.GetFileName(filePath)}'. Computed hash: '{actualHash}'. Expected one of: [{string.Join(", ", allowedSha256Hashes!)}].");
+            }
+        }
+
+        // Check Authenticode publisher if specified
+        if (hasPublisherCheck)
+        {
+            var authResult = ValidateAuthenticodeSignature(filePath, expectedAuthenticodePublisher, allowExpiredCertificates);
             if (!authResult.Success)
             {
+                // If hash check was also specified and matched, allow fallback to known pinned hash
+                if (hasHashCheck && hashMatched)
+                {
+                    return OperationResult<bool>.CreateSuccess(true);
+                }
+
                 return authResult;
             }
         }
 
-        // 2. Verify SHA-256 hash if specified
-        if (allowedSha256Hashes is { Count: > 0 })
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    /// <summary>
+    /// Opens a file in read-only shared mode, sets the file as read-only, validates its SHA-256 and/or Authenticode signature,
+    /// and returns the open <see cref="FileStream"/>. Holding this stream prevents TOCTOU modification until execution/use.
+    /// </summary>
+    /// <param name="filePath">Path to the file to validate and lock.</param>
+    /// <param name="allowedSha256Hashes">Optional list of allowed SHA-256 hashes.</param>
+    /// <param name="expectedAuthenticodePublisher">Optional expected Authenticode publisher substring.</param>
+    /// <param name="allowExpiredCertificates">Whether to accept legacy certificates with expired timestamps.</param>
+    /// <param name="ct">The cancellation token.</param>
+    /// <returns>An operation result containing the locked stream on success, or an error description on failure.</returns>
+    public static async Task<OperationResult<FileStream>> ValidateAndLockFileAsync(
+        string filePath,
+        IReadOnlyList<string>? allowedSha256Hashes = null,
+        string? expectedAuthenticodePublisher = null,
+        bool allowExpiredCertificates = false,
+        CancellationToken ct = default)
+    {
+        if (!File.Exists(filePath))
         {
-            var actualHash = await ComputeSha256Async(filePath, ct);
-            bool matched = allowedSha256Hashes.Any(h => string.Equals(h, actualHash, StringComparison.OrdinalIgnoreCase));
-            if (!matched)
-            {
-                return OperationResult<bool>.CreateFailure(
-                    $"SHA-256 hash mismatch for '{Path.GetFileName(filePath)}'. Computed hash: '{actualHash}'. Expected one of: [{string.Join(", ", allowedSha256Hashes)}].");
-            }
+            return OperationResult<FileStream>.CreateFailure($"File '{filePath}' does not exist for validation.");
         }
 
-        return OperationResult<bool>.CreateSuccess(true);
+        try
+        {
+            File.SetAttributes(filePath, File.GetAttributes(filePath) | FileAttributes.ReadOnly);
+        }
+        catch (Exception)
+        {
+            // Non-critical if filesystem does not support read-only attribute
+        }
+
+        FileStream? stream = null;
+        try
+        {
+            stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete, 81920, true);
+
+            bool hasHashCheck = allowedSha256Hashes is { Count: > 0 };
+            bool hasPublisherCheck = !string.IsNullOrWhiteSpace(expectedAuthenticodePublisher);
+
+            if (!hasHashCheck && !hasPublisherCheck)
+            {
+                stream.Dispose();
+                return OperationResult<FileStream>.CreateFailure("No validation criteria (hash or publisher) specified.");
+            }
+
+            bool hashMatched = false;
+            if (hasHashCheck)
+            {
+                var actualHash = await ComputeSha256Async(stream, ct);
+                stream.Position = 0;
+                hashMatched = allowedSha256Hashes!.Any(h => string.Equals(h, actualHash, StringComparison.OrdinalIgnoreCase));
+                if (!hashMatched && !hasPublisherCheck)
+                {
+                    stream.Dispose();
+                    return OperationResult<FileStream>.CreateFailure(
+                        $"SHA-256 hash mismatch for '{Path.GetFileName(filePath)}'. Computed hash: '{actualHash}'. Expected one of: [{string.Join(", ", allowedSha256Hashes!)}].");
+                }
+            }
+
+            if (hasPublisherCheck)
+            {
+                var authResult = ValidateAuthenticodeSignature(filePath, expectedAuthenticodePublisher, allowExpiredCertificates);
+                if (!authResult.Success)
+                {
+                    if (hasHashCheck && hashMatched)
+                    {
+                        return OperationResult<FileStream>.CreateSuccess(stream);
+                    }
+
+                    stream.Dispose();
+                    return OperationResult<FileStream>.CreateFailure(authResult.Errors);
+                }
+            }
+
+            return OperationResult<FileStream>.CreateSuccess(stream);
+        }
+        catch (Exception ex)
+        {
+            if (stream != null)
+            {
+                await stream.DisposeAsync();
+            }
+
+            return OperationResult<FileStream>.CreateFailure($"Failed to validate and lock file '{filePath}': {ex.Message}");
+        }
     }
 
     private static OperationResult<bool> VerifyWindowsAuthenticodeTrust(string filePath)

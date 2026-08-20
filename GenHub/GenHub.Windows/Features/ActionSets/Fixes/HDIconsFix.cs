@@ -3,24 +3,29 @@ namespace GenHub.Windows.Features.ActionSets.Fixes;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
+using SharpCompress.Archives;
 
 /// <summary>
-/// Fix that provides high-definition icons for Generals and Zero Hour.
-/// This fix replaces low-resolution game icons with HD versions.
+/// Fix that downloads and installs high-definition icons for Generals and Zero Hour.
+/// Replaces legacy 32x32 Windows XP icons with 256x256 HD icon assets.
 /// </summary>
-public class HDIconsFix(ILogger<HDIconsFix> logger) : BaseActionSet(logger)
+public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix> logger) : BaseActionSet(logger)
 {
-    private static readonly IReadOnlyList<string> HdIconFiles =
+    private static readonly IReadOnlyList<string> KnownHdIconFiles =
     [
         "generals_hd.ico",
         "game_hd.ico",
         "zh_hd.ico",
+        "generals.ico",
+        "generalszh.ico",
     ];
 
     private readonly string _markerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", ActionSetConstants.Paths.SubActionSetMarkers, "HDIconsFix.done");
@@ -32,10 +37,10 @@ public class HDIconsFix(ILogger<HDIconsFix> logger) : BaseActionSet(logger)
     public override string Title => "High-Definition Icons";
 
     /// <inheritdoc/>
-    public override string Description => "High-definition icon pack for Generals and Zero Hour desktop shortcuts and window icons.";
+    public override string Description => "Downloads and installs high-definition (256x256) icons for Generals and Zero Hour desktop shortcuts.";
 
     /// <inheritdoc/>
-    public override string DetailedDescription => "Original Generals and Zero Hour desktop icons were mastered at 32x32 for Windows XP and appear blurry on modern high-resolution displays. This enhancement provides crisp 256x256 high-definition (.ico) icon assets for desktop shortcuts and game executables.";
+    public override string DetailedDescription => "Original Generals and Zero Hour desktop icons were mastered at 32x32 for Windows XP and appear pixelated and blurry on modern high-DPI displays. This fix downloads the official Community Outpost HD icon asset pack (icon.dat), extracts the 256x256 icon files, and places them in your game installation folders for crisp shortcuts and window icons.";
 
     /// <inheritdoc/>
     public override string Category => ActionSetConstants.Categories.QualityOfLife;
@@ -55,58 +60,199 @@ public class HDIconsFix(ILogger<HDIconsFix> logger) : BaseActionSet(logger)
     /// <inheritdoc/>
     public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
-        if (File.Exists(_markerPath)) return Task.FromResult(true);
+        if (File.Exists(_markerPath) && AreHDIconsPresent(installation))
+        {
+            return Task.FromResult(true);
+        }
+
         return Task.FromResult(AreHDIconsPresent(installation));
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
+        var tempFile = Path.Combine(Path.GetTempPath(), $"hd_icons_{Guid.NewGuid():N}.dat");
+        var tempExtractDir = Path.Combine(Path.GetTempPath(), $"hd_icons_extract_{Guid.NewGuid():N}");
         var details = new List<string>();
 
         try
         {
-            details.Add("High-Definition Icons Pack:");
-            details.Add("• Provides 256x256 high-resolution shortcut and executable icons.");
-            var hdIconsPresent = AreHDIconsPresent(installation);
-            if (hdIconsPresent)
+            details.Add("Downloading High-Definition Icons package...");
+
+            using var client = httpClientFactory.CreateClient("Downloader");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+
+            var urls = new[] { ExternalUrls.HDIconsDownloadUrlPrimary, ExternalUrls.HDIconsDownloadUrlMirror1 };
+            bool downloaded = false;
+
+            foreach (var url in urls)
             {
-                details.Add("✓ HD icon assets detected in installation.");
-            }
-            else
-            {
-                details.Add("• Available as a Community Outpost Addon in Downloads to attach to game profiles.");
+                try
+                {
+                    logger.LogInformation("Attempting HD icons download from {Url}", url);
+                    using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                    response.EnsureSuccessStatusCode();
+
+                    await using (var fs = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
+                    {
+                        await response.Content.CopyToAsync(fs, cancellationToken);
+                    }
+
+                    var fileInfo = new FileInfo(tempFile);
+                    if (fileInfo.Length < 1024)
+                    {
+                        logger.LogWarning("Downloaded file from {Url} is too small ({Size} bytes).", url, fileInfo.Length);
+                        if (File.Exists(tempFile))
+                        {
+                            File.Delete(tempFile);
+                        }
+
+                        continue;
+                    }
+
+                    details.Add($"✓ Downloaded {fileInfo.Length / 1024.0:F2} KB icon pack from {new Uri(url).Host}");
+                    downloaded = true;
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning("Failed to download HD icons from {Url}: {Error}", url, ex.Message);
+                    if (File.Exists(tempFile))
+                    {
+                        File.Delete(tempFile);
+                    }
+                }
             }
 
-            logger.LogInformation("HD Icons are typically provided by mods or community content.");
-            logger.LogInformation("Use GenHub's Content system to download HD icon packs.");
-            logger.LogInformation("HD Icons can be found in the Downloads section under 'Icons' category.");
+            if (!downloaded)
+            {
+                return new ActionSetResult(false, "Failed to download High-Definition Icons from all available mirrors.", details);
+            }
+
+            details.Add("Extracting high-definition icon assets...");
+            Directory.CreateDirectory(tempExtractDir);
+
+            using var archive = ArchiveFactory.OpenArchive(new FileInfo(tempFile));
+            int extractedCount = 0;
+
+            foreach (var entry in archive.Entries.Where(e => !e.IsDirectory && e.Key != null))
+            {
+                var fileName = Path.GetFileName(entry.Key);
+                if (string.IsNullOrEmpty(fileName))
+                {
+                    continue;
+                }
+
+                var extractedFilePath = Path.Combine(tempExtractDir, fileName);
+                using (var entryStream = entry.OpenEntryStream())
+                await using (var fs = new FileStream(extractedFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
+                {
+                    await entryStream.CopyToAsync(fs, cancellationToken);
+                }
+
+                extractedCount++;
+
+                // Deploy to Generals installation directory if available
+                if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
+                {
+                    var generalsDest = Path.Combine(installation.GeneralsPath, fileName);
+                    File.Copy(extractedFilePath, generalsDest, overwrite: true);
+                }
+
+                // Deploy to Zero Hour installation directory if available
+                if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
+                {
+                    var zhDest = Path.Combine(installation.ZeroHourPath, fileName);
+                    File.Copy(extractedFilePath, zhDest, overwrite: true);
+                }
+            }
+
+            details.Add($"✓ Extracted and deployed {extractedCount} HD icon assets to game folders.");
 
             try
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(_markerPath)!);
-                File.WriteAllText(_markerPath, DateTime.UtcNow.ToString());
+                var markerDir = Path.GetDirectoryName(_markerPath);
+                if (!string.IsNullOrEmpty(markerDir))
+                {
+                    Directory.CreateDirectory(markerDir);
+                }
+
+                File.WriteAllText(_markerPath, DateTime.UtcNow.ToString("O"));
             }
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Failed to create marker file for HDIconsFix");
             }
 
-            return Task.FromResult(new ActionSetResult(true, null, details));
+            return new ActionSetResult(true, null, details);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error applying HD icons fix");
             details.Add($"✗ Error: {ex.Message}");
-            return Task.FromResult(new ActionSetResult(false, ex.Message, details));
+            return new ActionSetResult(false, ex.Message, details);
+        }
+        finally
+        {
+            try
+            {
+                if (File.Exists(tempFile))
+                {
+                    File.Delete(tempFile);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Failed to delete temp file {TempFile}", tempFile);
+            }
+
+            try
+            {
+                if (Directory.Exists(tempExtractDir))
+                {
+                    Directory.Delete(tempExtractDir, recursive: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Failed to delete temp directory {TempDir}", tempExtractDir);
+            }
         }
     }
 
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
+        var removedCount = 0;
+
         try
         {
+            if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
+            {
+                foreach (var icon in KnownHdIconFiles)
+                {
+                    var p = Path.Combine(installation.GeneralsPath, icon);
+                    if (File.Exists(p))
+                    {
+                        File.Delete(p);
+                        removedCount++;
+                    }
+                }
+            }
+
+            if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
+            {
+                foreach (var icon in KnownHdIconFiles)
+                {
+                    var p = Path.Combine(installation.ZeroHourPath, icon);
+                    if (File.Exists(p))
+                    {
+                        File.Delete(p);
+                        removedCount++;
+                    }
+                }
+            }
+
             if (File.Exists(_markerPath))
             {
                 File.Delete(_markerPath);
@@ -114,10 +260,10 @@ public class HDIconsFix(ILogger<HDIconsFix> logger) : BaseActionSet(logger)
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to delete marker file for HDIconsFix");
+            logger.LogWarning(ex, "Failed to delete marker or icon files for HDIconsFix");
         }
 
-        return Task.FromResult(new ActionSetResult(true, null, ["HD icons marker removed."]));
+        return Task.FromResult(new ActionSetResult(true, null, [$"HD icons removed ({removedCount} files deleted)."]));
     }
 
     private bool AreHDIconsPresent(GameInstallation installation)
@@ -126,26 +272,24 @@ public class HDIconsFix(ILogger<HDIconsFix> logger) : BaseActionSet(logger)
         {
             var foundHDIcons = false;
 
-            if (installation.HasGenerals)
+            if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
             {
-                foreach (var iconFile in HdIconFiles)
+                foreach (var iconFile in KnownHdIconFiles)
                 {
                     if (File.Exists(Path.Combine(installation.GeneralsPath, iconFile)))
                     {
-                        logger.LogInformation("Found HD icon: {Icon}", iconFile);
                         foundHDIcons = true;
                         break;
                     }
                 }
             }
 
-            if (installation.HasZeroHour && !foundHDIcons)
+            if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath) && !foundHDIcons)
             {
-                foreach (var iconFile in HdIconFiles)
+                foreach (var iconFile in KnownHdIconFiles)
                 {
                     if (File.Exists(Path.Combine(installation.ZeroHourPath, iconFile)))
                     {
-                        logger.LogInformation("Found HD icon: {Icon}", iconFile);
                         foundHDIcons = true;
                         break;
                     }

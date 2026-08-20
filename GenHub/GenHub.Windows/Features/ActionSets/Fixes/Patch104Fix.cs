@@ -195,22 +195,32 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
             }
             else
             {
-                // Authenticode signature verification
-                var securityValidation = await DownloadSecurityValidator.ValidateFileAsync(
+                // Authenticode signature verification with graceful legacy expired cert handling
+                var securityValidation = await DownloadSecurityValidator.ValidateAndLockFileAsync(
                     downloadPath,
                     expectedAuthenticodePublisher: ActionSetConstants.Security.ElectronicArtsPublisher,
+                    allowExpiredCertificates: true,
                     ct: cancellationToken);
 
-                if (!securityValidation.Success)
+                if (!securityValidation.Success || securityValidation.Data == null)
                 {
                     logger.LogWarning("Authenticode verification failed for patch executable from {Url}: {Error}", url, securityValidation.FirstError);
                     if (File.Exists(downloadPath))
                     {
-                        File.Delete(downloadPath);
+                        try
+                        {
+                            File.SetAttributes(downloadPath, FileAttributes.Normal);
+                            File.Delete(downloadPath);
+                        }
+                        catch (Exception)
+                        {
+                        }
                     }
 
                     return (false, downloadPath, isExe);
                 }
+
+                await securityValidation.Data.DisposeAsync();
             }
 
             return (true, downloadPath, isExe);
@@ -329,6 +339,7 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
         {
             try
             {
+                File.SetAttributes(downloadPath, FileAttributes.Normal);
                 File.Delete(downloadPath);
             }
             catch
@@ -340,6 +351,17 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
         {
             try
             {
+                foreach (var file in Directory.GetFiles(extractPath, "*", SearchOption.AllDirectories))
+                {
+                    try
+                    {
+                        File.SetAttributes(file, FileAttributes.Normal);
+                    }
+                    catch
+                    {
+                    }
+                }
+
                 Directory.Delete(extractPath, true);
             }
             catch

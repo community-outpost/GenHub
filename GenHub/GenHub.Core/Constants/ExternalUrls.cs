@@ -47,6 +47,16 @@ public static class ExternalUrls
     public const string GenToolDownloadUrlMirror1 = "https://legi.cc/gp2/f/gent.dat";
 
     /// <summary>
+    /// Gets the primary download URL for High-Definition Icons (Gentool).
+    /// </summary>
+    public const string HDIconsDownloadUrlPrimary = "https://gentool.net/program_data/genpatcher/icon.dat";
+
+    /// <summary>
+    /// Gets the secondary download URL for High-Definition Icons (Legi.cc).
+    /// </summary>
+    public const string HDIconsDownloadUrlMirror1 = "https://legi.cc/gp2/f/icon.dat";
+
+    /// <summary>
     /// Gets the primary download URL for Visual C++ 2005 Redistributable (Gentool).
     /// </summary>
     public const string VCRedist2005DownloadUrlPrimary = "https://gentool.net/program_data/genpatcher/vcredist_x86-2005.exe";
