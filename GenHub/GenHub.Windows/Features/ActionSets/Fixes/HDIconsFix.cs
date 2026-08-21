@@ -58,6 +58,18 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
     /// <inheritdoc/>
     public override bool IsCrucialFix => false;
 
+    /// <inheritdoc/>
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
+    {
+        return Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
+    }
+
+    /// <inheritdoc/>
+    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
+    {
+        return Task.FromResult(AreHDIconsPresent(installation));
+    }
+
     /// <summary>
     /// Validates that the downloaded HD icons archive contains the expected icon assets for targeted installations.
     /// </summary>
@@ -76,29 +88,17 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
             return new ValidationResult("HDIconsPackage", issues);
         }
 
-        if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath) && !RecognizedGeneralsIconFiles.Any(f => archiveFileNames.Contains(f)))
+        if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath) && RecognizedGeneralsIconFiles.All(f => !archiveFileNames.Contains(f)))
         {
             issues.Add(new ValidationIssue { Message = "HD icons package does not contain a recognized icon for Generals.", Severity = ValidationSeverity.Error });
         }
 
-        if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath) && !RecognizedZeroHourIconFiles.Any(f => archiveFileNames.Contains(f)))
+        if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath) && RecognizedZeroHourIconFiles.All(f => !archiveFileNames.Contains(f)))
         {
             issues.Add(new ValidationIssue { Message = "HD icons package does not contain a recognized icon for Zero Hour.", Severity = ValidationSeverity.Error });
         }
 
         return new ValidationResult("HDIconsPackage", issues);
-    }
-
-    /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
-    {
-        return Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
-    }
-
-    /// <inheritdoc/>
-    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
-    {
-        return Task.FromResult(AreHDIconsPresent(installation));
     }
 
     /// <inheritdoc/>
@@ -266,7 +266,6 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        var removedCount = 0;
         var details = new List<string>();
 
         try
@@ -282,8 +281,7 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
                 return Task.FromResult(new ActionSetResult(true, null, ["No deployment record found to undo."]));
             }
 
-            var remainingFiles = new List<string>();
-            string[] lines;
+            string[] lines = [];
             try
             {
                 lines = File.ReadAllLines(_markerPath);
@@ -294,97 +292,23 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
                 return Task.FromResult(new ActionSetResult(false, $"Failed to read deployment marker: {ex.Message}", ["✗ Could not read deployment marker."]));
             }
 
-            // Check if this is a legacy timestamp-only marker (no rooted paths)
             var hasRootedPaths = lines.Any(l => !string.IsNullOrWhiteSpace(l) && Path.IsPathRooted(l.Trim()));
-            if (!hasRootedPaths && lines.Length > 0)
-            {
-                var legacyFiles = new List<string>();
-                if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
-                {
-                    foreach (var icon in RecognizedGeneralsIconFiles)
-                    {
-                        var path = Path.Combine(installation.GeneralsPath, icon);
-                        if (File.Exists(path) && !legacyFiles.Contains(path, StringComparer.OrdinalIgnoreCase))
-                        {
-                            legacyFiles.Add(path);
-                        }
-                    }
-                }
+            IReadOnlyList<string> targetFiles = !hasRootedPaths && lines.Length > 0
+                ? GetLegacyIconFilePaths(installation)
+                : lines;
 
-                if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
-                {
-                    foreach (var icon in RecognizedZeroHourIconFiles)
-                    {
-                        var path = Path.Combine(installation.ZeroHourPath, icon);
-                        if (File.Exists(path) && !legacyFiles.Contains(path, StringComparer.OrdinalIgnoreCase))
-                        {
-                            legacyFiles.Add(path);
-                        }
-                    }
-                }
+            var (removedCount, remainingFiles) = DeleteRecordedIconFiles(targetFiles, cancellationToken);
 
-                lines = [.. legacyFiles];
-            }
-
-            foreach (var path in lines)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var trimmed = path.Trim();
-                if (string.IsNullOrEmpty(trimmed) || !Path.IsPathRooted(trimmed))
-                {
-                    continue;
-                }
-
-                try
-                {
-                    if (File.Exists(trimmed))
-                    {
-                        File.Delete(trimmed);
-                        removedCount++;
-                    }
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    logger.LogWarning(ex, "Failed to delete recorded icon file {FilePath} during undo", trimmed);
-                    remainingFiles.Add(trimmed);
-                }
-            }
+            UpdateMarkerAfterUndo(remainingFiles);
 
             if (remainingFiles.Count == 0)
             {
-                try
-                {
-                    File.Delete(_markerPath);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    logger.LogWarning(ex, "Failed to delete marker file {MarkerPath} after undo", _markerPath);
-                }
-
                 details.Add($"HD icons removed ({removedCount} files deleted).");
                 return Task.FromResult(new ActionSetResult(true, null, details));
             }
-            else
-            {
-                try
-                {
-                    var markerDir = Path.GetDirectoryName(_markerPath);
-                    if (!string.IsNullOrEmpty(markerDir))
-                    {
-                        Directory.CreateDirectory(markerDir);
-                        var tempMarker = Path.Combine(markerDir, $"{Guid.NewGuid():N}.tmp");
-                        File.WriteAllLines(tempMarker, remainingFiles);
-                        File.Move(tempMarker, _markerPath, overwrite: true);
-                    }
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    logger.LogWarning(ex, "Failed to rewrite marker file {MarkerPath} with remaining files", _markerPath);
-                }
 
-                details.Add($"⚠ Partial undo: removed {removedCount} files, {remainingFiles.Count} files could not be deleted.");
-                return Task.FromResult(new ActionSetResult(false, $"Failed to remove {remainingFiles.Count} icon files during undo.", details));
-            }
+            details.Add($"⚠ Partial undo: removed {removedCount} files, {remainingFiles.Count} files could not be deleted.");
+            return Task.FromResult(new ActionSetResult(false, $"Failed to remove {remainingFiles.Count} icon files during undo.", details));
         }
         catch (OperationCanceledException)
         {
@@ -395,6 +319,36 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
             logger.LogWarning(ex, "Failed to delete marker or icon files for HDIconsFix");
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
+    }
+
+    private static List<string> GetLegacyIconFilePaths(GameInstallation installation)
+    {
+        var legacyFiles = new List<string>();
+        if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
+        {
+            foreach (var icon in RecognizedGeneralsIconFiles)
+            {
+                var path = Path.Combine(installation.GeneralsPath, icon);
+                if (File.Exists(path) && !legacyFiles.Contains(path, StringComparer.OrdinalIgnoreCase))
+                {
+                    legacyFiles.Add(path);
+                }
+            }
+        }
+
+        if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
+        {
+            foreach (var icon in RecognizedZeroHourIconFiles)
+            {
+                var path = Path.Combine(installation.ZeroHourPath, icon);
+                if (File.Exists(path) && !legacyFiles.Contains(path, StringComparer.OrdinalIgnoreCase))
+                {
+                    legacyFiles.Add(path);
+                }
+            }
+        }
+
+        return legacyFiles;
     }
 
     private static void DeployFileWithBackup(
@@ -430,6 +384,73 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
         if (!deployedFiles.Contains(destPath, StringComparer.OrdinalIgnoreCase))
         {
             deployedFiles.Add(destPath);
+        }
+    }
+
+    private (int RemovedCount, List<string> RemainingFiles) DeleteRecordedIconFiles(
+        IEnumerable<string> filePaths,
+        CancellationToken cancellationToken)
+    {
+        var removedCount = 0;
+        var remainingFiles = new List<string>();
+
+        foreach (var path in filePaths)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var trimmed = path.Trim();
+            if (string.IsNullOrEmpty(trimmed) || !Path.IsPathRooted(trimmed))
+            {
+                continue;
+            }
+
+            try
+            {
+                if (File.Exists(trimmed))
+                {
+                    File.Delete(trimmed);
+                    removedCount++;
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(ex, "Failed to delete recorded icon file {FilePath} during undo", trimmed);
+                remainingFiles.Add(trimmed);
+            }
+        }
+
+        return (removedCount, remainingFiles);
+    }
+
+    private void UpdateMarkerAfterUndo(IReadOnlyList<string> remainingFiles)
+    {
+        if (remainingFiles.Count == 0)
+        {
+            try
+            {
+                File.Delete(_markerPath);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(ex, "Failed to delete marker file {MarkerPath} after undo", _markerPath);
+            }
+
+            return;
+        }
+
+        try
+        {
+            var markerDir = Path.GetDirectoryName(_markerPath);
+            if (!string.IsNullOrEmpty(markerDir))
+            {
+                Directory.CreateDirectory(markerDir);
+                var tempMarker = Path.Combine(markerDir, $"{Guid.NewGuid():N}.tmp");
+                File.WriteAllLines(tempMarker, remainingFiles);
+                File.Move(tempMarker, _markerPath, overwrite: true);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Failed to rewrite marker file {MarkerPath} with remaining files", _markerPath);
         }
     }
 
@@ -596,7 +617,7 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
             if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
             {
                 hasAnyTarget = true;
-                if (!RecognizedGeneralsIconFiles.Any(iconFile => File.Exists(Path.Combine(installation.GeneralsPath, iconFile))))
+                if (RecognizedGeneralsIconFiles.All(iconFile => !File.Exists(Path.Combine(installation.GeneralsPath, iconFile))))
                 {
                     return false;
                 }
@@ -605,7 +626,7 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
             if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
             {
                 hasAnyTarget = true;
-                if (!RecognizedZeroHourIconFiles.Any(iconFile => File.Exists(Path.Combine(installation.ZeroHourPath, iconFile))))
+                if (RecognizedZeroHourIconFiles.All(iconFile => !File.Exists(Path.Combine(installation.ZeroHourPath, iconFile))))
                 {
                     return false;
                 }

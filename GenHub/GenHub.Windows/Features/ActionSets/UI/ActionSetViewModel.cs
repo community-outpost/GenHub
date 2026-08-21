@@ -108,7 +108,7 @@ public partial class ActionSetViewModel(
     /// <summary>
     /// Gets a value indicating whether the fix can be applied.
     /// </summary>
-    public bool CanApply => IsApplicable && !IsApplied && !IsApplying && !IsBatchApplying && !(isParentBusy?.Invoke() ?? false);
+    public bool CanApply => IsApplicable && !IsApplied && !IsApplying && !IsBatchApplying && !IsParentBusy;
 
     /// <summary>
     /// Gets the display status of the action set.
@@ -149,6 +149,8 @@ public partial class ActionSetViewModel(
         (false, true) => ActionSetConstants.StatusColors.UnappliedBorder,
         (false, false) => ActionSetConstants.StatusColors.NotApplicableBorder,
     };
+
+    private bool IsParentBusy => isParentBusy?.Invoke() == true;
 
     /// <summary>
     /// Checks the status of the action set (applicable and applied).
@@ -212,7 +214,7 @@ public partial class ActionSetViewModel(
 
     private bool CanExecuteApply() => CanApply;
 
-    private bool CanExecuteForceApply() => !IsApplying && !IsBatchApplying && !(isParentBusy?.Invoke() ?? false);
+    private bool CanExecuteForceApply() => !IsApplying && !IsBatchApplying && !IsParentBusy;
 
     private bool CanExecuteCancelApply() => IsApplying;
 
@@ -241,7 +243,7 @@ public partial class ActionSetViewModel(
 
     private async Task ExecuteApplyAsync(bool isForce)
     {
-        if (IsApplying || IsBatchApplying || (isParentBusy?.Invoke() ?? false))
+        if (IsApplying || IsBatchApplying || IsParentBusy)
         {
             return;
         }

@@ -61,21 +61,7 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
     {
         try
         {
-            if (File.Exists(_markerPath))
-            {
-                return Task.FromResult(true);
-            }
-
-            if (installation.HasZeroHour &&
-                !string.IsNullOrEmpty(installation.ZeroHourPath) &&
-                KnownMenuBigFiles.Any(f => File.Exists(Path.Combine(installation.ZeroHourPath, f))))
-            {
-                return Task.FromResult(true);
-            }
-
-            if (installation.HasGenerals &&
-                !string.IsNullOrEmpty(installation.GeneralsPath) &&
-                KnownMenuBigFiles.Any(f => File.Exists(Path.Combine(installation.GeneralsPath, f))))
+            if (File.Exists(_markerPath) || AreMenuBigFilesPresent(installation))
             {
                 return Task.FromResult(true);
             }
@@ -189,25 +175,13 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
-        var removedCount = 0;
         var details = new List<string>();
 
         try
         {
             if (!File.Exists(_markerPath))
             {
-                var filesPresent = false;
-                if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
-                {
-                    filesPresent = KnownMenuBigFiles.Any(f => File.Exists(Path.Combine(installation.ZeroHourPath, f)));
-                }
-
-                if (!filesPresent && installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
-                {
-                    filesPresent = KnownMenuBigFiles.Any(f => File.Exists(Path.Combine(installation.GeneralsPath, f)));
-                }
-
-                if (filesPresent)
+                if (AreMenuBigFilesPresent(installation))
                 {
                     details.Add("⚠ No deployment marker found. Custom window files may have been installed manually; please remove them manually if desired.");
                     return Task.FromResult(new ActionSetResult(false, "No deployment marker found to undo.", details));
@@ -216,8 +190,7 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
                 return Task.FromResult(new ActionSetResult(true, null, ["No deployment record found to undo."]));
             }
 
-            var remainingFiles = new List<string>();
-            string[] lines;
+            string[] lines = [];
             try
             {
                 lines = File.ReadAllLines(_markerPath);
@@ -228,97 +201,23 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
                 return Task.FromResult(new ActionSetResult(false, $"Failed to read deployment marker: {ex.Message}", ["✗ Could not read deployment marker."]));
             }
 
-            // Check if this is a legacy timestamp-only marker (no rooted paths)
             var hasRootedPaths = lines.Any(l => !string.IsNullOrWhiteSpace(l) && Path.IsPathRooted(l.Trim()));
-            if (!hasRootedPaths && lines.Length > 0)
-            {
-                var legacyFiles = new List<string>();
-                if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
-                {
-                    foreach (var file in KnownMenuBigFiles)
-                    {
-                        var path = Path.Combine(installation.ZeroHourPath, file);
-                        if (File.Exists(path) && !legacyFiles.Contains(path, StringComparer.OrdinalIgnoreCase))
-                        {
-                            legacyFiles.Add(path);
-                        }
-                    }
-                }
+            IReadOnlyList<string> targetFiles = !hasRootedPaths && lines.Length > 0
+                ? GetLegacyFilePaths(installation)
+                : lines;
 
-                if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
-                {
-                    foreach (var file in KnownMenuBigFiles)
-                    {
-                        var path = Path.Combine(installation.GeneralsPath, file);
-                        if (File.Exists(path) && !legacyFiles.Contains(path, StringComparer.OrdinalIgnoreCase))
-                        {
-                            legacyFiles.Add(path);
-                        }
-                    }
-                }
+            var (removedCount, remainingFiles) = DeleteRecordedFiles(targetFiles, cancellationToken);
 
-                lines = [.. legacyFiles];
-            }
-
-            foreach (var path in lines)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var trimmed = path.Trim();
-                if (string.IsNullOrEmpty(trimmed) || !Path.IsPathRooted(trimmed))
-                {
-                    continue;
-                }
-
-                try
-                {
-                    if (File.Exists(trimmed))
-                    {
-                        File.Delete(trimmed);
-                        removedCount++;
-                    }
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    logger.LogWarning(ex, "Failed to delete recorded custom window file {FilePath} during undo", trimmed);
-                    remainingFiles.Add(trimmed);
-                }
-            }
+            UpdateMarkerAfterUndo(remainingFiles);
 
             if (remainingFiles.Count == 0)
             {
-                try
-                {
-                    File.Delete(_markerPath);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    logger.LogWarning(ex, "Failed to delete marker file {MarkerPath} after undo", _markerPath);
-                }
-
                 details.Add($"Removed {removedCount} custom window and expanded LAN lobby files.");
                 return Task.FromResult(new ActionSetResult(true, null, details));
             }
-            else
-            {
-                try
-                {
-                    var markerDir = Path.GetDirectoryName(_markerPath);
-                    if (!string.IsNullOrEmpty(markerDir))
-                    {
-                        Directory.CreateDirectory(markerDir);
-                        var tempMarker = Path.Combine(markerDir, $"{Guid.NewGuid():N}.tmp");
-                        File.WriteAllLines(tempMarker, remainingFiles);
-                        File.Move(tempMarker, _markerPath, overwrite: true);
-                    }
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    logger.LogWarning(ex, "Failed to rewrite marker file {MarkerPath} with remaining files", _markerPath);
-                }
 
-                details.Add($"⚠ Partial undo: removed {removedCount} files, {remainingFiles.Count} files could not be deleted.");
-                return Task.FromResult(new ActionSetResult(false, $"Failed to remove {remainingFiles.Count} custom window files during undo.", details));
-            }
+            details.Add($"⚠ Partial undo: removed {removedCount} files, {remainingFiles.Count} files could not be deleted.");
+            return Task.FromResult(new ActionSetResult(false, $"Failed to remove {remainingFiles.Count} custom window files during undo.", details));
         }
         catch (OperationCanceledException)
         {
@@ -329,6 +228,50 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
             logger.LogWarning(ex, "Failed to delete marker or custom window files for ExpandedLANLobbyMenu");
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
+    }
+
+    private static bool AreMenuBigFilesPresent(GameInstallation installation)
+    {
+        if (installation.HasZeroHour &&
+            !string.IsNullOrEmpty(installation.ZeroHourPath) &&
+            KnownMenuBigFiles.Any(f => File.Exists(Path.Combine(installation.ZeroHourPath, f))))
+        {
+            return true;
+        }
+
+        return installation.HasGenerals &&
+               !string.IsNullOrEmpty(installation.GeneralsPath) &&
+               KnownMenuBigFiles.Any(f => File.Exists(Path.Combine(installation.GeneralsPath, f)));
+    }
+
+    private static List<string> GetLegacyFilePaths(GameInstallation installation)
+    {
+        var legacyFiles = new List<string>();
+        if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
+        {
+            foreach (var file in KnownMenuBigFiles)
+            {
+                var path = Path.Combine(installation.ZeroHourPath, file);
+                if (File.Exists(path) && !legacyFiles.Contains(path, StringComparer.OrdinalIgnoreCase))
+                {
+                    legacyFiles.Add(path);
+                }
+            }
+        }
+
+        if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
+        {
+            foreach (var file in KnownMenuBigFiles)
+            {
+                var path = Path.Combine(installation.GeneralsPath, file);
+                if (File.Exists(path) && !legacyFiles.Contains(path, StringComparer.OrdinalIgnoreCase))
+                {
+                    legacyFiles.Add(path);
+                }
+            }
+        }
+
+        return legacyFiles;
     }
 
     private static void DeployEntryToInstallations(
@@ -386,6 +329,73 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
         if (!deployedFiles.Contains(destPath, StringComparer.OrdinalIgnoreCase))
         {
             deployedFiles.Add(destPath);
+        }
+    }
+
+    private (int RemovedCount, List<string> RemainingFiles) DeleteRecordedFiles(
+        IEnumerable<string> filePaths,
+        CancellationToken cancellationToken)
+    {
+        var removedCount = 0;
+        var remainingFiles = new List<string>();
+
+        foreach (var path in filePaths)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var trimmed = path.Trim();
+            if (string.IsNullOrEmpty(trimmed) || !Path.IsPathRooted(trimmed))
+            {
+                continue;
+            }
+
+            try
+            {
+                if (File.Exists(trimmed))
+                {
+                    File.Delete(trimmed);
+                    removedCount++;
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(ex, "Failed to delete recorded custom window file {FilePath} during undo", trimmed);
+                remainingFiles.Add(trimmed);
+            }
+        }
+
+        return (removedCount, remainingFiles);
+    }
+
+    private void UpdateMarkerAfterUndo(IReadOnlyList<string> remainingFiles)
+    {
+        if (remainingFiles.Count == 0)
+        {
+            try
+            {
+                File.Delete(_markerPath);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(ex, "Failed to delete marker file {MarkerPath} after undo", _markerPath);
+            }
+
+            return;
+        }
+
+        try
+        {
+            var markerDir = Path.GetDirectoryName(_markerPath);
+            if (!string.IsNullOrEmpty(markerDir))
+            {
+                Directory.CreateDirectory(markerDir);
+                var tempMarker = Path.Combine(markerDir, $"{Guid.NewGuid():N}.tmp");
+                File.WriteAllLines(tempMarker, remainingFiles);
+                File.Move(tempMarker, _markerPath, overwrite: true);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Failed to rewrite marker file {MarkerPath} with remaining files", _markerPath);
         }
     }
 

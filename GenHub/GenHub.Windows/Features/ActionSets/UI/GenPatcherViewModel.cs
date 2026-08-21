@@ -95,7 +95,7 @@ public partial class GenPatcherViewModel(
     /// <summary>
     /// Gets a value indicating whether the user can change the target installation (not busy).
     /// </summary>
-    public bool CanChangeInstallation => !IsBatchApplying && !ActionSets.Any(x => x.IsApplying);
+    public bool CanChangeInstallation => !IsBatchApplying && ActionSets.All(x => !x.IsApplying);
 
     /// <summary>
     /// Initializes the ViewModel asynchronously.
@@ -355,7 +355,7 @@ public partial class GenPatcherViewModel(
         }
     }
 
-    private bool CanExecuteApplyAllFixes() => !IsBatchApplying && SelectedInstallation != null && !ActionSets.Any(x => x.IsApplying);
+    private bool CanExecuteApplyAllFixes() => !IsBatchApplying && SelectedInstallation != null && ActionSets.All(x => !x.IsApplying);
 
     private void NotifyExecutionStateChanged()
     {
