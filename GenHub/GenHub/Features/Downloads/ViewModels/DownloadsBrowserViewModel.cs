@@ -1747,9 +1747,8 @@ public partial class DownloadsBrowserViewModel(
     {
         try
         {
-            var configProvider = serviceProvider.GetService<IConfigurationProviderService>();
-            var path = configProvider?.GetManifestsPath()
-                ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", "manifests");
+            var configProvider = serviceProvider.GetRequiredService<IConfigurationProviderService>();
+            var path = configProvider.GetManifestsPath();
 
             logger.LogInformation("Opening manifests directory: {Path}", path);
 

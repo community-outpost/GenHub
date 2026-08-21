@@ -352,10 +352,7 @@ public class ProfileLauncherFacade(
             {
                 if (prepareResult.Success)
                 {
-                    notificationService.Update(
-                        workspaceNotificationId.Value,
-                        $"Workspace initialized for '{profile.Name}'.",
-                        "Workspace Ready");
+                    notificationService.Dismiss(workspaceNotificationId.Value);
                 }
                 else
                 {
@@ -944,7 +941,6 @@ public class ProfileLauncherFacade(
         logger.LogDebug("[Launch] Step 6: Delegating to GameLauncher for workspace prep and process start");
 
         Guid? workspaceNotificationId = null;
-        var hasUpdatedWorkspaceDone = false;
         var launchProgress = new SynchronousProgress<LaunchProgress>(p =>
         {
             if (p.IsInitializingWorkspace && workspaceNotificationId == null)
@@ -958,28 +954,15 @@ public class ProfileLauncherFacade(
                 workspaceNotificationId = message.Id;
                 notificationService.Show(message);
             }
-
-            if (workspaceNotificationId.HasValue && !hasUpdatedWorkspaceDone && p.Phase > LaunchPhase.PreparingWorkspace)
-            {
-                hasUpdatedWorkspaceDone = true;
-                notificationService.Update(
-                    workspaceNotificationId.Value,
-                    $"Workspace initialized for '{profile.Name}'.",
-                    "Workspace Ready");
-            }
         });
 
         var launchResult = await gameLauncher.LaunchProfileAsync(profile, progress: launchProgress, skipUserDataCleanup: skipUserDataCleanup, cancellationToken: cancellationToken);
 
-        if (workspaceNotificationId.HasValue && !hasUpdatedWorkspaceDone)
+        if (workspaceNotificationId.HasValue)
         {
-            hasUpdatedWorkspaceDone = true;
             if (launchResult.Success)
             {
-                notificationService.Update(
-                    workspaceNotificationId.Value,
-                    $"Workspace initialized for '{profile.Name}'.",
-                    "Workspace Ready");
+                notificationService.Dismiss(workspaceNotificationId.Value);
             }
             else
             {

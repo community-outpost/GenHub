@@ -176,11 +176,11 @@ public sealed class ProfileLauncherFacadeWorkspaceNotificationTests
     }
 
     /// <summary>
-    /// Verifies that when workspace is actively initializing, a persistent notification is shown and updated when done.
+    /// Verifies that when workspace is actively initializing, a persistent notification is shown and dismissed when launch completes.
     /// </summary>
     /// <returns>A task representing the asynchronous test.</returns>
     [Fact]
-    public async Task LaunchProfileAsync_WhenWorkspaceActivelyInitializing_ShowsPersistentNotificationAndUpdatesWhenDoneAsync()
+    public async Task LaunchProfileAsync_WhenWorkspaceActivelyInitializing_ShowsPersistentNotificationAndDismissesWhenDoneAsync()
     {
         // Arrange
         var shownNotifications = new List<NotificationMessage>();
@@ -188,10 +188,10 @@ public sealed class ProfileLauncherFacadeWorkspaceNotificationTests
             .Setup(n => n.Show(It.IsAny<NotificationMessage>()))
             .Callback<NotificationMessage>(shownNotifications.Add);
 
-        var updatedNotifications = new List<(Guid Id, string Message, string? Title)>();
+        var dismissedNotifications = new List<Guid>();
         _notificationServiceMock
-            .Setup(n => n.Update(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string?>()))
-            .Callback<Guid, string, string?>((id, msg, title) => updatedNotifications.Add((id, msg, title)));
+            .Setup(n => n.Dismiss(It.IsAny<Guid>()))
+            .Callback<Guid>(dismissedNotifications.Add);
 
         var launchInfo = new GameLaunchInfo
         {
@@ -232,7 +232,7 @@ public sealed class ProfileLauncherFacadeWorkspaceNotificationTests
         Assert.Null(prepNotification.AutoDismissMilliseconds);
         Assert.True(prepNotification.IsPersistent);
 
-        Assert.Contains(updatedNotifications, u => u.Id == prepNotification.Id && u.Title == "Workspace Ready");
+        Assert.Contains(prepNotification.Id, dismissedNotifications);
     }
 
     private ProfileLauncherFacade CreateFacade() => new(
