@@ -590,4 +590,58 @@ public class UpdateNotificationViewModelTests
         Assert.NotNull(vm.SubscribedPr);
         Assert.Equal(242, vm.SubscribedPr.Number);
     }
+
+    /// <summary>
+    /// Verifies that when a subscribed PR is merged or closed, CheckForUpdates sets ShowPrMergedWarning and formats the status message.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CheckForUpdatesCommand_WhenSubscribedPrIsMerged_ShowsMergedWarningAndStatusAsync()
+    {
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings { SubscribedPrNumber = 265 });
+
+        var mockVelopack = new Mock<IVelopackUpdateManager>();
+        mockVelopack.SetupProperty(x => x.SubscribedPrNumber, 265);
+        mockVelopack.Setup(x => x.CheckForArtifactUpdatesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ArtifactUpdateInfo?)null);
+        mockVelopack.SetupGet(x => x.IsPrMergedOrClosed).Returns(true);
+
+        var vm = new UpdateNotificationViewModel(
+            mockVelopack.Object,
+            Mock.Of<ILogger<UpdateNotificationViewModel>>(),
+            mockUserSettings.Object);
+
+        await ((CommunityToolkit.Mvvm.Input.IAsyncRelayCommand)vm.CheckForUpdatesCommand).ExecuteAsync(null);
+
+        Assert.True(vm.ShowPrMergedWarning);
+        Assert.Contains("merged", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.False(vm.IsUpdateAvailable);
+    }
+
+    /// <summary>
+    /// Verifies that when a subscribed custom branch has no artifacts, CheckForUpdates sets stale branch status message.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CheckForUpdatesCommand_WhenCustomBranchHasNoArtifacts_SetsStaleStatusAsync()
+    {
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings { SubscribedBranch = "feat/deleted-branch" });
+
+        var mockVelopack = new Mock<IVelopackUpdateManager>();
+        mockVelopack.SetupProperty(x => x.SubscribedBranch, "feat/deleted-branch");
+        mockVelopack.Setup(x => x.CheckForArtifactUpdatesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ArtifactUpdateInfo?)null);
+
+        var vm = new UpdateNotificationViewModel(
+            mockVelopack.Object,
+            Mock.Of<ILogger<UpdateNotificationViewModel>>(),
+            mockUserSettings.Object);
+
+        await ((CommunityToolkit.Mvvm.Input.IAsyncRelayCommand)vm.CheckForUpdatesCommand).ExecuteAsync(null);
+
+        Assert.Contains("no available builds", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.False(vm.IsUpdateAvailable);
+    }
 }

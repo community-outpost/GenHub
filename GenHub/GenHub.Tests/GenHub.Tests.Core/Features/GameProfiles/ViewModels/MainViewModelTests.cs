@@ -526,6 +526,287 @@ public class MainViewModelTests
     }
 
     /// <summary>
+    /// Tests that background update check detects merged PR and falls back to development branch artifact.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeAsync_WhenSubscribedPrIsMergedAndDevArtifactAvailable_ShowsMergedPrFallbackNotificationAsync()
+    {
+        // Arrange
+        var (settingsVm, userSettingsMock) = CreateSettingsVm();
+        var userSettings = new UserSettings { SubscribedPrNumber = 265 };
+        userSettingsMock.Setup(x => x.Get()).Returns(userSettings);
+        var toolsVm = CreateToolsVm();
+        var configProvider = CreateConfigProviderMock();
+        var shownNotifications = new List<NotificationMessage>();
+        var notificationShownTcs = new TaskCompletionSource<NotificationMessage>();
+
+        var devArtifactInfo = new ArtifactUpdateInfo(
+            Version: "0.0.99999-dev",
+            GitHash: "abcdef1",
+            PullRequestNumber: null,
+            WorkflowRunId: 12345,
+            WorkflowRunUrl: "https://example.com/runs/1",
+            ArtifactId: 67890,
+            ArtifactName: "genhub-velopack-linux-0.0.99999",
+            CreatedAt: DateTime.UtcNow,
+            DownloadUrl: "https://example.com/artifact.zip",
+            Size: 1024);
+
+        var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
+        mockVelopackUpdateManager.SetupProperty(x => x.SubscribedPrNumber, 265);
+        mockVelopackUpdateManager.SetupProperty(x => x.SubscribedBranch, null);
+
+        // When PR is 265, return null and set IsPrMergedOrClosed = true
+        mockVelopackUpdateManager.Setup(x => x.CheckForArtifactUpdatesAsync(It.IsAny<System.Threading.CancellationToken>()))
+            .Returns<System.Threading.CancellationToken>(_ =>
+            {
+                if (mockVelopackUpdateManager.Object.SubscribedBranch == AppUpdateConstants.DevelopmentBranch)
+                {
+                    return Task.FromResult<ArtifactUpdateInfo?>(devArtifactInfo);
+                }
+
+                mockVelopackUpdateManager.SetupGet(m => m.IsPrMergedOrClosed).Returns(true);
+                return Task.FromResult<ArtifactUpdateInfo?>(null);
+            });
+
+        var mockLogger = new Mock<ILogger<MainViewModel>>();
+        var mockNotificationService = CreateNotificationServiceMock();
+        mockNotificationService.Setup(x => x.Show(It.IsAny<NotificationMessage>()))
+            .Callback<NotificationMessage>(msg =>
+            {
+                shownNotifications.Add(msg);
+                if (msg.Title == AppUpdateConstants.PrMergedUpdateAvailableNotificationTitle)
+                {
+                    notificationShownTcs.TrySetResult(msg);
+                }
+            });
+
+        var mockNotificationManager = new Mock<NotificationManagerViewModel>(
+            mockNotificationService.Object,
+            Mock.Of<ILogger<NotificationManagerViewModel>>(),
+            Mock.Of<ILogger<NotificationItemViewModel>>());
+        var notificationFeedVm = CreateNotificationFeedViewModel(mockNotificationService.Object);
+
+        using var vm = new MainViewModel(
+            gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
+            downloadsViewModel: CreateDownloadsViewModel(configProvider),
+            toolsViewModel: toolsVm,
+            settingsViewModel: settingsVm,
+            notificationManager: mockNotificationManager.Object,
+            configurationProvider: configProvider,
+            userSettingsService: userSettingsMock.Object,
+            velopackUpdateManager: mockVelopackUpdateManager.Object,
+            notificationService: mockNotificationService.Object,
+            dialogService: new Mock<IDialogService>().Object,
+            notificationFeedViewModel: notificationFeedVm,
+            infoViewModel: CreateInfoViewModel(),
+            logger: mockLogger.Object);
+
+        // Act
+        await vm.InitializeAsync();
+        var updateNotification = await notificationShownTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Assert
+        Assert.NotNull(updateNotification);
+        Assert.Equal(AppUpdateConstants.PrMergedUpdateAvailableNotificationTitle, updateNotification.Title);
+        Assert.True(updateNotification.IsPersistent);
+        Assert.True(updateNotification.ShowInBadge);
+        Assert.Contains("265", updateNotification.Message);
+        Assert.Contains("merged", updateNotification.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Single(updateNotification.Actions);
+    }
+
+    /// <summary>
+    /// Tests that clicking update on a merged PR fallback notification clears SubscribedPrNumber in settings.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeAsync_WhenSubscribedPrMergedUpdateClicked_ClearsSettingsAndInstallsAsync()
+    {
+        // Arrange
+        var (settingsVm, userSettingsMock) = CreateSettingsVm();
+        var userSettings = new UserSettings { SubscribedPrNumber = 265 };
+        userSettingsMock.Setup(x => x.Get()).Returns(userSettings);
+        userSettingsMock.Setup(x => x.Update(It.IsAny<Action<UserSettings>>()))
+            .Callback<Action<UserSettings>>(action => action(userSettings));
+        userSettingsMock.Setup(x => x.SaveAsync(It.IsAny<System.Threading.CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var toolsVm = CreateToolsVm();
+        var configProvider = CreateConfigProviderMock();
+        var notificationShownTcs = new TaskCompletionSource<NotificationMessage>();
+        var installStartedTcs = new TaskCompletionSource<bool>();
+
+        var devArtifactInfo = new ArtifactUpdateInfo(
+            Version: "0.0.99999-dev",
+            GitHash: "abcdef1",
+            PullRequestNumber: null,
+            WorkflowRunId: 12345,
+            WorkflowRunUrl: "https://example.com/runs/1",
+            ArtifactId: 67890,
+            ArtifactName: "genhub-velopack-linux-0.0.99999",
+            CreatedAt: DateTime.UtcNow,
+            DownloadUrl: "https://example.com/artifact.zip",
+            Size: 1024);
+
+        var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
+        mockVelopackUpdateManager.SetupProperty(x => x.SubscribedPrNumber, 265);
+        mockVelopackUpdateManager.SetupProperty(x => x.SubscribedBranch, null);
+
+        mockVelopackUpdateManager.Setup(x => x.CheckForArtifactUpdatesAsync(It.IsAny<System.Threading.CancellationToken>()))
+            .Returns<System.Threading.CancellationToken>(_ =>
+            {
+                if (mockVelopackUpdateManager.Object.SubscribedBranch == AppUpdateConstants.DevelopmentBranch)
+                {
+                    return Task.FromResult<ArtifactUpdateInfo?>(devArtifactInfo);
+                }
+
+                mockVelopackUpdateManager.SetupGet(m => m.IsPrMergedOrClosed).Returns(true);
+                return Task.FromResult<ArtifactUpdateInfo?>(null);
+            });
+
+        mockVelopackUpdateManager.Setup(x => x.InstallArtifactAsync(
+                devArtifactInfo,
+                It.IsAny<IProgress<UpdateProgress>>(),
+                It.IsAny<System.Threading.CancellationToken>()))
+            .Callback(() => installStartedTcs.TrySetResult(true))
+            .Returns(Task.CompletedTask);
+
+        var mockLogger = new Mock<ILogger<MainViewModel>>();
+        var mockNotificationService = CreateNotificationServiceMock();
+        mockNotificationService.Setup(x => x.Show(It.IsAny<NotificationMessage>()))
+            .Callback<NotificationMessage>(msg =>
+            {
+                if (msg.Title == AppUpdateConstants.PrMergedUpdateAvailableNotificationTitle)
+                {
+                    notificationShownTcs.TrySetResult(msg);
+                }
+            });
+
+        var mockNotificationManager = new Mock<NotificationManagerViewModel>(
+            mockNotificationService.Object,
+            Mock.Of<ILogger<NotificationManagerViewModel>>(),
+            Mock.Of<ILogger<NotificationItemViewModel>>());
+        var notificationFeedVm = CreateNotificationFeedViewModel(mockNotificationService.Object);
+
+        using var vm = new MainViewModel(
+            gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
+            downloadsViewModel: CreateDownloadsViewModel(configProvider),
+            toolsViewModel: toolsVm,
+            settingsViewModel: settingsVm,
+            notificationManager: mockNotificationManager.Object,
+            configurationProvider: configProvider,
+            userSettingsService: userSettingsMock.Object,
+            velopackUpdateManager: mockVelopackUpdateManager.Object,
+            notificationService: mockNotificationService.Object,
+            dialogService: new Mock<IDialogService>().Object,
+            notificationFeedViewModel: notificationFeedVm,
+            infoViewModel: CreateInfoViewModel(),
+            logger: mockLogger.Object);
+
+        // Act
+        await vm.InitializeAsync();
+        var updateNotification = await notificationShownTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Click Update action
+        updateNotification.Actions[0].Callback?.Invoke();
+        await installStartedTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Assert
+        Assert.Null(userSettings.SubscribedPrNumber);
+        userSettingsMock.Verify(x => x.SaveAsync(It.IsAny<System.Threading.CancellationToken>()), Times.AtLeastOnce);
+        mockVelopackUpdateManager.Verify(x => x.InstallArtifactAsync(devArtifactInfo, It.IsAny<IProgress<UpdateProgress>>(), It.IsAny<System.Threading.CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Tests that background update check detects stale feature branch and falls back to development branch artifact.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeAsync_WhenSubscribedBranchIsStaleAndDevArtifactAvailable_ShowsBranchStaleFallbackNotificationAsync()
+    {
+        // Arrange
+        var (settingsVm, userSettingsMock) = CreateSettingsVm();
+        var userSettings = new UserSettings { SubscribedBranch = "feat/deleted-branch" };
+        userSettingsMock.Setup(x => x.Get()).Returns(userSettings);
+        var toolsVm = CreateToolsVm();
+        var configProvider = CreateConfigProviderMock();
+        var notificationShownTcs = new TaskCompletionSource<NotificationMessage>();
+
+        var devArtifactInfo = new ArtifactUpdateInfo(
+            Version: "0.0.99999-dev",
+            GitHash: "abcdef1",
+            PullRequestNumber: null,
+            WorkflowRunId: 12345,
+            WorkflowRunUrl: "https://example.com/runs/1",
+            ArtifactId: 67890,
+            ArtifactName: "genhub-velopack-linux-0.0.99999",
+            CreatedAt: DateTime.UtcNow,
+            DownloadUrl: "https://example.com/artifact.zip",
+            Size: 1024);
+
+        var mockVelopackUpdateManager = new Mock<IVelopackUpdateManager>();
+        mockVelopackUpdateManager.SetupProperty(x => x.SubscribedPrNumber, null);
+        mockVelopackUpdateManager.SetupProperty(x => x.SubscribedBranch, "feat/deleted-branch");
+
+        mockVelopackUpdateManager.Setup(x => x.CheckForArtifactUpdatesAsync(It.IsAny<System.Threading.CancellationToken>()))
+            .Returns<System.Threading.CancellationToken>(_ =>
+            {
+                if (mockVelopackUpdateManager.Object.SubscribedBranch == AppUpdateConstants.DevelopmentBranch)
+                {
+                    return Task.FromResult<ArtifactUpdateInfo?>(devArtifactInfo);
+                }
+
+                return Task.FromResult<ArtifactUpdateInfo?>(null);
+            });
+
+        var mockLogger = new Mock<ILogger<MainViewModel>>();
+        var mockNotificationService = CreateNotificationServiceMock();
+        mockNotificationService.Setup(x => x.Show(It.IsAny<NotificationMessage>()))
+            .Callback<NotificationMessage>(msg =>
+            {
+                if (msg.Title == AppUpdateConstants.BranchStaleUpdateAvailableNotificationTitle)
+                {
+                    notificationShownTcs.TrySetResult(msg);
+                }
+            });
+
+        var mockNotificationManager = new Mock<NotificationManagerViewModel>(
+            mockNotificationService.Object,
+            Mock.Of<ILogger<NotificationManagerViewModel>>(),
+            Mock.Of<ILogger<NotificationItemViewModel>>());
+        var notificationFeedVm = CreateNotificationFeedViewModel(mockNotificationService.Object);
+
+        using var vm = new MainViewModel(
+            gameProfilesViewModel: CreateGameProfileLauncherViewModel(),
+            downloadsViewModel: CreateDownloadsViewModel(configProvider),
+            toolsViewModel: toolsVm,
+            settingsViewModel: settingsVm,
+            notificationManager: mockNotificationManager.Object,
+            configurationProvider: configProvider,
+            userSettingsService: userSettingsMock.Object,
+            velopackUpdateManager: mockVelopackUpdateManager.Object,
+            notificationService: mockNotificationService.Object,
+            dialogService: new Mock<IDialogService>().Object,
+            notificationFeedViewModel: notificationFeedVm,
+            infoViewModel: CreateInfoViewModel(),
+            logger: mockLogger.Object);
+
+        // Act
+        await vm.InitializeAsync();
+        var updateNotification = await notificationShownTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Assert
+        Assert.NotNull(updateNotification);
+        Assert.Equal(AppUpdateConstants.BranchStaleUpdateAvailableNotificationTitle, updateNotification.Title);
+        Assert.True(updateNotification.IsPersistent);
+        Assert.True(updateNotification.ShowInBadge);
+        Assert.Contains("feat/deleted-branch", updateNotification.Message);
+        Assert.Single(updateNotification.Actions);
+    }
+
+    /// <summary>
     /// Tests that CurrentTabViewModel returns the correct ViewModel based on SelectedTab.
     /// </summary>
     /// <param name="tab">The tab to select.</param>

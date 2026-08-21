@@ -229,6 +229,56 @@ public static class AppUpdateConstants
     public const string PrUpdateNotificationFormat = "A new build ({0}) is available for PR #{1}.";
 
     /// <summary>
+    /// Default development branch name for CI artifact fallback.
+    /// </summary>
+    public const string DevelopmentBranch = "development";
+
+    /// <summary>
+    /// Default main branch name for release updates.
+    /// </summary>
+    public const string MainBranch = "main";
+
+    /// <summary>
+    /// Update available notification title when a subscribed PR has been merged or closed.
+    /// </summary>
+    public const string PrMergedUpdateAvailableNotificationTitle = "PR Merged — Update Available";
+
+    /// <summary>
+    /// Update available notification title when a subscribed branch is stale or has no artifacts.
+    /// </summary>
+    public const string BranchStaleUpdateAvailableNotificationTitle = "Branch Update Available";
+
+    /// <summary>
+    /// PR merged fallback notification format string ({0}: version, {1}: PR number).
+    /// </summary>
+    public const string PrMergedUpdateNotificationFormat = "PR #{1} was merged. A new build ({0}) is available on development.";
+
+    /// <summary>
+    /// PR merged release fallback notification format string ({0}: version, {1}: PR number).
+    /// </summary>
+    public const string PrMergedReleaseNotificationFormat = "PR #{1} was merged. A new release ({0}) is available.";
+
+    /// <summary>
+    /// Branch stale fallback notification format string ({0}: version, {1}: branch name).
+    /// </summary>
+    public const string BranchStaleUpdateNotificationFormat = "Branch '{1}' has no newer builds. A new build ({0}) is available on development.";
+
+    /// <summary>
+    /// Branch stale release fallback notification format string ({0}: version, {1}: branch name).
+    /// </summary>
+    public const string BranchStaleReleaseNotificationFormat = "Branch '{1}' has no newer builds. A new release ({0}) is available.";
+
+    /// <summary>
+    /// PR merged status message format ({0}: PR number).
+    /// </summary>
+    public const string PrMergedStatusMessageFormat = "PR #{0} has been merged. Select a new PR or switch to MAIN.";
+
+    /// <summary>
+    /// Branch stale status message format ({0}: branch name).
+    /// </summary>
+    public const string BranchStaleStatusMessageFormat = "Branch '{0}' has no available builds. Select a new branch or switch to MAIN.";
+
+    /// <summary>
     /// Sort option: sort by last updated date descending.
     /// </summary>
     public const string SortOptionLastUpdated = "Last Updated";

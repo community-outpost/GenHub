@@ -721,6 +721,15 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                     return;
                 }
 
+                if (_velopackUpdateManager.IsPrMergedOrClosed)
+                {
+                    ShowPrMergedWarning = true;
+                    StatusMessage = string.Format(AppUpdateConstants.PrMergedStatusMessageFormat, SubscribedPr.Number);
+                    IsUpdateAvailable = false;
+                    _logger.LogInformation("Subscribed PR #{PrNumber} is merged or closed", SubscribedPr.Number);
+                    return;
+                }
+
                 // if subscribed to pr but no artifact found, do not fall through to main release
                 _logger.LogInformation("Subscribed to PR #{PrNumber} but no artifact available yet", SubscribedPr.Number);
                 StatusMessage = $"Waiting for PR #{SubscribedPr.Number} build...";
@@ -742,7 +751,10 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
                 // if subscribed to branch but no artifact found, do not fall through to main release
                 _logger.LogInformation("Subscribed to branch '{Branch}' but no artifact available yet", SubscribedBranch);
-                StatusMessage = $"Waiting for {SubscribedBranch} build...";
+                StatusMessage = string.Equals(SubscribedBranch, AppUpdateConstants.DevelopmentBranch, StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(SubscribedBranch, AppUpdateConstants.MainBranch, StringComparison.OrdinalIgnoreCase)
+                    ? $"Waiting for {SubscribedBranch} build..."
+                    : string.Format(AppUpdateConstants.BranchStaleStatusMessageFormat, SubscribedBranch);
                 IsUpdateAvailable = false;
                 return;
             }
@@ -1288,7 +1300,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             if (_velopackUpdateManager.IsPrMergedOrClosed && _velopackUpdateManager.SubscribedPrNumber.HasValue)
             {
                 ShowPrMergedWarning = true;
-                StatusMessage = $"PR #{_velopackUpdateManager.SubscribedPrNumber} has been merged. Select a new PR or switch to MAIN.";
+                StatusMessage = string.Format(AppUpdateConstants.PrMergedStatusMessageFormat, _velopackUpdateManager.SubscribedPrNumber.Value);
                 _logger.LogInformation("Subscribed PR has been merged/closed, showing warning");
             }
 

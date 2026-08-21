@@ -68,15 +68,29 @@ public class AppUpdateConstantsTests
         Assert.False(string.IsNullOrWhiteSpace(AppUpdateConstants.UpdateAvailableNotificationTitle));
         Assert.False(string.IsNullOrWhiteSpace(AppUpdateConstants.BranchUpdateAvailableNotificationTitle));
         Assert.False(string.IsNullOrWhiteSpace(AppUpdateConstants.PrUpdateAvailableNotificationTitle));
+        Assert.False(string.IsNullOrWhiteSpace(AppUpdateConstants.PrMergedUpdateAvailableNotificationTitle));
+        Assert.False(string.IsNullOrWhiteSpace(AppUpdateConstants.BranchStaleUpdateAvailableNotificationTitle));
         Assert.False(string.IsNullOrWhiteSpace(AppUpdateConstants.UpdatingAppNotificationTitle));
         Assert.False(string.IsNullOrWhiteSpace(AppUpdateConstants.UpdateFailedNotificationTitle));
         Assert.False(string.IsNullOrWhiteSpace(AppUpdateConstants.UpdateAction));
         Assert.False(string.IsNullOrWhiteSpace(AppUpdateConstants.ViewUpdatesAction));
+        Assert.Equal("development", AppUpdateConstants.DevelopmentBranch);
+        Assert.Equal("main", AppUpdateConstants.MainBranch);
         Assert.Contains("{0}", AppUpdateConstants.ReleaseUpdateNotificationFormat);
         Assert.Contains("{0}", AppUpdateConstants.BranchUpdateNotificationFormat);
         Assert.Contains("{1}", AppUpdateConstants.BranchUpdateNotificationFormat);
         Assert.Contains("{0}", AppUpdateConstants.PrUpdateNotificationFormat);
         Assert.Contains("{1}", AppUpdateConstants.PrUpdateNotificationFormat);
+        Assert.Contains("{0}", AppUpdateConstants.PrMergedUpdateNotificationFormat);
+        Assert.Contains("{1}", AppUpdateConstants.PrMergedUpdateNotificationFormat);
+        Assert.Contains("{0}", AppUpdateConstants.PrMergedReleaseNotificationFormat);
+        Assert.Contains("{1}", AppUpdateConstants.PrMergedReleaseNotificationFormat);
+        Assert.Contains("{0}", AppUpdateConstants.BranchStaleUpdateNotificationFormat);
+        Assert.Contains("{1}", AppUpdateConstants.BranchStaleUpdateNotificationFormat);
+        Assert.Contains("{0}", AppUpdateConstants.BranchStaleReleaseNotificationFormat);
+        Assert.Contains("{1}", AppUpdateConstants.BranchStaleReleaseNotificationFormat);
+        Assert.Contains("{0}", AppUpdateConstants.PrMergedStatusMessageFormat);
+        Assert.Contains("{0}", AppUpdateConstants.BranchStaleStatusMessageFormat);
         Assert.Contains("{0}", AppUpdateConstants.UpdateFailedNotificationFormat);
     }
 
