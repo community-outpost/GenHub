@@ -205,4 +205,57 @@ public class ExpandedLANLobbyMenuTests : IDisposable
         Assert.True(File.Exists(unrecordedFile));
         Assert.False(File.Exists(markerPath));
     }
+
+    /// <summary>
+    /// Verifies that UndoAsync returns a warning failure when files are present on disk but no marker exists.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
+    [Fact]
+    public async Task UndoAsync_WhenNoMarkerExistsAndFilesPresent_ReturnsWarningFailureAsync()
+    {
+        var zhDir = Path.Combine(_testDir, "ZeroHour");
+        Directory.CreateDirectory(zhDir);
+        var bigFile = Path.Combine(zhDir, "!ExpandedLANMenu.big");
+        File.WriteAllText(bigFile, "content");
+
+        var installation = new GameInstallation(_testDir, GameInstallationType.Steam)
+        {
+            HasZeroHour = true,
+            ZeroHourPath = zhDir,
+        };
+
+        var result = await _fix.UndoAsync(installation);
+
+        Assert.False(result.Success);
+        Assert.True(File.Exists(bigFile));
+        Assert.Contains("No deployment marker found", result.Message ?? string.Empty);
+    }
+
+    /// <summary>
+    /// Verifies that UndoAsync migrates legacy timestamp markers and removes recognized custom window files.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
+    [Fact]
+    public async Task UndoAsync_WhenLegacyTimestampMarkerExists_MigratesAndRemovesRecognizedFilesAsync()
+    {
+        var zhDir = Path.Combine(_testDir, "ZeroHour");
+        Directory.CreateDirectory(zhDir);
+        var bigFile = Path.Combine(zhDir, "!ExpandedLANMenu.big");
+        File.WriteAllText(bigFile, "content");
+
+        var markerPath = Path.Combine(_testDir, "ExpandedLANLobbyMenu.done");
+        File.WriteAllText(markerPath, "2024-01-01T00:00:00Z");
+
+        var installation = new GameInstallation(_testDir, GameInstallationType.Steam)
+        {
+            HasZeroHour = true,
+            ZeroHourPath = zhDir,
+        };
+
+        var result = await _fix.UndoAsync(installation);
+
+        Assert.True(result.Success);
+        Assert.False(File.Exists(bigFile));
+        Assert.False(File.Exists(markerPath));
+    }
 }

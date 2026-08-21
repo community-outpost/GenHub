@@ -336,4 +336,57 @@ public class HDIconsFixTests : IDisposable
         Assert.True(File.Exists(unrecordedFile));
         Assert.False(File.Exists(markerPath));
     }
+
+    /// <summary>
+    /// Verifies that UndoAsync returns a warning failure when files are present on disk but no marker exists.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
+    [Fact]
+    public async Task UndoAsync_WhenNoMarkerExistsAndFilesPresent_ReturnsWarningFailureAsync()
+    {
+        var genDir = Path.Combine(_testDir, "Generals");
+        Directory.CreateDirectory(genDir);
+        var iconPath = Path.Combine(genDir, "GeneralsHD.ico");
+        File.WriteAllText(iconPath, "icon");
+
+        var installation = new GameInstallation(_testDir, GameInstallationType.Steam)
+        {
+            HasGenerals = true,
+            GeneralsPath = genDir,
+        };
+
+        var result = await _fix.UndoAsync(installation);
+
+        Assert.False(result.Success);
+        Assert.True(File.Exists(iconPath));
+        Assert.Contains("No deployment marker found", result.Message ?? string.Empty);
+    }
+
+    /// <summary>
+    /// Verifies that UndoAsync migrates legacy timestamp markers and removes recognized icon files.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
+    [Fact]
+    public async Task UndoAsync_WhenLegacyTimestampMarkerExists_MigratesAndRemovesRecognizedFilesAsync()
+    {
+        var genDir = Path.Combine(_testDir, "Generals");
+        Directory.CreateDirectory(genDir);
+        var iconPath = Path.Combine(genDir, "GeneralsHD.ico");
+        File.WriteAllText(iconPath, "icon");
+
+        var markerPath = Path.Combine(_testDir, "HDIconsFix.done");
+        File.WriteAllText(markerPath, "2024-01-01T00:00:00Z");
+
+        var installation = new GameInstallation(_testDir, GameInstallationType.Steam)
+        {
+            HasGenerals = true,
+            GeneralsPath = genDir,
+        };
+
+        var result = await _fix.UndoAsync(installation);
+
+        Assert.True(result.Success);
+        Assert.False(File.Exists(iconPath));
+        Assert.False(File.Exists(markerPath));
+    }
 }

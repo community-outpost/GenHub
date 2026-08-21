@@ -309,6 +309,12 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
         {
             if (!File.Exists(_markerPath))
             {
+                if (AreHDIconsPresent(installation))
+                {
+                    details.Add("⚠ No deployment marker found. Custom HD icon files may have been installed manually; please remove them manually if desired.");
+                    return Task.FromResult(new ActionSetResult(false, "No deployment marker found to undo.", details));
+                }
+
                 return Task.FromResult(new ActionSetResult(true, null, ["No deployment record found to undo."]));
             }
 
@@ -322,6 +328,38 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
             {
                 logger.LogWarning(ex, "Failed to read installed icon file paths from marker {MarkerPath}", _markerPath);
                 return Task.FromResult(new ActionSetResult(false, $"Failed to read deployment marker: {ex.Message}", ["✗ Could not read deployment marker."]));
+            }
+
+            // Check if this is a legacy timestamp-only marker (no rooted paths)
+            var hasRootedPaths = lines.Any(l => !string.IsNullOrWhiteSpace(l) && Path.IsPathRooted(l.Trim()));
+            if (!hasRootedPaths && lines.Length > 0)
+            {
+                var legacyFiles = new List<string>();
+                if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
+                {
+                    foreach (var icon in RecognizedGeneralsIconFiles)
+                    {
+                        var path = Path.Combine(installation.GeneralsPath, icon);
+                        if (File.Exists(path) && !legacyFiles.Contains(path, StringComparer.OrdinalIgnoreCase))
+                        {
+                            legacyFiles.Add(path);
+                        }
+                    }
+                }
+
+                if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
+                {
+                    foreach (var icon in RecognizedZeroHourIconFiles)
+                    {
+                        var path = Path.Combine(installation.ZeroHourPath, icon);
+                        if (File.Exists(path) && !legacyFiles.Contains(path, StringComparer.OrdinalIgnoreCase))
+                        {
+                            legacyFiles.Add(path);
+                        }
+                    }
+                }
+
+                lines = [.. legacyFiles];
             }
 
             foreach (var path in lines)
@@ -446,6 +484,7 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
 
     private bool RecordDeploymentMarker(List<string> deployedFiles)
     {
+        string? tempMarker = null;
         try
         {
             var markerDir = Path.GetDirectoryName(_markerPath);
@@ -454,7 +493,7 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
                 Directory.CreateDirectory(markerDir);
             }
 
-            var tempMarker = Path.Combine(markerDir ?? Path.GetTempPath(), $"{Guid.NewGuid():N}.tmp");
+            tempMarker = Path.Combine(markerDir ?? Path.GetTempPath(), $"{Guid.NewGuid():N}.tmp");
             File.WriteAllLines(tempMarker, deployedFiles);
             File.Move(tempMarker, _markerPath, overwrite: true);
             return true;
@@ -462,33 +501,38 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
         catch (IOException ex)
         {
             logger.LogWarning(ex, "Failed to create marker file for HDIconsFix");
-            CleanupPartialMarker();
+            CleanupTempFile(tempMarker);
             return false;
         }
         catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Access denied creating marker file for HDIconsFix");
-            CleanupPartialMarker();
+            CleanupTempFile(tempMarker);
             return false;
         }
     }
 
-    private void CleanupPartialMarker()
+    private void CleanupTempFile(string? path)
     {
+        if (string.IsNullOrEmpty(path))
+        {
+            return;
+        }
+
         try
         {
-            if (File.Exists(_markerPath))
+            if (File.Exists(path))
             {
-                File.Delete(_markerPath);
+                File.Delete(path);
             }
         }
         catch (IOException ex)
         {
-            logger.LogDebug(ex, "Failed to clean up partial marker file {MarkerPath}", _markerPath);
+            logger.LogDebug(ex, "Failed to clean up temporary file {TempPath}", path);
         }
         catch (UnauthorizedAccessException ex)
         {
-            logger.LogDebug(ex, "Access denied cleaning up partial marker file {MarkerPath}", _markerPath);
+            logger.LogDebug(ex, "Access denied cleaning up temporary file {TempPath}", path);
         }
     }
 

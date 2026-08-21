@@ -196,6 +196,23 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
         {
             if (!File.Exists(_markerPath))
             {
+                var filesPresent = false;
+                if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
+                {
+                    filesPresent = KnownMenuBigFiles.Any(f => File.Exists(Path.Combine(installation.ZeroHourPath, f)));
+                }
+
+                if (!filesPresent && installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
+                {
+                    filesPresent = KnownMenuBigFiles.Any(f => File.Exists(Path.Combine(installation.GeneralsPath, f)));
+                }
+
+                if (filesPresent)
+                {
+                    details.Add("⚠ No deployment marker found. Custom window files may have been installed manually; please remove them manually if desired.");
+                    return Task.FromResult(new ActionSetResult(false, "No deployment marker found to undo.", details));
+                }
+
                 return Task.FromResult(new ActionSetResult(true, null, ["No deployment record found to undo."]));
             }
 
@@ -209,6 +226,38 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
             {
                 logger.LogWarning(ex, "Failed to read installed file paths from marker {MarkerPath}", _markerPath);
                 return Task.FromResult(new ActionSetResult(false, $"Failed to read deployment marker: {ex.Message}", ["✗ Could not read deployment marker."]));
+            }
+
+            // Check if this is a legacy timestamp-only marker (no rooted paths)
+            var hasRootedPaths = lines.Any(l => !string.IsNullOrWhiteSpace(l) && Path.IsPathRooted(l.Trim()));
+            if (!hasRootedPaths && lines.Length > 0)
+            {
+                var legacyFiles = new List<string>();
+                if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
+                {
+                    foreach (var file in KnownMenuBigFiles)
+                    {
+                        var path = Path.Combine(installation.ZeroHourPath, file);
+                        if (File.Exists(path) && !legacyFiles.Contains(path, StringComparer.OrdinalIgnoreCase))
+                        {
+                            legacyFiles.Add(path);
+                        }
+                    }
+                }
+
+                if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
+                {
+                    foreach (var file in KnownMenuBigFiles)
+                    {
+                        var path = Path.Combine(installation.GeneralsPath, file);
+                        if (File.Exists(path) && !legacyFiles.Contains(path, StringComparer.OrdinalIgnoreCase))
+                        {
+                            legacyFiles.Add(path);
+                        }
+                    }
+                }
+
+                lines = [.. legacyFiles];
             }
 
             foreach (var path in lines)
@@ -268,7 +317,7 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
                 }
 
                 details.Add($"⚠ Partial undo: removed {removedCount} files, {remainingFiles.Count} files could not be deleted.");
-                return Task.FromResult(new ActionSetResult(false, $"Failed to remove {remainingFiles.Count} files during undo.", details));
+                return Task.FromResult(new ActionSetResult(false, $"Failed to remove {remainingFiles.Count} custom window files during undo.", details));
             }
         }
         catch (OperationCanceledException)
@@ -277,7 +326,7 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            logger.LogWarning(ex, "Failed to remove custom window files during undo");
+            logger.LogWarning(ex, "Failed to delete marker or custom window files for ExpandedLANLobbyMenu");
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
     }
@@ -480,6 +529,7 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
 
     private bool RecordDeploymentMarker(List<string> deployedFiles)
     {
+        string? tempMarker = null;
         try
         {
             var markerDir = Path.GetDirectoryName(_markerPath);
@@ -488,7 +538,7 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
                 Directory.CreateDirectory(markerDir);
             }
 
-            var tempMarker = Path.Combine(markerDir ?? Path.GetTempPath(), $"{Guid.NewGuid():N}.tmp");
+            tempMarker = Path.Combine(markerDir ?? Path.GetTempPath(), $"{Guid.NewGuid():N}.tmp");
             File.WriteAllLines(tempMarker, deployedFiles);
             File.Move(tempMarker, _markerPath, overwrite: true);
             return true;
@@ -496,33 +546,38 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
         catch (IOException ex)
         {
             logger.LogWarning(ex, "Failed to create marker file for ExpandedLANLobbyMenu");
-            CleanupPartialMarker();
+            CleanupTempFile(tempMarker);
             return false;
         }
         catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Permission denied creating marker file for ExpandedLANLobbyMenu");
-            CleanupPartialMarker();
+            CleanupTempFile(tempMarker);
             return false;
         }
     }
 
-    private void CleanupPartialMarker()
+    private void CleanupTempFile(string? path)
     {
+        if (string.IsNullOrEmpty(path))
+        {
+            return;
+        }
+
         try
         {
-            if (File.Exists(_markerPath))
+            if (File.Exists(path))
             {
-                File.Delete(_markerPath);
+                File.Delete(path);
             }
         }
         catch (IOException ex)
         {
-            logger.LogDebug(ex, "Failed to clean up partial marker file {MarkerPath}", _markerPath);
+            logger.LogDebug(ex, "Failed to clean up temporary file {TempPath}", path);
         }
         catch (UnauthorizedAccessException ex)
         {
-            logger.LogDebug(ex, "Access denied cleaning up partial marker file {MarkerPath}", _markerPath);
+            logger.LogDebug(ex, "Access denied cleaning up temporary file {TempPath}", path);
         }
     }
 
