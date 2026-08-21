@@ -66,18 +66,6 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
     /// <inheritdoc/>
     public override bool IsCrucialFix => false;
 
-    /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
-    {
-        return Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
-    }
-
-    /// <inheritdoc/>
-    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
-    {
-        return Task.FromResult(AreHDIconsPresent(installation));
-    }
-
     /// <summary>
     /// Validates that the downloaded HD icons archive contains the expected icon assets for targeted installations.
     /// </summary>
@@ -104,6 +92,18 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
         }
 
         return (true, null);
+    }
+
+    /// <inheritdoc/>
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
+    {
+        return Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
+    }
+
+    /// <inheritdoc/>
+    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
+    {
+        return Task.FromResult(AreHDIconsPresent(installation));
     }
 
     /// <inheritdoc/>
