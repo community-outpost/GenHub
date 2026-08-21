@@ -232,6 +232,9 @@
             <Setter Property="Foreground" Value="White" />
             <Setter Property="Opacity" Value="0.75" />
         </Style>
+        <Style Selector="Button.tab-icon-btn Panel > Border">
+            <Setter Property="Background" Value="White" />
+        </Style>
         <Style Selector="Button.tab-icon-btn:pointerover">
             <Setter Property="Background" Value="#30FFFFFF" />
             <Setter Property="Foreground" Value="White" />

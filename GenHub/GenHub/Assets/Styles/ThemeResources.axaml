@@ -84,9 +84,13 @@
     <Color x:Key="AccentColor">#A855F7</Color>
     <Color x:Key="SystemAccentColor">#A855F7</Color>
     <Color x:Key="PrimaryButtonBackgroundDark">#A855F7</Color>
+    <Color x:Key="AccentBadgeBackgroundColor">#20A855F7</Color>
+    <Color x:Key="AccentBadgeForegroundColor">#CCA855F7</Color>
     <SolidColorBrush x:Key="SystemAccentColorBrush" Color="{StaticResource SystemAccentColor}" />
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}" />
     <SolidColorBrush x:Key="AccentColorBrush" Color="{StaticResource AccentColor}" />
+    <SolidColorBrush x:Key="AccentBadgeBackgroundBrush" Color="{StaticResource AccentBadgeBackgroundColor}" />
+    <SolidColorBrush x:Key="AccentBadgeForegroundBrush" Color="{StaticResource AccentBadgeForegroundColor}" />
     <SolidColorBrush x:Key="PrimaryButtonBackground" Color="{DynamicResource PrimaryButtonBackgroundDark}" />
 
     <!-- Status Tokens: Success -->

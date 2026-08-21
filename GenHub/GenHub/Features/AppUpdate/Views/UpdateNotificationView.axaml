@@ -168,7 +168,7 @@
 
                             <!-- Release Notes Link -->
                             <Button Grid.Row="1" Grid.Column="1" Content="View Release Notes" Command="{Binding ViewReleaseNotesCommand}"
-                                     Background="Transparent" Foreground="{DynamicResource SystemAccentColor}" BorderThickness="0" Padding="0" Margin="0,8,0,0" HorizontalAlignment="Left" Cursor="Hand"/>
+                                     Background="Transparent" Foreground="{DynamicResource AccentBrush}" BorderThickness="0" Padding="0" Margin="0,8,0,0" HorizontalAlignment="Left" Cursor="Hand"/>
                         </Grid>
                     </Border>
 
@@ -183,7 +183,7 @@
 
                             <!-- Current Source Display -->
                             <Grid ColumnDefinitions="Auto,*,Auto">
-                                <PathIcon Grid.Column="0" Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" Width="16" Height="16" Foreground="{DynamicResource SystemAccentColor}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                <PathIcon Grid.Column="0" Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" Width="16" Height="16" Foreground="{DynamicResource AccentBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="1" Text="{Binding StatusMessage}" VerticalAlignment="Center" Foreground="#DDDDDD" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
                                 <Button Grid.Column="2" Content="Unsubscribe" Command="{Binding UnsubscribeCommand}" IsVisible="{Binding IsSubscribedToAny}"
                                         Background="#30FF0000" Foreground="#FF5555" FontSize="12" Padding="8,4" CornerRadius="4" VerticalAlignment="Center"/>
@@ -221,8 +221,8 @@
                         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="4,0,4,12">
                             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                 <TextBlock Text="Open Pull Requests" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
-                                <Border Background="#20A855F7" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding AvailablePullRequests.Count}" FontSize="11" FontWeight="Bold" Foreground="#CCA855F7"/>
+                                <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding AvailablePullRequests.Count}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentBadgeForegroundBrush}"/>
                                 </Border>
                             </StackPanel>
                         </Grid>
@@ -296,8 +296,8 @@
                         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="4,0,4,12">
                             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                 <TextBlock Text="Branches" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
-                                <Border Background="#20A855F7" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding AvailableBranches.Count}" FontSize="11" FontWeight="Bold" Foreground="#CCA855F7"/>
+                                <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding AvailableBranches.Count}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentBadgeForegroundBrush}"/>
                                 </Border>
                             </StackPanel>
                         </Grid>
