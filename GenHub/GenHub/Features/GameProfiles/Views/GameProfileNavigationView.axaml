@@ -31,17 +31,15 @@
             <Setter Property="Transitions">
                 <Setter.Value>
                     <Transitions>
-                        <BrushTransition Property="Background" Duration="0:0:0.18" />
-                        <BrushTransition Property="Foreground" Duration="0:0:0.18" />
-                        <BrushTransition Property="BorderBrush" Duration="0:0:0.18" />
                         <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.18" />
                     </Transitions>
                 </Setter.Value>
             </Setter>
         </Style>
 
-        <Style Selector="Button.tab-icon-btn PathIcon" x:CompileBindings="False">
-            <Setter Property="Foreground" Value="{Binding $parent[Button].Foreground}" />
+        <Style Selector="Button.tab-icon-btn PathIcon">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Opacity" Value="0.75" />
         </Style>
 
         <Style Selector="Button.tab-icon-btn:pointerover">
@@ -51,12 +49,20 @@
             <Setter Property="RenderTransform" Value="translateY(-2px)" />
         </Style>
 
+        <Style Selector="Button.tab-icon-btn:pointerover PathIcon">
+            <Setter Property="Opacity" Value="1.0" />
+        </Style>
+
         <Style Selector="Button.tab-icon-btn.selected" x:CompileBindings="False">
             <Setter Property="Background" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="BorderBrush" Value="White" />
             <Setter Property="BorderThickness" Value="2" />
             <Setter Property="RenderTransform" Value="translateY(-2px)" />
+        </Style>
+
+        <Style Selector="Button.tab-icon-btn.selected PathIcon">
+            <Setter Property="Opacity" Value="1.0" />
         </Style>
 
         <Style Selector="Button.tab-icon-btn.selected:pointerover">

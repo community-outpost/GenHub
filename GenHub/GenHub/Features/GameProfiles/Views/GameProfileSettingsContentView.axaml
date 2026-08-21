@@ -209,50 +209,47 @@
 
         <!-- Tab icon button style -->
         <Style Selector="Button.tab-icon-btn">
-            <Setter Property="Width" Value="64" />
-            <Setter Property="Height" Value="64" />
+            <Setter Property="Width" Value="56" />
+            <Setter Property="Height" Value="56" />
             <Setter Property="Background" Value="#15FFFFFF" />
-            <Setter Property="BorderBrush" Value="#60FFFFFF" />
-            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="BorderBrush" Value="#40FFFFFF" />
+            <Setter Property="BorderThickness" Value="1.5" />
             <Setter Property="CornerRadius" Value="12" />
-            <Setter Property="Padding" Value="12" />
+            <Setter Property="Padding" Value="10" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Opacity" Value="1" />
-            <Setter Property="Foreground" Value="White" />
-        </Style>
-        <Style Selector="Button.tab-icon-btn PathIcon">
-             <Setter Property="Foreground" Value="White" />
-        </Style>
-        <Style Selector="Button.tab-icon-btn Panel > Border">
-             <Setter Property="Background" Value="White" />
-        </Style>
-        <Style Selector="Button.tab-icon-btn:pointerover /template/ ContentPresenter" x:CompileBindings="False">
-            <Setter Property="Background" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
-            <Setter Property="Opacity" Value="0.2" />
-        </Style>
-        <Style Selector="Button.tab-icon-btn:pointerover">
-            <Setter Property="Background" Value="#50000000" />
-            <Setter Property="BorderBrush" Value="White" />
-            <Setter Property="BorderThickness" Value="2" />
-            <Setter Property="RenderTransform" Value="translateY(-4px)" />
-        </Style>
-        <Style Selector="Button.tab-icon-btn.selected /template/ ContentPresenter" x:CompileBindings="False">
-            <Setter Property="Background" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
-        </Style>
-        <Style Selector="Button.tab-icon-btn.selected">
-            <Setter Property="BorderBrush" Value="White" />
-            <Setter Property="BorderThickness" Value="3" />
-            <Setter Property="RenderTransform" Value="scale(1.1)" />
-            <Setter Property="ZIndex" Value="5" />
-            <Setter Property="Effect">
-                <DropShadowEffect BlurRadius="12" Color="Black" Opacity="0.5" OffsetX="0" OffsetY="4" />
+            <Setter Property="Foreground" Value="#CCCCCC" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Transitions">
+                <Setter.Value>
+                    <Transitions>
+                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.18" />
+                    </Transitions>
+                </Setter.Value>
             </Setter>
         </Style>
-        <Style Selector="Button.tab-icon-btn.selected PathIcon">
-             <Setter Property="Foreground" Value="White" />
+        <Style Selector="Button.tab-icon-btn PathIcon">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Opacity" Value="0.75" />
         </Style>
-        <Style Selector="Button.tab-icon-btn.selected Panel > Border">
-             <Setter Property="Background" Value="White" />
+        <Style Selector="Button.tab-icon-btn:pointerover">
+            <Setter Property="Background" Value="#30FFFFFF" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="White" />
+            <Setter Property="RenderTransform" Value="translateY(-2px)" />
+        </Style>
+        <Style Selector="Button.tab-icon-btn:pointerover PathIcon">
+            <Setter Property="Opacity" Value="1.0" />
+        </Style>
+        <Style Selector="Button.tab-icon-btn.selected" x:CompileBindings="False">
+            <Setter Property="Background" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="White" />
+            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="RenderTransform" Value="translateY(-2px)" />
+        </Style>
+        <Style Selector="Button.tab-icon-btn.selected PathIcon">
+            <Setter Property="Opacity" Value="1.0" />
         </Style>
 
         <!-- Scrollbar theming -->

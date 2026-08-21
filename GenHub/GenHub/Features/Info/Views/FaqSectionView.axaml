@@ -18,9 +18,9 @@
     </Style>
 
     <Style Selector="Expander.faq-item">
-      <Setter Property="Background" Value="#1E1E1E"/>
+      <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
       <Setter Property="CornerRadius" Value="8"/>
-      <Setter Property="BorderBrush" Value="#333333"/>
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
       <Setter Property="BorderThickness" Value="1"/>
       <Setter Property="Margin" Value="0,0,0,12"/>
       <Setter Property="Padding" Value="0"/>
@@ -36,23 +36,23 @@
     </Style>
 
     <Style Selector="Expander.faq-item:expanded /template/ ToggleButton#ExpanderHeader">
-       <Setter Property="BorderBrush" Value="#333333"/>
+       <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
        <Setter Property="BorderThickness" Value="0,0,0,1"/>
     </Style>
 
     <Style Selector="Expander.faq-item:pointerover /template/ ToggleButton#ExpanderHeader">
-       <Setter Property="Background" Value="#2A2A2A"/>
+       <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
     </Style>
 
     <Style Selector="TextBlock.faq-question">
       <Setter Property="FontSize" Value="15" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="#F0F0F0" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
     </Style>
 
     <Style Selector="SelectableTextBlock.faq-answer">
       <Setter Property="FontSize" Value="14" />
-      <Setter Property="Foreground" Value="#CCCCCC" />
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
       <Setter Property="LineHeight" Value="24"/>
       <Setter Property="Margin" Value="16"/>
     </Style>
