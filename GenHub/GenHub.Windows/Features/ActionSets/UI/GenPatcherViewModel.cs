@@ -4,11 +4,13 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
@@ -24,6 +26,7 @@ public partial class GenPatcherViewModel(
     IGameInstallationDetector installationDetector,
     IRegistryService registryService,
     INotificationService notificationService,
+    IDialogService dialogService,
     ILogger<GenPatcherViewModel> logger) : ObservableObject
 {
     [ObservableProperty]
@@ -81,9 +84,13 @@ public partial class GenPatcherViewModel(
     private int qolCategoryCount;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ApplyAllFixesCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CancelBatchApplyCommand))]
     private bool isBatchApplying;
 
-    private System.Threading.CancellationTokenSource? _batchCts;
+    private CancellationTokenSource? _batchCts;
+    private CancellationTokenSource? _refreshCts;
+    private int _refreshVersion;
 
     /// <summary>
     /// Initializes the ViewModel asynchronously.
@@ -114,10 +121,12 @@ public partial class GenPatcherViewModel(
         await LoadFixesCommand.ExecuteAsync(null);
     }
 
+    private bool CanExecuteCancelBatchApply() => IsBatchApplying;
+
     /// <summary>
     /// Cancels the ongoing batch fix application if running.
     /// </summary>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanExecuteCancelBatchApply))]
     private void CancelBatchApply()
     {
         if (_batchCts != null && !_batchCts.IsCancellationRequested)
@@ -130,6 +139,7 @@ public partial class GenPatcherViewModel(
 
     partial void OnSelectedInstallationChanged(GameInstallation? value)
     {
+        ApplyAllFixesCommand.NotifyCanExecuteChanged();
         if (value != null)
         {
             logger.LogInformation("Selected installation changed to: {InstallType} at {Path}", value.InstallationType, value.InstallationPath);
@@ -210,34 +220,48 @@ public partial class GenPatcherViewModel(
 
     private async Task RefreshFixesForInstallationAsync(GameInstallation installation)
     {
+        var version = Interlocked.Increment(ref _refreshVersion);
+        _refreshCts?.Cancel();
+        _refreshCts?.Dispose();
+        _refreshCts = new CancellationTokenSource();
+        var ct = _refreshCts.Token;
+
         try
         {
             logger.LogInformation(
-                "Using installation: {InstallType} at {Path}",
+                "Using installation: {InstallType} at {Path} (refresh version {Version})",
                 installation.InstallationType,
-                installation.InstallationPath);
+                installation.InstallationPath,
+                version);
 
             var fixes = orchestrator.GetAllActionSets();
             logger.LogInformation("Loading {Count} action sets...", fixes.Count);
 
             // Parallelize status checks to prevent UI blocking
-            var tasks = new List<Task<ActionSetViewModel>>();
-            foreach (var fix in fixes)
-            {
-                tasks.Add(Task.Run(async () =>
+            var tasks = fixes.Select(fix => Task.Run(
+                async () =>
                 {
+                    ct.ThrowIfCancellationRequested();
                     var vm = new ActionSetViewModel(
                         fix,
                         installation,
                         notificationService,
                         logger,
-                        () => Avalonia.Threading.Dispatcher.UIThread.Post(SortActionSets));
-                    await vm.CheckStatusAsync();
+                        () => Avalonia.Threading.Dispatcher.UIThread.Post(SortActionSets),
+                        () => Avalonia.Threading.Dispatcher.UIThread.Post(() => ApplyAllFixesCommand.NotifyCanExecuteChanged()));
+                    await vm.CheckStatusAsync(ct);
                     return vm;
-                }));
-            }
+                },
+                ct)).ToList();
 
             var loadedVms = await Task.WhenAll(tasks);
+
+            if (ct.IsCancellationRequested || version != _refreshVersion || SelectedInstallation != installation)
+            {
+                logger.LogDebug("Refresh version {Version} was superseded or cancelled", version);
+                return;
+            }
+
             var sortedVms = loadedVms
                 .OrderBy(GetSortPriority)
                 .ThenByDescending(vm => vm.IsCore)
@@ -246,6 +270,11 @@ public partial class GenPatcherViewModel(
 
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
+                if (ct.IsCancellationRequested || version != _refreshVersion || SelectedInstallation != installation)
+                {
+                    return;
+                }
+
                 ActionSets.Clear();
                 foreach (var vm in sortedVms)
                 {
@@ -260,6 +289,7 @@ public partial class GenPatcherViewModel(
                 }
 
                 ApplyFilter();
+                ApplyAllFixesCommand.NotifyCanExecuteChanged();
             });
 
             var applicableCount = ActionSets.Count(x => x.IsApplicable);
@@ -281,7 +311,11 @@ public partial class GenPatcherViewModel(
                 "GenPatcher Loaded",
                 $"Successfully loaded {ActionSets.Count} fixes for {installation.InstallationType}.\nApplied: {appliedAndApplicableCount} / {applicableCount} applicable fixes.");
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            logger.LogDebug("Refresh fixes for installation {Path} was cancelled (version {Version})", installation.InstallationPath, version);
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested && version == _refreshVersion)
         {
             logger.LogError(ex, "Error refreshing fixes for installation {Path}", installation.InstallationPath);
             notificationService.ShowError(
@@ -290,7 +324,9 @@ public partial class GenPatcherViewModel(
         }
     }
 
-    [RelayCommand]
+    private bool CanExecuteApplyAllFixes() => !IsBatchApplying && SelectedInstallation != null && !ActionSets.Any(x => x.IsApplying);
+
+    [RelayCommand(CanExecute = nameof(CanExecuteApplyAllFixes))]
     private async Task ApplyAllFixesAsync()
     {
         if (IsBatchApplying)
@@ -298,32 +334,49 @@ public partial class GenPatcherViewModel(
             return;
         }
 
+        if (SelectedInstallation == null)
+        {
+            logger.LogError("[GENPATCHER_APPLY_004] Cannot apply fixes - no installation selected");
+            notificationService.ShowError("No Installation Selected", "Please select a game installation before applying fixes.");
+            return;
+        }
+
+        var targetInstallation = SelectedInstallation;
+
+        if (!registryService.IsRunningAsAdministrator())
+        {
+            logger.LogWarning("[GENPATCHER_APPLY_005] Apply batch rejected - not running as administrator");
+            notificationService.ShowError(
+                "Administrator Rights Required",
+                "Administrator privileges required for 'Apply Recommended'. Please restart GenHub as Administrator.");
+            return;
+        }
+
+        var confirmed = await dialogService.ShowConfirmationAsync(
+            ActionSetConstants.Dialogs.ApplyAllConfirmationTitle,
+            $"Are you sure you want to apply all recommended fixes for {targetInstallation.InstallationType}?\n\nThis will modify game files and configuration settings at:\n{targetInstallation.InstallationPath}",
+            confirmText: ActionSetConstants.Dialogs.ApplyAllConfirmButtonText,
+            cancelText: ActionSetConstants.Dialogs.ApplyAllCancelButtonText);
+
+        if (!confirmed)
+        {
+            logger.LogInformation("Batch fix application cancelled by user at confirmation prompt");
+            return;
+        }
+
         _batchCts?.Cancel();
         _batchCts?.Dispose();
-        _batchCts = new System.Threading.CancellationTokenSource();
+        _batchCts = new CancellationTokenSource();
         var ct = _batchCts.Token;
 
         IsBatchApplying = true;
+        foreach (var vm in ActionSets)
+        {
+            vm.IsBatchApplying = true;
+        }
+
         try
         {
-            if (SelectedInstallation == null)
-            {
-                logger.LogError("[GENPATCHER_APPLY_004] Cannot apply fixes - no installation selected");
-                notificationService.ShowError("No Installation Selected", "Please select a game installation before applying fixes.");
-                return;
-            }
-
-            var targetInstallation = SelectedInstallation;
-
-            if (!registryService.IsRunningAsAdministrator())
-            {
-                logger.LogWarning("[GENPATCHER_APPLY_005] Apply batch rejected - not running as administrator");
-                notificationService.ShowError(
-                    "Administrator Rights Required",
-                    "Administrator privileges required for 'Apply Recommended'. Please restart GenHub as Administrator.");
-                return;
-            }
-
             var coreFixes = await orchestrator.GetApplicableCoreFixesAsync(targetInstallation, ct);
             var coreFixIds = new HashSet<string>(coreFixes.Select(f => f.Id), StringComparer.OrdinalIgnoreCase);
 
@@ -369,7 +422,11 @@ public partial class GenPatcherViewModel(
             {
                 try
                 {
-                    await vm.CheckStatusAsync();
+                    await vm.CheckStatusAsync(ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
                 }
                 catch (Exception ex)
                 {
@@ -422,6 +479,11 @@ public partial class GenPatcherViewModel(
         finally
         {
             IsBatchApplying = false;
+            foreach (var vm in ActionSets)
+            {
+                vm.IsBatchApplying = false;
+            }
+
             _batchCts?.Dispose();
             _batchCts = null;
         }

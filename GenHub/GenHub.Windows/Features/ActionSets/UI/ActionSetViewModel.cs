@@ -1,6 +1,7 @@
 namespace GenHub.Windows.Features.ActionSets.UI;
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -18,7 +19,8 @@ public partial class ActionSetViewModel(
     GameInstallation installation,
     INotificationService notificationService,
     ILogger logger,
-    Action? onStatusChanged = null) : ObservableObject
+    Action? onStatusChanged = null,
+    Action? onBusyChanged = null) : ObservableObject
 {
     /// <summary>
     /// Gets the underlying action set.
@@ -75,6 +77,7 @@ public partial class ActionSetViewModel(
     [NotifyPropertyChangedFor(nameof(StatusColor))]
     [NotifyPropertyChangedFor(nameof(StatusBackground))]
     [NotifyPropertyChangedFor(nameof(StatusBorder))]
+    [NotifyCanExecuteChangedFor(nameof(ApplyCommand))]
     private bool isApplicable;
 
     [ObservableProperty]
@@ -83,12 +86,25 @@ public partial class ActionSetViewModel(
     [NotifyPropertyChangedFor(nameof(StatusColor))]
     [NotifyPropertyChangedFor(nameof(StatusBackground))]
     [NotifyPropertyChangedFor(nameof(StatusBorder))]
+    [NotifyCanExecuteChangedFor(nameof(ApplyCommand))]
     private bool isApplied;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanApply))]
+    [NotifyCanExecuteChangedFor(nameof(ApplyCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ForceApplyCommand))]
+    private bool isApplying;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanApply))]
+    [NotifyCanExecuteChangedFor(nameof(ApplyCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ForceApplyCommand))]
+    private bool isBatchApplying;
 
     /// <summary>
     /// Gets a value indicating whether the fix can be applied.
     /// </summary>
-    public bool CanApply => IsApplicable && !IsApplied;
+    public bool CanApply => IsApplicable && !IsApplied && !IsApplying && !IsBatchApplying;
 
     /// <summary>
     /// Gets the display status of the action set.
@@ -133,24 +149,37 @@ public partial class ActionSetViewModel(
     /// <summary>
     /// Checks the status of the action set (applicable and applied).
     /// </summary>
+    /// <param name="ct">The cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task CheckStatusAsync()
+    public async Task CheckStatusAsync(CancellationToken ct = default)
     {
         try
         {
+            ct.ThrowIfCancellationRequested();
+
             logger.LogInformation(
                 "[GENPATCHER_CHECK_005] Checking status for {Title} (ID={Id})",
                 ActionSet.Title,
                 ActionSet.Id);
 
-            IsApplicable = await ActionSet.IsApplicableAsync(installation);
-            IsApplied = await ActionSet.IsAppliedAsync(installation);
+            var applicable = await ActionSet.IsApplicableAsync(installation, ct);
+            ct.ThrowIfCancellationRequested();
+
+            var applied = await ActionSet.IsAppliedAsync(installation, ct);
+            ct.ThrowIfCancellationRequested();
+
+            IsApplicable = applicable;
+            IsApplied = applied;
 
             logger.LogInformation(
                 "Status check complete: {Title} - Applicable={Applicable}, Applied={Applied}",
                 ActionSet.Title,
                 IsApplicable,
                 IsApplied);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -162,19 +191,35 @@ public partial class ActionSetViewModel(
         }
     }
 
+    partial void OnIsApplyingChanged(bool value)
+    {
+        onBusyChanged?.Invoke();
+    }
+
+    private bool CanExecuteApply() => CanApply;
+
+    private bool CanExecuteForceApply() => !IsApplying && !IsBatchApplying;
+
     [RelayCommand]
     private void ToggleExpanded() => IsExpanded = !IsExpanded;
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanExecuteApply))]
     private Task ApplyAsync() => ExecuteApplyAsync(isForce: false);
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanExecuteForceApply))]
     private Task ForceApplyAsync() => ExecuteApplyAsync(isForce: true);
 
     private async Task ExecuteApplyAsync(bool isForce)
     {
+        if (IsApplying || IsBatchApplying)
+        {
+            return;
+        }
+
         try
         {
+            IsApplying = true;
+
             logger.LogInformation(
                 isForce ? "[GENPATCHER_FIX_013] Starting FORCE application of {Title} (ID={Id}) to {InstallPath}" : "[GENPATCHER_FIX_009] Starting application of {Title} (ID={Id}) to {InstallPath}",
                 ActionSet.Title,
@@ -182,7 +227,7 @@ public partial class ActionSetViewModel(
                 installation.InstallationPath);
 
             var startTime = DateTime.UtcNow;
-            var result = await ActionSet.ApplyAsync(installation);
+            var result = await ActionSet.ApplyAsync(installation, CancellationToken.None);
             var duration = (DateTime.UtcNow - startTime).TotalMilliseconds;
 
             if (result.Success)
@@ -237,7 +282,7 @@ public partial class ActionSetViewModel(
 
             try
             {
-                await CheckStatusAsync();
+                await CheckStatusAsync(CancellationToken.None);
                 onStatusChanged?.Invoke();
             }
             catch (Exception statusEx)
@@ -255,6 +300,10 @@ public partial class ActionSetViewModel(
             notificationService.ShowError(
                 isForce ? "Failed to Force Apply Fix" : "Failed to Apply Fix",
                 $"Could not apply {ActionSet.Title}: {ex.Message}");
+        }
+        finally
+        {
+            IsApplying = false;
         }
     }
 }

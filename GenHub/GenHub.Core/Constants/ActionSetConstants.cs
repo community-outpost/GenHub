@@ -365,6 +365,27 @@ public static class ActionSetConstants
         /// <summary>
         /// Gets the pinned SHA-256 hash for the High-Definition Icons icon.dat package.
         /// </summary>
-        public const string HDIconsSha256 = "1e47873c38fc25f6a085255ab56e40ef4970ed1aa838cd8b7495aaf6aec29843";
+        public const string HDIconsSha256 = "68aedc84b0c4291dee7bdd079c551273e33cee4026ecc482ab48850cf99f7baa";
+    }
+
+    /// <summary>
+    /// Constants for confirmation and notification dialogs.
+    /// </summary>
+    public static class Dialogs
+    {
+        /// <summary>
+        /// Gets the title for the Apply All recommended fixes confirmation dialog.
+        /// </summary>
+        public const string ApplyAllConfirmationTitle = "Apply All Recommended Fixes";
+
+        /// <summary>
+        /// Gets the confirmation button text for the Apply All dialog.
+        /// </summary>
+        public const string ApplyAllConfirmButtonText = "Apply Fixes";
+
+        /// <summary>
+        /// Gets the cancel button text for the Apply All dialog.
+        /// </summary>
+        public const string ApplyAllCancelButtonText = "Cancel";
     }
 }
