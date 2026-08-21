@@ -24,7 +24,7 @@ All tokens are defined in `GenHub/GenHub/Assets/Styles/ThemeResources.axaml`.
 |---|---|---|
 | `SurfaceBackground` / `WindowBackground` | Top-level window and view background | `#08080C` |
 | `CardBackground` / `SurfaceCardBrush` | Content cards and list containers | `#111118` |
-| `DetailsBackground` / `SurfaceElevatedBrush` | Elevated flyouts, dialogs, and side panels | `#181822` |
+| `DetailsBackground` / `SurfaceElevatedBrush` | Elevated flyouts, dialogs, dropdowns, and side panels | `#181822` |
 | `SurfaceHoverBrush` | Hover state background for rows and cards | `#222230` |
 
 ### Border tokens
@@ -113,6 +113,28 @@ Item templates inside sidebars must use inset rounded rows:
 </DataTemplate>
 ```
 
+## Selection dropdowns (ComboBox)
+
+All selection dropdowns automatically inherit the global style from `GenHub/GenHub/Assets/Styles/ComboBoxStyles.axaml` via `App.axaml`:
+
+- **Container:** Rounded 8px corners (`CornerRadius="8"`), `MinHeight="36"`, background bound to `{DynamicResource SurfaceElevatedBrush}` with subtle 1px border `{DynamicResource BorderBrush}`.
+- **Hover & Focus:** Background transitions to `{DynamicResource SurfaceHoverBrush}`, border highlights to `{DynamicResource BorderHighlightBrush}` on hover and `{DynamicResource AccentBrush}` on focus/open.
+- **Glyph:** Vector chevron (`Data="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"`) that rotates 180 degrees smoothly when the dropdown opens.
+- **Popup menu:** Elevated surface with rounded 8px corners, internal 4px padding, and drop shadow (`BoxShadow="0 10 28 0 #99000000"`).
+- **Items:** Inset rounded items (`Margin="2,1"`, `CornerRadius="6"`, `Padding="12,8"`) with accent pill selection highlights.
+
+> [!IMPORTANT]
+> Never write inline `ComboBox` control templates or duplicate `ComboBox` styles inside individual feature views. Always rely on the global `ComboBoxStyles.axaml` resource.
+
+## Accordion sections (Expander)
+
+Collapsible sections and settings groups inherit the global style from `GenHub/GenHub/Assets/Styles/ExpanderStyles.axaml` via `App.axaml`:
+
+- **Container:** Framed as an elevated card (`CornerRadius="8"`, `Background="{DynamicResource CardBackground}"`, `BorderBrush="{DynamicResource BorderBrush}"`, `BorderThickness="1"`).
+- **Header:** Full-width clickable header button with pointer-over feedback (`{DynamicResource SurfaceHoverBrush}`).
+- **Divider:** Subtle bottom border (`{DynamicResource BorderBrush}`) separates the header from the expanded body when `IsExpanded="True"`.
+- **Content:** Padded body container that organizes nested controls cleanly.
+
 ## Button classes
 
 Use standardized button classes rather than ad-hoc button styling:
@@ -128,6 +150,7 @@ Use standardized button classes rather than ad-hoc button styling:
 ## Anti-patterns to avoid
 
 - **Hardcoding hex values in XAML.** Never write `Background="#252525"` or `Foreground="#FFFFFF"`. Use dynamic theme resources.
+- **Duplicating ComboBox or Expander templates.** Never copy-paste `ComboBox` or `Expander` template styles into local views.
 - **Sharp full-bleed list items.** Avoid `CornerRadius="0"` on selectable list items. Use rounded inset pills.
 - **Fuzzy text drop shadows.** Avoid `DropShadowEffect` on labels and headers. Use clean font weights and contrast.
 - **Blocking overlays for primary navigation.** Do not use modal dimmer overlays when users need to interact with the main content while switching items.
@@ -137,6 +160,8 @@ Use standardized button classes rather than ad-hoc button styling:
 
 - [ ] All colors use `{DynamicResource ...}` from `ThemeResources.axaml`.
 - [ ] Sidebars and master-detail panes use `SidebarLayout`.
+- [ ] Dropdowns use standard `ComboBox` with global theme styling (no inline template copies).
+- [ ] Collapsible sections use standard `Expander` card styling.
 - [ ] List items use inset pill containers with 8px corner radii.
 - [ ] Buttons use standard action or icon classes.
 - [ ] Tested on dark theme and resizable window layouts.
