@@ -183,7 +183,7 @@ public class HDIconsFixTests : IDisposable
             GeneralsPath = _testDir,
         };
 
-        var archiveFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "GeneralsZHHD.ico" };
+        var archiveFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Unrecognized.ico" };
         var (isValid, errorMessage) = HDIconsFix.ValidateArchiveContents(archiveFiles, installation);
 
         Assert.False(isValid);
@@ -202,7 +202,7 @@ public class HDIconsFixTests : IDisposable
             ZeroHourPath = _testDir,
         };
 
-        var archiveFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "GeneralsHD.ico" };
+        var archiveFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Unrecognized.ico" };
         var (isValid, errorMessage) = HDIconsFix.ValidateArchiveContents(archiveFiles, installation);
 
         Assert.False(isValid);

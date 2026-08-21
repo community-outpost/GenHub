@@ -78,6 +78,34 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
         return Task.FromResult(AreHDIconsPresent(installation));
     }
 
+    /// <summary>
+    /// Validates that the downloaded HD icons archive contains the expected icon assets for targeted installations.
+    /// </summary>
+    /// <param name="archiveFileNames">The set of file names in the archive.</param>
+    /// <param name="installation">The targeted game installation.</param>
+    /// <returns>A tuple indicating validity and an error message if invalid.</returns>
+    internal static (bool IsValid, string? ErrorMessage) ValidateArchiveContents(
+        IReadOnlySet<string> archiveFileNames,
+        GameInstallation installation)
+    {
+        if (archiveFileNames.Count == 0)
+        {
+            return (false, "HD icons archive contains no valid files.");
+        }
+
+        if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath) && !RecognizedGeneralsIconFiles.Any(archiveFileNames.Contains))
+        {
+            return (false, "HD icons package does not contain a recognized icon for Generals.");
+        }
+
+        if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath) && !RecognizedZeroHourIconFiles.Any(archiveFileNames.Contains))
+        {
+            return (false, "HD icons package does not contain a recognized icon for Zero Hour.");
+        }
+
+        return (true, null);
+    }
+
     /// <inheritdoc/>
     protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
@@ -120,21 +148,18 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
                         continue;
                     }
 
-                    details.Add($"✓ Downloaded {fileInfo.Length / 1024.0:F2} KB icon pack from {new Uri(url).Host}");
+                    details.Add("✓ High-Definition Icons package downloaded successfully.");
                     downloaded = true;
                     break;
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
+                    logger.LogInformation("Download canceled by user");
                     throw;
                 }
                 catch (Exception ex)
                 {
-                    logger.LogWarning("Failed to download HD icons from {Url}: {Error}", url, ex.Message);
-                    if (File.Exists(tempFile))
-                    {
-                        File.Delete(tempFile);
-                    }
+                    logger.LogWarning(ex, "Failed to download HD icons from {Url}", url);
                 }
             }
 
@@ -164,6 +189,7 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
                 .Where(e => !e.IsDirectory && e.Key != null)
                 .Select(e => Path.GetFileName(e.Key))
                 .Where(n => !string.IsNullOrEmpty(n))
+                .Select(n => n!)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             var archiveValidation = ValidateArchiveContents(archiveFileNames, installation);
@@ -357,27 +383,5 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
             logger.LogWarning(ex, "Error checking for HD icons");
             return false;
         }
-    }
-
-    internal static (bool IsValid, string? ErrorMessage) ValidateArchiveContents(
-        IReadOnlySet<string> archiveFileNames,
-        GameInstallation installation)
-    {
-        if (archiveFileNames.Count == 0)
-        {
-            return (false, "HD icons archive contains no valid files.");
-        }
-
-        if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath) && !RecognizedGeneralsIconFiles.Any(archiveFileNames.Contains))
-        {
-            return (false, "HD icons package does not contain a recognized icon for Generals.");
-        }
-
-        if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath) && !RecognizedZeroHourIconFiles.Any(archiveFileNames.Contains))
-        {
-            return (false, "HD icons package does not contain a recognized icon for Zero Hour.");
-        }
-
-        return (true, null);
     }
 }
