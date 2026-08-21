@@ -55,7 +55,7 @@ public class ExpandedLANLobbyMenuTests : IDisposable
     public void Properties_ReturnExpectedDefaults()
     {
         Assert.Equal("ExpandedLANLobbyMenu", _fix.Id);
-        Assert.Equal("Custom Windows & Expanded LAN Lobby", _fix.Title);
+        Assert.Equal("Expanded LAN Lobby Menu (Addon)", _fix.Title);
         Assert.Equal(ActionSetConstants.Categories.QualityOfLife, _fix.Category);
         Assert.False(_fix.IsCoreFix);
         Assert.False(_fix.IsCrucialFix);
@@ -109,7 +109,7 @@ public class ExpandedLANLobbyMenuTests : IDisposable
     {
         var zhDir = Path.Combine(_testDir, "ZeroHour");
         Directory.CreateDirectory(zhDir);
-        File.WriteAllText(Path.Combine(zhDir, "!GenPatcher-WindowCustom01.big"), "content");
+        File.WriteAllText(Path.Combine(zhDir, "!ExpandedLANMenu.big"), "content");
 
         var installation = new GameInstallation(_testDir, GameInstallationType.Steam)
         {
@@ -131,7 +131,7 @@ public class ExpandedLANLobbyMenuTests : IDisposable
     {
         var zhDir = Path.Combine(_testDir, "ZeroHour");
         Directory.CreateDirectory(zhDir);
-        var bigFile = Path.Combine(zhDir, "!GenPatcher-WindowCustom01.big");
+        var bigFile = Path.Combine(zhDir, "!ExpandedLANMenu.big");
         File.WriteAllText(bigFile, "content");
 
         var installation = new GameInstallation(_testDir, GameInstallationType.Steam)
