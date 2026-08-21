@@ -70,6 +70,12 @@ GeneralsHub defines a mandatory [Window styling and OS animation standard](./win
 
 ---
 
+### UI Styling & Design System
+
+GeneralsHub defines mandatory [UI styling and design system standards](./ui-styling.md) covering semantic theme tokens in `ThemeResources.axaml`, reusable layout controls like `SidebarLayout`, standard button classes, and anti-patterns.
+
+---
+
 ## Architecture
 
 ### Dependency Injection
