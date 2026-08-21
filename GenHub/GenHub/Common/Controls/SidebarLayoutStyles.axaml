@@ -40,15 +40,7 @@
                   </ExperimentalAcrylicBorder>
 
                   <!-- 2. Dark Slate Surface Tint Layer -->
-                  <Border CornerRadius="0" IsHitTestVisible="False" Opacity="0.95">
-                    <Border.Background>
-                      <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                        <GradientStop Offset="0.0" Color="#E60D0D15" />
-                        <GradientStop Offset="0.5" Color="#F011111C" />
-                        <GradientStop Offset="1.0" Color="#FA08080E" />
-                      </LinearGradientBrush>
-                    </Border.Background>
-                  </Border>
+                  <Border CornerRadius="0" IsHitTestVisible="False" Opacity="0.95" Background="{DynamicResource SidebarSurfaceGradientBrush}" />
 
                   <!-- 3. Content Layer -->
                   <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="16,20,16,16">

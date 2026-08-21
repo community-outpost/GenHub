@@ -24,6 +24,13 @@
     <SolidColorBrush x:Key="CardBackground" Color="{DynamicResource SurfaceCardDark}" />
     <SolidColorBrush x:Key="DetailsBackground" Color="{DynamicResource SurfaceElevatedDark}" />
 
+    <!-- Sidebar Surface Gradient -->
+    <LinearGradientBrush x:Key="SidebarSurfaceGradientBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+        <GradientStop Offset="0.0" Color="#E60D0D15" />
+        <GradientStop Offset="0.5" Color="#F011111C" />
+        <GradientStop Offset="1.0" Color="#FA08080E" />
+    </LinearGradientBrush>
+
     <!-- ==================================================================== -->
     <!-- 2. Semantic Border Tokens                                            -->
     <!-- ==================================================================== -->

@@ -168,6 +168,6 @@
 
     <Style Selector="ComboBoxItem:selected:pointerover /template/ ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-        <Setter Property="Foreground" Value="White" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
     </Style>
 </Styles>
