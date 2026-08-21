@@ -16,20 +16,6 @@
         <conv:ColorToBrushConverter x:Key="ColorToBrushConverter" />
         <conv:StringToColorConverter x:Key="StringToColorConverter" />
         <conv:ColorToShadowConverter x:Key="ColorToShadowConverter" />
-
-        <!-- Faction Semantic Resources (Generals Amber #BD5A0F/#D97706, Zero Hour Cyan #1B6575/#06B6D4) -->
-        <Color x:Key="GeneralsPrimaryColor">#BD5A0F</Color>
-        <Color x:Key="GeneralsAccentColor">#D97706</Color>
-        <SolidColorBrush x:Key="GeneralsPrimaryBrush" Color="{StaticResource GeneralsPrimaryColor}" />
-        <SolidColorBrush x:Key="GeneralsAccentBrush" Color="{StaticResource GeneralsAccentColor}" />
-
-        <Color x:Key="ZeroHourPrimaryColor">#1B6575</Color>
-        <Color x:Key="ZeroHourAccentColor">#06B6D4</Color>
-        <SolidColorBrush x:Key="ZeroHourPrimaryBrush" Color="{StaticResource ZeroHourPrimaryColor}" />
-        <SolidColorBrush x:Key="ZeroHourAccentBrush" Color="{StaticResource ZeroHourAccentColor}" />
-
-        <SolidColorBrush x:Key="GeneralsColor" Color="{StaticResource GeneralsPrimaryColor}" />
-        <SolidColorBrush x:Key="ZeroHourColor" Color="{StaticResource ZeroHourPrimaryColor}" />
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -178,19 +164,19 @@
         </Style>
 
         <!-- Launch Button Theming -->
-        <Style Selector="Button.launch-button">
+        <Style Selector="Button.launch-button" x:CompileBindings="False">
             <Setter Property="BorderBrush" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
             <Setter Property="Foreground" Value="White" />
         </Style>
 
-        <Style Selector="Button.launch-button:pointerover">
+        <Style Selector="Button.launch-button:pointerover" x:CompileBindings="False">
             <Setter Property="Background" Value="#FFFFFFFF" />
             <Setter Property="Foreground" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
             <Setter Property="RenderTransform" Value="scale(1.05)" />
         </Style>
 
         <!-- Ensure icon inside launch button inherits color on hover -->
-        <Style Selector="Button.launch-button:pointerover PathIcon">
+        <Style Selector="Button.launch-button:pointerover PathIcon" x:CompileBindings="False">
             <Setter Property="Foreground" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
         </Style>
 
@@ -223,7 +209,7 @@
         </Style>
 
         <!-- Running State Animation -->
-        <Style Selector="Border.running-indicator">
+        <Style Selector="Border.running-indicator" x:CompileBindings="False">
             <Setter Property="BorderBrush" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
             <Setter Property="BorderThickness" Value="2" />
         </Style>

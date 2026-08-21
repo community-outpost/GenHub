@@ -84,7 +84,7 @@
     <Color x:Key="AccentColor">#8B5CF6</Color>
     <Color x:Key="SystemAccentColor">#8B5CF6</Color>
     <Color x:Key="PrimaryButtonBackgroundDark">#8B5CF6</Color>
-    <SolidColorBrush x:Key="SystemAccentColorBrush" Color="{StaticResource AccentColor}" />
+    <SolidColorBrush x:Key="SystemAccentColorBrush" Color="{StaticResource SystemAccentColor}" />
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}" />
     <SolidColorBrush x:Key="AccentColorBrush" Color="{StaticResource AccentColor}" />
     <SolidColorBrush x:Key="PrimaryButtonBackground" Color="{DynamicResource PrimaryButtonBackgroundDark}" />

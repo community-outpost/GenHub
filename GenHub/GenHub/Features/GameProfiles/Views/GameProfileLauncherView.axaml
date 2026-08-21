@@ -36,20 +36,6 @@
         <conv:BoolToColorConverter x:Key="EditModeToggleBackgroundConverter" TrueColor="#1E88E5" FalseColor="#333333" />
         <conv:BoolToValueConverter x:Key="NotConverter" TrueValue="False" FalseValue="True" />
         <conv:NullSafePropertyConverter x:Key="NullSafeConverter"/>
-
-        <!-- Faction Semantic Resources (Generals Amber #BD5A0F/#D97706, Zero Hour Cyan #1B6575/#06B6D4) -->
-        <Color x:Key="GeneralsPrimaryColor">#BD5A0F</Color>
-        <Color x:Key="GeneralsAccentColor">#D97706</Color>
-        <SolidColorBrush x:Key="GeneralsPrimaryBrush" Color="{StaticResource GeneralsPrimaryColor}" />
-        <SolidColorBrush x:Key="GeneralsAccentBrush" Color="{StaticResource GeneralsAccentColor}" />
-
-        <Color x:Key="ZeroHourPrimaryColor">#1B6575</Color>
-        <Color x:Key="ZeroHourAccentColor">#06B6D4</Color>
-        <SolidColorBrush x:Key="ZeroHourPrimaryBrush" Color="{StaticResource ZeroHourPrimaryColor}" />
-        <SolidColorBrush x:Key="ZeroHourAccentBrush" Color="{StaticResource ZeroHourAccentColor}" />
-
-        <SolidColorBrush x:Key="GeneralsColor" Color="{StaticResource GeneralsPrimaryColor}" />
-        <SolidColorBrush x:Key="ZeroHourColor" Color="{StaticResource ZeroHourPrimaryColor}" />
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -185,7 +171,7 @@
         </Style>
 
         <!-- Enhanced badge style for profile cards -->
-        <Style Selector="Border.profile-badge">
+        <Style Selector="Border.profile-badge" x:CompileBindings="False">
             <Setter Property="Background" Value="#50000000" />
             <Setter Property="CornerRadius" Value="4" />
             <Setter Property="Padding" Value="6,2" />
