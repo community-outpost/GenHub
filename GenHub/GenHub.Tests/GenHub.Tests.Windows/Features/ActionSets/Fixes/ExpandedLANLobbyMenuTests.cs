@@ -174,4 +174,35 @@ public class ExpandedLANLobbyMenuTests : IDisposable
         Assert.True(result.Success);
         Assert.True(File.Exists(bigFile));
     }
+
+    /// <summary>
+    /// Verifies that UndoAsync deletes only recorded files when an unrecorded known file is also present.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
+    [Fact]
+    public async Task UndoAsync_WhenMarkerExistsAndUnrecordedFilePresent_LeavesUnrecordedFileIntactAsync()
+    {
+        var zhDir = Path.Combine(_testDir, "ZeroHour");
+        Directory.CreateDirectory(zhDir);
+        var recordedFile = Path.Combine(zhDir, "!ExpandedLANMenu.big");
+        var unrecordedFile = Path.Combine(zhDir, "CustomWindows.big");
+        File.WriteAllText(recordedFile, "content1");
+        File.WriteAllText(unrecordedFile, "content2");
+
+        var markerPath = Path.Combine(_testDir, "ExpandedLANLobbyMenu.done");
+        File.WriteAllLines(markerPath, [recordedFile]);
+
+        var installation = new GameInstallation(_testDir, GameInstallationType.Steam)
+        {
+            HasZeroHour = true,
+            ZeroHourPath = zhDir,
+        };
+
+        var result = await _fix.UndoAsync(installation);
+
+        Assert.True(result.Success);
+        Assert.False(File.Exists(recordedFile));
+        Assert.True(File.Exists(unrecordedFile));
+        Assert.False(File.Exists(markerPath));
+    }
 }

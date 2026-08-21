@@ -218,7 +218,7 @@
                         <TextBlock Text="Target Installation:" FontSize="11" Foreground="#CCCCCC" FontWeight="SemiBold"/>
                         <ComboBox ItemsSource="{Binding AvailableInstallations}"
                                   SelectedItem="{Binding SelectedInstallation}"
-                                  IsEnabled="{Binding !IsBatchApplying}"
+                                  IsEnabled="{Binding CanChangeInstallation}"
                                   MinWidth="220"
                                   VerticalAlignment="Center">
                             <ComboBox.ItemTemplate>

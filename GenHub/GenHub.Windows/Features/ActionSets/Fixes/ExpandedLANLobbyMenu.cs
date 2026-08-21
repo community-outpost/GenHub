@@ -190,63 +190,96 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
         var removedCount = 0;
+        var details = new List<string>();
 
         try
         {
-            if (File.Exists(_markerPath))
+            if (!File.Exists(_markerPath))
             {
-                var remainingFiles = new List<string>();
+                return Task.FromResult(new ActionSetResult(true, null, ["No deployment record found to undo."]));
+            }
+
+            var remainingFiles = new List<string>();
+            string[] lines;
+            try
+            {
+                lines = File.ReadAllLines(_markerPath);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(ex, "Failed to read installed file paths from marker {MarkerPath}", _markerPath);
+                return Task.FromResult(new ActionSetResult(false, $"Failed to read deployment marker: {ex.Message}", ["✗ Could not read deployment marker."]));
+            }
+
+            foreach (var path in lines)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var trimmed = path.Trim();
+                if (string.IsNullOrEmpty(trimmed) || !Path.IsPathRooted(trimmed))
+                {
+                    continue;
+                }
+
                 try
                 {
-                    var lines = File.ReadAllLines(_markerPath);
-                    foreach (var path in lines)
+                    if (File.Exists(trimmed))
                     {
-                        var trimmed = path.Trim();
-                        if (string.IsNullOrEmpty(trimmed) || !Path.IsPathRooted(trimmed))
-                        {
-                            continue;
-                        }
-
-                        try
-                        {
-                            if (File.Exists(trimmed))
-                            {
-                                File.Delete(trimmed);
-                                removedCount++;
-                            }
-                        }
-                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                        {
-                            logger.LogWarning(ex, "Failed to delete recorded custom window file {FilePath} during undo", trimmed);
-                            remainingFiles.Add(trimmed);
-                        }
+                        File.Delete(trimmed);
+                        removedCount++;
                     }
                 }
-                catch (IOException ex)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    logger.LogWarning(ex, "Failed to read installed file paths from marker {MarkerPath}", _markerPath);
+                    logger.LogWarning(ex, "Failed to delete recorded custom window file {FilePath} during undo", trimmed);
+                    remainingFiles.Add(trimmed);
                 }
+            }
 
-                if (remainingFiles.Count == 0)
+            if (remainingFiles.Count == 0)
+            {
+                try
                 {
                     File.Delete(_markerPath);
                 }
-                else
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    File.WriteAllLines(_markerPath, remainingFiles);
+                    logger.LogWarning(ex, "Failed to delete marker file {MarkerPath} after undo", _markerPath);
                 }
+
+                details.Add($"Removed {removedCount} custom window and expanded LAN lobby files.");
+                return Task.FromResult(new ActionSetResult(true, null, details));
+            }
+            else
+            {
+                try
+                {
+                    var markerDir = Path.GetDirectoryName(_markerPath);
+                    if (!string.IsNullOrEmpty(markerDir))
+                    {
+                        Directory.CreateDirectory(markerDir);
+                        var tempMarker = Path.Combine(markerDir, $"{Guid.NewGuid():N}.tmp");
+                        File.WriteAllLines(tempMarker, remainingFiles);
+                        File.Move(tempMarker, _markerPath, overwrite: true);
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    logger.LogWarning(ex, "Failed to rewrite marker file {MarkerPath} with remaining files", _markerPath);
+                }
+
+                details.Add($"⚠ Partial undo: removed {removedCount} files, {remainingFiles.Count} files could not be deleted.");
+                return Task.FromResult(new ActionSetResult(false, $"Failed to remove {remainingFiles.Count} files during undo.", details));
             }
         }
-        catch (IOException ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogWarning(ex, "Failed to remove custom window files during undo");
+            return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
-        catch (UnauthorizedAccessException ex)
-        {
-            logger.LogWarning(ex, "Access denied removing custom window files during undo");
-        }
-
-        return Task.FromResult(new ActionSetResult(true, null, [$"Removed {removedCount} custom window and expanded LAN lobby files."]));
     }
 
     private static void DeployEntryToInstallations(
@@ -263,7 +296,8 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
             DeployFileWithBackup(sourceFilePath, zhDest, tempBackupDir, deployedFiles, backupEntries);
         }
 
-        if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
+        if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath) &&
+            !string.Equals(installation.GeneralsPath, installation.ZeroHourPath, StringComparison.OrdinalIgnoreCase))
         {
             var generalsDest = Path.Combine(installation.GeneralsPath, fileName);
             DeployFileWithBackup(sourceFilePath, generalsDest, tempBackupDir, deployedFiles, backupEntries);
@@ -454,7 +488,9 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
                 Directory.CreateDirectory(markerDir);
             }
 
-            File.WriteAllLines(_markerPath, deployedFiles);
+            var tempMarker = Path.Combine(markerDir ?? Path.GetTempPath(), $"{Guid.NewGuid():N}.tmp");
+            File.WriteAllLines(tempMarker, deployedFiles);
+            File.Move(tempMarker, _markerPath, overwrite: true);
             return true;
         }
         catch (IOException ex)

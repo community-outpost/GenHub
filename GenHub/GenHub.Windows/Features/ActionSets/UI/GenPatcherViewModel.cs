@@ -93,6 +93,11 @@ public partial class GenPatcherViewModel(
     private int _refreshVersion;
 
     /// <summary>
+    /// Gets a value indicating whether the user can change the target installation (not busy).
+    /// </summary>
+    public bool CanChangeInstallation => !IsBatchApplying && !ActionSets.Any(x => x.IsApplying);
+
+    /// <summary>
     /// Initializes the ViewModel asynchronously.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
@@ -140,7 +145,7 @@ public partial class GenPatcherViewModel(
     partial void OnSelectedInstallationChanged(GameInstallation? value)
     {
         ApplyAllFixesCommand.NotifyCanExecuteChanged();
-        if (value != null && !IsBatchApplying)
+        if (value != null && CanChangeInstallation)
         {
             logger.LogInformation("Selected installation changed to: {InstallType} at {Path}", value.InstallationType, value.InstallationPath);
             _ = RefreshFixesForInstallationAsync(value);
@@ -149,10 +154,10 @@ public partial class GenPatcherViewModel(
 
     partial void OnIsBatchApplyingChanged(bool value)
     {
+        OnPropertyChanged(nameof(CanChangeInstallation));
         foreach (var vm in ActionSets)
         {
             vm.IsBatchApplying = value;
-            vm.NotifyExecutionChanged();
         }
     }
 
@@ -166,7 +171,7 @@ public partial class GenPatcherViewModel(
                 "Loading GenPatcher",
                 "Detecting game installations and loading available fixes...");
 
-            var result = await installationDetector.DetectInstallationsAsync();
+            var result = await Task.Run(() => installationDetector.DetectInstallationsAsync());
             if (!result.Success)
             {
                 var errorSummary = result.Errors.Count > 0 ? string.Join("; ", result.Errors) : "Installation detection failed.";
@@ -354,6 +359,7 @@ public partial class GenPatcherViewModel(
 
     private void NotifyExecutionStateChanged()
     {
+        OnPropertyChanged(nameof(CanChangeInstallation));
         ApplyAllFixesCommand.NotifyCanExecuteChanged();
         foreach (var vm in ActionSets)
         {
@@ -405,10 +411,6 @@ public partial class GenPatcherViewModel(
         var ct = _batchCts.Token;
 
         IsBatchApplying = true;
-        foreach (var vm in ActionSets)
-        {
-            vm.IsBatchApplying = true;
-        }
 
         try
         {
@@ -510,11 +512,6 @@ public partial class GenPatcherViewModel(
         finally
         {
             IsBatchApplying = false;
-            foreach (var vm in ActionSets)
-            {
-                vm.IsBatchApplying = false;
-            }
-
             _batchCts?.Dispose();
             _batchCts = null;
         }

@@ -280,4 +280,60 @@ public class HDIconsFixTests : IDisposable
         Assert.True(result.IsValid);
         Assert.Null(result.FirstError);
     }
+
+    /// <summary>
+    /// Verifies that ValidateArchiveContents matches icons case-insensitively.
+    /// </summary>
+    [Fact]
+    public void ValidateArchiveContents_CaseInsensitiveMatching_ReturnsTrue()
+    {
+        var installation = new GameInstallation(_testDir, GameInstallationType.Steam)
+        {
+            HasGenerals = true,
+            GeneralsPath = _testDir,
+            HasZeroHour = true,
+            ZeroHourPath = _testDir,
+        };
+
+        var archiveFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "generalshd.ico",
+            "generalszhhd.ico",
+        };
+        var result = HDIconsFix.ValidateArchiveContents(archiveFiles, installation);
+
+        Assert.True(result.IsValid);
+        Assert.Null(result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies that UndoAsync deletes only recorded files when an unrecorded known file is also present.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
+    [Fact]
+    public async Task UndoAsync_WhenMarkerExistsAndUnrecordedFilePresent_LeavesUnrecordedFileIntactAsync()
+    {
+        var genDir = Path.Combine(_testDir, "Generals");
+        Directory.CreateDirectory(genDir);
+        var recordedFile = Path.Combine(genDir, "GeneralsHD.ico");
+        var unrecordedFile = Path.Combine(genDir, "game_hd.ico");
+        File.WriteAllText(recordedFile, "icon1");
+        File.WriteAllText(unrecordedFile, "icon2");
+
+        var markerPath = Path.Combine(_testDir, "HDIconsFix.done");
+        File.WriteAllLines(markerPath, [recordedFile]);
+
+        var installation = new GameInstallation(_testDir, GameInstallationType.Steam)
+        {
+            HasGenerals = true,
+            GeneralsPath = genDir,
+        };
+
+        var result = await _fix.UndoAsync(installation);
+
+        Assert.True(result.Success);
+        Assert.False(File.Exists(recordedFile));
+        Assert.True(File.Exists(unrecordedFile));
+        Assert.False(File.Exists(markerPath));
+    }
 }
