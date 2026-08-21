@@ -9,23 +9,30 @@
 
     <UserControl.Styles>
         <Style Selector="Border.item-container">
-            <Setter Property="Background" Value="#25FFFFFF" />
-            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Background" Value="#1A1A26" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
             <Setter Property="Padding" Value="12" />
-            <Setter Property="Margin" Value="0" />
+            <Setter Property="Margin" Value="0,0,0,4" />
             <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.2" />
-                </Transitions>
+                <Setter.Value>
+                    <Transitions>
+                        <BrushTransition Property="Background" Duration="0:0:0.15" />
+                        <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                    </Transitions>
+                </Setter.Value>
             </Setter>
         </Style>
 
         <Style Selector="Border.item-container.unread">
-            <Setter Property="Background" Value="#15A855F7" />
+            <Setter Property="Background" Value="#1E1830" />
+            <Setter Property="BorderBrush" Value="#60A855F7" />
         </Style>
 
         <Style Selector="Border.item-container:pointerover">
-            <Setter Property="Background" Value="#25A855F7" />
+            <Setter Property="Background" Value="#242436" />
+            <Setter Property="BorderBrush" Value="#80A855F7" />
         </Style>
 
         <Style Selector="TextBlock.item-title">
@@ -36,30 +43,60 @@
 
         <Style Selector="TextBlock.item-message">
             <Setter Property="FontSize" Value="12" />
-            <Setter Property="Foreground" Value="#B0B0B0" />
+            <Setter Property="Foreground" Value="#B0B0B8" />
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="LineHeight" Value="18" />
         </Style>
 
         <Style Selector="TextBlock.item-time">
             <Setter Property="FontSize" Value="11" />
-            <Setter Property="Foreground" Value="#808080" />
+            <Setter Property="Foreground" Value="#888898" />
         </Style>
 
         <Style Selector="Button.dismiss-button">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="#808080" />
+            <Setter Property="Foreground" Value="#808090" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="4" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Transitions">
+                <Setter.Value>
+                    <Transitions>
+                        <BrushTransition Property="Foreground" Duration="0:0:0.15" />
+                    </Transitions>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style Selector="Button.dismiss-button:pointerover">
-            <Setter Property="Foreground" Value="#E0E0E0" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
         </Style>
 
         <Style Selector="ItemsControl.actions-panel">
             <Setter Property="Margin" Value="0,8,0,0" />
+        </Style>
+
+        <Style Selector="Button.action-button">
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Transitions">
+                <Setter.Value>
+                    <Transitions>
+                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
+                    </Transitions>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.action-button:pointerover">
+            <Setter Property="RenderTransform" Value="scale(1.03)" />
+        </Style>
+
+        <Style Selector="Button.action-button:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.97)" />
         </Style>
     </UserControl.Styles>
 
@@ -70,20 +107,20 @@
                 <Path Grid.Column="0"
                       Data="{Binding IconPath}"
                       Fill="{Binding BackgroundBrush}"
-                      Width="20"
-                      Height="20"
+                      Width="18"
+                      Height="18"
                       Stretch="Uniform"
                       VerticalAlignment="Center"
-                      Margin="0,0,8,0" />
+                      Margin="0,0,10,0" />
 
-                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                     <TextBlock Text="{Binding Title}" Classes="item-title" />
                     <TextBlock Text="{Binding FormattedTime}" Classes="item-time" />
                 </StackPanel>
             </Grid>
 
             <!-- Message -->
-            <StackPanel Grid.Column="0" Grid.Row="1" Margin="12,4,12,0">
+            <StackPanel Grid.Column="0" Grid.Row="1" Margin="12,6,12,0">
                 <TextBlock Text="{Binding Message}"
                            Classes="item-message"
                            TextWrapping="Wrap" />
@@ -101,15 +138,11 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Classes="action-button"
-                                    Background="{Binding BackgroundBrush}"
+                            <Border Background="{Binding BackgroundBrush}"
                                     CornerRadius="6">
                                 <Button Command="{Binding ExecuteCommand}"
-                                        Background="Transparent"
-                                        BorderThickness="0"
-                                        Padding="10,6"
-                                        FontSize="12"
-                                        Cursor="Hand">
+                                        Classes="action-button"
+                                        Background="Transparent">
                                     <TextBlock Text="{Binding Text}" Foreground="{Binding ForegroundBrush}" FontWeight="Medium" />
                                 </Button>
                             </Border>
@@ -126,10 +159,10 @@
                     VerticalAlignment="Top"
                     Margin="0,8,8,0">
                 <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
-                          Fill="#808080"
-                          Width="12"
-                          Height="12"
-                          Stretch="Uniform" />
+                      Fill="#808090"
+                      Width="12"
+                      Height="12"
+                      Stretch="Uniform" />
             </Button>
         </Grid>
     </Border>

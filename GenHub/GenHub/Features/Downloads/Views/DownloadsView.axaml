@@ -4,99 +4,141 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.Downloads.ViewModels"
              xmlns:views="clr-namespace:GenHub.Features.Downloads.Views"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
              x:Class="GenHub.Features.Downloads.Views.DownloadsView"
              x:DataType="vm:DownloadsViewModel">
 
     <UserControl.Styles>
-        <!-- Placeholder button styles -->
-        <Style Selector="Button.placeholder-button">
-            <Setter Property="Background" Value="#2A2A2A" />
-            <Setter Property="Foreground" Value="#888888" />
+        <!-- Rich Feature Card Style -->
+        <Style Selector="Border.feature-card">
+            <Setter Property="Background" Value="{DynamicResource CardBackground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="#404040" />
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Padding" Value="20,16" />
-            <Setter Property="FontWeight" Value="Medium" />
-            <Setter Property="MinWidth" Value="200" />
-            <Setter Property="MinHeight" Value="80" />
-            <Setter Property="IsEnabled" Value="False" />
-            <Setter Property="Opacity" Value="0.6" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="24" />
+            <Setter Property="Margin" Value="8" />
+            <Setter Property="MinWidth" Value="280" />
+            <Setter Property="BoxShadow" Value="0 4 16 0 #30000000" />
+            <Setter Property="Transitions">
+                <Setter.Value>
+                    <Transitions>
+                        <BrushTransition Property="Background" Duration="0:0:0.15" />
+                        <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                        <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.15" />
+                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
+                    </Transitions>
+                </Setter.Value>
+            </Setter>
         </Style>
 
-        <!-- Feature card styles -->
-        <Style Selector="Border.feature-card">
-            <Setter Property="Background" Value="#2A2A2A" />
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Padding" Value="20" />
-            <Setter Property="Margin" Value="10" />
-            <Setter Property="MinWidth" Value="180" />
-            <Setter Property="MinHeight" Value="120" />
-            <Setter Property="BoxShadow" Value="0 2 8 0 #20000000" />
+        <Style Selector="Border.feature-card:pointerover">
+            <Setter Property="BorderBrush" Value="#A855F7" />
+            <Setter Property="BoxShadow" Value="0 8 24 0 #50000000" />
+            <Setter Property="RenderTransform" Value="translateY(-2px)" />
         </Style>
 
         <!-- Secondary Action Button -->
         <Style Selector="Button.secondary-action">
-            <Setter Property="Background" Value="#2A2A2A" />
-            <Setter Property="BorderBrush" Value="#404040" />
+            <Setter Property="Background" Value="#1AFFFFFF" />
+            <Setter Property="Foreground" Value="#E0E0E8" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="14,8" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Transitions">
+                <Setter.Value>
+                    <Transitions>
+                        <BrushTransition Property="Background" Duration="0:0:0.15" />
+                        <BrushTransition Property="Foreground" Duration="0:0:0.15" />
+                        <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
+                    </Transitions>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.secondary-action:pointerover">
+            <Setter Property="Background" Value="#2E2E3E" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="#A855F7" />
+            <Setter Property="RenderTransform" Value="scale(1.02)" />
+        </Style>
+
+        <Style Selector="Button.secondary-action:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.98)" />
+        </Style>
+
+        <!-- Standardized Badge -->
+        <Style Selector="Border.badge">
+            <Setter Property="Background" Value="#1AFFFFFF" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="4" />
-            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="Padding" Value="8,3" />
+            <Setter Property="Margin" Value="0,0,6,0" />
+        </Style>
+
+        <Style Selector="TextBlock.badge-text">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#CCCCCC" />
+        </Style>
+
+        <!-- Standardized Progress Bar -->
+        <Style Selector="ProgressBar.standard-progress">
+            <Setter Property="Height" Value="6" />
+            <Setter Property="CornerRadius" Value="3" />
+            <Setter Property="Background" Value="#252530" />
+            <Setter Property="Foreground" Value="#A855F7" />
         </Style>
     </UserControl.Styles>
 
-    <ScrollViewer>
-        <Grid Margin="20">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
-            </Grid.RowDefinitions>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="32,24" Spacing="24">
 
             <!-- Header Section -->
-            <Grid Grid.Row="0" Margin="0,0,0,30">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,20">
+            <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+                <StackPanel Grid.Column="0" Spacing="6">
                     <TextBlock Text="{Binding Title}"
-                               FontSize="32"
-                               FontWeight="SemiBold"
-                               Foreground="White"
-                               HorizontalAlignment="Center"
-                               TextAlignment="Center"
-                               Margin="0,0,0,12" />
+                               FontSize="28"
+                               FontWeight="Bold"
+                               Foreground="White" />
                     <TextBlock Text="{Binding Description}"
-                               FontSize="16"
-                               Foreground="#AAAAAA"
-                               HorizontalAlignment="Center"
-                               TextAlignment="Center" />
+                               FontSize="14"
+                               Foreground="#9E9EA8" />
                 </StackPanel>
 
+                <!-- Header Actions -->
+                <Button Grid.Column="1"
+                        Classes="secondary-action"
+                        Command="{Binding OpenDownloadFolderCommand}"
+                        VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PathIcon Data="M20,6H12L10,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8A2,2 0 0,0 20,6M20,18H4V8H20V18Z"
+                                  Width="14" Height="14"
+                                  Foreground="#A855F7" />
+                        <TextBlock Text="Open Downloads Folder" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
             </Grid>
 
-            <!-- Main Content Area -->
-            <ScrollViewer Grid.Row="1">
-                <StackPanel Margin="0,0,0,20">
+            <!-- Publisher Catalog Wrap Grid -->
+            <ItemsControl ItemsSource="{Binding PublisherCards}" HorizontalAlignment="Center">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <views:PublisherCardView DataContext="{Binding}" Margin="8" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
 
-                    <!-- Unified Publisher Catalog -->
-                    <ItemsControl ItemsSource="{Binding PublisherCards}" HorizontalAlignment="Center">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <views:PublisherCardView DataContext="{Binding}" Margin="10" />
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </StackPanel>
-            </ScrollViewer>
-        </Grid>
+        </StackPanel>
     </ScrollViewer>
 </UserControl>

@@ -6,7 +6,8 @@
              xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
              mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="400"
              x:Class="GenHub.Features.GameProfiles.Views.GameProfileCardView"
-             x:DataType="vm:GameProfileItemViewModel">
+             x:DataType="vm:GameProfileItemViewModel"
+             x:CompileBindings="True">
 
     <UserControl.Resources>
         <conv:ContrastTextColorConverter x:Key="ContrastTextColorConverter" />
@@ -15,6 +16,20 @@
         <conv:ColorToBrushConverter x:Key="ColorToBrushConverter" />
         <conv:StringToColorConverter x:Key="StringToColorConverter" />
         <conv:ColorToShadowConverter x:Key="ColorToShadowConverter" />
+
+        <!-- Faction Semantic Resources (Generals Amber #BD5A0F/#D97706, Zero Hour Cyan #1B6575/#06B6D4) -->
+        <Color x:Key="GeneralsPrimaryColor">#BD5A0F</Color>
+        <Color x:Key="GeneralsAccentColor">#D97706</Color>
+        <SolidColorBrush x:Key="GeneralsPrimaryBrush" Color="{StaticResource GeneralsPrimaryColor}" />
+        <SolidColorBrush x:Key="GeneralsAccentBrush" Color="{StaticResource GeneralsAccentColor}" />
+
+        <Color x:Key="ZeroHourPrimaryColor">#1B6575</Color>
+        <Color x:Key="ZeroHourAccentColor">#06B6D4</Color>
+        <SolidColorBrush x:Key="ZeroHourPrimaryBrush" Color="{StaticResource ZeroHourPrimaryColor}" />
+        <SolidColorBrush x:Key="ZeroHourAccentBrush" Color="{StaticResource ZeroHourAccentColor}" />
+
+        <SolidColorBrush x:Key="GeneralsColor" Color="{StaticResource GeneralsPrimaryColor}" />
+        <SolidColorBrush x:Key="ZeroHourColor" Color="{StaticResource ZeroHourPrimaryColor}" />
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -46,8 +61,8 @@
         </Style>
 
         <Style Selector="Border.profile-card:pointerover">
-            <Setter Property="RenderTransform" Value="scale(1.05)" />
-            <Setter Property="BoxShadow" Value="0 16 32 4 #80000000" />
+            <Setter Property="RenderTransform" Value="translateY(-2px)" />
+            <Setter Property="BoxShadow" Value="0 12 28 0 #60000000" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="ZIndex" Value="10" /> <!-- Pop out -->
         </Style>

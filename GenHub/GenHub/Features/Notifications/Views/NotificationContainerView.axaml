@@ -9,15 +9,16 @@
              x:DataType="vm:NotificationManagerViewModel">
 
     <!-- ScrollViewer to handle overflow when notifications exceed height limit -->
-    <ScrollViewer MaxWidth="1000"
+    <ScrollViewer MaxWidth="440"
                   HorizontalAlignment="Right"
                   VerticalAlignment="Top"
+                  Margin="0,8,16,8"
                   HorizontalScrollBarVisibility="Disabled"
                   VerticalScrollBarVisibility="Auto">
         <ItemsControl ItemsSource="{Binding ActiveNotifications}">
             <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
-                    <StackPanel Spacing="12" Orientation="Vertical"/>
+                    <StackPanel Spacing="8" Orientation="Vertical"/>
                 </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
 
