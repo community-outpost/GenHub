@@ -463,11 +463,6 @@ public sealed partial class ProfileSelectionViewModel(
             if (result.Success && result.Data != null)
             {
                 logger.LogInformation("Successfully created profile '{ProfileName}'", result.Data.Name);
-
-                notificationService.ShowSuccess(
-                    "Profile Created",
-                    $"Created profile '{result.Data.Name}' with {selectedContentName}");
-
                 SelectedProfileName = result.Data.Name;
                 WasSuccessful = true;
                 RequestClose?.Invoke(this, EventArgs.Empty);

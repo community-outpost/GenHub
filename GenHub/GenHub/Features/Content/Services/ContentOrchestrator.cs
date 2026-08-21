@@ -858,11 +858,28 @@ public class ContentOrchestrator(
         }
 
         logger.LogInformation("Post-processing manifest {ManifestId} with factory {FactoryType}", preparedData.Id, factory.GetType().Name);
-        reportProgress(3, "Processing files", 20, "Processing with publisher-specific factory...", false, null, 0, 0, 0, 0, null, default);
+
+        var factoryProgress = new Progress<ContentAcquisitionProgress>(p =>
+        {
+            reportProgress(
+                3,
+                string.IsNullOrEmpty(p.StageDescription) ? "Processing files" : p.StageDescription,
+                p.StageProgress,
+                p.CurrentOperation,
+                false,
+                null,
+                0,
+                0,
+                p.FilesProcessed,
+                p.TotalFiles,
+                null,
+                default);
+        });
 
         var processedManifests = await factory.CreateManifestsFromExtractedContentAsync(
             preparedData,
             stagingDir,
+            factoryProgress,
             cancellationToken);
 
         if (processedManifests.Count == 0)

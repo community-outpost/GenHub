@@ -1,5 +1,7 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Interfaces.Content;
@@ -19,6 +21,21 @@ public interface IArchivePayloadProcessor
     Task ExtractArchivesSafelyAsync(
         string extractedDirectory,
         ContentType? contentType = null,
+        CancellationToken cancellationToken = default) =>
+        ExtractArchivesSafelyAsync(extractedDirectory, contentType, progress: null, cancellationToken);
+
+    /// <summary>
+    /// Extracts all archives located within the directory safely with progress reporting, recursively removing archive files after extraction.
+    /// </summary>
+    /// <param name="extractedDirectory">The directory containing extracted or downloaded content.</param>
+    /// <param name="contentType">Optional content type to constrain executable archive extraction.</param>
+    /// <param name="progress">Optional progress reporter for extraction progress updates.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous extraction operation.</returns>
+    Task ExtractArchivesSafelyAsync(
+        string extractedDirectory,
+        ContentType? contentType,
+        IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -81,5 +98,23 @@ public interface IArchivePayloadProcessor
         ContentType contentType,
         GameType targetGame,
         bool normalizeInactiveArchives,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Extracts archives safely and normalizes the payload directory structure in one coordinated operation with progress reporting.
+    /// </summary>
+    /// <param name="extractedDirectory">The directory containing extracted or downloaded content.</param>
+    /// <param name="contentType">The content type (e.g. Mod, Map, GameClient, etc.).</param>
+    /// <param name="targetGame">The target game type (Generals or ZeroHour).</param>
+    /// <param name="normalizeInactiveArchives">Whether to convert inactive mod archives (.gib, .ctr, .skw) to .big.</param>
+    /// <param name="progress">Optional progress reporter for extraction progress updates.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous processing operation.</returns>
+    Task ProcessPayloadAsync(
+        string extractedDirectory,
+        ContentType contentType,
+        GameType targetGame,
+        bool normalizeInactiveArchives,
+        IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken = default);
 }

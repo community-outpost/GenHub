@@ -18,12 +18,17 @@ namespace GenHub.Features.Notifications.ViewModels;
 /// </summary>
 public partial class NotificationFeedItemViewModel : ViewModelBase, IDisposable
 {
-    private readonly NotificationMessage _message;
     private readonly Action<Guid> _onMarkAsRead;
     private readonly Action<Guid> _onDismiss;
     private readonly ILogger<NotificationFeedItemViewModel> _logger;
     [ObservableProperty]
     private bool _isRead;
+
+    [ObservableProperty]
+    private string _title;
+
+    [ObservableProperty]
+    private string _message;
 
     /// <summary>
     /// Gets the unique identifier for this notification.
@@ -34,16 +39,6 @@ public partial class NotificationFeedItemViewModel : ViewModelBase, IDisposable
     /// Gets the notification type.
     /// </summary>
     public NotificationType Type { get; }
-
-    /// <summary>
-    /// Gets the notification title.
-    /// </summary>
-    public string Title { get; }
-
-    /// <summary>
-    /// Gets the notification message.
-    /// </summary>
-    public string Message { get; }
 
     /// <summary>
     /// Gets the timestamp when the notification was created.
@@ -113,15 +108,15 @@ public partial class NotificationFeedItemViewModel : ViewModelBase, IDisposable
         Action<Guid> onDismiss,
         ILogger<NotificationFeedItemViewModel> logger)
     {
-        _message = message ?? throw new ArgumentNullException(nameof(message));
+        ArgumentNullException.ThrowIfNull(message);
         _onMarkAsRead = onMarkAsRead ?? throw new ArgumentNullException(nameof(onMarkAsRead));
         _onDismiss = onDismiss ?? throw new ArgumentNullException(nameof(onDismiss));
         _logger = logger;
 
         Id = message.Id;
         Type = message.Type;
-        Title = message.Title;
-        Message = message.Message;
+        _title = message.Title;
+        _message = message.Message;
         Timestamp = message.Timestamp;
         ShowInBadge = message.ShowInBadge;
         _isRead = message.IsRead;

@@ -249,6 +249,8 @@ public partial class DownloadsBrowserViewModel(
 
                 foreach (var state in _browseCache.Values)
                 {
+                    state.ActiveDetailViewModel?.Dispose();
+                    state.ActiveDetailViewModel = null;
                     foreach (var item in state.Items)
                     {
                         item.Dispose();
@@ -451,12 +453,45 @@ public partial class DownloadsBrowserViewModel(
         }
 
         Interlocked.Increment(ref _activeRequestId);
-        _activePublisherId = value.PublisherId;
 
         // Cancel any active custom search query
         _searchCts?.Cancel();
         _searchCts?.Dispose();
         _searchCts = null;
+
+        // Save current outgoing publisher state to _browseCache before switching
+        if (!string.IsNullOrEmpty(_lastPopulatedPublisherId))
+        {
+            lock (_cacheLock)
+            {
+                if (_browseCache.TryGetValue(_lastPopulatedPublisherId, out var outgoingState))
+                {
+                    outgoingState.ActiveDetailViewModel = SelectedContent;
+                    outgoingState.SearchTerm = SearchTerm;
+                    outgoingState.HasCustomQuery = _hasCustomQuery;
+                    outgoingState.CurrentPage = CurrentPage;
+                    outgoingState.CanLoadMore = CanLoadMore;
+                    if (_hasCustomQuery)
+                    {
+                        outgoingState.Items = [.. ContentItems];
+                    }
+                }
+                else if (ContentItems.Count > 0 || SelectedContent != null)
+                {
+                    _browseCache[_lastPopulatedPublisherId] = new PublisherBrowseState
+                    {
+                        Items = [.. ContentItems],
+                        CurrentPage = CurrentPage,
+                        CanLoadMore = CanLoadMore,
+                        SearchTerm = SearchTerm,
+                        HasCustomQuery = _hasCustomQuery,
+                        ActiveDetailViewModel = SelectedContent,
+                    };
+                }
+            }
+        }
+
+        _activePublisherId = value.PublisherId;
 
         // Update selection state
         foreach (var publisher in Publishers)
@@ -489,40 +524,9 @@ public partial class DownloadsBrowserViewModel(
             IsFilterPanelVisible = false;
         }
 
-        // Close detail view
-        SelectedContent?.Dispose();
-        SelectedContent = null;
-
-        // Detach UI collection immediately so previous publisher's cards vanish instantly
-        var outgoingItems = ContentItems.ToList();
+        // Detach UI collection and detail view immediately so previous publisher's cards vanish from UI without disposing cached objects
         ContentItems = [];
-
-        // If outgoing list was from a custom search/filter, dispose only items not saved in browse cache.
-        // Default browse items are preserved in _browseCache or the ongoing in-flight buffer.
-        if (_hasCustomQuery)
-        {
-            lock (_cacheLock)
-            {
-                var cachedItemSet = new HashSet<ContentGridItemViewModel>(_browseCache.Values.SelectMany(s => s.Items));
-                foreach (var inFlight in _inFlightOperations.Values)
-                {
-                    cachedItemSet.UnionWith(inFlight.ResolvedItems);
-                }
-
-                foreach (var item in outgoingItems)
-                {
-                    if (!cachedItemSet.Contains(item))
-                    {
-                        item.Dispose();
-                    }
-                }
-            }
-        }
-
-        _hasCustomQuery = false;
-        SearchTerm = string.Empty;
-        CurrentPage = 1;
-        CanLoadMore = false;
+        SelectedContent = null;
 
         lock (_cacheLock)
         {
@@ -539,6 +543,9 @@ public partial class DownloadsBrowserViewModel(
                 ContentItems = new ObservableCollection<ContentGridItemViewModel>(cached.Items);
                 CurrentPage = cached.CurrentPage;
                 CanLoadMore = cached.CanLoadMore;
+                SearchTerm = cached.SearchTerm;
+                _hasCustomQuery = cached.HasCustomQuery;
+                SelectedContent = cached.ActiveDetailViewModel;
                 _lastPopulatedPublisherId = value.PublisherId;
                 IsLoading = false;
                 logger.LogInformation(
@@ -562,6 +569,9 @@ public partial class DownloadsBrowserViewModel(
                 ContentItems = new ObservableCollection<ContentGridItemViewModel>(itemsSoFar);
                 CurrentPage = inFlight.Query.Page ?? 1;
                 CanLoadMore = inFlight.HasMoreItems;
+                SearchTerm = string.Empty;
+                _hasCustomQuery = false;
+                SelectedContent = null;
                 _lastPopulatedPublisherId = value.PublisherId;
                 IsLoading = !inFlight.IsCompleted;
                 logger.LogInformation(
@@ -572,6 +582,11 @@ public partial class DownloadsBrowserViewModel(
             }
         }
 
+        _hasCustomQuery = false;
+        SearchTerm = string.Empty;
+        CurrentPage = 1;
+        CanLoadMore = false;
+        SelectedContent = null;
         _lastPopulatedPublisherId = value.PublisherId;
         _ = RefreshContentAsync();
     }
@@ -665,6 +680,8 @@ public partial class DownloadsBrowserViewModel(
                     {
                         if (_browseCache.Remove(publisherId, out var cachedState))
                         {
+                            cachedState.ActiveDetailViewModel?.Dispose();
+                            cachedState.ActiveDetailViewModel = null;
                             foreach (var cachedItem in cachedState.Items)
                             {
                                 cachedItem.Dispose();
@@ -1163,6 +1180,16 @@ public partial class DownloadsBrowserViewModel(
 
             SelectedContent?.Dispose();
             SelectedContent = vm;
+            if (!string.IsNullOrEmpty(_lastPopulatedPublisherId))
+            {
+                lock (_cacheLock)
+                {
+                    if (_browseCache.TryGetValue(_lastPopulatedPublisherId, out var state))
+                    {
+                        state.ActiveDetailViewModel = vm;
+                    }
+                }
+            }
         }
     }
 
@@ -1171,6 +1198,17 @@ public partial class DownloadsBrowserViewModel(
     {
         var viewedSearchResult = SelectedContent?.SearchResult;
         var selectedVariantId = SelectedContent?.SelectedVariant?.ManifestId ?? viewedSearchResult?.Id;
+
+        if (!string.IsNullOrEmpty(_lastPopulatedPublisherId))
+        {
+            lock (_cacheLock)
+            {
+                if (_browseCache.TryGetValue(_lastPopulatedPublisherId, out var state))
+                {
+                    state.ActiveDetailViewModel = null;
+                }
+            }
+        }
 
         SelectedContent?.Dispose();
         SelectedContent = null;
@@ -1279,6 +1317,8 @@ public partial class DownloadsBrowserViewModel(
                 _subscribedDiscoverers.Remove(item.PublisherId);
                 if (_browseCache.Remove(item.PublisherId, out var removedState))
                 {
+                    removedState.ActiveDetailViewModel?.Dispose();
+                    removedState.ActiveDetailViewModel = null;
                     foreach (var oldVm in removedState.Items)
                     {
                         oldVm.Dispose();
@@ -1324,6 +1364,8 @@ public partial class DownloadsBrowserViewModel(
 
                 if (_browseCache.Remove(subscription.PublisherId, out var oldState))
                 {
+                    oldState.ActiveDetailViewModel?.Dispose();
+                    oldState.ActiveDetailViewModel = null;
                     foreach (var oldVm in oldState.Items)
                     {
                         oldVm.Dispose();
@@ -1738,13 +1780,22 @@ public partial class DownloadsBrowserViewModel(
     /// </summary>
     private sealed class PublisherBrowseState
     {
-        /// <summary>Gets the grid item view models that were displayed.</summary>
-        public List<ContentGridItemViewModel> Items { get; init; } = [];
+        /// <summary>Gets or sets the grid item view models that were displayed.</summary>
+        public List<ContentGridItemViewModel> Items { get; set; } = [];
 
-        /// <summary>Gets the page counter at the time of the snapshot.</summary>
-        public int CurrentPage { get; init; } = 1;
+        /// <summary>Gets or sets the page counter at the time of the snapshot.</summary>
+        public int CurrentPage { get; set; } = 1;
 
-        /// <summary>Gets a value indicating whether more items could be loaded.</summary>
-        public bool CanLoadMore { get; init; }
+        /// <summary>Gets or sets a value indicating whether more items could be loaded.</summary>
+        public bool CanLoadMore { get; set; }
+
+        /// <summary>Gets or sets the search term for this publisher.</summary>
+        public string SearchTerm { get; set; } = string.Empty;
+
+        /// <summary>Gets or sets a value indicating whether a custom search query was active.</summary>
+        public bool HasCustomQuery { get; set; }
+
+        /// <summary>Gets or sets the active detail view model for this publisher.</summary>
+        public ContentDetailViewModel? ActiveDetailViewModel { get; set; }
     }
 }

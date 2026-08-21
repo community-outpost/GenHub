@@ -1,3 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Manifest;
 
 namespace GenHub.Core.Interfaces.Content;
@@ -52,6 +57,28 @@ public interface IPublisherManifestFactory
     Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
+        CancellationToken cancellationToken = default) =>
+        CreateManifestsFromExtractedContentAsync(originalManifest, extractedDirectory, progress: null, cancellationToken);
+
+    /// <summary>
+    /// Creates enriched manifests from extracted content with progress reporting.
+    /// </summary>
+    /// <param name="originalManifest">
+    /// The manifest from the resolver, containing download URLs but no file hashes.
+    /// </param>
+    /// <param name="extractedDirectory">
+    /// Directory where the deliverer extracted the package files.
+    /// </param>
+    /// <param name="progress">Optional progress reporter for processing updates.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>
+    /// One or more manifests with file hashes and sizes. Multi-variant content
+    /// (e.g., separate Generals and Zero Hour executables) may return multiple manifests.
+    /// </returns>
+    Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+        ContentManifest originalManifest,
+        string extractedDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken = default);
 
     /// <summary>

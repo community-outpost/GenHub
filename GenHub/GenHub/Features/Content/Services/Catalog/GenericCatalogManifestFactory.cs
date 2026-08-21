@@ -39,9 +39,19 @@ public class GenericCatalogManifestFactory(
     }
 
     /// <inheritdoc/>
+    public Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+        ContentManifest originalManifest,
+        string extractedDirectory,
+        CancellationToken cancellationToken = default)
+    {
+        return CreateManifestsFromExtractedContentAsync(originalManifest, extractedDirectory, progress: null, cancellationToken);
+    }
+
+    /// <inheritdoc/>
     public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
+        IProgress<GenHub.Core.Models.Content.ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken = default)
     {
         logger.LogInformation(
@@ -71,7 +81,9 @@ public class GenericCatalogManifestFactory(
             extractedDirectory,
             originalManifest.ContentType,
             originalManifest.TargetGame,
-            cancellationToken);
+            normalizeInactiveArchives: true,
+            progress: progress,
+            cancellationToken: cancellationToken);
 
         if (controlBarProcessor?.IsControlBarContent(extractedDirectory, originalManifest) == true)
         {

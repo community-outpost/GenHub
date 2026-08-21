@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Content;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
@@ -32,6 +33,16 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
     public Task ExtractArchivesSafelyAsync(
         string extractedDirectory,
         ContentType? contentType = null,
+        CancellationToken cancellationToken = default)
+    {
+        return ExtractArchivesSafelyAsync(extractedDirectory, contentType, progress: null, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task ExtractArchivesSafelyAsync(
+        string extractedDirectory,
+        ContentType? contentType,
+        IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken = default)
     {
         if (!Directory.Exists(extractedDirectory))
@@ -60,8 +71,9 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                         extractedDirectory,
                         depth);
 
-                    foreach (var archivePath in archiveFiles)
+                    for (var archiveIdx = 0; archiveIdx < archiveFiles.Count; archiveIdx++)
                     {
+                        var archivePath = archiveFiles[archiveIdx];
                         cancellationToken.ThrowIfCancellationRequested();
 
                         try
@@ -69,7 +81,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                             EnsureValidArchivePayload(archivePath);
                             logger.LogInformation("Extracting archive safely: {ArchivePath}", archivePath);
 
-                            ExtractSingleArchive(archivePath, extractedDirectory, cancellationToken);
+                            ExtractSingleArchive(archivePath, extractedDirectory, progress, logger, cancellationToken);
                             File.Delete(archivePath);
                             logger.LogInformation("Extracted archive and removed archive source: {ArchivePath}", archivePath);
                         }
@@ -150,7 +162,18 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         GameType targetGame,
         CancellationToken cancellationToken = default)
     {
-        return ProcessPayloadAsync(extractedDirectory, contentType, targetGame, normalizeInactiveArchives: true, cancellationToken);
+        return ProcessPayloadAsync(extractedDirectory, contentType, targetGame, normalizeInactiveArchives: true, progress: null, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task ProcessPayloadAsync(
+        string extractedDirectory,
+        ContentType contentType,
+        GameType targetGame,
+        bool normalizeInactiveArchives,
+        CancellationToken cancellationToken = default)
+    {
+        return ProcessPayloadAsync(extractedDirectory, contentType, targetGame, normalizeInactiveArchives, progress: null, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -159,9 +182,10 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         ContentType contentType,
         GameType targetGame,
         bool normalizeInactiveArchives,
+        IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken = default)
     {
-        await ExtractArchivesSafelyAsync(extractedDirectory, contentType, cancellationToken);
+        await ExtractArchivesSafelyAsync(extractedDirectory, contentType, progress, cancellationToken);
         await NormalizeDirectoryStructureAsync(extractedDirectory, contentType, targetGame, normalizeInactiveArchives, cancellationToken);
     }
 
@@ -524,22 +548,24 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
     private static void ExtractSingleArchive(
         string archivePath,
         string extractPath,
+        IProgress<ContentAcquisitionProgress>? progress,
+        ILogger logger,
         CancellationToken cancellationToken)
     {
         var isExe = Path.GetExtension(archivePath).Equals(".exe", StringComparison.OrdinalIgnoreCase);
         if (isExe)
         {
-            if (TryExtractZipArchive(archivePath, extractPath, cancellationToken))
+            if (TryExtractZipArchive(archivePath, extractPath, progress, logger, cancellationToken))
             {
                 return;
             }
 
-            if (TryExtractSubStreamArchive(archivePath, extractPath, cancellationToken))
+            if (TryExtractSubStreamArchive(archivePath, extractPath, progress, logger, cancellationToken))
             {
                 return;
             }
 
-            if (TryExtractSmartInstallMakerArchive(archivePath, extractPath, cancellationToken))
+            if (TryExtractSmartInstallMakerArchive(archivePath, extractPath, progress, logger, cancellationToken))
             {
                 return;
             }
@@ -548,7 +574,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         try
         {
             using var archive = ArchiveFactory.OpenArchive(archivePath);
-            ExtractSharpCompressArchive(archive, extractPath, cancellationToken);
+            ExtractSharpCompressArchive(archive, extractPath, progress, logger, cancellationToken);
         }
         catch when (isExe)
         {
@@ -559,20 +585,21 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
     private static void ExtractSharpCompressArchive(
         IArchive archive,
         string extractPath,
+        IProgress<ContentAcquisitionProgress>? progress,
+        ILogger logger,
         CancellationToken cancellationToken)
     {
         var entryCount = 0;
         long totalUncompressedSize = 0;
         var extractRoot = Path.GetFullPath(extractPath);
+        var entries = archive.Entries.Where(e => !e.IsDirectory && !string.IsNullOrEmpty(e.Key)).ToList();
+        var totalEntries = entries.Count;
 
-        foreach (var entry in archive.Entries.Where(e => !e.IsDirectory))
+        for (var i = 0; i < totalEntries; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-
-            if (string.IsNullOrEmpty(entry.Key))
-            {
-                continue;
-            }
+            var entry = entries[i];
+            var entryKey = entry.Key!;
 
             entryCount++;
             if (entryCount > CatalogConstants.MaxZipEntryCount)
@@ -581,27 +608,40 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                     $"Archive exceeds maximum entry count of {CatalogConstants.MaxZipEntryCount}");
             }
 
-            if (Path.IsPathRooted(entry.Key))
+            if (Path.IsPathRooted(entryKey))
             {
-                throw new InvalidDataException($"Archive entry has an unsafe path: {entry.Key}");
+                throw new InvalidDataException($"Archive entry has an unsafe path: {entryKey}");
             }
 
-            var pathResult = ContentPathPolicy.ResolveContainedFile(extractRoot, entry.Key);
+            var pathResult = ContentPathPolicy.ResolveContainedFile(extractRoot, entryKey);
             if (!pathResult.Success)
             {
-                throw new InvalidDataException($"Archive entry has an unsafe path: {entry.Key}");
+                throw new InvalidDataException($"Archive entry has an unsafe path: {entryKey}");
             }
 
             var destinationPath = pathResult.Data!;
-
             var destinationDir = Path.GetDirectoryName(destinationPath);
             if (!string.IsNullOrEmpty(destinationDir))
             {
                 Directory.CreateDirectory(destinationDir);
             }
 
+            var stageProgress = totalEntries > 0 ? (double)(i + 1) / totalEntries * 100 : 100;
+            var fileName = Path.GetFileName(entryKey);
+            progress?.Report(new ContentAcquisitionProgress
+            {
+                CurrentStage = 3,
+                TotalStages = 5,
+                StageDescription = "Extracting files",
+                CurrentOperation = $"Extracting {fileName} ({i + 1}/{totalEntries})",
+                FilesProcessed = i + 1,
+                TotalFiles = totalEntries,
+                StageProgress = stageProgress,
+            });
+
             using var entryStream = entry.OpenEntryStream();
             CopyEntryWithCap(entryStream, destinationPath, ref totalUncompressedSize, cancellationToken);
+            logger.LogInformation("Extracted archive entry {Current}/{Total}: {EntryName} ({Size} bytes)", i + 1, totalEntries, entryKey, entry.Size);
         }
     }
 
@@ -690,6 +730,8 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
     private static bool TryExtractZipArchive(
         string archivePath,
         string extractPath,
+        IProgress<ContentAcquisitionProgress>? progress,
+        ILogger logger,
         CancellationToken cancellationToken)
     {
         if (!ZipValidation.IsValidZipFile(archivePath))
@@ -705,18 +747,18 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 return false;
             }
 
+            var validEntries = zip.Entries
+                .Where(e => !string.IsNullOrEmpty(e.FullName) && !e.FullName.EndsWith('/') && !e.FullName.EndsWith('\\'))
+                .ToList();
+            var totalEntries = validEntries.Count;
             var entryCount = 0;
             long totalUncompressedSize = 0;
             var extractRoot = Path.GetFullPath(extractPath);
 
-            foreach (var entry in zip.Entries)
+            for (var i = 0; i < totalEntries; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-
-                if (string.IsNullOrEmpty(entry.FullName) || entry.FullName.EndsWith('/') || entry.FullName.EndsWith('\\'))
-                {
-                    continue;
-                }
+                var entry = validEntries[i];
 
                 entryCount++;
                 if (entryCount > CatalogConstants.MaxZipEntryCount)
@@ -743,8 +785,22 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                     Directory.CreateDirectory(destinationDir);
                 }
 
+                var stageProgress = totalEntries > 0 ? (double)(i + 1) / totalEntries * 100 : 100;
+                var fileName = Path.GetFileName(entry.FullName);
+                progress?.Report(new ContentAcquisitionProgress
+                {
+                    CurrentStage = 3,
+                    TotalStages = 5,
+                    StageDescription = "Extracting files",
+                    CurrentOperation = $"Extracting {fileName} ({i + 1}/{totalEntries})",
+                    FilesProcessed = i + 1,
+                    TotalFiles = totalEntries,
+                    StageProgress = stageProgress,
+                });
+
                 using var entryStream = entry.Open();
                 CopyEntryWithCap(entryStream, destinationPath, ref totalUncompressedSize, cancellationToken);
+                logger.LogInformation("Extracted zip entry {Current}/{Total}: {EntryName} ({Size} bytes)", i + 1, totalEntries, entry.FullName, entry.Length);
             }
 
             return true;
@@ -766,6 +822,8 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
     private static bool TryExtractSubStreamArchive(
         string archivePath,
         string extractPath,
+        IProgress<ContentAcquisitionProgress>? progress,
+        ILogger logger,
         CancellationToken cancellationToken)
     {
         try
@@ -811,7 +869,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             stream.Position = offset;
             using var subStream = new SubStream(stream, offset, stream.Length - offset);
             using var archive = ArchiveFactory.OpenArchive(subStream);
-            ExtractSharpCompressArchive(archive, extractPath, cancellationToken);
+            ExtractSharpCompressArchive(archive, extractPath, progress, logger, cancellationToken);
             return true;
         }
         catch (OperationCanceledException)
@@ -831,6 +889,8 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
     private static bool TryExtractSmartInstallMakerArchive(
         string archivePath,
         string extractPath,
+        IProgress<ContentAcquisitionProgress>? progress,
+        ILogger logger,
         CancellationToken cancellationToken)
     {
         var stagingDir = Path.Combine(extractPath, "_sim_staging_" + Guid.NewGuid().ToString("N"));
@@ -869,7 +929,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             var legacyRecords = ParseSmartInstallMakerFileTable(fileTableData, stream, payloadOffset);
             if (legacyRecords.Count > 0)
             {
-                var extractedCount = ExtractSmartInstallMakerPayload(stream, payloadOffset, legacyRecords, stagingRoot, cancellationToken);
+                var extractedCount = ExtractSmartInstallMakerPayload(stream, payloadOffset, legacyRecords, stagingRoot, progress, logger, cancellationToken);
                 if (extractedCount == 0)
                 {
                     throw new InvalidDataException("Smart Install Maker extraction produced no valid files.");
@@ -883,7 +943,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             var modernFileNames = ParseModernSmartInstallMakerFileTable(fileTableData);
             if (modernFileNames.Count > 0)
             {
-                var extractedCount = ExtractModernSmartInstallMakerPayload(stream, payloadOffset, modernFileNames, stagingRoot, cancellationToken);
+                var extractedCount = ExtractModernSmartInstallMakerPayload(stream, payloadOffset, modernFileNames, stagingRoot, progress, logger, cancellationToken);
                 if (extractedCount == 0)
                 {
                     throw new InvalidDataException("Smart Install Maker modern extraction yielded 0 files.");
@@ -964,13 +1024,15 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         var payloadOffset = lastBlock.Value.DataStart;
         var tableBlock = secondToLastBlock.Value;
 
-        if (tableBlock.CompType == 1) // Deflate / Zlib
+        // Deflate / Zlib
+        if (tableBlock.CompType == 1)
         {
             stream.Position = tableBlock.DataStart;
             var b0 = stream.ReadByte();
             var b1 = stream.ReadByte();
-            stream.Position = (b0 == 0x78 && ((b0 * 256 + b1) % 31 == 0))
-                ? tableBlock.DataStart + 2 // skip zlib header
+            var hasZlibHeader = b0 == 0x78 && (((b0 * 256) + b1) % 31 == 0);
+            stream.Position = hasZlibHeader
+                ? tableBlock.DataStart + 2
                 : tableBlock.DataStart;
 
             try
@@ -998,8 +1060,9 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 // Fallback
             }
         }
-        else if (tableBlock.CompType == 2) // BZip2
+        else if (tableBlock.CompType == 2)
         {
+            // BZip2
             stream.Position = tableBlock.DataStart;
             try
             {
@@ -1030,8 +1093,9 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 // Fallback
             }
         }
-        else if (tableBlock.CompType == 0) // Raw
+        else if (tableBlock.CompType == 0)
         {
+            // Raw
             stream.Position = tableBlock.DataStart;
             var len = (int)Math.Min(tableBlock.CompSize >= 5 ? tableBlock.CompSize - 5 : 0, CatalogConstants.MaxCatalogSizeBytes);
             var buf = new byte[len];
@@ -1090,6 +1154,8 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         long payloadOffset,
         IReadOnlyList<string> fileNames,
         string extractRoot,
+        IProgress<ContentAcquisitionProgress>? progress,
+        ILogger logger,
         CancellationToken cancellationToken)
     {
         var extractedCount = 0;
@@ -1114,7 +1180,8 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         }
 
         var copyBuffer = new byte[65536];
-        for (var fileIdx = 0; fileIdx < fileNames.Count && stream.Position < stream.Length - 4; fileIdx++)
+        var totalFiles = fileNames.Count;
+        for (var fileIdx = 0; fileIdx < totalFiles && stream.Position < stream.Length - 4; fileIdx++)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -1131,6 +1198,19 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             {
                 Directory.CreateDirectory(destinationDir);
             }
+
+            var stageProgress = totalFiles > 0 ? (double)(fileIdx + 1) / totalFiles * 100 : 100;
+            var shortName = Path.GetFileName(fileName);
+            progress?.Report(new ContentAcquisitionProgress
+            {
+                CurrentStage = 3,
+                TotalStages = 5,
+                StageDescription = "Extracting files",
+                CurrentOperation = $"Extracting {shortName} ({fileIdx + 1}/{totalFiles})",
+                FilesProcessed = fileIdx + 1,
+                TotalFiles = totalFiles,
+                StageProgress = stageProgress,
+            });
 
             var streamStartPos = stream.Position;
             var byte0 = stream.ReadByte();
@@ -1216,10 +1296,13 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             }
 
             outStream.Flush();
-            if (new FileInfo(destinationPath).Length > 0)
+            var fileLength = new FileInfo(destinationPath).Length;
+            if (fileLength > 0)
             {
                 extractedCount++;
             }
+
+            logger.LogInformation("Extracted installer file {Current}/{Total}: {FileName} ({Size} bytes)", fileIdx + 1, totalFiles, fileName, fileLength);
         }
 
         return extractedCount;
@@ -1230,18 +1313,36 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         long payloadOffset,
         List<(string Name, uint UncompressedSize, uint StreamOffset, uint CompressedSize)> records,
         string extractRoot,
+        IProgress<ContentAcquisitionProgress>? progress,
+        ILogger logger,
         CancellationToken cancellationToken)
     {
         var extractedCount = 0;
         var copyBuffer = new byte[65536];
+        var totalRecords = records.Count;
 
-        foreach (var rec in records)
+        for (var i = 0; i < totalRecords; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            var rec = records[i];
+            var stageProgress = totalRecords > 0 ? (double)(i + 1) / totalRecords * 100 : 100;
+            var shortName = Path.GetFileName(rec.Name);
+            progress?.Report(new ContentAcquisitionProgress
+            {
+                CurrentStage = 3,
+                TotalStages = 5,
+                StageDescription = "Extracting files",
+                CurrentOperation = $"Extracting {shortName} ({i + 1}/{totalRecords})",
+                FilesProcessed = i + 1,
+                TotalFiles = totalRecords,
+                StageProgress = stageProgress,
+            });
+
             try
             {
                 ExtractSingleSmartInstallMakerRecord(stream, payloadOffset, rec, extractRoot, copyBuffer);
                 extractedCount++;
+                logger.LogInformation("Extracted installer file {Current}/{Total}: {FileName} ({Size} bytes)", i + 1, totalRecords, rec.Name, rec.UncompressedSize);
             }
             catch (Exception)
             {
@@ -1359,7 +1460,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 // Fallback
             }
         }
-        else if (headerRead >= 2 && header[0] == 0x78 && ((header[0] * 256 + header[1]) % 31 == 0))
+        else if (headerRead >= 2 && header[0] == 0x78 && (((header[0] * 256) + header[1]) % 31 == 0))
         {
             try
             {

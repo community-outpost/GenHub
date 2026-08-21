@@ -25,6 +25,7 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameSettings;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.Content.Services.SuperHackers;
@@ -55,6 +56,11 @@ public class ProfileLauncherFacade(
     ISymlinkCapabilityProvider symlinkCapability,
     ILogger<ProfileLauncherFacade> logger) : IProfileLauncherFacade
 {
+    private sealed class SynchronousProgress<T>(Action<T> handler) : IProgress<T>
+    {
+        public void Report(T value) => handler(value);
+    }
+
     /// <inheritdoc/>
     public async Task<ProfileOperationResult<GameLaunchInfo>> LaunchProfileAsync(string profileId, bool skipUserDataCleanup = false, CancellationToken cancellationToken = default)
     {
@@ -325,7 +331,41 @@ public class ProfileLauncherFacade(
             // Use dynamic workspace path based on game installation location
             workspaceConfig.WorkspaceRootPath = storageLocationService.GetWorkspacePath(resolvedInstallation);
 
-            var prepareResult = await workspaceManager.PrepareWorkspaceAsync(workspaceConfig, cancellationToken: cancellationToken);
+            Guid? workspaceNotificationId = null;
+            var workspaceProgress = new SynchronousProgress<WorkspacePreparationProgress>(_ =>
+            {
+                if (workspaceNotificationId == null)
+                {
+                    var message = new NotificationMessage(
+                        NotificationType.Info,
+                        "Preparing Workspace",
+                        $"Initializing workspace for '{profile.Name}'. First launch may take a moment while files are set up...",
+                        autoDismissMilliseconds: null,
+                        isPersistent: true);
+                    workspaceNotificationId = message.Id;
+                    notificationService.Show(message);
+                }
+            });
+
+            var prepareResult = await workspaceManager.PrepareWorkspaceAsync(workspaceConfig, workspaceProgress, cancellationToken: cancellationToken);
+            if (workspaceNotificationId.HasValue)
+            {
+                if (prepareResult.Success)
+                {
+                    notificationService.Update(
+                        workspaceNotificationId.Value,
+                        $"Workspace initialized for '{profile.Name}'.",
+                        "Workspace Ready");
+                }
+                else
+                {
+                    notificationService.Update(
+                        workspaceNotificationId.Value,
+                        $"Workspace initialization failed for '{profile.Name}'.",
+                        "Workspace Error");
+                }
+            }
+
             if (prepareResult.Failed)
             {
                 return ProfileOperationResult<WorkspaceInfo>.CreateFailure(string.Join(", ", prepareResult.Errors));
@@ -903,20 +943,52 @@ public class ProfileLauncherFacade(
     {
         logger.LogDebug("[Launch] Step 6: Delegating to GameLauncher for workspace prep and process start");
 
-        var hasNotifiedWorkspacePrep = false;
-        var launchProgress = new Progress<LaunchProgress>(p =>
+        Guid? workspaceNotificationId = null;
+        var hasUpdatedWorkspaceDone = false;
+        var launchProgress = new SynchronousProgress<LaunchProgress>(p =>
         {
-            if (p.Phase == LaunchPhase.PreparingWorkspace && !hasNotifiedWorkspacePrep)
+            if (p.IsInitializingWorkspace && workspaceNotificationId == null)
             {
-                hasNotifiedWorkspacePrep = true;
-                notificationService.ShowInfo(
+                var message = new NotificationMessage(
+                    NotificationType.Info,
                     "Preparing Workspace",
                     $"Initializing workspace for '{profile.Name}'. First launch may take a moment while files are set up...",
-                    NotificationDurations.Medium);
+                    autoDismissMilliseconds: null,
+                    isPersistent: true);
+                workspaceNotificationId = message.Id;
+                notificationService.Show(message);
+            }
+
+            if (workspaceNotificationId.HasValue && !hasUpdatedWorkspaceDone && p.Phase > LaunchPhase.PreparingWorkspace)
+            {
+                hasUpdatedWorkspaceDone = true;
+                notificationService.Update(
+                    workspaceNotificationId.Value,
+                    $"Workspace initialized for '{profile.Name}'.",
+                    "Workspace Ready");
             }
         });
 
         var launchResult = await gameLauncher.LaunchProfileAsync(profile, progress: launchProgress, skipUserDataCleanup: skipUserDataCleanup, cancellationToken: cancellationToken);
+
+        if (workspaceNotificationId.HasValue && !hasUpdatedWorkspaceDone)
+        {
+            hasUpdatedWorkspaceDone = true;
+            if (launchResult.Success)
+            {
+                notificationService.Update(
+                    workspaceNotificationId.Value,
+                    $"Workspace initialized for '{profile.Name}'.",
+                    "Workspace Ready");
+            }
+            else
+            {
+                notificationService.Update(
+                    workspaceNotificationId.Value,
+                    $"Workspace initialization failed for '{profile.Name}'.",
+                    "Workspace Error");
+            }
+        }
 
         if (launchResult.Failed)
         {

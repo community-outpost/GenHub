@@ -14,6 +14,7 @@ using GenHub.Core.Interfaces.Providers;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.ModDB;
@@ -70,9 +71,19 @@ public partial class ModDBManifestFactory(
     }
 
     /// <inheritdoc />
+    public Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
+        ContentManifest originalManifest,
+        string extractedDirectory,
+        CancellationToken cancellationToken = default)
+    {
+        return CreateManifestsFromExtractedContentAsync(originalManifest, extractedDirectory, progress: null, cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async Task<List<ContentManifest>> CreateManifestsFromExtractedContentAsync(
         ContentManifest originalManifest,
         string extractedDirectory,
+        IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Processing ModDB extracted content from: {Directory}", extractedDirectory);
@@ -95,7 +106,9 @@ public partial class ModDBManifestFactory(
             extractedDirectory,
             originalManifest.ContentType,
             originalManifest.TargetGame,
-            cancellationToken);
+            normalizeInactiveArchives: true,
+            progress: progress,
+            cancellationToken: cancellationToken);
 
         // A ModDB /start route occasionally gives Playwright only the display title, so an
         // archive may arrive with no usable extension. It must either be recognised by its
@@ -111,13 +124,29 @@ public partial class ModDBManifestFactory(
         }
 
         var allFiles = Directory.GetFiles(extractedDirectory, "*", SearchOption.AllDirectories)
-            .OrderBy(p => p, StringComparer.OrdinalIgnoreCase);
+            .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         var files = new List<ManifestFile>();
-        foreach (var filePath in allFiles)
+        for (var i = 0; i < allFiles.Count; i++)
         {
+            var filePath = allFiles[i];
             var fileInfo = new FileInfo(filePath);
             var relativePath = Path.GetRelativePath(extractedDirectory, filePath);
+            var stageProgress = allFiles.Count > 0 ? (double)(i + 1) / allFiles.Count * 100 : 100;
+            progress?.Report(new ContentAcquisitionProgress
+            {
+                CurrentStage = 3,
+                TotalStages = 5,
+                StageDescription = "Processing files",
+                CurrentOperation = $"Hashing {relativePath} ({i + 1}/{allFiles.Count})",
+                FilesProcessed = i + 1,
+                TotalFiles = allFiles.Count,
+                StageProgress = stageProgress,
+            });
+
+            logger.LogInformation("Hashing file {Current}/{Total}: {RelativePath}", i + 1, allFiles.Count, relativePath);
+
             files.Add(new ManifestFile
             {
                 RelativePath = relativePath,
