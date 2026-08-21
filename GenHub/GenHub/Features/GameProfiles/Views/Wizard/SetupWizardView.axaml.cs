@@ -1,6 +1,9 @@
 using System;
 using Avalonia;
 using Avalonia.Controls;
+#if DEBUG
+using Avalonia.Diagnostics;
+#endif
 using Avalonia.Markup.Xaml;
 using GenHub.Features.GameProfiles.ViewModels.Wizard;
 
@@ -17,6 +20,9 @@ public partial class SetupWizardView : Window
     public SetupWizardView()
     {
         InitializeComponent();
+#if DEBUG
+        AttachDevTools();
+#endif
     }
 
     /// <summary>
