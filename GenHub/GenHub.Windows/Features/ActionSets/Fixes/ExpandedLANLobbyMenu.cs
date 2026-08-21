@@ -271,8 +271,8 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
             Directory.CreateDirectory(destDir);
         }
 
-        File.Copy(sourceFilePath, destPath, overwrite: true);
         backupEntries.Add((destPath, existedBefore, backupPath));
+        File.Copy(sourceFilePath, destPath, overwrite: true);
         deployedFiles.Add(destPath);
     }
 
@@ -311,7 +311,7 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
                 details.Add($"✓ Downloaded {fileInfo.Length / 1024.0:F2} KB package from {new Uri(url).Host}");
                 return true;
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 throw;
             }
@@ -367,55 +367,50 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
 
     private void RollbackDeployment(
         List<(string DestPath, bool ExistedBefore, string? BackupPath)> backupEntries,
-        List<string> details)
+        List<string> details,
+        bool markerWritten = false)
     {
-        try
+        details.Add("Rolling back deployed assets...");
+        foreach (var (destPath, existedBefore, backupPath) in backupEntries)
         {
-            details.Add("Rolling back deployed assets...");
-            foreach (var (destPath, existedBefore, backupPath) in backupEntries)
+            try
             {
-                try
+                if (existedBefore && !string.IsNullOrEmpty(backupPath) && File.Exists(backupPath))
                 {
-                    if (existedBefore && !string.IsNullOrEmpty(backupPath) && File.Exists(backupPath))
-                    {
-                        File.Copy(backupPath, destPath, overwrite: true);
-                    }
-                    else if (!existedBefore && File.Exists(destPath))
-                    {
-                        File.Delete(destPath);
-                    }
+                    File.Copy(backupPath, destPath, overwrite: true);
                 }
-                catch (IOException ex)
+                else if (!existedBefore && File.Exists(destPath))
                 {
-                    logger.LogWarning(ex, "Failed to restore or remove file during rollback: {Path}", destPath);
-                }
-                catch (UnauthorizedAccessException ex)
-                {
-                    logger.LogWarning(ex, "Access denied during rollback of file: {Path}", destPath);
+                    File.Delete(destPath);
                 }
             }
-
-            if (File.Exists(_markerPath))
+            catch (IOException ex)
             {
-                try
-                {
-                    File.Delete(_markerPath);
-                }
-                catch (IOException)
-                {
-                }
-                catch (UnauthorizedAccessException)
-                {
-                }
+                logger.LogWarning(ex, "Failed to restore or remove file during rollback: {Path}", destPath);
             }
+            catch (UnauthorizedAccessException ex)
+            {
+                logger.LogWarning(ex, "Access denied during rollback of file: {Path}", destPath);
+            }
+        }
 
-            details.Add("✓ Rollback completed.");
-        }
-        catch (Exception ex)
+        if (markerWritten && File.Exists(_markerPath))
         {
-            logger.LogError(ex, "Failed during rollback of LAN lobby menu deployment");
-            details.Add($"✗ Rollback warning: {ex.Message}");
+            try
+            {
+                File.Delete(_markerPath);
+            }
+            catch (IOException ex)
+            {
+                logger.LogWarning(ex, "Failed to delete marker file during rollback: {Path}", _markerPath);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                logger.LogWarning(ex, "Access denied deleting marker file during rollback: {Path}", _markerPath);
+            }
         }
+
+        details.Add("✓ Rollback completed.");
     }
 
     private bool RecordDeploymentMarker(List<string> deployedFiles)

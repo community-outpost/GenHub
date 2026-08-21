@@ -315,7 +315,7 @@ public partial class ActionSetViewModel(
                 logger.LogWarning(statusEx, "Error refreshing status after apply for {Title}", ActionSet.Title);
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             logger.LogWarning("Application of {Title} was cancelled by user", ActionSet.Title);
             notificationService.ShowWarning("Apply Cancelled", $"Application of {ActionSet.Title} was cancelled.");

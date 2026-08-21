@@ -108,7 +108,7 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
                     downloaded = true;
                     break;
                 }
-                catch (OperationCanceledException)
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
                     throw;
                 }
@@ -145,6 +145,7 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
 
             using var archive = ArchiveFactory.OpenArchive(new FileInfo(tempFile));
             int extractedCount = 0;
+            var extractedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var entry in archive.Entries.Where(e => !e.IsDirectory && e.Key != null))
             {
@@ -154,6 +155,7 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
                     continue;
                 }
 
+                extractedFiles.Add(fileName);
                 var extractedFilePath = Path.Combine(tempExtractDir, fileName);
                 using (var entryStream = entry.OpenEntryStream())
                 await using (var fs = new FileStream(extractedFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
@@ -178,6 +180,14 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
                 }
             }
 
+            if (!KnownHdIconFiles.All(extractedFiles.Contains))
+            {
+                var missing = KnownHdIconFiles.Where(f => !extractedFiles.Contains(f));
+                var missingSummary = string.Join(", ", missing);
+                logger.LogWarning("HD icons package is missing required icon files: {Missing}", missingSummary);
+                return new ActionSetResult(false, $"HD icons package is missing expected files: {missingSummary}", details);
+            }
+
             details.Add($"✓ Extracted and deployed {extractedCount} HD icon assets to game folders.");
 
             try
@@ -196,6 +206,10 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
             }
 
             return new ActionSetResult(true, null, details);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
