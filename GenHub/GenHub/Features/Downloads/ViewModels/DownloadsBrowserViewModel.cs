@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -11,6 +12,7 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
@@ -177,13 +179,6 @@ public partial class DownloadsBrowserViewModel(
             InitializeBuiltInPublishers();
             InitializeFilterViewModels();
             _builtInPublishersInitialized = true;
-
-            // Pre-warm the Playwright runtime in the background so browser-backed discoverers (e.g. ModDB)
-            // launch with minimal latency on user interaction.
-            if (serviceProvider.GetService<IPlaywrightService>() is { } playwrightService)
-            {
-                _ = Task.Run(() => playwrightService.WarmupAsync());
-            }
         }
 
         await RefreshSubscribedPublishersAsync();
@@ -1741,6 +1736,40 @@ public partial class DownloadsBrowserViewModel(
                 "Error Adding to Profile",
                 $"An unexpected error occurred: {ex.Message}");
             logger.LogError(ex, "Exception adding content '{ContentName}' to profile", item?.Name);
+        }
+    }
+
+    /// <summary>
+    /// Opens the manifests storage directory in the file explorer.
+    /// </summary>
+    [RelayCommand]
+    private void OpenManifestsFolder()
+    {
+        try
+        {
+            var configProvider = serviceProvider.GetService<IConfigurationProviderService>();
+            var path = configProvider?.GetManifestsPath()
+                ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", "manifests");
+
+            logger.LogInformation("Opening manifests directory: {Path}", path);
+
+            if (!Directory.Exists(path))
+            {
+                logger.LogWarning("Manifests directory not found at {Path}, creating it", path);
+                Directory.CreateDirectory(path);
+            }
+
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = path,
+                UseShellExecute = true,
+                Verb = "open",
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to open manifests directory");
+            notificationService.ShowError("Error", $"Failed to open manifests directory: {ex.Message}", 5000);
         }
     }
 

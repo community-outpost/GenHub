@@ -91,6 +91,29 @@
             </DataTemplate>
         </controls:SidebarLayout.Resources>
 
+        <controls:SidebarLayout.PaneFooter>
+            <Button Command="{Binding OpenManifestsFolderCommand}"
+                    Background="#1AFFFFFF"
+                    HorizontalAlignment="Stretch"
+                    BorderBrush="#33FFFFFF"
+                    BorderThickness="1"
+                    CornerRadius="0"
+                    Padding="10"
+                    Margin="10,0,10,12"
+                    ToolTip.Tip="Open Manifests Folder in File Explorer">
+                <Button.Styles>
+                    <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="#2AFFFFFF"/>
+                    </Style>
+                </Button.Styles>
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                    <PathIcon Data="M19,20H4C2.89,20 2,19.1 2,18V6C2,4.89 2.89,4 4,4H10L12,6H19A2,2 0 0,1 21,8H21L4,8V18L6.14,10H23.21L20.93,18.5C20.7,19.37 19.92,20 19,20Z"
+                              Width="16" Height="16" Foreground="{DynamicResource PurpleAccentBright}"/>
+                    <TextBlock Text="Manifests Folder" HorizontalAlignment="Center" Foreground="White" FontSize="13"/>
+                </StackPanel>
+            </Button>
+        </controls:SidebarLayout.PaneFooter>
+
         <!-- Main Content Area -->
         <Grid Margin="16,8,16,16">
             <!-- Browser View: dock the toolbar so the card grid cannot scroll underneath it. -->

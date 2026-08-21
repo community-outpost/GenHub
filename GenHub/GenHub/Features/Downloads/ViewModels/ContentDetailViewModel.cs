@@ -1944,12 +1944,17 @@ public partial class ContentDetailViewModel(
     public string Id => searchResult.Id ?? string.Empty;
 
     /// <summary>
-    /// Gets the content name. Prefer the selected variant label so Generals/Zero Hour
-    /// (and similar) stay visible; fall back to parsed page title, then search result.
+    /// Gets the content name. Prefer the selected variant label or user-selected downloadable item
+    /// so the specific mod/patch/addon title stays visible; fall back to search result, then parsed page title.
     /// </summary>
     public string Name => SelectedVariant?.Name
+        ?? (SelectedDownloadableItem != null &&
+            !string.IsNullOrWhiteSpace(SelectedDownloadableItem.Name) &&
+            !SelectedDownloadableItem.Name.StartsWith("Unknown", StringComparison.OrdinalIgnoreCase)
+                ? SelectedDownloadableItem.Name
+                : null)
+        ?? (!string.IsNullOrWhiteSpace(searchResult.Name) ? searchResult.Name : null)
         ?? ParsedPage?.Context.Title
-        ?? searchResult.Name
         ?? "Unknown";
 
     /// <summary>
@@ -2145,6 +2150,7 @@ public partial class ContentDetailViewModel(
 
     private void RefreshSelectedTargetProperties()
     {
+        OnPropertyChanged(nameof(Name));
         OnPropertyChanged(nameof(HasSelectedDownloadableItem));
         OnPropertyChanged(nameof(ShowSelectedTargetBanner));
         OnPropertyChanged(nameof(SelectedTargetTitle));
@@ -3472,7 +3478,9 @@ public partial class ContentDetailViewModel(
                 ? Releases.FirstOrDefault(r =>
                     string.Equals(r.DownloadedManifestId, SelectedVariant.ManifestId, StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(r.Name, SelectedVariant.Name, StringComparison.OrdinalIgnoreCase))
-                : null) ?? FindPreferredRelease(Releases);
+                : null)
+                ?? FindMatchingReleaseForSearchResult(Releases)
+                ?? FindPreferredRelease(Releases);
 
             if (preferredRelease != null)
             {
@@ -3557,9 +3565,17 @@ public partial class ContentDetailViewModel(
             _ = ResolveRowStateAsync(addonItem, file);
         }
 
-        if (SelectedDownloadableItem == null && Releases.Count == 0 && Addons.Count > 0)
+        if (!_userManuallySelectedDownloadableItem && (SelectedDownloadableItem == null || !Releases.Contains(SelectedDownloadableItem)))
         {
-            SelectDownloadableItem(Addons[0], isUserInitiated: false);
+            var matchingAddon = FindMatchingAddonForSearchResult(Addons);
+            if (matchingAddon != null)
+            {
+                SelectDownloadableItem(matchingAddon, isUserInitiated: false);
+            }
+            else if (SelectedDownloadableItem == null && Releases.Count == 0 && Addons.Count > 0)
+            {
+                SelectDownloadableItem(Addons[0], isUserInitiated: false);
+            }
         }
 
         OnPropertyChanged(nameof(HasAddons));
@@ -3943,5 +3959,125 @@ public partial class ContentDetailViewModel(
         }
 
         return fallbackResult.TargetGame != GameType.Unknown ? fallbackResult.TargetGame.ToString() : null;
+    }
+
+    private ReleaseItemViewModel? FindMatchingReleaseForSearchResult(IReadOnlyList<ReleaseItemViewModel> releases)
+    {
+        if (releases.Count == 0)
+        {
+            return null;
+        }
+
+        var searchSourceUrl = searchResult.SourceUrl?.TrimEnd('/');
+        var searchDownloadUrl = searchResult.SelectedDownloadUrl?.TrimEnd('/');
+
+        if (!string.IsNullOrEmpty(searchSourceUrl) || !string.IsNullOrEmpty(searchDownloadUrl))
+        {
+            var matchByUrl = releases.FirstOrDefault(r =>
+            {
+                var detailsUrl = r.DetailsUrl?.TrimEnd('/');
+                var downloadUrl = r.DownloadUrl?.TrimEnd('/');
+                var fileDetailsUrl = r.File?.DetailsUrl?.TrimEnd('/');
+                var fileDownloadUrl = r.File?.DownloadUrl?.TrimEnd('/');
+
+                return (!string.IsNullOrEmpty(searchSourceUrl) &&
+                        (string.Equals(detailsUrl, searchSourceUrl, StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(downloadUrl, searchSourceUrl, StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(fileDetailsUrl, searchSourceUrl, StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(fileDownloadUrl, searchSourceUrl, StringComparison.OrdinalIgnoreCase))) ||
+                       (!string.IsNullOrEmpty(searchDownloadUrl) &&
+                        (string.Equals(downloadUrl, searchDownloadUrl, StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(detailsUrl, searchDownloadUrl, StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(fileDownloadUrl, searchDownloadUrl, StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(fileDetailsUrl, searchDownloadUrl, StringComparison.OrdinalIgnoreCase)));
+            });
+
+            if (matchByUrl != null)
+            {
+                return matchByUrl;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(searchResult.Name))
+        {
+            var trimmedSearchName = searchResult.Name.Trim();
+            var exactMatch = releases.FirstOrDefault(r =>
+                string.Equals(r.Name?.Trim(), trimmedSearchName, StringComparison.OrdinalIgnoreCase));
+            if (exactMatch != null)
+            {
+                return exactMatch;
+            }
+
+            var partialMatch = releases.FirstOrDefault(r =>
+                !string.IsNullOrWhiteSpace(r.Name) &&
+                (trimmedSearchName.Contains(r.Name.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                 r.Name.Trim().Contains(trimmedSearchName, StringComparison.OrdinalIgnoreCase)));
+            if (partialMatch != null)
+            {
+                return partialMatch;
+            }
+        }
+
+        return null;
+    }
+
+    private AddonItemViewModel? FindMatchingAddonForSearchResult(IReadOnlyList<AddonItemViewModel> addons)
+    {
+        if (addons.Count == 0)
+        {
+            return null;
+        }
+
+        var searchSourceUrl = searchResult.SourceUrl?.TrimEnd('/');
+        var searchDownloadUrl = searchResult.SelectedDownloadUrl?.TrimEnd('/');
+
+        if (!string.IsNullOrEmpty(searchSourceUrl) || !string.IsNullOrEmpty(searchDownloadUrl))
+        {
+            var matchByUrl = addons.FirstOrDefault(a =>
+            {
+                var detailsUrl = a.DetailsUrl?.TrimEnd('/');
+                var downloadUrl = a.DownloadUrl?.TrimEnd('/');
+                var fileDetailsUrl = a.File?.DetailsUrl?.TrimEnd('/');
+                var fileDownloadUrl = a.File?.DownloadUrl?.TrimEnd('/');
+
+                return (!string.IsNullOrEmpty(searchSourceUrl) &&
+                        (string.Equals(detailsUrl, searchSourceUrl, StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(downloadUrl, searchSourceUrl, StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(fileDetailsUrl, searchSourceUrl, StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(fileDownloadUrl, searchSourceUrl, StringComparison.OrdinalIgnoreCase))) ||
+                       (!string.IsNullOrEmpty(searchDownloadUrl) &&
+                        (string.Equals(downloadUrl, searchDownloadUrl, StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(detailsUrl, searchDownloadUrl, StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(fileDownloadUrl, searchDownloadUrl, StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(fileDetailsUrl, searchDownloadUrl, StringComparison.OrdinalIgnoreCase)));
+            });
+
+            if (matchByUrl != null)
+            {
+                return matchByUrl;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(searchResult.Name))
+        {
+            var trimmedSearchName = searchResult.Name.Trim();
+            var exactMatch = addons.FirstOrDefault(a =>
+                string.Equals(a.Name?.Trim(), trimmedSearchName, StringComparison.OrdinalIgnoreCase));
+            if (exactMatch != null)
+            {
+                return exactMatch;
+            }
+
+            var partialMatch = addons.FirstOrDefault(a =>
+                !string.IsNullOrWhiteSpace(a.Name) &&
+                (trimmedSearchName.Contains(a.Name.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                 a.Name.Trim().Contains(trimmedSearchName, StringComparison.OrdinalIgnoreCase)));
+            if (partialMatch != null)
+            {
+                return partialMatch;
+            }
+        }
+
+        return null;
     }
 }

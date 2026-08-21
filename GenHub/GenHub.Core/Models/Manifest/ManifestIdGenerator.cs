@@ -251,17 +251,23 @@ public static partial class ManifestIdGenerator
         {
             // Fallback to simple digit extraction if strict normalization fails
             // (e.g. for complex tags like "beta-1-final")
-            var digits = DigitsRegex().Replace(tag, string.Empty);
-
-            if (string.IsNullOrEmpty(digits))
-                return 0;
-
-            // Take first 9 digits to avoid overflow
-            if (digits.Length > 9)
-                digits = digits[..9];
-
-            return int.TryParse(digits, out var version) ? version : 0;
+            return ExtractDigitsAsInt(tag);
         }
+    }
+
+    private static int ExtractDigitsAsInt(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s))
+            return 0;
+
+        var digits = DigitsRegex().Replace(s, string.Empty);
+        if (string.IsNullOrEmpty(digits))
+            return 0;
+
+        if (digits.Length > 9)
+            digits = digits[..9];
+
+        return int.TryParse(digits, out var version) ? version : 0;
     }
 
     /// <summary>
