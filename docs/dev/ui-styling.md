@@ -93,23 +93,25 @@ Item templates inside sidebars must use inset rounded rows:
 
 ```xml
 <DataTemplate x:Key="ToolItemTemplate" DataType="interfaces:IToolPlugin">
-    <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center" Margin="8,2">
-        <material:MaterialIcon Grid.Column="0"
-                               Kind="Tools"
-                               Width="20"
-                               Height="20"
-                               Foreground="{DynamicResource AccentBrush}"
-                               Margin="0,0,12,0" />
-        <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-            <TextBlock Text="{Binding Metadata.Name}"
-                       FontWeight="SemiBold"
-                       FontSize="13"
-                       Foreground="{DynamicResource TextPrimary}" />
-            <TextBlock Text="{Binding Metadata.Version, StringFormat='v{0}'}"
-                       FontSize="11"
-                       Foreground="{DynamicResource TextSecondary}" />
-        </StackPanel>
-    </Grid>
+    <Border Margin="8,2" Padding="10,8" CornerRadius="8">
+        <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
+            <material:MaterialIcon Grid.Column="0"
+                                   Kind="Tools"
+                                   Width="20"
+                                   Height="20"
+                                   Foreground="{DynamicResource AccentBrush}"
+                                   Margin="0,0,12,0" />
+            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                <TextBlock Text="{Binding Metadata.Name}"
+                           FontWeight="SemiBold"
+                           FontSize="13"
+                           Foreground="{DynamicResource TextPrimary}" />
+                <TextBlock Text="{Binding Metadata.Version, StringFormat='v{0}'}"
+                           FontSize="11"
+                           Foreground="{DynamicResource TextSecondary}" />
+            </StackPanel>
+        </Grid>
+    </Border>
 </DataTemplate>
 ```
 
