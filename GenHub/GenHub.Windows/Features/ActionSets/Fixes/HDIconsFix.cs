@@ -166,22 +166,11 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
                 .Where(n => !string.IsNullOrEmpty(n))
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            if (archiveFileNames.Count == 0)
+            var archiveValidation = ValidateArchiveContents(archiveFileNames, installation);
+            if (!archiveValidation.IsValid)
             {
-                logger.LogWarning("HD icons package contains no icon files");
-                return new ActionSetResult(false, "HD icons archive contains no valid files.", details);
-            }
-
-            if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath) && !RecognizedGeneralsIconFiles.Any(archiveFileNames.Contains))
-            {
-                logger.LogWarning("HD icons package contains no icon files recognized for Generals.");
-                return new ActionSetResult(false, "HD icons package does not contain a recognized icon for Generals.", details);
-            }
-
-            if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath) && !RecognizedZeroHourIconFiles.Any(archiveFileNames.Contains))
-            {
-                logger.LogWarning("HD icons package contains no icon files recognized for Zero Hour.");
-                return new ActionSetResult(false, "HD icons package does not contain a recognized icon for Zero Hour.", details);
+                logger.LogWarning("{Error}", archiveValidation.ErrorMessage);
+                return new ActionSetResult(false, archiveValidation.ErrorMessage, details);
             }
 
             int extractedCount = 0;
@@ -368,5 +357,27 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
             logger.LogWarning(ex, "Error checking for HD icons");
             return false;
         }
+    }
+
+    internal static (bool IsValid, string? ErrorMessage) ValidateArchiveContents(
+        IReadOnlySet<string> archiveFileNames,
+        GameInstallation installation)
+    {
+        if (archiveFileNames.Count == 0)
+        {
+            return (false, "HD icons archive contains no valid files.");
+        }
+
+        if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath) && !RecognizedGeneralsIconFiles.Any(archiveFileNames.Contains))
+        {
+            return (false, "HD icons package does not contain a recognized icon for Generals.");
+        }
+
+        if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath) && !RecognizedZeroHourIconFiles.Any(archiveFileNames.Contains))
+        {
+            return (false, "HD icons package does not contain a recognized icon for Zero Hour.");
+        }
+
+        return (true, null);
     }
 }

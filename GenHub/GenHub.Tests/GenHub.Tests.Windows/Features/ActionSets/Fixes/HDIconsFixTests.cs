@@ -152,4 +152,85 @@ public class HDIconsFixTests : IDisposable
         Assert.True(result.Success);
         Assert.False(File.Exists(iconPath));
     }
+
+    /// <summary>
+    /// Verifies that ValidateArchiveContents returns false when archive is empty.
+    /// </summary>
+    [Fact]
+    public void ValidateArchiveContents_WhenArchiveEmpty_ReturnsFalse()
+    {
+        var installation = new GameInstallation(_testDir, GameInstallationType.Steam)
+        {
+            HasGenerals = true,
+            GeneralsPath = _testDir,
+        };
+
+        var (isValid, errorMessage) = HDIconsFix.ValidateArchiveContents(new HashSet<string>(), installation);
+
+        Assert.False(isValid);
+        Assert.Equal("HD icons archive contains no valid files.", errorMessage);
+    }
+
+    /// <summary>
+    /// Verifies that ValidateArchiveContents returns false when Generals icon is missing.
+    /// </summary>
+    [Fact]
+    public void ValidateArchiveContents_WhenGeneralsInstalledAndMissingIcon_ReturnsFalse()
+    {
+        var installation = new GameInstallation(_testDir, GameInstallationType.Steam)
+        {
+            HasGenerals = true,
+            GeneralsPath = _testDir,
+        };
+
+        var archiveFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "GeneralsZHHD.ico" };
+        var (isValid, errorMessage) = HDIconsFix.ValidateArchiveContents(archiveFiles, installation);
+
+        Assert.False(isValid);
+        Assert.Equal("HD icons package does not contain a recognized icon for Generals.", errorMessage);
+    }
+
+    /// <summary>
+    /// Verifies that ValidateArchiveContents returns false when Zero Hour icon is missing.
+    /// </summary>
+    [Fact]
+    public void ValidateArchiveContents_WhenZeroHourInstalledAndMissingIcon_ReturnsFalse()
+    {
+        var installation = new GameInstallation(_testDir, GameInstallationType.Steam)
+        {
+            HasZeroHour = true,
+            ZeroHourPath = _testDir,
+        };
+
+        var archiveFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "GeneralsHD.ico" };
+        var (isValid, errorMessage) = HDIconsFix.ValidateArchiveContents(archiveFiles, installation);
+
+        Assert.False(isValid);
+        Assert.Equal("HD icons package does not contain a recognized icon for Zero Hour.", errorMessage);
+    }
+
+    /// <summary>
+    /// Verifies that ValidateArchiveContents returns true when required icons are present.
+    /// </summary>
+    [Fact]
+    public void ValidateArchiveContents_WhenAllRequiredIconsPresent_ReturnsTrue()
+    {
+        var installation = new GameInstallation(_testDir, GameInstallationType.Steam)
+        {
+            HasGenerals = true,
+            GeneralsPath = _testDir,
+            HasZeroHour = true,
+            ZeroHourPath = _testDir,
+        };
+
+        var archiveFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "GeneralsHD.ico",
+            "GeneralsZHHD.ico",
+        };
+        var (isValid, errorMessage) = HDIconsFix.ValidateArchiveContents(archiveFiles, installation);
+
+        Assert.True(isValid);
+        Assert.Null(errorMessage);
+    }
 }
