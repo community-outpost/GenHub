@@ -304,16 +304,6 @@ public partial class ActionSetViewModel(
                     $"Fix Failed: {ActionSet.Title}",
                     detailsText);
             }
-
-            try
-            {
-                await CheckStatusAsync(CancellationToken.None);
-                onStatusChanged?.Invoke();
-            }
-            catch (Exception statusEx)
-            {
-                logger.LogWarning(statusEx, "Error refreshing status after apply for {Title}", ActionSet.Title);
-            }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -333,6 +323,16 @@ public partial class ActionSetViewModel(
         }
         finally
         {
+            try
+            {
+                await CheckStatusAsync(CancellationToken.None);
+                onStatusChanged?.Invoke();
+            }
+            catch (Exception statusEx)
+            {
+                logger.LogWarning(statusEx, "Error refreshing status after apply for {Title}", ActionSet.Title);
+            }
+
             IsApplying = false;
             _applyCts?.Dispose();
             _applyCts = null;

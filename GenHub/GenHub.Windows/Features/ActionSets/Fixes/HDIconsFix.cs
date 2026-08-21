@@ -20,8 +20,24 @@ using SharpCompress.Archives;
 /// </summary>
 public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix> logger) : BaseActionSet(logger)
 {
-    private static readonly IReadOnlyList<string> KnownHdIconFiles =
+    private static readonly IReadOnlyList<string> RecognizedGeneralsIconFiles =
     [
+        "GeneralsHD.ico",
+        "generals_hd.ico",
+        "game_hd.ico",
+    ];
+
+    private static readonly IReadOnlyList<string> RecognizedZeroHourIconFiles =
+        [
+            "GeneralsZHHD.ico",
+            "zh_hd.ico",
+            "GeneralsHD.ico",
+        ];
+
+    private static readonly IReadOnlyList<string> AllKnownIconFiles =
+    [
+        "GeneralsHD.ico",
+        "GeneralsZHHD.ico",
         "generals_hd.ico",
         "game_hd.ico",
         "zh_hd.ico",
@@ -144,8 +160,19 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
             Directory.CreateDirectory(tempExtractDir);
 
             using var archive = ArchiveFactory.OpenArchive(new FileInfo(tempFile));
+            var archiveFileNames = archive.Entries
+                .Where(e => !e.IsDirectory && e.Key != null)
+                .Select(e => Path.GetFileName(e.Key))
+                .Where(n => !string.IsNullOrEmpty(n))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            if (archiveFileNames.Count == 0)
+            {
+                logger.LogWarning("HD icons package contains no icon files");
+                return new ActionSetResult(false, "HD icons archive contains no valid files.", details);
+            }
+
             int extractedCount = 0;
-            var extractedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var entry in archive.Entries.Where(e => !e.IsDirectory && e.Key != null))
             {
@@ -155,7 +182,6 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
                     continue;
                 }
 
-                extractedFiles.Add(fileName);
                 var extractedFilePath = Path.Combine(tempExtractDir, fileName);
                 using (var entryStream = entry.OpenEntryStream())
                 await using (var fs = new FileStream(extractedFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
@@ -180,14 +206,6 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
                 }
             }
 
-            if (!KnownHdIconFiles.All(extractedFiles.Contains))
-            {
-                var missing = KnownHdIconFiles.Where(f => !extractedFiles.Contains(f));
-                var missingSummary = string.Join(", ", missing);
-                logger.LogWarning("HD icons package is missing required icon files: {Missing}", missingSummary);
-                return new ActionSetResult(false, $"HD icons package is missing expected files: {missingSummary}", details);
-            }
-
             details.Add($"✓ Extracted and deployed {extractedCount} HD icon assets to game folders.");
 
             try
@@ -200,9 +218,13 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
 
                 File.WriteAllText(_markerPath, DateTime.UtcNow.ToString("O"));
             }
-            catch (Exception ex)
+            catch (IOException ex)
             {
                 logger.LogWarning(ex, "Failed to create marker file for HDIconsFix");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                logger.LogWarning(ex, "Access denied creating marker file for HDIconsFix");
             }
 
             return new ActionSetResult(true, null, details);
@@ -226,9 +248,13 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
                     File.Delete(tempFile);
                 }
             }
-            catch (Exception ex)
+            catch (IOException ex)
             {
                 logger.LogDebug(ex, "Failed to delete temp file {TempFile}", tempFile);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                logger.LogDebug(ex, "Access denied deleting temp file {TempFile}", tempFile);
             }
 
             try
@@ -238,9 +264,13 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
                     Directory.Delete(tempExtractDir, recursive: true);
                 }
             }
-            catch (Exception ex)
+            catch (IOException ex)
             {
                 logger.LogDebug(ex, "Failed to delete temp directory {TempDir}", tempExtractDir);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                logger.LogDebug(ex, "Access denied deleting temp directory {TempDir}", tempExtractDir);
             }
         }
     }
@@ -254,7 +284,7 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
         {
             if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
             {
-                foreach (var icon in KnownHdIconFiles)
+                foreach (var icon in AllKnownIconFiles)
                 {
                     var p = Path.Combine(installation.GeneralsPath, icon);
                     if (File.Exists(p))
@@ -267,7 +297,7 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
 
             if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
             {
-                foreach (var icon in KnownHdIconFiles)
+                foreach (var icon in AllKnownIconFiles)
                 {
                     var p = Path.Combine(installation.ZeroHourPath, icon);
                     if (File.Exists(p))
@@ -283,9 +313,13 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
                 File.Delete(_markerPath);
             }
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             logger.LogWarning(ex, "Failed to delete marker or icon files for HDIconsFix");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Access denied deleting marker or icon files for HDIconsFix");
         }
 
         return Task.FromResult(new ActionSetResult(true, null, [$"HD icons removed ({removedCount} files deleted)."]));
@@ -300,7 +334,7 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
             if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
             {
                 hasAnyTarget = true;
-                if (!KnownHdIconFiles.All(iconFile => File.Exists(Path.Combine(installation.GeneralsPath, iconFile))))
+                if (!RecognizedGeneralsIconFiles.Any(iconFile => File.Exists(Path.Combine(installation.GeneralsPath, iconFile))))
                 {
                     return false;
                 }
@@ -309,7 +343,7 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
             if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
             {
                 hasAnyTarget = true;
-                if (!KnownHdIconFiles.All(iconFile => File.Exists(Path.Combine(installation.ZeroHourPath, iconFile))))
+                if (!RecognizedZeroHourIconFiles.Any(iconFile => File.Exists(Path.Combine(installation.ZeroHourPath, iconFile))))
                 {
                     return false;
                 }

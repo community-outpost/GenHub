@@ -324,12 +324,19 @@ public partial class GenPatcherViewModel(
         {
             logger.LogDebug("Refresh fixes for installation {Path} was cancelled (version {Version})", installation.InstallationPath, version);
         }
-        catch (Exception ex) when (!ct.IsCancellationRequested && version == _refreshVersion)
+        catch (Exception ex)
         {
-            logger.LogError(ex, "Error refreshing fixes for installation {Path}", installation.InstallationPath);
-            notificationService.ShowError(
-                "Failed to Load Fixes",
-                $"An error occurred while loading fixes: {ex.Message}");
+            if (version == _refreshVersion && !ct.IsCancellationRequested)
+            {
+                logger.LogError(ex, "Error refreshing fixes for installation {Path}", installation.InstallationPath);
+                notificationService.ShowError(
+                    "Failed to Load Fixes",
+                    $"An error occurred while loading fixes: {ex.Message}");
+            }
+            else
+            {
+                logger.LogDebug(ex, "Superseded refresh encountered an exception for installation {Path}", installation.InstallationPath);
+            }
         }
     }
 

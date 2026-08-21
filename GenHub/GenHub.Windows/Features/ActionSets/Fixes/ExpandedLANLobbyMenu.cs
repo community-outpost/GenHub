@@ -367,8 +367,7 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
 
     private void RollbackDeployment(
         List<(string DestPath, bool ExistedBefore, string? BackupPath)> backupEntries,
-        List<string> details,
-        bool markerWritten = false)
+        List<string> details)
     {
         details.Add("Rolling back deployed assets...");
         foreach (var (destPath, existedBefore, backupPath) in backupEntries)
@@ -394,22 +393,6 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
             }
         }
 
-        if (markerWritten && File.Exists(_markerPath))
-        {
-            try
-            {
-                File.Delete(_markerPath);
-            }
-            catch (IOException ex)
-            {
-                logger.LogWarning(ex, "Failed to delete marker file during rollback: {Path}", _markerPath);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                logger.LogWarning(ex, "Access denied deleting marker file during rollback: {Path}", _markerPath);
-            }
-        }
-
         details.Add("✓ Rollback completed.");
     }
 
@@ -429,12 +412,33 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
         catch (IOException ex)
         {
             logger.LogWarning(ex, "Failed to create marker file for ExpandedLANLobbyMenu");
+            CleanupPartialMarker();
             return false;
         }
         catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Permission denied creating marker file for ExpandedLANLobbyMenu");
+            CleanupPartialMarker();
             return false;
+        }
+    }
+
+    private void CleanupPartialMarker()
+    {
+        try
+        {
+            if (File.Exists(_markerPath))
+            {
+                File.Delete(_markerPath);
+            }
+        }
+        catch (IOException ex)
+        {
+            logger.LogDebug(ex, "Failed to clean up partial marker file {MarkerPath}", _markerPath);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogDebug(ex, "Access denied cleaning up partial marker file {MarkerPath}", _markerPath);
         }
     }
 
