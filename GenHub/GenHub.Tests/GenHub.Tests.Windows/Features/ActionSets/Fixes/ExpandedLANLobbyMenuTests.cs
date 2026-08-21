@@ -152,16 +152,14 @@ public class ExpandedLANLobbyMenuTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that UndoAsync does not delete unrecorded custom window files when no marker exists.
+    /// Verifies that UndoAsync succeeds when no marker exists and no files are present.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task UndoAsync_WhenNoMarkerExists_DoesNotDeleteFilesAsync()
+    public async Task UndoAsync_WhenNoMarkerExistsAndNoFilesPresent_SucceedsAsync()
     {
         var zhDir = Path.Combine(_testDir, "ZeroHour");
         Directory.CreateDirectory(zhDir);
-        var bigFile = Path.Combine(zhDir, "!ExpandedLANMenu.big");
-        File.WriteAllText(bigFile, "content");
 
         var installation = new GameInstallation(_testDir, GameInstallationType.Steam)
         {
@@ -172,7 +170,6 @@ public class ExpandedLANLobbyMenuTests : IDisposable
         var result = await _fix.UndoAsync(installation);
 
         Assert.True(result.Success);
-        Assert.True(File.Exists(bigFile));
     }
 
     /// <summary>
@@ -228,7 +225,7 @@ public class ExpandedLANLobbyMenuTests : IDisposable
 
         Assert.False(result.Success);
         Assert.True(File.Exists(bigFile));
-        Assert.Contains("No deployment marker found", result.Message ?? string.Empty);
+        Assert.Contains("No deployment marker found", result.ErrorMessage ?? string.Empty);
     }
 
     /// <summary>

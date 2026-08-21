@@ -158,16 +158,14 @@ public class HDIconsFixTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that UndoAsync does not delete unrecorded HD icon files when no marker exists.
+    /// Verifies that UndoAsync succeeds when no marker exists and no files are present.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task UndoAsync_WhenNoMarkerExists_DoesNotDeleteFilesAsync()
+    public async Task UndoAsync_WhenNoMarkerExistsAndNoFilesPresent_SucceedsAsync()
     {
         var genDir = Path.Combine(_testDir, "Generals");
         Directory.CreateDirectory(genDir);
-        var iconPath = Path.Combine(genDir, "GeneralsHD.ico");
-        File.WriteAllText(iconPath, "icon");
 
         var installation = new GameInstallation(_testDir, GameInstallationType.Steam)
         {
@@ -178,7 +176,6 @@ public class HDIconsFixTests : IDisposable
         var result = await _fix.UndoAsync(installation);
 
         Assert.True(result.Success);
-        Assert.True(File.Exists(iconPath));
     }
 
     /// <summary>
@@ -359,7 +356,7 @@ public class HDIconsFixTests : IDisposable
 
         Assert.False(result.Success);
         Assert.True(File.Exists(iconPath));
-        Assert.Contains("No deployment marker found", result.Message ?? string.Empty);
+        Assert.Contains("No deployment marker found", result.ErrorMessage ?? string.Empty);
     }
 
     /// <summary>

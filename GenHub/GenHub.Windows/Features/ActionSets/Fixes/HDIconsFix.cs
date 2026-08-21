@@ -89,42 +89,6 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
         return new ValidationResult("HDIconsPackage", issues);
     }
 
-    private static void DeployFileWithBackup(
-        string sourceFilePath,
-        string destPath,
-        string tempBackupDir,
-        List<string> deployedFiles,
-        List<(string DestPath, bool ExistedBefore, string? BackupPath)> backupEntries)
-    {
-        var alreadyBackedUp = backupEntries.Any(b => string.Equals(b.DestPath, destPath, StringComparison.OrdinalIgnoreCase));
-        var existedBefore = File.Exists(destPath);
-        string? backupPath = null;
-
-        if (existedBefore && !alreadyBackedUp)
-        {
-            Directory.CreateDirectory(tempBackupDir);
-            backupPath = Path.Combine(tempBackupDir, $"{Guid.NewGuid():N}_{Path.GetFileName(destPath)}");
-            File.Copy(destPath, backupPath, overwrite: true);
-            backupEntries.Add((destPath, existedBefore, backupPath));
-        }
-        else if (!alreadyBackedUp)
-        {
-            backupEntries.Add((destPath, existedBefore, null));
-        }
-
-        var destDir = Path.GetDirectoryName(destPath);
-        if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
-        {
-            Directory.CreateDirectory(destDir);
-        }
-
-        File.Copy(sourceFilePath, destPath, overwrite: true);
-        if (!deployedFiles.Contains(destPath, StringComparer.OrdinalIgnoreCase))
-        {
-            deployedFiles.Add(destPath);
-        }
-    }
-
     /// <inheritdoc/>
     public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
@@ -430,6 +394,42 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
         {
             logger.LogWarning(ex, "Failed to delete marker or icon files for HDIconsFix");
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
+        }
+    }
+
+    private static void DeployFileWithBackup(
+        string sourceFilePath,
+        string destPath,
+        string tempBackupDir,
+        List<string> deployedFiles,
+        List<(string DestPath, bool ExistedBefore, string? BackupPath)> backupEntries)
+    {
+        var alreadyBackedUp = backupEntries.Any(b => string.Equals(b.DestPath, destPath, StringComparison.OrdinalIgnoreCase));
+        var existedBefore = File.Exists(destPath);
+        string? backupPath = null;
+
+        if (existedBefore && !alreadyBackedUp)
+        {
+            Directory.CreateDirectory(tempBackupDir);
+            backupPath = Path.Combine(tempBackupDir, $"{Guid.NewGuid():N}_{Path.GetFileName(destPath)}");
+            File.Copy(destPath, backupPath, overwrite: true);
+            backupEntries.Add((destPath, existedBefore, backupPath));
+        }
+        else if (!alreadyBackedUp)
+        {
+            backupEntries.Add((destPath, existedBefore, null));
+        }
+
+        var destDir = Path.GetDirectoryName(destPath);
+        if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
+        {
+            Directory.CreateDirectory(destDir);
+        }
+
+        File.Copy(sourceFilePath, destPath, overwrite: true);
+        if (!deployedFiles.Contains(destPath, StringComparer.OrdinalIgnoreCase))
+        {
+            deployedFiles.Add(destPath);
         }
     }
 
