@@ -130,7 +130,7 @@
     <Color x:Key="ComboBoxBackgroundLight">#FFFFFF</Color>
     <Color x:Key="TextBoxBackgroundLight">#FFFFFF</Color>
     <Color x:Key="ButtonBackgroundLight">#F0F0F4</Color>
-    <Color x:Key="PrimaryButtonBackgroundLight">#8B5CF6</Color>
+    <Color x:Key="PrimaryButtonBackgroundLight">#A855F7</Color>
 
     <!-- Dark theme colors -->
     <Color x:Key="WindowBackgroundDark">#08080C</Color>
