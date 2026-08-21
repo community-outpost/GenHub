@@ -55,6 +55,15 @@ All tokens are defined in `GenHub/GenHub/Assets/Styles/ThemeResources.axaml`.
 | `WarningBrush` | Warning banners and alerts | `#FFA500` |
 | `ErrorBrush` / `StatusErrorBrush` | Error banners and validation errors | `#EF4444` |
 
+### Scrollbar tokens
+
+| Resource key | Purpose | Default value |
+|---|---|---|
+| `ScrollbarTrackBrush` | ScrollBar track background surface | `Transparent` |
+| `ScrollbarThumbBrush` | Standard inactive scrollbar thumb | `#38384D` |
+| `ScrollbarThumbHoverBrush` | Hovered scrollbar thumb | `#585876` |
+| `ScrollbarThumbPressedBrush` | Active/dragging scrollbar thumb | `#A855F7` (`{DynamicResource AccentBrush}`) |
+
 ## Sidebar pattern (SidebarLayout)
 
 The standard component for split layouts and sidebar navigation is `GenHub.Common.Controls.SidebarLayout`.
@@ -137,6 +146,18 @@ Collapsible sections and settings groups inherit the global style from `GenHub/G
 - **Divider:** Subtle bottom border (`{DynamicResource BorderBrush}`) separates the header from the expanded body when `IsExpanded="True"`.
 - **Content:** Padded body container that organizes nested controls cleanly.
 
+## Scrollbars (ScrollBar & ScrollViewer)
+
+All scrollbars automatically inherit global theme styling from `GenHub/GenHub/Assets/Styles/ScrollbarStyles.axaml` via `App.axaml`:
+
+- **Thickness:** Compact 8px width (vertical) and 8px height (horizontal) for a clean, non-intrusive modern footprint.
+- **Track Direction:** Vertical tracks use `IsDirectionReversed="True"` (top to bottom), while horizontal tracks use `IsDirectionReversed="False"` (left to right).
+- **Thumb:** Rounded pill thumb (`CornerRadius="4"`) bound to `{DynamicResource ScrollbarThumbBrush}` with smooth 150ms background brush transitions to hover (`{DynamicResource ScrollbarThumbHoverBrush}`) and pressed (`{DynamicResource ScrollbarThumbPressedBrush}`) states.
+- **Track Buttons:** Completely transparent and borderless repeat buttons that do not obstruct content.
+- **ScrollViewer Best Practices:**
+  - Explicitly set `VerticalScrollBarVisibility="Auto"` and `HorizontalScrollBarVisibility="Disabled"` on vertical content viewers to prevent unwanted horizontal shifts.
+  - Never wrap components that already have internal scrolling (such as `MarkdownScrollViewer` or `DataGrid`) in an outer `ScrollViewer`.
+
 ## Button classes
 
 Use standardized button classes rather than ad-hoc button styling:
@@ -152,7 +173,8 @@ Use standardized button classes rather than ad-hoc button styling:
 ## Anti-patterns to avoid
 
 - **Hardcoding hex values in XAML.** Never write `Background="#252525"` or `Foreground="#FFFFFF"`. Use dynamic theme resources.
-- **Duplicating ComboBox or Expander templates.** Never copy-paste `ComboBox` or `Expander` template styles into local views.
+- **Duplicating ComboBox, Expander, or ScrollBar templates.** Never copy-paste `ComboBox`, `Expander`, or `ScrollBar` template styles into local views.
+- **Nested ScrollViewers.** Never nest a `ScrollViewer` inside another `ScrollViewer` or wrap controls that manage their own scrolling.
 - **Sharp full-bleed list items.** Avoid `CornerRadius="0"` on selectable list items. Use rounded inset pills.
 - **Fuzzy text drop shadows.** Avoid `DropShadowEffect` on labels and headers. Use clean font weights and contrast.
 - **Blocking overlays for primary navigation.** Do not use modal dimmer overlays when users need to interact with the main content while switching items.
@@ -164,6 +186,7 @@ Use standardized button classes rather than ad-hoc button styling:
 - [ ] Sidebars and master-detail panes use `SidebarLayout`.
 - [ ] Dropdowns use standard `ComboBox` with global theme styling (no inline template copies).
 - [ ] Collapsible sections use standard `Expander` card styling.
+- [ ] Scrollable views configure `VerticalScrollBarVisibility="Auto"` and `HorizontalScrollBarVisibility="Disabled"`.
 - [ ] List items use inset pill containers with 8px corner radii.
 - [ ] Buttons use standard action or icon classes.
 - [ ] Tested on dark theme and resizable window layouts.

@@ -255,29 +255,6 @@
             <Setter Property="Opacity" Value="1.0" />
         </Style>
 
-        <!-- Scrollbar theming -->
-        <Style Selector="ScrollBar">
-            <Setter Property="Background" Value="#0F0F0F" />
-        </Style>
-        <Style Selector="ScrollBar /template/ Thumb">
-            <Setter Property="Background" Value="#5E35B1" />
-            <Setter Property="Opacity" Value="0.7" />
-        </Style>
-        <Style Selector="ScrollBar /template/ Thumb:pointerover">
-            <Setter Property="Opacity" Value="0.9" />
-        </Style>
-        <Style Selector="ScrollBar /template/ Thumb:pressed">
-            <Setter Property="Opacity" Value="1" />
-        </Style>
-        <Style Selector="ScrollBar.vertical /template/ Thumb">
-            <Setter Property="MinWidth" Value="6" />
-            <Setter Property="CornerRadius" Value="3" />
-        </Style>
-        <Style Selector="ScrollBar.horizontal /template/ Thumb">
-            <Setter Property="MinHeight" Value="6" />
-            <Setter Property="CornerRadius" Value="3" />
-        </Style>
-
         <!-- New Content Card Styles -->
         <Style Selector="Button.content-card-btn">
             <Setter Property="Background" Value="#08FFFFFF" />

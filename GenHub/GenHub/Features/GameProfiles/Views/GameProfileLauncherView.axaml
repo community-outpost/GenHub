@@ -275,7 +275,7 @@
         </Grid>
 
         <!-- Row 1: Main Content (Game Profiles List) -->
-        <ScrollViewer Grid.Row="1" Margin="10">
+        <ScrollViewer Grid.Row="1" Margin="10" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel>
                 <ItemsControl ItemsSource="{Binding Profiles}">
                     <ItemsControl.ItemsPanel>

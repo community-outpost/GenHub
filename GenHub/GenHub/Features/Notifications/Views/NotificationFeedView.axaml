@@ -211,7 +211,7 @@
             </Border>
 
             <!-- Content -->
-            <ScrollViewer Grid.Row="1" MaxHeight="380" Classes="feed-scroll" VerticalScrollBarVisibility="Auto"
+            <ScrollViewer Grid.Row="1" MaxHeight="380" Classes="feed-scroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                          IsVisible="{Binding HasNotifications}">
                 <ItemsControl ItemsSource="{Binding NotificationHistory}" Margin="12,8">
                     <ItemsControl.ItemsPanel>

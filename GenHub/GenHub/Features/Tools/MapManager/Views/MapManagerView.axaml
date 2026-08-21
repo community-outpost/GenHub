@@ -211,7 +211,7 @@
                       Padding="12" MinWidth="300" MaxHeight="400" BoxShadow="0 4 12 0 #40000000">
                 <Grid RowDefinitions="Auto,*">
                   <Grid Grid.Row="1">
-                    <ScrollViewer IsVisible="{Binding UploadHistory.Count}">
+                    <ScrollViewer IsVisible="{Binding UploadHistory.Count}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                       <ItemsControl ItemsSource="{Binding UploadHistory}">
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm_tools:UploadHistoryItemViewModel">
@@ -307,7 +307,7 @@
                     Classes="Secondary" Padding="8" VerticalAlignment="Top"/>
           </Grid>
 
-          <ScrollViewer Grid.Row="1" Margin="0,0,0,16">
+          <ScrollViewer Grid.Row="1" Margin="0,0,0,16" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="20">
               <!-- Create New Section -->
               <StackPanel Spacing="12">

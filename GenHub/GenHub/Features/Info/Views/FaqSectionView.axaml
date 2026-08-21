@@ -82,7 +82,7 @@
 
   <Grid>
      <!-- FAQ Content -->
-     <ScrollViewer Padding="0,0,15,0">
+     <ScrollViewer Padding="0,0,15,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
        <StackPanel>
          <!-- Controls (Language) -->
          <StackPanel Orientation="Horizontal" Margin="0,0,0,20" Spacing="15">

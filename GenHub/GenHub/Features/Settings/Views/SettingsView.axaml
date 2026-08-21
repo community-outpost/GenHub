@@ -172,7 +172,7 @@
     </Style>
   </UserControl.Styles>
 
-  <ScrollViewer Focusable="True">
+  <ScrollViewer Focusable="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
     <StackPanel Margin="32,24" Spacing="24" MaxWidth="840">
 
       <!-- Header -->

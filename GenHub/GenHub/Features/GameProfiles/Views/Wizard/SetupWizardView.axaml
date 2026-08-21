@@ -116,7 +116,7 @@
             </Border>
 
             <!-- Items -->
-            <ScrollViewer Grid.Row="1" Padding="30,0">
+            <ScrollViewer Grid.Row="1" Padding="30,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <ItemsControl ItemsSource="{Binding Items}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>

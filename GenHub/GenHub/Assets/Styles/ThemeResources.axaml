@@ -207,4 +207,17 @@
     <SolidColorBrush x:Key="SidebarItemSelectedBackground" Color="#4D4527A0" /> <!-- Dark Purple glass -->
     <SolidColorBrush x:Key="SidebarItemHoverBorder" Color="Transparent" />
     <SolidColorBrush x:Key="SidebarItemSelectedBorder" Color="#673AB7" /> <!-- Medium Purple Border -->
+
+    <!-- ==================================================================== -->
+    <!-- 8. Semantic Scrollbar Tokens                                         -->
+    <!-- ==================================================================== -->
+    <Color x:Key="ScrollbarTrackColor">#00000000</Color>
+    <Color x:Key="ScrollbarThumbColor">#38384D</Color>
+    <Color x:Key="ScrollbarThumbHoverColor">#585876</Color>
+    <Color x:Key="ScrollbarThumbPressedColor">#A855F7</Color>
+
+    <SolidColorBrush x:Key="ScrollbarTrackBrush" Color="{StaticResource ScrollbarTrackColor}" />
+    <SolidColorBrush x:Key="ScrollbarThumbBrush" Color="{StaticResource ScrollbarThumbColor}" />
+    <SolidColorBrush x:Key="ScrollbarThumbHoverBrush" Color="{StaticResource ScrollbarThumbHoverColor}" />
+    <SolidColorBrush x:Key="ScrollbarThumbPressedBrush" Color="{StaticResource ScrollbarThumbPressedColor}" />
 </ResourceDictionary>

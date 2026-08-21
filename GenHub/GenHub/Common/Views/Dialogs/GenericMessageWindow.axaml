@@ -81,10 +81,6 @@
             <Setter Property="Background" Value="#1E1B4B"/>
             <Setter Property="BorderBrush" Value="#7C3AED"/>
         </Style>
-
-        <Style Selector="ScrollBar">
-            <Setter Property="AllowAutoHide" Value="True"/>
-        </Style>
     </Window.Styles>
 
     <Border CornerRadius="16" ClipToBounds="True">
@@ -182,23 +178,21 @@
                 </StackPanel>
 
                 <!-- Body Text with Markdown support -->
-                <ScrollViewer Grid.Row="1" MaxHeight="500" Margin="0,0,0,32">
-                   <md:MarkdownScrollViewer Markdown="{Binding Content}">
-                        <md:MarkdownScrollViewer.Styles>
-                             <Style Selector="Border.Note">
-                                <Setter Property="BorderBrush" Value="#A855F7"/>
-                                <Setter Property="BorderThickness" Value="4,0,0,0"/>
-                                <Setter Property="Background" Value="#1D1933"/>
-                                <Setter Property="Padding" Value="16,12"/>
-                                <Setter Property="CornerRadius" Value="6"/>
-                            </Style>
-                            <Style Selector="TextBlock">
-                                <Setter Property="Foreground" Value="#CBD5E1"/>
-                                <Setter Property="LineHeight" Value="24"/>
-                            </Style>
-                        </md:MarkdownScrollViewer.Styles>
-                   </md:MarkdownScrollViewer>
-                </ScrollViewer>
+                <md:MarkdownScrollViewer Grid.Row="1" Markdown="{Binding Content}" MaxHeight="500" Margin="0,0,0,32">
+                    <md:MarkdownScrollViewer.Styles>
+                         <Style Selector="Border.Note">
+                            <Setter Property="BorderBrush" Value="#A855F7"/>
+                            <Setter Property="BorderThickness" Value="4,0,0,0"/>
+                            <Setter Property="Background" Value="#1D1933"/>
+                            <Setter Property="Padding" Value="16,12"/>
+                            <Setter Property="CornerRadius" Value="6"/>
+                        </Style>
+                        <Style Selector="TextBlock">
+                            <Setter Property="Foreground" Value="#CBD5E1"/>
+                            <Setter Property="LineHeight" Value="24"/>
+                        </Style>
+                    </md:MarkdownScrollViewer.Styles>
+                </md:MarkdownScrollViewer>
 
                 <!-- Footer with Checkbox and Action Buttons -->
                 <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto">
