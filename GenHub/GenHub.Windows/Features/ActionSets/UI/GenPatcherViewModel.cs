@@ -147,6 +147,15 @@ public partial class GenPatcherViewModel(
         }
     }
 
+    partial void OnIsBatchApplyingChanged(bool value)
+    {
+        foreach (var vm in ActionSets)
+        {
+            vm.IsBatchApplying = value;
+            vm.NotifyExecutionChanged();
+        }
+    }
+
     [RelayCommand]
     private async Task LoadFixesAsync()
     {
@@ -248,7 +257,8 @@ public partial class GenPatcherViewModel(
                         notificationService,
                         logger,
                         () => Avalonia.Threading.Dispatcher.UIThread.Post(SortActionSets),
-                        () => Avalonia.Threading.Dispatcher.UIThread.Post(() => ApplyAllFixesCommand.NotifyCanExecuteChanged()))
+                        () => Avalonia.Threading.Dispatcher.UIThread.Post(NotifyExecutionStateChanged),
+                        () => IsBatchApplying || ActionSets.Any(x => x.ActionSet.Id != fix.Id && x.IsApplying))
                     {
                         IsBatchApplying = IsBatchApplying,
                     };
@@ -341,6 +351,15 @@ public partial class GenPatcherViewModel(
     }
 
     private bool CanExecuteApplyAllFixes() => !IsBatchApplying && SelectedInstallation != null && !ActionSets.Any(x => x.IsApplying);
+
+    private void NotifyExecutionStateChanged()
+    {
+        ApplyAllFixesCommand.NotifyCanExecuteChanged();
+        foreach (var vm in ActionSets)
+        {
+            vm.NotifyExecutionChanged();
+        }
+    }
 
     [RelayCommand(CanExecute = nameof(CanExecuteApplyAllFixes))]
     private async Task ApplyAllFixesAsync()

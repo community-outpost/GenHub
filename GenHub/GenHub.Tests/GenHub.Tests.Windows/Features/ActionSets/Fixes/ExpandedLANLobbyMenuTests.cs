@@ -124,11 +124,39 @@ public class ExpandedLANLobbyMenuTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that UndoAsync removes custom window files and returns success.
+    /// Verifies that UndoAsync removes recorded custom window files and marker when marker exists.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task UndoAsync_WhenFilesExist_RemovesFilesAndReturnsSuccessAsync()
+    public async Task UndoAsync_WhenMarkerExists_RemovesRecordedFilesAndMarkerAsync()
+    {
+        var zhDir = Path.Combine(_testDir, "ZeroHour");
+        Directory.CreateDirectory(zhDir);
+        var bigFile = Path.Combine(zhDir, "!ExpandedLANMenu.big");
+        File.WriteAllText(bigFile, "content");
+
+        var markerPath = Path.Combine(_testDir, "ExpandedLANLobbyMenu.done");
+        File.WriteAllLines(markerPath, [bigFile]);
+
+        var installation = new GameInstallation(_testDir, GameInstallationType.Steam)
+        {
+            HasZeroHour = true,
+            ZeroHourPath = zhDir,
+        };
+
+        var result = await _fix.UndoAsync(installation);
+
+        Assert.True(result.Success);
+        Assert.False(File.Exists(bigFile));
+        Assert.False(File.Exists(markerPath));
+    }
+
+    /// <summary>
+    /// Verifies that UndoAsync does not delete unrecorded custom window files when no marker exists.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
+    [Fact]
+    public async Task UndoAsync_WhenNoMarkerExists_DoesNotDeleteFilesAsync()
     {
         var zhDir = Path.Combine(_testDir, "ZeroHour");
         Directory.CreateDirectory(zhDir);
@@ -144,6 +172,6 @@ public class ExpandedLANLobbyMenuTests : IDisposable
         var result = await _fix.UndoAsync(installation);
 
         Assert.True(result.Success);
-        Assert.False(File.Exists(bigFile));
+        Assert.True(File.Exists(bigFile));
     }
 }

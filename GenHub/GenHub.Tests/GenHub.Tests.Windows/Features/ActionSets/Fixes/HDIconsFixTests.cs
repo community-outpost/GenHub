@@ -130,11 +130,39 @@ public class HDIconsFixTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that UndoAsync deletes existing HD icon files and returns success.
+    /// Verifies that UndoAsync deletes recorded HD icon files and marker when marker exists.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
     [Fact]
-    public async Task UndoAsync_WhenIconsExist_DeletesFilesAndReturnsSuccessAsync()
+    public async Task UndoAsync_WhenMarkerExists_DeletesFilesAndReturnsSuccessAsync()
+    {
+        var genDir = Path.Combine(_testDir, "Generals");
+        Directory.CreateDirectory(genDir);
+        var iconPath = Path.Combine(genDir, "GeneralsHD.ico");
+        File.WriteAllText(iconPath, "icon");
+
+        var markerPath = Path.Combine(_testDir, "HDIconsFix.done");
+        File.WriteAllLines(markerPath, [iconPath]);
+
+        var installation = new GameInstallation(_testDir, GameInstallationType.Steam)
+        {
+            HasGenerals = true,
+            GeneralsPath = genDir,
+        };
+
+        var result = await _fix.UndoAsync(installation);
+
+        Assert.True(result.Success);
+        Assert.False(File.Exists(iconPath));
+        Assert.False(File.Exists(markerPath));
+    }
+
+    /// <summary>
+    /// Verifies that UndoAsync does not delete unrecorded HD icon files when no marker exists.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test.</returns>
+    [Fact]
+    public async Task UndoAsync_WhenNoMarkerExists_DoesNotDeleteFilesAsync()
     {
         var genDir = Path.Combine(_testDir, "Generals");
         Directory.CreateDirectory(genDir);
@@ -150,7 +178,7 @@ public class HDIconsFixTests : IDisposable
         var result = await _fix.UndoAsync(installation);
 
         Assert.True(result.Success);
-        Assert.False(File.Exists(iconPath));
+        Assert.True(File.Exists(iconPath));
     }
 
     /// <summary>
@@ -165,10 +193,10 @@ public class HDIconsFixTests : IDisposable
             GeneralsPath = _testDir,
         };
 
-        var (isValid, errorMessage) = HDIconsFix.ValidateArchiveContents(new HashSet<string>(), installation);
+        var result = HDIconsFix.ValidateArchiveContents(new HashSet<string>(), installation);
 
-        Assert.False(isValid);
-        Assert.Equal("HD icons archive contains no valid files.", errorMessage);
+        Assert.False(result.IsValid);
+        Assert.Equal("HD icons archive contains no valid files.", result.FirstError);
     }
 
     /// <summary>
@@ -184,10 +212,10 @@ public class HDIconsFixTests : IDisposable
         };
 
         var archiveFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Unrecognized.ico" };
-        var (isValid, errorMessage) = HDIconsFix.ValidateArchiveContents(archiveFiles, installation);
+        var result = HDIconsFix.ValidateArchiveContents(archiveFiles, installation);
 
-        Assert.False(isValid);
-        Assert.Equal("HD icons package does not contain a recognized icon for Generals.", errorMessage);
+        Assert.False(result.IsValid);
+        Assert.Equal("HD icons package does not contain a recognized icon for Generals.", result.FirstError);
     }
 
     /// <summary>
@@ -203,10 +231,29 @@ public class HDIconsFixTests : IDisposable
         };
 
         var archiveFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Unrecognized.ico" };
-        var (isValid, errorMessage) = HDIconsFix.ValidateArchiveContents(archiveFiles, installation);
+        var result = HDIconsFix.ValidateArchiveContents(archiveFiles, installation);
 
-        Assert.False(isValid);
-        Assert.Equal("HD icons package does not contain a recognized icon for Zero Hour.", errorMessage);
+        Assert.False(result.IsValid);
+        Assert.Equal("HD icons package does not contain a recognized icon for Zero Hour.", result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies that ValidateArchiveContents fails for Zero Hour when only GeneralsHD.ico is present.
+    /// </summary>
+    [Fact]
+    public void ValidateArchiveContents_WhenZeroHourInstalledAndOnlyGeneralsIconPresent_ReturnsFalse()
+    {
+        var installation = new GameInstallation(_testDir, GameInstallationType.Steam)
+        {
+            HasZeroHour = true,
+            ZeroHourPath = _testDir,
+        };
+
+        var archiveFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "GeneralsHD.ico" };
+        var result = HDIconsFix.ValidateArchiveContents(archiveFiles, installation);
+
+        Assert.False(result.IsValid);
+        Assert.Equal("HD icons package does not contain a recognized icon for Zero Hour.", result.FirstError);
     }
 
     /// <summary>
@@ -228,9 +275,9 @@ public class HDIconsFixTests : IDisposable
             "GeneralsHD.ico",
             "GeneralsZHHD.ico",
         };
-        var (isValid, errorMessage) = HDIconsFix.ValidateArchiveContents(archiveFiles, installation);
+        var result = HDIconsFix.ValidateArchiveContents(archiveFiles, installation);
 
-        Assert.True(isValid);
-        Assert.Null(errorMessage);
+        Assert.True(result.IsValid);
+        Assert.Null(result.FirstError);
     }
 }

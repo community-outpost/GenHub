@@ -11,6 +11,8 @@ using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Helpers;
 using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Validation;
 using Microsoft.Extensions.Logging;
 using SharpCompress.Archives;
 
@@ -31,7 +33,6 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
     [
         "GeneralsZHHD.ico",
         "zh_hd.ico",
-        "GeneralsHD.ico",
     ];
 
     private static readonly IReadOnlyList<string> AllKnownIconFiles =
@@ -66,34 +67,6 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
     /// <inheritdoc/>
     public override bool IsCrucialFix => false;
 
-    /// <summary>
-    /// Validates that the downloaded HD icons archive contains the expected icon assets for targeted installations.
-    /// </summary>
-    /// <param name="archiveFileNames">The set of file names in the archive.</param>
-    /// <param name="installation">The targeted game installation.</param>
-    /// <returns>A tuple indicating validity and an error message if invalid.</returns>
-    internal static (bool IsValid, string? ErrorMessage) ValidateArchiveContents(
-        IReadOnlySet<string> archiveFileNames,
-        GameInstallation installation)
-    {
-        if (archiveFileNames.Count == 0)
-        {
-            return (false, "HD icons archive contains no valid files.");
-        }
-
-        if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath) && !RecognizedGeneralsIconFiles.Any(archiveFileNames.Contains))
-        {
-            return (false, "HD icons package does not contain a recognized icon for Generals.");
-        }
-
-        if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath) && !RecognizedZeroHourIconFiles.Any(archiveFileNames.Contains))
-        {
-            return (false, "HD icons package does not contain a recognized icon for Zero Hour.");
-        }
-
-        return (true, null);
-    }
-
     /// <inheritdoc/>
     public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
@@ -106,11 +79,45 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
         return Task.FromResult(AreHDIconsPresent(installation));
     }
 
+    /// <summary>
+    /// Validates that the downloaded HD icons archive contains the expected icon assets for targeted installations.
+    /// </summary>
+    /// <param name="archiveFileNames">The set of file names in the archive.</param>
+    /// <param name="installation">The targeted game installation.</param>
+    /// <returns>A validation result indicating validity and any issues found.</returns>
+    internal static ValidationResult ValidateArchiveContents(
+        IReadOnlySet<string> archiveFileNames,
+        GameInstallation installation)
+    {
+        var issues = new List<ValidationIssue>();
+
+        if (archiveFileNames.Count == 0)
+        {
+            issues.Add(new ValidationIssue { Message = "HD icons archive contains no valid files.", Severity = ValidationSeverity.Error });
+            return new ValidationResult("HDIconsPackage", issues);
+        }
+
+        if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath) && !RecognizedGeneralsIconFiles.Any(archiveFileNames.Contains))
+        {
+            issues.Add(new ValidationIssue { Message = "HD icons package does not contain a recognized icon for Generals.", Severity = ValidationSeverity.Error });
+        }
+
+        if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath) && !RecognizedZeroHourIconFiles.Any(archiveFileNames.Contains))
+        {
+            issues.Add(new ValidationIssue { Message = "HD icons package does not contain a recognized icon for Zero Hour.", Severity = ValidationSeverity.Error });
+        }
+
+        return new ValidationResult("HDIconsPackage", issues);
+    }
+
     /// <inheritdoc/>
     protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
     {
         var tempFile = Path.Combine(Path.GetTempPath(), $"hd_icons_{Guid.NewGuid():N}.dat");
         var tempExtractDir = Path.Combine(Path.GetTempPath(), $"hd_icons_extract_{Guid.NewGuid():N}");
+        var tempBackupDir = Path.Combine(Path.GetTempPath(), $"hd_icons_backup_{Guid.NewGuid():N}");
+        var backupEntries = new List<(string DestPath, bool ExistedBefore, string? BackupPath)>();
+        var deployedFiles = new List<string>();
         var details = new List<string>();
 
         try
@@ -195,8 +202,9 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
             var archiveValidation = ValidateArchiveContents(archiveFileNames, installation);
             if (!archiveValidation.IsValid)
             {
-                logger.LogWarning("{Error}", archiveValidation.ErrorMessage);
-                return new ActionSetResult(false, archiveValidation.ErrorMessage, details);
+                var errorMessage = archiveValidation.FirstError ?? "HD icons package validation failed.";
+                logger.LogWarning("{Error}", errorMessage);
+                return new ActionSetResult(false, errorMessage, details);
             }
 
             int extractedCount = 0;
@@ -222,83 +230,43 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
                 if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
                 {
                     var generalsDest = Path.Combine(installation.GeneralsPath, fileName);
-                    File.Copy(extractedFilePath, generalsDest, overwrite: true);
+                    DeployFileWithBackup(extractedFilePath, generalsDest, tempBackupDir, deployedFiles, backupEntries);
                 }
 
                 // Deploy to Zero Hour installation directory if available
                 if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
                 {
                     var zhDest = Path.Combine(installation.ZeroHourPath, fileName);
-                    File.Copy(extractedFilePath, zhDest, overwrite: true);
+                    DeployFileWithBackup(extractedFilePath, zhDest, tempBackupDir, deployedFiles, backupEntries);
                 }
             }
 
             details.Add($"✓ Extracted and deployed {extractedCount} HD icon assets to game folders.");
 
-            try
+            if (!RecordDeploymentMarker(deployedFiles))
             {
-                var markerDir = Path.GetDirectoryName(_markerPath);
-                if (!string.IsNullOrEmpty(markerDir))
-                {
-                    Directory.CreateDirectory(markerDir);
-                }
-
-                File.WriteAllText(_markerPath, DateTime.UtcNow.ToString("O"));
-            }
-            catch (IOException ex)
-            {
-                logger.LogWarning(ex, "Failed to create marker file for HDIconsFix");
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                logger.LogWarning(ex, "Access denied creating marker file for HDIconsFix");
+                details.Add("✗ Failed to record the deployment marker. Rolling back deployed files.");
+                RollbackDeployment(backupEntries, details);
+                return new ActionSetResult(false, "Failed to record the deployment marker for HDIconsFix.", details);
             }
 
             return new ActionSetResult(true, null, details);
         }
         catch (OperationCanceledException)
         {
+            RollbackDeployment(backupEntries, details);
             throw;
         }
         catch (Exception ex)
         {
+            RollbackDeployment(backupEntries, details);
             logger.LogError(ex, "Error applying HD icons fix");
             details.Add($"✗ Error: {ex.Message}");
             return new ActionSetResult(false, ex.Message, details);
         }
         finally
         {
-            try
-            {
-                if (File.Exists(tempFile))
-                {
-                    File.Delete(tempFile);
-                }
-            }
-            catch (IOException ex)
-            {
-                logger.LogDebug(ex, "Failed to delete temp file {TempFile}", tempFile);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                logger.LogDebug(ex, "Access denied deleting temp file {TempFile}", tempFile);
-            }
-
-            try
-            {
-                if (Directory.Exists(tempExtractDir))
-                {
-                    Directory.Delete(tempExtractDir, recursive: true);
-                }
-            }
-            catch (IOException ex)
-            {
-                logger.LogDebug(ex, "Failed to delete temp directory {TempDir}", tempExtractDir);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                logger.LogDebug(ex, "Access denied deleting temp directory {TempDir}", tempExtractDir);
-            }
+            CleanupTempFiles(tempFile, tempExtractDir, tempBackupDir);
         }
     }
 
@@ -309,34 +277,25 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
 
         try
         {
-            if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
-            {
-                foreach (var icon in AllKnownIconFiles)
-                {
-                    var p = Path.Combine(installation.GeneralsPath, icon);
-                    if (File.Exists(p))
-                    {
-                        File.Delete(p);
-                        removedCount++;
-                    }
-                }
-            }
-
-            if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
-            {
-                foreach (var icon in AllKnownIconFiles)
-                {
-                    var p = Path.Combine(installation.ZeroHourPath, icon);
-                    if (File.Exists(p))
-                    {
-                        File.Delete(p);
-                        removedCount++;
-                    }
-                }
-            }
-
             if (File.Exists(_markerPath))
             {
+                try
+                {
+                    var lines = File.ReadAllLines(_markerPath);
+                    foreach (var path in lines)
+                    {
+                        if (File.Exists(path))
+                        {
+                            File.Delete(path);
+                            removedCount++;
+                        }
+                    }
+                }
+                catch (IOException ex)
+                {
+                    logger.LogWarning(ex, "Failed to read installed icon file paths from marker {MarkerPath}", _markerPath);
+                }
+
                 File.Delete(_markerPath);
             }
         }
@@ -350,6 +309,162 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
         }
 
         return Task.FromResult(new ActionSetResult(true, null, [$"HD icons removed ({removedCount} files deleted)."]));
+    }
+
+    private static void DeployFileWithBackup(
+        string sourceFilePath,
+        string destPath,
+        string tempBackupDir,
+        List<string> deployedFiles,
+        List<(string DestPath, bool ExistedBefore, string? BackupPath)> backupEntries)
+    {
+        var existedBefore = File.Exists(destPath);
+        string? backupPath = null;
+
+        if (existedBefore)
+        {
+            Directory.CreateDirectory(tempBackupDir);
+            backupPath = Path.Combine(tempBackupDir, $"{Guid.NewGuid():N}_{Path.GetFileName(destPath)}");
+            File.Copy(destPath, backupPath, overwrite: true);
+        }
+
+        var destDir = Path.GetDirectoryName(destPath);
+        if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
+        {
+            Directory.CreateDirectory(destDir);
+        }
+
+        backupEntries.Add((destPath, existedBefore, backupPath));
+        File.Copy(sourceFilePath, destPath, overwrite: true);
+        deployedFiles.Add(destPath);
+    }
+
+    private void RollbackDeployment(
+        List<(string DestPath, bool ExistedBefore, string? BackupPath)> backupEntries,
+        List<string> details)
+    {
+        details.Add("Rolling back deployed assets...");
+        foreach (var (destPath, existedBefore, backupPath) in backupEntries)
+        {
+            try
+            {
+                if (existedBefore && !string.IsNullOrEmpty(backupPath) && File.Exists(backupPath))
+                {
+                    File.Copy(backupPath, destPath, overwrite: true);
+                }
+                else if (!existedBefore && File.Exists(destPath))
+                {
+                    File.Delete(destPath);
+                }
+            }
+            catch (IOException ex)
+            {
+                logger.LogWarning(ex, "Failed to restore or remove file during rollback: {Path}", destPath);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                logger.LogWarning(ex, "Access denied during rollback of file: {Path}", destPath);
+            }
+        }
+
+        details.Add("✓ Rollback completed.");
+    }
+
+    private bool RecordDeploymentMarker(List<string> deployedFiles)
+    {
+        try
+        {
+            var markerDir = Path.GetDirectoryName(_markerPath);
+            if (!string.IsNullOrEmpty(markerDir))
+            {
+                Directory.CreateDirectory(markerDir);
+            }
+
+            File.WriteAllLines(_markerPath, deployedFiles);
+            return true;
+        }
+        catch (IOException ex)
+        {
+            logger.LogWarning(ex, "Failed to create marker file for HDIconsFix");
+            CleanupPartialMarker();
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Access denied creating marker file for HDIconsFix");
+            CleanupPartialMarker();
+            return false;
+        }
+    }
+
+    private void CleanupPartialMarker()
+    {
+        try
+        {
+            if (File.Exists(_markerPath))
+            {
+                File.Delete(_markerPath);
+            }
+        }
+        catch (IOException ex)
+        {
+            logger.LogDebug(ex, "Failed to clean up partial marker file {MarkerPath}", _markerPath);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogDebug(ex, "Access denied cleaning up partial marker file {MarkerPath}", _markerPath);
+        }
+    }
+
+    private void CleanupTempFiles(string tempFile, string tempExtractDir, string tempBackupDir)
+    {
+        try
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+        catch (IOException ex)
+        {
+            logger.LogDebug(ex, "Failed to delete temp file {TempFile}", tempFile);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogDebug(ex, "Access denied deleting temp file {TempFile}", tempFile);
+        }
+
+        try
+        {
+            if (Directory.Exists(tempExtractDir))
+            {
+                Directory.Delete(tempExtractDir, recursive: true);
+            }
+        }
+        catch (IOException ex)
+        {
+            logger.LogDebug(ex, "Failed to delete temp directory {TempDir}", tempExtractDir);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogDebug(ex, "Access denied deleting temp directory {TempDir}", tempExtractDir);
+        }
+
+        try
+        {
+            if (Directory.Exists(tempBackupDir))
+            {
+                Directory.Delete(tempBackupDir, recursive: true);
+            }
+        }
+        catch (IOException ex)
+        {
+            logger.LogDebug(ex, "Failed to delete temp backup directory {TempDir}", tempBackupDir);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogDebug(ex, "Access denied deleting temp backup directory {TempDir}", tempBackupDir);
+        }
     }
 
     private bool AreHDIconsPresent(GameInstallation installation)

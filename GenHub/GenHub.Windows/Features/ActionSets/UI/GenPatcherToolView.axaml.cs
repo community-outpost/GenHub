@@ -1,8 +1,10 @@
-using System.Threading.Tasks;
+namespace GenHub.Windows.Features.ActionSets.UI;
+
+using System;
+using System.Diagnostics;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
-
-namespace GenHub.Windows.Features.ActionSets.UI;
 
 /// <summary>
 /// View for the GenPatcher tool.
@@ -20,24 +22,21 @@ public partial class GenPatcherToolView : UserControl
         AttachedToVisualTree += OnAttachedToVisualTree;
     }
 
-    private void OnAttachedToVisualTree(object? sender, Avalonia.VisualTreeAttachmentEventArgs e)
+    private async void OnAttachedToVisualTree(object? sender, VisualTreeAttachmentEventArgs e)
     {
         // Only initialize once
         AttachedToVisualTree -= OnAttachedToVisualTree;
 
         if (DataContext is GenPatcherViewModel vm)
         {
-            _ = Task.Run(async () =>
+            try
             {
-                try
-                {
-                    await vm.InitializeAsync();
-                }
-                catch (System.Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[GenPatcherToolView] Initialization error: {ex.Message}");
-                }
-            });
+                await vm.InitializeAsync();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[GenPatcherToolView] Initialization error: {ex.Message}");
+            }
         }
     }
 

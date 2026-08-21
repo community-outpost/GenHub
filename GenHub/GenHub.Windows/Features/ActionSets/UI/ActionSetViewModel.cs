@@ -20,7 +20,8 @@ public partial class ActionSetViewModel(
     INotificationService notificationService,
     ILogger logger,
     Action? onStatusChanged = null,
-    Action? onBusyChanged = null) : ObservableObject
+    Action? onBusyChanged = null,
+    Func<bool>? isParentBusy = null) : ObservableObject
 {
     /// <summary>
     /// Gets the underlying action set.
@@ -107,7 +108,7 @@ public partial class ActionSetViewModel(
     /// <summary>
     /// Gets a value indicating whether the fix can be applied.
     /// </summary>
-    public bool CanApply => IsApplicable && !IsApplied && !IsApplying && !IsBatchApplying;
+    public bool CanApply => IsApplicable && !IsApplied && !IsApplying && !IsBatchApplying && !(isParentBusy?.Invoke() ?? false);
 
     /// <summary>
     /// Gets the display status of the action set.
@@ -194,6 +195,16 @@ public partial class ActionSetViewModel(
         }
     }
 
+    /// <summary>
+    /// Notifies the UI that execution state has changed across action sets.
+    /// </summary>
+    public void NotifyExecutionChanged()
+    {
+        OnPropertyChanged(nameof(CanApply));
+        ApplyCommand.NotifyCanExecuteChanged();
+        ForceApplyCommand.NotifyCanExecuteChanged();
+    }
+
     partial void OnIsApplyingChanged(bool value)
     {
         onBusyChanged?.Invoke();
@@ -201,7 +212,7 @@ public partial class ActionSetViewModel(
 
     private bool CanExecuteApply() => CanApply;
 
-    private bool CanExecuteForceApply() => !IsApplying && !IsBatchApplying;
+    private bool CanExecuteForceApply() => !IsApplying && !IsBatchApplying && !(isParentBusy?.Invoke() ?? false);
 
     private bool CanExecuteCancelApply() => IsApplying;
 
@@ -230,7 +241,7 @@ public partial class ActionSetViewModel(
 
     private async Task ExecuteApplyAsync(bool isForce)
     {
-        if (IsApplying || IsBatchApplying)
+        if (IsApplying || IsBatchApplying || (isParentBusy?.Invoke() ?? false))
         {
             return;
         }
