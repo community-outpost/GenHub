@@ -27,16 +27,16 @@ public class LaunchProgressTests
     [Fact]
     public void LaunchProgress_PropertyAssignment_ShouldWork()
     {
-        // Arrange
-        var progress = new LaunchProgress();
-
-        // Act
-        progress.Phase = LaunchPhase.Starting;
-        progress.PercentComplete = 75;
-        progress.IsInitializingWorkspace = true;
-        progress.TotalFiles = 100;
-        progress.FilesProcessed = 50;
-        progress.CurrentFile = "test.big";
+        // Arrange & Act
+        var progress = new LaunchProgress
+        {
+            Phase = LaunchPhase.Starting,
+            PercentComplete = 75,
+            IsInitializingWorkspace = true,
+            TotalFiles = 100,
+            FilesProcessed = 50,
+            CurrentFile = "test.big",
+        };
 
         // Assert
         Assert.Equal(LaunchPhase.Starting, progress.Phase);
@@ -155,6 +155,9 @@ public class LaunchProgressTests
             PercentComplete = 80,
             IsInitializingWorkspace = true,
         };
+        Assert.Equal(LaunchPhase.Running, progress.Phase);
+        Assert.Equal(80, progress.PercentComplete);
+        Assert.True(progress.IsInitializingWorkspace);
 
         // Act
         progress.Phase = LaunchPhase.ValidatingProfile;
