@@ -22,7 +22,7 @@ All tokens are defined in `GenHub/GenHub/Assets/Styles/ThemeResources.axaml`.
 
 | Resource key | Purpose | Standard dark value |
 |---|---|---|
-| `SurfaceBackground` / `WindowBackground` | Top-level window and view background | `#08080C` |
+| `WindowBackground` / `SurfaceBackgroundBrush` | Top-level window and view background | `#08080C` |
 | `CardBackground` / `SurfaceCardBrush` | Content cards and list containers | `#111118` |
 | `DetailsBackground` / `SurfaceElevatedBrush` | Elevated flyouts, dialogs, dropdowns, and side panels | `#181822` |
 | `SurfaceHoverBrush` | Hover state background for rows and cards | `#222230` |

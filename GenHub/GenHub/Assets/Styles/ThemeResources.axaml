@@ -19,9 +19,6 @@
     <SolidColorBrush x:Key="SurfaceHoverDarkBrush" Color="{StaticResource SurfaceHoverDark}" />
 
     <!-- Surface Semantic Brushes -->
-    <SolidColorBrush x:Key="SurfaceBackground" Color="{DynamicResource SurfaceBackgroundDark}" />
-    <SolidColorBrush x:Key="SurfaceCard" Color="{DynamicResource SurfaceCardDark}" />
-    <SolidColorBrush x:Key="SurfaceElevated" Color="{DynamicResource SurfaceElevatedDark}" />
     <SolidColorBrush x:Key="WindowBackground" Color="{DynamicResource SurfaceBackgroundDark}" />
     <SolidColorBrush x:Key="MainContentBackground" Color="{DynamicResource SurfaceBackgroundDark}" />
     <SolidColorBrush x:Key="CardBackground" Color="{DynamicResource SurfaceCardDark}" />
