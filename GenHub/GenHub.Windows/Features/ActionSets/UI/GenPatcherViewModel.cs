@@ -258,7 +258,7 @@ public partial class GenPatcherViewModel(
                         logger,
                         () => Avalonia.Threading.Dispatcher.UIThread.Post(SortActionSets),
                         () => Avalonia.Threading.Dispatcher.UIThread.Post(NotifyExecutionStateChanged),
-                        () => IsBatchApplying || ActionSets.Any(x => x.ActionSet.Id != fix.Id && x.IsApplying))
+                        () => IsBatchApplying || ActionSets.Any(x => !string.Equals(x.ActionSet.Id, fix.Id, StringComparison.OrdinalIgnoreCase) && x.IsApplying))
                     {
                         IsBatchApplying = IsBatchApplying,
                     };

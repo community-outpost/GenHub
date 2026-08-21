@@ -226,15 +226,17 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
 
                 extractedCount++;
 
-                // Deploy to Generals installation directory if available
-                if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
+                // Deploy to Generals installation directory if available and recognized for Generals
+                if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath) &&
+                    RecognizedGeneralsIconFiles.Contains(fileName))
                 {
                     var generalsDest = Path.Combine(installation.GeneralsPath, fileName);
                     DeployFileWithBackup(extractedFilePath, generalsDest, tempBackupDir, deployedFiles, backupEntries);
                 }
 
-                // Deploy to Zero Hour installation directory if available
-                if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
+                // Deploy to Zero Hour installation directory if available and recognized for Zero Hour
+                if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath) &&
+                    RecognizedZeroHourIconFiles.Contains(fileName))
                 {
                     var zhDest = Path.Combine(installation.ZeroHourPath, fileName);
                     DeployFileWithBackup(extractedFilePath, zhDest, tempBackupDir, deployedFiles, backupEntries);
@@ -279,15 +281,30 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
         {
             if (File.Exists(_markerPath))
             {
+                var remainingFiles = new List<string>();
                 try
                 {
                     var lines = File.ReadAllLines(_markerPath);
                     foreach (var path in lines)
                     {
-                        if (File.Exists(path))
+                        var trimmed = path.Trim();
+                        if (string.IsNullOrEmpty(trimmed) || !Path.IsPathRooted(trimmed))
                         {
-                            File.Delete(path);
-                            removedCount++;
+                            continue;
+                        }
+
+                        try
+                        {
+                            if (File.Exists(trimmed))
+                            {
+                                File.Delete(trimmed);
+                                removedCount++;
+                            }
+                        }
+                        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                        {
+                            logger.LogWarning(ex, "Failed to delete recorded icon file {FilePath} during undo", trimmed);
+                            remainingFiles.Add(trimmed);
                         }
                     }
                 }
@@ -296,7 +313,14 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
                     logger.LogWarning(ex, "Failed to read installed icon file paths from marker {MarkerPath}", _markerPath);
                 }
 
-                File.Delete(_markerPath);
+                if (remainingFiles.Count == 0)
+                {
+                    File.Delete(_markerPath);
+                }
+                else
+                {
+                    File.WriteAllLines(_markerPath, remainingFiles);
+                }
             }
         }
         catch (IOException ex)
@@ -318,14 +342,20 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
         List<string> deployedFiles,
         List<(string DestPath, bool ExistedBefore, string? BackupPath)> backupEntries)
     {
+        var alreadyBackedUp = backupEntries.Any(b => string.Equals(b.DestPath, destPath, StringComparison.OrdinalIgnoreCase));
         var existedBefore = File.Exists(destPath);
         string? backupPath = null;
 
-        if (existedBefore)
+        if (existedBefore && !alreadyBackedUp)
         {
             Directory.CreateDirectory(tempBackupDir);
             backupPath = Path.Combine(tempBackupDir, $"{Guid.NewGuid():N}_{Path.GetFileName(destPath)}");
             File.Copy(destPath, backupPath, overwrite: true);
+            backupEntries.Add((destPath, existedBefore, backupPath));
+        }
+        else if (!alreadyBackedUp)
+        {
+            backupEntries.Add((destPath, existedBefore, null));
         }
 
         var destDir = Path.GetDirectoryName(destPath);
@@ -334,9 +364,11 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
             Directory.CreateDirectory(destDir);
         }
 
-        backupEntries.Add((destPath, existedBefore, backupPath));
         File.Copy(sourceFilePath, destPath, overwrite: true);
-        deployedFiles.Add(destPath);
+        if (!deployedFiles.Contains(destPath, StringComparer.OrdinalIgnoreCase))
+        {
+            deployedFiles.Add(destPath);
+        }
     }
 
     private void RollbackDeployment(
@@ -344,30 +376,48 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
         List<string> details)
     {
         details.Add("Rolling back deployed assets...");
+        var hasRollbackError = false;
         foreach (var (destPath, existedBefore, backupPath) in backupEntries)
         {
             try
             {
-                if (existedBefore && !string.IsNullOrEmpty(backupPath) && File.Exists(backupPath))
+                if (existedBefore)
                 {
-                    File.Copy(backupPath, destPath, overwrite: true);
+                    if (!string.IsNullOrEmpty(backupPath) && File.Exists(backupPath))
+                    {
+                        File.Copy(backupPath, destPath, overwrite: true);
+                    }
+                    else
+                    {
+                        hasRollbackError = true;
+                        logger.LogWarning("Original backup missing for {DestPath} during rollback", destPath);
+                    }
                 }
-                else if (!existedBefore && File.Exists(destPath))
+                else if (File.Exists(destPath))
                 {
                     File.Delete(destPath);
                 }
             }
             catch (IOException ex)
             {
+                hasRollbackError = true;
                 logger.LogWarning(ex, "Failed to restore or remove file during rollback: {Path}", destPath);
             }
             catch (UnauthorizedAccessException ex)
             {
+                hasRollbackError = true;
                 logger.LogWarning(ex, "Access denied during rollback of file: {Path}", destPath);
             }
         }
 
-        details.Add("✓ Rollback completed.");
+        if (hasRollbackError)
+        {
+            details.Add("⚠ Rollback completed with some file warnings.");
+        }
+        else
+        {
+            details.Add("✓ Rollback completed.");
+        }
     }
 
     private bool RecordDeploymentMarker(List<string> deployedFiles)
