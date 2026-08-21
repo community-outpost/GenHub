@@ -1,9 +1,6 @@
 using System;
 using Avalonia;
 using Avalonia.Controls;
-#if DEBUG
-using Avalonia.Diagnostics;
-#endif
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using GenHub.Common.ViewModels.Dialogs;
@@ -21,9 +18,6 @@ public partial class GenericMessageWindow : Window
     public GenericMessageWindow()
     {
         InitializeComponent();
-#if DEBUG
-        AttachDevTools();
-#endif
     }
 
     /// <inheritdoc/>
