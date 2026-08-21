@@ -24,43 +24,43 @@
     <Window.Styles>
         <!-- Link button style for header badges -->
         <Style Selector="Button.header-link-btn">
-            <Setter Property="Background" Value="#22153B"/>
-            <Setter Property="BorderBrush" Value="#4F2D87"/>
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="12"/>
             <Setter Property="Padding" Value="9,4"/>
             <Setter Property="Margin" Value="0,0,6,4"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Foreground" Value="#CE93D8"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="FontSize" Value="11"/>
         </Style>
         <Style Selector="Button.header-link-btn:pointerover">
-            <Setter Property="Background" Value="#3D1F6E"/>
-            <Setter Property="BorderBrush" Value="#7C4DFF"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
         </Style>
 
         <!-- Category filter chip button styles -->
         <Style Selector="Button.filter-chip">
-            <Setter Property="Background" Value="#1C122E"/>
-            <Setter Property="BorderBrush" Value="#3B2261"/>
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="12"/>
             <Setter Property="Padding" Value="10,4"/>
             <Setter Property="Margin" Value="0,0,6,4"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Foreground" Value="#B0A0C8"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
         </Style>
         <Style Selector="Button.filter-chip:pointerover">
-            <Setter Property="Background" Value="#321D54"/>
-            <Setter Property="BorderBrush" Value="#673AB7"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
         </Style>
         <Style Selector="Button.filter-chip-selected">
-            <Setter Property="Background" Value="#7C4DFF"/>
-            <Setter Property="BorderBrush" Value="#B388FF"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="12"/>
             <Setter Property="Padding" Value="10,4"/>
@@ -71,16 +71,14 @@
             <Setter Property="FontWeight" Value="Bold"/>
         </Style>
         <Style Selector="Button.filter-chip-selected:pointerover">
-            <Setter Property="Background" Value="#8E24AA"/>
-            <Setter Property="BorderBrush" Value="#E1BEE7"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Opacity" Value="0.9"/>
         </Style>
     </Window.Styles>
 
     <!-- Main Window Root with Acrylic Backdrop and Seamless Edge -->
-    <Border Background="#F40A0716"
-            BorderBrush="#4A2E80"
-            BorderThickness="1.5"
+    <Border Background="{DynamicResource CardBackground}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="1"
             CornerRadius="16"
             ClipToBounds="True">
         <Panel>
@@ -509,9 +507,9 @@
                     <Button Grid.Column="0"
                             Content="Cancel"
                             Command="{Binding CancelCommand}"
-                            Background="#251B38"
-                            Foreground="#D0D0E0"
-                            BorderBrush="#403058"
+                            Background="{DynamicResource SurfaceElevatedBrush}"
+                            Foreground="{DynamicResource TextPrimary}"
+                            BorderBrush="{DynamicResource BorderBrush}"
                             BorderThickness="1"
                             HorizontalAlignment="Left"
                             Padding="24,9"
@@ -521,7 +519,7 @@
                             Content="{Binding ConfirmButtonText}"
                             Command="{Binding ConfirmCommand}"
                             IsEnabled="{Binding CanConfirm}"
-                            Background="{DynamicResource PrimaryGradientBrush}"
+                            Background="{DynamicResource AccentBrush}"
                             Foreground="White"
                             FontWeight="Bold"
                             Padding="28,9"

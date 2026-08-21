@@ -21,22 +21,23 @@
     </UserControl.Resources>
 
     <UserControl.Styles>
-        <!-- Glass card shell — acrylic + gradient live in the visual tree; this Border is the frame. -->
+        <!-- Card shell -->
         <Style Selector="Border.content-card">
-            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Background" Value="{DynamicResource CardBackground}" />
             <Setter Property="CornerRadius" Value="12" />
             <Setter Property="Width" Value="240" />
             <Setter Property="Height" Value="340" />
-            <Setter Property="BoxShadow" Value="0 8 24 0 #40000000" />
+            <Setter Property="BoxShadow" Value="0 6 20 0 #40000000" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="#4A2E80" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="ClipToBounds" Value="True" />
             <Setter Property="Transitions">
                 <Setter.Value>
                     <Transitions>
-                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
-                        <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.18" />
+                        <BrushTransition Property="BorderBrush" Duration="0:0:0.18" />
+                        <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.18" />
                     </Transitions>
                 </Setter.Value>
             </Setter>
@@ -49,13 +50,14 @@
         </Style>
 
         <Style Selector="Border.content-card:pointerover">
-            <Setter Property="BorderBrush" Value="#AB47BC" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BoxShadow" Value="0 10 28 0 #60000000" />
             <Setter Property="RenderTransform" Value="scale(1.02)" />
         </Style>
 
-        <!-- Glass CTAs — translucent wash over acrylic; BoxShadow stays on Border only (AVLN). -->
+        <!-- CTAs -->
         <Style Selector="Button.card-button">
-            <Setter Property="Background" Value="#C94527A0" />
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="CornerRadius" Value="8" />
             <Setter Property="Padding" Value="10,6" />
@@ -66,11 +68,11 @@
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="#664527A0" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Transitions">
                 <Setter.Value>
                     <Transitions>
-                        <BrushTransition Property="Background" Duration="0:0:0.2" />
+                        <BrushTransition Property="Background" Duration="0:0:0.15" />
                         <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1" />
                     </Transitions>
                 </Setter.Value>
@@ -78,67 +80,66 @@
         </Style>
 
         <Style Selector="Button.card-button:pointerover">
-            <Setter Property="Background" Value="#E04527A0" />
+            <Setter Property="Opacity" Value="0.9" />
             <Setter Property="RenderTransform" Value="scale(1.02)" />
         </Style>
 
         <Style Selector="Button.card-button:pressed">
-            <Setter Property="Background" Value="#A0311B92" />
+            <Setter Property="RenderTransform" Value="scale(0.98)" />
         </Style>
 
         <Style Selector="Button.card-button:disabled">
-            <Setter Property="Background" Value="#33FFFFFF" />
-            <Setter Property="Foreground" Value="#888888" />
-            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
             <Setter Property="Opacity" Value="0.6" />
         </Style>
 
         <Style Selector="Border.type-badge">
-            <Setter Property="Background" Value="#66404040" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="4" />
             <Setter Property="Padding" Value="6,2" />
         </Style>
 
         <Style Selector="Border.player-count-badge">
-            <Setter Property="Background" Value="#99174D64" />
-            <Setter Property="BorderBrush" Value="#2B7A9B" />
+            <Setter Property="Background" Value="#2506B6D4" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ZeroHourFactionBrush}" />
             <Setter Property="BorderThickness" Value="1" />
         </Style>
 
         <Style Selector="Border.category-badge">
-            <Setter Property="Background" Value="#993A2F1A" />
-            <Setter Property="BorderBrush" Value="#8A6A2F" />
+            <Setter Property="Background" Value="#25D97706" />
+            <Setter Property="BorderBrush" Value="{DynamicResource GeneralsFactionBrush}" />
             <Setter Property="BorderThickness" Value="1" />
         </Style>
 
         <Style Selector="Border.variant-count-badge">
-            <Setter Property="Background" Value="#992A1F3D" />
-            <Setter Property="BorderBrush" Value="#7E57C2" />
+            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="BorderThickness" Value="1" />
         </Style>
 
         <Style Selector="Button.update-button">
-            <Setter Property="Background" Value="#99E65100" />
-            <Setter Property="BorderBrush" Value="#33FF9800" />
+            <Setter Property="Background" Value="{DynamicResource WarningBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
         </Style>
 
         <Style Selector="Button.update-button:pointerover">
-            <Setter Property="Background" Value="#B3F57C00" />
+            <Setter Property="Opacity" Value="0.9" />
         </Style>
 
         <Style Selector="Button.add-profile-button">
-            <Setter Property="Background" Value="#992E7D32" />
-            <Setter Property="BorderBrush" Value="#334CAF50" />
+            <Setter Property="Background" Value="{DynamicResource SuccessBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
         </Style>
 
         <Style Selector="Button.add-profile-button:pointerover">
-            <Setter Property="Background" Value="#B3368E3C" />
+            <Setter Property="Opacity" Value="0.9" />
         </Style>
 
         <Style Selector="ComboBox.card-variant-combo">
-            <Setter Property="Background" Value="#661A1228" />
-            <Setter Property="BorderBrush" Value="#4A2E80" />
-            <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="6" />
         </Style>
 
@@ -155,24 +156,23 @@
 
     <Border Classes="content-card" Classes.bundle-card="{Binding HasBundleComponents}">
         <Panel>
-            <!-- 1. Acrylic blur (SidebarLayout / SubscriptionConfirmation pattern) -->
+            <!-- 1. Acrylic blur -->
             <ExperimentalAcrylicBorder CornerRadius="12" IsHitTestVisible="False">
                 <ExperimentalAcrylicBorder.Material>
                     <ExperimentalAcrylicMaterial
                         BackgroundSource="Digger"
-                        TintColor="#0B0814"
+                        TintColor="#08080C"
                         TintOpacity="0.85"
                         MaterialOpacity="0.55" />
                 </ExperimentalAcrylicBorder.Material>
             </ExperimentalAcrylicBorder>
 
-            <!-- 2. Gradient tint -->
-            <Border CornerRadius="12" IsHitTestVisible="False" Opacity="0.55">
+            <!-- 2. Subtle Dark Gradient -->
+            <Border CornerRadius="12" IsHitTestVisible="False" Opacity="0.6">
                 <Border.Background>
-                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                        <GradientStop Offset="0" Color="#CC020024" />
-                        <GradientStop Offset="0.55" Color="#993D004D" />
-                        <GradientStop Offset="1" Color="#E6000000" />
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#20181828" />
+                        <GradientStop Offset="1" Color="#D008080C" />
                     </LinearGradientBrush>
                 </Border.Background>
             </Border>
@@ -201,7 +201,7 @@
                     <Border Grid.Row="0"
                             Height="100"
                             CornerRadius="12,12,0,0"
-                            Background="#22000000"
+                            Background="{DynamicResource SurfaceElevatedBrush}"
                             ClipToBounds="True">
                         <Panel>
                             <!-- Thumbnail image (banner / screenshot preferred over publisher avatar) -->
@@ -217,8 +217,8 @@
                                     Padding="3"
                                     Width="30" Height="30"
                                     CornerRadius="8"
-                                    Background="#B00B0814"
-                                    BorderBrush="#50FFFFFF"
+                                    Background="{DynamicResource SurfaceElevatedBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
                                     BorderThickness="1"
                                     ClipToBounds="True"
                                     ToolTip.Tip="{Binding ProviderName}">
@@ -231,7 +231,7 @@
                                         VerticalAlignment="Center"
                                         IsVisible="{Binding IconBitmap, Converter={x:Static ObjectConverters.IsNull}}">
                                 <Border IsVisible="{Binding PublisherLogoBitmap, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                        Width="48" Height="48" CornerRadius="10" Background="#A00B0814" Padding="4">
+                                        Width="48" Height="48" CornerRadius="10" Background="{DynamicResource SurfaceElevatedBrush}" Padding="4">
                                     <Image Source="{Binding PublisherLogoBitmap}" Stretch="Uniform" />
                                 </Border>
                                 <TextBlock Text="📦"
@@ -250,7 +250,7 @@
                                         ToolTip.Tip="{Binding ContentTypeDisplay}">
                                     <TextBlock Text="{Binding ContentTypeDisplay}"
                                                FontSize="10"
-                                               Foreground="#CCCCCC" />
+                                               Foreground="{DynamicResource TextSecondary}" />
                                 </Border>
                                 <Border Classes="type-badge variant-count-badge"
                                         IsVisible="{Binding HasVariantCountBadge}"
@@ -259,7 +259,7 @@
                                     <TextBlock Text="{Binding VariantCountBadge}"
                                                FontSize="10"
                                                FontWeight="SemiBold"
-                                               Foreground="#E1D5F5" />
+                                               Foreground="{DynamicResource TextPrimary}" />
                                 </Border>
                                 <Border Classes="type-badge player-count-badge"
                                         IsVisible="{Binding HasPlayerCountBadge}"
@@ -268,7 +268,7 @@
                                     <TextBlock Text="{Binding PlayerCountBadge}"
                                                FontSize="10"
                                                FontWeight="SemiBold"
-                                               Foreground="#D7F4FF" />
+                                               Foreground="{DynamicResource ZeroHourAccentBrush}" />
                                 </Border>
                                 <Border Classes="type-badge category-badge"
                                         IsVisible="{Binding HasCategoryBadge}"
@@ -277,7 +277,7 @@
                                     <TextBlock Text="{Binding CategoryBadge}"
                                                FontSize="10"
                                                FontWeight="SemiBold"
-                                               Foreground="#FFE7B0" />
+                                               Foreground="{DynamicResource GeneralsAccentBrush}" />
                                 </Border>
                             </WrapPanel>
                         </Panel>
@@ -290,7 +290,7 @@
                             <TextBlock Text="{Binding Name}"
                                        FontSize="14"
                                        FontWeight="SemiBold"
-                                       Foreground="White"
+                                       Foreground="{DynamicResource TextPrimary}"
                                        TextTrimming="CharacterEllipsis"
                                        MaxLines="2"
                                        TextWrapping="Wrap"
@@ -301,7 +301,7 @@
                             <TextBlock Grid.Column="0"
                                        Text="{Binding AuthorName}"
                                        FontSize="11"
-                                       Foreground="#888888"
+                                       Foreground="{DynamicResource TextSecondary}"
                                        TextTrimming="CharacterEllipsis"
                                        MaxLines="1"
                                        VerticalAlignment="Center"
@@ -310,7 +310,7 @@
                             <TextBlock Grid.Column="1"
                                        Text="{Binding LastUpdatedDisplay}"
                                        FontSize="11"
-                                       Foreground="#888888"
+                                       Foreground="{DynamicResource TextMuted}"
                                        TextTrimming="CharacterEllipsis"
                                        MaxLines="1"
                                        VerticalAlignment="Center"
@@ -327,14 +327,14 @@
                                     <StackPanel Spacing="2" Margin="0,0,0,2">
                                         <TextBlock Text="{Binding AxisLabel}"
                                                    FontSize="10"
-                                                   Foreground="#888888"
+                                                   Foreground="{DynamicResource TextSecondary}"
                                                    IsVisible="{Binding ShowAxisLabel}" />
                                         <ComboBox Classes="card-variant-combo"
                                                   ItemsSource="{Binding Options}"
                                                   SelectedItem="{Binding SelectedOption}"
                                                   FontSize="11"
                                                   HorizontalAlignment="Stretch"
-                                                  MinHeight="24"
+                                                  MinHeight="26"
                                                   Padding="6,2">
                                             <ComboBox.SelectionBoxItemTemplate>
                                                 <DataTemplate x:DataType="vm:InstallableVariant">
@@ -348,7 +348,7 @@
                                                         <TextBlock Grid.Column="1"
                                                                    Text="{Binding Name}"
                                                                    FontSize="11"
-                                                                   Foreground="White"
+                                                                   Foreground="{DynamicResource TextPrimary}"
                                                                    TextTrimming="CharacterEllipsis"
                                                                    MaxLines="1"
                                                                    VerticalAlignment="Center"
@@ -368,7 +368,7 @@
                                                         <TextBlock Grid.Column="1"
                                                                    Text="{Binding Name}"
                                                                    FontSize="11"
-                                                                   Foreground="White"
+                                                                   Foreground="{DynamicResource TextPrimary}"
                                                                    TextWrapping="Wrap"
                                                                    VerticalAlignment="Center"
                                                                    ToolTip.Tip="{Binding Name}" />
@@ -391,12 +391,12 @@
                                               Background="Transparent"
                                               ToolTip.Tip="{Binding SelectedDisplayName}">
                                             <TextBlock Grid.Column="0"
-                                                       Text="{Binding SelectedDisplayName}"
-                                                       FontSize="11"
-                                                       Foreground="#C5CAE9"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       MaxLines="1"
-                                                       VerticalAlignment="Center" />
+                                                        Text="{Binding SelectedDisplayName}"
+                                                        FontSize="11"
+                                                        Foreground="{DynamicResource TextPrimary}"
+                                                        TextTrimming="CharacterEllipsis"
+                                                        MaxLines="1"
+                                                        VerticalAlignment="Center" />
                                             <PathIcon Grid.Column="1"
                                                       Data="{Binding EffectiveState, Converter={StaticResource ContentStateToPathDataConverter}}"
                                                       Foreground="{Binding EffectiveState, Converter={StaticResource ContentStateToBrushConverter}}"
@@ -411,14 +411,14 @@
                                                     <StackPanel Spacing="1" Margin="0,0,0,2">
                                                         <TextBlock Text="{Binding AxisLabel}"
                                                                    FontSize="9"
-                                                                   Foreground="#888888"
+                                                                   Foreground="{DynamicResource TextSecondary}"
                                                                    IsVisible="{Binding ShowAxisLabel}" />
                                                         <ComboBox Classes="card-variant-combo"
                                                                   ItemsSource="{Binding Options}"
                                                                   SelectedItem="{Binding SelectedOption}"
                                                                   FontSize="11"
                                                                   HorizontalAlignment="Stretch"
-                                                                  MinHeight="22"
+                                                                  MinHeight="24"
                                                                   Padding="6,1">
                                                             <ComboBox.SelectionBoxItemTemplate>
                                                                 <DataTemplate x:DataType="vm:InstallableVariant">
@@ -432,7 +432,7 @@
                                                                         <TextBlock Grid.Column="1"
                                                                                    Text="{Binding Name}"
                                                                                    FontSize="11"
-                                                                                   Foreground="White"
+                                                                                   Foreground="{DynamicResource TextPrimary}"
                                                                                    TextTrimming="CharacterEllipsis"
                                                                                    MaxLines="1"
                                                                                    VerticalAlignment="Center"
@@ -452,7 +452,7 @@
                                                                         <TextBlock Grid.Column="1"
                                                                                    Text="{Binding Name}"
                                                                                    FontSize="11"
-                                                                                   Foreground="White"
+                                                                                   Foreground="{DynamicResource TextPrimary}"
                                                                                    TextWrapping="Wrap"
                                                                                    VerticalAlignment="Center"
                                                                                    ToolTip.Tip="{Binding Name}" />
@@ -474,10 +474,10 @@
                             <TextBlock Text="Includes"
                                        FontSize="10"
                                        FontWeight="SemiBold"
-                                       Foreground="#B39DDB" />
+                                       Foreground="{DynamicResource AccentBrush}" />
                             <TextBlock Text="{Binding IncludesSummary}"
                                        FontSize="11"
-                                       Foreground="#C5CAE9"
+                                       Foreground="{DynamicResource TextSecondary}"
                                        TextWrapping="Wrap"
                                        TextTrimming="CharacterEllipsis"
                                        MaxLines="2"
@@ -488,21 +488,26 @@
                         <!-- Version badge -->
                         <StackPanel Orientation="Horizontal" Spacing="6"
                                     IsVisible="{Binding HasDisplayVersion}">
-                            <Border Background="#66333333" CornerRadius="4" Padding="5,1"
+                            <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="4" Padding="6,2"
                                     ToolTip.Tip="{Binding Version}">
                                 <TextBlock Text="{Binding VersionBadge}"
                                            FontSize="10"
-                                           Foreground="#CCCCCC" />
+                                           Foreground="{DynamicResource TextSecondary}" />
                             </Border>
 
-                            <Border Background="#66333333"
+                            <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1"
                                     CornerRadius="4"
-                                    Padding="5,1"
+                                    Padding="6,2"
                                     IsVisible="{Binding IsDownloadSizeVisible}"
                                     ToolTip.Tip="{Binding DownloadSize, Converter={StaticResource FileSizeConverter}}">
                                 <TextBlock Text="{Binding DownloadSize, Converter={StaticResource FileSizeConverter}}"
                                            FontSize="10"
-                                           Foreground="#CCCCCC" />
+                                           Foreground="{DynamicResource TextSecondary}" />
                             </Border>
                         </StackPanel>
 
@@ -516,8 +521,8 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Background="#802C3E50"
-                                            BorderBrush="#3D566E"
+                                    <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                                            BorderBrush="{DynamicResource BorderBrush}"
                                             BorderThickness="1"
                                             CornerRadius="4"
                                             Padding="5,1"
@@ -525,7 +530,7 @@
                                             ToolTip.Tip="{Binding}">
                                         <TextBlock Text="{Binding}"
                                                    FontSize="10"
-                                                   Foreground="#A9C7E5" />
+                                                   Foreground="{DynamicResource TextSecondary}" />
                                     </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -534,7 +539,7 @@
                         <!-- Short description (full text lives in details) -->
                         <TextBlock Text="{Binding ShortDescription}"
                                    FontSize="11"
-                                   Foreground="#AAAAAA"
+                                   Foreground="{DynamicResource TextSecondary}"
                                    TextWrapping="Wrap"
                                    TextTrimming="CharacterEllipsis"
                                    MaxLines="2"
@@ -551,13 +556,13 @@
                                  Maximum="100"
                                  Height="3"
                                  IsVisible="{Binding IsDownloading}"
-                                 Foreground="#4CAF50"
-                                 Background="#333333" />
+                                 Foreground="{DynamicResource SuccessBrush}"
+                                 Background="{DynamicResource SurfaceElevatedBrush}" />
 
                     <!-- Status Text -->
                     <TextBlock Text="{Binding DownloadStatus}"
                                FontSize="10"
-                               Foreground="#AAAAAA"
+                               Foreground="{DynamicResource TextSecondary}"
                                HorizontalAlignment="Stretch"
                                TextAlignment="Center"
                                TextWrapping="Wrap"

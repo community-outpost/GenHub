@@ -576,13 +576,29 @@ public class GameProcessManagerTests
         /// <returns>The path with every symlinked component replaced by its target.</returns>
         private static string Canonicalize(string path)
         {
+            if (OperatingSystem.IsWindows())
+            {
+                return Path.GetFullPath(path);
+            }
+
             var resolved = Path.GetPathRoot(path) ?? string.Empty;
 
             foreach (var segment in path[resolved.Length..].Split(
                 Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
             {
                 resolved = Path.Combine(resolved, segment);
-                resolved = Directory.ResolveLinkTarget(resolved, returnFinalTarget: true)?.FullName ?? resolved;
+                try
+                {
+                    resolved = Directory.ResolveLinkTarget(resolved, returnFinalTarget: true)?.FullName ?? resolved;
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    // Fall back to unresolved path if access is restricted.
+                }
+                catch (IOException)
+                {
+                    // Fall back to unresolved path on IO exceptions.
+                }
             }
 
             return resolved;

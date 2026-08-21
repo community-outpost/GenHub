@@ -18,84 +18,81 @@
 
     <UserControl.Styles>
         <Style Selector="TextBlock.label">
-            <Setter Property="Foreground" Value="#80FFFFFF"/>
-            <Setter Property="FontSize" Value="10"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="LetterSpacing" Value="1"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="LetterSpacing" Value="0.5"/>
         </Style>
 
         <Style Selector="TextBox.glass">
-            <Setter Property="Background" Value="#10FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#20FFFFFF"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="8,6"/>
         </Style>
         <Style Selector="TextBox.glass:focus">
-            <Setter Property="Background" Value="#15FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#40FFFFFF"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
         </Style>
 
         <Style Selector="ComboBox.glass">
-            <Setter Property="Background" Value="#10FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#20FFFFFF"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="8,6"/>
         </Style>
 
         <Style Selector="Button.icon-btn">
-             <Setter Property="Background" Value="#10FFFFFF"/>
-             <Setter Property="BorderBrush" Value="#20FFFFFF"/>
+             <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
+             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
              <Setter Property="Padding" Value="10,6"/>
-             <Setter Property="CornerRadius" Value="4"/>
-             <Setter Property="Foreground" Value="White"/>
+             <Setter Property="CornerRadius" Value="6"/>
+             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
              <Setter Property="Cursor" Value="Hand"/>
         </Style>
         <Style Selector="Button.icon-btn:pointerover">
-             <Setter Property="Background" Value="#20FFFFFF"/>
+             <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+             <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}"/>
         </Style>
 
         <Style Selector="Button.accent">
-            <Setter Property="Background" Value="#5E35B1"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="20,10"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
         <Style Selector="Button.accent:pointerover">
-            <Setter Property="Background" Value="#7E57C2"/>
+            <Setter Property="Opacity" Value="0.9"/>
         </Style>
         <Style Selector="Button.accent:disabled">
-            <Setter Property="Background" Value="#20FFFFFF"/>
-            <Setter Property="Foreground" Value="#50FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
             <Setter Property="Cursor" Value="Arrow"/>
         </Style>
 
         <Style Selector="Button.ghost">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#AAAAAA"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
             <Setter Property="Padding" Value="15,10"/>
+            <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
         <Style Selector="Button.ghost:pointerover">
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Background" Value="#10FFFFFF"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
         </Style>
     </UserControl.Styles>
 
     <Panel>
-        <!-- Content Border -->
-        <!-- Note: We removed the acrylic/window specific borders here as this control might be embedded -->
-        <!-- The parent container (window or demo box) should handle the background -->
-
         <Grid RowDefinitions="Auto,*,Auto">
 
             <!-- Header Area -->
             <StackPanel Grid.Row="0" Margin="0,10,0,25" Spacing="5">
-                <TextBlock Text="Import Content" FontSize="28" FontWeight="Light" Foreground="White" />
-                <TextBlock Text="Drag and drop archives or folders, or browse below." FontSize="14" Foreground="#AAAAAA" />
+                <TextBlock Text="Import Content" FontSize="28" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                <TextBlock Text="Drag and drop archives or folders, or browse below." FontSize="14" Foreground="{DynamicResource TextSecondary}" />
             </StackPanel>
 
             <!-- Main Content Area -->
@@ -151,18 +148,18 @@
                     </StackPanel>
 
                     <!-- Status Message -->
-                     <Border Background="#20FFC107" BorderBrush="#40FFC107" BorderThickness="1" CornerRadius="4" Padding="10" IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                        <TextBlock Text="{Binding StatusMessage}" Foreground="#FFC107" TextWrapping="Wrap" FontSize="12"/>
+                     <Border Background="#25D97706" BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1" CornerRadius="6" Padding="10" IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                        <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource GeneralsAccentBrush}" TextWrapping="Wrap" FontSize="12"/>
                     </Border>
 
                 </StackPanel>
 
                 <!-- RIGHT COLUMN: Tree Preview -->
-                <Border Grid.Column="1" Background="#10FFFFFF" CornerRadius="8" BorderBrush="#20FFFFFF" BorderThickness="1">
+                <Border Grid.Column="1" Background="{DynamicResource SurfaceElevatedBrush}" CornerRadius="8" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                     <Grid RowDefinitions="Auto,*">
-                        <Border Background="#10FFFFFF" CornerRadius="8,8,0,0" Padding="15,10">
+                        <Border Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="8,8,0,0" Padding="15,10">
                             <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0" Text="CONTENT PREVIEW" FontSize="11" FontWeight="Bold" Foreground="#80FFFFFF" LetterSpacing="1" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="0" Text="CONTENT PREVIEW" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondary}" LetterSpacing="1" VerticalAlignment="Center"/>
                                 <Button Grid.Column="1"
                                         Command="{Binding NormalizeArchivesCommand}"
                                         Classes="icon-btn"
@@ -177,7 +174,7 @@
                             </Grid>
                         </Border>
 
-                        <TreeView Grid.Row="1" ItemsSource="{Binding FileTree}" Background="Transparent" Foreground="#DDDDDD" Margin="5" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <TreeView Grid.Row="1" ItemsSource="{Binding FileTree}" Background="Transparent" Foreground="{DynamicResource TextPrimary}" Margin="5" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                             <TreeView.Styles>
                                 <Style Selector="TreeViewItem">
                                     <Setter Property="MinHeight" Value="24"/>
@@ -243,8 +240,8 @@
 
                         <!-- Empty State Overlay -->
                         <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="10" IsVisible="{Binding !FileTree.Count}">
-                            <TextBlock Text="No Content Loaded" Foreground="#40FFFFFF" FontSize="16" HorizontalAlignment="Center"/>
-                            <TextBlock Text="{Binding PreviewIdleText}" Foreground="#30FFFFFF" FontSize="12" HorizontalAlignment="Center"/>
+                            <TextBlock Text="No Content Loaded" Foreground="{DynamicResource TextMuted}" FontSize="16" HorizontalAlignment="Center"/>
+                            <TextBlock Text="{Binding PreviewIdleText}" Foreground="{DynamicResource TextMuted}" FontSize="12" HorizontalAlignment="Center"/>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -266,8 +263,8 @@
 
         <!-- Loading Overlay -->
         <Grid Background="Transparent" IsVisible="{Binding ShowLoadingOverlay}">
-            <Border Background="#1C1C28"
-                    BorderBrush="#35FFFFFF"
+            <Border Background="{DynamicResource CardBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}"
                     BorderThickness="1"
                     CornerRadius="10"
                     Padding="28,22"
@@ -278,7 +275,7 @@
                     BoxShadow="0 8 24 #60000000">
                 <StackPanel Spacing="14" HorizontalAlignment="Center">
                     <TextBlock Text="{Binding StatusMessage}"
-                               Foreground="White"
+                               Foreground="{DynamicResource TextPrimary}"
                                HorizontalAlignment="Center"
                                FontSize="14"
                                FontWeight="SemiBold"
@@ -291,10 +288,10 @@
                                  Width="260"
                                  Height="6"
                                  CornerRadius="3"
-                                 Foreground="#7E57C2"
-                                 Background="#20FFFFFF"/>
+                                 Foreground="{DynamicResource AccentBrush}"
+                                 Background="{DynamicResource SurfaceElevatedBrush}"/>
                     <TextBlock Text="{Binding ProgressDetailMessage}"
-                               Foreground="#A0FFFFFF"
+                               Foreground="{DynamicResource TextSecondary}"
                                HorizontalAlignment="Center"
                                FontSize="11"
                                IsVisible="{Binding ProgressDetailMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>

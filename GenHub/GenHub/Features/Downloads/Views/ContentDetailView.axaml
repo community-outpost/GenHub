@@ -11,7 +11,7 @@
              mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
              x:Class="GenHub.Features.Downloads.Views.ContentDetailView"
              x:DataType="vm:ContentDetailViewModel"
-             Background="#1A1A1A">
+             Background="Transparent">
 
     <UserControl.Resources>
         <converters:FileSizeConverter x:Key="FileSizeConverter" />
@@ -23,9 +23,9 @@
 
     <UserControl.Styles>
         <Style Selector="Border.download-item-card">
-            <Setter Property="Background" Value="#1E1E1E" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="#2E2E2E" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
             <Setter Property="CornerRadius" Value="8" />
             <Setter Property="Transitions">
                 <Transitions>
@@ -35,17 +35,14 @@
             </Setter>
         </Style>
         <Style Selector="Border.download-item-card:pointerover">
-            <Setter Property="Background" Value="#252525" />
-            <Setter Property="BorderBrush" Value="#3E3E3E" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
         </Style>
         <Style Selector="Border.download-item-card.selected-card">
-            <Setter Property="Background" Value="#251C36" />
-            <Setter Property="BorderBrush" Value="#AB47BC" />
+            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
         </Style>
         <Style Selector="ComboBox.sidebar-variant-combo">
-            <Setter Property="Background" Value="#252525" />
-            <Setter Property="BorderBrush" Value="#3D4559" />
-            <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="6" />
         </Style>
         <Style Selector="Button.media-card-btn">
@@ -61,8 +58,8 @@
         </Style>
 
         <Style Selector="Border.media-item-card">
-            <Setter Property="Background" Value="#252525" />
-            <Setter Property="BorderBrush" Value="#383838" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="8" />
             <Setter Property="Transitions">
@@ -74,8 +71,8 @@
             </Setter>
         </Style>
         <Style Selector="Button.media-card-btn:pointerover Border.media-item-card">
-            <Setter Property="Background" Value="#2D2D38" />
-            <Setter Property="BorderBrush" Value="#AB47BC" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="RenderTransform" Value="scale(1.02)" />
         </Style>
     </UserControl.Styles>
@@ -87,7 +84,7 @@
                 Command="{Binding CloseCommand}"
                 Content="← Back to Browse"
                 Background="Transparent"
-                Foreground="{DynamicResource BorderBrush}"
+                Foreground="{DynamicResource AccentBrush}"
                 BorderThickness="0"
                 Margin="0,0,0,16"
                 FontSize="14"
@@ -97,7 +94,7 @@
                 Padding="0,8">
             <Button.Styles>
                 <Style Selector="Button:pointerover">
-                    <Setter Property="Foreground" Value="White" />
+                    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
                 </Style>
             </Button.Styles>
         </Button>
@@ -125,17 +122,17 @@
                         <TextBlock Text="{Binding Name}"
                                    FontSize="32"
                                    FontWeight="Bold"
-                                   Foreground="White"
+                                   Foreground="{DynamicResource TextPrimary}"
                                    TextWrapping="Wrap" />
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <TextBlock Text="{Binding AuthorName}" Foreground="#AAAAAA"
+                            <TextBlock Text="{Binding AuthorName}" Foreground="{DynamicResource TextSecondary}"
                                        IsVisible="{Binding HasAuthor}" />
-                            <TextBlock Text="•" Foreground="#444444"
+                            <TextBlock Text="•" Foreground="{DynamicResource TextMuted}"
                                        IsVisible="{Binding HasAuthor}" />
-                            <TextBlock Text="{Binding ProviderName}" Foreground="#AAAAAA" />
-                            <TextBlock Text="•" Foreground="#444444"
+                            <TextBlock Text="{Binding ProviderName}" Foreground="{DynamicResource TextSecondary}" />
+                            <TextBlock Text="•" Foreground="{DynamicResource TextMuted}"
                                        IsVisible="{Binding HasVersion}" />
-                            <TextBlock Text="{Binding Version}" Foreground="#AAAAAA"
+                            <TextBlock Text="{Binding Version}" Foreground="{DynamicResource TextSecondary}"
                                        IsVisible="{Binding HasVersion}" />
                         </StackPanel>
                     </StackPanel>
@@ -144,8 +141,8 @@
                 <!-- Loading Indicator -->
                 <StackPanel Grid.Row="2" IsVisible="{Binding IsLoadingDetails}"
                             VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="16">
-                    <ProgressBar IsIndeterminate="True" Width="200" />
-                    <TextBlock Text="Loading details..." Foreground="#888888" HorizontalAlignment="Center"/>
+                    <ProgressBar IsIndeterminate="True" Width="200" Foreground="{DynamicResource AccentBrush}" />
+                    <TextBlock Text="Loading details..." Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center"/>
                 </StackPanel>
 
                 <!-- Tabs -->
@@ -153,8 +150,8 @@
                             SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}"
                             IsVisible="{Binding !IsLoadingDetails}">
                     <TabControl.Resources>
-                        <SolidColorBrush x:Key="TabItemHeaderForegroundUnselectedPointerOver" Color="#AAAAAA" />
-                        <SolidColorBrush x:Key="TabItemHeaderForegroundSelectedPointerOver" Color="#FFFFFF" />
+                        <SolidColorBrush x:Key="TabItemHeaderForegroundUnselectedPointerOver" Color="#9A9AB0" />
+                        <SolidColorBrush x:Key="TabItemHeaderForegroundSelectedPointerOver" Color="#F0F0F8" />
                         <SolidColorBrush x:Key="TabItemHeaderBackgroundUnselectedPointerOver" Color="Transparent" />
                         <SolidColorBrush x:Key="TabItemHeaderBackgroundSelectedPointerOver" Color="Transparent" />
                         <SolidColorBrush x:Key="TabItemHeaderSelectedPipeFill" Color="Transparent" />
@@ -163,11 +160,11 @@
                         <Style Selector="TabItem">
                             <Setter Property="FontSize" Value="15" />
                             <Setter Property="FontWeight" Value="SemiBold" />
-                            <Setter Property="Foreground" Value="#888888" />
+                            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
                             <Setter Property="Background" Value="Transparent" />
                             <Setter Property="Margin" Value="0,0,16,0" />
                             <Setter Property="Padding" Value="8,12,8,14" />
-                            <Setter Property="Cursor" Value="Arrow" />
+                            <Setter Property="Cursor" Value="Hand" />
                         </Style>
                         <!-- Hide the default Fluent selected pipe indicator so only the bottom border bar is shown -->
                         <Style Selector="TabItem /template/ Border#PART_SelectedPipe">
@@ -178,25 +175,23 @@
                         </Style>
                         <!-- Neutralize the Fluent theme's accent hover on the header content. -->
                         <Style Selector="TabItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-                            <Setter Property="TextBlock.Foreground" Value="#AAAAAA" />
+                            <Setter Property="TextBlock.Foreground" Value="{DynamicResource TextPrimary}" />
                             <Setter Property="Background" Value="Transparent" />
                         </Style>
                         <Style Selector="TabItem:pointerover">
-                            <Setter Property="Foreground" Value="#AAAAAA" />
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
                             <Setter Property="Background" Value="Transparent" />
                         </Style>
                         <Style Selector="TabItem:selected">
-                            <Setter Property="Foreground" Value="White" />
-                            <!-- Keep the product's purple selection affordance; this replaces the
-                                 neutral theme indicator rather than stripping selection feedback. -->
-                            <Setter Property="BorderBrush" Value="#9C27B0" />
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                             <Setter Property="BorderThickness" Value="0,0,0,3" />
                         </Style>
                         <Style Selector="TabItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-                            <Setter Property="TextBlock.Foreground" Value="White" />
+                            <Setter Property="TextBlock.Foreground" Value="{DynamicResource TextPrimary}" />
                         </Style>
                         <Style Selector="TabItem:selected:pointerover">
-                            <Setter Property="Foreground" Value="White" />
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
                         </Style>
                     </TabControl.Styles>
 
@@ -1276,11 +1271,11 @@
                         <StackPanel Spacing="16">
                             <!-- Download Button (visible when not downloaded and not update available) -->
                             <Button HorizontalAlignment="Stretch"
-                                    Height="52"
-                                    Background="#9C27B0"
+                                    Height="48"
+                                    Background="{DynamicResource AccentBrush}"
                                     Foreground="White"
-                                    CornerRadius="10"
-                                    FontSize="16"
+                                    CornerRadius="8"
+                                    FontSize="15"
                                     FontWeight="SemiBold"
                                     IsVisible="{Binding ShowDownloadButton}"
                                     IsEnabled="{Binding !IsDownloading}"
@@ -1288,31 +1283,22 @@
                                     Cursor="Hand"
                                     Padding="20,0">
                                 <Button.Styles>
-                                    <Style Selector="Button">
-                                        <Setter Property="Transitions">
-                                            <Transitions>
-                                                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15"/>
-                                                <BrushTransition Property="Background" Duration="0:0:0.2"/>
-                                            </Transitions>
-                                        </Setter>
-                                    </Style>
                                     <Style Selector="Button:pointerover">
-                                        <Setter Property="Background" Value="#AB47BC" />
+                                        <Setter Property="Opacity" Value="0.9" />
                                         <Setter Property="RenderTransform" Value="scale(1.02)" />
                                     </Style>
                                     <Style Selector="Button:pressed">
-                                        <Setter Property="Background" Value="#8E24AA" />
                                         <Setter Property="RenderTransform" Value="scale(0.98)" />
                                     </Style>
                                     <Style Selector="Button:disabled">
-                                        <Setter Property="Background" Value="#2A2A2A" />
-                                        <Setter Property="Foreground" Value="#666666" />
+                                        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+                                        <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
                                         <Setter Property="Opacity" Value="0.6" />
                                     </Style>
                                 </Button.Styles>
                                 <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
                                     <PathIcon Data="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"
-                                              Width="20" Height="20"
+                                              Width="18" Height="18"
                                               Foreground="White"/>
                                     <TextBlock Text="Download Now" VerticalAlignment="Center"/>
                                 </StackPanel>
@@ -1320,11 +1306,11 @@
 
                             <!-- Update Button (visible when update is available) -->
                             <Button HorizontalAlignment="Stretch"
-                                    Height="52"
-                                    Background="#FF9800"
+                                    Height="48"
+                                    Background="{DynamicResource WarningBrush}"
                                     Foreground="White"
-                                    CornerRadius="10"
-                                    FontSize="16"
+                                    CornerRadius="8"
+                                    FontSize="15"
                                     FontWeight="SemiBold"
                                     IsVisible="{Binding ShowUpdateButton}"
                                     IsEnabled="{Binding !IsDownloading}"
@@ -1333,31 +1319,22 @@
                                     Padding="20,0">
                                 <ToolTip.Tip>A newer version is available. Click to download the update.</ToolTip.Tip>
                                 <Button.Styles>
-                                    <Style Selector="Button">
-                                        <Setter Property="Transitions">
-                                            <Transitions>
-                                                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15"/>
-                                                <BrushTransition Property="Background" Duration="0:0:0.2"/>
-                                            </Transitions>
-                                        </Setter>
-                                    </Style>
                                     <Style Selector="Button:pointerover">
-                                        <Setter Property="Background" Value="#FFA726" />
+                                        <Setter Property="Opacity" Value="0.9" />
                                         <Setter Property="RenderTransform" Value="scale(1.02)" />
                                     </Style>
                                     <Style Selector="Button:pressed">
-                                        <Setter Property="Background" Value="#F57C00" />
                                         <Setter Property="RenderTransform" Value="scale(0.98)" />
                                     </Style>
                                     <Style Selector="Button:disabled">
-                                        <Setter Property="Background" Value="#2A2A2A" />
-                                        <Setter Property="Foreground" Value="#666666" />
+                                        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+                                        <Setter Property="Foreground" Value="{DynamicResource TextMuted}" />
                                         <Setter Property="Opacity" Value="0.6" />
                                     </Style>
                                 </Button.Styles>
                                 <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
                                     <PathIcon Data="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
-                                              Width="20" Height="20"
+                                              Width="18" Height="18"
                                               Foreground="White"/>
                                     <TextBlock Text="Update Available" VerticalAlignment="Center"/>
                                 </StackPanel>
@@ -1365,13 +1342,11 @@
 
                             <!-- Add to Profile Button (visible when downloaded and not update available) -->
                             <Button HorizontalAlignment="Stretch"
-                                    Height="52"
-                                    Background="#1C3829"
-                                    BorderBrush="#388E3C"
-                                    BorderThickness="1"
-                                    Foreground="#81C784"
-                                    CornerRadius="10"
-                                    FontSize="16"
+                                    Height="48"
+                                    Background="{DynamicResource SuccessBrush}"
+                                    Foreground="White"
+                                    CornerRadius="8"
+                                    FontSize="15"
                                     FontWeight="SemiBold"
                                     IsVisible="{Binding ShowAddToProfileButton}"
                                     Command="{Binding AddToProfileCommand}"
@@ -1379,86 +1354,81 @@
                                     Padding="20,0">
                                 <ToolTip.Tip>Add this content to a game profile</ToolTip.Tip>
                                 <Button.Styles>
-                                    <Style Selector="Button">
-                                        <Setter Property="Transitions">
-                                            <Transitions>
-                                                <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15"/>
-                                                <BrushTransition Property="Background" Duration="0:0:0.2"/>
-                                            </Transitions>
-                                        </Setter>
-                                    </Style>
                                     <Style Selector="Button:pointerover">
-                                        <Setter Property="Background" Value="#254E38" />
-                                        <Setter Property="BorderBrush" Value="#4CAF50" />
-                                        <Setter Property="Foreground" Value="#A5D6A7" />
+                                        <Setter Property="Opacity" Value="0.9" />
                                         <Setter Property="RenderTransform" Value="scale(1.02)" />
                                     </Style>
                                     <Style Selector="Button:pressed">
-                                        <Setter Property="Background" Value="#173022" />
                                         <Setter Property="RenderTransform" Value="scale(0.98)" />
                                     </Style>
                                 </Button.Styles>
                                 <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
                                     <PathIcon Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"
-                                              Width="20" Height="20"
-                                              Foreground="#81C784"/>
+                                              Width="18" Height="18"
+                                              Foreground="White"/>
                                     <TextBlock Text="Add to Profile" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
 
                             <!-- View on source website -->
                             <Button HorizontalAlignment="Stretch"
-                                    Height="40"
-                                    Background="Transparent"
-                                    BorderBrush="#555555"
+                                    Height="38"
+                                    Background="{DynamicResource SurfaceElevatedBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
                                     BorderThickness="1"
-                                    Foreground="#CCCCCC"
-                                    CornerRadius="10"
-                                    FontSize="14"
+                                    Foreground="{DynamicResource TextPrimary}"
+                                    CornerRadius="8"
+                                    FontSize="13"
                                     IsVisible="{Binding HasSourceUrl}"
                                     Command="{Binding OpenInBrowserCommand}"
                                     Cursor="Hand"
-                                    Padding="20,0">
+                                    Padding="16,0">
                                 <ToolTip.Tip>Open this content's page in your browser</ToolTip.Tip>
+                                <Button.Styles>
+                                    <Style Selector="Button:pointerover">
+                                        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+                                        <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
+                                    </Style>
+                                </Button.Styles>
                                 <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                                     <PathIcon Data="M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7zM19 19H5V5h7V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7z"
-                                              Width="16" Height="16"
-                                              Foreground="#CCCCCC"/>
+                                              Width="14" Height="14"
+                                              Foreground="{DynamicResource TextSecondary}"/>
                                     <TextBlock Text="View on Website" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
 
                             <!-- Download Progress -->
                             <StackPanel IsVisible="{Binding IsDownloading}" Spacing="8">
-                                <TextBlock Text="{Binding DownloadStatusMessage}" Foreground="#AAAAAA" FontSize="13" TextWrapping="Wrap" />
-                                <ProgressBar Value="{Binding DownloadProgress}" Height="4" />
+                                <TextBlock Text="{Binding DownloadStatusMessage}" Foreground="{DynamicResource TextSecondary}" FontSize="13" TextWrapping="Wrap" />
+                                <ProgressBar Value="{Binding DownloadProgress}" Height="4" Foreground="{DynamicResource SuccessBrush}" Background="{DynamicResource SurfaceElevatedBrush}" />
                             </StackPanel>
 
                             <!-- Required dependencies are visible before the user adds content to a
                                  profile, rather than surfacing only as a launcher failure. -->
                             <Border IsVisible="{Binding HasRequiredDependencies}"
-                                    Background="#332913"
-                                    BorderBrush="#A87920"
+                                    Background="#25D97706"
+                                    BorderBrush="{DynamicResource WarningBrush}"
                                     BorderThickness="1"
                                     CornerRadius="8"
                                     Padding="12">
                                 <StackPanel Spacing="4">
-                                    <TextBlock Text="Requires" Foreground="#FFD180" FontWeight="SemiBold" />
+                                    <TextBlock Text="Requires" Foreground="{DynamicResource GeneralsAccentBrush}" FontWeight="SemiBold" />
                                     <TextBlock Text="{Binding RequiredDependenciesSummary}"
-                                               Foreground="#FFE0B2" FontSize="13" TextWrapping="Wrap" />
+                                               Foreground="{DynamicResource TextPrimary}" FontSize="13" TextWrapping="Wrap" />
                                 </StackPanel>
                             </Border>
 
                             <!-- Single-item Variant Pickers (when HasVariants) -->
                             <StackPanel Spacing="8" IsVisible="{Binding HasVariants}" Margin="0,4,0,0">
-                                <TextBlock Text="Variants" FontWeight="SemiBold" Foreground="White" FontSize="14" />
+                                <TextBlock Text="Variants" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" FontSize="14" />
                                 <ItemsControl ItemsSource="{Binding VariantAxes}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="vm:VariantAxisGroup">
                                             <StackPanel Spacing="3" Margin="0,0,0,6">
                                                 <TextBlock Text="{Binding AxisLabel}"
                                                            FontSize="11"
-                                                           Foreground="#888888"
+                                                           Foreground="{DynamicResource TextSecondary}"
                                                            IsVisible="{Binding ShowAxisLabel}" />
                                                 <ComboBox Classes="sidebar-variant-combo"
                                                           ItemsSource="{Binding Options}"
@@ -1479,7 +1449,7 @@
                                                                 <TextBlock Grid.Column="1"
                                                                            Text="{Binding Name}"
                                                                            FontSize="12"
-                                                                           Foreground="White"
+                                                                           Foreground="{DynamicResource TextPrimary}"
                                                                            TextTrimming="CharacterEllipsis"
                                                                            MaxLines="1"
                                                                            VerticalAlignment="Center" />
@@ -1498,7 +1468,7 @@
                                                                 <TextBlock Grid.Column="1"
                                                                            Text="{Binding Name}"
                                                                            FontSize="12"
-                                                                           Foreground="White"
+                                                                           Foreground="{DynamicResource TextPrimary}"
                                                                            TextWrapping="Wrap"
                                                                            VerticalAlignment="Center" />
                                                             </Grid>
@@ -1515,20 +1485,20 @@
                             <StackPanel Spacing="8" Margin="0,8,0,0">
                                 <!-- Size - only show if > 0 -->
                                 <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding HasDownloadSize}">
-                                    <TextBlock Grid.Column="0" Text="Size" Foreground="#888888"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding DownloadSize, Converter={StaticResource FileSizeConverter}}" Foreground="White" HorizontalAlignment="Right"/>
+                                    <TextBlock Grid.Column="0" Text="Size" Foreground="{DynamicResource TextSecondary}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding DownloadSize, Converter={StaticResource FileSizeConverter}}" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Right"/>
                                 </Grid>
 
                                 <!-- Updated - only show if has valid date -->
                                 <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding HasLastUpdated}">
-                                    <TextBlock Grid.Column="0" Text="Updated" Foreground="#888888"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding LastUpdatedDisplay}" Foreground="White" HorizontalAlignment="Right"/>
+                                    <TextBlock Grid.Column="0" Text="Updated" Foreground="{DynamicResource TextSecondary}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding LastUpdatedDisplay}" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Right"/>
                                 </Grid>
 
                                 <!-- Content type can be corrected before download when a mixed or
                                      generic publisher cannot classify an item reliably. -->
                                 <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
-                                    <TextBlock Grid.Column="0" Text="Type" Foreground="#888888"/>
+                                    <TextBlock Grid.Column="0" Text="Type" Foreground="{DynamicResource TextSecondary}"/>
                                     <ComboBox Grid.Column="1"
                                               ItemsSource="{Binding ContentTypeOptions}"
                                               SelectedItem="{Binding SelectedContentType}"
@@ -1538,8 +1508,8 @@
 
                                 <!-- Version - only show if not empty -->
                                 <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding HasVersion}">
-                                    <TextBlock Grid.Column="0" Text="Version" Foreground="#888888"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding Version}" Foreground="White" HorizontalAlignment="Right"/>
+                                    <TextBlock Grid.Column="0" Text="Version" Foreground="{DynamicResource TextSecondary}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Version}" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Right"/>
                                 </Grid>
                             </StackPanel>
                         </StackPanel>
@@ -1550,27 +1520,27 @@
                             IsVisible="{Binding HasBundleComponents}">
                         <StackPanel Spacing="12">
                             <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0" Text="Bundle Contents" FontWeight="SemiBold" FontSize="15" Foreground="White" VerticalAlignment="Center" />
-                                <Border Grid.Column="1" Background="#339C27B0" CornerRadius="6" Padding="6,2">
-                                    <TextBlock Text="{Binding BundleComponents.Count, StringFormat='{}{0} items'}" FontSize="11" Foreground="#CE93D8" FontWeight="SemiBold" />
+                                <TextBlock Grid.Column="0" Text="Bundle Contents" FontWeight="SemiBold" FontSize="15" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center" />
+                                <Border Grid.Column="1" Background="{DynamicResource AccentBadgeBackgroundBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="6" Padding="6,2">
+                                    <TextBlock Text="{Binding BundleComponents.Count, StringFormat='{}{0} items'}" FontSize="11" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" />
                                 </Border>
                             </Grid>
 
                             <ItemsControl ItemsSource="{Binding BundleComponents}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:BundleComponentViewModel">
-                                        <Border Background="#1E1E1E" BorderBrush="#2E2E2E" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,8">
+                                        <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,8">
                                             <StackPanel Spacing="6">
                                                 <Grid ColumnDefinitions="*,Auto">
                                                     <StackPanel Grid.Column="0" Spacing="2">
                                                         <TextBlock Text="{Binding SelectedDisplayName}"
                                                                    FontSize="13"
                                                                    FontWeight="SemiBold"
-                                                                   Foreground="White"
+                                                                   Foreground="{DynamicResource TextPrimary}"
                                                                    TextWrapping="Wrap" />
-                                                        <Border Background="#252525" CornerRadius="4" Padding="4,1" HorizontalAlignment="Left"
+                                                        <Border Background="{DynamicResource SurfaceHoverBrush}" CornerRadius="4" Padding="4,1" HorizontalAlignment="Left"
                                                                 IsVisible="{Binding ContentTypeDisplay, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                                            <TextBlock Text="{Binding ContentTypeDisplay}" FontSize="10" Foreground="#AAAAAA" />
+                                                            <TextBlock Text="{Binding ContentTypeDisplay}" FontSize="10" Foreground="{DynamicResource TextSecondary}" />
                                                         </Border>
                                                     </StackPanel>
                                                     <PathIcon Grid.Column="1"
@@ -1590,7 +1560,7 @@
                                                             <StackPanel Spacing="2" Margin="0,0,0,4">
                                                                 <TextBlock Text="{Binding AxisLabel}"
                                                                            FontSize="10"
-                                                                           Foreground="#888888"
+                                                                           Foreground="{DynamicResource TextSecondary}"
                                                                            IsVisible="{Binding ShowAxisLabel}" />
                                                                 <ComboBox Classes="sidebar-variant-combo"
                                                                           ItemsSource="{Binding Options}"
@@ -1611,7 +1581,7 @@
                                                                                 <TextBlock Grid.Column="1"
                                                                                            Text="{Binding Name}"
                                                                                            FontSize="11"
-                                                                                           Foreground="White"
+                                                                                           Foreground="{DynamicResource TextPrimary}"
                                                                                            TextTrimming="CharacterEllipsis"
                                                                                            MaxLines="1"
                                                                                            VerticalAlignment="Center" />
@@ -1630,7 +1600,7 @@
                                                                                 <TextBlock Grid.Column="1"
                                                                                            Text="{Binding Name}"
                                                                                            FontSize="11"
-                                                                                           Foreground="White"
+                                                                                           Foreground="{DynamicResource TextPrimary}"
                                                                                            TextWrapping="Wrap"
                                                                                            VerticalAlignment="Center" />
                                                                             </Grid>
@@ -1652,7 +1622,7 @@
                     <!-- Tags -->
                     <Border Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="20" IsVisible="{Binding !!Tags.Count}">
                         <StackPanel Spacing="12">
-                            <TextBlock Text="Tags" FontWeight="SemiBold" Foreground="White" />
+                            <TextBlock Text="Tags" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
                             <ItemsControl ItemsSource="{Binding Tags}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
@@ -1661,8 +1631,8 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Background="{DynamicResource WindowBackground}" CornerRadius="4" Padding="8,4" Margin="0,0,8,8">
-                                            <TextBlock Text="{Binding}" FontSize="12" Foreground="#CCCCCC" />
+                                        <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8,4" Margin="0,0,8,8">
+                                            <TextBlock Text="{Binding}" FontSize="12" Foreground="{DynamicResource TextSecondary}" />
                                         </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
@@ -1692,8 +1662,8 @@
         </Button>
 
         <!-- Media Preview Dialog -->
-        <Border Background="#1E1E28"
-                BorderBrush="#4A2E80"
+        <Border Background="{DynamicResource CardBackground}"
+                BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="1"
                 CornerRadius="12"
                 Margin="32"
@@ -1708,26 +1678,27 @@
                                Text="{Binding FullScreenMediaTitle}"
                                FontSize="16"
                                FontWeight="SemiBold"
-                               Foreground="White"
+                               Foreground="{DynamicResource TextPrimary}"
                                VerticalAlignment="Center"
                                TextTrimming="CharacterEllipsis" />
                     <Button Grid.Column="1"
                             Command="{Binding CloseFullScreenMediaCommand}"
                             Content="✕"
-                            FontSize="16"
+                            FontSize="14"
                             FontWeight="Bold"
-                            Foreground="#AAAAAA"
-                            Background="#333333"
-                            BorderThickness="0"
+                            Foreground="{DynamicResource TextSecondary}"
+                            Background="{DynamicResource SurfaceElevatedBrush}"
+                            BorderThickness="1"
+                            BorderBrush="{DynamicResource BorderBrush}"
                             CornerRadius="6"
-                            Width="32"
-                            Height="32"
+                            Width="30"
+                            Height="30"
                             HorizontalContentAlignment="Center"
                             VerticalContentAlignment="Center"
                             Cursor="Hand">
                         <Button.Styles>
                             <Style Selector="Button:pointerover">
-                                <Setter Property="Background" Value="#E53935" />
+                                <Setter Property="Background" Value="{DynamicResource ErrorBrush}" />
                                 <Setter Property="Foreground" Value="White" />
                             </Style>
                         </Button.Styles>
@@ -1735,7 +1706,7 @@
                 </Grid>
 
                 <!-- Image Display -->
-                <Border Grid.Row="1" Background="#0F0F14" Padding="12">
+                <Border Grid.Row="1" Background="{DynamicResource WindowBackground}" Padding="12">
                     <Image controls:ImageLoader.Source="{Binding FullScreenMediaUrl}"
                            Stretch="Uniform"
                            HorizontalAlignment="Center"

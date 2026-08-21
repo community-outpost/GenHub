@@ -14,13 +14,13 @@
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="-1"
-        Background="#1E1E1E"
+        Background="{DynamicResource WindowBackground}"
         WindowStartupLocation="CenterOwner"
         CanResize="True">
 
     <Window.Styles>
         <Style Selector="Grid.TitleBarArea">
-            <Setter Property="Background" Value="#1A1A1A"/>
+            <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
             <Setter Property="Height" Value="40"/>
         </Style>
     </Window.Styles>
@@ -40,7 +40,7 @@
                 <TextBlock Text="Dependency Preview"
                            VerticalAlignment="Center"
                            FontSize="14" FontWeight="SemiBold"
-                           Foreground="White" />
+                           Foreground="{DynamicResource TextPrimary}" />
             </StackPanel>
 
             <!-- Minimize Button -->
@@ -49,7 +49,7 @@
                     VerticalContentAlignment="Center"
                     HorizontalContentAlignment="Center"
                     Background="Transparent"
-                    Foreground="#CCCCCC"
+                    Foreground="{DynamicResource TextSecondary}"
                     BorderThickness="0"
                     Padding="0"
                     Width="46" Height="40"
@@ -63,8 +63,8 @@
                       Margin="0,8,0,0" />
                 <Button.Styles>
                     <Style Selector="Button:pointerover">
-                        <Setter Property="Background" Value="#2A2A2A"/>
-                        <Setter Property="Foreground" Value="White"/>
+                        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+                        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
                     </Style>
                 </Button.Styles>
             </Button>
@@ -75,7 +75,7 @@
                     VerticalContentAlignment="Center"
                     HorizontalContentAlignment="Center"
                     Background="Transparent"
-                    Foreground="#CCCCCC"
+                    Foreground="{DynamicResource TextSecondary}"
                     BorderThickness="0"
                     Padding="0"
                     Width="46" Height="40"
@@ -89,8 +89,8 @@
                       HorizontalAlignment="Center" />
                 <Button.Styles>
                     <Style Selector="Button:pointerover">
-                        <Setter Property="Background" Value="#2A2A2A"/>
-                        <Setter Property="Foreground" Value="White"/>
+                        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+                        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
                     </Style>
                 </Button.Styles>
             </Button>
@@ -101,7 +101,7 @@
                     VerticalContentAlignment="Center"
                     HorizontalContentAlignment="Center"
                     Background="Transparent"
-                    Foreground="#CCCCCC"
+                    Foreground="{DynamicResource TextSecondary}"
                     BorderThickness="0"
                     Padding="0"
                     Width="46" Height="40"
@@ -114,7 +114,7 @@
                       HorizontalAlignment="Center" />
                 <Button.Styles>
                     <Style Selector="Button:pointerover">
-                        <Setter Property="Background" Value="#E81123"/>
+                        <Setter Property="Background" Value="{DynamicResource ErrorBrush}"/>
                         <Setter Property="Foreground" Value="White"/>
                     </Style>
                 </Button.Styles>
@@ -125,10 +125,10 @@
         <Grid Grid.Row="1" RowDefinitions="Auto,*,Auto" Margin="24,16,24,24">
         <!-- Header -->
         <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,24">
-            <TextBlock Text="Review Dependencies" FontSize="24" FontWeight="Bold" Foreground="White"/>
-            <TextBlock Text="{Binding ContentName, StringFormat='Adding: {0}'}" FontSize="14" Foreground="#AAAAAA"/>
+            <TextBlock Text="Review Dependencies" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+            <TextBlock Text="{Binding ContentName, StringFormat='Adding: {0}'}" FontSize="14" Foreground="{DynamicResource AccentBrush}"/>
             <TextBlock Text="{Binding TotalDependencyCount, StringFormat='{}{0} dependencies will be enabled'}"
-                       FontSize="13" Foreground="#888888"/>
+                       FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
         </StackPanel>
 
         <!-- Content -->
@@ -136,25 +136,25 @@
             <StackPanel Spacing="16">
                 <!-- Resolved Dependencies Section -->
                 <StackPanel Spacing="12" IsVisible="{Binding !!ResolvedDependencies.Count}">
-                    <TextBlock Text="Dependencies to Add" FontSize="16" FontWeight="SemiBold" Foreground="White"/>
+                    <TextBlock Text="Dependencies to Add" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
                     <TextBlock Text="The following content will be enabled in your profile:"
-                               FontSize="13" Foreground="#888888" Margin="0,0,0,8"/>
+                               FontSize="13" Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,8"/>
 
                     <ItemsControl ItemsSource="{Binding ResolvedDependencies}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Background="#252525" CornerRadius="8" Padding="12" Margin="0,0,0,8">
+                                <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,8">
                                     <Grid ColumnDefinitions="Auto,*">
                                         <!-- Success Icon -->
                                         <Border Grid.Column="0" Width="32" Height="32" CornerRadius="16"
-                                                Background="#4CAF50" Margin="0,0,12,0">
+                                                Background="{DynamicResource SuccessBrush}" Margin="0,0,12,0">
                                             <PathIcon Data="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"
                                                       Width="16" Height="16" Foreground="White"/>
                                         </Border>
 
                                         <StackPanel Grid.Column="1" Spacing="4">
-                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="White"/>
-                                            <TextBlock Text="{Binding Description}" FontSize="12" Foreground="#AAAAAA"
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                            <TextBlock Text="{Binding Description}" FontSize="12" Foreground="{DynamicResource TextSecondary}"
                                                        TextWrapping="Wrap" IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                         </StackPanel>
                                     </Grid>
@@ -166,32 +166,32 @@
 
                 <!-- Missing Dependencies Section -->
                 <StackPanel Spacing="12" IsVisible="{Binding HasMissingDependencies}">
-                    <TextBlock Text="Missing Dependencies" FontSize="16" FontWeight="SemiBold" Foreground="#FF5252"/>
-                    <Border Background="#3D1F1F" BorderBrush="#FF5252" BorderThickness="1" CornerRadius="8" Padding="12">
+                    <TextBlock Text="Missing Dependencies" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource ErrorBrush}"/>
+                    <Border Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1" CornerRadius="8" Padding="12">
                         <StackPanel Spacing="8">
                             <TextBlock Text="⚠ Warning: Some required dependencies are missing"
-                                       FontWeight="SemiBold" Foreground="#FF5252"/>
+                                       FontWeight="SemiBold" Foreground="{DynamicResource ErrorBrush}"/>
                             <TextBlock Text="The following dependencies are required but not available in your library. The content may not work correctly without them."
-                                       FontSize="12" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                       FontSize="12" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
 
                     <ItemsControl ItemsSource="{Binding MissingDependencies}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Background="#252525" BorderBrush="#FF5252" BorderThickness="1"
+                                <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1"
                                         CornerRadius="8" Padding="12" Margin="0,0,0,8">
                                     <Grid ColumnDefinitions="Auto,*">
                                         <!-- Error Icon -->
                                         <Border Grid.Column="0" Width="32" Height="32" CornerRadius="16"
-                                                Background="#FF5252" Margin="0,0,12,0">
+                                                Background="{DynamicResource ErrorBrush}" Margin="0,0,12,0">
                                             <PathIcon Data="M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
                                                       Width="16" Height="16" Foreground="White"/>
                                         </Border>
 
                                         <StackPanel Grid.Column="1" Spacing="4">
-                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="White"/>
-                                            <TextBlock Text="{Binding Description}" FontSize="12" Foreground="#AAAAAA"
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                            <TextBlock Text="{Binding Description}" FontSize="12" Foreground="{DynamicResource TextSecondary}"
                                                        TextWrapping="Wrap" IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                         </StackPanel>
                                     </Grid>
@@ -203,7 +203,7 @@
                     <!-- Accept Risk Checkbox -->
                     <CheckBox IsChecked="{Binding UserAcceptedRisk}" Margin="0,8,0,0">
                         <TextBlock Text="I understand the risks and want to proceed anyway"
-                                   Foreground="#CCCCCC" TextWrapping="Wrap"/>
+                                   Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
                     </CheckBox>
                 </StackPanel>
             </StackPanel>
@@ -215,18 +215,18 @@
                 <Button Content="Cancel"
                         Command="{Binding CancelCommand}"
                         Width="100" Height="36"
-                        Background="Transparent"
-                        BorderBrush="#555555"
+                        Background="{DynamicResource SurfaceElevatedBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="1"
-                        Foreground="White"
-                        CornerRadius="4"/>
+                        Foreground="{DynamicResource TextPrimary}"
+                        CornerRadius="6"/>
 
                 <Button Content="Proceed"
                         Command="{Binding ProceedCommand}"
                         Width="100" Height="36"
-                        Background="#9C27B0"
+                        Background="{DynamicResource AccentBrush}"
                         Foreground="White"
-                        CornerRadius="4"
+                        CornerRadius="6"
                         IsEnabled="{Binding CanProceed}"/>
             </StackPanel>
         </Grid>
