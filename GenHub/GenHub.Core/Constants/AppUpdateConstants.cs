@@ -279,6 +279,11 @@ public static class AppUpdateConstants
     public const string BranchStaleStatusMessageFormat = "Branch '{0}' has no available builds. Select a new branch or switch to MAIN.";
 
     /// <summary>
+    /// Message displayed when checking branch/PR artifacts without a configured GitHub PAT.
+    /// </summary>
+    public const string PatRequiredForArtifactsMessage = "GitHub Personal Access Token (PAT) required to check branch/PR builds.";
+
+    /// <summary>
     /// Sort option: sort by last updated date descending.
     /// </summary>
     public const string SortOptionLastUpdated = "Last Updated";

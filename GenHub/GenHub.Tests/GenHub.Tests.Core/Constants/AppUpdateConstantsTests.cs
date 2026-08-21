@@ -91,6 +91,7 @@ public class AppUpdateConstantsTests
         Assert.Contains("{1}", AppUpdateConstants.BranchStaleReleaseNotificationFormat);
         Assert.Contains("{0}", AppUpdateConstants.PrMergedStatusMessageFormat);
         Assert.Contains("{0}", AppUpdateConstants.BranchStaleStatusMessageFormat);
+        Assert.False(string.IsNullOrWhiteSpace(AppUpdateConstants.PatRequiredForArtifactsMessage));
         Assert.Contains("{0}", AppUpdateConstants.UpdateFailedNotificationFormat);
     }
 

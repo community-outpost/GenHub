@@ -412,6 +412,38 @@ public partial class MainViewModel(
                     showInBadge: true));
             }
         }
+        else if (velopackUpdateManager.HasUpdateAvailableFromGitHub)
+        {
+            var githubVersion = velopackUpdateManager.LatestVersionFromGitHub;
+            if (!string.IsNullOrWhiteSpace(githubVersion) &&
+                !string.Equals(githubVersion, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
+            {
+                var updateIdentity = $"pr-fallback:{prNumber}:github:{githubVersion}";
+                if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
+                {
+                    logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
+                    return;
+                }
+
+                _lastNotifiedUpdateIdentity = updateIdentity;
+                logger?.LogInformation("PR #{PrNumber} merged. GitHub API release fallback available: {Version}", prNumber, githubVersion);
+                notificationService.Show(new NotificationMessage(
+                    NotificationType.Info,
+                    AppUpdateConstants.PrMergedUpdateAvailableNotificationTitle,
+                    string.Format(AppUpdateConstants.PrMergedReleaseNotificationFormat, githubVersion, prNumber),
+                    autoDismissMilliseconds: null,
+                    actions:
+                    [
+                        new NotificationAction(
+                            AppUpdateConstants.UpdateAction,
+                            () => _ = PerformOneClickUpdateWithSubscriptionClearAsync(null, null, githubVersion, prNumber, null),
+                            NotificationActionStyle.Primary,
+                            dismissOnExecute: true),
+                    ],
+                    isPersistent: true,
+                    showInBadge: true));
+            }
+        }
     }
 
     private async Task CheckSubscribedBranchUpdateAsync(string branch, UserSettings settings, CancellationToken cancellationToken)
@@ -534,6 +566,38 @@ public partial class MainViewModel(
                         new NotificationAction(
                             AppUpdateConstants.UpdateAction,
                             () => _ = PerformOneClickUpdateWithSubscriptionClearAsync(null, releaseUpdate, null, null, branch),
+                            NotificationActionStyle.Primary,
+                            dismissOnExecute: true),
+                    ],
+                    isPersistent: true,
+                    showInBadge: true));
+            }
+        }
+        else if (velopackUpdateManager.HasUpdateAvailableFromGitHub)
+        {
+            var githubVersion = velopackUpdateManager.LatestVersionFromGitHub;
+            if (!string.IsNullOrWhiteSpace(githubVersion) &&
+                !string.Equals(githubVersion, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
+            {
+                var updateIdentity = $"branch-fallback:{branch}:github:{githubVersion}";
+                if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
+                {
+                    logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
+                    return;
+                }
+
+                _lastNotifiedUpdateIdentity = updateIdentity;
+                logger?.LogInformation("Branch '{Branch}' stale. GitHub API release fallback available: {Version}", branch, githubVersion);
+                notificationService.Show(new NotificationMessage(
+                    NotificationType.Info,
+                    AppUpdateConstants.BranchStaleUpdateAvailableNotificationTitle,
+                    string.Format(AppUpdateConstants.BranchStaleReleaseNotificationFormat, githubVersion, branch),
+                    autoDismissMilliseconds: null,
+                    actions:
+                    [
+                        new NotificationAction(
+                            AppUpdateConstants.UpdateAction,
+                            () => _ = PerformOneClickUpdateWithSubscriptionClearAsync(null, null, githubVersion, null, branch),
                             NotificationActionStyle.Primary,
                             dismissOnExecute: true),
                     ],

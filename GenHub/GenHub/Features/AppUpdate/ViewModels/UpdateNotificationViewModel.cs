@@ -740,6 +740,14 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             // check branch updates if subscribed
             if (!string.IsNullOrEmpty(SubscribedBranch))
             {
+                if (!HasPat)
+                {
+                    _logger.LogInformation("Subscribed to branch '{Branch}' but GitHub PAT is not configured", SubscribedBranch);
+                    StatusMessage = AppUpdateConstants.PatRequiredForArtifactsMessage;
+                    IsUpdateAvailable = false;
+                    return;
+                }
+
                 _logger.LogInformation("Checking for artifact updates on branch: {Branch}", SubscribedBranch);
                 var branchArtifact = await _velopackUpdateManager.CheckForArtifactUpdatesAsync(_cancellationTokenSource.Token);
 
