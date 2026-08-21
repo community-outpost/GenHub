@@ -140,7 +140,7 @@ public partial class GenPatcherViewModel(
     partial void OnSelectedInstallationChanged(GameInstallation? value)
     {
         ApplyAllFixesCommand.NotifyCanExecuteChanged();
-        if (value != null)
+        if (value != null && !IsBatchApplying)
         {
             logger.LogInformation("Selected installation changed to: {InstallType} at {Path}", value.InstallationType, value.InstallationPath);
             _ = RefreshFixesForInstallationAsync(value);
@@ -248,7 +248,10 @@ public partial class GenPatcherViewModel(
                         notificationService,
                         logger,
                         () => Avalonia.Threading.Dispatcher.UIThread.Post(SortActionSets),
-                        () => Avalonia.Threading.Dispatcher.UIThread.Post(() => ApplyAllFixesCommand.NotifyCanExecuteChanged()));
+                        () => Avalonia.Threading.Dispatcher.UIThread.Post(() => ApplyAllFixesCommand.NotifyCanExecuteChanged()))
+                    {
+                        IsBatchApplying = IsBatchApplying,
+                    };
                     await vm.CheckStatusAsync(ct);
                     return vm;
                 },
@@ -291,6 +294,12 @@ public partial class GenPatcherViewModel(
                 ApplyFilter();
                 ApplyAllFixesCommand.NotifyCanExecuteChanged();
             });
+
+            if (ct.IsCancellationRequested || version != _refreshVersion || SelectedInstallation != installation)
+            {
+                logger.LogDebug("Refresh version {Version} was superseded or cancelled", version);
+                return;
+            }
 
             var applicableCount = ActionSets.Count(x => x.IsApplicable);
             var appliedAndApplicableCount = ActionSets.Count(x => x.IsApplicable && x.IsApplied);
@@ -422,11 +431,7 @@ public partial class GenPatcherViewModel(
             {
                 try
                 {
-                    await vm.CheckStatusAsync(ct);
-                }
-                catch (OperationCanceledException)
-                {
-                    throw;
+                    await vm.CheckStatusAsync(CancellationToken.None);
                 }
                 catch (Exception ex)
                 {

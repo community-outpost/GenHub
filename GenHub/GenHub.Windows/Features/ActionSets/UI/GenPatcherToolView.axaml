@@ -218,6 +218,7 @@
                         <TextBlock Text="Target Installation:" FontSize="11" Foreground="#CCCCCC" FontWeight="SemiBold"/>
                         <ComboBox ItemsSource="{Binding AvailableInstallations}"
                                   SelectedItem="{Binding SelectedInstallation}"
+                                  IsEnabled="{Binding !IsBatchApplying}"
                                   MinWidth="220"
                                   VerticalAlignment="Center">
                             <ComboBox.ItemTemplate>
@@ -358,10 +359,15 @@
                                             </StackPanel>
                                         </Button>
 
-                                        <!-- Apply Action Button -->
-                                        <Button Grid.Column="1" Classes="ActionBtn" Command="{Binding ApplyCommand}" IsEnabled="{Binding CanApply}" VerticalAlignment="Center">
-                                            <TextBlock Text="Apply"/>
-                                        </Button>
+                                        <!-- Apply / Cancel Action Button -->
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                            <Button Classes="ActionBtn" Command="{Binding ApplyCommand}" IsVisible="{Binding !IsApplying}" IsEnabled="{Binding CanApply}" VerticalAlignment="Center">
+                                                <TextBlock Text="Apply"/>
+                                            </Button>
+                                            <Button Classes="GenPatcherCancelBtn" Command="{Binding CancelApplyCommand}" IsVisible="{Binding IsApplying}" VerticalAlignment="Center" Padding="12,5">
+                                                <TextBlock Text="Cancel" FontSize="11" FontWeight="Bold"/>
+                                            </Button>
+                                        </StackPanel>
                                     </Grid>
                                 </Grid>
                             </Border>

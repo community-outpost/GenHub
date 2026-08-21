@@ -93,6 +93,7 @@ public partial class ActionSetViewModel(
     [NotifyPropertyChangedFor(nameof(CanApply))]
     [NotifyCanExecuteChangedFor(nameof(ApplyCommand))]
     [NotifyCanExecuteChangedFor(nameof(ForceApplyCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CancelApplyCommand))]
     private bool isApplying;
 
     [ObservableProperty]
@@ -100,6 +101,8 @@ public partial class ActionSetViewModel(
     [NotifyCanExecuteChangedFor(nameof(ApplyCommand))]
     [NotifyCanExecuteChangedFor(nameof(ForceApplyCommand))]
     private bool isBatchApplying;
+
+    private CancellationTokenSource? _applyCts;
 
     /// <summary>
     /// Gets a value indicating whether the fix can be applied.
@@ -200,6 +203,8 @@ public partial class ActionSetViewModel(
 
     private bool CanExecuteForceApply() => !IsApplying && !IsBatchApplying;
 
+    private bool CanExecuteCancelApply() => IsApplying;
+
     [RelayCommand]
     private void ToggleExpanded() => IsExpanded = !IsExpanded;
 
@@ -209,6 +214,20 @@ public partial class ActionSetViewModel(
     [RelayCommand(CanExecute = nameof(CanExecuteForceApply))]
     private Task ForceApplyAsync() => ExecuteApplyAsync(isForce: true);
 
+    /// <summary>
+    /// Cancels the ongoing individual fix application if running.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanExecuteCancelApply))]
+    private void CancelApply()
+    {
+        if (_applyCts != null && !_applyCts.IsCancellationRequested)
+        {
+            logger.LogInformation("User cancelled application of {Title} (ID={Id})", ActionSet.Title, ActionSet.Id);
+            _applyCts.Cancel();
+            notificationService.ShowWarning("Cancelling", $"Cancelling application of {ActionSet.Title}...");
+        }
+    }
+
     private async Task ExecuteApplyAsync(bool isForce)
     {
         if (IsApplying || IsBatchApplying)
@@ -216,9 +235,15 @@ public partial class ActionSetViewModel(
             return;
         }
 
+        _applyCts?.Cancel();
+        _applyCts?.Dispose();
+        _applyCts = new CancellationTokenSource();
+        var ct = _applyCts.Token;
+
         try
         {
             IsApplying = true;
+            CancelApplyCommand.NotifyCanExecuteChanged();
 
             logger.LogInformation(
                 isForce ? "[GENPATCHER_FIX_013] Starting FORCE application of {Title} (ID={Id}) to {InstallPath}" : "[GENPATCHER_FIX_009] Starting application of {Title} (ID={Id}) to {InstallPath}",
@@ -227,7 +252,7 @@ public partial class ActionSetViewModel(
                 installation.InstallationPath);
 
             var startTime = DateTime.UtcNow;
-            var result = await ActionSet.ApplyAsync(installation, CancellationToken.None);
+            var result = await ActionSet.ApplyAsync(installation, ct);
             var duration = (DateTime.UtcNow - startTime).TotalMilliseconds;
 
             if (result.Success)
@@ -290,6 +315,11 @@ public partial class ActionSetViewModel(
                 logger.LogWarning(statusEx, "Error refreshing status after apply for {Title}", ActionSet.Title);
             }
         }
+        catch (OperationCanceledException)
+        {
+            logger.LogWarning("Application of {Title} was cancelled by user", ActionSet.Title);
+            notificationService.ShowWarning("Apply Cancelled", $"Application of {ActionSet.Title} was cancelled.");
+        }
         catch (Exception ex)
         {
             logger.LogError(
@@ -304,6 +334,9 @@ public partial class ActionSetViewModel(
         finally
         {
             IsApplying = false;
+            _applyCts?.Dispose();
+            _applyCts = null;
+            CancelApplyCommand.NotifyCanExecuteChanged();
         }
     }
 }

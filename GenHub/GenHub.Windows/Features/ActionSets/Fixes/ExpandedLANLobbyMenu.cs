@@ -100,6 +100,8 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
         var details = new List<string>();
         var tempFile = Path.Combine(Path.GetTempPath(), $"cbbs_{Guid.NewGuid():N}.dat");
         var tempExtractDir = Path.Combine(Path.GetTempPath(), $"cbbs_extract_{Guid.NewGuid():N}");
+        var tempBackupDir = Path.Combine(Path.GetTempPath(), $"cbbs_backup_{Guid.NewGuid():N}");
+        var backupEntries = new List<(string DestPath, bool ExistedBefore, string? BackupPath)>();
 
         try
         {
@@ -126,44 +128,61 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
             details.Add("✓ Package integrity verified via SHA-256 checksum.");
             details.Add("Extracting widescreen window and LAN lobby definitions...");
 
-            var (extractedCount, deployedFiles) = await ExtractAndDeployAssetsAsync(tempFile, tempExtractDir, installation, cancellationToken);
+            var (extractedCount, deployedFiles) = await ExtractAndDeployAssetsAsync(
+                tempFile,
+                tempExtractDir,
+                tempBackupDir,
+                installation,
+                backupEntries,
+                cancellationToken);
+
             details.Add($"✓ Extracted and deployed {extractedCount} widescreen window assets to game folders.");
 
             if (!RecordDeploymentMarker(deployedFiles))
             {
-                details.Add("✗ Failed to record the deployment marker. Undo cannot remove the deployed files.");
+                details.Add("✗ Failed to record the deployment marker. Rolling back deployed files.");
+                RollbackDeployment(backupEntries, details);
                 return new ActionSetResult(false, "Failed to record the deployment marker for ExpandedLANLobbyMenu.", details);
             }
 
             return new ActionSetResult(true, null, details);
         }
+        catch (OperationCanceledException)
+        {
+            RollbackDeployment(backupEntries, details);
+            throw;
+        }
         catch (HttpRequestException ex)
         {
+            RollbackDeployment(backupEntries, details);
             logger.LogError(ex, "Network error downloading LAN lobby menu fix");
             details.Add($"✗ Network error: {ex.Message}");
             return new ActionSetResult(false, ex.Message, details);
         }
         catch (IOException ex)
         {
+            RollbackDeployment(backupEntries, details);
             logger.LogError(ex, "Disk I/O error applying LAN lobby menu fix");
             details.Add($"✗ Disk error: {ex.Message}");
             return new ActionSetResult(false, ex.Message, details);
         }
         catch (UnauthorizedAccessException ex)
         {
+            RollbackDeployment(backupEntries, details);
             logger.LogError(ex, "Permission error applying LAN lobby menu fix");
             details.Add($"✗ Access denied: {ex.Message}");
             return new ActionSetResult(false, ex.Message, details);
         }
         catch (InvalidOperationException ex)
         {
+            RollbackDeployment(backupEntries, details);
             logger.LogError(ex, "Archive extraction error applying LAN lobby menu fix");
             details.Add($"✗ Archive error: {ex.Message}");
             return new ActionSetResult(false, ex.Message, details);
         }
         finally
         {
-            CleanupTempFiles(tempFile, tempExtractDir);
+            CleanupTempFiles(tempFile, tempExtractDir, tempBackupDir);
         }
     }
 
@@ -212,21 +231,49 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
         GameInstallation installation,
         string fileName,
         string sourceFilePath,
-        List<string> deployedFiles)
+        string tempBackupDir,
+        List<string> deployedFiles,
+        List<(string DestPath, bool ExistedBefore, string? BackupPath)> backupEntries)
     {
         if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
         {
             var zhDest = Path.Combine(installation.ZeroHourPath, fileName);
-            File.Copy(sourceFilePath, zhDest, overwrite: true);
-            deployedFiles.Add(zhDest);
+            DeployFileWithBackup(sourceFilePath, zhDest, tempBackupDir, deployedFiles, backupEntries);
         }
 
         if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
         {
             var generalsDest = Path.Combine(installation.GeneralsPath, fileName);
-            File.Copy(sourceFilePath, generalsDest, overwrite: true);
-            deployedFiles.Add(generalsDest);
+            DeployFileWithBackup(sourceFilePath, generalsDest, tempBackupDir, deployedFiles, backupEntries);
         }
+    }
+
+    private static void DeployFileWithBackup(
+        string sourceFilePath,
+        string destPath,
+        string tempBackupDir,
+        List<string> deployedFiles,
+        List<(string DestPath, bool ExistedBefore, string? BackupPath)> backupEntries)
+    {
+        var existedBefore = File.Exists(destPath);
+        string? backupPath = null;
+
+        if (existedBefore)
+        {
+            Directory.CreateDirectory(tempBackupDir);
+            backupPath = Path.Combine(tempBackupDir, $"{Guid.NewGuid():N}_{Path.GetFileName(destPath)}");
+            File.Copy(destPath, backupPath, overwrite: true);
+        }
+
+        var destDir = Path.GetDirectoryName(destPath);
+        if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
+        {
+            Directory.CreateDirectory(destDir);
+        }
+
+        File.Copy(sourceFilePath, destPath, overwrite: true);
+        backupEntries.Add((destPath, existedBefore, backupPath));
+        deployedFiles.Add(destPath);
     }
 
     private async Task<bool> DownloadPackageAsync(string tempFile, List<string> details, CancellationToken cancellationToken)
@@ -264,6 +311,10 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
                 details.Add($"✓ Downloaded {fileInfo.Length / 1024.0:F2} KB package from {new Uri(url).Host}");
                 return true;
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Failed to download Custom Windows from {Url}", url);
@@ -280,7 +331,9 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
     private async Task<(int ExtractedCount, List<string> DeployedFiles)> ExtractAndDeployAssetsAsync(
         string tempFile,
         string tempExtractDir,
+        string tempBackupDir,
         GameInstallation installation,
+        List<(string DestPath, bool ExistedBefore, string? BackupPath)> backupEntries,
         CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(tempExtractDir);
@@ -290,6 +343,8 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
 
         foreach (var entry in archive.Entries.Where(e => !e.IsDirectory && e.Key != null))
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var fileName = Path.GetFileName(entry.Key);
             if (string.IsNullOrEmpty(fileName))
             {
@@ -304,10 +359,63 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
             }
 
             extractedCount++;
-            DeployEntryToInstallations(installation, fileName, extractedFilePath, deployedFiles);
+            DeployEntryToInstallations(installation, fileName, extractedFilePath, tempBackupDir, deployedFiles, backupEntries);
         }
 
         return (extractedCount, deployedFiles);
+    }
+
+    private void RollbackDeployment(
+        List<(string DestPath, bool ExistedBefore, string? BackupPath)> backupEntries,
+        List<string> details)
+    {
+        try
+        {
+            details.Add("Rolling back deployed assets...");
+            foreach (var (destPath, existedBefore, backupPath) in backupEntries)
+            {
+                try
+                {
+                    if (existedBefore && !string.IsNullOrEmpty(backupPath) && File.Exists(backupPath))
+                    {
+                        File.Copy(backupPath, destPath, overwrite: true);
+                    }
+                    else if (!existedBefore && File.Exists(destPath))
+                    {
+                        File.Delete(destPath);
+                    }
+                }
+                catch (IOException ex)
+                {
+                    logger.LogWarning(ex, "Failed to restore or remove file during rollback: {Path}", destPath);
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    logger.LogWarning(ex, "Access denied during rollback of file: {Path}", destPath);
+                }
+            }
+
+            if (File.Exists(_markerPath))
+            {
+                try
+                {
+                    File.Delete(_markerPath);
+                }
+                catch (IOException)
+                {
+                }
+                catch (UnauthorizedAccessException)
+                {
+                }
+            }
+
+            details.Add("✓ Rollback completed.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed during rollback of LAN lobby menu deployment");
+            details.Add($"✗ Rollback warning: {ex.Message}");
+        }
     }
 
     private bool RecordDeploymentMarker(List<string> deployedFiles)
@@ -335,7 +443,7 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
         }
     }
 
-    private void CleanupTempFiles(string tempFile, string tempExtractDir)
+    private void CleanupTempFiles(string tempFile, string tempExtractDir, string tempBackupDir)
     {
         try
         {
@@ -348,6 +456,10 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
         {
             logger.LogDebug(ex, "Failed to delete temp file {TempFile}", tempFile);
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogDebug(ex, "Access denied deleting temp file {TempFile}", tempFile);
+        }
 
         try
         {
@@ -359,6 +471,26 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
         catch (IOException ex)
         {
             logger.LogDebug(ex, "Failed to delete temp directory {TempDir}", tempExtractDir);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogDebug(ex, "Access denied deleting temp directory {TempDir}", tempExtractDir);
+        }
+
+        try
+        {
+            if (Directory.Exists(tempBackupDir))
+            {
+                Directory.Delete(tempBackupDir, recursive: true);
+            }
+        }
+        catch (IOException ex)
+        {
+            logger.LogDebug(ex, "Failed to delete temp backup directory {TempDir}", tempBackupDir);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogDebug(ex, "Access denied deleting temp backup directory {TempDir}", tempBackupDir);
         }
     }
 }

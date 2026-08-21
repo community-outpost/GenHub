@@ -59,7 +59,7 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
     /// <inheritdoc/>
     public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
-        return Task.FromResult(File.Exists(_markerPath) || AreHDIconsPresent(installation));
+        return Task.FromResult(AreHDIconsPresent(installation));
     }
 
     /// <inheritdoc/>
@@ -76,7 +76,7 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
             using var client = httpClientFactory.CreateClient("Downloader");
             client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
-            var urls = new[] { ExternalUrls.HDIconsDownloadUrlPrimary, ExternalUrls.HDIconsDownloadUrlMirror1 };
+            var urls = new[] { ExternalUrls.HDIconsDownloadUrlPrimary };
             bool downloaded = false;
 
             foreach (var url in urls)
@@ -108,6 +108,10 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
                     downloaded = true;
                     break;
                 }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     logger.LogWarning("Failed to download HD icons from {Url}: {Error}", url, ex.Message);
@@ -120,7 +124,7 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
 
             if (!downloaded)
             {
-                return new ActionSetResult(false, "Failed to download High-Definition Icons from all available mirrors.", details);
+                return new ActionSetResult(false, "Failed to download High-Definition Icons from available source.", details);
             }
 
             var validation = await DownloadSecurityValidator.ValidateFileAsync(
@@ -277,33 +281,27 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
     {
         try
         {
-            var foundHDIcons = false;
+            var hasAnyTarget = false;
 
             if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
             {
-                foreach (var iconFile in KnownHdIconFiles)
+                hasAnyTarget = true;
+                if (!KnownHdIconFiles.All(iconFile => File.Exists(Path.Combine(installation.GeneralsPath, iconFile))))
                 {
-                    if (File.Exists(Path.Combine(installation.GeneralsPath, iconFile)))
-                    {
-                        foundHDIcons = true;
-                        break;
-                    }
+                    return false;
                 }
             }
 
-            if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath) && !foundHDIcons)
+            if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
             {
-                foreach (var iconFile in KnownHdIconFiles)
+                hasAnyTarget = true;
+                if (!KnownHdIconFiles.All(iconFile => File.Exists(Path.Combine(installation.ZeroHourPath, iconFile))))
                 {
-                    if (File.Exists(Path.Combine(installation.ZeroHourPath, iconFile)))
-                    {
-                        foundHDIcons = true;
-                        break;
-                    }
+                    return false;
                 }
             }
 
-            return foundHDIcons;
+            return hasAnyTarget;
         }
         catch (Exception ex)
         {

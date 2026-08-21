@@ -52,11 +52,6 @@ public static class ExternalUrls
     public const string HDIconsDownloadUrlPrimary = "https://legi.cc/gp2/f/icon.dat";
 
     /// <summary>
-    /// Gets the secondary download URL for High-Definition Icons (Gentool).
-    /// </summary>
-    public const string HDIconsDownloadUrlMirror1 = "https://gentool.net/program_data/genpatcher/icon.dat";
-
-    /// <summary>
     /// Gets the primary download URL for Expanded LAN Lobby Menu &amp; Custom Windows (Gentool).
     /// </summary>
     public const string ExpandedLANLobbyDownloadUrlPrimary = "https://gentool.net/program_data/genpatcher/cbbs.dat";
