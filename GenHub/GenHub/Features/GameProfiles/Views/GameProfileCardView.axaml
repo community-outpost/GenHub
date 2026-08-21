@@ -6,7 +6,8 @@
              xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters"
              mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="400"
              x:Class="GenHub.Features.GameProfiles.Views.GameProfileCardView"
-             x:DataType="vm:GameProfileItemViewModel">
+             x:DataType="vm:GameProfileItemViewModel"
+             x:CompileBindings="True">
 
     <UserControl.Resources>
         <conv:ContrastTextColorConverter x:Key="ContrastTextColorConverter" />
@@ -46,8 +47,8 @@
         </Style>
 
         <Style Selector="Border.profile-card:pointerover">
-            <Setter Property="RenderTransform" Value="scale(1.05)" />
-            <Setter Property="BoxShadow" Value="0 16 32 4 #80000000" />
+            <Setter Property="RenderTransform" Value="translateY(-2px)" />
+            <Setter Property="BoxShadow" Value="0 12 28 0 #60000000" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="ZIndex" Value="10" /> <!-- Pop out -->
         </Style>
@@ -163,19 +164,19 @@
         </Style>
 
         <!-- Launch Button Theming -->
-        <Style Selector="Button.launch-button">
+        <Style Selector="Button.launch-button" x:CompileBindings="False">
             <Setter Property="BorderBrush" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
             <Setter Property="Foreground" Value="White" />
         </Style>
 
-        <Style Selector="Button.launch-button:pointerover">
+        <Style Selector="Button.launch-button:pointerover" x:CompileBindings="False">
             <Setter Property="Background" Value="#FFFFFFFF" />
             <Setter Property="Foreground" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
             <Setter Property="RenderTransform" Value="scale(1.05)" />
         </Style>
 
         <!-- Ensure icon inside launch button inherits color on hover -->
-        <Style Selector="Button.launch-button:pointerover PathIcon">
+        <Style Selector="Button.launch-button:pointerover PathIcon" x:CompileBindings="False">
             <Setter Property="Foreground" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
         </Style>
 
@@ -208,7 +209,7 @@
         </Style>
 
         <!-- Running State Animation -->
-        <Style Selector="Border.running-indicator">
+        <Style Selector="Border.running-indicator" x:CompileBindings="False">
             <Setter Property="BorderBrush" Value="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
             <Setter Property="BorderThickness" Value="2" />
         </Style>

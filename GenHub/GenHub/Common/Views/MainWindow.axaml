@@ -10,6 +10,7 @@
         mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
         x:Class="GenHub.Common.Views.MainWindow"
         x:DataType="vm:MainViewModel"
+        x:CompileBindings="True"
         Title="GenHub"
         WindowStartupLocation="CenterScreen"
         Icon="avares://GenHub/Assets/Icons/generalshub-icon.png"
@@ -17,18 +18,19 @@
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="-1"
+        Background="#111118"
         DragDrop.AllowDrop="True">
 
     <Window.Styles>
         <Style Selector="Grid.TitleBarArea">
-            <Setter Property="Background" Value="#1A1A1A"/>
+            <Setter Property="Background" Value="#111118"/>
             <Setter Property="Height" Value="40"/>
         </Style>
 
         <!-- Titlebar Action Buttons (Info, Settings, Notifications) -->
         <Style Selector="Button.titlebar-action-btn">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#B0B0B0"/>
+            <Setter Property="Foreground" Value="#9E9EA8"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
             <Setter Property="CornerRadius" Value="8"/>
@@ -52,21 +54,52 @@
         </Style>
 
         <Style Selector="Button.titlebar-action-btn:pointerover">
-            <Setter Property="Background" Value="#2A2A2A"/>
+            <Setter Property="Background" Value="#222228"/>
             <Setter Property="Foreground" Value="#FFFFFF"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="#30FFFFFF"/>
         </Style>
 
         <Style Selector="Button.titlebar-action-btn.active">
-            <Setter Property="Background" Value="#251E38"/>
+            <Setter Property="Background" Value="#231A36"/>
             <Setter Property="Foreground" Value="#A855F7"/>
-            <Setter Property="BorderBrush" Value="#80A855F7"/>
+            <Setter Property="BorderBrush" Value="#A855F7"/>
         </Style>
 
         <Style Selector="Button.titlebar-action-btn.active:pointerover">
-            <Setter Property="Background" Value="#32264C"/>
+            <Setter Property="Background" Value="#2D2146"/>
             <Setter Property="Foreground" Value="#C084FC"/>
-            <Setter Property="BorderBrush" Value="#A855F7"/>
+            <Setter Property="BorderBrush" Value="#C084FC"/>
+        </Style>
+
+        <!-- Window Controls Buttons (Minimize, Maximize, Close) -->
+        <Style Selector="Button.titlebar-window-btn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#9E9EA8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Transitions">
+                <Setter.Value>
+                    <Transitions>
+                        <BrushTransition Property="Background" Duration="0:0:0.15" />
+                        <BrushTransition Property="Foreground" Duration="0:0:0.15" />
+                    </Transitions>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.titlebar-window-btn:pointerover">
+            <Setter Property="Background" Value="#222228"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+        </Style>
+
+        <Style Selector="Button.titlebar-close-btn:pointerover">
+            <Setter Property="Background" Value="#C42B1C"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
         </Style>
     </Window.Styles>
 
@@ -170,14 +203,7 @@
 
                 <!-- Minimize Button -->
                 <Button Grid.Column="3"
-                        VerticalAlignment="Stretch"
-                        VerticalContentAlignment="Center"
-                        HorizontalContentAlignment="Center"
-                        Background="Transparent"
-                        Foreground="#CCCCCC"
-                        BorderThickness="0"
-                        Padding="0"
-                        Width="46" Height="40"
+                        Classes="titlebar-window-btn"
                         Click="MinimizeButton_Click">
                     <Path Data="M4,11H20V13H4Z"
                           Fill="{Binding $parent[Button].Foreground}"
@@ -186,24 +212,11 @@
                           VerticalAlignment="Center"
                           HorizontalAlignment="Center"
                           Margin="0,8,0,0" />
-                    <Button.Styles>
-                        <Style Selector="Button:pointerover">
-                            <Setter Property="Background" Value="#2A2A2A"/>
-                            <Setter Property="Foreground" Value="White"/>
-                        </Style>
-                    </Button.Styles>
                 </Button>
 
                 <!-- Maximize/Restore Button -->
                 <Button Grid.Column="4"
-                        VerticalAlignment="Stretch"
-                        VerticalContentAlignment="Center"
-                        HorizontalContentAlignment="Center"
-                        Background="Transparent"
-                        Foreground="#CCCCCC"
-                        BorderThickness="0"
-                        Padding="0"
-                        Width="46" Height="40"
+                        Classes="titlebar-window-btn"
                         Click="MaximizeButton_Click">
                     <Path x:Name="MaximizeIcon"
                           Data="M4,4H20V20H4V4M6,8V18H18V8H6Z"
@@ -212,24 +225,11 @@
                           Stretch="Uniform"
                           VerticalAlignment="Center"
                           HorizontalAlignment="Center" />
-                    <Button.Styles>
-                        <Style Selector="Button:pointerover">
-                            <Setter Property="Background" Value="#2A2A2A"/>
-                            <Setter Property="Foreground" Value="White"/>
-                        </Style>
-                    </Button.Styles>
                 </Button>
 
                 <!-- Close Button -->
                 <Button Grid.Column="5"
-                        VerticalAlignment="Stretch"
-                        VerticalContentAlignment="Center"
-                        HorizontalContentAlignment="Center"
-                        Background="Transparent"
-                        Foreground="#CCCCCC"
-                        BorderThickness="0"
-                        Padding="0"
-                        Width="46" Height="40"
+                        Classes="titlebar-window-btn titlebar-close-btn"
                         Click="CloseButton_Click">
                     <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
                           Fill="{Binding $parent[Button].Foreground}"
@@ -237,12 +237,6 @@
                           Stretch="Uniform"
                           VerticalAlignment="Center"
                           HorizontalAlignment="Center" />
-                    <Button.Styles>
-                        <Style Selector="Button:pointerover">
-                            <Setter Property="Background" Value="#C42B1C"/>
-                            <Setter Property="Foreground" Value="White"/>
-                        </Style>
-                    </Button.Styles>
                 </Button>
             </Grid>
 

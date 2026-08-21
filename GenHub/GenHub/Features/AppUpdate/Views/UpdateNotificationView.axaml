@@ -134,10 +134,10 @@
             <ScrollViewer IsVisible="{Binding !IsBrowseTabSelected}" VerticalScrollBarVisibility="Auto">
                 <StackPanel Spacing="16" Margin="0,0,0,8">
                     <!-- Update Status Card -->
-                    <Border Background="#20FFFFFF" CornerRadius="12" Padding="20" IsVisible="{Binding IsUpdateAvailable}">
+                    <Border Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="20" IsVisible="{Binding IsUpdateAvailable}">
                         <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
                             <!-- Icon -->
-                            <Border Grid.RowSpan="2" Width="48" Height="48" CornerRadius="24" Background="#7C4DFF" Margin="0,0,16,0" VerticalAlignment="Top">
+                            <Border Grid.RowSpan="2" Width="48" Height="48" CornerRadius="24" Background="{DynamicResource AccentBrush}" Margin="0,0,16,0" VerticalAlignment="Top">
                                 <Viewbox Width="24" Height="24">
                                     <Path Data="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M11,16.5L6.5,12L7.91,10.59L11,13.67L16.59,8.09L18,9.5L11,16.5Z" Fill="White" />
                                 </Viewbox>
@@ -168,12 +168,12 @@
 
                             <!-- Release Notes Link -->
                             <Button Grid.Row="1" Grid.Column="1" Content="View Release Notes" Command="{Binding ViewReleaseNotesCommand}"
-                                     Background="Transparent" Foreground="#7C4DFF" BorderThickness="0" Padding="0" Margin="0,8,0,0" HorizontalAlignment="Left" Cursor="Hand"/>
+                                     Background="Transparent" Foreground="{DynamicResource AccentBrush}" BorderThickness="0" Padding="0" Margin="0,8,0,0" HorizontalAlignment="Left" Cursor="Hand"/>
                         </Grid>
                     </Border>
 
                     <!-- Settings / Subscription Info -->
-                    <Border Background="#15FFFFFF" CornerRadius="12" Padding="16">
+                    <Border Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="12" Padding="16">
                         <StackPanel Spacing="12">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Text="Installation Source" FontSize="14" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
@@ -183,7 +183,7 @@
 
                             <!-- Current Source Display -->
                             <Grid ColumnDefinitions="Auto,*,Auto">
-                                <PathIcon Grid.Column="0" Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" Width="16" Height="16" Foreground="#7C4DFF" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                <PathIcon Grid.Column="0" Data="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" Width="16" Height="16" Foreground="{DynamicResource AccentBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                 <TextBlock Grid.Column="1" Text="{Binding StatusMessage}" VerticalAlignment="Center" Foreground="#DDDDDD" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
                                 <Button Grid.Column="2" Content="Unsubscribe" Command="{Binding UnsubscribeCommand}" IsVisible="{Binding IsSubscribedToAny}"
                                         Background="#30FF0000" Foreground="#FF5555" FontSize="12" Padding="8,4" CornerRadius="4" VerticalAlignment="Center"/>
@@ -215,14 +215,14 @@
             <!-- Tab 1: Browse Builds -->
             <Grid IsVisible="{Binding IsBrowseTabSelected}" ColumnDefinitions="3*,2*">
                 <!-- Left Column: Open Pull Requests -->
-                <Border Grid.Column="0" Background="#0AFFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,8,0">
+                <Border Grid.Column="0" Background="{DynamicResource SurfaceElevatedDarkBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,8,0">
                     <Grid RowDefinitions="Auto,*">
                         <!-- Column Header -->
                         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="4,0,4,12">
                             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                 <TextBlock Text="Open Pull Requests" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
-                                <Border Background="#207C4DFF" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding AvailablePullRequests.Count}" FontSize="11" FontWeight="Bold" Foreground="#CC7C4DFF"/>
+                                <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding AvailablePullRequests.Count}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentBadgeForegroundBrush}"/>
                                 </Border>
                             </StackPanel>
                         </Grid>
@@ -232,7 +232,7 @@
                             <ItemsControl ItemsSource="{Binding AvailablePullRequests}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Background="#12FFFFFF" CornerRadius="6" Padding="12" Margin="0,0,6,8">
+                                        <Border Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,6,8">
                                             <Grid ColumnDefinitions="*,Auto">
                                                 <!-- Left side: PR Info (bounded for text trimming) -->
                                                 <Grid Grid.Column="0" RowDefinitions="Auto,Auto" Margin="0,0,12,0">
@@ -290,14 +290,14 @@
                 </Border>
 
                 <!-- Right Column: Branches -->
-                <Border Grid.Column="1" Background="#0AFFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1" CornerRadius="8" Padding="12" Margin="8,0,0,0">
+                <Border Grid.Column="1" Background="{DynamicResource SurfaceElevatedDarkBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="8,0,0,0">
                     <Grid RowDefinitions="Auto,*">
                         <!-- Column Header -->
                         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="4,0,4,12">
                             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                 <TextBlock Text="Branches" FontSize="14" FontWeight="SemiBold" Foreground="White"/>
-                                <Border Background="#207C4DFF" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding AvailableBranches.Count}" FontSize="11" FontWeight="Bold" Foreground="#CC7C4DFF"/>
+                                <Border Background="{DynamicResource AccentBadgeBackgroundBrush}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding AvailableBranches.Count}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentBadgeForegroundBrush}"/>
                                 </Border>
                             </StackPanel>
                         </Grid>
@@ -307,7 +307,7 @@
                             <ItemsControl ItemsSource="{Binding AvailableBranches}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Background="#12FFFFFF" CornerRadius="6" Padding="12" Margin="0,0,6,8">
+                                        <Border Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,6,8">
                                             <Grid ColumnDefinitions="*,Auto">
                                                 <TextBlock Grid.Column="0"
                                                            Text="{Binding}"
@@ -346,7 +346,7 @@
                 <Button Command="{Binding ManualRefreshCommand}" Content="Check for Updates"
                         Background="Transparent" Foreground="#AAAAAA" FontSize="14" Cursor="Hand"
                         ToolTip.Tip="Manually check for updates and restore dismissed notifications"/>
-                <Border Background="#15FFFFFF" CornerRadius="4" Padding="8,3" VerticalAlignment="Center">
+                <Border Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="8,3" VerticalAlignment="Center">
                     <TextBlock Text="{Binding InstalledVersionDisplay}"
                                FontSize="12" Foreground="#888888" VerticalAlignment="Center"/>
                 </Border>

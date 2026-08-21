@@ -22,6 +22,7 @@
              mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
              x:Class="GenHub.Common.Views.MainView"
              x:DataType="vm:MainViewModel"
+             x:CompileBindings="True"
              x:Name="MainViewRoot">
 
     <Design.DataContext>
@@ -31,12 +32,13 @@
     <UserControl.Styles>
         <!-- Pill navigation container style -->
         <Style Selector="Border.pill-container">
-            <Setter Property="Background" Value="#CC141418" />
+            <Setter Property="Background" Value="#CC111118" />
             <Setter Property="BorderBrush" Value="#403A3A48" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="24" />
             <Setter Property="Padding" Value="4" />
             <Setter Property="Height" Value="46" />
+            <Setter Property="BoxShadow" Value="0 4 16 0 #20000000" />
         </Style>
 
         <!-- Pill tab button style -->
@@ -72,6 +74,13 @@
                             BorderThickness="{TemplateBinding BorderThickness}"
                             CornerRadius="{TemplateBinding CornerRadius}"
                             ClipToBounds="True">
+                        <Border.Transitions>
+                            <Transitions>
+                                <BrushTransition Property="Background" Duration="0:0:0.18" />
+                                <BrushTransition Property="BorderBrush" Duration="0:0:0.18" />
+                                <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.18" />
+                            </Transitions>
+                        </Border.Transitions>
                         <ContentPresenter Content="{TemplateBinding Content}"
                                           ContentTemplate="{TemplateBinding ContentTemplate}"
                                           Padding="{TemplateBinding Padding}"
@@ -89,7 +98,7 @@
         <Style Selector="Button.pill-tab:pointerover">
             <Setter Property="Background" Value="#222228" />
             <Setter Property="Foreground" Value="#F0F0F5" />
-            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="#20FFFFFF" />
         </Style>
 
         <!-- Pill tab active / selected -->
@@ -121,13 +130,13 @@
             <Setter Property="Background">
                 <Setter.Value>
                     <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                        <GradientStop Color="#992D2D2D" Offset="0" />
-                        <GradientStop Color="#99202020" Offset="1" />
+                        <GradientStop Color="#991A1A22" Offset="0" />
+                        <GradientStop Color="#99111118" Offset="1" />
                     </LinearGradientBrush>
                 </Setter.Value>
             </Setter>
             <Setter Property="BorderThickness" Value="0,0,0,1" />
-            <Setter Property="BorderBrush" Value="#404040" />
+            <Setter Property="BorderBrush" Value="#2530303E" />
         </Style>
 
         <!-- Compact branding style -->
@@ -168,7 +177,7 @@
                Grid.RowSpan="2"/>
 
         <!-- Semi-transparent overlay to improve text readability -->
-        <Border Background="#F2141414" Grid.RowSpan="2" />
+        <Border Background="#F2111118" Grid.RowSpan="2" />
 
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />

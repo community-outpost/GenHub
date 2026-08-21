@@ -1,0 +1,100 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Design.PreviewWith>
+        <Border Padding="20" Background="#08080C" Width="400">
+            <Expander Header="Data Directories" IsExpanded="True">
+                <TextBlock Text="Content inside expander" Padding="16" Foreground="White" />
+            </Expander>
+        </Border>
+    </Design.PreviewWith>
+
+    <Style Selector="Expander">
+        <Setter Property="Background" Value="{DynamicResource CardBackground}" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Margin" Value="0,0,0,8" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+    </Style>
+
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="16,14" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.15" />
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+            </Transitions>
+        </Setter>
+    </Style>
+
+    <Style Selector="Expander:expanded /template/ ToggleButton#ExpanderHeader">
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="CornerRadius" Value="8,8,0,0" />
+    </Style>
+
+    <!-- PointerOver / Hover States -->
+    <Style Selector="Expander:pointerover /template/ ToggleButton#ExpanderHeader">
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+    </Style>
+
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:pointerover">
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+    </Style>
+
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:pointerover /template/ Border#Root">
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <!-- Pressed State -->
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:pressed /template/ Border#Root">
+        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+    </Style>
+
+    <!-- Clean Chevron Styling (Removes the default FluentTheme button box around the arrow) -->
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader /template/ Border#ExpandCollapseChevronBorder">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:pointerover /template/ Border#ExpandCollapseChevronBorder">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:checked /template/ Border#ExpandCollapseChevronBorder">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader /template/ Path#ExpandCollapseChevron">
+        <Setter Property="Stroke" Value="{DynamicResource TextSecondary}" />
+    </Style>
+
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:pointerover /template/ Path#ExpandCollapseChevron">
+        <Setter Property="Stroke" Value="{DynamicResource TextPrimary}" />
+    </Style>
+
+    <!-- Expander Content -->
+    <Style Selector="Expander /template/ Border#ExpanderContent">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+</Styles>
