@@ -18,7 +18,7 @@ using SharpCompress.Archives;
 /// Fix that downloads and installs high-definition icons for Generals and Zero Hour.
 /// Replaces legacy 32x32 Windows XP icons with 256x256 HD icon assets.
 /// </summary>
-public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix> logger) : BaseActionSet(logger)
+public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix> logger, string? markerPath = null) : BaseActionSet(logger)
 {
     private static readonly IReadOnlyList<string> RecognizedGeneralsIconFiles =
     [
@@ -28,11 +28,11 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
     ];
 
     private static readonly IReadOnlyList<string> RecognizedZeroHourIconFiles =
-        [
-            "GeneralsZHHD.ico",
-            "zh_hd.ico",
-            "GeneralsHD.ico",
-        ];
+    [
+        "GeneralsZHHD.ico",
+        "zh_hd.ico",
+        "GeneralsHD.ico",
+    ];
 
     private static readonly IReadOnlyList<string> AllKnownIconFiles =
     [
@@ -43,7 +43,7 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
         "zh_hd.ico",
     ];
 
-    private readonly string _markerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", ActionSetConstants.Paths.SubActionSetMarkers, "HDIconsFix.done");
+    private readonly string _markerPath = markerPath ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", ActionSetConstants.Paths.SubActionSetMarkers, "HDIconsFix.done");
 
     /// <inheritdoc/>
     public override string Id => "HDIconsFix";
@@ -170,6 +170,18 @@ public class HDIconsFix(IHttpClientFactory httpClientFactory, ILogger<HDIconsFix
             {
                 logger.LogWarning("HD icons package contains no icon files");
                 return new ActionSetResult(false, "HD icons archive contains no valid files.", details);
+            }
+
+            if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath) && !RecognizedGeneralsIconFiles.Any(archiveFileNames.Contains))
+            {
+                logger.LogWarning("HD icons package contains no icon files recognized for Generals.");
+                return new ActionSetResult(false, "HD icons package does not contain a recognized icon for Generals.", details);
+            }
+
+            if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath) && !RecognizedZeroHourIconFiles.Any(archiveFileNames.Contains))
+            {
+                logger.LogWarning("HD icons package contains no icon files recognized for Zero Hour.");
+                return new ActionSetResult(false, "HD icons package does not contain a recognized icon for Zero Hour.", details);
             }
 
             int extractedCount = 0;

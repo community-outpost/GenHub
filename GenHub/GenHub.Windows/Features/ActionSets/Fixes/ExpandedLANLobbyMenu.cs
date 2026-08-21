@@ -17,7 +17,7 @@ using SharpCompress.Archives;
 /// <summary>
 /// Downloads and installs custom widescreen window definitions and the expanded LAN lobby menu addon.
 /// </summary>
-public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<ExpandedLANLobbyMenu> logger) : BaseActionSet(logger)
+public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<ExpandedLANLobbyMenu> logger, string? markerPath = null) : BaseActionSet(logger)
 {
     private static readonly IReadOnlyList<string> KnownMenuBigFiles =
     [
@@ -27,7 +27,7 @@ public class ExpandedLANLobbyMenu(IHttpClientFactory httpClientFactory, ILogger<
         "CustomWindows.big",
     ];
 
-    private readonly string _markerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", ActionSetConstants.Paths.SubActionSetMarkers, "ExpandedLANLobbyMenu.done");
+    private readonly string _markerPath = markerPath ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", ActionSetConstants.Paths.SubActionSetMarkers, "ExpandedLANLobbyMenu.done");
 
     /// <inheritdoc/>
     public override string Id => "ExpandedLANLobbyMenu";

@@ -29,7 +29,8 @@ public class ExpandedLANLobbyMenuTests : IDisposable
     {
         _testDir = Path.Combine(Path.GetTempPath(), $"ExpandedLANLobbyMenuTests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_testDir);
-        _fix = new ExpandedLANLobbyMenu(_httpClientFactoryMock.Object, _loggerMock.Object);
+        var markerPath = Path.Combine(_testDir, "ExpandedLANLobbyMenu.done");
+        _fix = new ExpandedLANLobbyMenu(_httpClientFactoryMock.Object, _loggerMock.Object, markerPath);
     }
 
     /// <inheritdoc/>

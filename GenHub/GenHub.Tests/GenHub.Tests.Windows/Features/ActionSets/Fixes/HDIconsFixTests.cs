@@ -29,7 +29,8 @@ public class HDIconsFixTests : IDisposable
     {
         _testDir = Path.Combine(Path.GetTempPath(), $"HDIconsFixTests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_testDir);
-        _fix = new HDIconsFix(_httpClientFactoryMock.Object, _loggerMock.Object);
+        var markerPath = Path.Combine(_testDir, "HDIconsFix.done");
+        _fix = new HDIconsFix(_httpClientFactoryMock.Object, _loggerMock.Object, markerPath);
     }
 
     /// <inheritdoc/>
