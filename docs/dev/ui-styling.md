@@ -181,7 +181,7 @@ GenHub supports live hot-swappable accent color palettes managed by `IThemeServi
   - `AccentLightBrush` / `AccentLightColor` — Highlight and pointer-over state.
   - `AccentDarkBrush` / `AccentDarkColor` — Pressed or deep container state.
   - `AccentGlowBrush` / `AccentGlowColor` — Soft aura and glow gradients.
-  - `AccentBadgeBackgroundBrush` / `AccentBadgeForegroundColor` — Low-opacity badge fills and high-contrast labels.
+  - `AccentBadgeBackgroundBrush` / `AccentBadgeForegroundBrush` — Low-opacity badge fills and high-contrast labels.
   - `AccentTintBackgroundBrush` — Subtle 15% tint for active pill navigation tabs and selected buttons.
   - `PrimaryGradientBrush` — Two-stop linear gradient from light to dark accent.
   - `SidebarItemSelectedBackground` / `SidebarItemSelectedBorder` — Theme-matched sidebar selection styling.

@@ -152,7 +152,7 @@
         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
           <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
             <TextBlock Text="Selected:" Opacity="0.7"/>
-            <TextBlock Text="{Binding SelectedMaps.Count}" FontWeight="Bold" Foreground="{DynamicResource AccentColor}"/>
+            <TextBlock Text="{Binding SelectedMaps.Count}" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
           </StackPanel>
           <Button Command="{Binding DeleteSelectedCommand}"
                   Classes="Danger" IsEnabled="{Binding SelectedMaps.Count}"
@@ -353,7 +353,7 @@
                           <StackPanel Grid.Column="0" Spacing="4">
                               <Grid ColumnDefinitions="Auto,Auto" RowDefinitions="Auto,Auto">
                                   <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
-                                  <Border Grid.Column="1" Background="{DynamicResource AccentColor}" CornerRadius="4" Padding="6,2" Margin="8,0,0,0" IsVisible="{Binding IsLoaded}">
+                                  <Border Grid.Column="1" Background="{DynamicResource AccentBrush}" CornerRadius="4" Padding="6,2" Margin="8,0,0,0" IsVisible="{Binding IsLoaded}">
                                       <TextBlock Text="LOADED" FontSize="9" FontWeight="Bold" Foreground="White"/>
                                   </Border>
                               </Grid>

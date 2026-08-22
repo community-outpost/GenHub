@@ -330,7 +330,7 @@ public class SettingsViewModelTests
         // Assert
         Assert.Contains("Purple", themes);
         Assert.Contains("Generals", themes);
-        Assert.True(themes.Count >= 8);
+        Assert.True(themes.Count >= 12);
     }
 
     /// <summary>

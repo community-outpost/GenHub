@@ -67,7 +67,7 @@
         </Style>
 
         <Style Selector="Button.card-action:pointerover">
-            <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}" />
             <Setter Property="RenderTransform" Value="scale(1.02)" />
         </Style>

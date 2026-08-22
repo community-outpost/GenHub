@@ -542,8 +542,10 @@ public class ContentOrchestratorTests
     [Theory]
     [InlineData("community-outpost")]
     [InlineData("communityoutpost")]
+    [InlineData("community_outpost")]
     [InlineData("COMMUNITY-OUTPOST")]
     [InlineData("COMMUNITYOUTPOST")]
+    [InlineData("COMMUNITY_OUTPOST")]
     public async Task ResolveManifestAsync_MatchesResolverWithHyphenAndCaseVariationsAsync(string searchResolverId)
     {
         // Arrange

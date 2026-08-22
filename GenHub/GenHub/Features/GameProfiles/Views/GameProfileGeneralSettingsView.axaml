@@ -130,10 +130,15 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Width="50" Height="50" Margin="0,0,8,8" CornerRadius="8" Background="#15FFFFFF" BorderBrush="#30FFFFFF" BorderThickness="1" ToolTip.Tip="{Binding DisplayName}"
+                                        <Border Width="50" Height="50" Margin="0,0,8,8" CornerRadius="8" Classes="selectable-tile" ToolTip.Tip="{Binding DisplayName}"
                                                 Classes.selected="{Binding Path, Converter={StaticResource EqualityConverter}, ConverterParameter={Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).IconPath}}">
                                             <Border.Styles>
-                                                <Style Selector="Border.selected">
+                                                <Style Selector="Border.selectable-tile">
+                                                    <Setter Property="Background" Value="#15FFFFFF" />
+                                                    <Setter Property="BorderBrush" Value="#30FFFFFF" />
+                                                    <Setter Property="BorderThickness" Value="1" />
+                                                </Style>
+                                                <Style Selector="Border.selectable-tile.selected">
                                                     <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
                                                     <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                                                     <Setter Property="BorderThickness" Value="2" />
@@ -164,10 +169,15 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Width="140" Height="80" Margin="0,0,12,8" CornerRadius="8" Background="#15FFFFFF" BorderBrush="#30FFFFFF" BorderThickness="1" ToolTip.Tip="{Binding DisplayName}"
+                                        <Border Width="140" Height="80" Margin="0,0,12,8" CornerRadius="8" Classes="selectable-tile" ToolTip.Tip="{Binding DisplayName}"
                                                 Classes.selected="{Binding Path, Converter={StaticResource EqualityConverter}, ConverterParameter={Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).CoverPath}}">
                                             <Border.Styles>
-                                                <Style Selector="Border.selected">
+                                                <Style Selector="Border.selectable-tile">
+                                                    <Setter Property="Background" Value="#15FFFFFF" />
+                                                    <Setter Property="BorderBrush" Value="#30FFFFFF" />
+                                                    <Setter Property="BorderThickness" Value="1" />
+                                                </Style>
+                                                <Style Selector="Border.selectable-tile.selected">
                                                     <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
                                                     <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                                                     <Setter Property="BorderThickness" Value="2" />
