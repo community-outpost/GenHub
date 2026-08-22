@@ -21,6 +21,8 @@ public sealed partial class FaqSectionViewModel(IFaqService faqService, ILogger<
 {
     private CancellationTokenSource? _loadCts;
 
+    private bool _disposed;
+
     [ObservableProperty]
     private bool _isLoading;
 
@@ -72,9 +74,19 @@ public sealed partial class FaqSectionViewModel(IFaqService faqService, ILogger<
     /// <inheritdoc/>
     public void Dispose()
     {
-        _loadCts?.Cancel();
-        _loadCts?.Dispose();
-        _loadCts = null;
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        var oldCts = Interlocked.Exchange(ref _loadCts, null);
+        if (oldCts != null)
+        {
+            oldCts.Cancel();
+            oldCts.Dispose();
+        }
+
         GC.SuppressFinalize(this);
     }
 
@@ -95,14 +107,21 @@ public sealed partial class FaqSectionViewModel(IFaqService faqService, ILogger<
     [RelayCommand]
     private async Task LoadFaqAsync()
     {
-        if (_loadCts != null)
+        var oldCts = Interlocked.Exchange(ref _loadCts, null);
+        if (oldCts != null)
         {
-            await _loadCts.CancelAsync();
-            _loadCts.Dispose();
+            await oldCts.CancelAsync();
+            oldCts.Dispose();
         }
 
-        _loadCts = new CancellationTokenSource();
-        var token = _loadCts.Token;
+        if (_disposed)
+        {
+            return;
+        }
+
+        var cts = new CancellationTokenSource();
+        _loadCts = cts;
+        var token = cts.Token;
 
         IsLoading = true;
         StatusMessage = string.Empty;
@@ -142,7 +161,10 @@ public sealed partial class FaqSectionViewModel(IFaqService faqService, ILogger<
         }
         finally
         {
-            IsLoading = false;
+            if (ReferenceEquals(_loadCts, cts))
+            {
+                IsLoading = false;
+            }
         }
     }
 }
