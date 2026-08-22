@@ -116,21 +116,22 @@ export default {
         const sigBase64Url = btoa(String.fromCharCode(...new Uint8Array(sigBuf)))
           .replace(/\+/g, "-")
           .replace(/\//g, "_")
-          .replace(/=+$/, "");
+          .replace(/[=]+$/, "");
 
         const deleteToken = `${payloadToSign}.${sigBase64Url}`;
 
         return new Response(
           JSON.stringify({
             uploadUrl: item.url,
-            fileKey: fileKey,
-            deleteToken: deleteToken,
+            fileKey,
+            deleteToken,
             publicUrl: `https://utfs.io/f/${fileKey}`,
           }),
           { status: 200, headers: corsHeaders }
         );
-      } catch (err: any) {
-        return new Response(JSON.stringify({ error: "Internal error", message: err?.message }), {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        return new Response(JSON.stringify({ error: "Internal error", message }), {
           status: 500,
           headers: corsHeaders,
         });
@@ -208,8 +209,9 @@ export default {
           status: 200,
           headers: corsHeaders,
         });
-      } catch (err: any) {
-        return new Response(JSON.stringify({ error: "Internal error", message: err?.message }), {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        return new Response(JSON.stringify({ error: "Internal error", message }), {
           status: 500,
           headers: corsHeaders,
         });
