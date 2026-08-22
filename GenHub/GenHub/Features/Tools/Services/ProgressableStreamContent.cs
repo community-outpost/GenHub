@@ -10,32 +10,14 @@ namespace GenHub.Features.Tools.Services;
 /// <summary>
 /// An <see cref="HttpContent"/> wrapper around a <see cref="Stream"/> that reports byte upload progress.
 /// </summary>
-public sealed class ProgressableStreamContent : HttpContent
+public sealed class ProgressableStreamContent(
+    Stream content,
+    long totalBytes,
+    IProgress<double>? progress = null,
+    int bufferSize = 64 * 1024) : HttpContent
 {
-    private const int DefaultBufferSize = 64 * 1024;
-    private readonly Stream _content;
-    private readonly long _totalBytes;
-    private readonly IProgress<double>? _progress;
-    private readonly int _bufferSize;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ProgressableStreamContent"/> class.
-    /// </summary>
-    /// <param name="content">Underlying readable stream.</param>
-    /// <param name="totalBytes">Total bytes expected to be read.</param>
-    /// <param name="progress">Progress callback.</param>
-    /// <param name="bufferSize">Chunk buffer size in bytes.</param>
-    public ProgressableStreamContent(
-        Stream content,
-        long totalBytes,
-        IProgress<double>? progress = null,
-        int bufferSize = DefaultBufferSize)
-    {
-        _content = content ?? throw new ArgumentNullException(nameof(content));
-        _totalBytes = totalBytes;
-        _progress = progress;
-        _bufferSize = bufferSize;
-    }
+    private const double MinProgressFraction = 0.01;
+    private const double MaxProgressFraction = 0.99;
 
     /// <inheritdoc />
     protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
@@ -46,17 +28,19 @@ public sealed class ProgressableStreamContent : HttpContent
     /// <inheritdoc />
     protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context, CancellationToken cancellationToken)
     {
-        var buffer = new byte[_bufferSize];
+        ArgumentNullException.ThrowIfNull(stream);
+
+        var buffer = new byte[bufferSize];
         long uploadedBytes = 0;
 
-        if (_content.CanSeek)
+        if (content.CanSeek)
         {
-            _content.Seek(0, SeekOrigin.Begin);
+            content.Seek(0, SeekOrigin.Begin);
         }
 
         while (true)
         {
-            var bytesRead = await _content.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken);
+            var bytesRead = await content.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken);
             if (bytesRead == 0)
             {
                 break;
@@ -65,10 +49,10 @@ public sealed class ProgressableStreamContent : HttpContent
             await stream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
             uploadedBytes += bytesRead;
 
-            if (_totalBytes > 0 && _progress != null)
+            if (totalBytes > 0 && progress != null)
             {
-                var fraction = (double)uploadedBytes / _totalBytes;
-                _progress.Report(Math.Min(0.99, Math.Max(0.01, fraction)));
+                var fraction = (double)uploadedBytes / totalBytes;
+                progress.Report(Math.Min(MaxProgressFraction, Math.Max(MinProgressFraction, fraction)));
             }
         }
     }
@@ -76,7 +60,18 @@ public sealed class ProgressableStreamContent : HttpContent
     /// <inheritdoc />
     protected override bool TryComputeLength(out long length)
     {
-        length = _totalBytes;
+        length = totalBytes;
         return true;
+    }
+
+    /// <inheritdoc />
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            content.Dispose();
+        }
+
+        base.Dispose(disposing);
     }
 }

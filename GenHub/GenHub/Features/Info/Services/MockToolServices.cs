@@ -24,6 +24,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Storage;
+using GenHub.Core.Models.Tools;
 using GenHub.Core.Models.Tools.MapManager;
 using GenHub.Core.Models.Tools.ReplayManager;
 
