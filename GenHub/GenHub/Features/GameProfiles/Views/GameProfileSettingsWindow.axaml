@@ -85,7 +85,7 @@
             <Setter Property="Background" Value="#15FFFFFF" />
             <Setter Property="BorderBrush" Value="#40FFFFFF" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Foreground" Value="#9575CD" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentLightBrush}" />
             <Setter Property="CornerRadius" Value="6" />
             <Setter Property="Padding" Value="14,6" />
             <Setter Property="FontSize" Value="12" />
@@ -93,8 +93,8 @@
             <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Button.btn-add:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#9575CD" />
-            <Setter Property="BorderBrush" Value="#9575CD" />
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Foreground" Value="White" />
         </Style>
 
@@ -240,29 +240,6 @@
             <Setter Property="BorderBrush" Value="#FFFF5252" />
         </Style>
 
-        <!-- Scrollbar theming -->
-        <Style Selector="ScrollBar">
-            <Setter Property="Background" Value="#0F0F0F" />
-        </Style>
-        <Style Selector="ScrollBar /template/ Thumb">
-            <Setter Property="Background" Value="#5E35B1" />
-            <Setter Property="Opacity" Value="0.7" />
-        </Style>
-        <Style Selector="ScrollBar /template/ Thumb:pointerover">
-            <Setter Property="Opacity" Value="0.9" />
-        </Style>
-        <Style Selector="ScrollBar /template/ Thumb:pressed">
-            <Setter Property="Opacity" Value="1" />
-        </Style>
-        <Style Selector="ScrollBar.vertical /template/ Thumb">
-            <Setter Property="MinWidth" Value="6" />
-            <Setter Property="CornerRadius" Value="3" />
-        </Style>
-        <Style Selector="ScrollBar.horizontal /template/ Thumb">
-            <Setter Property="MinHeight" Value="6" />
-            <Setter Property="CornerRadius" Value="3" />
-        </Style>
-
         <!-- New Content Card Styles -->
         <Style Selector="Button.content-card-btn">
             <Setter Property="Background" Value="#08FFFFFF" />
@@ -314,21 +291,22 @@
         </Style>
         <!-- Corner Accent Style -->
         <Style Selector="Path.corner-accent">
-            <Setter Property="Stroke" Value="#B19CD9" /> <!-- GenHub Purple accent -->
+            <Setter Property="Stroke" Value="{DynamicResource AccentLightBrush}" />
             <Setter Property="StrokeThickness" Value="1.5" />
             <Setter Property="StrokeJoin" Value="Miter" />
             <Setter Property="Opacity" Value="0.6" />
             <Setter Property="Effect">
-                <DropShadowEffect BlurRadius="8" Color="#9575CD" Opacity="0.4" OffsetX="0" OffsetY="0" />
+                <DropShadowEffect BlurRadius="8" Color="{DynamicResource AccentColor}" Opacity="0.4" OffsetX="0" OffsetY="0" />
             </Setter>
         </Style>
 
         <!-- Specific Bottom Right Accent Style -->
         <Style Selector="Path.corner-accent.bottom-right">
+             <Setter Property="Stroke" Value="{DynamicResource AccentBrush}" />
              <Setter Property="StrokeThickness" Value="5" />
              <Setter Property="Opacity" Value="1" />
              <Setter Property="Effect">
-                <DropShadowEffect BlurRadius="15" Color="#9575CD" Opacity="1.0" OffsetX="0" OffsetY="0" />
+                <DropShadowEffect BlurRadius="15" Color="{DynamicResource AccentColor}" Opacity="1.0" OffsetX="0" OffsetY="0" />
             </Setter>
         </Style>
 
@@ -336,7 +314,7 @@
         <Style Selector="Border.edge-accent">
             <Setter Property="Opacity" Value="0.5" />
             <Setter Property="Effect">
-                <DropShadowEffect BlurRadius="10" Color="#9575CD" Opacity="0.3" OffsetX="0" OffsetY="0" />
+                <DropShadowEffect BlurRadius="10" Color="{DynamicResource AccentColor}" Opacity="0.3" OffsetX="0" OffsetY="0" />
             </Setter>
         </Style>
 
@@ -405,8 +383,8 @@
                    VerticalAlignment="Stretch" />
 
             <!-- Edge Accents -->
-            <Border Classes="edge-accent" HorizontalAlignment="Right" Width="1.5" BoxShadow="0 0 10 0 #40B19CD9" Background="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
-            <Border Classes="edge-accent" VerticalAlignment="Bottom" Height="1.5" BoxShadow="0 0 10 0 #40B19CD9" Background="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
+            <Border Classes="edge-accent" HorizontalAlignment="Right" Width="1.5" Background="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
+            <Border Classes="edge-accent" VerticalAlignment="Bottom" Height="1.5" Background="{Binding ColorValue, Converter={StaticResource ColorToBrushConverter}}" />
 
             <!-- Corner Accents at absolute edges -->
             <Canvas HorizontalAlignment="Stretch" VerticalAlignment="Stretch" IsHitTestVisible="False">
@@ -445,7 +423,7 @@
                                            FontSize="18"
                                            FontWeight="Bold" />
                                 <TextBlock Text="Profile Settings"
-                                           Foreground="#B19CD9"
+                                           Foreground="{DynamicResource AccentLightBrush}"
                                            FontSize="10"
                                            FontWeight="SemiBold"
                                            LetterSpacing="1"

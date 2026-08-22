@@ -87,7 +87,7 @@
             <Setter Property="Background" Value="#15FFFFFF" />
             <Setter Property="BorderBrush" Value="#40FFFFFF" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Foreground" Value="#9575CD" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentLightBrush}" />
             <Setter Property="CornerRadius" Value="6" />
             <Setter Property="Padding" Value="14,6" />
             <Setter Property="FontSize" Value="12" />
@@ -95,8 +95,8 @@
             <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Button.btn-add:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#9575CD" />
-            <Setter Property="BorderBrush" Value="#9575CD" />
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Foreground" Value="White" />
         </Style>
 
@@ -366,7 +366,7 @@
                     <Button Content="💾 Save"
                             Command="{Binding SaveCommand}"
                             Background="White"
-                            Foreground="#5E35B1"
+                            Foreground="{DynamicResource AccentBrush}"
                             Width="100" Height="38"
                             CornerRadius="19"
                             FontWeight="Bold"
@@ -526,8 +526,8 @@
                                                         Tag="{Binding Path, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).IconPath}}">
                                                     <Border.Styles>
                                                         <Style Selector="Border[Tag=True]">
-                                                            <Setter Property="Background" Value="#405E35B1" />
-                                                            <Setter Property="BorderBrush" Value="#5E35B1" />
+                                                            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                                                             <Setter Property="BorderThickness" Value="2" />
                                                         </Style>
                                                     </Border.Styles>
@@ -579,8 +579,8 @@
                                                         Tag="{Binding Path, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).CoverPath}}">
                                                     <Border.Styles>
                                                         <Style Selector="Border[Tag=True]">
-                                                            <Setter Property="Background" Value="#405E35B1" />
-                                                            <Setter Property="BorderBrush" Value="#5E35B1" />
+                                                            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                                                             <Setter Property="BorderThickness" Value="2" />
                                                         </Style>
                                                     </Border.Styles>

@@ -134,8 +134,8 @@
                                                 Classes.selected="{Binding Path, Converter={StaticResource EqualityConverter}, ConverterParameter={Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).IconPath}}">
                                             <Border.Styles>
                                                 <Style Selector="Border.selected">
-                                                    <Setter Property="Background" Value="#405E35B1" />
-                                                    <Setter Property="BorderBrush" Value="#5E35B1" />
+                                                    <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                                                     <Setter Property="BorderThickness" Value="2" />
                                                 </Style>
                                             </Border.Styles>
@@ -168,8 +168,8 @@
                                                 Classes.selected="{Binding Path, Converter={StaticResource EqualityConverter}, ConverterParameter={Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).CoverPath}}">
                                             <Border.Styles>
                                                 <Style Selector="Border.selected">
-                                                    <Setter Property="Background" Value="#405E35B1" />
-                                                    <Setter Property="BorderBrush" Value="#5E35B1" />
+                                                    <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                                                     <Setter Property="BorderThickness" Value="2" />
                                                 </Style>
                                             </Border.Styles>

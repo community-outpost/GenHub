@@ -57,7 +57,7 @@
         </Style>
 
         <Style Selector="Button.accent">
-            <Setter Property="Background" Value="#5E35B1"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="CornerRadius" Value="4"/>
@@ -65,7 +65,7 @@
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
         <Style Selector="Button.accent:pointerover">
-            <Setter Property="Background" Value="#7E57C2"/>
+            <Setter Property="Background" Value="{DynamicResource AccentLightBrush}"/>
         </Style>
         <Style Selector="Button.accent:disabled">
             <Setter Property="Background" Value="#20FFFFFF"/>
@@ -254,7 +254,7 @@
         <!-- Loading Overlay -->
         <Grid Background="#CC000000" IsVisible="{Binding ShowLoadingOverlay}">
              <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="15">
-                 <ProgressBar IsIndeterminate="True" Width="200" Height="4" Foreground="#5E35B1"/>
+                 <ProgressBar IsIndeterminate="True" Width="200" Height="4" Foreground="{DynamicResource AccentBrush}"/>
                  <TextBlock Text="Processing..." Foreground="White" HorizontalAlignment="Center" FontSize="14" FontWeight="Light"/>
              </StackPanel>
         </Grid>
