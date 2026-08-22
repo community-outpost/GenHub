@@ -712,4 +712,48 @@ public class UpdateNotificationViewModelTests
         Assert.Equal(AppUpdateConstants.PatRequiredForArtifactsMessage, vm.StatusMessage);
         Assert.False(vm.IsUpdateAvailable);
     }
+
+    /// <summary>
+    /// Verifies that when subscribing to a branch, the install button text changes to loading and download is disabled until artifacts finish loading.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SubscribeToBranch_WhileLoading_DisablesDownloadAndShowsLoadingTextAsync()
+    {
+        var mockVelopack = new Mock<IVelopackUpdateManager>();
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings());
+
+        var tcs = new TaskCompletionSource<IReadOnlyList<ArtifactUpdateInfo>>();
+        mockVelopack.Setup(x => x.GetArtifactsForBranchAsync("feat/test", It.IsAny<CancellationToken>()))
+            .Returns(tcs.Task);
+
+        using var vm = new UpdateNotificationViewModel(
+            mockVelopack.Object,
+            Mock.Of<ILogger<UpdateNotificationViewModel>>(),
+            mockUserSettings.Object);
+
+        vm.SubscribeToBranchCommand.Execute("feat/test");
+
+        Assert.True(vm.IsLoadingVersions);
+        Assert.True(vm.IsLoadingOrInstalling);
+        Assert.Equal("Loading...", vm.InstallButtonText);
+        Assert.False(vm.CanDownloadUpdate);
+
+        tcs.SetResult([
+            new ArtifactUpdateInfo("0.0.100-feat-test", "abcdef1", null, 100, "https://github.com/run/1", 10, "genhub.zip", DateTime.UtcNow, "https://github.com/art/1", 1024),
+        ]);
+
+        var timeout = DateTime.UtcNow.AddSeconds(2);
+        while (vm.IsLoadingVersions && DateTime.UtcNow < timeout)
+        {
+            await Task.Delay(10);
+        }
+
+        Assert.False(vm.IsLoadingVersions);
+        Assert.False(vm.IsLoadingOrInstalling);
+        Assert.NotNull(vm.SelectedVersion);
+        Assert.True(vm.CanDownloadUpdate);
+        Assert.Equal("Install Update", vm.InstallButtonText);
+    }
 }

@@ -90,6 +90,10 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsCheckButtonEnabled))]
     [NotifyPropertyChangedFor(nameof(DisplayLatestVersion))]
+    [NotifyPropertyChangedFor(nameof(CanDownloadUpdate))]
+    [NotifyPropertyChangedFor(nameof(InstallButtonText))]
+    [NotifyPropertyChangedFor(nameof(IsLoadingOrInstalling))]
+    [NotifyCanExecuteChangedFor(nameof(InstallUpdateCommand))]
     private bool _isChecking;
 
     /// <summary>
@@ -110,6 +114,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(InstallUpdateCommand))]
     [NotifyPropertyChangedFor(nameof(DisplayLatestVersion))]
+    [NotifyPropertyChangedFor(nameof(CanDownloadUpdate))]
     private bool _isUpdateAvailable;
 
     /// <summary>
@@ -130,6 +135,8 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(InstallButtonText))]
+    [NotifyPropertyChangedFor(nameof(CanDownloadUpdate))]
+    [NotifyPropertyChangedFor(nameof(IsLoadingOrInstalling))]
     [NotifyCanExecuteChangedFor(nameof(InstallUpdateCommand))]
     private bool _isInstalling;
 
@@ -243,6 +250,10 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(VersionPlaceholderText))]
+    [NotifyPropertyChangedFor(nameof(CanDownloadUpdate))]
+    [NotifyPropertyChangedFor(nameof(InstallButtonText))]
+    [NotifyPropertyChangedFor(nameof(IsLoadingOrInstalling))]
+    [NotifyCanExecuteChangedFor(nameof(InstallUpdateCommand))]
     private bool _isLoadingVersions;
 
     /// <summary>
@@ -496,7 +507,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// <summary>
     /// Gets a value indicating whether an update is available and can be downloaded.
     /// </summary>
-    public bool CanDownloadUpdate => (IsUpdateAvailable || SelectedVersion != null) && !IsInstalling;
+    public bool CanDownloadUpdate => (IsUpdateAvailable || SelectedVersion != null) && !IsInstalling && !IsChecking && !IsLoadingVersions;
 
     /// <summary>
     /// Gets a value indicating whether the check button should be enabled.
@@ -504,9 +515,30 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     public bool IsCheckButtonEnabled => !IsChecking;
 
     /// <summary>
+    /// Gets a value indicating whether an operation is currently loading versions, checking updates, or installing.
+    /// </summary>
+    public bool IsLoadingOrInstalling => IsLoadingVersions || IsChecking || IsInstalling;
+
+    /// <summary>
     /// Gets the text for the install button.
     /// </summary>
-    public string InstallButtonText => IsInstalling ? "Installing..." : "Install Update";
+    public string InstallButtonText
+    {
+        get
+        {
+            if (IsInstalling)
+            {
+                return "Installing...";
+            }
+
+            if (IsChecking || IsLoadingVersions)
+            {
+                return "Loading...";
+            }
+
+            return "Install Update";
+        }
+    }
 
     /// <summary>
     /// Gets the latest version string, ensuring it has a 'v' prefix for display.
@@ -1273,6 +1305,26 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     partial void OnIsCheckingChanged(bool value)
     {
         OnPropertyChanged(nameof(IsCheckButtonEnabled));
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            UpdateCommandStates();
+        }
+        else
+        {
+            Dispatcher.UIThread.InvokeAsync(UpdateCommandStates);
+        }
+    }
+
+    partial void OnIsLoadingVersionsChanged(bool value)
+    {
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            UpdateCommandStates();
+        }
+        else
+        {
+            Dispatcher.UIThread.InvokeAsync(UpdateCommandStates);
+        }
     }
 
     partial void OnIsUpdateAvailableChanged(bool value)
@@ -1306,6 +1358,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(CanInstallBranchArtifact));
         OnPropertyChanged(nameof(DisplayLatestVersion));
         OnPropertyChanged(nameof(InstallButtonText));
+        OnPropertyChanged(nameof(IsLoadingOrInstalling));
         InstallUpdateCommand.NotifyCanExecuteChanged();
         InstallPrArtifactCommand.NotifyCanExecuteChanged();
         InstallBranchArtifactCommand.NotifyCanExecuteChanged();
@@ -1423,6 +1476,13 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         _velopackUpdateManager.SubscribedPrNumber = prNumber;
         _velopackUpdateManager.SubscribedBranch = null;
         SubscribedBranch = null;
+        ShowPrMergedWarning = false;
+        IsUpdateAvailable = false;
+        SelectedVersion = null;
+        LatestVersion = string.Empty;
+        ReleaseNotesUrl = string.Empty;
+        _currentUpdateInfo = null;
+
         SubscribedPr = AvailablePullRequests.FirstOrDefault(p => p.Number == prNumber) ?? new PullRequestInfo
         {
             Number = prNumber,
@@ -1431,7 +1491,6 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             Author = "unknown",
             State = "open",
         };
-        ShowPrMergedWarning = false;
 
         // clear artifact cache to force fresh check
         _velopackUpdateManager.ClearCache();
@@ -1455,8 +1514,14 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         _velopackUpdateManager.SubscribedPrNumber = null;
         _velopackUpdateManager.SubscribedBranch = branchName;
         SubscribedPr = null;
-        SubscribedBranch = branchName;
         ShowPrMergedWarning = false;
+        IsUpdateAvailable = false;
+        SelectedVersion = null;
+        LatestVersion = string.Empty;
+        ReleaseNotesUrl = string.Empty;
+        _currentUpdateInfo = null;
+
+        SubscribedBranch = branchName;
 
         // clear artifact cache to force fresh check
         _velopackUpdateManager.ClearCache();
