@@ -612,6 +612,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task ResetToDefaults()
     {
+        if (IsSaving) return;
+
         try
         {
             Theme = ThemeConstants.DefaultTheme.Id;
