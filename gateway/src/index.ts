@@ -58,6 +58,16 @@ const parseDeleteBody = (body: { fileKey?: unknown; deleteToken?: unknown }): De
   return { fileKey, deleteToken };
 };
 
+const validateDeletePayload = (payload: DeletePayload): string | null => {
+  if (payload.fileKey.length === 0) {
+    return "Missing fileKey";
+  }
+  if (payload.deleteToken.length === 0) {
+    return "Missing deleteToken";
+  }
+  return null;
+};
+
 const signDeleteToken = async (fileKey: string, timestamp: number, secret: string): Promise<string> => {
   const hmacKey = await crypto.subtle.importKey(
     "raw",
@@ -77,15 +87,18 @@ const signDeleteToken = async (fileKey: string, timestamp: number, secret: strin
   return `${payloadToSign}.${sigBase64Url}`;
 };
 
-const isTokenTimestampValid = (tokenTime: number, maxAgeSeconds: number): boolean => {
+const isTimestampExpired = (tokenTime: number, maxAgeSeconds: number): boolean => {
   if (isNaN(tokenTime)) {
-    return false;
+    return true;
   }
   const age = Math.floor(Date.now() / 1000) - tokenTime;
   if (age < -300) {
-    return false;
+    return true;
   }
-  return age <= maxAgeSeconds;
+  if (age > maxAgeSeconds) {
+    return true;
+  }
+  return false;
 };
 
 const extractTokenParts = (
@@ -120,7 +133,7 @@ const validateTokenParts = (
   if (parts.key !== fileKey) {
     return { valid: false, error: "Delete token does not match fileKey" };
   }
-  if (!isTokenTimestampValid(parseInt(parts.timeStr, 10), maxAgeSeconds)) {
+  if (isTimestampExpired(parseInt(parts.timeStr, 10), maxAgeSeconds)) {
     return { valid: false, error: "Delete token expired or invalid timestamp" };
   }
   return { valid: true, payload: parts.payload, signature: parts.signature };
@@ -294,14 +307,18 @@ const verifyDeleteRequest = async (
   return { valid: true };
 };
 
-const handleDeleteUpload = async (request: Request, env: Env): Promise<Response> => {
-  const payload = parseDeleteBody((await request.json()) as Record<string, unknown>);
+const executeDelete = async (fileKey: string, token: string): Promise<boolean> => {
+  const utapi = new UTApi({ token });
+  const result = await utapi.deleteFiles([fileKey]);
+  return result.success;
+};
 
-  if (payload.fileKey.length === 0) {
-    return new Response(JSON.stringify({ error: "Missing fileKey" }), { status: 400, headers: CORS_HEADERS });
-  }
-  if (payload.deleteToken.length === 0) {
-    return new Response(JSON.stringify({ error: "Missing deleteToken" }), { status: 400, headers: CORS_HEADERS });
+const handleDeleteUpload = async (request: Request, env: Env): Promise<Response> => {
+  const rawBody = (await request.json()) as Record<string, unknown>;
+  const payload = parseDeleteBody(rawBody);
+  const payloadError = validateDeletePayload(payload);
+  if (payloadError !== null) {
+    return new Response(JSON.stringify({ error: payloadError }), { status: 400, headers: CORS_HEADERS });
   }
 
   const verification = await verifyDeleteRequest(payload.fileKey, payload.deleteToken, env);
@@ -309,9 +326,8 @@ const handleDeleteUpload = async (request: Request, env: Env): Promise<Response>
     return new Response(JSON.stringify({ error: verification.error }), { status: 403, headers: CORS_HEADERS });
   }
 
-  const utapi = new UTApi({ token: env.UPLOADTHING_TOKEN });
-  const result = await utapi.deleteFiles([payload.fileKey]);
-  return new Response(JSON.stringify({ success: result.success }), { status: 200, headers: CORS_HEADERS });
+  const isSuccess = await executeDelete(payload.fileKey, env.UPLOADTHING_TOKEN);
+  return new Response(JSON.stringify({ success: isSuccess }), { status: 200, headers: CORS_HEADERS });
 };
 
 const handleCorsPreflight = (): Response =>
