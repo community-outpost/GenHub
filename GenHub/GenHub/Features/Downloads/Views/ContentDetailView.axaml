@@ -19,6 +19,9 @@
         <converters:BoolToExpandTextConverter x:Key="BoolToExpandTextConverter" />
         <converters:ContentStateToPathDataConverter x:Key="ContentStateToPathDataConverter" />
         <converters:ContentStateToBrushConverter x:Key="ContentStateToBrushConverter" />
+        <converters:ContentTypeToBrushConverter x:Key="ContentTypeToBrushConverter" />
+        <converters:ContentTypeToBadgeBackgroundConverter x:Key="ContentTypeToBadgeBackgroundConverter" />
+        <converters:ContentTypeDisplayConverter x:Key="ContentTypeDisplayConverter" />
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -118,12 +121,25 @@
                                        IsVisible="{Binding IconBitmap, Converter={x:Static ObjectConverters.IsNull}}" />
                         </Panel>
                     </Border>
-                    <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center" Spacing="4">
-                        <TextBlock Text="{Binding Name}"
-                                   FontSize="32"
-                                   FontWeight="Bold"
-                                   Foreground="{DynamicResource TextPrimary}"
-                                   TextWrapping="Wrap" />
+                    <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center" Spacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Name}"
+                                       FontSize="28"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource TextPrimary}"
+                                       TextWrapping="Wrap" />
+                            <Border Background="{Binding ContentType, Converter={StaticResource ContentTypeToBadgeBackgroundConverter}}"
+                                    BorderBrush="{Binding ContentType, Converter={StaticResource ContentTypeToBrushConverter}}"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="8,3"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="{Binding ContentType, Converter={StaticResource ContentTypeDisplayConverter}}"
+                                           FontSize="11"
+                                           FontWeight="Bold"
+                                           Foreground="{Binding ContentType, Converter={StaticResource ContentTypeToBrushConverter}}" />
+                            </Border>
+                        </StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock Text="{Binding AuthorName}" Foreground="{DynamicResource TextSecondary}"
                                        IsVisible="{Binding HasAuthor}" />

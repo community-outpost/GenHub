@@ -18,6 +18,8 @@
         <converters:ContentStateToTextConverter x:Key="ContentStateToTextConverter" />
         <converters:ContentStateToPathDataConverter x:Key="ContentStateToPathDataConverter" />
         <converters:ContentStateToBrushConverter x:Key="ContentStateToBrushConverter" />
+        <converters:ContentTypeToBrushConverter x:Key="ContentTypeToBrushConverter" />
+        <converters:ContentTypeToBadgeBackgroundConverter x:Key="ContentTypeToBadgeBackgroundConverter" />
     </UserControl.Resources>
 
     <UserControl.Styles>
@@ -57,10 +59,11 @@
 
         <!-- CTAs -->
         <Style Selector="Button.card-button">
+            <Setter Property="Height" Value="34" />
             <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="Padding" Value="12,0" />
             <Setter Property="HorizontalAlignment" Value="Stretch" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
@@ -73,6 +76,7 @@
                 <Setter.Value>
                     <Transitions>
                         <BrushTransition Property="Background" Duration="0:0:0.15" />
+                        <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
                         <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1" />
                     </Transitions>
                 </Setter.Value>
@@ -95,12 +99,25 @@
             <Setter Property="Opacity" Value="0.6" />
         </Style>
 
+        <Style Selector="Button.card-button.download-btn">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+        </Style>
+
+        <Style Selector="Button.card-button.update-btn">
+            <Setter Property="Background" Value="{DynamicResource WarningBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
+        </Style>
+
+        <Style Selector="Button.card-button.add-profile-btn">
+            <Setter Property="Background" Value="{DynamicResource SuccessBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
+        </Style>
+
         <Style Selector="Border.type-badge">
-            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="4" />
-            <Setter Property="Padding" Value="6,2" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="7,2" />
         </Style>
 
         <Style Selector="Border.player-count-badge">
@@ -119,24 +136,6 @@
             <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-        </Style>
-
-        <Style Selector="Button.update-button">
-            <Setter Property="Background" Value="{DynamicResource WarningBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
-        </Style>
-
-        <Style Selector="Button.update-button:pointerover">
-            <Setter Property="Opacity" Value="0.9" />
-        </Style>
-
-        <Style Selector="Button.add-profile-button">
-            <Setter Property="Background" Value="{DynamicResource SuccessBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
-        </Style>
-
-        <Style Selector="Button.add-profile-button:pointerover">
-            <Setter Property="Opacity" Value="0.9" />
         </Style>
 
         <Style Selector="ComboBox.card-variant-combo">
@@ -204,6 +203,11 @@
                             Background="{DynamicResource SurfaceElevatedBrush}"
                             ClipToBounds="True">
                         <Panel>
+                            <!-- Top ContentType Accent Stripe -->
+                            <Border Height="3" VerticalAlignment="Top" HorizontalAlignment="Stretch"
+                                    Background="{Binding ContentType, Converter={StaticResource ContentTypeToBrushConverter}}"
+                                    CornerRadius="12,12,0,0" ZIndex="5" />
+
                             <!-- Thumbnail image (banner / screenshot preferred over publisher avatar) -->
                             <Image Source="{Binding IconBitmap}"
                                    Stretch="UniformToFill"
@@ -246,11 +250,15 @@
                                        VerticalAlignment="Top"
                                        Margin="6"
                                        MaxWidth="228">
-                                <Border Classes="type-badge" Margin="0,0,4,4"
+                                <Border Classes="type-badge"
+                                        Background="{Binding ContentType, Converter={StaticResource ContentTypeToBadgeBackgroundConverter}}"
+                                        BorderBrush="{Binding ContentType, Converter={StaticResource ContentTypeToBrushConverter}}"
+                                        Margin="0,0,4,4"
                                         ToolTip.Tip="{Binding ContentTypeDisplay}">
                                     <TextBlock Text="{Binding ContentTypeDisplay}"
                                                FontSize="10"
-                                               Foreground="{DynamicResource TextSecondary}" />
+                                               FontWeight="Bold"
+                                               Foreground="{Binding ContentType, Converter={StaticResource ContentTypeToBrushConverter}}" />
                                 </Border>
                                 <Border Classes="type-badge variant-count-badge"
                                         IsVisible="{Binding HasVariantCountBadge}"
@@ -572,32 +580,44 @@
                                IsVisible="{Binding DownloadStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
 
                     <!-- Download Button (visible when not downloaded) -->
-                    <Button Classes="card-button"
-                            Content="Download"
+                    <Button Classes="card-button download-btn"
                             Command="{Binding DownloadCommand}"
                             CommandParameter="{Binding}"
                             IsVisible="{Binding ShowDownloadButton}"
                             IsEnabled="{Binding !IsDownloading}">
                         <ToolTip.Tip>Download this content to your library</ToolTip.Tip>
+                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Path Data="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"
+                                  Fill="White" Width="12" Height="12" Stretch="Uniform" VerticalAlignment="Center" />
+                            <TextBlock Text="Download" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
                     </Button>
 
                     <!-- Update Button (visible when update is available) -->
-                    <Button Classes="card-button update-button"
-                            Content="Update Available"
+                    <Button Classes="card-button update-btn"
                             Command="{Binding UpdateCommand}"
                             CommandParameter="{Binding}"
                             IsVisible="{Binding ShowUpdateButton}"
                             IsEnabled="{Binding !IsDownloading}">
                         <ToolTip.Tip>A newer version is available. Click to update.</ToolTip.Tip>
+                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Path Data="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"
+                                  Fill="White" Width="12" Height="12" Stretch="Uniform" VerticalAlignment="Center" />
+                            <TextBlock Text="Update Available" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
                     </Button>
 
                     <!-- Add to Profile Button (visible when downloaded) -->
-                    <Button Classes="card-button add-profile-button"
-                            Content="Add to Profile"
+                    <Button Classes="card-button add-profile-btn"
                             Command="{Binding AddToProfileCommand}"
                             CommandParameter="{Binding}"
                             IsVisible="{Binding ShowAddToProfileButton}">
                         <ToolTip.Tip>Add this content to a game profile</ToolTip.Tip>
+                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Path Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"
+                                  Fill="White" Width="12" Height="12" Stretch="Uniform" VerticalAlignment="Center" />
+                            <TextBlock Text="Add to Profile" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
                     </Button>
                 </StackPanel>
             </Grid>
