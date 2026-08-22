@@ -219,4 +219,12 @@
     <SolidColorBrush x:Key="ScrollbarThumbBrush" Color="{StaticResource ScrollbarThumbColor}" />
     <SolidColorBrush x:Key="ScrollbarThumbHoverBrush" Color="{StaticResource ScrollbarThumbHoverColor}" />
     <SolidColorBrush x:Key="ScrollbarThumbPressedBrush" Color="{DynamicResource AccentColor}" />
+
+    <!-- Fluent Theme ScrollBar brush key aliases -->
+    <SolidColorBrush x:Key="ScrollBarThumbFill" Color="{StaticResource ScrollbarThumbColor}" />
+    <SolidColorBrush x:Key="ScrollBarThumbFillPointerOver" Color="{StaticResource ScrollbarThumbHoverColor}" />
+    <SolidColorBrush x:Key="ScrollBarThumbFillPressed" Color="{DynamicResource AccentColor}" />
+    <SolidColorBrush x:Key="ScrollBarTrackFill" Color="{StaticResource ScrollbarTrackColor}" />
+    <SolidColorBrush x:Key="ScrollBarTrackFillPointerOver" Color="{StaticResource ScrollbarTrackColor}" />
+    <SolidColorBrush x:Key="ScrollBarTrackFillPressed" Color="{StaticResource ScrollbarTrackColor}" />
 </ResourceDictionary>

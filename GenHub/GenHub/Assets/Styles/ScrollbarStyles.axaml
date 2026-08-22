@@ -16,18 +16,24 @@
         <Setter Property="Background" Value="{DynamicResource ScrollbarTrackBrush}" />
         <Setter Property="MinWidth" Value="8" />
         <Setter Property="MinHeight" Value="8" />
+        <Setter Property="AllowAutoHide" Value="False" />
     </Style>
 
     <!-- Vertical ScrollBar Template -->
     <Style Selector="ScrollBar:vertical">
         <Setter Property="Width" Value="8" />
+        <Setter Property="MinWidth" Value="8" />
         <Setter Property="Template">
             <ControlTemplate>
                 <Border Background="{TemplateBinding Background}" UseLayoutRounding="False">
                     <Grid>
                         <Track Name="PART_Track"
-                               IsDirectionReversed="True"
-                               Orientation="Vertical">
+                               Minimum="{TemplateBinding Minimum}"
+                               Maximum="{TemplateBinding Maximum}"
+                               Value="{TemplateBinding Value, Mode=TwoWay}"
+                               ViewportSize="{TemplateBinding ViewportSize}"
+                               Orientation="{TemplateBinding Orientation}"
+                               IsDirectionReversed="True">
                             <Track.DecreaseButton>
                                 <RepeatButton Name="PART_PageUpButton"
                                               Classes="scrollbar-track-button"
@@ -56,13 +62,18 @@
     <!-- Horizontal ScrollBar Template -->
     <Style Selector="ScrollBar:horizontal">
         <Setter Property="Height" Value="8" />
+        <Setter Property="MinHeight" Value="8" />
         <Setter Property="Template">
             <ControlTemplate>
                 <Border Background="{TemplateBinding Background}" UseLayoutRounding="False">
                     <Grid>
                         <Track Name="PART_Track"
-                               IsDirectionReversed="False"
-                               Orientation="Horizontal">
+                               Minimum="{TemplateBinding Minimum}"
+                               Maximum="{TemplateBinding Maximum}"
+                               Value="{TemplateBinding Value, Mode=TwoWay}"
+                               ViewportSize="{TemplateBinding ViewportSize}"
+                               Orientation="{TemplateBinding Orientation}"
+                               IsDirectionReversed="False">
                             <Track.DecreaseButton>
                                 <RepeatButton Name="PART_PageUpButton"
                                               Classes="scrollbar-track-button"
@@ -89,7 +100,7 @@
     </Style>
 
     <!-- Thumb Base Style -->
-    <Style Selector="Thumb.scrollbar-thumb">
+    <Style Selector="Thumb.scrollbar-thumb, ScrollBar /template/ Thumb, Thumb.thumb">
         <Setter Property="Background" Value="{DynamicResource ScrollbarThumbBrush}" />
         <Setter Property="CornerRadius" Value="4" />
         <Setter Property="Template">
@@ -107,38 +118,12 @@
     </Style>
 
     <!-- Thumb Hover State -->
-    <Style Selector="Thumb.scrollbar-thumb:pointerover">
+    <Style Selector="Thumb.scrollbar-thumb:pointerover, ScrollBar /template/ Thumb:pointerover, Thumb.thumb:pointerover">
         <Setter Property="Background" Value="{DynamicResource ScrollbarThumbHoverBrush}" />
     </Style>
 
     <!-- Thumb Pressed State -->
-    <Style Selector="Thumb.scrollbar-thumb:pressed">
-        <Setter Property="Background" Value="{DynamicResource ScrollbarThumbPressedBrush}" />
-    </Style>
-
-    <!-- Legacy / Alternate Thumb Selector Support -->
-    <Style Selector="Thumb.thumb">
-        <Setter Property="Background" Value="{DynamicResource ScrollbarThumbBrush}" />
-        <Setter Property="CornerRadius" Value="4" />
-        <Setter Property="Template">
-            <ControlTemplate>
-                <Border Background="{TemplateBinding Background}"
-                        CornerRadius="{TemplateBinding CornerRadius}">
-                    <Border.Transitions>
-                        <Transitions>
-                            <BrushTransition Property="Background" Duration="0:0:0.15" />
-                        </Transitions>
-                    </Border.Transitions>
-                </Border>
-            </ControlTemplate>
-        </Setter>
-    </Style>
-
-    <Style Selector="Thumb.thumb:pointerover">
-        <Setter Property="Background" Value="{DynamicResource ScrollbarThumbHoverBrush}" />
-    </Style>
-
-    <Style Selector="Thumb.thumb:pressed">
+    <Style Selector="Thumb.scrollbar-thumb:pressed, ScrollBar /template/ Thumb:pressed, Thumb.thumb:pressed">
         <Setter Property="Background" Value="{DynamicResource ScrollbarThumbPressedBrush}" />
     </Style>
 
@@ -147,9 +132,11 @@
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
         <Setter Property="Padding" Value="0" />
+        <Setter Property="IsHitTestVisible" Value="True" />
+        <Setter Property="Focusable" Value="False" />
         <Setter Property="Template">
             <ControlTemplate>
-                <Border Background="Transparent" />
+                <Border Background="{TemplateBinding Background}" />
             </ControlTemplate>
         </Setter>
     </Style>
