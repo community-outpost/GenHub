@@ -115,7 +115,7 @@
 
     <!-- Abort Danger Button -->
     <Style Selector="Button.abort-danger-btn">
-      <Setter Property="Background" Value="#25EF4444" />
+      <Setter Property="Background" Value="{DynamicResource ErrorBadgeBackgroundBrush}" />
       <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
       <Setter Property="BorderThickness" Value="1" />

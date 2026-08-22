@@ -53,7 +53,7 @@
                  Text="{Binding Value}"
                  FontSize="18"
                  FontWeight="Bold"
-                 Foreground="{Binding IsHighlighted, Converter={StaticResource BoolToColorConverter}, ConverterParameter='#A855F7|#FFFFFF', FallbackValue={DynamicResource TextPrimary}}"
+                 Foreground="{DynamicResource TextPrimary}"
                  Margin="0,6,0,0"/>
 
       <!-- Trend Indicator -->

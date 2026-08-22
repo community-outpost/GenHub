@@ -33,7 +33,7 @@
                 CornerRadius="8"
                 Margin="0,0,12,0">
           <Path Width="20" Height="20"
-                Fill="White"
+                Fill="{DynamicResource TextPrimary}"
                 Data="{Binding StageIcon}"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
