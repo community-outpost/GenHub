@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "genhub-upload-gateway",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "MAX_FILE_SIZE_BYTES": "10485760"
+  }
+}

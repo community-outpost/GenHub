@@ -4,79 +4,65 @@ This document describes the Uploading API and the `UploadThingService` implement
 
 ## Overview
 
-GenHub can still import existing UploadThing links, but creating and deleting cloud
-uploads is temporarily disabled.
+GenHub provides cloud sharing for maps and replays via a trusted serverless gateway proxy (Cloudflare Worker). The gateway isolates the master `UPLOADTHING_TOKEN` server-side and issues stateless cryptographic HMAC deletion tokens to clients upon upload.
 
-## Security status
+## Security Architecture
 
-The development build pipeline injected `UPLOADTHING_TOKEN` into desktop binaries
-using reversible XOR obfuscation. Any CI artifacts produced while that path was
-active must be treated as credential-bearing. The affected code was not present
-in the last public release.
-
-Repository owners must revoke and rotate the exposed UploadThing token. The
-replacement must not be added to GitHub Actions, source code, or desktop build
-artifacts.
-
-The application must keep uploads disabled until a trusted backend can authenticate
-the user and issue a narrowly scoped, short-lived credential or one-time signed
-upload URL. Long-lived provider credentials must remain server-side.
+1. **Zero Client-Side Master Secrets**: The global master `UPLOADTHING_TOKEN` is stored exclusively in the Cloudflare Worker's encrypted environment variables. It is never compiled into client binaries or exposed in public API responses.
+2. **Stateless HMAC Deletion Receipts**: When an upload is prepared, the gateway generates a signed deletion capability:
+   $$\text{DeleteToken} = \text{FileKey} \mathbin{\Vert} \text{Timestamp} \mathbin{\Vert} \text{HMAC-SHA256}(\text{FileKey} \mathbin{\Vert} \text{Timestamp}, \text{GATEWAY\_SECRET})$$
+   Only the client that originally uploaded the file receives this token. To delete a file, the client must present this token to `POST /api/v1/uploads/delete`, preventing arbitrary or unauthorized deletions.
+3. **Direct-to-Storage Streaming**: After negotiating an upload slot with the gateway, the client streams binary data directly to UploadThing's presigned S3 URL via `PUT`, reporting real-time progress.
 
 ## IUploadThingService Interface
 
-Located in `GenHub.Core.Interfaces.Services`, this interface provides a simple way to upload files.
+Located in `GenHub.Core.Interfaces.Services`, this interface provides upload and deletion capabilities.
 
 ```csharp
 public interface IUploadThingService
 {
     /// <summary>
-    /// Uploads a file to the cloud storage.
+    /// Uploads a file through the gateway and returns the upload result including public URL and deletion token.
     /// </summary>
-    /// <param name="filePath">The absolute path to the local file.</param>
-    /// <param name="progress">Optional progress reporter (0.0 to 1.0).</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>The public URL of the uploaded file, or null if the upload failed.</returns>
-    Task<string?> UploadFileAsync(
+    Task<UploadResult?> UploadFileAsync(
         string filePath,
         IProgress<double>? progress = null,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes a file from cloud storage using its cryptographic deletion token.
+    /// </summary>
+    Task<bool> DeleteFileAsync(
+        string fileKey,
+        string deleteToken,
         CancellationToken ct = default);
 }
 ```
 
-## Disabled UploadThingService Implementation
-
-The `UploadThingService` (in `GenHub.Features.Tools.Services`) is a fail-closed
-implementation. Upload requests return `null`, delete requests return `false`, and
-neither operation makes a network request.
-
-The map and replay upload buttons are also disabled so users do not enter a flow
-that cannot complete. Importing existing public UploadThing links remains available.
-
-## Requirements for re-enabling uploads
-
-Before uploads are re-enabled:
-
-- A trusted backend must hold the UploadThing provider credential.
-- The client must receive only narrowly scoped, short-lived authorization.
-- Authorization must be constrained by file size, content type, and expiration.
-- Upload and delete paths must have tests proving that expired or over-scoped
-  credentials are rejected.
-- No reusable secret may be written into source files or packaged binaries.
-
 ## Dependency Injection
 
-The `UploadThingModule` provides an extension method to register the service.
+The `UploadThingModule` configures `HttpClient` and registers `IUploadThingService`:
 
 ```csharp
 public static IServiceCollection AddUploadThingServices(this IServiceCollection services)
 {
-    services.AddSingleton<IUploadThingService, UploadThingService>();
+    services.AddHttpClient<IUploadThingService, UploadThingService>(static client =>
+    {
+        client.Timeout = TimeSpan.FromMinutes(2);
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(ApiConstants.DefaultUserAgent);
+    });
+
     return services;
 }
 ```
 
 ## Constants
 
-Only `UploadThingUrlFragment` remains in `ApiConstants`, because it is needed to
-recognize existing public links during import. Credential names, API-key headers,
-provider endpoints, and build-time token decoding have been removed.
+Defined in `GenHub.Core.Constants.ApiConstants`:
+- `DefaultUploadGatewayBaseUrl`: `"https://api.genhub.community-outpost.org"`
+- `UploadPrepareEndpoint`: `"/api/v1/uploads/prepare"`
+- `UploadDeleteEndpoint`: `"/api/v1/uploads/delete"`
+- `UploadThingPublicUrlFormat`: `"https://utfs.io/f/{0}"`
+- `UploadThingUrlFragment`: `"utfs.io/f/"`
+- `MediaTypeZip`: `"application/zip"`
+

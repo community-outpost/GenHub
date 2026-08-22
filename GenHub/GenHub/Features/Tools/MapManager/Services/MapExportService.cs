@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Services;
 using GenHub.Core.Interfaces.Tools.MapManager;
 using GenHub.Core.Models.Tools.MapManager;
+using GenHub.Core.Models.Tools.UploadThing;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -27,7 +28,7 @@ public sealed class MapExportService(
     private const long MaxTotalUploadBytes = MapManagerConstants.MaxUploadBytesPerPeriod;
 
     /// <inheritdoc />
-    public async Task<string?> UploadToUploadThingAsync(
+    public async Task<UploadResult?> UploadToUploadThingAsync(
         IEnumerable<MapFile> maps,
         IProgress<double>? progress = null,
         CancellationToken ct = default)

@@ -21,6 +21,7 @@ namespace GenHub.Features.Tools.Services;
 /// <param name="logger">Logger instance.</param>
 /// <param name="appConfig">Application configuration service.</param>
 public sealed class UploadHistoryService(
+    IUploadThingService uploadThingService,
     ILogger<UploadHistoryService> logger,
     IAppConfiguration appConfig) : IUploadHistoryService
 {
@@ -35,7 +36,6 @@ public sealed class UploadHistoryService(
         PropertyNameCaseInsensitive = true,
     };
 
-    private readonly ILogger<UploadHistoryService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     private readonly string _historyFilePath = Path.Combine(appConfig.GetConfiguredDataPath(), "upload_history.json");
     private List<UploadRecord>? _cache;
 
@@ -50,7 +50,7 @@ public sealed class UploadHistoryService(
     }
 
     /// <inheritdoc />
-    public void RecordUpload(long fileSizeBytes, string url, string fileName)
+    public void RecordUpload(long fileSizeBytes, string url, string fileName, string? fileKey = null, string? deleteToken = null)
     {
         lock (FileLock)
         {
@@ -63,15 +63,17 @@ public sealed class UploadHistoryService(
                     SizeBytes = fileSizeBytes,
                     Url = url,
                     FileName = fileName,
+                    FileKey = fileKey,
+                    DeleteToken = deleteToken,
                 });
 
                 SaveHistoryInternal(history);
                 _cache = history; // Update cache
-                _logger.LogInformation("Recorded upload of {Size} bytes. Total history: {Count} items.", fileSizeBytes, history.Count);
+                logger.LogInformation("Recorded upload of {Size} bytes. Total history: {Count} items.", fileSizeBytes, history.Count);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to record upload");
+                logger.LogError(ex, "Failed to record upload");
             }
         }
     }
@@ -109,24 +111,36 @@ public sealed class UploadHistoryService(
     }
 
     /// <inheritdoc />
-    public Task RemoveHistoryItemAsync(string url)
+    public async Task RemoveHistoryItemAsync(string url, bool deleteFromCloud = true)
     {
+        UploadRecord? matchingRecord = null;
         lock (FileLock)
         {
             var history = LoadHistoryInternal();
+            matchingRecord = history.FirstOrDefault(r => r.Url == url);
             var removed = history.RemoveAll(r => r.Url == url);
             if (removed > 0)
             {
                 SaveHistoryInternal(history);
                 _cache = history;
-                _logger.LogInformation(
-                    "Removed {Count} item(s) for {Url} from local upload history without deleting the hosted file.",
+                logger.LogInformation(
+                    "Removed {Count} item(s) for {Url} from local upload history.",
                     removed,
                     url);
             }
         }
 
-        return Task.CompletedTask;
+        if (deleteFromCloud && matchingRecord != null && !string.IsNullOrEmpty(matchingRecord.FileKey) && !string.IsNullOrEmpty(matchingRecord.DeleteToken))
+        {
+            try
+            {
+                await uploadThingService.DeleteFileAsync(matchingRecord.FileKey, matchingRecord.DeleteToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to delete file from cloud storage for {Url}", url);
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -140,7 +154,7 @@ public sealed class UploadHistoryService(
                 history.Clear();
                 SaveHistoryInternal(history);
                 _cache = history;
-                _logger.LogInformation("Cleared local upload history without deleting hosted files.");
+                logger.LogInformation("Cleared local upload history without deleting hosted files.");
             }
         }
 
@@ -192,7 +206,7 @@ public sealed class UploadHistoryService(
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to load upload history.");
+                logger.LogError(ex, "Failed to load upload history.");
                 return [];
             }
         }
@@ -215,7 +229,7 @@ public sealed class UploadHistoryService(
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to save upload history");
+                logger.LogError(ex, "Failed to save upload history");
             }
         }
     }

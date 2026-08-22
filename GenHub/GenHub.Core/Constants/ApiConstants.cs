@@ -59,12 +59,47 @@ public static class ApiConstants
     /// </summary>
     public const string GitHubApiRunArtifactsFormat = "https://api.github.com/repos/{0}/{1}/actions/runs/{2}/artifacts";
 
-    // UploadThing links
+    // Upload Gateway & Cloud Storage
+
+    /// <summary>
+    /// Base URL for the GenHub community upload gateway.
+    /// </summary>
+    public const string DefaultUploadGatewayBaseUrl = "https://api.genhub.community-outpost.org";
+
+    /// <summary>
+    /// Endpoint path for preparing cloud uploads.
+    /// </summary>
+    public const string UploadPrepareEndpoint = "/api/v1/uploads/prepare";
+
+    /// <summary>
+    /// Endpoint path for deleting cloud uploads.
+    /// </summary>
+    public const string UploadDeleteEndpoint = "/api/v1/uploads/delete";
+
+    /// <summary>
+    /// Full default URL for preparing cloud uploads.
+    /// </summary>
+    public const string DefaultUploadPrepareUrl = DefaultUploadGatewayBaseUrl + UploadPrepareEndpoint;
+
+    /// <summary>
+    /// Full default URL for deleting cloud uploads.
+    /// </summary>
+    public const string DefaultUploadDeleteUrl = DefaultUploadGatewayBaseUrl + UploadDeleteEndpoint;
+
+    /// <summary>
+    /// Format string for constructing UploadThing public file URLs.
+    /// </summary>
+    public const string UploadThingPublicUrlFormat = "https://utfs.io/f/{0}";
 
     /// <summary>
     /// UploadThing URL fragment for identification.
     /// </summary>
     public const string UploadThingUrlFragment = "utfs.io/f/";
+
+    /// <summary>
+    /// Media type for ZIP archives.
+    /// </summary>
+    public const string MediaTypeZip = "application/zip";
 
     // GenTool
 

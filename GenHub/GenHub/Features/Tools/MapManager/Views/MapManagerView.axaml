@@ -188,9 +188,9 @@
           </Button>
           <StackPanel Orientation="Horizontal" Spacing="0">
             <Button Command="{Binding UploadAndShareCommand}"
-                    Classes="Primary" IsEnabled="False"
+                    Classes="Primary"
                     CornerRadius="4,0,0,4"
-                    ToolTip.Tip="Cloud uploads are temporarily disabled while short-lived credentials are implemented.">
+                    ToolTip.Tip="Upload selected maps to cloud and copy share link.">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <TextBlock Text="☁️"/>
                 <TextBlock Text="Upload"/>

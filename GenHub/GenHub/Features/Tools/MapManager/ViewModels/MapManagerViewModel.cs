@@ -641,19 +641,19 @@ public partial class MapManagerViewModel : ObservableObject
 
         try
         {
-            var url = await _exportService.UploadToUploadThingAsync([.. SelectedMaps], new Progress<double>(p => Progress = p));
-            if (url != null)
+            var uploadResult = await _exportService.UploadToUploadThingAsync([.. SelectedMaps], new Progress<double>(p => Progress = p));
+            if (uploadResult != null)
             {
                 var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
                 var clipboard = lifetime?.MainWindow?.Clipboard;
                 if (clipboard != null)
                 {
-                    await clipboard.SetTextAsync(url);
+                    await clipboard.SetTextAsync(uploadResult.PublicUrl);
                 }
 
                 // Record successful upload
                 var fileName = SelectedMaps.Count == 1 ? SelectedMaps[0].FileName : "maps.zip";
-                _uploadHistoryService.RecordUpload(totalSizeBytes, url, fileName);
+                _uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken);
 
                 // Refresh history if open
                 if (IsHistoryOpen)
@@ -666,8 +666,8 @@ public partial class MapManagerViewModel : ObservableObject
             }
             else
             {
-                StatusMessage = "Upload failed. Check API key.";
-                _notificationService.ShowError("Upload Failed", "Upload failed. Please check your API key and internet connection.");
+                StatusMessage = "Upload failed.";
+                _notificationService.ShowError("Upload Failed", "Upload failed. Please check your internet connection.");
             }
         }
         catch (Exception ex)

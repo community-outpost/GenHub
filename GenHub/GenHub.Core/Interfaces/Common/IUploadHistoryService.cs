@@ -33,7 +33,9 @@ public interface IUploadHistoryService
     /// <param name="fileSizeBytes">The file size in bytes.</param>
     /// <param name="url">The URL.</param>
     /// <param name="fileName">The file name.</param>
-    void RecordUpload(long fileSizeBytes, string url, string fileName);
+    /// <param name="fileKey">Optional file key in cloud storage.</param>
+    /// <param name="deleteToken">Optional cryptographic deletion token.</param>
+    void RecordUpload(long fileSizeBytes, string url, string fileName, string? fileKey = null, string? deleteToken = null);
 
     /// <summary>
     /// Gets the upload history.
@@ -42,11 +44,12 @@ public interface IUploadHistoryService
     Task<IEnumerable<UploadHistoryItem>> GetUploadHistoryAsync();
 
     /// <summary>
-    /// Removes an item from local history without deleting the hosted file.
+    /// Removes an item from upload history and optionally deletes the hosted file from cloud storage.
     /// </summary>
     /// <param name="url">The URL.</param>
+    /// <param name="deleteFromCloud">Whether to attempt deleting the file from cloud storage.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task RemoveHistoryItemAsync(string url);
+    Task RemoveHistoryItemAsync(string url, bool deleteFromCloud = true);
 
     /// <summary>
     /// Clears local history without deleting hosted files.

@@ -1,4 +1,5 @@
 using GenHub.Core.Models.Tools.MapManager;
+using GenHub.Core.Models.Tools.UploadThing;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -12,13 +13,13 @@ namespace GenHub.Core.Interfaces.Tools.MapManager;
 public interface IMapExportService
 {
     /// <summary>
-    /// Uploads maps to UploadThing and returns the share URL.
+    /// Uploads maps to cloud storage and returns the upload result.
     /// </summary>
     /// <param name="maps">The maps to upload.</param>
     /// <param name="progress">Progress reporter for upload updates.</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>The share URL if successful, otherwise null.</returns>
-    Task<string?> UploadToUploadThingAsync(
+    /// <returns>The upload result if successful, otherwise null.</returns>
+    Task<UploadResult?> UploadToUploadThingAsync(
         IEnumerable<MapFile> maps,
         IProgress<double>? progress = null,
         CancellationToken ct = default);

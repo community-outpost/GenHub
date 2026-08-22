@@ -124,7 +124,7 @@ public class MockUploadHistoryService : IUploadHistoryService
     public long MaxUploadBytesPerPeriod => 1024 * 1024 * 50; // 50MB mock
 
     /// <inheritdoc/>
-    public Task<IEnumerable<UploadHistoryItem>> GetUploadHistoryAsync()
+    public Task<IEnumerable<UploadHistoryItem>> GetUploadHistoryAsync(string? category = null)
     {
         return Task.FromResult<IEnumerable<UploadHistoryItem>>([]);
     }
@@ -143,18 +143,24 @@ public class MockUploadHistoryService : IUploadHistoryService
     }
 
     /// <inheritdoc/>
-    public void RecordUpload(long fileSizeBytes, string url, string fileName)
+    public void RecordUpload(long fileSizeBytes, string url, string fileName, string? fileKey = null, string? deleteToken = null, string? fileHash = null, string? category = null)
     {
     }
 
     /// <inheritdoc/>
-    public Task RemoveHistoryItemAsync(string url)
+    public Task<UploadRecord?> FindExistingUploadAsync(string fileHash)
     {
-        return Task.CompletedTask;
+        return Task.FromResult<UploadRecord?>(null);
     }
 
     /// <inheritdoc/>
-    public Task ClearHistoryAsync()
+    public Task<bool> RemoveHistoryItemAsync(string url, bool deleteFromCloud = true)
+    {
+        return Task.FromResult(true);
+    }
+
+    /// <inheritdoc/>
+    public Task ClearHistoryAsync(bool deleteFromCloud = true, string? category = null)
     {
         return Task.CompletedTask;
     }
@@ -265,9 +271,9 @@ public class MockReplayExportService : IReplayExportService
     }
 
     /// <inheritdoc/>
-    public Task<string?> UploadToUploadThingAsync(IEnumerable<ReplayFile> replays, IProgress<double>? progress = null, CancellationToken ct = default)
+    public Task<GenHub.Core.Models.Tools.UploadThing.UploadResult?> UploadToUploadThingAsync(IEnumerable<ReplayFile> replays, IProgress<double>? progress = null, CancellationToken ct = default)
     {
-        return Task.FromResult<string?>("https://mock.upload/share/1234");
+        return Task.FromResult<GenHub.Core.Models.Tools.UploadThing.UploadResult?>(new GenHub.Core.Models.Tools.UploadThing.UploadResult("https://mock.upload/share/1234", "mock_key_1", "mock_delete_token_1"));
     }
 }
 
@@ -414,9 +420,9 @@ public class MockMapExportService : IMapExportService
     }
 
     /// <inheritdoc/>
-    public Task<string?> UploadToUploadThingAsync(IEnumerable<MapFile> maps, IProgress<double>? progress = null, CancellationToken ct = default)
+    public Task<GenHub.Core.Models.Tools.UploadThing.UploadResult?> UploadToUploadThingAsync(IEnumerable<MapFile> maps, IProgress<double>? progress = null, CancellationToken ct = default)
     {
-        return Task.FromResult<string?>("https://mock.upload/maps/123");
+        return Task.FromResult<GenHub.Core.Models.Tools.UploadThing.UploadResult?>(new GenHub.Core.Models.Tools.UploadThing.UploadResult("https://mock.upload/maps/123", "mock_key_2", "mock_delete_token_2"));
     }
 }
 

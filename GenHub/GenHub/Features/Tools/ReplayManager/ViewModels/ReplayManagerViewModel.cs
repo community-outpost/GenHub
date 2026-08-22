@@ -682,19 +682,19 @@ public partial class ReplayManagerViewModel(
 
         try
         {
-            var url = await exportService.UploadToUploadThingAsync([.. SelectedReplays], new Progress<double>(p => Progress = p));
-            if (url != null)
+            var uploadResult = await exportService.UploadToUploadThingAsync([.. SelectedReplays], new Progress<double>(p => Progress = p));
+            if (uploadResult != null)
             {
                 var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
                 var clipboard = lifetime?.MainWindow?.Clipboard;
                 if (clipboard != null)
                 {
-                    await clipboard.SetTextAsync(url);
+                    await clipboard.SetTextAsync(uploadResult.PublicUrl);
                 }
 
                 // Record successful upload
                 var fileName = SelectedReplays.Count == 1 ? SelectedReplays[0].FileName : "replays.zip";
-                uploadHistoryService.RecordUpload(totalSizeBytes, url, fileName);
+                uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken);
 
                 // Refresh history if open
                 if (IsHistoryOpen)
@@ -707,8 +707,8 @@ public partial class ReplayManagerViewModel(
             }
             else
             {
-                StatusMessage = "Upload failed. Check API key.";
-                notificationService.ShowError("Upload Failed", "Upload failed. Please check your API key and internet connection.");
+                StatusMessage = "Upload failed.";
+                notificationService.ShowError("Upload Failed", "Upload failed. Please check your internet connection.");
             }
         }
         catch (Exception ex)

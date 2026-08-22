@@ -1,3 +1,5 @@
+using System;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Services;
 using GenHub.Features.Tools.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,7 +18,11 @@ public static class UploadThingModule
     /// <returns>The updated service collection.</returns>
     public static IServiceCollection AddUploadThingServices(this IServiceCollection services)
     {
-        services.AddSingleton<IUploadThingService, UploadThingService>();
+        services.AddHttpClient<IUploadThingService, UploadThingService>(static client =>
+        {
+            client.Timeout = TimeSpan.FromMinutes(2);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(ApiConstants.DefaultUserAgent);
+        });
 
         return services;
     }

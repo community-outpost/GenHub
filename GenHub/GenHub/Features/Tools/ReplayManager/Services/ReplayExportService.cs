@@ -2,6 +2,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Services;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Models.Tools.ReplayManager;
+using GenHub.Core.Models.Tools.UploadThing;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -22,7 +23,7 @@ public sealed class ReplayExportService(
     ILogger<ReplayExportService> logger) : IReplayExportService
 {
     /// <inheritdoc />
-    public async Task<string?> UploadToUploadThingAsync(
+    public async Task<UploadResult?> UploadToUploadThingAsync(
         IEnumerable<ReplayFile> replays,
         IProgress<double>? progress = null,
         CancellationToken ct = default)
