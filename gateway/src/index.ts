@@ -5,6 +5,12 @@ export interface Env {
   TOKEN_MAX_AGE_SECONDS?: string;
 }
 
+interface PreparePayload {
+  fileName: string;
+  fileSize: number;
+  contentType: string;
+}
+
 type TokenValidationResult =
   | { valid: true; payload: string; signature: string }
   | { valid: false; error: string };
@@ -32,11 +38,23 @@ const parseMaxAgeSeconds = (rawAge: string | undefined): number => {
   return 31536000;
 };
 
-const getContentType = (type: string | undefined): string => {
-  if (typeof type === "string") {
-    return type;
+const parsePrepareBody = (body: { fileName?: unknown; fileSize?: unknown; contentType?: unknown }): PreparePayload => {
+  let fileName = "";
+  if (typeof body.fileName === "string") {
+    fileName = body.fileName;
   }
-  return "application/zip";
+
+  let fileSize = 0;
+  if (typeof body.fileSize === "number") {
+    fileSize = body.fileSize;
+  }
+
+  let contentType = "application/zip";
+  if (typeof body.contentType === "string") {
+    contentType = body.contentType;
+  }
+
+  return { fileName, fileSize, contentType };
 };
 
 const signDeleteToken = async (fileKey: string, timestamp: number, secret: string): Promise<string> => {
@@ -217,17 +235,15 @@ const createUploadSuccessResponse = async (
 };
 
 const handlePrepareUpload = async (request: Request, env: Env): Promise<Response> => {
-  const body = (await request.json()) as { fileName?: string; fileSize?: number; contentType?: string };
-  const fileName = typeof body.fileName === "string" ? body.fileName : "";
-  const fileSize = typeof body.fileSize === "number" ? body.fileSize : 0;
+  const payload = parsePrepareBody((await request.json()) as Record<string, unknown>);
   const maxSizeBytes = parseMaxSizeBytes(env.MAX_FILE_SIZE_BYTES);
 
-  const validationError = validatePrepareRequest(fileName, fileSize, maxSizeBytes);
+  const validationError = validatePrepareRequest(payload.fileName, payload.fileSize, maxSizeBytes);
   if (validationError !== null) {
     return new Response(JSON.stringify({ error: validationError }), { status: 400, headers: CORS_HEADERS });
   }
 
-  const slot = await requestPresignedSlot(fileName, fileSize, getContentType(body.contentType), env.UPLOADTHING_TOKEN);
+  const slot = await requestPresignedSlot(payload.fileName, payload.fileSize, payload.contentType, env.UPLOADTHING_TOKEN);
   if (slot === null) {
     return new Response(JSON.stringify({ error: "Storage provider rejected upload" }), { status: 502, headers: CORS_HEADERS });
   }
