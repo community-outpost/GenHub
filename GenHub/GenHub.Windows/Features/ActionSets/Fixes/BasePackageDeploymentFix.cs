@@ -155,11 +155,7 @@ public abstract class BasePackageDeploymentFix(
             }
 
             var extractedFilePath = Path.Combine(extractDir, fileName);
-            using (var entryStream = entry.OpenEntryStream())
-            await using (var fs = new FileStream(extractedFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
-            {
-                await entryStream.CopyToAsync(fs, ct);
-            }
+            await Task.Run(() => entry.WriteToFile(extractedFilePath), ct);
 
             extractedFiles[fileName] = extractedFilePath;
         }

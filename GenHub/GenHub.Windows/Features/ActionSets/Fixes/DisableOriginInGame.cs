@@ -50,7 +50,7 @@ public class DisableOriginInGame(ILogger<DisableOriginInGame> logger) : BaseActi
     /// <inheritdoc/>
     public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
-        return Task.FromResult(IsOriginOverlayDisabled() || File.Exists(_markerPath));
+        return Task.FromResult(IsOriginOverlayDisabled() || MarkerExists(_markerPath));
     }
 
     /// <inheritdoc/>

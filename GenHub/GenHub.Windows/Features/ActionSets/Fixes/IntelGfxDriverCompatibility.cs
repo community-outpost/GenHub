@@ -62,7 +62,7 @@ public class IntelGfxDriverCompatibility(ILogger<IntelGfxDriverCompatibility> lo
                 return Task.FromResult(false);
             }
 
-            if (File.Exists(_markerPath)) return Task.FromResult(true);
+            if (MarkerExists(_markerPath)) return Task.FromResult(true);
 
             // Check if Intel graphics driver is up to date
             var driverUpToDate = IsIntelDriverUpToDate();

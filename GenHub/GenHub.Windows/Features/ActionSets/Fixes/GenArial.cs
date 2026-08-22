@@ -62,7 +62,7 @@ public class GenArial(ILogger<GenArial> logger) : BaseActionSet(logger)
     /// <inheritdoc/>
     public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
-        if (File.Exists(_markerPath)) return Task.FromResult(true);
+        if (MarkerExists(_markerPath)) return Task.FromResult(true);
         return Task.FromResult(IsArialFontInstalled());
     }
 

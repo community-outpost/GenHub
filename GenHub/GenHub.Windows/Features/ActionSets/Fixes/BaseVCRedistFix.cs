@@ -18,25 +18,11 @@ using Microsoft.Win32;
 /// Abstract base class for Visual C++ Redistributable fixes.
 /// Manages secure download, digital signature verification, silent execution, and cleanup.
 /// </summary>
-public abstract class BaseVCRedistFix : BaseActionSet
+public abstract class BaseVCRedistFix(
+    IHttpClientFactory httpClientFactory,
+    ILogger logger)
+    : BaseActionSet(logger)
 {
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly ILogger _logger;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="BaseVCRedistFix"/> class.
-    /// </summary>
-    /// <param name="httpClientFactory">HTTP client factory for downloading redistributables.</param>
-    /// <param name="logger">Logger instance.</param>
-    protected BaseVCRedistFix(
-        IHttpClientFactory httpClientFactory,
-        ILogger logger)
-        : base(logger)
-    {
-        _httpClientFactory = httpClientFactory;
-        _logger = logger;
-    }
-
     /// <inheritdoc/>
     public override string Category => ActionSetConstants.Categories.CoreAndStability;
 
@@ -151,8 +137,8 @@ public abstract class BaseVCRedistFix : BaseActionSet
             if (!securityValidation.Success || securityValidation.Data == null)
             {
                 var errorSummary = string.Join("; ", securityValidation.Errors);
-                _logger.LogWarning("Security validation failed for {Name}: {Error}", RedistDisplayName, errorSummary);
-                DeleteTempFile(tempFile);
+                Logger.LogWarning("Security validation failed for {Name}: {Error}", RedistDisplayName, errorSummary);
+                DeleteFileSafely(tempFile);
                 return new ActionSetResult(false, $"Security validation failed: {errorSummary}", details);
             }
 
@@ -163,7 +149,7 @@ public abstract class BaseVCRedistFix : BaseActionSet
             details.Add($"✓ Downloaded and verified {fileSize / 1024.0 / 1024.0:F2} MB");
             details.Add($"Installing {RedistDisplayName} (silent mode)...");
             details.Add("  ⚠ This may require administrator privileges");
-            _logger.LogInformation("Installing {Name}...", RedistDisplayName);
+            Logger.LogInformation("Installing {Name}...", RedistDisplayName);
 
             var (success, exitCode, errorMsg) = await RunInstallerProcessAsync(tempFile, InstallerArguments, ct);
             if (success)
@@ -181,7 +167,7 @@ public abstract class BaseVCRedistFix : BaseActionSet
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error installing {Name}", RedistDisplayName);
+            Logger.LogError(ex, "Error installing {Name}", RedistDisplayName);
             details.Add($"✗ Error: {ex.Message}");
             return new ActionSetResult(false, ex.Message, details);
         }
@@ -192,7 +178,7 @@ public abstract class BaseVCRedistFix : BaseActionSet
                 await lockedStream.DisposeAsync();
             }
 
-            DeleteTempFile(tempFile);
+            DeleteFileSafely(tempFile);
         }
     }
 
@@ -237,14 +223,14 @@ public abstract class BaseVCRedistFix : BaseActionSet
 
     private async Task<bool> DownloadInstallerAsync(string tempFile, CancellationToken ct)
     {
-        using var client = _httpClientFactory.CreateClient("Downloader");
+        using var client = httpClientFactory.CreateClient("Downloader");
         client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
         foreach (var url in DownloadUrls)
         {
             try
             {
-                _logger.LogInformation("Attempting download from {Url}", url);
+                Logger.LogInformation("Attempting download from {Url}", url);
                 using var response = await client.GetAsync(url, ct);
                 response.EnsureSuccessStatusCode();
 
@@ -256,8 +242,8 @@ public abstract class BaseVCRedistFix : BaseActionSet
                 var fileInfo = new FileInfo(tempFile);
                 if (fileInfo.Length < MinimumFileSizeBytes)
                 {
-                    _logger.LogWarning("Downloaded file from {Url} is too small ({Size} bytes)", url, fileInfo.Length);
-                    DeleteTempFile(tempFile);
+                    Logger.LogWarning("Downloaded file from {Url} is too small ({Size} bytes)", url, fileInfo.Length);
+                    DeleteFileSafely(tempFile);
                     continue;
                 }
 
@@ -269,28 +255,10 @@ public abstract class BaseVCRedistFix : BaseActionSet
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Download failed from {Url}", url);
+                Logger.LogWarning(ex, "Download failed from {Url}", url);
             }
         }
 
         return false;
-    }
-
-    private void DeleteTempFile(string path)
-    {
-        if (!File.Exists(path))
-        {
-            return;
-        }
-
-        try
-        {
-            File.SetAttributes(path, FileAttributes.Normal);
-            File.Delete(path);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            _logger.LogDebug(ex, "Failed to delete temporary redist installer {Path}", path);
-        }
     }
 }
