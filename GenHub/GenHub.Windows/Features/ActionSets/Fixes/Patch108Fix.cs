@@ -99,7 +99,7 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
 
             details.Add("Extracting patch files...");
             Directory.CreateDirectory(extractPath);
-            ZipFile.ExtractToDirectory(tempPath, extractPath);
+            await Task.Run(() => ZipFile.ExtractToDirectory(tempPath, extractPath), ct);
 
             var extractedFiles = Directory.GetFiles(extractPath, "*.*", SearchOption.AllDirectories);
             details.Add($"✓ Extracted {extractedFiles.Length} files");

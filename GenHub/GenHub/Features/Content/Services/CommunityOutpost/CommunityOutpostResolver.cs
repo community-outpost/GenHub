@@ -31,6 +31,15 @@ public class CommunityOutpostResolver(
     IProviderDefinitionLoader providerLoader,
     ILogger<CommunityOutpostResolver> logger) : IContentResolver
 {
+    private sealed record ManifestMetadataContext(
+        ContentSearchResult DiscoveredItem,
+        GenPatcherContentMetadata ContentMetadata,
+        string ContentCode,
+        string Filename,
+        IReadOnlyList<string> MirrorUrls,
+        long FileSize,
+        string ManifestVersion);
+
     /// <inheritdoc/>
     public string ResolverId => CommunityOutpostConstants.PublisherId;
 
@@ -155,13 +164,14 @@ public class CommunityOutpostResolver(
             var builtManifest = manifest.Build();
             ApplyBuiltManifestMetadata(
                 builtManifest,
-                discoveredItem,
-                contentMetadata,
-                contentCode,
-                filename,
-                mirrorUrls,
-                fileSize,
-                manifestVersion);
+                new ManifestMetadataContext(
+                    discoveredItem,
+                    contentMetadata,
+                    contentCode,
+                    filename,
+                    mirrorUrls,
+                    fileSize,
+                    manifestVersion));
 
             logger.LogInformation(
                 "Successfully resolved Community Outpost manifest: {ManifestId} for {ContentCode} ({Category})",
@@ -184,52 +194,46 @@ public class CommunityOutpostResolver(
 
     private static void ApplyBuiltManifestMetadata(
         ContentManifest builtManifest,
-        ContentSearchResult discoveredItem,
-        GenPatcherContentMetadata contentMetadata,
-        string contentCode,
-        string filename,
-        IReadOnlyList<string> mirrorUrls,
-        long fileSize,
-        string manifestVersion)
+        ManifestMetadataContext context)
     {
-        builtManifest.ManifestVersion = manifestVersion;
+        builtManifest.ManifestVersion = context.ManifestVersion;
         builtManifest.InstallationInstructions ??= new InstallationInstructions();
         builtManifest.Metadata ??= new ContentMetadata();
 
         builtManifest.Metadata.Tags ??= [];
-        if (mirrorUrls.Count > 1)
+        if (context.MirrorUrls.Count > 1)
         {
-            builtManifest.Metadata.Tags.Add($"mirrors:{mirrorUrls.Count}");
+            builtManifest.Metadata.Tags.Add($"mirrors:{context.MirrorUrls.Count}");
         }
 
-        builtManifest.Metadata.Tags.Add($"contentCode:{contentCode}");
-        builtManifest.Metadata.Tags.Add($"installTarget:{contentMetadata.InstallTarget}");
+        builtManifest.Metadata.Tags.Add($"contentCode:{context.ContentCode}");
+        builtManifest.Metadata.Tags.Add($"installTarget:{context.ContentMetadata.InstallTarget}");
 
-        if (filename.EndsWith(CommunityOutpostConstants.DatFileExtension, StringComparison.OrdinalIgnoreCase))
+        if (context.Filename.EndsWith(CommunityOutpostConstants.DatFileExtension, StringComparison.OrdinalIgnoreCase))
         {
-            foreach (var file in builtManifest.Files.Where(f => f.RelativePath == filename))
+            foreach (var file in builtManifest.Files.Where(f => f.RelativePath == context.Filename))
             {
                 file.SourcePath = "archive:7z";
-                file.InstallTarget = contentMetadata.InstallTarget;
+                file.InstallTarget = context.ContentMetadata.InstallTarget;
             }
         }
 
-        if (fileSize > 0 && builtManifest.Files.Count > 0)
+        if (context.FileSize > 0 && builtManifest.Files.Count > 0)
         {
-            builtManifest.Files[0].Size = fileSize;
+            builtManifest.Files[0].Size = context.FileSize;
         }
 
-        builtManifest.Name = discoveredItem.Name ?? contentMetadata.DisplayName;
+        builtManifest.Name = context.DiscoveredItem.Name ?? context.ContentMetadata.DisplayName;
 
-        if (contentCode == "community-patch" && !string.IsNullOrEmpty(discoveredItem.Version))
+        if (context.ContentCode == "community-patch" && !string.IsNullOrEmpty(context.DiscoveredItem.Version))
         {
-            builtManifest.Version = discoveredItem.Version;
+            builtManifest.Version = context.DiscoveredItem.Version;
         }
         else
         {
-            builtManifest.Version = !string.IsNullOrEmpty(contentMetadata.Version)
-                ? contentMetadata.Version
-                : discoveredItem.Version;
+            builtManifest.Version = !string.IsNullOrEmpty(context.ContentMetadata.Version)
+                ? context.ContentMetadata.Version
+                : context.DiscoveredItem.Version;
         }
     }
 

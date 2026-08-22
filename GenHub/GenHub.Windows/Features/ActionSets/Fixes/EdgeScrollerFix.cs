@@ -85,22 +85,25 @@ public class EdgeScrollerFix(ILogger<EdgeScrollerFix> logger, IGameSettingsServi
         {
             var details = new List<string>();
             bool hasFailures = false;
-            int appliedCount = 0;
 
             if (installation.HasGenerals)
             {
                 var (gameDetails, success) = await ApplyEdgeScrollingFixAsync(GameType.Generals);
                 details.AddRange(gameDetails);
-                if (success) appliedCount++;
-                else hasFailures = true;
+                if (!success)
+                {
+                    hasFailures = true;
+                }
             }
 
             if (installation.HasZeroHour)
             {
                 var (gameDetails, success) = await ApplyEdgeScrollingFixAsync(GameType.ZeroHour);
                 details.AddRange(gameDetails);
-                if (success) appliedCount++;
-                else hasFailures = true;
+                if (!success)
+                {
+                    hasFailures = true;
+                }
             }
 
             if (details.Count == 0)

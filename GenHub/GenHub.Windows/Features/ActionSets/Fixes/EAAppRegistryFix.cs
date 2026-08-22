@@ -18,6 +18,14 @@ using Microsoft.Extensions.Logging;
 /// <param name="logger">The logger instance.</param>
 public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppRegistryFix> logger) : BaseActionSet(logger)
 {
+    private sealed record GameRegistryConfig(
+        string GameName,
+        string? GamePath,
+        string AppKeyPath,
+        string ErgcKeyPath,
+        int VersionDWord,
+        string DefaultSerial);
+
     /// <inheritdoc/>
     public override string Id => "EAAppRegistryFix";
 
@@ -77,22 +85,24 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
             var failedOperations = new List<string>();
 
             bool generalsSucceeded = !installation.HasGenerals || ConfigureGameRegistry(
-                "Generals",
-                installation.GeneralsPath,
-                RegistryConstants.EAAppGeneralsKeyPath,
-                RegistryConstants.EAAppGeneralsErgcKeyPath,
-                RegistryConstants.GeneralsVersionDWord,
-                ActionSetConstants.Serials.DefaultEAAppGeneralsSerial,
+                new GameRegistryConfig(
+                    "Generals",
+                    installation.GeneralsPath,
+                    RegistryConstants.EAAppGeneralsKeyPath,
+                    RegistryConstants.EAAppGeneralsErgcKeyPath,
+                    RegistryConstants.GeneralsVersionDWord,
+                    ActionSetConstants.Serials.DefaultEAAppGeneralsSerial),
                 failedOperations,
                 details);
 
             bool zeroHourSucceeded = !installation.HasZeroHour || ConfigureGameRegistry(
-                "Zero Hour",
-                installation.ZeroHourPath,
-                RegistryConstants.EAAppZeroHourKeyPath,
-                RegistryConstants.EAAppZeroHourErgcKeyPath,
-                RegistryConstants.ZeroHourVersionDWord,
-                ActionSetConstants.Serials.DefaultEAAppZeroHourSerial,
+                new GameRegistryConfig(
+                    "Zero Hour",
+                    installation.ZeroHourPath,
+                    RegistryConstants.EAAppZeroHourKeyPath,
+                    RegistryConstants.EAAppZeroHourErgcKeyPath,
+                    RegistryConstants.ZeroHourVersionDWord,
+                    ActionSetConstants.Serials.DefaultEAAppZeroHourSerial),
                 failedOperations,
                 details);
 
@@ -146,57 +156,52 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
     }
 
     private bool ConfigureGameRegistry(
-        string gameName,
-        string? gamePath,
-        string appKeyPath,
-        string ergcKeyPath,
-        int versionDWord,
-        string defaultSerial,
+        GameRegistryConfig config,
         List<string> failedOperations,
         List<string> details)
     {
-        if (string.IsNullOrEmpty(gamePath))
+        if (string.IsNullOrEmpty(config.GamePath))
         {
             return true;
         }
 
-        details.Add($"Configuring EA App registry for {gameName}: {gamePath}");
+        details.Add($"Configuring EA App registry for {config.GameName}: {config.GamePath}");
         bool succeeded = true;
 
-        if (!registryService.SetStringValue(appKeyPath, RegistryConstants.InstallPathValueName, gamePath))
+        if (!registryService.SetStringValue(config.AppKeyPath, RegistryConstants.InstallPathValueName, config.GamePath))
         {
             succeeded = false;
-            failedOperations.Add($"{appKeyPath}\\{RegistryConstants.InstallPathValueName}");
+            failedOperations.Add($"{config.AppKeyPath}\\{RegistryConstants.InstallPathValueName}");
             details.Add("  ✗ Failed to set InstallPath");
         }
         else
         {
-            details.Add($"  ✓ InstallPath = {gamePath}");
+            details.Add($"  ✓ InstallPath = {config.GamePath}");
         }
 
-        if (!registryService.SetIntValue(appKeyPath, RegistryConstants.VersionValueName, versionDWord))
+        if (!registryService.SetIntValue(config.AppKeyPath, RegistryConstants.VersionValueName, config.VersionDWord))
         {
             succeeded = false;
-            failedOperations.Add($"{appKeyPath}\\{RegistryConstants.VersionValueName}");
+            failedOperations.Add($"{config.AppKeyPath}\\{RegistryConstants.VersionValueName}");
             details.Add("  ✗ Failed to set Version");
         }
         else
         {
-            details.Add($"  ✓ Version = {versionDWord}");
+            details.Add($"  ✓ Version = {config.VersionDWord}");
         }
 
-        var existingSerial = registryService.GetStringValue(ergcKeyPath, string.Empty);
+        var existingSerial = registryService.GetStringValue(config.ErgcKeyPath, string.Empty);
         if (string.IsNullOrEmpty(existingSerial))
         {
-            if (!registryService.SetStringValue(ergcKeyPath, string.Empty, defaultSerial))
+            if (!registryService.SetStringValue(config.ErgcKeyPath, string.Empty, config.DefaultSerial))
             {
                 succeeded = false;
-                failedOperations.Add($"{ergcKeyPath}\\(Default)");
+                failedOperations.Add($"{config.ErgcKeyPath}\\(Default)");
                 details.Add("  ✗ Failed to set serial key");
             }
             else
             {
-                details.Add($"  ✓ Serial key created: {defaultSerial}");
+                details.Add($"  ✓ Serial key created: {config.DefaultSerial}");
             }
         }
         else
@@ -206,7 +211,7 @@ public class EAAppRegistryFix(IRegistryService registryService, ILogger<EAAppReg
 
         if (succeeded)
         {
-            details.Add($"✓ {gameName} registry configuration completed");
+            details.Add($"✓ {config.GameName} registry configuration completed");
         }
 
         return succeeded;

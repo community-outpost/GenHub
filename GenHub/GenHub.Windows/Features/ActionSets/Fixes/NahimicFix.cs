@@ -116,7 +116,15 @@ public class NahimicFix(ILogger<NahimicFix> logger) : BaseActionSet(logger)
         {
             return HasNahimicRegistryEntry() || HasNahimicRunningProcess();
         }
-        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException)
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
         {
             return false;
         }

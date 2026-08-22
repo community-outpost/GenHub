@@ -54,15 +54,8 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
         {
             if (!IsOneDriveRedirected()) return Task.FromResult(false);
 
-            foreach (var folderName in CommonFolderNames)
-            {
-                if (!IsFolderCorrectlySymlinked(folderName))
-                {
-                    return Task.FromResult(false);
-                }
-            }
-
-            return Task.FromResult(true);
+            bool allSymlinked = CommonFolderNames.All(IsFolderCorrectlySymlinked);
+            return Task.FromResult(allSymlinked);
         }
         catch (Exception ex)
         {
@@ -307,6 +300,45 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
         return false;
     }
 
+    private static string? MigrateCloudFolderToLocal(
+        string cloudPath,
+        string localPath,
+        string folderName,
+        string backupBaseDir,
+        List<string> details)
+    {
+        if (!Directory.Exists(cloudPath) || IsSymbolicLink(cloudPath))
+        {
+            return null;
+        }
+
+        var backupFolder = Path.Combine(backupBaseDir, folderName);
+        details.Add($"Creating safety backup of '{folderName}' to {backupFolder}...");
+        Directory.CreateDirectory(backupFolder);
+
+        CopyDirectoryRecursive(cloudPath, backupFolder);
+        details.Add($"  ✓ Backup created ({CountFiles(backupFolder)} files)");
+
+        if (!Directory.Exists(localPath))
+        {
+            Directory.CreateDirectory(localPath);
+        }
+
+        details.Add($"  Copying and verifying files into '{localPath}'...");
+        var (copied, totalBytes) = CopyDirectoryWithVerification(cloudPath, localPath);
+        details.Add($"  ✓ Copied and verified {copied} files ({totalBytes / 1024.0 / 1024.0:F2} MB)");
+
+        if (!VerifyDirectoryIntegrity(cloudPath, localPath))
+        {
+            throw new IOException($"Integrity check failed between '{cloudPath}' and '{localPath}'. Aborting to prevent data loss.");
+        }
+
+        var cloudArchive = cloudPath + ".archived_" + DateTime.UtcNow.Ticks;
+        Directory.Move(cloudPath, cloudArchive);
+        details.Add($"  ✓ Original cloud folder archived to {Path.GetFileName(cloudArchive)}");
+        return cloudArchive;
+    }
+
     private async Task<bool> ProcessFolderAsync(
         string folderName,
         string cloudDocs,
@@ -332,34 +364,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
 
         try
         {
-            if (Directory.Exists(cloudPath) && !IsSymbolicLink(cloudPath))
-            {
-                var backupFolder = Path.Combine(backupBaseDir, folderName);
-                details.Add($"Creating safety backup of '{folderName}' to {backupFolder}...");
-                Directory.CreateDirectory(backupFolder);
-
-                CopyDirectoryRecursive(cloudPath, backupFolder);
-                details.Add($"  ✓ Backup created ({CountFiles(backupFolder)} files)");
-
-                if (!Directory.Exists(localPath))
-                {
-                    Directory.CreateDirectory(localPath);
-                }
-
-                details.Add($"  Copying and verifying files into '{localPath}'...");
-                var (copied, totalBytes) = CopyDirectoryWithVerification(cloudPath, localPath);
-                details.Add($"  ✓ Copied and verified {copied} files ({totalBytes / 1024.0 / 1024.0:F2} MB)");
-
-                if (!VerifyDirectoryIntegrity(cloudPath, localPath))
-                {
-                    throw new IOException($"Integrity check failed between '{cloudPath}' and '{localPath}'. Aborting to prevent data loss.");
-                }
-
-                var cloudArchive = cloudPath + ".archived_" + DateTime.UtcNow.Ticks;
-                currentCloudArchive = cloudArchive;
-                Directory.Move(cloudPath, cloudArchive);
-                details.Add($"  ✓ Original cloud folder archived to {Path.GetFileName(cloudArchive)}");
-            }
+            currentCloudArchive = MigrateCloudFolderToLocal(cloudPath, localPath, folderName, backupBaseDir, details);
 
             if (Directory.Exists(localPath) && !Directory.Exists(cloudPath))
             {

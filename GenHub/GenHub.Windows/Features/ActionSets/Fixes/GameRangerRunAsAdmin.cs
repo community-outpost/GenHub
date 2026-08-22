@@ -161,48 +161,59 @@ public class GameRangerRunAsAdmin(ILogger<GameRangerRunAsAdmin> logger) : BaseAc
     {
         try
         {
-            var executables = new List<string>();
-
-            if (installation.HasGenerals)
-            {
-                foreach (var exe in GeneralsExecutables)
-                {
-                    var full = Path.Combine(installation.GeneralsPath, exe);
-                    if (File.Exists(full)) executables.Add(full);
-                }
-            }
-
-            if (installation.HasZeroHour)
-            {
-                foreach (var exe in ZeroHourExecutables)
-                {
-                    var full = Path.Combine(installation.ZeroHourPath, exe);
-                    if (File.Exists(full)) executables.Add(full);
-                }
-            }
-
-            using var hklmKey = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(RegistryConstants.AppCompatLayersKeyPath, false);
-            using var hkcuKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RegistryConstants.AppCompatLayersKeyPath, false);
-
-            foreach (var exePath in executables)
-            {
-                if (hklmKey?.GetValue(exePath) is string hklmFlags && hklmFlags.Contains("RUNASADMIN", StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-
-                if (hkcuKey?.GetValue(exePath) is string hkcuFlags && hkcuFlags.Contains("RUNASADMIN", StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            var executables = GetExistingGameExecutables(installation);
+            return IsAnyExeConfiguredWithRunAsAdmin(executables);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error checking admin compatibility");
             return false;
         }
+    }
+
+    private static List<string> GetExistingGameExecutables(GameInstallation installation)
+    {
+        var executables = new List<string>();
+
+        if (installation.HasGenerals)
+        {
+            foreach (var exe in GeneralsExecutables)
+            {
+                var full = Path.Combine(installation.GeneralsPath, exe);
+                if (File.Exists(full)) executables.Add(full);
+            }
+        }
+
+        if (installation.HasZeroHour)
+        {
+            foreach (var exe in ZeroHourExecutables)
+            {
+                var full = Path.Combine(installation.ZeroHourPath, exe);
+                if (File.Exists(full)) executables.Add(full);
+            }
+        }
+
+        return executables;
+    }
+
+    private static bool IsAnyExeConfiguredWithRunAsAdmin(IEnumerable<string> executables)
+    {
+        using var hklmKey = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(RegistryConstants.AppCompatLayersKeyPath, false);
+        using var hkcuKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RegistryConstants.AppCompatLayersKeyPath, false);
+
+        foreach (var exePath in executables)
+        {
+            if (hklmKey?.GetValue(exePath) is string hklmFlags && hklmFlags.Contains("RUNASADMIN", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (hkcuKey?.GetValue(exePath) is string hkcuFlags && hkcuFlags.Contains("RUNASADMIN", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

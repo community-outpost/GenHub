@@ -120,7 +120,7 @@ public abstract class BaseExecutableVersionFix(ILogger logger) : BaseActionSet(l
                 }
 
                 details.Add($"⚠ {GameDisplayName} {TargetVersionDisplay} patch needs to be applied");
-                details.Add($"  Please use the appropriate patch in GenHub to update your game client.");
+                details.Add("  Please use the appropriate patch in GenHub to update your game client.");
                 return Task.FromResult(new ActionSetResult(false, $"{GameDisplayName} executable is not version {TargetVersionDisplay}.", details));
             }
 

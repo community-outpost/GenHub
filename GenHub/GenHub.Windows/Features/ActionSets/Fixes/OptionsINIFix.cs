@@ -102,55 +102,11 @@ public class OptionsINIFix(IGameSettingsService gameSettingsService, ILogger<Opt
 
             foreach (var gameType in gamesToProcess)
             {
-                ct.ThrowIfCancellationRequested();
-
-                var gameName = gameType == GameType.ZeroHour ? "Command & Conquer: Generals Zero Hour" : "Command & Conquer: Generals";
-                details.Add($"Target game: {gameName}");
-
-                var optionsPath = gameSettingsService.GetOptionsFilePath(gameType);
-                details.Add($"Options.ini path: {optionsPath}");
-
-                // Create backup if file exists before modifying
-                if (gameSettingsService.OptionsFileExists(gameType) && File.Exists(optionsPath))
+                var processResult = await ProcessGameOptionsAsync(gameType, details, ct);
+                if (!processResult.Success)
                 {
-                    var backupPath = optionsPath + BackupExtension;
-                    if (!File.Exists(backupPath))
-                    {
-                        try
-                        {
-                            File.Copy(optionsPath, backupPath, overwrite: false);
-                            details.Add($"✓ Created backup of existing Options.ini at {Path.GetFileName(backupPath)}");
-                        }
-                        catch (IOException ex)
-                        {
-                            logger.LogWarning(ex, "Failed to create Options.ini backup for {GameType}", gameType);
-                        }
-                    }
+                    return processResult;
                 }
-
-                details.Add($"Loading Options.ini for {gameType}...");
-                var loadResult = await gameSettingsService.LoadOptionsAsync(gameType);
-                if (!loadResult.Success || loadResult.Data == null)
-                {
-                    details.Add($"✗ Failed to load Options.ini for {gameType}");
-                    return new ActionSetResult(false, $"Failed to load Options.ini for {gameType}: {string.Join(", ", loadResult.Errors ?? [])}", details);
-                }
-
-                details.Add($"✓ Options.ini loaded successfully for {gameType}");
-                var options = loadResult.Data;
-
-                // Apply stability and crash fixes while preserving user preferences
-                ApplyStabilityFixes(options, details);
-
-                details.Add($"Saving optimized Options.ini for {gameType}...");
-                var saveResult = await gameSettingsService.SaveOptionsAsync(gameType, options);
-                if (!saveResult.Success)
-                {
-                    details.Add($"✗ Failed to save Options.ini for {gameType}");
-                    return new ActionSetResult(false, $"Failed to save Options.ini for {gameType}: {string.Join(", ", saveResult.Errors ?? [])}", details);
-                }
-
-                details.Add($"✓ Saved to: {optionsPath}");
             }
 
             details.Add("✓ Options.ini crash-prevention optimization completed successfully");
@@ -162,6 +118,64 @@ public class OptionsINIFix(IGameSettingsService gameSettingsService, ILogger<Opt
             logger.LogError(ex, "Error applying Options.ini fix");
             details.Add($"✗ Error: {ex.Message}");
             return new ActionSetResult(false, ex.Message, details);
+        }
+    }
+
+    private async Task<ActionSetResult> ProcessGameOptionsAsync(GameType gameType, List<string> details, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var gameName = gameType == GameType.ZeroHour ? "Command & Conquer: Generals Zero Hour" : "Command & Conquer: Generals";
+        details.Add($"Target game: {gameName}");
+
+        var optionsPath = gameSettingsService.GetOptionsFilePath(gameType);
+        details.Add($"Options.ini path: {optionsPath}");
+
+        BackupOptionsFileIfExists(gameType, optionsPath, details);
+
+        details.Add($"Loading Options.ini for {gameType}...");
+        var loadResult = await gameSettingsService.LoadOptionsAsync(gameType);
+        if (!loadResult.Success || loadResult.Data == null)
+        {
+            details.Add($"✗ Failed to load Options.ini for {gameType}");
+            return new ActionSetResult(false, $"Failed to load Options.ini for {gameType}: {string.Join(", ", loadResult.Errors ?? [])}", details);
+        }
+
+        details.Add($"✓ Options.ini loaded successfully for {gameType}");
+        var options = loadResult.Data;
+
+        // Apply stability and crash fixes while preserving user preferences
+        ApplyStabilityFixes(options, details);
+
+        details.Add($"Saving optimized Options.ini for {gameType}...");
+        var saveResult = await gameSettingsService.SaveOptionsAsync(gameType, options);
+        if (!saveResult.Success)
+        {
+            details.Add($"✗ Failed to save Options.ini for {gameType}");
+            return new ActionSetResult(false, $"Failed to save Options.ini for {gameType}: {string.Join(", ", saveResult.Errors ?? [])}", details);
+        }
+
+        details.Add($"✓ Saved to: {optionsPath}");
+        return new ActionSetResult(true, null, details);
+    }
+
+    private void BackupOptionsFileIfExists(GameType gameType, string optionsPath, List<string> details)
+    {
+        if (gameSettingsService.OptionsFileExists(gameType) && File.Exists(optionsPath))
+        {
+            var backupPath = optionsPath + BackupExtension;
+            if (!File.Exists(backupPath))
+            {
+                try
+                {
+                    File.Copy(optionsPath, backupPath, overwrite: false);
+                    details.Add($"✓ Created backup of existing Options.ini at {Path.GetFileName(backupPath)}");
+                }
+                catch (IOException ex)
+                {
+                    logger.LogWarning(ex, "Failed to create Options.ini backup for {GameType}", gameType);
+                }
+            }
         }
     }
 

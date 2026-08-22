@@ -124,55 +124,68 @@ public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : 
     {
         try
         {
-            // Check for Media Feature Pack in registry
-            using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
-                RegistryConstants.CbsPackagesKeyPath,
-                false);
-
-            if (key != null)
-            {
-                foreach (var subKeyName in key.GetSubKeyNames().Where(name => name.Contains("MediaFeaturePack", StringComparison.OrdinalIgnoreCase)))
-                {
-                    using var subKey = key.OpenSubKey(subKeyName, false);
-                    if (subKey != null)
-                    {
-                        var installStateVal = subKey.GetValue(RegistryConstants.InstallStateValueName);
-                        if (installStateVal is int stateInt &&
-                            (stateInt == RegistryConstants.CbsInstallStateStaged ||
-                             stateInt == RegistryConstants.CbsInstallStateInstalled ||
-                             stateInt == RegistryConstants.CbsInstallStateSuperseded))
-                        {
-                            logger.LogInformation("Found Media Feature Pack: {Package}", subKeyName);
-                            return true;
-                        }
-
-                        if (installStateVal is string installState && installState.Equals("Installed", StringComparison.OrdinalIgnoreCase))
-                        {
-                            logger.LogInformation("Found Media Feature Pack: {Package}", subKeyName);
-                            return true;
-                        }
-                    }
-                }
-            }
-
-            // Check for Windows Media Player
-            var wmpPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
-                "Windows Media Player",
-                "wmplayer.exe");
-
-            if (File.Exists(wmpPath))
-            {
-                logger.LogInformation("Found Windows Media Player: {Path}", wmpPath);
-                return true;
-            }
-
-            return false;
+            return HasMediaFeaturePackInRegistry() || HasWindowsMediaPlayer();
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Error checking for Media Feature Pack");
             return false;
         }
+    }
+
+    private bool HasMediaFeaturePackInRegistry()
+    {
+        using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(RegistryConstants.CbsPackagesKeyPath, false);
+        if (key == null)
+        {
+            return false;
+        }
+
+        foreach (var subKeyName in key.GetSubKeyNames())
+        {
+            if (!subKeyName.Contains("MediaFeaturePack", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            using var subKey = key.OpenSubKey(subKeyName, false);
+            if (subKey != null && IsPackageInstalled(subKey))
+            {
+                logger.LogInformation("Found Media Feature Pack: {Package}", subKeyName);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsPackageInstalled(Microsoft.Win32.RegistryKey subKey)
+    {
+        var installStateVal = subKey.GetValue(RegistryConstants.InstallStateValueName);
+        if (installStateVal is int stateInt &&
+            (stateInt == RegistryConstants.CbsInstallStateStaged ||
+             stateInt == RegistryConstants.CbsInstallStateInstalled ||
+             stateInt == RegistryConstants.CbsInstallStateSuperseded))
+        {
+            return true;
+        }
+
+        return installStateVal is string installState && installState.Equals("Installed", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool HasWindowsMediaPlayer()
+    {
+        var wmpPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            "Windows Media Player",
+            "wmplayer.exe");
+
+        if (File.Exists(wmpPath))
+        {
+            logger.LogInformation("Found Windows Media Player: {Path}", wmpPath);
+            return true;
+        }
+
+        return false;
     }
 }

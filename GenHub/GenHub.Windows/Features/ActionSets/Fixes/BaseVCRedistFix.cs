@@ -142,7 +142,6 @@ public abstract class BaseVCRedistFix : BaseActionSet
         }
         catch (OperationCanceledException)
         {
-            _logger.LogInformation("{Name} installation was cancelled", RedistDisplayName);
             throw;
         }
         catch (Exception ex)

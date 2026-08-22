@@ -790,6 +790,69 @@ public class GameProcessManager(
         return processStartInfo;
     }
 
+    private async Task<OperationResult<GameProcessInfo>?> TryAdoptSpawnedProcessAsync(
+        Process process,
+        GameLaunchConfiguration configuration,
+        DateTime? launcherStartTime,
+        CancellationToken cancellationToken)
+    {
+        logger.LogInformation(
+            "[Process] Launcher process {ProcessId} exited with code 0 - attempting to find spawned game process",
+            process.Id);
+
+        var executableName = !string.IsNullOrWhiteSpace(configuration.ExpectedChildProcessName)
+            ? configuration.ExpectedChildProcessName
+            : Path.GetFileNameWithoutExtension(configuration.ExecutablePath);
+
+        var workingDirectory = configuration.WorkingDirectory ?? Path.GetDirectoryName(configuration.ExecutablePath) ?? string.Empty;
+        Process? spawnedProcess = null;
+        var deadline = DateTime.UtcNow + TimeSpan.FromMilliseconds(ProcessConstants.LauncherExitGracePeriodMs);
+
+        while (launcherStartTime.HasValue)
+        {
+            spawnedProcess = FindAdoptableGameProcess(
+                executableName,
+                workingDirectory,
+                launcherStartTime);
+
+            if (spawnedProcess != null || DateTime.UtcNow >= deadline)
+            {
+                break;
+            }
+
+            await Task.Delay(ProcessConstants.SpawnedChildPollIntervalMs, cancellationToken);
+        }
+
+        if (spawnedProcess == null)
+        {
+            return null;
+        }
+
+        logger.LogInformation(
+            "[Process] Found spawned game process {ProcessId} for executable {ExecutableName}",
+            spawnedProcess.Id,
+            executableName);
+
+        process.Dispose();
+
+        _managedProcesses[spawnedProcess.Id] = spawnedProcess;
+
+        try
+        {
+            spawnedProcess.EnableRaisingEvents = true;
+            spawnedProcess.Exited += OnProcessExited;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to enable raising events for spawned process {ProcessId}", spawnedProcess.Id);
+        }
+
+        var spawnedProcessInfo = BuildProcessInfo(spawnedProcess, configuration.ExecutablePath);
+
+        logger.LogInformation("Started game process {ProcessId} for executable {ExecutablePath}", spawnedProcess.Id, configuration.ExecutablePath);
+        return OperationResult<GameProcessInfo>.CreateSuccess(spawnedProcessInfo);
+    }
+
     private async Task<OperationResult<GameProcessInfo>> HandleImmediateProcessExitAsync(
         Process process,
         GameLaunchConfiguration configuration,
@@ -805,58 +868,10 @@ public class GameProcessManager(
         // engine really did exit, nothing satisfies that and the launch still fails loudly.
         if (exitCode == ProcessConstants.ExitCodeSuccess)
         {
-            logger.LogInformation(
-                "[Process] Launcher process {ProcessId} exited with code 0 - attempting to find spawned game process",
-                process.Id);
-
-            var executableName = !string.IsNullOrWhiteSpace(configuration.ExpectedChildProcessName)
-                ? configuration.ExpectedChildProcessName
-                : Path.GetFileNameWithoutExtension(configuration.ExecutablePath);
-
-            var workingDirectory = configuration.WorkingDirectory ?? Path.GetDirectoryName(configuration.ExecutablePath) ?? string.Empty;
-            Process? spawnedProcess = null;
-            var deadline = DateTime.UtcNow + TimeSpan.FromMilliseconds(ProcessConstants.LauncherExitGracePeriodMs);
-
-            while (launcherStartTime.HasValue)
+            var adoptionResult = await TryAdoptSpawnedProcessAsync(process, configuration, launcherStartTime, cancellationToken);
+            if (adoptionResult != null)
             {
-                spawnedProcess = FindAdoptableGameProcess(
-                    executableName,
-                    workingDirectory,
-                    launcherStartTime);
-
-                if (spawnedProcess != null || DateTime.UtcNow >= deadline)
-                {
-                    break;
-                }
-
-                await Task.Delay(ProcessConstants.SpawnedChildPollIntervalMs, cancellationToken);
-            }
-
-            if (spawnedProcess != null)
-            {
-                logger.LogInformation(
-                    "[Process] Found spawned game process {ProcessId} for executable {ExecutableName}",
-                    spawnedProcess.Id,
-                    executableName);
-
-                process.Dispose();
-
-                _managedProcesses[spawnedProcess.Id] = spawnedProcess;
-
-                try
-                {
-                    spawnedProcess.EnableRaisingEvents = true;
-                    spawnedProcess.Exited += OnProcessExited;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to enable raising events for spawned process {ProcessId}", spawnedProcess.Id);
-                }
-
-                var spawnedProcessInfo = BuildProcessInfo(spawnedProcess, configuration.ExecutablePath);
-
-                logger.LogInformation("Started game process {ProcessId} for executable {ExecutablePath}", spawnedProcess.Id, configuration.ExecutablePath);
-                return OperationResult<GameProcessInfo>.CreateSuccess(spawnedProcessInfo);
+                return adoptionResult;
             }
         }
 

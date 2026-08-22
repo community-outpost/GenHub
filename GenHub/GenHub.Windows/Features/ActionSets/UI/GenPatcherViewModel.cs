@@ -155,6 +155,24 @@ public partial class GenPatcherViewModel(
         (!string.IsNullOrEmpty(vm.DetailedDescription) && vm.DetailedDescription.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
         (!string.IsNullOrEmpty(vm.Category) && vm.Category.Contains(query, StringComparison.OrdinalIgnoreCase));
 
+    private static int GetSortPriority(ActionSetViewModel vm)
+    {
+        // 0: NOT APPLIED (applicable and needs fix) -> top
+        // 1: APPLIED (applicable and already fixed)
+        // 2: NOT APPLICABLE (not applicable to this game installation)
+        if (vm.IsApplicable && !vm.IsApplied)
+        {
+            return 0;
+        }
+
+        if (vm.IsApplicable && vm.IsApplied)
+        {
+            return 1;
+        }
+
+        return 2;
+    }
+
     private bool CanExecuteCancelBatchApply() => IsBatchApplying;
 
     /// <summary>
@@ -200,7 +218,7 @@ public partial class GenPatcherViewModel(
                 "Loading GenPatcher",
                 "Detecting game installations and loading available fixes...");
 
-            var result = await Task.Run(() => installationDetector.DetectInstallationsAsync(), CancellationToken.None);
+            var result = await Task.Run(() => installationDetector.DetectInstallationsAsync(CancellationToken.None), CancellationToken.None);
             if (!result.Success)
             {
                 var errorSummary = result.Errors.Count > 0 ? string.Join("; ", result.Errors) : "Installation detection failed.";
@@ -368,9 +386,9 @@ public partial class GenPatcherViewModel(
                 "GenPatcher Loaded",
                 $"Successfully loaded {ActionSets.Count} fixes for {installation.InstallationType}.\nApplied: {appliedAndApplicableCount} / {applicableCount} applicable fixes.");
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogDebug("Refresh fixes for installation {Path} was cancelled (version {Version})", installation.InstallationPath, version);
+            logger.LogDebug(ex, "Refresh fixes for installation {Path} was cancelled (version {Version})", installation.InstallationPath, version);
         }
         catch (Exception ex)
         {
@@ -438,8 +456,12 @@ public partial class GenPatcherViewModel(
             return;
         }
 
-        _batchCts?.Cancel();
-        _batchCts?.Dispose();
+        if (_batchCts != null)
+        {
+            await _batchCts.CancelAsync();
+            _batchCts.Dispose();
+        }
+
         _batchCts = new CancellationTokenSource();
         var ct = _batchCts.Token;
 
@@ -623,24 +645,6 @@ public partial class GenPatcherViewModel(
         CompatibilityCategoryCount = ActionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.Compatibility, StringComparison.OrdinalIgnoreCase));
         MultiplayerCategoryCount = ActionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.Multiplayer, StringComparison.OrdinalIgnoreCase));
         QolCategoryCount = ActionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.QualityOfLife, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private int GetSortPriority(ActionSetViewModel vm)
-    {
-        // 0: NOT APPLIED (applicable and needs fix) -> top
-        // 1: APPLIED (applicable and already fixed)
-        // 2: NOT APPLICABLE (not applicable to this game installation)
-        if (vm.IsApplicable && !vm.IsApplied)
-        {
-            return 0;
-        }
-
-        if (vm.IsApplicable && vm.IsApplied)
-        {
-            return 1;
-        }
-
-        return 2;
     }
 
     private void SortActionSets()

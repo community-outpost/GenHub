@@ -248,7 +248,7 @@ public abstract class BasePackageDeploymentFix : BaseActionSet
                 return Task.FromResult(new ActionSetResult(true, null, ["No deployment record found to undo."]));
             }
 
-            string[] lines = [];
+            string[] lines;
             try
             {
                 lines = File.ReadAllLines(_markerPath);
@@ -361,7 +361,6 @@ public abstract class BasePackageDeploymentFix : BaseActionSet
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
-                _logger.LogInformation("Download canceled by user");
                 throw;
             }
             catch (Exception ex)

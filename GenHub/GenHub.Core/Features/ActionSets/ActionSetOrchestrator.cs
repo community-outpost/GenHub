@@ -137,9 +137,9 @@ public class ActionSetOrchestrator(
         Dictionary<string, IActionSet> setMap,
         ILogger<ActionSetOrchestrator> logger)
     {
-        foreach (var set in actionSets.Where(s => s != null))
+        foreach (var set in actionSets)
         {
-            if (!setMap.TryAdd(set.Id, set))
+            if (set != null && !setMap.TryAdd(set.Id, set))
             {
                 logger.LogWarning("Duplicate action set ID {Id} ignored from direct registration", set.Id);
             }
@@ -157,7 +157,7 @@ public class ActionSetOrchestrator(
             {
                 foreach (var set in provider.GetActionSets())
                 {
-                    if (!setMap.TryAdd(set.Id, set))
+                    if (set != null && !setMap.TryAdd(set.Id, set))
                     {
                         logger.LogWarning("Duplicate action set ID {Id} ignored from provider {Provider}", set.Id, provider.GetType().Name);
                     }
@@ -256,9 +256,8 @@ public class ActionSetOrchestrator(
 
             return ExecutionOutcome.FailedNonCritical;
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException)
         {
-            logger.LogWarning(ex, "Action set execution cancelled during {Title}", actionSet.Title);
             throw;
         }
         catch (Exception ex)

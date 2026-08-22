@@ -274,52 +274,11 @@ public partial class ActionSetViewModel(
 
             if (result.Success)
             {
-                string detailsText;
-                if (result.Details.Count > 0)
-                {
-                    detailsText = result.FormatDetails();
-                }
-                else if (isForce)
-                {
-                    detailsText = $"{ActionSet.Title} has been force applied successfully.";
-                }
-                else
-                {
-                    detailsText = $"{ActionSet.Title} has been successfully applied.";
-                }
-
-                LastActionResultDetails = detailsText;
-                HasActionResultDetails = true;
-
-                logger.LogInformation(
-                    isForce ? "✓ {Title} force applied successfully in {Duration}ms - {Details}" : "✓ {Title} applied successfully in {Duration}ms - {Details}",
-                    ActionSet.Title,
-                    (int)duration,
-                    result.Details.Count > 0 ? string.Join("; ", result.Details) : "No details provided");
-
-                notificationService.ShowSuccess(
-                    isForce ? $"Fix Force Applied: {ActionSet.Title}" : $"Fix Applied: {ActionSet.Title}",
-                    detailsText);
+                HandleApplySuccess(result, isForce, duration);
             }
             else
             {
-                var detailsText = result.Details.Count > 0
-                    ? result.FormatDetails()
-                    : result.ErrorMessage ?? "Unknown error occurred.";
-
-                LastActionResultDetails = detailsText;
-                HasActionResultDetails = true;
-
-                logger.LogError(
-                    isForce ? "✗ [GENPATCHER_FIX_014] {Title} force apply failed in {Duration}ms - {Error} - {Details}" : "✗ [GENPATCHER_FIX_010] {Title} failed in {Duration}ms - {Error} - {Details}",
-                    ActionSet.Title,
-                    (int)duration,
-                    result.ErrorMessage ?? "Unknown error",
-                    result.Details.Count > 0 ? string.Join("; ", result.Details) : "No details");
-
-                notificationService.ShowError(
-                    $"Fix Failed: {ActionSet.Title}",
-                    detailsText);
+                HandleApplyFailure(result, isForce, duration);
             }
         }
         catch (OperationCanceledException ex) when (ct.IsCancellationRequested)
@@ -355,5 +314,56 @@ public partial class ActionSetViewModel(
             _applyCts = null;
             CancelApplyCommand.NotifyCanExecuteChanged();
         }
+    }
+
+    private void HandleApplySuccess(ActionSetResult result, bool isForce, double duration)
+    {
+        string detailsText;
+        if (result.Details.Count > 0)
+        {
+            detailsText = result.FormatDetails();
+        }
+        else if (isForce)
+        {
+            detailsText = $"{ActionSet.Title} has been force applied successfully.";
+        }
+        else
+        {
+            detailsText = $"{ActionSet.Title} has been successfully applied.";
+        }
+
+        LastActionResultDetails = detailsText;
+        HasActionResultDetails = true;
+
+        logger.LogInformation(
+            isForce ? "✓ {Title} force applied successfully in {Duration}ms - {Details}" : "✓ {Title} applied successfully in {Duration}ms - {Details}",
+            ActionSet.Title,
+            (int)duration,
+            result.Details.Count > 0 ? string.Join("; ", result.Details) : "No details provided");
+
+        notificationService.ShowSuccess(
+            isForce ? $"Fix Force Applied: {ActionSet.Title}" : $"Fix Applied: {ActionSet.Title}",
+            detailsText);
+    }
+
+    private void HandleApplyFailure(ActionSetResult result, bool isForce, double duration)
+    {
+        var detailsText = result.Details.Count > 0
+            ? result.FormatDetails()
+            : result.ErrorMessage ?? "Unknown error occurred.";
+
+        LastActionResultDetails = detailsText;
+        HasActionResultDetails = true;
+
+        logger.LogError(
+            isForce ? "✗ [GENPATCHER_FIX_014] {Title} force apply failed in {Duration}ms - {Error} - {Details}" : "✗ [GENPATCHER_FIX_010] {Title} failed in {Duration}ms - {Error} - {Details}",
+            ActionSet.Title,
+            (int)duration,
+            result.ErrorMessage ?? "Unknown error",
+            result.Details.Count > 0 ? string.Join("; ", result.Details) : "No details");
+
+        notificationService.ShowError(
+            $"Fix Failed: {ActionSet.Title}",
+            detailsText);
     }
 }

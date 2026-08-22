@@ -76,80 +76,51 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
             {
                 var startMenuPath = Path.Combine(commonPrograms, "Command and Conquer Generals");
                 var exe = Path.Combine(installation.GeneralsPath, "Generals.exe");
+                var shortcutPath = Path.Combine(startMenuPath, "Command & Conquer Generals Windowed.lnk");
 
-                if (File.Exists(exe))
-                {
-                    var shortcutPath = Path.Combine(startMenuPath, "Command & Conquer Generals Windowed.lnk");
-                    var result = await shortcutService.CreateShortcutAsync(
-                        shortcutPath,
-                        exe,
-                        "-win",
-                        installation.GeneralsPath,
-                        "Launch Generals in Windowed Mode");
+                var (created, failed) = await CreateShortcutIfExeExistsAsync(
+                    shortcutPath,
+                    exe,
+                    "-win",
+                    installation.GeneralsPath,
+                    "Launch Generals in Windowed Mode",
+                    details);
 
-                    if (result.Success)
-                    {
-                        shortcutsCreated++;
-                        details.Add($"✓ Created: {Path.GetFileName(shortcutPath)}");
-                    }
-                    else
-                    {
-                        hasFailures = true;
-                        details.Add($"✗ Failed to create Generals shortcut: {result.Errors.FirstOrDefault()}");
-                    }
-                }
+                if (created) shortcutsCreated++;
+                if (failed) hasFailures = true;
             }
 
             if (installation.HasZeroHour)
             {
                 var startMenuPath = Path.Combine(commonPrograms, "Command and Conquer Generals Zero Hour");
                 var exe = Path.Combine(installation.ZeroHourPath, "generals.exe");
+                var shortcutPath = Path.Combine(startMenuPath, "Command & Conquer Generals Zero Hour Windowed.lnk");
 
-                if (File.Exists(exe))
-                {
-                    var shortcutPath = Path.Combine(startMenuPath, "Command & Conquer Generals Zero Hour Windowed.lnk");
-                    var result = await shortcutService.CreateShortcutAsync(
-                        shortcutPath,
-                        exe,
-                        "-win",
-                        installation.ZeroHourPath,
-                        "Launch Zero Hour in Windowed Mode");
+                var (created, failed) = await CreateShortcutIfExeExistsAsync(
+                    shortcutPath,
+                    exe,
+                    "-win",
+                    installation.ZeroHourPath,
+                    "Launch Zero Hour in Windowed Mode",
+                    details);
 
-                    if (result.Success)
-                    {
-                        shortcutsCreated++;
-                        details.Add($"✓ Created: {Path.GetFileName(shortcutPath)}");
-                    }
-                    else
-                    {
-                        hasFailures = true;
-                        details.Add($"✗ Failed to create Zero Hour shortcut: {result.Errors.FirstOrDefault()}");
-                    }
-                }
+                if (created) shortcutsCreated++;
+                if (failed) hasFailures = true;
 
                 // EdgeScroller shortcut
                 var edgeScroller = Path.Combine(installation.ZeroHourPath, "EdgeScroller.exe");
-                if (File.Exists(edgeScroller))
-                {
-                    var shortcutPath = Path.Combine(startMenuPath, "EdgeScroller.lnk");
-                    var result = await shortcutService.CreateShortcutAsync(
-                        shortcutPath,
-                        edgeScroller,
-                        null,
-                        installation.ZeroHourPath,
-                        "Window Edge Scroller");
+                var edgeScrollerShortcut = Path.Combine(startMenuPath, "EdgeScroller.lnk");
 
-                    if (result.Success)
-                    {
-                        shortcutsCreated++;
-                        details.Add($"✓ Created: {Path.GetFileName(shortcutPath)}");
-                    }
-                    else
-                    {
-                        hasFailures = true;
-                        details.Add($"✗ Failed to create EdgeScroller shortcut: {result.Errors.FirstOrDefault()}");
-                    }
-                }
+                var (esCreated, esFailed) = await CreateShortcutIfExeExistsAsync(
+                    edgeScrollerShortcut,
+                    edgeScroller,
+                    null,
+                    installation.ZeroHourPath,
+                    "Window Edge Scroller",
+                    details);
+
+                if (esCreated) shortcutsCreated++;
+                if (esFailed) hasFailures = true;
             }
 
             if (hasFailures)
@@ -230,6 +201,30 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
             logger.LogError(ex, "Error undoing Start Menu shortcuts fix");
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
+    }
+
+    private async Task<(bool Created, bool Failed)> CreateShortcutIfExeExistsAsync(
+        string shortcutPath,
+        string exePath,
+        string? arguments,
+        string workingDir,
+        string description,
+        List<string> details)
+    {
+        if (!File.Exists(exePath))
+        {
+            return (false, false);
+        }
+
+        var result = await shortcutService.CreateShortcutAsync(shortcutPath, exePath, arguments, workingDir, description);
+        if (result.Success)
+        {
+            details.Add($"✓ Created: {Path.GetFileName(shortcutPath)}");
+            return (true, false);
+        }
+
+        details.Add($"✗ Failed to create {Path.GetFileName(shortcutPath)}: {result.Errors.FirstOrDefault()}");
+        return (false, true);
     }
 
     private static bool DoShortcutsExist(GameInstallation installation)
