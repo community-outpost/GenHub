@@ -44,6 +44,7 @@ public partial class ReplayManagerViewModel(
     IUploadHistoryService uploadHistoryService,
     INotificationService notificationService,
     ILogger<ReplayManagerViewModel> logger) : ObservableObject
+{
     [ObservableProperty]
     private GameType selectedTab = GameType.ZeroHour;
 
