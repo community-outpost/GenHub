@@ -12,6 +12,7 @@ using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Helpers;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
+using Microsoft.Win32;
 
 /// <summary>
 /// Abstract base class for Visual C++ Redistributable fixes.
@@ -257,5 +258,45 @@ public abstract class BaseVCRedistFix : BaseActionSet
         {
             _logger.LogDebug(ex, "Failed to delete temporary redist installer {Path}", path);
         }
+    }
+
+    /// <summary>
+    /// Checks whether an MSI product code is installed in either 32-bit or 64-bit registry views.
+    /// </summary>
+    /// <param name="productCode">The MSI product GUID.</param>
+    /// <returns>True if installed; otherwise false.</returns>
+    protected static bool IsProductInstalled(string productCode)
+    {
+        try
+        {
+            var uninstallKeyPath = RegistryConstants.UninstallKeyPath;
+            using var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry32);
+            using var uninstallKey = baseKey.OpenSubKey(uninstallKeyPath);
+            if (uninstallKey != null)
+            {
+                using var subKey = uninstallKey.OpenSubKey(productCode);
+                if (subKey != null)
+                {
+                    return true;
+                }
+            }
+
+            using var baseKey64 = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
+            using var uninstallKey64 = baseKey64.OpenSubKey(uninstallKeyPath);
+            if (uninstallKey64 != null)
+            {
+                using var subKey64 = uninstallKey64.OpenSubKey(productCode);
+                if (subKey64 != null)
+                {
+                    return true;
+                }
+            }
+        }
+        catch
+        {
+            // Ignored - fallback to other detection methods
+        }
+
+        return false;
     }
 }

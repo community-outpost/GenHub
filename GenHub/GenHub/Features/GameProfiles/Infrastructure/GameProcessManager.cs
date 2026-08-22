@@ -796,7 +796,7 @@ public class GameProcessManager(
         DateTime? launcherStartTime,
         CancellationToken cancellationToken)
     {
-        logger.LogInformation(
+        logger.LogDebug(
             "[Process] Launcher process {ProcessId} exited with code 0 - attempting to find spawned game process",
             process.Id);
 

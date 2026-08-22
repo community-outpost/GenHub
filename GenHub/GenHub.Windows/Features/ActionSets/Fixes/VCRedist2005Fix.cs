@@ -94,39 +94,4 @@ public class VCRedist2005Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
 
         return Task.FromResult(false);
     }
-
-    private static bool IsProductInstalled(string productCode)
-    {
-        try
-        {
-            var uninstallKeyPath = RegistryConstants.UninstallKeyPath;
-            using var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry32);
-            using var uninstallKey = baseKey.OpenSubKey(uninstallKeyPath);
-            if (uninstallKey != null)
-            {
-                using var subKey = uninstallKey.OpenSubKey(productCode);
-                if (subKey != null)
-                {
-                    return true;
-                }
-            }
-
-            using var baseKey64 = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
-            using var uninstallKey64 = baseKey64.OpenSubKey(uninstallKeyPath);
-            if (uninstallKey64 != null)
-            {
-                using var subKey64 = uninstallKey64.OpenSubKey(productCode);
-                if (subKey64 != null)
-                {
-                    return true;
-                }
-            }
-        }
-        catch
-        {
-            // Ignored - fallback to other detection methods
-        }
-
-        return false;
-    }
 }

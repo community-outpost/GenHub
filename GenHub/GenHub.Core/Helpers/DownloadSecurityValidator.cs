@@ -192,7 +192,7 @@ public static class DownloadSecurityValidator
             if (!hashMatched && !hasPublisherCheck)
             {
                 return OperationResult<bool>.CreateFailure(
-                    $"SHA-256 hash mismatch for '{Path.GetFileName(filePath)}'. Computed hash: '{actualHash}'. Expected one of: [{string.Join(", ", allowedSha256Hashes!)}].");
+                    $"SHA-256 hash mismatch for '{Path.GetFileName(filePath)}'. Computed hash: '{actualHash}'. Expected one of: [{string.Join(", ", allowedSha256Hashes ?? [])}].");
             }
         }
 
@@ -314,7 +314,7 @@ public static class DownloadSecurityValidator
             if (!hashMatched && !hasPublisherCheck)
             {
                 return OperationResult<bool>.CreateFailure(
-                    $"SHA-256 hash mismatch for '{Path.GetFileName(filePath)}'. Computed hash: '{actualHash}'. Expected one of: [{string.Join(", ", allowedSha256Hashes!)}].");
+                    $"SHA-256 hash mismatch for '{Path.GetFileName(filePath)}'. Computed hash: '{actualHash}'. Expected one of: [{string.Join(", ", allowedSha256Hashes ?? [])}].");
             }
         }
 

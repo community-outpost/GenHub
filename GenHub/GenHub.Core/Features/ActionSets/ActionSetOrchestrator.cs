@@ -139,7 +139,12 @@ public class ActionSetOrchestrator(
     {
         foreach (var set in actionSets)
         {
-            if (set != null && !setMap.TryAdd(set.Id, set))
+            if (set == null)
+            {
+                continue;
+            }
+
+            if (!setMap.TryAdd(set.Id, set))
             {
                 logger.LogWarning("Duplicate action set ID {Id} ignored from direct registration", set.Id);
             }
@@ -157,7 +162,12 @@ public class ActionSetOrchestrator(
             {
                 foreach (var set in provider.GetActionSets())
                 {
-                    if (set != null && !setMap.TryAdd(set.Id, set))
+                    if (set == null)
+                    {
+                        continue;
+                    }
+
+                    if (!setMap.TryAdd(set.Id, set))
                     {
                         logger.LogWarning("Duplicate action set ID {Id} ignored from provider {Provider}", set.Id, provider.GetType().Name);
                     }
