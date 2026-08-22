@@ -357,12 +357,12 @@ public class GameProcessManagerTests
 
         if (OperatingSystem.IsWindows())
         {
-            tempExe = Path.GetTempFileName() + ".bat";
+            tempExe = Path.Combine(Path.GetTempPath(), $"genhub_test_{Guid.NewGuid():N}.bat");
             scriptContent = "@echo off\nping -n 6 127.0.0.1 >nul\n";
         }
         else
         {
-            tempExe = Path.GetTempFileName() + ".sh";
+            tempExe = Path.Combine(Path.GetTempPath(), $"genhub_test_{Guid.NewGuid():N}.sh");
             scriptContent = "#!/bin/bash\nping -c 5 127.0.0.1 > /dev/null\n";
         }
 
@@ -403,7 +403,21 @@ public class GameProcessManagerTests
         }
         finally
         {
-            File.Delete(tempExe);
+            try
+            {
+                if (File.Exists(tempExe))
+                {
+                    File.Delete(tempExe);
+                }
+            }
+            catch (IOException)
+            {
+                // Process termination lock release may be slightly deferred by the OS
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Ignored if access denied during process termination
+            }
         }
     }
 

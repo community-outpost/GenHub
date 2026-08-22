@@ -11,21 +11,29 @@
 
     <UserControl.Styles>
         <Style Selector="Border.feed-container">
-            <Setter Property="Background" Value="#E61A1A1A" />
+            <Setter Property="Background" Value="#F214141E" />
             <Setter Property="BorderBrush" Value="#40A855F7" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="12" />
-            <Setter Property="BoxShadow" Value="0 12 30 0 #80000000" />
+            <Setter Property="BoxShadow" Value="0 16 36 0 #80000000" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="MinWidth" Value="360" />
             <Setter Property="MinHeight" Value="320" />
             <Setter Property="MaxWidth" Value="460" />
             <Setter Property="MaxHeight" Value="520" />
+            <Setter Property="Transitions">
+                <Setter.Value>
+                    <Transitions>
+                        <DoubleTransition Property="Opacity" Duration="0:0:0.15" />
+                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
+                    </Transitions>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style Selector="Border.feed-header">
-            <Setter Property="Background" Value="#1A1A1A" />
-            <Setter Property="BorderBrush" Value="#333333" />
+            <Setter Property="Background" Value="#111118" />
+            <Setter Property="BorderBrush" Value="#222230" />
             <Setter Property="BorderThickness" Value="0,0,0,1" />
             <Setter Property="Padding" Value="16,12" />
             <Setter Property="CornerRadius" Value="12,12,0,0" />
@@ -39,15 +47,24 @@
 
         <Style Selector="Button.feed-button">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="#B0B0B0" />
+            <Setter Property="Foreground" Value="#9E9EA8" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="8,4" />
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Transitions">
+                <Setter.Value>
+                    <Transitions>
+                        <BrushTransition Property="Foreground" Duration="0:0:0.15" />
+                        <BrushTransition Property="Background" Duration="0:0:0.15" />
+                    </Transitions>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style Selector="Button.feed-button:pointerover">
-            <Setter Property="Foreground" Value="#E0E0E0" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+            <Setter Property="Background" Value="#1AFFFFFF" />
         </Style>
 
         <Style Selector="Button.clear-button">
@@ -61,16 +78,20 @@
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="Background" Duration="0:0:0.2" />
-                    <BrushTransition Property="Foreground" Duration="0:0:0.2" />
-                </Transitions>
+                <Setter.Value>
+                    <Transitions>
+                        <BrushTransition Property="Background" Duration="0:0:0.15" />
+                        <BrushTransition Property="Foreground" Duration="0:0:0.15" />
+                        <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                    </Transitions>
+                </Setter.Value>
             </Setter>
         </Style>
 
         <Style Selector="Button.clear-button:pointerover">
-            <Setter Property="Background" Value="#20A855F7" />
+            <Setter Property="Background" Value="#25A855F7" />
             <Setter Property="Foreground" Value="#C084FC" />
+            <Setter Property="BorderBrush" Value="#A855F7" />
         </Style>
 
         <Style Selector="ScrollViewer.feed-scroll">
@@ -89,74 +110,6 @@
             <Setter Property="Foreground" Value="#60FFFFFF" />
             <Setter Property="TextAlignment" Value="Center" />
         </Style>
-
-        <Style Selector="Border.notification-item">
-            <Setter Property="Background" Value="#252525" />
-            <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="Padding" Value="12" />
-            <Setter Property="Margin" Value="0,0,8,0" />
-        </Style>
-
-        <Style Selector="Border.notification-item:pointerover">
-            <Setter Property="Background" Value="#2D3737" />
-        </Style>
-
-        <Style Selector="Border.notification-item.unread">
-            <Setter Property="Background" Value="#2A2A2A" />
-        </Style>
-
-        <Style Selector="TextBlock.notification-title">
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#E0E0E0" />
-        </Style>
-
-        <Style Selector="TextBlock.notification-message">
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Foreground" Value="#B0B0B0" />
-            <Setter Property="TextWrapping" Value="Wrap" />
-        </Style>
-
-        <Style Selector="TextBlock.notification-time">
-            <Setter Property="FontSize" Value="11" />
-            <Setter Property="Foreground" Value="#808080" />
-        </Style>
-
-        <Style Selector="ItemsControl.actions-panel">
-            <Setter Property="Margin" Value="12,8,0,0" />
-        </Style>
-
-        <Style Selector="Border.action-button">
-            <Setter Property="CornerRadius" Value="4" />
-            <Setter Property="Padding" Value="6,12" />
-            <Setter Property="TextElement.FontSize" Value="12" />
-            <Setter Property="TextElement.FontWeight" Value="Medium" />
-            <Setter Property="Cursor" Value="Hand" />
-        </Style>
-
-        <Style Selector="Border.action-button.primary">
-            <Setter Property="Background" Value="#4A9EFF" />
-            <Setter Property="TextElement.Foreground" Value="White" />
-        </Style>
-
-        <Style Selector="Border.action-button.secondary">
-            <Setter Property="Background" Value="#6B7280" />
-            <Setter Property="TextElement.Foreground" Value="White" />
-        </Style>
-
-        <Style Selector="Border.action-button.danger">
-            <Setter Property="Background" Value="#EF4444" />
-            <Setter Property="TextElement.Foreground" Value="White" />
-        </Style>
-
-        <Style Selector="Border.action-button.success">
-            <Setter Property="Background" Value="#10B981" />
-            <Setter Property="TextElement.Foreground" Value="White" />
-        </Style>
-
-        <Style Selector="Border.action-button:pointerover">
-            <Setter Property="Opacity" Value="0.8" />
-        </Style>
     </UserControl.Styles>
 
     <Border Classes="feed-container"
@@ -170,7 +123,11 @@
                 <Grid RowDefinitions="Auto,Auto">
                     <!-- Row 0: Title + three-dots menu -->
                     <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
-                        <TextBlock Grid.Column="0" Classes="feed-title" Text="Notifications"  />
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <PathIcon Data="M12,22A2,2 0 0,0 14,20H10A2,2 0 0,0 12,22M18,16V11C18,7.93 16.36,5.36 13.5,4.68V4A1.5,1.5 0 0,0 12,2.5A1.5,1.5 0 0,0 10.5,4V4.68C7.63,5.36 6,7.92 6,11V16L4,18V19H20V18L18,16Z"
+                                      Width="14" Height="14" Foreground="#A855F7" VerticalAlignment="Center" />
+                            <TextBlock Classes="feed-title" Text="Notifications" VerticalAlignment="Center" />
+                        </StackPanel>
                         <Button x:Name="OptionsButton"
                                 Grid.Column="2"
                                 Width="32"
@@ -179,8 +136,7 @@
                                 VerticalContentAlignment="Center"
                                 Classes="feed-button"
                                 ToolTip.Tip="Notification options"
-                                Background="Transparent"
-                                >
+                                Background="Transparent">
                             <Path Data="M14,12c0,1.1-0.9,2-2,2s-2-0.9-2-2s0.9-2,2-2S14,10.9,14,12z M20,12c0,1.1-0.9,2-2,2s-2-0.9-2-2s0.9-2,2-2S20,10.9,20,12z M8,12c0,1.1-0.9,2-2,2S4,13.1,4,12s0.9-2,2-2S8,10.9,8,12z"
                                   Fill="#B0B0B0"
                                   Width="18"
@@ -191,54 +147,55 @@
 
                             <Button.Flyout>
                                 <Flyout Placement="Bottom" ShowMode="Transient">
-                                    <StackPanel MinWidth="220" Spacing="2">
-                                        <Button Command="{Binding UnmuteCommand}"
-                                                Click="CloseOptionsFlyout"
-                                                Classes="feed-button"
-                                                Background="Transparent"
-                                                BorderThickness="0"
-                                                Padding="12,10"
-                                                HorizontalContentAlignment="Stretch"
-                                                Cursor="Hand">
-                                            <Grid ColumnDefinitions="Auto,*,Auto">
-                                                <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#10B981" Margin="0,0,12,0" VerticalAlignment="Center"/>
-                                                <TextBlock Grid.Column="1" Text="Enable Notifications" Foreground="#E0E0E0" FontSize="13" VerticalAlignment="Center"/>
-                                                <TextBlock Grid.Column="2" Text="✓" Foreground="#10B981" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
-                                                           IsVisible="{Binding IsUnmuted}"/>
-                                            </Grid>
-                                        </Button>
-                                        <Button Command="{Binding MuteSessionCommand}"
-                                                Click="CloseOptionsFlyout"
-                                                Classes="feed-button"
-                                                Background="Transparent"
-                                                BorderThickness="0"
-                                                Padding="12,10"
-                                                HorizontalContentAlignment="Stretch"
-                                                Cursor="Hand">
-                                            <Grid ColumnDefinitions="Auto,*,Auto">
-                                                <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#F59E0B" Margin="0,0,12,0" VerticalAlignment="Center"/>
-                                                <TextBlock Grid.Column="1" Text="Mute for this session" Foreground="#E0E0E0" FontSize="13" VerticalAlignment="Center"/>
-                                                <TextBlock Grid.Column="2" Text="✓" Foreground="#F59E0B" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
-                                                           IsVisible="{Binding IsSessionMuted}"/>
-                                            </Grid>
-                                        </Button>
-                                        <Button Command="{Binding MutePersistentCommand}"
-                                                Click="CloseOptionsFlyout"
-                                                Classes="feed-button"
-                                                Background="Transparent"
-                                                BorderThickness="0"
-                                                Padding="12,10"
-                                                HorizontalContentAlignment="Stretch"
-                                                Cursor="Hand">
-                                            <Grid ColumnDefinitions="Auto,*,Auto">
-                                                <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#EF4444" Margin="0,0,12,0" VerticalAlignment="Center"/>
-                                                <TextBlock Grid.Column="1" Text="Mute permanently" Foreground="#E0E0E0" FontSize="13" VerticalAlignment="Center"/>
-                                                <TextBlock Grid.Column="2" Text="✓" Foreground="#EF4444" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
-                                                           IsVisible="{Binding IsPersistentMuted}"/>
-                                            </Grid>
-                                        </Button>
-                                    </StackPanel>
-
+                                    <Border Background="#181822" BorderBrush="#333348" BorderThickness="1" CornerRadius="8" Padding="4">
+                                        <StackPanel MinWidth="220" Spacing="2">
+                                            <Button Command="{Binding UnmuteCommand}"
+                                                    Click="CloseOptionsFlyout"
+                                                    Classes="feed-button"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
+                                                    Padding="12,10"
+                                                    HorizontalContentAlignment="Stretch"
+                                                    Cursor="Hand">
+                                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                                    <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#10B981" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="1" Text="Enable Notifications" Foreground="#E0E0E0" FontSize="13" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="✓" Foreground="#10B981" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
+                                                               IsVisible="{Binding IsUnmuted}"/>
+                                                </Grid>
+                                            </Button>
+                                            <Button Command="{Binding MuteSessionCommand}"
+                                                    Click="CloseOptionsFlyout"
+                                                    Classes="feed-button"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
+                                                    Padding="12,10"
+                                                    HorizontalContentAlignment="Stretch"
+                                                    Cursor="Hand">
+                                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                                    <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#F59E0B" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="1" Text="Mute for this session" Foreground="#E0E0E0" FontSize="13" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="✓" Foreground="#F59E0B" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
+                                                               IsVisible="{Binding IsSessionMuted}"/>
+                                                </Grid>
+                                            </Button>
+                                            <Button Command="{Binding MutePersistentCommand}"
+                                                    Click="CloseOptionsFlyout"
+                                                    Classes="feed-button"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
+                                                    Padding="12,10"
+                                                    HorizontalContentAlignment="Stretch"
+                                                    Cursor="Hand">
+                                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                                    <Ellipse Grid.Column="0" Width="8" Height="8" Fill="#EF4444" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="1" Text="Mute permanently" Foreground="#E0E0E0" FontSize="13" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="✓" Foreground="#EF4444" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"
+                                                               IsVisible="{Binding IsPersistentMuted}"/>
+                                                </Grid>
+                                            </Button>
+                                        </StackPanel>
+                                    </Border>
                                 </Flyout>
                             </Button.Flyout>
                         </Button>

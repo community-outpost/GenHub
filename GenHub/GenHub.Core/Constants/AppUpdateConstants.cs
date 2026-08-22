@@ -81,6 +81,11 @@ public static class AppUpdateConstants
     public const string InstallingMessage = "Installing...";
 
     /// <summary>
+    /// Loading message.
+    /// </summary>
+    public const string LoadingMessage = "Loading...";
+
+    /// <summary>
     /// Install update action text.
     /// </summary>
     public const string InstallUpdateAction = "Install Update";

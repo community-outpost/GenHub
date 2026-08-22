@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
@@ -17,10 +16,8 @@ namespace GenHub.Features.GameProfiles.Views;
 public partial class GameProfileContentEditorView : UserControl
 {
     private static readonly TimeSpan AnimationDuration = TimeSpan.FromMilliseconds(350);
-    private static readonly TimeSpan FrameInterval = TimeSpan.FromMilliseconds(16); // ~60fps
 
     private readonly List<(string Name, Control Control, ContentEditorCategory Category)> _sections = [];
-    private readonly Stopwatch _animationStopwatch = new();
 
     private ScrollViewer? _scrollViewer;
     private GameProfileSettingsViewModel? _subscribedViewModel;
@@ -30,6 +27,7 @@ public partial class GameProfileContentEditorView : UserControl
     private DispatcherTimer? _animationTimer;
     private double _animStartOffset;
     private double _animTargetOffset;
+    private DateTime _animStartTime;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="GameProfileContentEditorView"/> class.
@@ -80,6 +78,7 @@ public partial class GameProfileContentEditorView : UserControl
         if (_scrollViewer != null)
         {
             _scrollViewer.ScrollChanged -= OnScrollChanged;
+            _scrollViewer.PointerWheelChanged -= OnPointerWheelChanged;
         }
 
         if (_subscribedViewModel != null)
@@ -103,15 +102,16 @@ public partial class GameProfileContentEditorView : UserControl
 
         // Unsubscribe first to avoid duplicate subscriptions
         _scrollViewer.ScrollChanged -= OnScrollChanged;
+        _scrollViewer.PointerWheelChanged -= OnPointerWheelChanged;
         if (_subscribedViewModel != null)
         {
             _subscribedViewModel.ScrollToSectionRequested -= OnScrollToSectionRequested;
         }
 
-        // Subscribe to scroll changes
+        // Subscribe to scroll and input changes
         _scrollViewer.ScrollChanged += OnScrollChanged;
+        _scrollViewer.PointerWheelChanged += OnPointerWheelChanged;
 
-        // Add our handler to the multicast delegate (don't replace other views' handlers)
         _subscribedViewModel = vm;
         _subscribedViewModel.ScrollToSectionRequested += OnScrollToSectionRequested;
     }
@@ -130,6 +130,14 @@ public partial class GameProfileContentEditorView : UserControl
         }
     }
 
+    private void OnPointerWheelChanged(object? sender, PointerWheelEventArgs e)
+    {
+        if (_isScrollingProgrammatically)
+        {
+            StopAnimation();
+        }
+    }
+
     private void OnScrollToSectionRequested(string sectionName)
     {
         if (_scrollViewer == null)
@@ -137,7 +145,6 @@ public partial class GameProfileContentEditorView : UserControl
             return;
         }
 
-        // Find the target section
         Control? targetControl = null;
         foreach (var section in _sections)
         {
@@ -148,13 +155,7 @@ public partial class GameProfileContentEditorView : UserControl
             }
         }
 
-        if (targetControl == null)
-        {
-            return;
-        }
-
-        // Calculate target offset
-        if (_scrollViewer.Content is not Control content)
+        if (targetControl == null || _scrollViewer.Content is not Control content)
         {
             return;
         }
@@ -166,27 +167,40 @@ public partial class GameProfileContentEditorView : UserControl
         }
 
         var pos = transform.Value.Transform(new Point(0, 0));
-        var targetY = Math.Max(0, Math.Min(pos.Y, _scrollViewer.Extent.Height - _scrollViewer.Viewport.Height));
+        var maxScrollY = Math.Max(0, _scrollViewer.Extent.Height - _scrollViewer.Viewport.Height);
+        var targetY = Math.Clamp(pos.Y, 0, maxScrollY);
 
-        // Start smooth scroll animation
-        StartAnimation(_scrollViewer.Offset.Y, targetY);
+        StartAnimation(targetY);
     }
 
-    private void StartAnimation(double fromY, double toY)
+    private void StartAnimation(double targetY)
     {
-        StopAnimation();
+        if (_scrollViewer == null)
+        {
+            return;
+        }
+
+        StopAnimationTimer();
+
+        var currentY = _scrollViewer.Offset.Y;
+        if (Math.Abs(currentY - targetY) < 1.0)
+        {
+            _scrollViewer.Offset = new Vector(_scrollViewer.Offset.X, targetY);
+            _isScrollingProgrammatically = false;
+            return;
+        }
 
         _isScrollingProgrammatically = true;
-        _animStartOffset = fromY;
-        _animTargetOffset = toY;
-        _animationStopwatch.Restart();
+        _animStartOffset = currentY;
+        _animTargetOffset = targetY;
+        _animStartTime = DateTime.UtcNow;
 
-        _animationTimer = new DispatcherTimer { Interval = FrameInterval };
+        _animationTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
         _animationTimer.Tick += OnAnimationTick;
         _animationTimer.Start();
     }
 
-    private void StopAnimation()
+    private void StopAnimationTimer()
     {
         if (_animationTimer != null)
         {
@@ -194,7 +208,11 @@ public partial class GameProfileContentEditorView : UserControl
             _animationTimer.Stop();
             _animationTimer = null;
         }
+    }
 
+    private void StopAnimation()
+    {
+        StopAnimationTimer();
         _isScrollingProgrammatically = false;
     }
 
@@ -206,7 +224,7 @@ public partial class GameProfileContentEditorView : UserControl
             return;
         }
 
-        var elapsed = _animationStopwatch.Elapsed;
+        var elapsed = DateTime.UtcNow - _animStartTime;
         var t = Math.Min(1.0, elapsed.TotalMilliseconds / AnimationDuration.TotalMilliseconds);
 
         // Ease-in-out quadratic
@@ -219,7 +237,8 @@ public partial class GameProfileContentEditorView : UserControl
 
         if (t >= 1.0)
         {
-            StopAnimation();
+            StopAnimationTimer();
+            Dispatcher.UIThread.Post(() => _isScrollingProgrammatically = false, DispatcherPriority.Normal);
         }
     }
 
@@ -230,7 +249,21 @@ public partial class GameProfileContentEditorView : UserControl
             return;
         }
 
-        // Find the last section whose top is at or above the viewport top
+        var maxScrollY = _scrollViewer.Extent.Height - _scrollViewer.Viewport.Height;
+        var isAtBottom = maxScrollY > 0 && _scrollViewer.Offset.Y >= (maxScrollY - 25);
+
+        if (isAtBottom && _sections.Count > 0)
+        {
+            var lastCategory = _sections[^1].Category;
+            if (vm.SelectedContentEditorCategory != lastCategory)
+            {
+                vm.UpdateContentEditorCategoryFromScroll(lastCategory);
+            }
+
+            return;
+        }
+
+        var threshold = Math.Max(60, _scrollViewer.Viewport.Height * 0.35);
         ContentEditorCategory? activeCategory = null;
 
         foreach (var (_, control, category) in _sections)
@@ -245,15 +278,14 @@ public partial class GameProfileContentEditorView : UserControl
 
                 var position = transform.Value.Transform(new Point(0, 0));
 
-                // Section is at or above viewport top (with small buffer)
-                if (position.Y <= 50)
+                if (position.Y <= threshold)
                 {
                     activeCategory = category;
                 }
             }
             catch
             {
-                // Ignore visual tree detachment errors
+                // Visual tree detachment safety
             }
         }
 
@@ -261,9 +293,9 @@ public partial class GameProfileContentEditorView : UserControl
         {
             vm.UpdateContentEditorCategoryFromScroll(activeCategory.Value);
         }
-        else if (!activeCategory.HasValue && vm.SelectedContentEditorCategory != ContentEditorCategory.EnabledContent)
+        else if (!activeCategory.HasValue && _sections.Count > 0 && vm.SelectedContentEditorCategory != _sections[0].Category)
         {
-            vm.UpdateContentEditorCategoryFromScroll(ContentEditorCategory.EnabledContent);
+            vm.UpdateContentEditorCategoryFromScroll(_sections[0].Category);
         }
     }
 }

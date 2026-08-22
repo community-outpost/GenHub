@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
@@ -44,6 +45,7 @@ namespace GenHub.Common.ViewModels;
 /// <param name="notificationFeedViewModel">Notification feed view model.</param>
 /// <param name="infoViewModel">Info view model.</param>
 /// <param name="logger">Logger instance.</param>
+[SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "MainViewModel is the top-level composition ViewModel for tabs and services injected via dependency injection.")]
 public partial class MainViewModel(
     GameProfileLauncherViewModel gameProfilesViewModel,
     DownloadsViewModel downloadsViewModel,

@@ -23,38 +23,17 @@
   </UserControl.DataTemplates>
 
   <UserControl.Styles>
-    <!-- Override local styles to align with glassmorphic theme -->
+    <!-- Override local styles to align with theme -->
     <Style Selector="ListBoxItem">
-      <!-- Inherit base properties but ensure transparent background to let gradient show -->
       <Setter Property="Background" Value="Transparent" />
-       <!-- Inherit padding from global SidebarLayoutStyles to ensure consistency -->
       <Setter Property="Margin" Value="0" />
-    </Style>
-
-    <Style Selector="ComboBox.glass-combo">
-      <Setter Property="Background" Value="#1AFFFFFF" /> <!-- 10% White (Subtle) -->
-      <Setter Property="BorderBrush" Value="Transparent" />
-      <Setter Property="BorderThickness" Value="0" />
-      <Setter Property="CornerRadius" Value="0" />
-      <Setter Property="Padding" Value="12,10" />
-      <Setter Property="FontWeight" Value="Medium" />
-      <Setter Property="Foreground" Value="White" />
-      <Setter Property="VerticalContentAlignment" Value="Center" />
-    </Style>
-
-    <Style Selector="ComboBox.glass-combo:pointerover">
-      <Setter Property="BorderBrush" Value="{StaticResource PurpleAccentBright}" />
-      <Setter Property="Background" Value="#4D1A1A2E" />
     </Style>
 
     <Style Selector="TextBlock.header">
       <Setter Property="FontSize" Value="28"/>
       <Setter Property="FontWeight" Value="Bold"/>
-      <Setter Property="Foreground" Value="White"/>
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
       <Setter Property="Margin" Value="0,0,0,20"/>
-      <Setter Property="Effect">
-        <DropShadowEffect BlurRadius="10" Color="Black" Opacity="0.5" OffsetX="2" OffsetY="2"/>
-      </Setter>
     </Style>
   </UserControl.Styles>
 
@@ -66,12 +45,10 @@
     <controls:SidebarLayout.PaneHeader>
         <ComboBox ItemsSource="{Binding Modules}"
                   SelectedItem="{Binding SelectedModule}"
-                  Classes="glass-combo"
-                  HorizontalAlignment="Stretch"
-                  Margin="0,0,0,10">
+                  HorizontalAlignment="Stretch">
               <ComboBox.ItemTemplate>
                   <DataTemplate>
-                      <TextBlock Text="{Binding}" Foreground="White" />
+                      <TextBlock Text="{Binding}" Foreground="{DynamicResource TextPrimary}" />
                   </DataTemplate>
               </ComboBox.ItemTemplate>
         </ComboBox>
@@ -84,28 +61,24 @@
                     <!-- Guide Section Item -->
                     <DataTemplate DataType="vm:InfoSectionViewModel">
                         <StackPanel Orientation="Horizontal" Spacing="16">
-                            <!-- Removed Border, Just Icon now with gradient fill effect usually handled by svg,
-                                 but for MaterialIcon we use foreground. Using Pink/Purple -->
-
-                            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="15" FontWeight="Medium" TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" FontSize="14" FontWeight="Medium" TextWrapping="Wrap" Foreground="{DynamicResource TextPrimary}"/>
                         </StackPanel>
                     </DataTemplate>
                     <!-- Zero Hour FAQ Category -->
                     <DataTemplate DataType="vm:FaqCategoryViewModel">
                         <StackPanel Orientation="Horizontal" Spacing="16">
-                             <!-- Restored Icon for consistency with Guide section.
-                                  Using generic icon to ensure text aligns perfectly with other sections. -->
                              <material:MaterialIcon Kind="HelpCircleOutline"
-                                                    Width="22"
-                                                    Height="22"
-                                                    Foreground="{StaticResource PurpleAccentBright}"
+                                                    Width="20"
+                                                    Height="20"
+                                                    Foreground="{DynamicResource AccentBrush}"
                                                     HorizontalAlignment="Center"
                                                     VerticalAlignment="Center"/>
                              <TextBlock Text="{Binding Title}"
                                         VerticalAlignment="Center"
-                                        FontSize="15"
+                                        FontSize="14"
                                         FontWeight="Medium"
-                                        TextWrapping="Wrap"/>
+                                        TextWrapping="Wrap"
+                                        Foreground="{DynamicResource TextPrimary}"/>
                         </StackPanel>
                     </DataTemplate>
                 </ContentControl.DataTemplates>

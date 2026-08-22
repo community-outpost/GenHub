@@ -59,6 +59,7 @@ The most common defect in this repository is a change that works on one platform
 - **Composition Roots:** Register shared services in the applicable module under `GenHub/GenHub/Infrastructure/DependencyInjection/` and ensure that module is invoked by `AppServices.ConfigureApplicationServices`. Register platform-specific implementations in the applicable Windows (`WindowsServicesModule`), Linux (`LinuxServicesModule`), and macOS (`MacOSServicesModule`) service modules, and verify each host composes them through its `Program.cs`.
 - **Result Pattern:** Adhere strictly to `docs/dev/result-pattern.md`. All fallible operations (I/O, network, reconciliation, launch, validation) return `OperationResult<T>` or specialized domain result types (`LaunchResult`, `ValidationResult`, `DetectionResult<T>`) rather than throwing exceptions for control flow. Infallible lookups, getters, and predicates return direct types.
 - **Constants:** Adhere strictly to `docs/dev/constants.md`. Put constants in `GenHub.Core.Constants` static classes.
+- **UI & Styling:** Adhere strictly to `docs/dev/ui-styling.md` and `docs/dev/window-styling.md`. All views and controls must bind to semantic theme tokens from `ThemeResources.axaml` via `{DynamicResource ...}` and use shared controls from `GenHub.Common.Controls` (such as `SidebarLayout`). Never use hardcoded color hexes or custom sidebars. When working on UI, views, or styling, use relevant UI, UX, and design skills to verify layout, accessibility, and visual consistency.
 - **Cancellation & Async:** Every long-running I/O, download, hashing, or reconciliation task must accept and propagate a `CancellationToken`. Never block the UI thread.
 - **Reverse states:** If you add a workspace materializer, add its cleanup/reversion path. If you add a cache entry, handle its eviction.
 
@@ -157,7 +158,7 @@ This repository uses **GitNexus** to maintain an AST-parsed structural knowledge
 - `GenHub/GenHub.Linux/` — Linux platform host, composition root, desktop entries, Wine/Proton runner.
 - `GenHub/GenHub.MacOS/` — macOS platform host, composition root, `.app` bundle hooks, quarantine `xattr` removal.
 - `GenHub/GenHub.Tests/` — Partitioned test suites (`Core`, `Windows`, `Linux`, `MacOS`).
-- `docs/` — Architecture documentation, Result pattern guide (`docs/dev/result-pattern.md`), Constants reference (`docs/dev/constants.md`).
+- `docs/` — Architecture documentation, Result pattern guide (`docs/dev/result-pattern.md`), Constants reference (`docs/dev/constants.md`), UI styling guide (`docs/dev/ui-styling.md`), Window styling standard (`docs/dev/window-styling.md`).
 
 ## Pull requests
 

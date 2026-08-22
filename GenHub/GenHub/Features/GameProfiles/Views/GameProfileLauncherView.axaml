@@ -9,7 +9,8 @@
     mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="550"
     x:Class="GenHub.Features.GameProfiles.Views.GameProfileLauncherView"
     x:Name="ProfileLauncher"
-    x:DataType="vm:GameProfileLauncherViewModel">
+    x:DataType="vm:GameProfileLauncherViewModel"
+    x:CompileBindings="True">
 
     <UserControl.Resources>
         <conv:ContrastTextColorConverter x:Key="ContrastTextColorConverter" />
@@ -35,32 +36,29 @@
         <conv:BoolToColorConverter x:Key="EditModeToggleBackgroundConverter" TrueColor="#1E88E5" FalseColor="#333333" />
         <conv:BoolToValueConverter x:Key="NotConverter" TrueValue="False" FalseValue="True" />
         <conv:NullSafePropertyConverter x:Key="NullSafeConverter"/>
-
-        <!-- Define default colors for Generals and Zero Hour -->
-        <SolidColorBrush x:Key="GeneralsColor" Color="#BD5A0F" /> <!-- Dark orange/yellow -->
-        <SolidColorBrush x:Key="ZeroHourColor" Color="#1B6575" /> <!-- Dark teal/blue -->
     </UserControl.Resources>
 
     <UserControl.Styles>
         <!-- Profile card styles -->
         <Style Selector="Border.profile-card">
-            <Setter Property="Background" Value="#2A2A2A" />
-            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Background" Value="#222228" />
+            <Setter Property="CornerRadius" Value="16" />
             <Setter Property="Margin" Value="0 0 20 20" />
             <Setter Property="Width" Value="400" />
             <Setter Property="Height" Value="300" />
-            <Setter Property="BoxShadow" Value="0 2 10 0 #30000000" />
+            <Setter Property="BoxShadow" Value="0 4 12 0 #30000000" />
             <Setter Property="Transitions">
                 <Setter.Value>
                     <Transitions>
                         <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.2" />
+                        <BoxShadowsTransition Property="BoxShadow" Duration="0:0:0.2" />
                     </Transitions>
                 </Setter.Value>
             </Setter>
         </Style>
         <Style Selector="Border.profile-card:pointerover">
-            <Setter Property="BoxShadow" Value="0 4 15 0 #40000000" />
-            <Setter Property="RenderTransform" Value="translate(0px, -2px)" />
+            <Setter Property="BoxShadow" Value="0 8 20 0 #40000000" />
+            <Setter Property="RenderTransform" Value="translateY(-2px)" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
 
@@ -150,12 +148,13 @@
                     <Transitions>
                         <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.25" />
                         <BrushTransition Property="Background" Duration="0:0:0.2" />
+                        <BrushTransition Property="BorderBrush" Duration="0:0:0.2" />
                     </Transitions>
                 </Setter.Value>
             </Setter>
         </Style>
         <Style Selector="Button.add-profile-button:pointerover">
-            <Setter Property="RenderTransform" Value="scale(1.05)" /> <!-- Matches standard card scale -->
+            <Setter Property="RenderTransform" Value="translateY(-2px)" />
             <Setter Property="Background" Value="#1AFFFFFF" />
             <Setter Property="BorderBrush" Value="#40FFFFFF" />
         </Style>
@@ -172,7 +171,7 @@
         </Style>
 
         <!-- Enhanced badge style for profile cards -->
-        <Style Selector="Border.profile-badge">
+        <Style Selector="Border.profile-badge" x:CompileBindings="False">
             <Setter Property="Background" Value="#50000000" />
             <Setter Property="CornerRadius" Value="4" />
             <Setter Property="Padding" Value="6,2" />

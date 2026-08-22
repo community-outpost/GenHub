@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.AppUpdate;
@@ -27,11 +28,13 @@ namespace GenHub.Features.AppUpdate.Services;
 /// <param name="userSettingsService">User settings service for persistence operations.</param>
 /// <param name="notificationService">Service for showing notifications.</param>
 /// <param name="logger">Logger instance.</param>
+/// <param name="gitHubTokenStorage">Optional GitHub token storage for checking token availability.</param>
 public class BackgroundUpdateCoordinator(
     IVelopackUpdateManager velopackUpdateManager,
     IUserSettingsService userSettingsService,
     INotificationService notificationService,
-    ILogger<BackgroundUpdateCoordinator> logger) : IBackgroundUpdateCoordinator, IRecipient<UpdateSettingsChangedMessage>
+    ILogger<BackgroundUpdateCoordinator> logger,
+    IGitHubTokenStorage? gitHubTokenStorage = null) : IBackgroundUpdateCoordinator, IRecipient<UpdateSettingsChangedMessage>
 {
     private readonly CancellationTokenSource _cts = new();
     private readonly SemaphoreSlim _checkLock = new(1, 1);
@@ -123,28 +126,40 @@ public class BackgroundUpdateCoordinator(
     /// <inheritdoc/>
     public void Dispose()
     {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Disposes resources used by the coordinator.
+    /// </summary>
+    /// <param name="disposing">True if disposing managed resources; false if finalizing.</param>
+    protected virtual void Dispose(bool disposing)
+    {
         if (_disposed)
         {
             return;
         }
 
+        if (disposing)
+        {
+            WeakReferenceMessenger.Default.UnregisterAll(this);
+
+            try
+            {
+                _cts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Ignore if already disposed
+            }
+
+            _periodicUpdateTimer?.Dispose();
+            _periodicUpdateTimer = null;
+            _cts.Dispose();
+        }
+
         _disposed = true;
-        WeakReferenceMessenger.Default.UnregisterAll(this);
-
-        try
-        {
-            _cts.Cancel();
-        }
-        catch (ObjectDisposedException)
-        {
-            // Ignore if already disposed
-        }
-
-        _periodicUpdateTimer?.Dispose();
-        _periodicUpdateTimer = null;
-        _cts.Dispose();
-        _checkLock.Dispose();
-        GC.SuppressFinalize(this);
     }
 
     private void RegisterMessages()
@@ -157,6 +172,12 @@ public class BackgroundUpdateCoordinator(
 
     private async Task CheckSubscribedPrUpdateAsync(int prNumber, UserSettings settings, CancellationToken cancellationToken)
     {
+        if (gitHubTokenStorage != null && !gitHubTokenStorage.HasToken())
+        {
+            logger?.LogDebug("No GitHub token configured; skipping background PR artifact check for #{PrNumber}", prNumber);
+            return;
+        }
+
         logger?.LogDebug("User subscribed to PR #{PrNumber}, checking for artifact updates", prNumber);
         velopackUpdateManager.SubscribedPrNumber = prNumber;
         velopackUpdateManager.SubscribedBranch = null;
@@ -210,114 +231,168 @@ public class BackgroundUpdateCoordinator(
         logger?.LogInformation("Subscribed PR #{PrNumber} is merged or closed. Checking development/release fallback", prNumber);
         var currentVersionBase = UpdateNotificationViewModel.CurrentAppVersion.Split('+')[0];
 
+        if (await TryNotifyPrMergedDevFallbackAsync(prNumber, settings, currentVersionBase, cancellationToken))
+        {
+            return;
+        }
+
+        if (await TryNotifyPrMergedReleaseFallbackAsync(prNumber, settings, cancellationToken))
+        {
+            return;
+        }
+
+        TryNotifyPrMergedGitHubFallback(prNumber, settings);
+    }
+
+    private async Task<bool> TryNotifyPrMergedDevFallbackAsync(
+        int prNumber,
+        UserSettings settings,
+        string currentVersionBase,
+        CancellationToken cancellationToken)
+    {
         velopackUpdateManager.SubscribedPrNumber = null;
         velopackUpdateManager.SubscribedBranch = AppUpdateConstants.DevelopmentBranch;
 
         var devArtifact = await velopackUpdateManager.CheckForArtifactUpdatesAsync(cancellationToken);
-        if (devArtifact != null)
+        if (devArtifact == null)
         {
-            var devVersionBase = devArtifact.Version.Split('+')[0];
-            if (AppUpdateVersionHelper.IsArtifactVersionNewer(devVersionBase, currentVersionBase, allowCrossChannel: true) &&
-                !string.Equals(devVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
-            {
-                var updateIdentity = $"{AppUpdateConstants.PrFallbackDedupePrefix}{prNumber}:dev:{devVersionBase}";
-                if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
-                {
-                    logger?.LogDebug(AppUpdateConstants.NotificationAlreadyShownLogFormat, updateIdentity);
-                    return;
-                }
-
-                _lastNotifiedUpdateIdentity = updateIdentity;
-                logger?.LogInformation("PR #{PrNumber} merged or closed. Development fallback update available: {Version}", prNumber, devArtifact.DisplayVersion);
-                notificationService.Show(new NotificationMessage(
-                    NotificationType.Info,
-                    AppUpdateConstants.PrMergedUpdateAvailableNotificationTitle,
-                    string.Format(AppUpdateConstants.PrMergedUpdateNotificationFormat, devArtifact.DisplayVersion, prNumber),
-                    autoDismissMilliseconds: null,
-                    actions:
-                    [
-                        new NotificationAction(
-                            AppUpdateConstants.UpdateAction,
-                            () => _ = PerformOneClickUpdateWithSubscriptionClearAsync(devArtifact, null, null, prNumber, null),
-                            NotificationActionStyle.Primary,
-                            dismissOnExecute: true),
-                    ],
-                    isPersistent: true,
-                    showInBadge: true));
-                return;
-            }
+            return false;
         }
 
-        // Fallback to standard releases if dev artifact was not newer or unavailable
+        var devVersionBase = devArtifact.Version.Split('+')[0];
+        if (!AppUpdateVersionHelper.IsArtifactVersionNewer(devVersionBase, currentVersionBase, allowCrossChannel: true) ||
+            string.Equals(devVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var updateIdentity = $"{AppUpdateConstants.PrFallbackDedupePrefix}{prNumber}:dev:{devVersionBase}";
+        if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
+        {
+            logger?.LogDebug(AppUpdateConstants.NotificationAlreadyShownLogFormat, updateIdentity);
+            return true;
+        }
+
+        _lastNotifiedUpdateIdentity = updateIdentity;
+        logger?.LogInformation("PR #{PrNumber} merged or closed. Development fallback update available: {Version}", prNumber, devArtifact.DisplayVersion);
+        notificationService.Show(new NotificationMessage(
+            NotificationType.Info,
+            AppUpdateConstants.PrMergedUpdateAvailableNotificationTitle,
+            string.Format(AppUpdateConstants.PrMergedUpdateNotificationFormat, devArtifact.DisplayVersion, prNumber),
+            autoDismissMilliseconds: null,
+            actions:
+            [
+                new NotificationAction(
+                    AppUpdateConstants.UpdateAction,
+                    () => _ = PerformOneClickUpdateWithSubscriptionClearAsync(devArtifact, null, null, prNumber, null),
+                    NotificationActionStyle.Primary,
+                    dismissOnExecute: true),
+            ],
+            isPersistent: true,
+            showInBadge: true));
+        return true;
+    }
+
+    private async Task<bool> TryNotifyPrMergedReleaseFallbackAsync(
+        int prNumber,
+        UserSettings settings,
+        CancellationToken cancellationToken)
+    {
         velopackUpdateManager.SubscribedBranch = null;
         var releaseUpdate = await velopackUpdateManager.CheckForUpdatesAsync(cancellationToken);
-        if (releaseUpdate != null)
+        if (releaseUpdate == null)
         {
-            var version = releaseUpdate.TargetFullRelease.Version.ToString();
-            if (!string.Equals(version, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
-            {
-                var updateIdentity = $"{AppUpdateConstants.PrFallbackDedupePrefix}{prNumber}:release:{version}";
-                if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
-                {
-                    logger?.LogDebug(AppUpdateConstants.NotificationAlreadyShownLogFormat, updateIdentity);
-                    return;
-                }
-
-                _lastNotifiedUpdateIdentity = updateIdentity;
-                logger?.LogInformation("PR #{PrNumber} merged or closed. Release fallback update available: {Version}", prNumber, version);
-                notificationService.Show(new NotificationMessage(
-                    NotificationType.Info,
-                    AppUpdateConstants.PrMergedUpdateAvailableNotificationTitle,
-                    string.Format(AppUpdateConstants.PrMergedReleaseNotificationFormat, version, prNumber),
-                    autoDismissMilliseconds: null,
-                    actions:
-                    [
-                        new NotificationAction(
-                            AppUpdateConstants.UpdateAction,
-                            () => _ = PerformOneClickUpdateWithSubscriptionClearAsync(null, releaseUpdate, null, prNumber, null),
-                            NotificationActionStyle.Primary,
-                            dismissOnExecute: true),
-                    ],
-                    isPersistent: true,
-                    showInBadge: true));
-            }
+            return false;
         }
-        else if (velopackUpdateManager.HasUpdateAvailableFromGitHub)
+
+        var version = releaseUpdate.TargetFullRelease.Version.ToString();
+        if (string.Equals(version, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
         {
-            var githubVersion = velopackUpdateManager.LatestVersionFromGitHub;
-            if (!string.IsNullOrWhiteSpace(githubVersion) &&
-                !string.Equals(githubVersion, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
-            {
-                var updateIdentity = $"{AppUpdateConstants.PrFallbackDedupePrefix}{prNumber}:github:{githubVersion}";
-                if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
-                {
-                    logger?.LogDebug(AppUpdateConstants.NotificationAlreadyShownLogFormat, updateIdentity);
-                    return;
-                }
-
-                _lastNotifiedUpdateIdentity = updateIdentity;
-                logger?.LogInformation("PR #{PrNumber} merged or closed. GitHub API release fallback available: {Version}", prNumber, githubVersion);
-                notificationService.Show(new NotificationMessage(
-                    NotificationType.Info,
-                    AppUpdateConstants.PrMergedUpdateAvailableNotificationTitle,
-                    string.Format(AppUpdateConstants.PrMergedReleaseNotificationFormat, githubVersion, prNumber),
-                    autoDismissMilliseconds: null,
-                    actions:
-                    [
-                        new NotificationAction(
-                            AppUpdateConstants.UpdateAction,
-                            () => _ = PerformOneClickUpdateWithSubscriptionClearAsync(null, null, githubVersion, prNumber, null),
-                            NotificationActionStyle.Primary,
-                            dismissOnExecute: true),
-                    ],
-                    isPersistent: true,
-                    showInBadge: true));
-            }
+            return false;
         }
+
+        var updateIdentity = $"{AppUpdateConstants.PrFallbackDedupePrefix}{prNumber}:release:{version}";
+        if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
+        {
+            logger?.LogDebug(AppUpdateConstants.NotificationAlreadyShownLogFormat, updateIdentity);
+            return true;
+        }
+
+        _lastNotifiedUpdateIdentity = updateIdentity;
+        logger?.LogInformation("PR #{PrNumber} merged or closed. Release fallback update available: {Version}", prNumber, version);
+        notificationService.Show(new NotificationMessage(
+            NotificationType.Info,
+            AppUpdateConstants.PrMergedUpdateAvailableNotificationTitle,
+            string.Format(AppUpdateConstants.PrMergedReleaseNotificationFormat, version, prNumber),
+            autoDismissMilliseconds: null,
+            actions:
+            [
+                new NotificationAction(
+                    AppUpdateConstants.UpdateAction,
+                    () => _ = PerformOneClickUpdateWithSubscriptionClearAsync(null, releaseUpdate, null, prNumber, null),
+                    NotificationActionStyle.Primary,
+                    dismissOnExecute: true),
+            ],
+            isPersistent: true,
+            showInBadge: true));
+        return true;
+    }
+
+    private void TryNotifyPrMergedGitHubFallback(int prNumber, UserSettings settings)
+    {
+        if (!velopackUpdateManager.HasUpdateAvailableFromGitHub)
+        {
+            return;
+        }
+
+        var githubVersion = velopackUpdateManager.LatestVersionFromGitHub;
+        if (string.IsNullOrWhiteSpace(githubVersion) ||
+            string.Equals(githubVersion, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var updateIdentity = $"{AppUpdateConstants.PrFallbackDedupePrefix}{prNumber}:github:{githubVersion}";
+        if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
+        {
+            logger?.LogDebug(AppUpdateConstants.NotificationAlreadyShownLogFormat, updateIdentity);
+            return;
+        }
+
+        _lastNotifiedUpdateIdentity = updateIdentity;
+        logger?.LogInformation("PR #{PrNumber} merged or closed. GitHub API release fallback available: {Version}", prNumber, githubVersion);
+        notificationService.Show(new NotificationMessage(
+            NotificationType.Info,
+            AppUpdateConstants.PrMergedUpdateAvailableNotificationTitle,
+            string.Format(AppUpdateConstants.PrMergedReleaseNotificationFormat, githubVersion, prNumber),
+            autoDismissMilliseconds: null,
+            actions:
+            [
+                new NotificationAction(
+                    AppUpdateConstants.UpdateAction,
+                    () => _ = PerformOneClickUpdateAsync(null, null, githubVersion),
+                    NotificationActionStyle.Primary,
+                    dismissOnExecute: true),
+            ],
+            isPersistent: true,
+            showInBadge: true));
     }
 
     private async Task CheckSubscribedBranchUpdateAsync(string branch, UserSettings settings, CancellationToken cancellationToken)
     {
+        if (gitHubTokenStorage != null && !gitHubTokenStorage.HasToken())
+        {
+            if (string.Equals(branch, AppUpdateConstants.MainBranch, StringComparison.OrdinalIgnoreCase))
+            {
+                logger?.LogDebug("No GitHub token configured for main branch; checking standard releases instead");
+                await CheckStandardReleaseUpdateAsync(settings, cancellationToken);
+                return;
+            }
+
+            logger?.LogDebug("No GitHub token configured; skipping background branch artifact check for '{Branch}'", branch);
+            return;
+        }
+
         logger?.LogDebug("User subscribed to branch '{Branch}', checking for artifact updates", branch);
         velopackUpdateManager.SubscribedBranch = branch;
         velopackUpdateManager.SubscribedPrNumber = null;
@@ -372,109 +447,149 @@ public class BackgroundUpdateCoordinator(
         logger?.LogInformation("Subscribed branch '{Branch}' has no artifacts. Checking development/release fallback", branch);
         var currentVersionBase = UpdateNotificationViewModel.CurrentAppVersion.Split('+')[0];
 
+        if (await TryNotifyBranchStaleDevFallbackAsync(branch, settings, currentVersionBase, cancellationToken))
+        {
+            return;
+        }
+
+        if (await TryNotifyBranchStaleReleaseFallbackAsync(branch, settings, cancellationToken))
+        {
+            return;
+        }
+
+        TryNotifyBranchStaleGitHubFallback(branch, settings);
+    }
+
+    private async Task<bool> TryNotifyBranchStaleDevFallbackAsync(
+        string branch,
+        UserSettings settings,
+        string currentVersionBase,
+        CancellationToken cancellationToken)
+    {
         velopackUpdateManager.SubscribedBranch = AppUpdateConstants.DevelopmentBranch;
         var devArtifact = await velopackUpdateManager.CheckForArtifactUpdatesAsync(cancellationToken);
-
-        if (devArtifact != null)
+        if (devArtifact == null)
         {
-            var devVersionBase = devArtifact.Version.Split('+')[0];
-            if (AppUpdateVersionHelper.IsArtifactVersionNewer(devVersionBase, currentVersionBase, allowCrossChannel: true) &&
-                !string.Equals(devVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
-            {
-                var updateIdentity = $"{AppUpdateConstants.BranchFallbackDedupePrefix}{branch}:dev:{devVersionBase}";
-                if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
-                {
-                    logger?.LogDebug(AppUpdateConstants.NotificationAlreadyShownLogFormat, updateIdentity);
-                    return;
-                }
-
-                _lastNotifiedUpdateIdentity = updateIdentity;
-                logger?.LogInformation("Branch '{Branch}' stale. Development fallback update available: {Version}", branch, devArtifact.DisplayVersion);
-                notificationService.Show(new NotificationMessage(
-                    NotificationType.Info,
-                    AppUpdateConstants.BranchStaleUpdateAvailableNotificationTitle,
-                    string.Format(AppUpdateConstants.BranchStaleUpdateNotificationFormat, devArtifact.DisplayVersion, branch),
-                    autoDismissMilliseconds: null,
-                    actions:
-                    [
-                        new NotificationAction(
-                            AppUpdateConstants.UpdateAction,
-                            () => _ = PerformOneClickUpdateWithSubscriptionClearAsync(devArtifact, null, null, null, branch),
-                            NotificationActionStyle.Primary,
-                            dismissOnExecute: true),
-                    ],
-                    isPersistent: true,
-                    showInBadge: true));
-                return;
-            }
+            return false;
         }
 
-        // Fallback to release
+        var devVersionBase = devArtifact.Version.Split('+')[0];
+        if (!AppUpdateVersionHelper.IsArtifactVersionNewer(devVersionBase, currentVersionBase, allowCrossChannel: true) ||
+            string.Equals(devVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var updateIdentity = $"{AppUpdateConstants.BranchFallbackDedupePrefix}{branch}:dev:{devVersionBase}";
+        if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
+        {
+            logger?.LogDebug(AppUpdateConstants.NotificationAlreadyShownLogFormat, updateIdentity);
+            return true;
+        }
+
+        _lastNotifiedUpdateIdentity = updateIdentity;
+        logger?.LogInformation("Branch '{Branch}' stale. Development fallback update available: {Version}", branch, devArtifact.DisplayVersion);
+        notificationService.Show(new NotificationMessage(
+            NotificationType.Info,
+            AppUpdateConstants.BranchStaleUpdateAvailableNotificationTitle,
+            string.Format(AppUpdateConstants.BranchStaleUpdateNotificationFormat, devArtifact.DisplayVersion, branch),
+            autoDismissMilliseconds: null,
+            actions:
+            [
+                new NotificationAction(
+                    AppUpdateConstants.UpdateAction,
+                    () => _ = PerformOneClickUpdateWithSubscriptionClearAsync(devArtifact, null, null, null, branch),
+                    NotificationActionStyle.Primary,
+                    dismissOnExecute: true),
+            ],
+            isPersistent: true,
+            showInBadge: true));
+        return true;
+    }
+
+    private async Task<bool> TryNotifyBranchStaleReleaseFallbackAsync(
+        string branch,
+        UserSettings settings,
+        CancellationToken cancellationToken)
+    {
         velopackUpdateManager.SubscribedBranch = null;
         var releaseUpdate = await velopackUpdateManager.CheckForUpdatesAsync(cancellationToken);
-        if (releaseUpdate != null)
+        if (releaseUpdate == null)
         {
-            var version = releaseUpdate.TargetFullRelease.Version.ToString();
-            if (!string.Equals(version, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
-            {
-                var updateIdentity = $"{AppUpdateConstants.BranchFallbackDedupePrefix}{branch}:release:{version}";
-                if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
-                {
-                    logger?.LogDebug(AppUpdateConstants.NotificationAlreadyShownLogFormat, updateIdentity);
-                    return;
-                }
-
-                _lastNotifiedUpdateIdentity = updateIdentity;
-                logger?.LogInformation("Branch '{Branch}' stale. Release fallback update available: {Version}", branch, version);
-                notificationService.Show(new NotificationMessage(
-                    NotificationType.Info,
-                    AppUpdateConstants.BranchStaleUpdateAvailableNotificationTitle,
-                    string.Format(AppUpdateConstants.BranchStaleReleaseNotificationFormat, version, branch),
-                    autoDismissMilliseconds: null,
-                    actions:
-                    [
-                        new NotificationAction(
-                            AppUpdateConstants.UpdateAction,
-                            () => _ = PerformOneClickUpdateWithSubscriptionClearAsync(null, releaseUpdate, null, null, branch),
-                            NotificationActionStyle.Primary,
-                            dismissOnExecute: true),
-                    ],
-                    isPersistent: true,
-                    showInBadge: true));
-            }
+            return false;
         }
-        else if (velopackUpdateManager.HasUpdateAvailableFromGitHub)
+
+        var version = releaseUpdate.TargetFullRelease.Version.ToString();
+        if (string.Equals(version, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
         {
-            var githubVersion = velopackUpdateManager.LatestVersionFromGitHub;
-            if (!string.IsNullOrWhiteSpace(githubVersion) &&
-                !string.Equals(githubVersion, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
-            {
-                var updateIdentity = $"{AppUpdateConstants.BranchFallbackDedupePrefix}{branch}:github:{githubVersion}";
-                if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
-                {
-                    logger?.LogDebug(AppUpdateConstants.NotificationAlreadyShownLogFormat, updateIdentity);
-                    return;
-                }
-
-                _lastNotifiedUpdateIdentity = updateIdentity;
-                logger?.LogInformation("Branch '{Branch}' stale. GitHub API release fallback available: {Version}", branch, githubVersion);
-                notificationService.Show(new NotificationMessage(
-                    NotificationType.Info,
-                    AppUpdateConstants.BranchStaleUpdateAvailableNotificationTitle,
-                    string.Format(AppUpdateConstants.BranchStaleReleaseNotificationFormat, githubVersion, branch),
-                    autoDismissMilliseconds: null,
-                    actions:
-                    [
-                        new NotificationAction(
-                            AppUpdateConstants.UpdateAction,
-                            () => _ = PerformOneClickUpdateWithSubscriptionClearAsync(null, null, githubVersion, null, branch),
-                            NotificationActionStyle.Primary,
-                            dismissOnExecute: true),
-                    ],
-                    isPersistent: true,
-                    showInBadge: true));
-            }
+            return false;
         }
+
+        var updateIdentity = $"{AppUpdateConstants.BranchFallbackDedupePrefix}{branch}:release:{version}";
+        if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
+        {
+            logger?.LogDebug(AppUpdateConstants.NotificationAlreadyShownLogFormat, updateIdentity);
+            return true;
+        }
+
+        _lastNotifiedUpdateIdentity = updateIdentity;
+        logger?.LogInformation("Branch '{Branch}' stale. Release fallback update available: {Version}", branch, version);
+        notificationService.Show(new NotificationMessage(
+            NotificationType.Info,
+            AppUpdateConstants.BranchStaleUpdateAvailableNotificationTitle,
+            string.Format(AppUpdateConstants.BranchStaleReleaseNotificationFormat, version, branch),
+            autoDismissMilliseconds: null,
+            actions:
+            [
+                new NotificationAction(
+                    AppUpdateConstants.UpdateAction,
+                    () => _ = PerformOneClickUpdateWithSubscriptionClearAsync(null, releaseUpdate, null, null, branch),
+                    NotificationActionStyle.Primary,
+                    dismissOnExecute: true),
+            ],
+            isPersistent: true,
+            showInBadge: true));
+        return true;
+    }
+
+    private void TryNotifyBranchStaleGitHubFallback(string branch, UserSettings settings)
+    {
+        if (!velopackUpdateManager.HasUpdateAvailableFromGitHub)
+        {
+            return;
+        }
+
+        var githubVersion = velopackUpdateManager.LatestVersionFromGitHub;
+        if (string.IsNullOrWhiteSpace(githubVersion) ||
+            string.Equals(githubVersion, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var updateIdentity = $"{AppUpdateConstants.BranchFallbackDedupePrefix}{branch}:github:{githubVersion}";
+        if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
+        {
+            logger?.LogDebug(AppUpdateConstants.NotificationAlreadyShownLogFormat, updateIdentity);
+            return;
+        }
+
+        _lastNotifiedUpdateIdentity = updateIdentity;
+        logger?.LogInformation("Branch '{Branch}' stale. GitHub API release fallback available: {Version}", branch, githubVersion);
+        notificationService.Show(new NotificationMessage(
+            NotificationType.Info,
+            AppUpdateConstants.BranchStaleUpdateAvailableNotificationTitle,
+            string.Format(AppUpdateConstants.BranchStaleReleaseNotificationFormat, githubVersion, branch),
+            autoDismissMilliseconds: null,
+            actions:
+            [
+                new NotificationAction(
+                    AppUpdateConstants.UpdateAction,
+                    () => _ = PerformOneClickUpdateAsync(null, null, githubVersion),
+                    NotificationActionStyle.Primary,
+                    dismissOnExecute: true),
+            ],
+            isPersistent: true,
+            showInBadge: true));
     }
 
     private async Task CheckStandardReleaseUpdateAsync(UserSettings settings, CancellationToken cancellationToken)

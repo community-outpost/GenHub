@@ -99,6 +99,9 @@ public class AppUpdateConstantsTests
         Assert.False(string.IsNullOrWhiteSpace(AppUpdateConstants.ReleaseDedupePrefix));
         Assert.False(string.IsNullOrWhiteSpace(AppUpdateConstants.GitHubFallbackDedupePrefix));
         Assert.False(string.IsNullOrWhiteSpace(AppUpdateConstants.NotificationAlreadyShownLogFormat));
+        Assert.Contains("{Identity}", AppUpdateConstants.NotificationAlreadyShownLogFormat);
+        Assert.False(string.IsNullOrWhiteSpace(AppUpdateConstants.LoadingMessage));
+        Assert.Equal("Loading...", AppUpdateConstants.LoadingMessage);
         Assert.Contains("{0}", AppUpdateConstants.UpdateFailedNotificationFormat);
     }
 

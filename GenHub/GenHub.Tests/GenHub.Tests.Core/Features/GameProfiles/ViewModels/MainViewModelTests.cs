@@ -106,8 +106,7 @@ public class MainViewModelTests
                 Assert.IsType<InfoViewModel>(currentViewModel);
                 break;
             default:
-                // No additional assertions needed for default case
-                break;
+                throw new ArgumentOutOfRangeException(nameof(tab), tab, "Unknown navigation tab");
         }
     }
 

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using GenHub.Features.GameProfiles.ViewModels;
@@ -14,8 +15,7 @@ namespace GenHub.Features.GameProfiles.Views;
 public partial class GameProfileGeneralSettingsView : UserControl
 {
     private static readonly TimeSpan AnimationDuration = TimeSpan.FromMilliseconds(350);
-    private readonly Dictionary<string, Control> _sections = [];
-    private readonly Dictionary<string, GeneralSettingsCategory> _sectionToCategoryMap = [];
+    private readonly List<(string Name, Control Control, GeneralSettingsCategory Category)> _sections = [];
     private ScrollViewer? _scrollViewer;
     private bool _isScrollingProgrammatically;
     private DispatcherTimer? _animationTimer;
@@ -81,7 +81,7 @@ public partial class GameProfileGeneralSettingsView : UserControl
     protected override void OnUnloaded(RoutedEventArgs e)
     {
         base.OnUnloaded(e);
-        _animationTimer?.Stop();
+        StopAnimation();
 
         if (_boundViewModel != null)
         {
@@ -92,7 +92,10 @@ public partial class GameProfileGeneralSettingsView : UserControl
 
     private void MapSections()
     {
-        if (_sections.Count > 0) return;
+        if (_sections.Count > 0)
+        {
+            return;
+        }
 
         MapSection("IdentitySection", GeneralSettingsCategory.Identity);
         MapSection("AppearanceSection", GeneralSettingsCategory.Appearance);
@@ -109,6 +112,8 @@ public partial class GameProfileGeneralSettingsView : UserControl
         {
             _scrollViewer.ScrollChanged -= OnScrollChanged;
             _scrollViewer.ScrollChanged += OnScrollChanged;
+            _scrollViewer.PointerWheelChanged -= OnPointerWheelChanged;
+            _scrollViewer.PointerWheelChanged += OnPointerWheelChanged;
         }
     }
 
@@ -118,6 +123,7 @@ public partial class GameProfileGeneralSettingsView : UserControl
         if (_scrollViewer != null)
         {
             _scrollViewer.ScrollChanged -= OnScrollChanged;
+            _scrollViewer.PointerWheelChanged -= OnPointerWheelChanged;
         }
     }
 
@@ -126,44 +132,51 @@ public partial class GameProfileGeneralSettingsView : UserControl
         var control = this.FindControl<Control>(name);
         if (control != null)
         {
-            _sections[name] = control;
-            _sectionToCategoryMap[name] = category;
+            _sections.Add((name, control, category));
+        }
+    }
+
+    private void OnPointerWheelChanged(object? sender, PointerWheelEventArgs e)
+    {
+        if (_isScrollingProgrammatically)
+        {
+            StopAnimation();
         }
     }
 
     private void OnScrollToSectionRequested(string sectionName)
     {
-        if (_scrollViewer == null || !_sections.TryGetValue(sectionName, out var targetControl))
+        if (_scrollViewer == null)
         {
             return;
         }
 
-        _isScrollingProgrammatically = true;
-
-        Dispatcher.UIThread.InvokeAsync(
-            () =>
+        Control? targetControl = null;
+        foreach (var (name, control, _) in _sections)
+        {
+            if (name == sectionName)
             {
-                if (_scrollViewer.Content is Control content)
-                {
-                    var transform = targetControl.TransformToVisual(content);
-                    if (transform.HasValue)
-                    {
-                        var pos = transform.Value.Transform(new Point(0, 0));
-                        StartAnimation(pos.Y);
-                    }
-                    else
-                    {
-                        // Reset if no animation starts
-                        _isScrollingProgrammatically = false;
-                    }
-                }
-                else
-                {
-                    // Reset if no content
-                    _isScrollingProgrammatically = false;
-                }
-            },
-            DispatcherPriority.Background);
+                targetControl = control;
+                break;
+            }
+        }
+
+        if (targetControl == null || _scrollViewer.Content is not Control content)
+        {
+            return;
+        }
+
+        var transform = targetControl.TransformToVisual(content);
+        if (!transform.HasValue)
+        {
+            return;
+        }
+
+        var pos = transform.Value.Transform(new Point(0, 0));
+        var maxScrollY = Math.Max(0, _scrollViewer.Extent.Height - _scrollViewer.Viewport.Height);
+        var targetY = Math.Clamp(pos.Y, 0, maxScrollY);
+
+        StartAnimation(targetY);
     }
 
     private void OnScrollChanged(object? sender, ScrollChangedEventArgs e)
@@ -173,31 +186,43 @@ public partial class GameProfileGeneralSettingsView : UserControl
             return;
         }
 
+        var maxScrollY = _scrollViewer.Extent.Height - _scrollViewer.Viewport.Height;
+        var isAtBottom = maxScrollY > 0 && _scrollViewer.Offset.Y >= (maxScrollY - 25);
+
+        if (isAtBottom && _sections.Count > 0)
+        {
+            var lastCategory = _sections[^1].Category;
+            if (vm.SelectedGeneralCategory != lastCategory)
+            {
+                vm.UpdateGeneralCategoryFromScroll(lastCategory);
+            }
+
+            return;
+        }
+
+        var threshold = Math.Max(60, _scrollViewer.Viewport.Height * 0.35);
         GeneralSettingsCategory? activeCategory = null;
 
-        foreach (var kvp in _sections)
+        foreach (var (_, control, category) in _sections)
         {
-            var section = kvp.Value;
-            var category = _sectionToCategoryMap[kvp.Key];
-
             try
             {
-                var transform = section.TransformToVisual(_scrollViewer);
-                if (transform == null)
+                var transform = control.TransformToVisual(_scrollViewer);
+                if (!transform.HasValue)
                 {
                     continue;
                 }
 
                 var position = transform.Value.Transform(new Point(0, 0));
 
-                if (position.Y <= 50)
+                if (position.Y <= threshold)
                 {
                     activeCategory = category;
                 }
             }
             catch (InvalidOperationException)
             {
-                // Ignore transformation errors (can happen if control is not yet fully attached to visual tree)
+                // Ignore transformation errors
             }
         }
 
@@ -205,15 +230,31 @@ public partial class GameProfileGeneralSettingsView : UserControl
         {
             vm.UpdateGeneralCategoryFromScroll(activeCategory.Value);
         }
+        else if (!activeCategory.HasValue && _sections.Count > 0 && vm.SelectedGeneralCategory != _sections[0].Category)
+        {
+            vm.UpdateGeneralCategoryFromScroll(_sections[0].Category);
+        }
     }
 
     private void StartAnimation(double targetY)
     {
-        if (_scrollViewer == null) return;
+        if (_scrollViewer == null)
+        {
+            return;
+        }
 
-        StopAnimation();
+        StopAnimationTimer();
 
-        _animStartOffset = _scrollViewer.Offset.Y;
+        var currentY = _scrollViewer.Offset.Y;
+        if (Math.Abs(currentY - targetY) < 1.0)
+        {
+            _scrollViewer.Offset = new Vector(_scrollViewer.Offset.X, targetY);
+            _isScrollingProgrammatically = false;
+            return;
+        }
+
+        _isScrollingProgrammatically = true;
+        _animStartOffset = currentY;
         _animTargetOffset = targetY;
         _animStartTime = DateTime.UtcNow;
 
@@ -225,15 +266,19 @@ public partial class GameProfileGeneralSettingsView : UserControl
         _animationTimer.Start();
     }
 
-    private void StopAnimation()
+    private void StopAnimationTimer()
     {
         if (_animationTimer != null)
         {
-            _animationTimer.Stop();
             _animationTimer.Tick -= OnAnimationTick;
+            _animationTimer.Stop();
             _animationTimer = null;
         }
+    }
 
+    private void StopAnimation()
+    {
+        StopAnimationTimer();
         _isScrollingProgrammatically = false;
     }
 
@@ -258,7 +303,8 @@ public partial class GameProfileGeneralSettingsView : UserControl
 
         if (t >= 1.0)
         {
-            StopAnimation();
+            StopAnimationTimer();
+            Dispatcher.UIThread.Post(() => _isScrollingProgrammatically = false, DispatcherPriority.Normal);
         }
     }
 }
