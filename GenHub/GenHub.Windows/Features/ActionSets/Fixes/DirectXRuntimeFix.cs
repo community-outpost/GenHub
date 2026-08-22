@@ -1,3 +1,5 @@
+namespace GenHub.Windows.Features.ActionSets.Fixes;
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,8 +13,6 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
-
-namespace GenHub.Windows.Features.ActionSets.Fixes;
 
 /// <summary>
 /// Fix that downloads and installs DirectX 8.1 and 9.0c runtime components required for Generals and Zero Hour.
@@ -131,7 +131,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
         }
         finally
         {
-            CleanupTempFolder(tempFolder);
+            DeleteDirectorySafely(tempFolder);
         }
     }
 
@@ -140,14 +140,6 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
     {
         logger.LogInformation("DirectX Runtime is a core Windows component and cannot be uninstalled automatically.");
         return Task.FromResult(new ActionSetResult(false, "DirectX Runtime is a system component that cannot be automatically uninstalled.", ["DirectX runtime components remain installed on the system."]));
-    }
-
-    private static void DeleteFileIfExists(string filePath)
-    {
-        if (File.Exists(filePath))
-        {
-            File.Delete(filePath);
-        }
     }
 
     private async Task<OperationResult<(bool IsExe, string DownloadPath)>> DownloadAndValidateAsync(
@@ -211,7 +203,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
             if (downloadedFileInfo.Length < ActionSetConstants.Validation.MinimumAddonPackageSizeBytes)
             {
                 logger.LogWarning("Downloaded file from {Url} is too small ({Size} bytes). Likely blocked by proxy.", url, downloadedFileInfo.Length);
-                DeleteFileIfExists(downloadPath);
+                DeleteFileSafely(downloadPath);
                 return OperationResult<(bool IsExe, string DownloadPath)>.CreateFailure($"Downloaded file from {uri.Host} was incomplete or corrupted.");
             }
 
@@ -221,7 +213,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
             {
                 if (!ValidateZipArchive(downloadPath, url))
                 {
-                    DeleteFileIfExists(downloadPath);
+                    DeleteFileSafely(downloadPath);
                     return OperationResult<(bool IsExe, string DownloadPath)>.CreateFailure($"Corrupted ZIP archive downloaded from {uri.Host}.");
                 }
             }
@@ -236,7 +228,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
                 {
                     var errorSummary = string.Join("; ", securityValidation.Errors);
                     logger.LogWarning("Authenticode verification failed for DirectX web setup from {Url}: {Error}", url, errorSummary);
-                    DeleteFileIfExists(downloadPath);
+                    DeleteFileSafely(downloadPath);
                     return OperationResult<(bool IsExe, string DownloadPath)>.CreateFailure($"Security validation failed for installer from {uri.Host}: {errorSummary}");
                 }
 
@@ -248,7 +240,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to download from {Url}: {Error}", url, ex.Message);
-            DeleteFileIfExists(downloadPath);
+            DeleteFileSafely(downloadPath);
             return OperationResult<(bool IsExe, string DownloadPath)>.CreateFailure(ex.Message);
         }
     }
@@ -332,20 +324,5 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
 
         details.Add("✓ DirectX Runtime installation completed");
         return new ActionSetResult(true, null, details);
-    }
-
-    private void CleanupTempFolder(string tempFolder)
-    {
-        try
-        {
-            if (Directory.Exists(tempFolder))
-            {
-                Directory.Delete(tempFolder, true);
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogDebug(ex, "Failed to cleanup temp directory: {TempFolder}", tempFolder);
-        }
     }
 }

@@ -69,13 +69,13 @@ public class DisableOriginInGame(ILogger<DisableOriginInGame> logger) : BaseActi
             if (IsOriginOverlayDisabled())
             {
                 logger.LogInformation("Origin in-game overlay is already disabled.");
-                WriteMarker();
+                WriteMarkerFile(_markerPath);
                 return Task.FromResult(new ActionSetResult(true, null, ["Origin in-game overlay is already disabled."]));
             }
 
             logger.LogWarning("Origin in-game overlay is enabled. Please disable it in Origin Application Settings > Origin In-Game.");
 
-            WriteMarker();
+            WriteMarkerFile(_markerPath);
 
             return Task.FromResult(new ActionSetResult(true, null, [
                 "Please manually disable Origin in-game overlay in Origin Application Settings > Origin In-Game > Uncheck Enable Origin In-Game."
@@ -93,11 +93,6 @@ public class DisableOriginInGame(ILogger<DisableOriginInGame> logger) : BaseActi
     {
         DeleteMarkerFile(_markerPath);
         return Task.FromResult(new ActionSetResult(true, null, ["Origin overlay marker removed."]));
-    }
-
-    private void WriteMarker()
-    {
-        WriteMarkerFile(_markerPath);
     }
 
     private bool IsOriginInstalled()
