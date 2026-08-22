@@ -69,12 +69,8 @@ public class ExpandedLANLobbyMenu(
     /// <inheritdoc/>
     protected override async Task<(int ExtractedCount, List<string>? DeployedFiles)> ExtractAndDeployAssetsAsync(
         string archivePath,
-        string tempExtractDir,
-        string tempBackupDir,
+        DeploymentContext context,
         GameInstallation installation,
-        List<(string DestPath, bool ExistedBefore, string? BackupPath)> backupEntries,
-        List<string> deployedFiles,
-        List<string> details,
         CancellationToken ct)
     {
         using var archive = ArchiveFactory.OpenArchive(new FileInfo(archivePath));
@@ -89,7 +85,7 @@ public class ExpandedLANLobbyMenu(
                 continue;
             }
 
-            var extractedFilePath = Path.Combine(tempExtractDir, fileName);
+            var extractedFilePath = Path.Combine(context.TempExtractDir, fileName);
             using (var entryStream = entry.OpenEntryStream())
             await using (var fs = new FileStream(extractedFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
             {
@@ -98,16 +94,10 @@ public class ExpandedLANLobbyMenu(
 
             extractedCount++;
 
-            DeployEntryToInstallations(
-                installation,
-                fileName,
-                extractedFilePath,
-                tempBackupDir,
-                deployedFiles,
-                backupEntries);
+            DeployEntryToInstallations(installation, fileName, extractedFilePath, context);
         }
 
-        return (extractedCount, deployedFiles);
+        return (extractedCount, context.DeployedFiles);
     }
 
     /// <inheritdoc/>
@@ -137,30 +127,8 @@ public class ExpandedLANLobbyMenu(
     protected override List<string> GetLegacyFilePaths(GameInstallation installation)
     {
         var legacyFiles = new List<string>();
-        if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
-        {
-            foreach (var file in KnownMenuBigFiles)
-            {
-                var path = Path.Combine(installation.ZeroHourPath, file);
-                if (File.Exists(path) && !legacyFiles.Contains(path, StringComparer.OrdinalIgnoreCase))
-                {
-                    legacyFiles.Add(path);
-                }
-            }
-        }
-
-        if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
-        {
-            foreach (var file in KnownMenuBigFiles)
-            {
-                var path = Path.Combine(installation.GeneralsPath, file);
-                if (File.Exists(path) && !legacyFiles.Contains(path, StringComparer.OrdinalIgnoreCase))
-                {
-                    legacyFiles.Add(path);
-                }
-            }
-        }
-
+        CollectExistingFiles(installation.ZeroHourPath, KnownMenuBigFiles, legacyFiles);
+        CollectExistingFiles(installation.GeneralsPath, KnownMenuBigFiles, legacyFiles);
         return legacyFiles;
     }
 
@@ -168,21 +136,19 @@ public class ExpandedLANLobbyMenu(
         GameInstallation installation,
         string fileName,
         string sourceFilePath,
-        string tempBackupDir,
-        List<string> deployedFiles,
-        List<(string DestPath, bool ExistedBefore, string? BackupPath)> backupEntries)
+        DeploymentContext context)
     {
         if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
         {
             var zhDest = Path.Combine(installation.ZeroHourPath, fileName);
-            DeployFileWithBackup(sourceFilePath, zhDest, tempBackupDir, deployedFiles, backupEntries);
+            DeployFileWithBackup(sourceFilePath, zhDest, context);
         }
 
         if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath) &&
             !string.Equals(installation.GeneralsPath, installation.ZeroHourPath, StringComparison.OrdinalIgnoreCase))
         {
             var generalsDest = Path.Combine(installation.GeneralsPath, fileName);
-            DeployFileWithBackup(sourceFilePath, generalsDest, tempBackupDir, deployedFiles, backupEntries);
+            DeployFileWithBackup(sourceFilePath, generalsDest, context);
         }
     }
 }

@@ -19,6 +19,21 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public abstract class BasePackageDeploymentFix : BaseActionSet
 {
+    /// <summary>
+    /// Execution context for package deployment operations.
+    /// </summary>
+    /// <param name="TempExtractDir">The temporary directory for archive extraction.</param>
+    /// <param name="TempBackupDir">The temporary directory for backing up pre-existing game files.</param>
+    /// <param name="BackupEntries">The list tracking backup metadata for rollback.</param>
+    /// <param name="DeployedFiles">The list accumulating deployed file paths.</param>
+    /// <param name="Details">The diagnostic details list.</param>
+    public record DeploymentContext(
+        string TempExtractDir,
+        string TempBackupDir,
+        List<(string DestPath, bool ExistedBefore, string? BackupPath)> BackupEntries,
+        List<string> DeployedFiles,
+        List<string> Details);
+
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger _logger;
     private readonly string _markerPath;
@@ -83,30 +98,26 @@ public abstract class BasePackageDeploymentFix : BaseActionSet
     /// </summary>
     /// <param name="sourceFilePath">The path of the source file to deploy.</param>
     /// <param name="destPath">The destination path in the game directory.</param>
-    /// <param name="tempBackupDir">The directory where pre-existing files are safely backed up.</param>
-    /// <param name="deployedFiles">The list accumulating successfully deployed file paths.</param>
-    /// <param name="backupEntries">The list tracking backup metadata for rollback.</param>
+    /// <param name="context">The deployment context.</param>
     protected static void DeployFileWithBackup(
         string sourceFilePath,
         string destPath,
-        string tempBackupDir,
-        List<string> deployedFiles,
-        List<(string DestPath, bool ExistedBefore, string? BackupPath)> backupEntries)
+        DeploymentContext context)
     {
-        var alreadyBackedUp = backupEntries.Any(b => string.Equals(b.DestPath, destPath, StringComparison.OrdinalIgnoreCase));
+        var alreadyBackedUp = context.BackupEntries.Any(b => string.Equals(b.DestPath, destPath, StringComparison.OrdinalIgnoreCase));
         var existedBefore = File.Exists(destPath);
         string? backupPath = null;
 
         if (existedBefore && !alreadyBackedUp)
         {
-            Directory.CreateDirectory(tempBackupDir);
-            backupPath = Path.Combine(tempBackupDir, $"{Guid.NewGuid():N}_{Path.GetFileName(destPath)}");
+            Directory.CreateDirectory(context.TempBackupDir);
+            backupPath = Path.Combine(context.TempBackupDir, $"{Guid.NewGuid():N}_{Path.GetFileName(destPath)}");
             File.Copy(destPath, backupPath, overwrite: true);
-            backupEntries.Add((destPath, existedBefore, backupPath));
+            context.BackupEntries.Add((destPath, existedBefore, backupPath));
         }
         else if (!alreadyBackedUp)
         {
-            backupEntries.Add((destPath, existedBefore, null));
+            context.BackupEntries.Add((destPath, existedBefore, null));
         }
 
         var destDir = Path.GetDirectoryName(destPath);
@@ -116,10 +127,29 @@ public abstract class BasePackageDeploymentFix : BaseActionSet
         }
 
         File.Copy(sourceFilePath, destPath, overwrite: true);
-        if (!deployedFiles.Contains(destPath, StringComparer.OrdinalIgnoreCase))
+        if (!context.DeployedFiles.Contains(destPath, StringComparer.OrdinalIgnoreCase))
         {
-            deployedFiles.Add(destPath);
+            context.DeployedFiles.Add(destPath);
         }
+    }
+
+    /// <summary>
+    /// Collects existing file paths from a directory matching candidate names.
+    /// </summary>
+    /// <param name="basePath">The base directory path.</param>
+    /// <param name="candidateNames">The candidate file names.</param>
+    /// <param name="output">The list accumulating found paths.</param>
+    protected static void CollectExistingFiles(string? basePath, IReadOnlyList<string> candidateNames, List<string> output)
+    {
+        if (string.IsNullOrEmpty(basePath) || !Directory.Exists(basePath))
+        {
+            return;
+        }
+
+        output.AddRange(candidateNames
+            .Select(name => Path.Combine(basePath, name))
+            .Where(File.Exists)
+            .Except(output, StringComparer.OrdinalIgnoreCase));
     }
 
     /// <inheritdoc/>
@@ -131,6 +161,7 @@ public abstract class BasePackageDeploymentFix : BaseActionSet
         var backupEntries = new List<(string DestPath, bool ExistedBefore, string? BackupPath)>();
         var deployedFiles = new List<string>();
         var details = new List<string>();
+        var context = new DeploymentContext(tempExtractDir, tempBackupDir, backupEntries, deployedFiles, details);
 
         try
         {
@@ -160,12 +191,8 @@ public abstract class BasePackageDeploymentFix : BaseActionSet
 
             var (extractedCount, deployed) = await ExtractAndDeployAssetsAsync(
                 tempFile,
-                tempExtractDir,
-                tempBackupDir,
+                context,
                 installation,
-                backupEntries,
-                deployedFiles,
-                details,
                 ct);
 
             if (deployed == null)
@@ -265,22 +292,14 @@ public abstract class BasePackageDeploymentFix : BaseActionSet
     /// Extracts archive contents and deploys them to target game directories with backup tracking.
     /// </summary>
     /// <param name="archivePath">The local path of the downloaded archive.</param>
-    /// <param name="tempExtractDir">The temporary directory for archive extraction.</param>
-    /// <param name="tempBackupDir">The temporary directory for backing up pre-existing game files.</param>
+    /// <param name="context">The deployment context.</param>
     /// <param name="installation">The targeted game installation.</param>
-    /// <param name="backupEntries">The list tracking backup metadata for rollback.</param>
-    /// <param name="deployedFiles">The list accumulating deployed file paths.</param>
-    /// <param name="details">The diagnostic details list.</param>
     /// <param name="ct">The cancellation token.</param>
     /// <returns>A tuple of extracted file count and list of deployed file paths.</returns>
     protected abstract Task<(int ExtractedCount, List<string>? DeployedFiles)> ExtractAndDeployAssetsAsync(
         string archivePath,
-        string tempExtractDir,
-        string tempBackupDir,
+        DeploymentContext context,
         GameInstallation installation,
-        List<(string DestPath, bool ExistedBefore, string? BackupPath)> backupEntries,
-        List<string> deployedFiles,
-        List<string> details,
         CancellationToken ct);
 
     /// <summary>

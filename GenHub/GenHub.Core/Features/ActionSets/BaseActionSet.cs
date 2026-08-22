@@ -63,9 +63,8 @@ public abstract class BaseActionSet(ILogger logger) : IActionSet
 
             return result;
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException)
         {
-            logger.LogWarning(ex, "ActionSet {Title} ({Id}) application was cancelled", Title, Id);
             throw;
         }
         catch (Exception ex)
@@ -93,9 +92,8 @@ public abstract class BaseActionSet(ILogger logger) : IActionSet
 
             return result;
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException)
         {
-            logger.LogWarning(ex, "ActionSet {Title} ({Id}) undo was cancelled", Title, Id);
             throw;
         }
         catch (Exception ex)

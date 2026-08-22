@@ -1,8 +1,11 @@
 namespace GenHub.Core.Constants;
 
+using System.Diagnostics.CodeAnalysis;
+
 /// <summary>
 /// Constants for external URLs used for downloading dependencies or tools.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized static URL constants repository")]
 public static class ExternalUrls
 {
     /// <summary>

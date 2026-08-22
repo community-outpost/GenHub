@@ -813,7 +813,7 @@ public class GameProcessManager(
                 ? configuration.ExpectedChildProcessName
                 : Path.GetFileNameWithoutExtension(configuration.ExecutablePath);
 
-            var workingDirectory = configuration.WorkingDirectory ?? Path.GetDirectoryName(configuration.ExecutablePath)!;
+            var workingDirectory = configuration.WorkingDirectory ?? Path.GetDirectoryName(configuration.ExecutablePath) ?? string.Empty;
             Process? spawnedProcess = null;
             var deadline = DateTime.UtcNow + TimeSpan.FromMilliseconds(ProcessConstants.LauncherExitGracePeriodMs);
 

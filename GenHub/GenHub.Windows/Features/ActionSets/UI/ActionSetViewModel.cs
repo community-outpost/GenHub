@@ -248,8 +248,12 @@ public partial class ActionSetViewModel(
             return;
         }
 
-        _applyCts?.Cancel();
-        _applyCts?.Dispose();
+        if (_applyCts != null)
+        {
+            await _applyCts.CancelAsync();
+            _applyCts.Dispose();
+        }
+
         _applyCts = new CancellationTokenSource();
         var ct = _applyCts.Token;
 
@@ -318,9 +322,9 @@ public partial class ActionSetViewModel(
                     detailsText);
             }
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        catch (OperationCanceledException ex) when (ct.IsCancellationRequested)
         {
-            logger.LogWarning("Application of {Title} was cancelled by user", ActionSet.Title);
+            logger.LogWarning(ex, "Application of {Title} was cancelled by user", ActionSet.Title);
             notificationService.ShowWarning("Apply Cancelled", $"Application of {ActionSet.Title} was cancelled.");
         }
         catch (Exception ex)

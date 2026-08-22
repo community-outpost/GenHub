@@ -15,6 +15,7 @@ using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.Results;
 using GenHub.Windows.Features.ActionSets.Infrastructure;
 using Microsoft.Extensions.Logging;
 
@@ -126,6 +127,34 @@ public partial class GenPatcherViewModel(
         await LoadFixesCommand.ExecuteAsync(null);
     }
 
+    private static bool MatchesCategory(ActionSetViewModel vm, string category) =>
+        string.IsNullOrEmpty(category) ||
+        string.Equals(category, "All", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(vm.Category, category, StringComparison.OrdinalIgnoreCase);
+
+    private static bool MatchesStatus(ActionSetViewModel vm, string status)
+    {
+        if (string.IsNullOrEmpty(status) || string.Equals(status, "All", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return status switch
+        {
+            "Applied" => vm.IsApplied,
+            "Not Applied" => vm.IsApplicable && !vm.IsApplied,
+            "Not Applicable" => !vm.IsApplicable,
+            _ => true,
+        };
+    }
+
+    private static bool MatchesSearch(ActionSetViewModel vm, string query) =>
+        string.IsNullOrEmpty(query) ||
+        (!string.IsNullOrEmpty(vm.Title) && vm.Title.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
+        (!string.IsNullOrEmpty(vm.Description) && vm.Description.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
+        (!string.IsNullOrEmpty(vm.DetailedDescription) && vm.DetailedDescription.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
+        (!string.IsNullOrEmpty(vm.Category) && vm.Category.Contains(query, StringComparison.OrdinalIgnoreCase));
+
     private bool CanExecuteCancelBatchApply() => IsBatchApplying;
 
     /// <summary>
@@ -171,7 +200,7 @@ public partial class GenPatcherViewModel(
                 "Loading GenPatcher",
                 "Detecting game installations and loading available fixes...");
 
-            var result = await Task.Run(() => installationDetector.DetectInstallationsAsync());
+            var result = await Task.Run(() => installationDetector.DetectInstallationsAsync(), CancellationToken.None);
             if (!result.Success)
             {
                 var errorSummary = result.Errors.Count > 0 ? string.Join("; ", result.Errors) : "Installation detection failed.";
@@ -235,8 +264,12 @@ public partial class GenPatcherViewModel(
     private async Task RefreshFixesForInstallationAsync(GameInstallation installation)
     {
         var version = Interlocked.Increment(ref _refreshVersion);
-        _refreshCts?.Cancel();
-        _refreshCts?.Dispose();
+        if (_refreshCts != null)
+        {
+            await _refreshCts.CancelAsync();
+            _refreshCts.Dispose();
+        }
+
         _refreshCts = new CancellationTokenSource();
         var ct = _refreshCts.Token;
 
@@ -414,18 +447,7 @@ public partial class GenPatcherViewModel(
 
         try
         {
-            var coreFixes = await orchestrator.GetApplicableCoreFixesAsync(targetInstallation, ct);
-            var coreFixIds = new HashSet<string>(coreFixes.Select(f => f.Id), StringComparer.OrdinalIgnoreCase);
-
-            var applicableFixes = new List<IActionSet>();
-            foreach (var vm in ActionSets)
-            {
-                if (vm.IsApplicable && !vm.IsApplied && coreFixIds.Contains(vm.ActionSet.Id))
-                {
-                    applicableFixes.Add(vm.ActionSet);
-                }
-            }
-
+            var applicableFixes = await GetApplicableCoreFixesAsync(targetInstallation, ct);
             if (applicableFixes.Count == 0)
             {
                 var alreadyApplied = ActionSets.Count(x => x.IsApplied);
@@ -453,55 +475,12 @@ public partial class GenPatcherViewModel(
             var batchResult = await orchestrator.ApplyActionSetsAsync(targetInstallation, applicableFixes, ct);
             var totalDuration = (DateTime.UtcNow - startTime).TotalSeconds;
 
-            // Refresh status
-            logger.LogInformation("Refreshing fix status after batch application...");
-            foreach (var vm in ActionSets)
-            {
-                try
-                {
-                    await vm.CheckStatusAsync(CancellationToken.None);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Error refreshing status for {Title}", vm.ActionSet.Title);
-                }
-            }
-
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(SortActionSets);
-
-            int successCount = batchResult.Data;
-            int errorCount = batchResult.Errors.Count;
-            int notAttemptedCount = Math.Max(0, applicableFixes.Count - successCount - errorCount);
-
-            if (batchResult.Success)
-            {
-                logger.LogInformation(
-                    "Batch complete in {Duration:F1}s - {Success}/{Total} successful for {InstallType}",
-                    totalDuration,
-                    successCount,
-                    applicableFixes.Count,
-                    targetInstallation.InstallationType);
-
-                notificationService.ShowSuccess(
-                    "All Fixes Applied Successfully",
-                    $"✓ Successfully applied all {successCount} fix(es) to {targetInstallation.InstallationType} ({targetInstallation.InstallationPath}).\n\nYour game installation has been optimized!");
-            }
-            else
-            {
-                var errorDetails = string.Join("\n", batchResult.Errors);
-                logger.LogWarning("Batch completed with errors: {Errors}", errorDetails);
-                var failureSummary = notAttemptedCount > 0
-                    ? $"Target: {targetInstallation.InstallationType} ({targetInstallation.InstallationPath})\n✓ Successfully applied: {successCount}\n✗ Failed: {errorCount}\n⚠ Not attempted: {notAttemptedCount}\n\nErrors:\n{errorDetails}"
-                    : $"Target: {targetInstallation.InstallationType} ({targetInstallation.InstallationPath})\n✓ Successfully applied: {successCount}\n✗ Failed: {errorCount}\n\nErrors:\n{errorDetails}";
-
-                notificationService.ShowError(
-                    $"Fixes Completed with Errors ({successCount}/{applicableFixes.Count} successful)",
-                    failureSummary);
-            }
+            await RefreshAllActionSetStatusesAsync();
+            DisplayBatchResults(batchResult, targetInstallation, applicableFixes.Count, totalDuration);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogWarning("Batch fix application was cancelled by user");
+            logger.LogWarning(ex, "Batch fix application was cancelled by user");
             notificationService.ShowWarning("Batch Cancelled", "Batch fix application was cancelled.");
         }
         catch (Exception ex)
@@ -514,6 +493,72 @@ public partial class GenPatcherViewModel(
             IsBatchApplying = false;
             _batchCts?.Dispose();
             _batchCts = null;
+        }
+    }
+
+    private async Task<List<IActionSet>> GetApplicableCoreFixesAsync(GameInstallation targetInstallation, CancellationToken ct)
+    {
+        var coreFixes = await orchestrator.GetApplicableCoreFixesAsync(targetInstallation, ct);
+        var coreFixIds = new HashSet<string>(coreFixes.Select(f => f.Id), StringComparer.OrdinalIgnoreCase);
+
+        return ActionSets
+            .Where(vm => vm.IsApplicable && !vm.IsApplied && coreFixIds.Contains(vm.ActionSet.Id))
+            .Select(vm => vm.ActionSet)
+            .ToList();
+    }
+
+    private async Task RefreshAllActionSetStatusesAsync()
+    {
+        logger.LogInformation("Refreshing fix status after batch application...");
+        foreach (var vm in ActionSets)
+        {
+            try
+            {
+                await vm.CheckStatusAsync(CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Error refreshing status for {Title}", vm.ActionSet.Title);
+            }
+        }
+
+        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(SortActionSets);
+    }
+
+    private void DisplayBatchResults(
+        OperationResult<int> batchResult,
+        GameInstallation targetInstallation,
+        int totalApplicable,
+        double totalDuration)
+    {
+        int successCount = batchResult.Data;
+        int errorCount = batchResult.Errors.Count;
+        int notAttemptedCount = Math.Max(0, totalApplicable - successCount - errorCount);
+
+        if (batchResult.Success)
+        {
+            logger.LogInformation(
+                "Batch complete in {Duration:F1}s - {Success}/{Total} successful for {InstallType}",
+                totalDuration,
+                successCount,
+                totalApplicable,
+                targetInstallation.InstallationType);
+
+            notificationService.ShowSuccess(
+                "All Fixes Applied Successfully",
+                $"✓ Successfully applied all {successCount} fix(es) to {targetInstallation.InstallationType} ({targetInstallation.InstallationPath}).\n\nYour game installation has been optimized!");
+        }
+        else
+        {
+            var errorDetails = string.Join("\n", batchResult.Errors);
+            logger.LogWarning("Batch completed with errors: {Errors}", errorDetails);
+            var failureSummary = notAttemptedCount > 0
+                ? $"Target: {targetInstallation.InstallationType} ({targetInstallation.InstallationPath})\n✓ Successfully applied: {successCount}\n✗ Failed: {errorCount}\n⚠ Not attempted: {notAttemptedCount}\n\nErrors:\n{errorDetails}"
+                : $"Target: {targetInstallation.InstallationType} ({targetInstallation.InstallationPath})\n✓ Successfully applied: {successCount}\n✗ Failed: {errorCount}\n\nErrors:\n{errorDetails}";
+
+            notificationService.ShowError(
+                $"Fixes Completed with Errors ({successCount}/{totalApplicable} successful)",
+                failureSummary);
         }
     }
 
@@ -547,42 +592,12 @@ public partial class GenPatcherViewModel(
         var category = SelectedCategory;
         var status = SelectedStatus;
 
-        var filtered = ActionSets.AsEnumerable();
-
-        if (!string.IsNullOrEmpty(category) && !string.Equals(category, "All", StringComparison.OrdinalIgnoreCase))
-        {
-            filtered = filtered.Where(x => string.Equals(x.Category, category, StringComparison.OrdinalIgnoreCase));
-        }
-
-        if (!string.IsNullOrEmpty(status) && !string.Equals(status, "All", StringComparison.OrdinalIgnoreCase))
-        {
-            if (string.Equals(status, "Applied", StringComparison.OrdinalIgnoreCase))
-            {
-                filtered = filtered.Where(x => x.IsApplied);
-            }
-            else if (string.Equals(status, "Not Applied", StringComparison.OrdinalIgnoreCase))
-            {
-                filtered = filtered.Where(x => x.IsApplicable && !x.IsApplied);
-            }
-            else if (string.Equals(status, "Not Applicable", StringComparison.OrdinalIgnoreCase))
-            {
-                filtered = filtered.Where(x => !x.IsApplicable);
-            }
-        }
-
-        if (!string.IsNullOrEmpty(query))
-        {
-            filtered = filtered.Where(x =>
-                (!string.IsNullOrEmpty(x.Title) && x.Title.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
-                (!string.IsNullOrEmpty(x.Description) && x.Description.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
-                (!string.IsNullOrEmpty(x.DetailedDescription) && x.DetailedDescription.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
-                (!string.IsNullOrEmpty(x.Category) && x.Category.Contains(query, StringComparison.OrdinalIgnoreCase)));
-        }
-
-        var resultList = filtered.ToList();
+        var filtered = ActionSets
+            .Where(x => MatchesCategory(x, category) && MatchesStatus(x, status) && MatchesSearch(x, query))
+            .ToList();
 
         FilteredActionSets.Clear();
-        foreach (var item in resultList)
+        foreach (var item in filtered)
         {
             FilteredActionSets.Add(item);
         }

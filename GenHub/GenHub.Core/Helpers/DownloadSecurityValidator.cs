@@ -271,7 +271,7 @@ public static class DownloadSecurityValidator
             }
 
             bool hashMatched = false;
-            if (hasHashCheck && allowedSha256Hashes != null)
+            if (allowedSha256Hashes is { Count: > 0 })
             {
                 var actualHash = await ComputeSha256Async(stream, ct);
                 stream.Position = 0;

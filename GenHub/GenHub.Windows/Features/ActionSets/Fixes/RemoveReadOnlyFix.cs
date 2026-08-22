@@ -310,6 +310,6 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
         }
 
         string[] keyPaths = ["Options.ini", "Maps", "Replays"];
-        return !keyPaths.Any(p => IsReadOnly(Path.Combine(userPath, p)));
+        return keyPaths.All(p => !IsReadOnly(Path.Combine(userPath, p)));
     }
 }

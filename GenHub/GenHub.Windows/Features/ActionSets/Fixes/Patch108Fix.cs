@@ -234,7 +234,8 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
 
         try
         {
-            using var archive = ZipFile.OpenRead(tempPath);
+            await using var fs = new FileStream(tempPath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, true);
+            using var archive = new ZipArchive(fs, ZipArchiveMode.Read);
             if (archive.Entries.Count == 0)
             {
                 DeleteFileSafely(tempPath);

@@ -114,70 +114,52 @@ public class NahimicFix(ILogger<NahimicFix> logger) : BaseActionSet(logger)
     {
         try
         {
-            // Check for Nahimic in registry
-            using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
-                RegistryConstants.UninstallKeyPath,
-                false);
+            return HasNahimicRegistryEntry() || HasNahimicRunningProcess();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
 
-            if (key != null)
-            {
-                foreach (var subKeyName in key.GetSubKeyNames())
-                {
-                    using var subKey = key.OpenSubKey(subKeyName, false);
-                    if (subKey?.GetValue("DisplayName") is string displayName && displayName.Contains("Nahimic", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return true;
-                    }
-                }
-            }
+    private static bool HasNahimicRegistryEntry()
+    {
+        using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(RegistryConstants.UninstallKeyPath, false);
+        if (key == null)
+        {
+            return false;
+        }
 
-            // Check for Nahimic processes
-            var p1 = Process.GetProcessesByName("Nahimic");
-            try
+        foreach (var subKeyName in key.GetSubKeyNames())
+        {
+            using var subKey = key.OpenSubKey(subKeyName, false);
+            if (subKey?.GetValue("DisplayName") is string displayName && displayName.Contains("Nahimic", StringComparison.OrdinalIgnoreCase))
             {
-                if (p1.Length > 0)
-                {
-                    return true;
-                }
+                return true;
             }
-            finally
-            {
-                foreach (var p in p1) p.Dispose();
-            }
+        }
 
-            var p2 = Process.GetProcessesByName("NahimicService");
-            try
+        return false;
+    }
+
+    private static bool HasNahimicRunningProcess()
+    {
+        return IsProcessRunning("Nahimic") || IsProcessRunning("NahimicService");
+    }
+
+    private static bool IsProcessRunning(string processName)
+    {
+        var processes = Process.GetProcessesByName(processName);
+        try
+        {
+            return processes.Length > 0;
+        }
+        finally
+        {
+            foreach (var p in processes)
             {
-                return p2.Length > 0;
+                p.Dispose();
             }
-            finally
-            {
-                foreach (var p in p2) p.Dispose();
-            }
-        }
-        catch (InvalidOperationException)
-        {
-            return false;
-        }
-        catch (Win32Exception)
-        {
-            return false;
-        }
-        catch (PlatformNotSupportedException)
-        {
-            return false;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return false;
-        }
-        catch (SecurityException)
-        {
-            return false;
-        }
-        catch (IOException)
-        {
-            return false;
         }
     }
 }

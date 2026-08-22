@@ -209,7 +209,7 @@ public class OptionsINIFix(IGameSettingsService gameSettingsService, ILogger<Opt
     private static bool IsOptionsCrashSafe(IniOptions options)
     {
         // Must have shadow volumes disabled (causes 3D device crashes on modern GPUs)
-        if (options.Video.UseShadowVolumes != false) return false;
+        if (options.Video.UseShadowVolumes) return false;
 
         // Must not have a known broken resolution or 0x0
         if (options.Video.ResolutionWidth <= 0 || options.Video.ResolutionHeight <= 0) return false;

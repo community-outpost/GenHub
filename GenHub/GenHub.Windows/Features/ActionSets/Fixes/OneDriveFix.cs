@@ -378,20 +378,23 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
         catch (IOException ex)
         {
             logger.LogWarning(ex, "I/O error processing folder {LocalPath}", localPath);
+            details.Add($"✗ Failed to process '{folderName}': {ex.Message}");
             TryRestoreArchive(currentCloudArchive, cloudPath, details);
-            throw;
+            return false;
         }
         catch (UnauthorizedAccessException ex)
         {
             logger.LogWarning(ex, "Access denied processing folder {LocalPath}", localPath);
+            details.Add($"✗ Access denied processing '{folderName}'");
             TryRestoreArchive(currentCloudArchive, cloudPath, details);
-            throw;
+            return false;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogWarning(ex, "Unexpected error processing folder {LocalPath}", localPath);
+            details.Add($"✗ Error processing '{folderName}': {ex.Message}");
             TryRestoreArchive(currentCloudArchive, cloudPath, details);
-            throw;
+            return false;
         }
     }
 

@@ -124,6 +124,35 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
         return Task.FromResult(new ActionSetResult(true, null, ["GenTool (d3d8.dll) removed from installation."]));
     }
 
+    private static Task<ActionSetResult> DeployDllAsync(string extractedDllPath, GameInstallation installation, List<string> details, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        int deployedCount = 0;
+
+        if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
+        {
+            var dest = Path.Combine(installation.GeneralsPath, D3D8Dll);
+            File.Copy(extractedDllPath, dest, overwrite: true);
+            details.Add($"✓ Installed GenTool to Generals: {dest}");
+            deployedCount++;
+        }
+
+        if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
+        {
+            var dest = Path.Combine(installation.ZeroHourPath, D3D8Dll);
+            File.Copy(extractedDllPath, dest, overwrite: true);
+            details.Add($"✓ Installed GenTool to Zero Hour: {dest}");
+            deployedCount++;
+        }
+
+        if (deployedCount == 0)
+        {
+            return Task.FromResult(new ActionSetResult(false, "No valid game installation directory found to install GenTool.", details));
+        }
+
+        return Task.FromResult(new ActionSetResult(true, null, details));
+    }
+
     private async Task<bool> TryDownloadFromMirrorsAsync(string tempFile, List<string> details, CancellationToken ct)
     {
         using var client = httpClientFactory.CreateClient("Downloader");
@@ -220,35 +249,6 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
 
         await dllValidation.Data.DisposeAsync();
         return (true, extractedDllPath, null);
-    }
-
-    private Task<ActionSetResult> DeployDllAsync(string extractedDllPath, GameInstallation installation, List<string> details, CancellationToken ct)
-    {
-        ct.ThrowIfCancellationRequested();
-        int deployedCount = 0;
-
-        if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
-        {
-            var dest = Path.Combine(installation.GeneralsPath, D3D8Dll);
-            File.Copy(extractedDllPath, dest, overwrite: true);
-            details.Add($"✓ Installed GenTool to Generals: {dest}");
-            deployedCount++;
-        }
-
-        if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
-        {
-            var dest = Path.Combine(installation.ZeroHourPath, D3D8Dll);
-            File.Copy(extractedDllPath, dest, overwrite: true);
-            details.Add($"✓ Installed GenTool to Zero Hour: {dest}");
-            deployedCount++;
-        }
-
-        if (deployedCount == 0)
-        {
-            return Task.FromResult(new ActionSetResult(false, "No valid game installation directory found to install GenTool.", details));
-        }
-
-        return Task.FromResult(new ActionSetResult(true, null, details));
     }
 
     private void CleanupTemporaryFiles(string tempFile, string tempExtractDir)

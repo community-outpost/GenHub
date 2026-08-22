@@ -56,33 +56,10 @@ public class AppCompatConfigurationsFix(
             ? "~ HIGHDPIAWARE"
             : "~ RUNASADMIN HIGHDPIAWARE";
 
-        if (installation.HasGenerals)
-        {
-            foreach (var exe in GeneralsExecutables)
-            {
-                var fullPath = Path.Combine(installation.GeneralsPath, exe);
-                if (File.Exists(fullPath))
-                {
-                    var current = registryService.GetStringValue(RegistryConstants.AppCompatLayersKeyPath, fullPath);
-                    if (current != expectedFlag) return Task.FromResult(false);
-                }
-            }
-        }
+        bool generalsApplied = !installation.HasGenerals || AreFlagsApplied(installation.GeneralsPath, GeneralsExecutables, expectedFlag);
+        bool zhApplied = !installation.HasZeroHour || AreFlagsApplied(installation.ZeroHourPath, ZeroHourExecutables, expectedFlag);
 
-        if (installation.HasZeroHour)
-        {
-            foreach (var exe in ZeroHourExecutables)
-            {
-                var fullPath = Path.Combine(installation.ZeroHourPath, exe);
-                if (File.Exists(fullPath))
-                {
-                    var current = registryService.GetStringValue(RegistryConstants.AppCompatLayersKeyPath, fullPath);
-                    if (current != expectedFlag) return Task.FromResult(false);
-                }
-            }
-        }
-
-        return Task.FromResult(true);
+        return Task.FromResult(generalsApplied && zhApplied);
     }
 
     /// <inheritdoc/>
@@ -174,6 +151,29 @@ public class AppCompatConfigurationsFix(
             logger.LogError(ex, "Failed to undo AppCompat configurations");
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
+    }
+
+    private bool AreFlagsApplied(string? basePath, IReadOnlyList<string> executables, string expectedFlag)
+    {
+        if (string.IsNullOrEmpty(basePath) || !Directory.Exists(basePath))
+        {
+            return true;
+        }
+
+        foreach (var exe in executables)
+        {
+            var fullPath = Path.Combine(basePath, exe);
+            if (File.Exists(fullPath))
+            {
+                var current = registryService.GetStringValue(RegistryConstants.AppCompatLayersKeyPath, fullPath);
+                if (current != expectedFlag)
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     private Task<bool> ProcessExecutablesAsync(string installPath, IReadOnlyList<string> executables, string flag, List<string> details, CancellationToken ct)

@@ -142,6 +142,14 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
         return Task.FromResult(new ActionSetResult(false, "DirectX Runtime is a system component that cannot be automatically uninstalled.", ["DirectX runtime components remain installed on the system."]));
     }
 
+    private static void DeleteFileIfExists(string filePath)
+    {
+        if (File.Exists(filePath))
+        {
+            File.Delete(filePath);
+        }
+    }
+
     private async Task<OperationResult<(bool IsExe, string DownloadPath)>> DownloadAndValidateAsync(
         string tempFolder,
         string zipFile,
@@ -338,14 +346,6 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
         catch (Exception ex)
         {
             logger.LogDebug(ex, "Failed to cleanup temp directory: {TempFolder}", tempFolder);
-        }
-    }
-
-    private void DeleteFileIfExists(string filePath)
-    {
-        if (File.Exists(filePath))
-        {
-            File.Delete(filePath);
         }
     }
 }

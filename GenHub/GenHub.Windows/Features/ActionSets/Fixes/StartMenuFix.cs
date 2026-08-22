@@ -232,7 +232,7 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
         }
     }
 
-    private bool DoShortcutsExist(GameInstallation installation)
+    private static bool DoShortcutsExist(GameInstallation installation)
     {
         var searchPaths = new[]
         {
@@ -240,41 +240,23 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
             Environment.GetFolderPath(Environment.SpecialFolder.Programs),
         };
 
-        var generalsFound = !installation.HasGenerals;
-        var zhFound = !installation.HasZeroHour;
+        bool generalsFound = !installation.HasGenerals || HasAnyShortcut(
+            searchPaths,
+            ["Command and Conquer Generals", "Command & Conquer Generals"],
+            "Command & Conquer Generals Windowed.lnk");
 
-        foreach (var programsPath in searchPaths)
-        {
-            if (installation.HasGenerals && !generalsFound)
-            {
-                // Try both variants of '&' vs 'and'
-                var folderVariants = new[] { "Command and Conquer Generals", "Command & Conquer Generals" };
-                foreach (var folder in folderVariants)
-                {
-                    var path = Path.Combine(programsPath, folder, "Command & Conquer Generals Windowed.lnk");
-                    if (File.Exists(path))
-                    {
-                        generalsFound = true;
-                        break;
-                    }
-                }
-            }
-
-            if (installation.HasZeroHour && !zhFound)
-            {
-                var folderVariants = new[] { "Command and Conquer Generals Zero Hour", "Command & Conquer Generals Zero Hour" };
-                foreach (var folder in folderVariants)
-                {
-                    var path = Path.Combine(programsPath, folder, "Command & Conquer Generals Zero Hour Windowed.lnk");
-                    if (File.Exists(path))
-                    {
-                        zhFound = true;
-                        break;
-                    }
-                }
-            }
-        }
+        bool zhFound = !installation.HasZeroHour || HasAnyShortcut(
+            searchPaths,
+            ["Command and Conquer Generals Zero Hour", "Command & Conquer Generals Zero Hour"],
+            "Command & Conquer Generals Zero Hour Windowed.lnk");
 
         return generalsFound && zhFound;
+    }
+
+    private static bool HasAnyShortcut(string[] searchPaths, string[] folderVariants, string shortcutFileName)
+    {
+        return searchPaths.Any(programsPath =>
+            folderVariants.Any(folder =>
+                File.Exists(Path.Combine(programsPath, folder, shortcutFileName))));
     }
 }

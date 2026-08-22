@@ -95,55 +95,10 @@ public class SerialKeyFix(
         try
         {
             details.Add("Checking game serial keys...");
-            bool writeFailed = false;
+            bool generalsSuccess = !installation.HasGenerals || ApplyGameSerial("Generals", RegistryConstants.EAAppGeneralsErgcKeyPath, details);
+            bool zhSuccess = !installation.HasZeroHour || ApplyGameSerial("Zero Hour", RegistryConstants.EAAppZeroHourErgcKeyPath, details);
 
-            if (installation.HasGenerals)
-            {
-                var serial = registryService.GetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty);
-                if (IsPlaceholder(serial))
-                {
-                    var generalsSerial = GenerateRandomSerial();
-                    details.Add("  Found placeholder serial for Generals. Generating new one...");
-                    if (registryService.SetStringValue(RegistryConstants.EAAppGeneralsErgcKeyPath, string.Empty, generalsSerial))
-                    {
-                        details.Add($"  ✓ Applied new serial to {RegistryConstants.EAAppGeneralsErgcKeyPath}");
-                    }
-                    else
-                    {
-                        writeFailed = true;
-                        details.Add("  ✗ Failed to apply new serial for Generals (permissions?)");
-                    }
-                }
-                else
-                {
-                    details.Add("  ✓ Generals serial is already valid");
-                }
-            }
-
-            if (installation.HasZeroHour)
-            {
-                var serial = registryService.GetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty);
-                if (IsPlaceholder(serial))
-                {
-                    var zeroHourSerial = GenerateRandomSerial();
-                    details.Add("  Found placeholder serial for Zero Hour. Generating new one...");
-                    if (registryService.SetStringValue(RegistryConstants.EAAppZeroHourErgcKeyPath, string.Empty, zeroHourSerial))
-                    {
-                        details.Add($"  ✓ Applied new serial to {RegistryConstants.EAAppZeroHourErgcKeyPath}");
-                    }
-                    else
-                    {
-                        writeFailed = true;
-                        details.Add("  ✗ Failed to apply new serial for Zero Hour (permissions?)");
-                    }
-                }
-                else
-                {
-                    details.Add("  ✓ Zero Hour serial is already valid");
-                }
-            }
-
-            if (writeFailed)
+            if (!generalsSuccess || !zhSuccess)
             {
                 return Task.FromResult(new ActionSetResult(false, "Failed to apply one or more serial keys.", details));
             }
@@ -187,5 +142,26 @@ public class SerialKeyFix(
         }
 
         return sb.ToString();
+    }
+
+    private bool ApplyGameSerial(string gameName, string ergcKeyPath, List<string> details)
+    {
+        var serial = registryService.GetStringValue(ergcKeyPath, string.Empty);
+        if (!IsPlaceholder(serial))
+        {
+            details.Add($"  ✓ {gameName} serial is already valid");
+            return true;
+        }
+
+        var newSerial = GenerateRandomSerial();
+        details.Add($"  Found placeholder serial for {gameName}. Generating new one...");
+        if (registryService.SetStringValue(ergcKeyPath, string.Empty, newSerial))
+        {
+            details.Add($"  ✓ Applied new serial to {ergcKeyPath}");
+            return true;
+        }
+
+        details.Add($"  ✗ Failed to apply new serial for {gameName} (permissions?)");
+        return false;
     }
 }

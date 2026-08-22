@@ -104,20 +104,16 @@ public class HDIconsFix(
     /// <inheritdoc/>
     protected override async Task<(int ExtractedCount, List<string>? DeployedFiles)> ExtractAndDeployAssetsAsync(
         string archivePath,
-        string tempExtractDir,
-        string tempBackupDir,
+        DeploymentContext context,
         GameInstallation installation,
-        List<(string DestPath, bool ExistedBefore, string? BackupPath)> backupEntries,
-        List<string> deployedFiles,
-        List<string> details,
         CancellationToken ct)
     {
         using var archive = ArchiveFactory.OpenArchive(new FileInfo(archivePath));
         var archiveFileNames = archive.Entries
-            .Where(e => !e.IsDirectory && e.Key != null)
+            .Where(e => !e.IsDirectory && !string.IsNullOrEmpty(e.Key))
             .Select(e => Path.GetFileName(e.Key))
             .Where(n => !string.IsNullOrEmpty(n))
-            .Select(n => n!)
+            .OfType<string>()
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var archiveValidation = ValidateArchiveContents(archiveFileNames, installation);
@@ -139,7 +135,7 @@ public class HDIconsFix(
                 continue;
             }
 
-            var extractedFilePath = Path.Combine(tempExtractDir, fileName);
+            var extractedFilePath = Path.Combine(context.TempExtractDir, fileName);
             using (var entryStream = entry.OpenEntryStream())
             await using (var fs = new FileStream(extractedFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
             {
@@ -152,18 +148,18 @@ public class HDIconsFix(
                 RecognizedGeneralsIconFiles.Contains(fileName, StringComparer.OrdinalIgnoreCase))
             {
                 var generalsDest = Path.Combine(installation.GeneralsPath, fileName);
-                DeployFileWithBackup(extractedFilePath, generalsDest, tempBackupDir, deployedFiles, backupEntries);
+                DeployFileWithBackup(extractedFilePath, generalsDest, context);
             }
 
             if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath) &&
                 RecognizedZeroHourIconFiles.Contains(fileName, StringComparer.OrdinalIgnoreCase))
             {
                 var zhDest = Path.Combine(installation.ZeroHourPath, fileName);
-                DeployFileWithBackup(extractedFilePath, zhDest, tempBackupDir, deployedFiles, backupEntries);
+                DeployFileWithBackup(extractedFilePath, zhDest, context);
             }
         }
 
-        return (extractedCount, deployedFiles);
+        return (extractedCount, context.DeployedFiles);
     }
 
     /// <inheritdoc/>
@@ -204,30 +200,8 @@ public class HDIconsFix(
     protected override List<string> GetLegacyFilePaths(GameInstallation installation)
     {
         var legacyFiles = new List<string>();
-        if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
-        {
-            foreach (var icon in RecognizedGeneralsIconFiles)
-            {
-                var path = Path.Combine(installation.GeneralsPath, icon);
-                if (File.Exists(path) && !legacyFiles.Contains(path, StringComparer.OrdinalIgnoreCase))
-                {
-                    legacyFiles.Add(path);
-                }
-            }
-        }
-
-        if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
-        {
-            foreach (var icon in RecognizedZeroHourIconFiles)
-            {
-                var path = Path.Combine(installation.ZeroHourPath, icon);
-                if (File.Exists(path) && !legacyFiles.Contains(path, StringComparer.OrdinalIgnoreCase))
-                {
-                    legacyFiles.Add(path);
-                }
-            }
-        }
-
+        CollectExistingFiles(installation.GeneralsPath, RecognizedGeneralsIconFiles, legacyFiles);
+        CollectExistingFiles(installation.ZeroHourPath, RecognizedZeroHourIconFiles, legacyFiles);
         return legacyFiles;
     }
 }

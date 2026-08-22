@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
@@ -132,13 +133,11 @@ public class GenArial(ILogger<GenArial> logger) : BaseActionSet(logger)
                 Environment.GetFolderPath(Environment.SpecialFolder.Windows),
                 "Fonts");
 
-            foreach (var fontFile in ArialFiles)
+            var existingFont = ArialFiles.FirstOrDefault(fontFile => File.Exists(Path.Combine(fontsPath, fontFile)));
+            if (existingFont != null)
             {
-                if (File.Exists(Path.Combine(fontsPath, fontFile)))
-                {
-                    logger.LogInformation("Found Arial font: {Font}", fontFile);
-                    return true;
-                }
+                logger.LogInformation("Found Arial font: {Font}", existingFont);
+                return true;
             }
 
             // Check for Arial in registry
@@ -154,13 +153,11 @@ public class GenArial(ILogger<GenArial> logger) : BaseActionSet(logger)
                     return true;
                 }
 
-                foreach (var valueName in key.GetValueNames())
+                var fontValueName = key.GetValueNames().FirstOrDefault(v => v.Contains("Arial", StringComparison.OrdinalIgnoreCase));
+                if (fontValueName != null)
                 {
-                    if (valueName.Contains("Arial", StringComparison.OrdinalIgnoreCase))
-                    {
-                        logger.LogInformation("Found Arial font in registry: {Font}", valueName);
-                        return true;
-                    }
+                    logger.LogInformation("Found Arial font in registry: {Font}", fontValueName);
+                    return true;
                 }
             }
 

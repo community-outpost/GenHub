@@ -123,7 +123,7 @@ public class PreferIPv4Fix(
             details.Add($"Key: {RegistryConstants.DisabledComponentsValueName}");
             details.Add($"New value: {RegistryConstants.PreferIPv4DisabledComponentsValue} (0x20 - Disable IPv6 tunnel interfaces)");
 
-            logger.LogInformation("Enabling IPv4 preference by disabling IPv6 tunnel interfaces...");
+            logger.LogDebug("Enabling IPv4 preference by disabling IPv6 tunnel interfaces...");
 
             var writeSuccess = registryService.SetIntValue(
                 RegistryConstants.Tcpip6ParametersKeyPath,
@@ -140,8 +140,7 @@ public class PreferIPv4Fix(
             details.Add("⚠ IMPORTANT: Computer restart required for changes to take effect");
             details.Add("  After restart, IPv4 will be preferred for all network connections");
 
-            logger.LogInformation("IPv4 preference fix applied with {Count} actions", details.Count);
-            logger.LogInformation("NOTE: You may need to restart your computer for this change to take effect.");
+            logger.LogInformation("IPv4 preference fix applied with {Count} actions. Restart may be required.", details.Count);
 
             return Task.FromResult(new ActionSetResult(true, null, details));
         }
@@ -173,7 +172,7 @@ public class PreferIPv4Fix(
                 return Task.FromResult(new ActionSetResult(true, null, details));
             }
 
-            logger.LogInformation("Restoring original IPv4/IPv6 configuration...");
+            logger.LogDebug("Restoring original IPv4/IPv6 configuration...");
 
             bool restoreSuccess = false;
             if (File.Exists(_backupPath))
@@ -224,8 +223,7 @@ public class PreferIPv4Fix(
             details.Add("✓ IPv4 preference restored successfully");
             details.Add("⚠ Computer restart required for changes to take effect");
 
-            logger.LogInformation("IPv4 preference removed successfully.");
-            logger.LogInformation("NOTE: You may need to restart your computer for this change to take effect.");
+            logger.LogInformation("IPv4 preference removed successfully. Restart may be required.");
 
             return Task.FromResult(new ActionSetResult(true, null, details));
         }

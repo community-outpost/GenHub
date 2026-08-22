@@ -1,12 +1,9 @@
 namespace GenHub.Windows.Features.ActionSets.Fixes;
 
-using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
-using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
 
@@ -14,7 +11,7 @@ using Microsoft.Extensions.Logging;
 /// Fix that ensures that Zero Hour executable is properly patched.
 /// This fix checks if that official 1.04 patch has been applied.
 /// </summary>
-public class ZeroHourExecutableFix(ILogger<ZeroHourExecutableFix> logger) : BaseActionSet(logger)
+public class ZeroHourExecutableFix(ILogger<ZeroHourExecutableFix> logger) : BaseExecutableVersionFix(logger)
 {
     private static readonly IReadOnlyList<string> CandidateExes =
     [
@@ -44,6 +41,18 @@ public class ZeroHourExecutableFix(ILogger<ZeroHourExecutableFix> logger) : Base
     public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
+    protected override string GameDisplayName => "Zero Hour";
+
+    /// <inheritdoc/>
+    protected override string TargetVersionDisplay => "1.04";
+
+    /// <inheritdoc/>
+    protected override IReadOnlyList<string> VersionPrefixes => ["1.4", "1.04"];
+
+    /// <inheritdoc/>
+    protected override IReadOnlyList<string> CandidateExecutableNames => CandidateExes;
+
+    /// <inheritdoc/>
     public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
         // User requested to disable this fix as it is handled by the Downloads tab
@@ -51,110 +60,8 @@ public class ZeroHourExecutableFix(ILogger<ZeroHourExecutableFix> logger) : Base
     }
 
     /// <inheritdoc/>
-    public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
-    {
-        try
-        {
-            if (!installation.HasZeroHour)
-            {
-                return Task.FromResult(false);
-            }
-
-            var gameExePath = FindExecutable(installation.ZeroHourPath);
-            if (gameExePath == null)
-            {
-                return Task.FromResult(false);
-            }
-
-            // Check file version to verify it's 1.04
-            var versionInfo = System.Diagnostics.FileVersionInfo.GetVersionInfo(gameExePath);
-            var version = versionInfo.FileVersion;
-
-            // 1.04 version should be 1.4.0.0, 1.04, or similar
-            if (version != null && (version.StartsWith("1.4", StringComparison.OrdinalIgnoreCase) || version.StartsWith("1.04", StringComparison.OrdinalIgnoreCase)))
-            {
-                return Task.FromResult(true);
-            }
-
-            return Task.FromResult(false);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error checking Zero Hour executable version");
-            return Task.FromResult(false);
-        }
-    }
+    protected override bool HasGame(GameInstallation installation) => installation.HasZeroHour;
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
-    {
-        var details = new List<string>();
-
-        try
-        {
-            if (!installation.HasZeroHour)
-            {
-                details.Add("✗ Zero Hour is not installed");
-                return Task.FromResult(new ActionSetResult(false, "Zero Hour is not installed in this installation.", details));
-            }
-
-            details.Add("Zero Hour Executable Fix - Informational");
-            details.Add(string.Empty);
-            details.Add("This fix ensures the Zero Hour 1.04 patch is applied.");
-            details.Add("Note: Automatic patching is currently disabled. Please use the Downloads section.");
-            details.Add(string.Empty);
-
-            var gameExePath = FindExecutable(installation.ZeroHourPath);
-
-            if (gameExePath != null)
-            {
-                var versionInfo = System.Diagnostics.FileVersionInfo.GetVersionInfo(gameExePath);
-                var version = versionInfo.FileVersion;
-
-                details.Add($"Current executable: {Path.GetFileName(gameExePath)}");
-                details.Add($"Current version: {version ?? "unknown"}");
-
-                if (version?.StartsWith("1.4") == true)
-                {
-                    details.Add("✓ Zero Hour 1.04 patch is already applied");
-                }
-                else
-                {
-                    details.Add("⚠ Zero Hour 1.04 patch needs to be applied");
-                    details.Add("  Please use the 'Downloads' section in GenHub to get the 1.04 patch.");
-                }
-            }
-            else
-            {
-                details.Add("⚠ Zero Hour executable not found");
-                details.Add($"  Expected location in: {installation.ZeroHourPath}");
-            }
-
-            return Task.FromResult(new ActionSetResult(true, null, details));
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error applying ZeroHourExecutableFix");
-            details.Add($"✗ Error: {ex.Message}");
-            return Task.FromResult(new ActionSetResult(false, ex.Message, details));
-        }
-    }
-
-    /// <inheritdoc/>
-    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
-    {
-        logger.LogWarning("Undoing Zero Hour Executable Fix is not supported via GenHub.");
-        return Task.FromResult(new ActionSetResult(true));
-    }
-
-    private static string? FindExecutable(string zeroHourPath)
-    {
-        foreach (var exeName in CandidateExes)
-        {
-            var p = Path.Combine(zeroHourPath, exeName);
-            if (File.Exists(p)) return p;
-        }
-
-        return null;
-    }
+    protected override string? GetGamePath(GameInstallation installation) => installation.ZeroHourPath;
 }

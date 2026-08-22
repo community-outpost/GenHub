@@ -21,6 +21,14 @@ public class ActionSetOrchestrator(
     IEnumerable<IActionSetProvider> providers,
     ILogger<ActionSetOrchestrator> logger) : IActionSetOrchestrator
 {
+    private enum ExecutionOutcome
+    {
+        Success,
+        Skipped,
+        FailedNonCritical,
+        FailedCritical,
+    }
+
     private readonly IReadOnlyList<IActionSet> _actionSets = InitializeActionSets(actionSets, providers, logger);
 
     /// <inheritdoc/>
@@ -71,99 +79,21 @@ public class ActionSetOrchestrator(
         {
             ct.ThrowIfCancellationRequested();
 
-            var actionSet = actionSetsList[i];
+            var outcome = await ProcessActionSetAsync(
+                actionSetsList[i],
+                installation,
+                i + 1,
+                totalCount,
+                errors,
+                ct);
 
-            // Double check applicability and applied state with exception shielding
-            bool isApplicable = false;
-            try
+            if (outcome == ExecutionOutcome.Success)
             {
-                isApplicable = await actionSet.IsApplicableAsync(installation, ct);
+                successCount++;
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            else if (outcome == ExecutionOutcome.FailedCritical)
             {
-                logger.LogError(ex, "Error checking applicability for {Title}", actionSet.Title);
-                errors.Add($"Error checking applicability for {actionSet.Title}: {ex.Message}");
-                if (actionSet.IsCrucialFix)
-                {
-                    logger.LogError("Critical fix {Title} applicability check failed. Aborting sequence.", actionSet.Title);
-                    errors.Add($"Critical fix '{actionSet.Title}' applicability check failed. Remaining fixes were not applied.");
-                    return OperationResult<int>.CreateFailure(errors, successCount, stopwatch.Elapsed);
-                }
-
-                continue;
-            }
-
-            if (!isApplicable)
-            {
-                logger.LogDebug("Skipping {Title} - not applicable", actionSet.Title);
-                continue;
-            }
-
-            bool isApplied = false;
-            try
-            {
-                isApplied = await actionSet.IsAppliedAsync(installation, ct);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                logger.LogError(ex, "Error checking applied state for {Title}", actionSet.Title);
-                errors.Add($"Error checking applied state for {actionSet.Title}: {ex.Message}");
-                if (actionSet.IsCrucialFix)
-                {
-                    logger.LogError("Critical fix {Title} applied check failed. Aborting sequence.", actionSet.Title);
-                    errors.Add($"Critical fix '{actionSet.Title}' applied check failed. Remaining fixes were not applied.");
-                    return OperationResult<int>.CreateFailure(errors, successCount, stopwatch.Elapsed);
-                }
-
-                continue;
-            }
-
-            if (isApplied)
-            {
-                logger.LogDebug("Skipping {Title} - already applied", actionSet.Title);
-                continue;
-            }
-
-            try
-            {
-                logger.LogInformation("Applying action set {Index}/{Total}: {Title}", i + 1, totalCount, actionSet.Title);
-                var result = await actionSet.ApplyAsync(installation, ct);
-
-                if (result.Success)
-                {
-                    successCount++;
-                    logger.LogInformation("Successfully applied {Title}", actionSet.Title);
-                }
-                else
-                {
-                    var errorMessage = result.ErrorMessage ?? "Unknown error";
-                    logger.LogWarning("Failed to apply {Title}: {Error}", actionSet.Title, errorMessage);
-                    errors.Add($"{actionSet.Title}: {errorMessage}");
-
-                    if (actionSet.IsCrucialFix)
-                    {
-                        logger.LogError("Critical fix {Title} failed. Aborting remaining action sets.", actionSet.Title);
-                        errors.Add($"Critical fix '{actionSet.Title}' failed. Remaining fixes were not applied.");
-                        return OperationResult<int>.CreateFailure(errors, successCount, stopwatch.Elapsed);
-                    }
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                logger.LogWarning("Action set execution cancelled during {Title}", actionSet.Title);
-                throw;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Unexpected error applying {Title}", actionSet.Title);
-                errors.Add($"{actionSet.Title}: {ex.Message}");
-
-                if (actionSet.IsCrucialFix)
-                {
-                    logger.LogError(ex, "Critical fix {Title} threw unexpected exception. Aborting remaining action sets.", actionSet.Title);
-                    errors.Add($"Critical fix '{actionSet.Title}' encountered an unexpected error. Remaining fixes were not applied.");
-                    return OperationResult<int>.CreateFailure(errors, successCount, stopwatch.Elapsed);
-                }
+                return OperationResult<int>.CreateFailure(errors, successCount, stopwatch.Elapsed);
             }
         }
 
@@ -207,7 +137,7 @@ public class ActionSetOrchestrator(
         Dictionary<string, IActionSet> setMap,
         ILogger<ActionSetOrchestrator> logger)
     {
-        foreach (var set in actionSets)
+        foreach (var set in actionSets.Where(s => s != null))
         {
             if (!setMap.TryAdd(set.Id, set))
             {
@@ -237,6 +167,113 @@ public class ActionSetOrchestrator(
             {
                 logger.LogError(ex, "Failed to load action sets from provider {Provider}", provider.GetType().Name);
             }
+        }
+    }
+
+    private async Task<ExecutionOutcome> ProcessActionSetAsync(
+        IActionSet actionSet,
+        GameInstallation installation,
+        int index,
+        int totalCount,
+        List<string> errors,
+        CancellationToken ct)
+    {
+        var eligible = await CheckEligibilityAsync(actionSet, installation, errors, ct);
+        if (eligible != ExecutionOutcome.Success)
+        {
+            return eligible;
+        }
+
+        return await ApplySingleActionSetAsync(actionSet, installation, index, totalCount, errors, ct);
+    }
+
+    private async Task<ExecutionOutcome> CheckEligibilityAsync(
+        IActionSet actionSet,
+        GameInstallation installation,
+        List<string> errors,
+        CancellationToken ct)
+    {
+        try
+        {
+            if (!await actionSet.IsApplicableAsync(installation, ct))
+            {
+                logger.LogDebug("Skipping {Title} - not applicable", actionSet.Title);
+                return ExecutionOutcome.Skipped;
+            }
+
+            if (await actionSet.IsAppliedAsync(installation, ct))
+            {
+                logger.LogDebug("Skipping {Title} - already applied", actionSet.Title);
+                return ExecutionOutcome.Skipped;
+            }
+
+            return ExecutionOutcome.Success;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Error checking eligibility for {Title}", actionSet.Title);
+            errors.Add($"Error checking {actionSet.Title}: {ex.Message}");
+            if (actionSet.IsCrucialFix)
+            {
+                logger.LogError("Critical fix {Title} eligibility check failed. Aborting sequence.", actionSet.Title);
+                errors.Add($"Critical fix '{actionSet.Title}' eligibility check failed. Remaining fixes were not applied.");
+                return ExecutionOutcome.FailedCritical;
+            }
+
+            return ExecutionOutcome.FailedNonCritical;
+        }
+    }
+
+    private async Task<ExecutionOutcome> ApplySingleActionSetAsync(
+        IActionSet actionSet,
+        GameInstallation installation,
+        int index,
+        int totalCount,
+        List<string> errors,
+        CancellationToken ct)
+    {
+        try
+        {
+            logger.LogInformation("Applying action set {Index}/{Total}: {Title}", index, totalCount, actionSet.Title);
+            var result = await actionSet.ApplyAsync(installation, ct);
+
+            if (result.Success)
+            {
+                logger.LogInformation("Successfully applied {Title}", actionSet.Title);
+                return ExecutionOutcome.Success;
+            }
+
+            var errorMessage = result.ErrorMessage ?? "Unknown error";
+            logger.LogWarning("Failed to apply {Title}: {Error}", actionSet.Title, errorMessage);
+            errors.Add($"{actionSet.Title}: {errorMessage}");
+
+            if (actionSet.IsCrucialFix)
+            {
+                logger.LogError("Critical fix {Title} failed. Aborting remaining action sets.", actionSet.Title);
+                errors.Add($"Critical fix '{actionSet.Title}' failed. Remaining fixes were not applied.");
+                return ExecutionOutcome.FailedCritical;
+            }
+
+            return ExecutionOutcome.FailedNonCritical;
+        }
+        catch (OperationCanceledException ex)
+        {
+            logger.LogWarning(ex, "Action set execution cancelled during {Title}", actionSet.Title);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Unexpected error applying {Title}", actionSet.Title);
+            errors.Add($"{actionSet.Title}: {ex.Message}");
+
+            if (actionSet.IsCrucialFix)
+            {
+                logger.LogError(ex, "Critical fix {Title} threw unexpected exception. Aborting remaining action sets.", actionSet.Title);
+                errors.Add($"Critical fix '{actionSet.Title}' encountered an unexpected error. Remaining fixes were not applied.");
+                return ExecutionOutcome.FailedCritical;
+            }
+
+            return ExecutionOutcome.FailedNonCritical;
         }
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -141,26 +142,7 @@ public class CommunityOutpostResolver(
                 .WithInstallationInstructions(WorkspaceConstants.DefaultWorkspaceStrategy);
 
             // Add dependencies based on content type and category
-            var dependencies = contentMetadata.GetDependencies();
-            foreach (var dependency in dependencies)
-            {
-                manifest.AddDependency(
-                    id: dependency.Id,
-                    name: dependency.Name,
-                    dependencyType: dependency.DependencyType,
-                    installBehavior: dependency.InstallBehavior,
-                    minVersion: dependency.MinVersion ?? string.Empty,
-                    maxVersion: dependency.MaxVersion ?? string.Empty,
-                    compatibleVersions: dependency.CompatibleVersions,
-                    isExclusive: GenPatcherDependencyBuilder.IsCategoryExclusive(contentMetadata.Category),
-                    conflictsWith: dependency.ConflictsWith);
-
-                logger.LogDebug(
-                    "Added dependency {DepName} ({DepType}) to manifest for {ContentCode}",
-                    dependency.Name,
-                    dependency.DependencyType,
-                    contentCode);
-            }
+            PopulateDependencies(manifest, contentMetadata, contentCode);
 
             // Add the file as a remote download
             manifest.AddRemoteFileAsync(
@@ -171,60 +153,15 @@ public class CommunityOutpostResolver(
 
             // Store additional metadata in the manifest for the deliverer
             var builtManifest = manifest.Build();
-            builtManifest.ManifestVersion = manifestVersion;
-
-            // Store the install target from content metadata
-            builtManifest.InstallationInstructions ??= new InstallationInstructions();
-
-            // Add custom properties to track mirrors and archive type
-            builtManifest.Metadata ??= new ContentMetadata();
-
-            // Store mirror URLs in metadata for fallback support during delivery
-            if (mirrorUrls.Count > 1)
-            {
-                builtManifest.Metadata.Tags ??= [];
-                builtManifest.Metadata.Tags.Add($"mirrors:{mirrorUrls.Count}");
-            }
-
-            // Store the content code for the factory to use
-            builtManifest.Metadata.Tags ??= [];
-            builtManifest.Metadata.Tags.Add($"contentCode:{contentCode}");
-            builtManifest.Metadata.Tags.Add($"installTarget:{contentMetadata.InstallTarget}");
-
-            // Mark file as 7z archive if it's a .dat file
-            if (filename.EndsWith(CommunityOutpostConstants.DatFileExtension, StringComparison.OrdinalIgnoreCase))
-            {
-                foreach (var file in builtManifest.Files)
-                {
-                    if (file.RelativePath == filename)
-                    {
-                        file.SourcePath = "archive:7z";
-                        file.InstallTarget = contentMetadata.InstallTarget;
-                    }
-                }
-            }
-
-            // Update file size if available
-            if (fileSize > 0 && builtManifest.Files.Count > 0)
-            {
-                builtManifest.Files[0].Size = fileSize;
-            }
-
-            // Override the display name to be more user-friendly
-            builtManifest.Name = discoveredItem.Name ?? contentMetadata.DisplayName;
-
-            // For community-patch, prioritize discoveredItem.Version (dynamic date from legi.cc/patch)
-            // over static metadata version which may be null/empty
-            if (contentCode == "community-patch" && !string.IsNullOrEmpty(discoveredItem.Version))
-            {
-                builtManifest.Version = discoveredItem.Version;
-            }
-            else
-            {
-                builtManifest.Version = !string.IsNullOrEmpty(contentMetadata.Version)
-                    ? contentMetadata.Version
-                    : discoveredItem.Version;
-            }
+            ApplyBuiltManifestMetadata(
+                builtManifest,
+                discoveredItem,
+                contentMetadata,
+                contentCode,
+                filename,
+                mirrorUrls,
+                fileSize,
+                manifestVersion);
 
             logger.LogInformation(
                 "Successfully resolved Community Outpost manifest: {ManifestId} for {ContentCode} ({Category})",
@@ -236,8 +173,63 @@ public class CommunityOutpostResolver(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to resolve Community Outpost content");
-            return Task.FromResult(OperationResult<ContentManifest>.CreateFailure($"Resolution failed: {ex.Message}"));
+            logger.LogError(
+                ex,
+                "Failed to resolve Community Outpost content: {Name}",
+                discoveredItem.Name);
+            return Task.FromResult(OperationResult<ContentManifest>.CreateFailure(
+                $"Failed to resolve content '{discoveredItem.Name}': {ex.Message}"));
+        }
+    }
+
+    private static void ApplyBuiltManifestMetadata(
+        ContentManifest builtManifest,
+        ContentSearchResult discoveredItem,
+        GenPatcherContentMetadata contentMetadata,
+        string contentCode,
+        string filename,
+        IReadOnlyList<string> mirrorUrls,
+        long fileSize,
+        string manifestVersion)
+    {
+        builtManifest.ManifestVersion = manifestVersion;
+        builtManifest.InstallationInstructions ??= new InstallationInstructions();
+        builtManifest.Metadata ??= new ContentMetadata();
+
+        builtManifest.Metadata.Tags ??= [];
+        if (mirrorUrls.Count > 1)
+        {
+            builtManifest.Metadata.Tags.Add($"mirrors:{mirrorUrls.Count}");
+        }
+
+        builtManifest.Metadata.Tags.Add($"contentCode:{contentCode}");
+        builtManifest.Metadata.Tags.Add($"installTarget:{contentMetadata.InstallTarget}");
+
+        if (filename.EndsWith(CommunityOutpostConstants.DatFileExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            foreach (var file in builtManifest.Files.Where(f => f.RelativePath == filename))
+            {
+                file.SourcePath = "archive:7z";
+                file.InstallTarget = contentMetadata.InstallTarget;
+            }
+        }
+
+        if (fileSize > 0 && builtManifest.Files.Count > 0)
+        {
+            builtManifest.Files[0].Size = fileSize;
+        }
+
+        builtManifest.Name = discoveredItem.Name ?? contentMetadata.DisplayName;
+
+        if (contentCode == "community-patch" && !string.IsNullOrEmpty(discoveredItem.Version))
+        {
+            builtManifest.Version = discoveredItem.Version;
+        }
+        else
+        {
+            builtManifest.Version = !string.IsNullOrEmpty(contentMetadata.Version)
+                ? contentMetadata.Version
+                : discoveredItem.Version;
         }
     }
 
@@ -395,6 +387,33 @@ public class CommunityOutpostResolver(
         }
 
         return $"{contentCode}{CommunityOutpostConstants.DatFileExtension}";
+    }
+
+    private void PopulateDependencies(
+        IContentManifestBuilder manifest,
+        GenPatcherContentMetadata contentMetadata,
+        string contentCode)
+    {
+        var dependencies = contentMetadata.GetDependencies();
+        foreach (var dependency in dependencies)
+        {
+            manifest.AddDependency(
+                id: dependency.Id,
+                name: dependency.Name,
+                dependencyType: dependency.DependencyType,
+                installBehavior: dependency.InstallBehavior,
+                minVersion: dependency.MinVersion ?? string.Empty,
+                maxVersion: dependency.MaxVersion ?? string.Empty,
+                compatibleVersions: dependency.CompatibleVersions,
+                isExclusive: GenPatcherDependencyBuilder.IsCategoryExclusive(contentMetadata.Category),
+                conflictsWith: dependency.ConflictsWith);
+
+            logger.LogDebug(
+                "Added dependency {DepName} ({DepType}) to manifest for {ContentCode}",
+                dependency.Name,
+                dependency.DependencyType,
+                contentCode);
+        }
     }
 
     /// <summary>

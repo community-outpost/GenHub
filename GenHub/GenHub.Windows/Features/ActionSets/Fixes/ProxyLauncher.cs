@@ -68,15 +68,8 @@ public class ProxyLauncher(ILogger<ProxyLauncher> logger) : BaseActionSet(logger
             var targetDirs = new[] { installation.GeneralsPath, installation.ZeroHourPath }
                 .Where(p => !string.IsNullOrEmpty(p) && Directory.Exists(p));
 
-            foreach (var dir in targetDirs)
-            {
-                if (File.Exists(Path.Combine(dir, ProxyLauncherFileName)))
-                {
-                    return Task.FromResult(true);
-                }
-            }
-
-            return Task.FromResult(false);
+            var exists = targetDirs.Any(dir => File.Exists(Path.Combine(dir, ProxyLauncherFileName)));
+            return Task.FromResult(exists);
         }
         catch (IOException ex)
         {

@@ -160,7 +160,7 @@ public abstract class BaseFileRenameFix(
         {
             Logger.LogError(ex, "Failed to rename {OriginalPath}", originalPath);
             details.Add($"  ✗ Error renaming {targetFileName}: {ex.Message}");
-            throw;
+            return false;
         }
     }
 
@@ -190,7 +190,7 @@ public abstract class BaseFileRenameFix(
         {
             Logger.LogError(ex, "Failed to restore {BackupPath}", backupPath);
             details.Add($"  ✗ Error restoring {backupFileName}: {ex.Message}");
-            throw;
+            return false;
         }
     }
 }
