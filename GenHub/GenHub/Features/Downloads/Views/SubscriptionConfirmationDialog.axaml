@@ -87,7 +87,7 @@
                 <ExperimentalAcrylicBorder.Material>
                     <ExperimentalAcrylicMaterial
                         BackgroundSource="Digger"
-                        TintColor="#0A0614"
+                        TintColor="#08080C"
                         TintOpacity="0.94"
                         MaterialOpacity="0.88" />
                 </ExperimentalAcrylicBorder.Material>
@@ -105,36 +105,36 @@
                             <TextBlock Text="Subscribe to Publisher Catalog"
                                        FontSize="20"
                                        FontWeight="Bold"
-                                       Foreground="White"
+                                       Foreground="{DynamicResource TextPrimary}"
                                        VerticalAlignment="Center" />
 
                             <!-- Status Badge: Already in Library vs New Source -->
-                            <Border Background="#2A1648"
-                                    BorderBrush="#9C27B0"
+                            <Border Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                                    BorderBrush="{DynamicResource AccentBadgeForegroundBrush}"
                                     BorderThickness="1"
                                     CornerRadius="10"
                                     Padding="8,2"
                                     VerticalAlignment="Center"
                                     IsVisible="{Binding IsAlreadySubscribed}">
                                 <StackPanel Orientation="Horizontal" Spacing="4">
-                                    <TextBlock Text="✓" FontSize="11" Foreground="#CE93D8" FontWeight="Bold" />
-                                    <TextBlock Text="Already in Library" FontSize="11" Foreground="#E1BEE7" FontWeight="SemiBold" />
+                                    <TextBlock Text="✓" FontSize="11" Foreground="{DynamicResource AccentBrush}" FontWeight="Bold" />
+                                    <TextBlock Text="Already in Library" FontSize="11" Foreground="{DynamicResource TextPrimary}" FontWeight="SemiBold" />
                                 </StackPanel>
                             </Border>
 
-                            <Border Background="#102C1E"
-                                    BorderBrush="#43A047"
+                            <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                                    BorderBrush="{DynamicResource SuccessBrush}"
                                     BorderThickness="1"
                                     CornerRadius="10"
                                     Padding="8,2"
                                     VerticalAlignment="Center"
                                     IsVisible="{Binding !IsAlreadySubscribed}">
-                                <TextBlock Text="+ New Catalog" FontSize="11" Foreground="#A5D6A7" FontWeight="SemiBold" />
+                                <TextBlock Text="+ New Catalog" FontSize="11" Foreground="{DynamicResource SuccessBrush}" FontWeight="SemiBold" />
                             </Border>
                         </StackPanel>
                         <TextBlock Text="Review publisher identity and offered content before adding to your library"
                                    FontSize="12"
-                                   Foreground="#9E9EB8" />
+                                   Foreground="{DynamicResource TextSecondary}" />
                     </StackPanel>
 
                     <!-- Close Button -->
@@ -142,7 +142,7 @@
                             VerticalAlignment="Top"
                             HorizontalAlignment="Right"
                             Background="Transparent"
-                            Foreground="#CCCCCC"
+                            Foreground="{DynamicResource TextSecondary}"
                             BorderThickness="0"
                             Padding="0"
                             Width="32" Height="32"
@@ -155,7 +155,7 @@
                               HorizontalAlignment="Center" />
                         <Button.Styles>
                             <Style Selector="Button:pointerover">
-                                <Setter Property="Background" Value="#E81123"/>
+                                <Setter Property="Background" Value="{DynamicResource ErrorBrush}"/>
                                 <Setter Property="Foreground" Value="White"/>
                             </Style>
                         </Button.Styles>
@@ -167,21 +167,21 @@
                     <!-- State A: Loading -->
                     <StackPanel IsVisible="{Binding IsLoading}" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="16">
                         <ProgressBar IsIndeterminate="True"
-                                     Foreground="#AB47BC"
-                                     Background="#2A1B4E"
+                                     Foreground="{DynamicResource AccentBrush}"
+                                     Background="{DynamicResource SurfaceElevatedBrush}"
                                      Width="280"
                                      Height="6"
                                      CornerRadius="3" />
                         <TextBlock Text="Fetching publisher catalog &amp; verifying content..."
-                                   Foreground="#C0C0E0"
+                                   Foreground="{DynamicResource TextSecondary}"
                                    FontSize="14"
                                    HorizontalAlignment="Center" />
                     </StackPanel>
 
                     <!-- State B: Initial Catalog Fetch/Parse Error -->
                     <Border IsVisible="{Binding ShowInitialError}"
-                            Background="#2B111A"
-                            BorderBrush="#FF5252"
+                            Background="{DynamicResource CardBackground}"
+                            BorderBrush="{DynamicResource ErrorBrush}"
                             BorderThickness="1"
                             CornerRadius="14"
                             Padding="24"
@@ -189,14 +189,14 @@
                             HorizontalAlignment="Center"
                             MaxWidth="540">
                         <StackPanel Spacing="14" HorizontalAlignment="Center">
-                            <TextBlock Text="⚠" Foreground="#FF5252" FontSize="36" HorizontalAlignment="Center" />
+                            <TextBlock Text="⚠" Foreground="{DynamicResource ErrorBrush}" FontSize="36" HorizontalAlignment="Center" />
                             <TextBlock Text="{Binding ErrorTitle}"
-                                       Foreground="#FF5252"
+                                       Foreground="{DynamicResource ErrorBrush}"
                                        FontWeight="Bold"
                                        FontSize="18"
                                        HorizontalAlignment="Center" />
                             <TextBlock Text="{Binding ErrorMessage}"
-                                       Foreground="#FFCDD2"
+                                       Foreground="{DynamicResource TextPrimary}"
                                        TextWrapping="Wrap"
                                        TextAlignment="Center"
                                        FontSize="13"
@@ -204,16 +204,16 @@
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12" Margin="0,8,0,0">
                                 <Button Content="Retry"
                                         Command="{Binding InitializeCommand}"
-                                        Background="{DynamicResource PrimaryGradientBrush}"
+                                        Background="{DynamicResource AccentBrush}"
                                         Foreground="White"
                                         FontWeight="Bold"
                                         Padding="20,8"
                                         CornerRadius="8" />
                                 <Button Content="Close"
                                         Command="{Binding CancelCommand}"
-                                        Background="#251B38"
-                                        Foreground="#D0D0E0"
-                                        BorderBrush="#403058"
+                                        Background="{DynamicResource SurfaceElevatedBrush}"
+                                        Foreground="{DynamicResource TextPrimary}"
+                                        BorderBrush="{DynamicResource BorderBrush}"
                                         BorderThickness="1"
                                         Padding="20,8"
                                         CornerRadius="8" />
@@ -225,8 +225,8 @@
                     <Grid IsVisible="{Binding ShowDetails}" RowDefinitions="Auto, Auto, *, Auto">
                         <!-- Section 0: Publisher Profile Card -->
                         <Border Grid.Row="0"
-                                Background="#181028"
-                                BorderBrush="#4527A0"
+                                Background="{DynamicResource SurfaceElevatedBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="12"
                                 Padding="14,12"
@@ -236,18 +236,18 @@
                                 <Border Grid.Column="0" Grid.RowSpan="2"
                                         Width="64" Height="64"
                                         CornerRadius="32"
-                                        BorderBrush="#8E24AA"
+                                        BorderBrush="{DynamicResource AccentBrush}"
                                         BorderThickness="2"
                                         ClipToBounds="True"
                                         Margin="0,0,14,0"
                                         VerticalAlignment="Center"
-                                        Background="#251540">
+                                        Background="{DynamicResource CardBackground}">
                                     <Panel>
                                         <!-- Fallback Initial Text -->
                                         <TextBlock Text="{Binding PublisherInitial}"
                                                    FontSize="26"
                                                    FontWeight="Bold"
-                                                   Foreground="#E1BEE7"
+                                                   Foreground="{DynamicResource AccentBrush}"
                                                    HorizontalAlignment="Center"
                                                    VerticalAlignment="Center" />
 
@@ -262,7 +262,7 @@
                                     <TextBlock Text="{Binding PublisherName}"
                                                FontSize="18"
                                                FontWeight="Bold"
-                                               Foreground="White" />
+                                               Foreground="{DynamicResource TextPrimary}" />
 
                                     <!-- Interactive Link Badges -->
                                     <WrapPanel Orientation="Horizontal" Margin="0,2,0,0">
@@ -306,28 +306,37 @@
 
                                 <!-- Publisher Stats Pills (Column 1, Row 1) -->
                                 <WrapPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" Margin="0,4,0,0">
-                                    <Border Background="#4A148C" CornerRadius="10" Padding="8,3" Margin="0,0,6,4">
+                                    <Border Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                                            BorderBrush="{DynamicResource AccentBadgeForegroundBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="10" Padding="8,3" Margin="0,0,6,4">
                                         <StackPanel Orientation="Horizontal" Spacing="4">
                                             <TextBlock Text="📦" FontSize="10" />
                                             <TextBlock Text="{Binding ContentCount, StringFormat='{}{0} Offered Items'}"
                                                        FontSize="11"
                                                        FontWeight="Bold"
-                                                       Foreground="#E1BEE7" />
+                                                       Foreground="{DynamicResource TextPrimary}" />
                                         </StackPanel>
                                     </Border>
 
-                                    <Border Background="#283593" CornerRadius="10" Padding="8,3" Margin="0,0,6,4"
+                                    <Border Background="{DynamicResource SurfaceHoverBrush}"
+                                            BorderBrush="{DynamicResource BorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="10" Padding="8,3" Margin="0,0,6,4"
                                             IsVisible="{Binding ContentSummary, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
                                         <TextBlock Text="{Binding ContentSummary}"
                                                    FontSize="11"
-                                                   Foreground="#C5CAE9" />
+                                                   Foreground="{DynamicResource TextSecondary}" />
                                     </Border>
 
-                                    <Border Background="#1A237E" CornerRadius="10" Padding="8,3" Margin="0,0,6,4"
+                                    <Border Background="{DynamicResource SurfaceHoverBrush}"
+                                            BorderBrush="{DynamicResource BorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="10" Padding="8,3" Margin="0,0,6,4"
                                             IsVisible="{Binding LastUpdated, Converter={x:Static ObjectConverters.IsNotNull}}">
                                         <TextBlock Text="{Binding LastUpdated, StringFormat='Updated {0:yyyy-MM-dd}'}"
                                                    FontSize="11"
-                                                   Foreground="#9FA8DA" />
+                                                   Foreground="{DynamicResource TextMuted}" />
                                     </Border>
                                 </WrapPanel>
                             </Grid>
@@ -340,12 +349,16 @@
                                     <TextBlock Text="Offered Content"
                                                FontSize="14"
                                                FontWeight="Bold"
-                                               Foreground="#E0E0FF"
+                                               Foreground="{DynamicResource TextPrimary}"
                                                VerticalAlignment="Center" />
-                                    <Border Background="#311B92" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
+                                    <Border Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                                            BorderBrush="{DynamicResource AccentBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
                                         <TextBlock Text="{Binding FilteredContentItems.Count, StringFormat='Showing {0} items'}"
                                                    FontSize="11"
-                                                   Foreground="#D1C4E9" />
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextPrimary}" />
                                     </Border>
                                 </StackPanel>
                             </Grid>
@@ -372,8 +385,8 @@
 
                         <!-- Section 2: Offered Content List (Fills available space!) -->
                         <Border Grid.Row="2"
-                                Background="#120A1F"
-                                BorderBrush="#361F54"
+                                Background="{DynamicResource CardBackground}"
+                                BorderBrush="{DynamicResource BorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="12"
                                 Padding="8">
@@ -381,8 +394,8 @@
                                 <ItemsControl ItemsSource="{Binding FilteredContentItems}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate DataType="models:CatalogContentItem">
-                                            <Border Background="#1C132B"
-                                                    BorderBrush="#3F2766"
+                                            <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                                                    BorderBrush="{DynamicResource BorderBrush}"
                                                     BorderThickness="1"
                                                     CornerRadius="10"
                                                     Padding="12,10"
@@ -394,24 +407,30 @@
                                                                    Text="{Binding Name}"
                                                                    FontSize="13.5"
                                                                    FontWeight="Bold"
-                                                                   Foreground="White"
+                                                                   Foreground="{DynamicResource TextPrimary}"
                                                                    VerticalAlignment="Center" />
 
                                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
                                                             <!-- ContentType Badge -->
-                                                            <Border Background="#4A148C" CornerRadius="8" Padding="8,3">
+                                                            <Border Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                                                                    BorderBrush="{DynamicResource AccentBrush}"
+                                                                    BorderThickness="1"
+                                                                    CornerRadius="8" Padding="8,3">
                                                                 <TextBlock Text="{Binding ContentType}"
                                                                            FontSize="11"
                                                                            FontWeight="SemiBold"
-                                                                           Foreground="#F3E5F5" />
+                                                                           Foreground="{DynamicResource AccentBrush}" />
                                                             </Border>
 
                                                             <!-- TargetGame Badge -->
-                                                            <Border Background="#0D47A1" CornerRadius="8" Padding="8,3">
+                                                            <Border Background="{DynamicResource SurfaceHoverBrush}"
+                                                                    BorderBrush="{DynamicResource BorderHighlightBrush}"
+                                                                    BorderThickness="1"
+                                                                    CornerRadius="8" Padding="8,3">
                                                                 <TextBlock Text="{Binding TargetGame}"
                                                                            FontSize="11"
                                                                            FontWeight="SemiBold"
-                                                                           Foreground="#E3F2FD" />
+                                                                           Foreground="{DynamicResource TextSecondary}" />
                                                             </Border>
                                                         </StackPanel>
                                                     </Grid>
@@ -420,7 +439,7 @@
                                                     <TextBlock Grid.Row="1"
                                                                Text="{Binding Description}"
                                                                FontSize="12"
-                                                               Foreground="#B0B0D0"
+                                                               Foreground="{DynamicResource TextSecondary}"
                                                                TextWrapping="Wrap"
                                                                Margin="0,5,0,0"
                                                                LineHeight="17"
@@ -431,7 +450,7 @@
                                                         <TextBlock Grid.Column="0"
                                                                    Text="{Binding Id, StringFormat='ID: {0}'}"
                                                                    FontSize="11"
-                                                                   Foreground="#707090"
+                                                                   Foreground="{DynamicResource TextMuted}"
                                                                    VerticalAlignment="Center" />
                                                     </Grid>
                                                 </Grid>
@@ -444,17 +463,17 @@
 
                         <!-- Section 3: Compact Security & Source Footer (Consolidates Trust Notice + Source URL) -->
                         <Border Grid.Row="3"
-                                Background="#1A1105"
-                                BorderBrush="#5C3B0A"
+                                Background="{DynamicResource CardBackground}"
+                                BorderBrush="{DynamicResource WarningBrush}"
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Padding="10,6"
                                 Margin="0,8,0,0">
                             <Grid ColumnDefinitions="Auto, *, Auto">
                                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                                    <TextBlock Text="⚠" Foreground="#FFB74D" FontSize="13" VerticalAlignment="Center" />
+                                    <TextBlock Text="⚠" Foreground="{DynamicResource WarningBrush}" FontSize="13" VerticalAlignment="Center" />
                                     <TextBlock Text="Community Source: Only subscribe to publishers you trust."
-                                               Foreground="#FFE0B2"
+                                               Foreground="{DynamicResource TextPrimary}"
                                                FontSize="11"
                                                FontWeight="SemiBold"
                                                VerticalAlignment="Center" />
@@ -462,7 +481,7 @@
 
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding CatalogUrlDisplay, StringFormat='• {0}'}"
-                                           Foreground="#A89878"
+                                           Foreground="{DynamicResource TextSecondary}"
                                            FontSize="10.5"
                                            TextTrimming="CharacterEllipsis"
                                            VerticalAlignment="Center"
@@ -476,22 +495,22 @@
                 <!-- Row 2: Inline Action Error Alert Banner (When catalog is loaded but an action/confirmation fails) -->
                 <Border Grid.Row="2"
                         IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                        Background="#3D121B"
-                        BorderBrush="#FF5252"
+                        Background="{DynamicResource CardBackground}"
+                        BorderBrush="{DynamicResource ErrorBrush}"
                         BorderThickness="1"
                         CornerRadius="10"
                         Padding="14,10"
                         Margin="0,10,0,0">
                     <Grid ColumnDefinitions="Auto, *, Auto">
-                        <TextBlock Grid.Column="0" Text="⚠" Foreground="#FF5252" FontSize="18" Margin="0,0,10,0" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="0" Text="⚠" Foreground="{DynamicResource ErrorBrush}" FontSize="18" Margin="0,0,10,0" VerticalAlignment="Center" />
                         <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding ErrorTitle}" Foreground="#FF5252" FontWeight="Bold" FontSize="12" />
-                            <TextBlock Text="{Binding ErrorMessage}" Foreground="#FFCDD2" FontSize="12" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding ErrorTitle}" Foreground="{DynamicResource ErrorBrush}" FontWeight="Bold" FontSize="12" />
+                            <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource TextPrimary}" FontSize="12" TextWrapping="Wrap" />
                         </StackPanel>
                         <Button Grid.Column="2"
                                 Command="{Binding DismissErrorCommand}"
                                 Background="Transparent"
-                                Foreground="#FFCDD2"
+                                Foreground="{DynamicResource TextSecondary}"
                                 BorderThickness="0"
                                 Padding="6,2"
                                 Margin="8,0,0,0"

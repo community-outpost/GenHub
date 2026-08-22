@@ -121,13 +121,13 @@
         </Style>
 
         <Style Selector="Border.player-count-badge">
-            <Setter Property="Background" Value="#2506B6D4" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource ZeroHourFactionBrush}" />
             <Setter Property="BorderThickness" Value="1" />
         </Style>
 
         <Style Selector="Border.category-badge">
-            <Setter Property="Background" Value="#25D97706" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource GeneralsFactionBrush}" />
             <Setter Property="BorderThickness" Value="1" />
         </Style>
