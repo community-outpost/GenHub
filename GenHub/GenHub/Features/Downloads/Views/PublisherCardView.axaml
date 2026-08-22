@@ -321,8 +321,8 @@
                                                                      Height="6"
                                                                      CornerRadius="3"
                                                                      IsVisible="{Binding IsDownloading}"
-                                                                     Foreground="#A855F7"
-                                                                     Background="#252530" />
+                                                                     Foreground="{DynamicResource AccentBrush}"
+                                                                     Background="{DynamicResource SurfaceHoverBrush}" />
                                                         <!-- Status Text - visible during install or when there's a status message -->
                                                         <TextBlock Text="{Binding DownloadStatus}"
                                                                    FontSize="11"

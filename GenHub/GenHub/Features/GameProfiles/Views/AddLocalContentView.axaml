@@ -254,7 +254,7 @@
         <!-- Loading Overlay -->
         <Grid Background="#CC000000" IsVisible="{Binding ShowLoadingOverlay}">
              <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="15">
-                 <ProgressBar IsIndeterminate="True" Width="200" Height="4" Foreground="#5E35B1"/>
+                 <ProgressBar IsIndeterminate="True" Width="200" Height="4" Foreground="{DynamicResource AccentBrush}" Background="{DynamicResource SurfaceHoverBrush}"/>
                  <TextBlock Text="Processing..." Foreground="White" HorizontalAlignment="Center" FontSize="14" FontWeight="Light"/>
              </StackPanel>
         </Grid>

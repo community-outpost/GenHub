@@ -148,12 +148,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private bool _isSaving = false;
 
     [ObservableProperty]
-    private bool _showSaveNotification = false;
-
-    [ObservableProperty]
-    private string _saveButtonText = "Save Settings";
-
-    [ObservableProperty]
     private string? _cachePath;
 
     [ObservableProperty]
@@ -531,8 +525,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             IsSaving = true;
-            SaveButtonText = "Saving...";
-            ShowSaveNotification = false;
 
             // Validate settings before saving
             if (!ValidateSettings())
@@ -587,12 +579,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             Infrastructure.DependencyInjection.LoggingModule.SetLogLevel(EnableDetailedLogging);
 
             _logger.LogInformation("Settings saved successfully");
-
-            // Show success notification
-            ShowSaveNotification = true;
-
-            // Hide notification after 3 seconds
-            _ = Task.Delay(TimeIntervals.NotificationHideDelay).ContinueWith(_ => ShowSaveNotification = false);
         }
         catch (Exception ex)
         {
@@ -605,7 +591,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         finally
         {
             IsSaving = false;
-            SaveButtonText = "Save Settings";
         }
     }
 

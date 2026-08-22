@@ -59,33 +59,6 @@
       <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
     </Style>
 
-    <Style Selector="Button.primary-button">
-      <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-      <Setter Property="Foreground" Value="White" />
-      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="Padding" Value="16,8" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="FontSize" Value="13" />
-      <Setter Property="Cursor" Value="Hand" />
-      <Setter Property="Transitions">
-        <Transitions>
-          <BrushTransition Property="Background" Duration="0:0:0.15" />
-          <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
-          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
-        </Transitions>
-      </Setter>
-    </Style>
-    <Style Selector="Button.primary-button:pointerover">
-      <Setter Property="Background" Value="#9C27B0" />
-      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-      <Setter Property="RenderTransform" Value="scale(1.02)" />
-    </Style>
-    <Style Selector="Button.primary-button:pressed">
-      <Setter Property="RenderTransform" Value="scale(0.98)" />
-    </Style>
-
     <Style Selector="Button.secondary-button">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
@@ -123,22 +96,6 @@
 
     <Style Selector="CheckBox">
       <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
-    </Style>
-
-    <Style Selector="Border.notification">
-      <Setter Property="Background" Value="#1510B981" />
-      <Setter Property="BorderBrush" Value="{DynamicResource SuccessBrush}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="Padding" Value="14,10" />
-      <Setter Property="Margin" Value="0,0,0,8" />
-      <Setter Property="IsVisible" Value="{Binding ShowSaveNotification}" />
-    </Style>
-
-    <Style Selector="Border.notification TextBlock">
-      <Setter Property="Foreground" Value="{DynamicResource SuccessBrush}" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="FontSize" Value="13" />
     </Style>
 
     <Style Selector="Button.danger-button">
@@ -181,11 +138,6 @@
         <TextBlock Text="Configure your GenHub preferences and application behavior"
                    FontSize="14" Foreground="{DynamicResource TextSecondary}" />
       </StackPanel>
-
-      <!-- Save Notification -->
-      <Border Classes="notification">
-        <TextBlock Text="✓ Settings saved successfully!" />
-      </Border>
 
       <!-- Game Settings -->
       <Expander IsExpanded="False" HorizontalAlignment="Stretch">
@@ -797,12 +749,7 @@
       <StackPanel Orientation="Horizontal" Spacing="15" HorizontalAlignment="Right" Margin="0,10,0,0">
         <Button Content="Reset to Defaults"
                 Command="{Binding ResetToDefaultsCommand}"
-                Classes="secondary-button"
-                IsEnabled="{Binding !IsSaving}" />
-        <Button Content="{Binding SaveButtonText}"
-                Command="{Binding SaveSettingsCommand}"
-                Classes="primary-button"
-                IsEnabled="{Binding !IsSaving}" />
+                Classes="secondary-button" />
       </StackPanel>
 
       <!-- Footer Info -->
