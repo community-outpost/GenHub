@@ -103,26 +103,18 @@
 
         <!-- Pill tab active / selected -->
         <Style Selector="Button.pill-tab.active">
-            <Setter Property="Background" Value="#231A36" />
+            <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
             <Setter Property="Foreground" Value="#FFFFFF" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="BorderBrush" Value="#A855F7" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="BorderThickness" Value="1.5" />
-        </Style>
-
-        <Style Selector="Button.pill-tab.active /template/ Border#PART_PillBorder">
-            <Setter Property="BoxShadow" Value="0 0 14 0 #66A855F7" />
         </Style>
 
         <!-- Pill tab active + hover -->
         <Style Selector="Button.pill-tab.active:pointerover">
-            <Setter Property="Background" Value="#2D2146" />
+            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
             <Setter Property="Foreground" Value="#FFFFFF" />
-            <Setter Property="BorderBrush" Value="#C084FC" />
-        </Style>
-
-        <Style Selector="Button.pill-tab.active:pointerover /template/ Border#PART_PillBorder">
-            <Setter Property="BoxShadow" Value="0 0 18 0 #99A855F7" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}" />
         </Style>
 
         <!-- Header gradient background -->

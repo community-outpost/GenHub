@@ -35,7 +35,7 @@
         <Style Selector="Button.secondary-action:pointerover">
             <Setter Property="Background" Value="#2E2E3E" />
             <Setter Property="Foreground" Value="#FFFFFF" />
-            <Setter Property="BorderBrush" Value="#A855F7" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="RenderTransform" Value="scale(1.02)" />
         </Style>
 
@@ -67,7 +67,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="8">
                         <PathIcon Data="M20,6H12L10,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8A2,2 0 0,0 20,6M20,18H4V8H20V18Z"
                                   Width="14" Height="14"
-                                  Foreground="#A855F7" />
+                                  Foreground="{DynamicResource AccentBrush}" />
                         <TextBlock Text="Open Manifests Folder" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>

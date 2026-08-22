@@ -15,7 +15,7 @@ namespace GenHub.Tests.Core.Common.Services;
 /// </summary>
 public class ThemeServiceTests
 {
-    private readonly Mock<IUserSettingsService> _mockUserSettings;
+    private readonly Mock<IConfigurationProviderService> _mockConfigProvider;
     private readonly ThemeService _service;
 
     /// <summary>
@@ -23,10 +23,10 @@ public class ThemeServiceTests
     /// </summary>
     public ThemeServiceTests()
     {
-        _mockUserSettings = new Mock<IUserSettingsService>();
-        _mockUserSettings.Setup(s => s.Get()).Returns(new UserSettings());
+        _mockConfigProvider = new Mock<IConfigurationProviderService>();
+        _mockConfigProvider.Setup(s => s.GetTheme()).Returns("Purple");
 
-        _service = new ThemeService(_mockUserSettings.Object, NullLogger<ThemeService>.Instance);
+        _service = new ThemeService(_mockConfigProvider.Object, NullLogger<ThemeService>.Instance);
     }
 
     /// <summary>
@@ -95,10 +95,7 @@ public class ThemeServiceTests
     public void InitializeTheme_RestoresSavedTheme()
     {
         // Arrange
-        _mockUserSettings.Setup(s => s.Get()).Returns(new UserSettings
-        {
-            Theme = "Emerald",
-        });
+        _mockConfigProvider.Setup(s => s.GetTheme()).Returns("Emerald");
 
         // Act
         _service.InitializeTheme();

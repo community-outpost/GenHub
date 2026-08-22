@@ -59,15 +59,15 @@
         </Style>
 
         <Style Selector="Button.titlebar-action-btn.active">
-            <Setter Property="Background" Value="#231A36"/>
-            <Setter Property="Foreground" Value="#A855F7"/>
-            <Setter Property="BorderBrush" Value="#A855F7"/>
+            <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
         </Style>
 
         <Style Selector="Button.titlebar-action-btn.active:pointerover">
-            <Setter Property="Background" Value="#2D2146"/>
-            <Setter Property="Foreground" Value="#C084FC"/>
-            <Setter Property="BorderBrush" Value="#C084FC"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentLightBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}"/>
         </Style>
 
         <!-- Window Controls Buttons (Minimize, Maximize, Close) -->

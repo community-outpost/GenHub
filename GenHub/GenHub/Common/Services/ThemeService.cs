@@ -17,7 +17,7 @@ namespace GenHub.Common.Services;
 /// Service that manages dynamic application accent color themes at runtime.
 /// </summary>
 public class ThemeService(
-    IUserSettingsService userSettingsService,
+    IConfigurationProviderService configurationProviderService,
     ILogger<ThemeService> logger) : IThemeService
 {
     /// <inheritdoc/>
@@ -29,10 +29,10 @@ public class ThemeService(
     /// <inheritdoc/>
     public void InitializeTheme()
     {
-        var settingsTheme = userSettingsService.Get().Theme;
-        if (!string.IsNullOrWhiteSpace(settingsTheme))
+        var effectiveTheme = configurationProviderService.GetTheme();
+        if (!string.IsNullOrWhiteSpace(effectiveTheme))
         {
-            ApplyTheme(settingsTheme);
+            ApplyTheme(effectiveTheme);
         }
         else
         {
@@ -85,6 +85,9 @@ public class ThemeService(
             var glowColor = Color.Parse(theme.GlowHex);
             var badgeBgColor = Color.FromArgb(0x20, primaryColor.R, primaryColor.G, primaryColor.B);
             var badgeFgColor = Color.FromArgb(0xCC, primaryColor.R, primaryColor.G, primaryColor.B);
+            var tintBgColor = Color.FromArgb(0x25, primaryColor.R, primaryColor.G, primaryColor.B);
+            var glassBorderColor = Color.FromArgb(0x33, darkColor.R, darkColor.G, darkColor.B);
+            var sidebarGlowColor = Color.FromArgb(0x66, darkColor.R, darkColor.G, darkColor.B);
             var sidebarSelectBgColor = Color.FromArgb(0x4D, darkColor.R, darkColor.G, darkColor.B);
 
             var resources = Application.Current.Resources;
@@ -92,17 +95,29 @@ public class ThemeService(
             // Update Colors
             resources[ThemeResourceKeys.AccentColor] = primaryColor;
             resources[ThemeResourceKeys.SystemAccentColor] = primaryColor;
+            resources[ThemeResourceKeys.AccentLightColor] = lightColor;
+            resources[ThemeResourceKeys.AccentDarkColor] = darkColor;
+            resources[ThemeResourceKeys.AccentTintBackgroundColor] = tintBgColor;
             resources[ThemeResourceKeys.PrimaryButtonBackgroundDark] = primaryColor;
             resources[ThemeResourceKeys.AccentBadgeBackgroundColor] = badgeBgColor;
             resources[ThemeResourceKeys.AccentBadgeForegroundColor] = badgeFgColor;
             resources[ThemeResourceKeys.AccentGlowColor] = glowColor;
+            resources[ThemeResourceKeys.SidebarGlassBorder] = glassBorderColor;
+            resources[ThemeResourceKeys.SidebarGlowColor] = sidebarGlowColor;
             resources[ThemeResourceKeys.PrimaryGradientStart] = lightColor;
             resources[ThemeResourceKeys.PrimaryGradientEnd] = darkColor;
+            resources["PurpleAccentDark"] = darkColor;
+            resources["PurpleAccentMid"] = darkColor;
+            resources["PurpleAccentBright"] = primaryColor;
+            resources["PurpleGlow"] = glowColor;
 
             // Update Brushes
             resources[ThemeResourceKeys.AccentBrush] = new SolidColorBrush(primaryColor);
             resources[ThemeResourceKeys.AccentColorBrush] = new SolidColorBrush(primaryColor);
+            resources[ThemeResourceKeys.AccentLightBrush] = new SolidColorBrush(lightColor);
+            resources[ThemeResourceKeys.AccentDarkBrush] = new SolidColorBrush(darkColor);
             resources[ThemeResourceKeys.AccentGlowBrush] = new SolidColorBrush(glowColor);
+            resources[ThemeResourceKeys.AccentTintBackgroundBrush] = new SolidColorBrush(tintBgColor);
             resources[ThemeResourceKeys.SystemAccentColorBrush] = new SolidColorBrush(primaryColor);
             resources[ThemeResourceKeys.PrimaryButtonBackground] = new SolidColorBrush(primaryColor);
             resources[ThemeResourceKeys.SidebarSelectedIndicator] = new SolidColorBrush(primaryColor);
@@ -112,10 +127,11 @@ public class ThemeService(
             resources[ThemeResourceKeys.AccentBadgeForegroundBrush] = new SolidColorBrush(badgeFgColor);
             resources[ThemeResourceKeys.SidebarItemSelectedBackground] = new SolidColorBrush(sidebarSelectBgColor);
             resources[ThemeResourceKeys.SidebarItemSelectedBorder] = new SolidColorBrush(primaryColor);
+            resources[ThemeResourceKeys.SidebarGlassBorderBrush] = new SolidColorBrush(glassBorderColor);
             resources[ThemeResourceKeys.ComboBoxItemBackgroundSelected] = new SolidColorBrush(badgeBgColor);
             resources[ThemeResourceKeys.ComboBoxItemBackgroundSelectedPointerOver] = new SolidColorBrush(primaryColor);
 
-            // Update Linear Gradient Brush
+            // Update Linear Gradient Brushes
             var gradientBrush = new LinearGradientBrush
             {
                 StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
@@ -127,6 +143,8 @@ public class ThemeService(
                 },
             };
             resources[ThemeResourceKeys.PrimaryGradientBrush] = gradientBrush;
+            resources[ThemeResourceKeys.PurpleAccentGradient] = gradientBrush;
+            resources["PurpleAccentGradient"] = gradientBrush;
 
             WeakReferenceMessenger.Default.Send(new ThemeChangedMessage(theme.Id));
             logger.LogDebug("Applied color theme '{ThemeName}' ({ThemeId})", theme.DisplayName, theme.Id);

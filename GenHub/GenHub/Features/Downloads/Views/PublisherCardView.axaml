@@ -39,16 +39,16 @@
         </Style>
 
         <Style Selector="Border.publisher-card:pointerover">
-            <Setter Property="BorderBrush" Value="#A855F7" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="BoxShadow" Value="0 8 24 0 #50000000" />
             <Setter Property="RenderTransform" Value="translateY(-2px)" />
         </Style>
 
         <Style Selector="Button.card-action">
-            <Setter Property="Background" Value="#7C4DFF" />
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="#A855F7" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}" />
             <Setter Property="CornerRadius" Value="6" />
             <Setter Property="Padding" Value="12,6" />
             <Setter Property="Margin" Value="4,0" />
@@ -67,8 +67,8 @@
         </Style>
 
         <Style Selector="Button.card-action:pointerover">
-            <Setter Property="Background" Value="#9C27B0" />
-            <Setter Property="BorderBrush" Value="#C084FC" />
+            <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}" />
             <Setter Property="RenderTransform" Value="scale(1.02)" />
         </Style>
 
@@ -100,7 +100,7 @@
 
         <Style Selector="DropDownButton.card-action:pointerover">
             <Setter Property="Background" Value="#38384C" />
-            <Setter Property="BorderBrush" Value="#A855F7" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="RenderTransform" Value="scale(1.02)" />
         </Style>
 
@@ -134,7 +134,12 @@
 
         <Style Selector="Button.flyout-item">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Foreground" Value="#E0E0E8" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="FontSize" Value="12" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Transitions">
                 <Setter.Value>
@@ -146,7 +151,7 @@
         </Style>
 
         <Style Selector="Button.flyout-item:pointerover">
-            <Setter Property="Background" Value="#25A855F7" />
+            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
         </Style>
     </UserControl.Styles>
 
@@ -261,68 +266,68 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <Grid x:Name="ContentItemRoot" ColumnDefinitions="Auto,*,Auto" Margin="0,4">
-                                                    <TextBlock Grid.Column="0" Text="•" Foreground="#A855F7" Margin="0,0,8,0" VerticalAlignment="Top" />
+                                                    <TextBlock Grid.Column="0" Text="•" Foreground="{DynamicResource AccentBrush}" Margin="0,0,8,0" VerticalAlignment="Top" />
                                                     <StackPanel Grid.Column="1" Spacing="4">
                                                         <StackPanel Orientation="Horizontal" Spacing="8">
-                                                            <TextBlock Text="{Binding Name}" Foreground="White" FontWeight="Medium" />
-                                                            <Border Classes="content-type-badge" IsVisible="{Binding Version, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                                                <TextBlock Text="{Binding Version}" Foreground="#CCCCCC" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                                            </Border>
-                                                        </StackPanel>
+                                                             <TextBlock Text="{Binding Name}" Foreground="White" FontWeight="Medium" />
+                                                             <Border Classes="content-type-badge" IsVisible="{Binding Version, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                                 <TextBlock Text="{Binding Version}" Foreground="#CCCCCC" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                             </Border>
+                                                         </StackPanel>
 
-                                                        <!-- Item Description / Changelog -->
-                                                        <StackPanel IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                                            <TextBlock Text="{Binding Description}"
-                                                                       FontSize="12"
-                                                                       Foreground="#9999A8"
-                                                                       TextWrapping="Wrap"
-                                                                       MaxLines="3"
-                                                                       TextTrimming="CharacterEllipsis"
-                                                                       IsVisible="{Binding !IsChangelogExpanded}" />
+                                                         <!-- Item Description / Changelog -->
+                                                         <StackPanel IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                             <TextBlock Text="{Binding Description}"
+                                                                        FontSize="12"
+                                                                        Foreground="#9999A8"
+                                                                        TextWrapping="Wrap"
+                                                                        MaxLines="3"
+                                                                        TextTrimming="CharacterEllipsis"
+                                                                        IsVisible="{Binding !IsChangelogExpanded}" />
 
-                                                            <TextBlock Text="{Binding Description}"
-                                                                       FontSize="12"
-                                                                       Foreground="#9999A8"
-                                                                       TextWrapping="Wrap"
-                                                                       IsVisible="{Binding IsChangelogExpanded}" />
+                                                             <TextBlock Text="{Binding Description}"
+                                                                        FontSize="12"
+                                                                        Foreground="#9999A8"
+                                                                        TextWrapping="Wrap"
+                                                                        IsVisible="{Binding IsChangelogExpanded}" />
 
-                                                            <Button Classes="link-button"
-                                                                    Content="{Binding IsChangelogExpanded, Converter={x:Static converters:BoolToTextConverter.Instance}, ConverterParameter='Show Less|Show More'}"
-                                                                    Command="{Binding ToggleChangelogCommand}"
-                                                                    Foreground="#A855F7"
-                                                                    Background="Transparent"
-                                                                    BorderThickness="0"
-                                                                    Padding="0"
-                                                                    FontSize="11"
-                                                                    HorizontalAlignment="Left"
-                                                                    Margin="0,2,0,0"
-                                                                    Cursor="Hand"
-                                                                    IsVisible="{Binding ShouldShowChangelogToggle}" />
-                                                        </StackPanel>
+                                                             <Button Classes="link-button"
+                                                                     Content="{Binding IsChangelogExpanded, Converter={x:Static converters:BoolToTextConverter.Instance}, ConverterParameter='Show Less|Show More'}"
+                                                                     Command="{Binding ToggleChangelogCommand}"
+                                                                     Foreground="{DynamicResource AccentBrush}"
+                                                                     Background="Transparent"
+                                                                     BorderThickness="0"
+                                                                     Padding="0"
+                                                                     FontSize="11"
+                                                                     HorizontalAlignment="Left"
+                                                                     Margin="0,2,0,0"
+                                                                     Cursor="Hand"
+                                                                     IsVisible="{Binding ShouldShowChangelogToggle}" />
+                                                         </StackPanel>
 
-                                                        <!-- Dependency Warning - shown prominently for content with required dependencies -->
-                                                        <Border Background="#2E1E0A"
-                                                                BorderBrush="#F59E0B"
-                                                                BorderThickness="1"
-                                                                CornerRadius="6"
-                                                                Padding="8,6"
-                                                                Margin="0,4,0,0"
-                                                                IsVisible="{Binding HasRequiredDependencies}">
-                                                            <TextBlock Text="{Binding DependencyWarningText}"
-                                                                       FontSize="11"
-                                                                       Foreground="#FCD34D"
-                                                                       FontWeight="SemiBold"
-                                                                       TextWrapping="Wrap" />
-                                                        </Border>
+                                                         <!-- Dependency Warning - shown prominently for content with required dependencies -->
+                                                         <Border Background="#2E1E0A"
+                                                                 BorderBrush="#F59E0B"
+                                                                 BorderThickness="1"
+                                                                 CornerRadius="6"
+                                                                 Padding="8,6"
+                                                                 Margin="0,4,0,0"
+                                                                 IsVisible="{Binding HasRequiredDependencies}">
+                                                             <TextBlock Text="{Binding DependencyWarningText}"
+                                                                        FontSize="11"
+                                                                        Foreground="#FCD34D"
+                                                                        FontWeight="SemiBold"
+                                                                        TextWrapping="Wrap" />
+                                                         </Border>
 
-                                                        <!-- Progress Bar - visible during installation -->
-                                                        <ProgressBar Value="{Binding DownloadProgress}"
-                                                                     Maximum="100"
-                                                                     Height="6"
-                                                                     CornerRadius="3"
-                                                                     IsVisible="{Binding IsDownloading}"
-                                                                     Foreground="#A855F7"
-                                                                     Background="#252530" />
+                                                         <!-- Progress Bar - visible during installation -->
+                                                         <ProgressBar Value="{Binding DownloadProgress}"
+                                                                      Maximum="100"
+                                                                      Height="6"
+                                                                      CornerRadius="3"
+                                                                      IsVisible="{Binding IsDownloading}"
+                                                                      Foreground="{DynamicResource AccentBrush}"
+                                                                      Background="#252530" />
                                                         <!-- Status Text - visible during install or when there's a status message -->
                                                         <TextBlock Text="{Binding DownloadStatus}"
                                                                    FontSize="11"
@@ -404,7 +409,7 @@
                                                                                 Command="{Binding #Root.((vm:PublisherCardViewModel)DataContext).CreateProfileWithContentCommand}"
                                                                                 CommandParameter="{Binding #ContentItemRoot.DataContext}">
                                                                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                                                                <TextBlock Text="+" FontSize="14" FontWeight="Bold" Foreground="#A855F7" VerticalAlignment="Center"/>
+                                                                                <TextBlock Text="+" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
                                                                                 <TextBlock Text="New Profile..." FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                                                             </StackPanel>
                                                                         </Button>
@@ -489,7 +494,7 @@
                                                                                                     <Binding Path="DataContext" ElementName="VariantItemRoot" />
                                                                                                 </Button.CommandParameter>
                                                                                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                                                                                    <TextBlock Text="+" FontSize="14" FontWeight="Bold" Foreground="#A855F7" VerticalAlignment="Center"/>
+                                                                                                    <TextBlock Text="+" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
                                                                                                     <TextBlock Text="New Profile..." FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                                                                                 </StackPanel>
                                                                                             </Button>

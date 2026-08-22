@@ -31,13 +31,13 @@
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0,0,0,2"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
         </Style>
         <Style Selector="Button.tab-btn.active:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="Background" Value="#15FFFFFF"/>
             <Setter Property="BorderThickness" Value="0,0,0,2"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
         </Style>
 
         <!-- Clickable PR Link Style -->
@@ -55,9 +55,9 @@
         <Style Selector="Button.SubscribeState">
             <Setter Property="Content" Value="Subscribe"/>
             <Setter Property="IsEnabled" Value="True"/>
-            <Setter Property="Background" Value="#1A7C3AED"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
             <Setter Property="Foreground" Value="#F1F5F9"/>
-            <Setter Property="BorderBrush" Value="#7C3AED"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="6"/>
             <Setter Property="Padding" Value="12,5"/>
@@ -72,12 +72,12 @@
             </Setter>
         </Style>
         <Style Selector="Button.SubscribeState:pointerover">
-            <Setter Property="Background" Value="#7C3AED"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="#8B5CF6"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}"/>
         </Style>
         <Style Selector="Button.SubscribeState:pressed">
-            <Setter Property="Background" Value="#6D28D9"/>
+            <Setter Property="Background" Value="{DynamicResource AccentDarkBrush}"/>
             <Setter Property="Foreground" Value="White"/>
         </Style>
         <Style Selector="Button.SubscribeState[Tag=True]">

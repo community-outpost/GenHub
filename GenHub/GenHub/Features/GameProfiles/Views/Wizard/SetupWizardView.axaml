@@ -88,16 +88,16 @@
             </Setter>
         </Style>
         <Style Selector="CheckBox:pointerover /template/ Border#CheckBorder">
-            <Setter Property="BorderBrush" Value="#8A5CF6"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}"/>
             <Setter Property="Background" Value="#20FFFFFF"/>
         </Style>
         <Style Selector="CheckBox:checked /template/ Border#CheckBorder">
-            <Setter Property="Background" Value="{DynamicResource SystemAccentColor}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
         </Style>
         <Style Selector="CheckBox:checked:pointerover /template/ Border#CheckBorder">
-            <Setter Property="Background" Value="#7C4DFF"/>
-            <Setter Property="BorderBrush" Value="#7C4DFF"/>
+            <Setter Property="Background" Value="{DynamicResource AccentLightBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}"/>
         </Style>
         <Style Selector="CheckBox:disabled">
             <Setter Property="Opacity" Value="0.5"/>

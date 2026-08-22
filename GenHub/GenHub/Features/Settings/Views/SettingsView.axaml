@@ -79,8 +79,8 @@
       </Setter>
     </Style>
     <Style Selector="Button.primary-button:pointerover">
-      <Setter Property="Background" Value="#9C27B0" />
-      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}" />
       <Setter Property="RenderTransform" Value="scale(1.02)" />
     </Style>
     <Style Selector="Button.primary-button:pressed">

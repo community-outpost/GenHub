@@ -111,6 +111,56 @@ public static class ThemeResourceKeys
     public const string PrimaryGradientBrush = "PrimaryGradientBrush";
 
     /// <summary>
+    /// Accent light color resource key.
+    /// </summary>
+    public const string AccentLightColor = "AccentLightColor";
+
+    /// <summary>
+    /// Accent dark color resource key.
+    /// </summary>
+    public const string AccentDarkColor = "AccentDarkColor";
+
+    /// <summary>
+    /// Accent tint background color resource key.
+    /// </summary>
+    public const string AccentTintBackgroundColor = "AccentTintBackgroundColor";
+
+    /// <summary>
+    /// Sidebar glass border color resource key.
+    /// </summary>
+    public const string SidebarGlassBorder = "SidebarGlassBorder";
+
+    /// <summary>
+    /// Sidebar glow color resource key.
+    /// </summary>
+    public const string SidebarGlowColor = "SidebarGlowColor";
+
+    /// <summary>
+    /// Accent light brush resource key.
+    /// </summary>
+    public const string AccentLightBrush = "AccentLightBrush";
+
+    /// <summary>
+    /// Accent dark brush resource key.
+    /// </summary>
+    public const string AccentDarkBrush = "AccentDarkBrush";
+
+    /// <summary>
+    /// Accent tint background brush resource key.
+    /// </summary>
+    public const string AccentTintBackgroundBrush = "AccentTintBackgroundBrush";
+
+    /// <summary>
+    /// Sidebar glass border brush resource key.
+    /// </summary>
+    public const string SidebarGlassBorderBrush = "SidebarGlassBorderBrush";
+
+    /// <summary>
+    /// Purple accent gradient brush resource key.
+    /// </summary>
+    public const string PurpleAccentGradient = "PurpleAccentGradient";
+
+    /// <summary>
     /// Fluent ComboBox item background selected brush resource key.
     /// </summary>
     public const string ComboBoxItemBackgroundSelected = "ComboBoxItemBackgroundSelected";
