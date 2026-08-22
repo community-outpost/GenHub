@@ -113,6 +113,58 @@ public static class ThemeConstants
     };
 
     /// <summary>
+    /// Tiberium Lime theme.
+    /// </summary>
+    public static readonly ColorTheme TiberiumTheme = new()
+    {
+        Id = "Tiberium",
+        DisplayName = "Tiberium Lime",
+        PrimaryHex = "#84CC16",
+        LightHex = "#A3E635",
+        DarkHex = "#4D7C0F",
+        GlowHex = "#3384CC16",
+    };
+
+    /// <summary>
+    /// Deep Teal theme.
+    /// </summary>
+    public static readonly ColorTheme TealTheme = new()
+    {
+        Id = "Teal",
+        DisplayName = "Deep Teal",
+        PrimaryHex = "#14B8A6",
+        LightHex = "#2DD4BF",
+        DarkHex = "#0F766E",
+        GlowHex = "#3314B8A6",
+    };
+
+    /// <summary>
+    /// Electric Indigo theme.
+    /// </summary>
+    public static readonly ColorTheme IndigoTheme = new()
+    {
+        Id = "Indigo",
+        DisplayName = "Electric Indigo",
+        PrimaryHex = "#6366F1",
+        LightHex = "#818CF8",
+        DarkHex = "#4338CA",
+        GlowHex = "#336366F1",
+    };
+
+    /// <summary>
+    /// Blood Ruby theme.
+    /// </summary>
+    public static readonly ColorTheme RubyTheme = new()
+    {
+        Id = "Ruby",
+        DisplayName = "Blood Ruby",
+        PrimaryHex = "#F43F5E",
+        LightHex = "#FB7185",
+        DarkHex = "#BE123C",
+        GlowHex = "#33F43F5E",
+    };
+
+    /// <summary>
     /// Gets all available color themes.
     /// </summary>
     public static readonly IReadOnlyList<ColorTheme> AllThemes =
@@ -125,5 +177,9 @@ public static class ThemeConstants
         AmberTheme,
         CobaltTheme,
         RoseTheme,
+        TiberiumTheme,
+        TealTheme,
+        IndigoTheme,
+        RubyTheme,
     ];
 }

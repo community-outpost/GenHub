@@ -13,9 +13,7 @@
   <Design.DataContext>
     <!-- Placeholder for design time -->
   </Design.DataContext>
-  <UserControl.Resources>
-    <SolidColorBrush x:Key="AccentColor" Color="#8A2BE2" />
-  </UserControl.Resources>
+
 
   <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" MinWidth="600"
         VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
@@ -131,7 +129,7 @@
         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
           <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
             <TextBlock Text="Selected:" Opacity="0.7"/>
-            <TextBlock Text="{Binding SelectedReplays.Count}" FontWeight="Bold" Foreground="{DynamicResource AccentColor}"/>
+            <TextBlock Text="{Binding SelectedReplays.Count}" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
           </StackPanel>
           <Button Command="{Binding DeleteSelectedCommand}"
                   Classes="Danger" IsEnabled="{Binding SelectedReplays.Count}"
@@ -277,7 +275,7 @@
       <Setter Property="Background" Value="#10FFFFFF" />
     </Style>
     <Style Selector="RadioButton.TabButton:checked /template/ Border#Root">
-      <Setter Property="Background" Value="{DynamicResource AccentColor}" />
+      <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
     </Style>
     <Style Selector="RadioButton.TabButton:checked">
       <Setter Property="Foreground" Value="White" />

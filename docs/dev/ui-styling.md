@@ -162,9 +162,33 @@ All scrollbars automatically inherit global theme styling from `GenHub/GenHub/As
 
 GenHub supports live hot-swappable accent color palettes managed by `IThemeService`:
 
-- **Preset Palettes:** Void Purple (Default), Generals Orange, Zero Hour Cyan, Emerald Green, Crimson Red, Cyber Amber, Cobalt Blue, Neon Rose.
+- **Preset Palettes (12 Themes):**
+  1. `Purple` — Void Purple (Default) (`#A855F7`)
+  2. `Generals` — Generals Orange (`#F97316`)
+  3. `ZeroHour` — Zero Hour Cyan (`#06B6D4`)
+  4. `Emerald` — Emerald Green (`#10B981`)
+  5. `Crimson` — Crimson Red (`#EF4444`)
+  6. `Amber` — Cyber Amber (`#F59E0B`)
+  7. `Cobalt` — Cobalt Blue (`#3B82F6`)
+  8. `Rose` — Neon Rose (`#EC4899`)
+  9. `Tiberium` — Tiberium Lime (`#84CC16`)
+  10. `Teal` — Deep Teal (`#14B8A6`)
+  11. `Indigo` — Electric Indigo (`#6366F1`)
+  12. `Ruby` — Blood Ruby (`#F43F5E`)
 - **Live Updating:** Mutating `Application.Current.Resources[...]` updates all active views and open windows immediately without application restart.
-- **Tokens Updated on Theme Change:** `AccentColor`, `AccentBrush`, `SystemAccentColorBrush`, `PrimaryButtonBackground`, `SidebarSelectedIndicator`, `ScrollbarThumbPressedBrush`, `ComboBoxItemBackgroundSelected`, `PrimaryGradientBrush`.
+- **Dynamic Semantic Tokens:**
+  - `AccentBrush` / `AccentColor` — Primary theme accent.
+  - `AccentLightBrush` / `AccentLightColor` — Highlight and pointer-over state.
+  - `AccentDarkBrush` / `AccentDarkColor` — Pressed or deep container state.
+  - `AccentGlowBrush` / `AccentGlowColor` — Soft aura and glow gradients.
+  - `AccentBadgeBackgroundBrush` / `AccentBadgeForegroundColor` — Low-opacity badge fills and high-contrast labels.
+  - `AccentTintBackgroundBrush` — Subtle 15% tint for active pill navigation tabs and selected buttons.
+  - `PrimaryGradientBrush` — Two-stop linear gradient from light to dark accent.
+  - `SidebarItemSelectedBackground` / `SidebarItemSelectedBorder` — Theme-matched sidebar selection styling.
+
+> [!CAUTION]
+> **Never define local `AccentColor` or `AccentBrush` overrides in `<UserControl.Resources>` or `<Window.Resources>`.**
+> Defining a local `AccentColor` resource overrides the global theme dictionary, causing views (such as tab bars, buttons, or badges) to remain stuck on hardcoded colors when users switch palettes. Always resolve colors from `Application.Current.Resources` via `{DynamicResource AccentBrush}`.
 
 ## Dropdown styling (ComboBox & ComboBoxItem)
 
@@ -175,13 +199,21 @@ All dropdowns inherit styles from `GenHub/GenHub/Assets/Styles/ComboBoxStyles.ax
 - **Selected State:** Outlined with `{DynamicResource AccentBrush}` and filled with soft `{DynamicResource AccentBadgeBackgroundBrush}`.
 - **Hover on Selected:** Filled with vibrant `{DynamicResource AccentBrush}` and high-contrast white text.
 
+## Tab and pill buttons (RadioButton.TabButton & Button.pill-tab)
+
+For game selection tabs, replay category toggles, or filter pills:
+
+- **Style:** Inset rounded pill (`CornerRadius="8"`, `Padding="16,8"`).
+- **Pointer-over:** Soft hover highlight `{DynamicResource SurfaceHoverBrush}` or `#10FFFFFF`.
+- **Checked / Active State:** Background bound to `{DynamicResource AccentBrush}` (or `{DynamicResource AccentTintBackgroundBrush}` with `{DynamicResource AccentBrush}` border), with foreground `White`.
+
 ## Button classes
 
 Use standardized button classes rather than ad-hoc button styling:
 
 | Class | Usage |
 |---|---|
-| `Button.action-primary` | Main call to action (purple accent background, white text). |
+| `Button.action-primary` | Main call to action (theme accent background, white text). |
 | `Button.action-secondary` | Secondary action (`#1AFFFFFF` background with subtle border). |
 | `Button.icon-btn-subtle` | Icon-only utility buttons (`Width="28"`, `Height="28"`, transparent hover). |
 | `Button.tab-icon-btn` | Large square navigation tab buttons (`56x56`, `CornerRadius="12"`). |
@@ -190,6 +222,7 @@ Use standardized button classes rather than ad-hoc button styling:
 ## Anti-patterns to avoid
 
 - **Hardcoding hex values in XAML.** Never write `Background="#252525"` or `Foreground="#FFFFFF"`. Use dynamic theme resources.
+- **Local Accent Resource Shadows.** Never define `<SolidColorBrush x:Key="AccentColor" ...>` in local controls.
 - **Duplicating ComboBox, Expander, or ScrollBar templates.** Never copy-paste `ComboBox`, `Expander`, or `ScrollBar` template styles into local views.
 - **Nested ScrollViewers.** Never nest a `ScrollViewer` inside another `ScrollViewer` or wrap controls that manage their own scrolling.
 - **Sharp full-bleed list items.** Avoid `CornerRadius="0"` on selectable list items. Use rounded inset pills.
@@ -200,6 +233,7 @@ Use standardized button classes rather than ad-hoc button styling:
 ## Checklist for new UI views
 
 - [ ] All colors use `{DynamicResource ...}` from `ThemeResources.axaml`.
+- [ ] No local `AccentColor` or `AccentBrush` definitions shadowing global theme tokens.
 - [ ] Sidebars and master-detail panes use `SidebarLayout`.
 - [ ] Dropdowns use standard `ComboBox` with global theme styling (no inline template copies).
 - [ ] Collapsible sections use standard `Expander` card styling.

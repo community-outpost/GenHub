@@ -37,7 +37,7 @@ public class ThemeServiceTests
     {
         // Assert
         Assert.NotNull(_service.AvailableThemes);
-        Assert.True(_service.AvailableThemes.Count >= 8);
+        Assert.True(_service.AvailableThemes.Count >= 12);
 
         var themeIds = _service.AvailableThemes.Select(t => t.Id).ToList();
         Assert.Contains("Purple", themeIds);
@@ -48,6 +48,10 @@ public class ThemeServiceTests
         Assert.Contains("Amber", themeIds);
         Assert.Contains("Cobalt", themeIds);
         Assert.Contains("Rose", themeIds);
+        Assert.Contains("Tiberium", themeIds);
+        Assert.Contains("Teal", themeIds);
+        Assert.Contains("Indigo", themeIds);
+        Assert.Contains("Ruby", themeIds);
     }
 
     /// <summary>
