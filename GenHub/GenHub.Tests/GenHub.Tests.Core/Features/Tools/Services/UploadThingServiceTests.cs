@@ -78,7 +78,6 @@ public sealed class UploadThingServiceTests : IDisposable
 
         var handlerMock = new Mock<HttpMessageHandler>();
 
-        // Mock Gateway POST /api/v1/uploads
         handlerMock.Protected()
             .Setup<Task<HttpResponseMessage>>(
                 "SendAsync",
@@ -134,6 +133,63 @@ public sealed class UploadThingServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that UploadFileAsync returns null when the gateway returns incomplete JSON.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task UploadFileAsync_WhenIncompleteResponse_ReturnsNullAsync()
+    {
+        var testFilePath = Path.Combine(_tempDirectory, "partial.zip");
+        await File.WriteAllBytesAsync(testFilePath, [0x50, 0x4B, 0x03, 0x04]);
+
+        var handlerMock = new Mock<HttpMessageHandler>();
+        handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"publicUrl\":\"https://utfs.io/f/partial\"}"),
+            });
+
+        var httpClient = new HttpClient(handlerMock.Object);
+        var service = new UploadThingService(httpClient, _loggerMock.Object);
+
+        var result = await service.UploadFileAsync(testFilePath);
+
+        Assert.Null(result);
+    }
+
+    /// <summary>
+    /// Verifies that UploadFileAsync propagates OperationCanceledException upon cancellation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task UploadFileAsync_WhenCancelled_ThrowsOperationCanceledExceptionAsync()
+    {
+        var testFilePath = Path.Combine(_tempDirectory, "canceled.zip");
+        await File.WriteAllBytesAsync(testFilePath, [0x50, 0x4B, 0x03, 0x04]);
+
+        var handlerMock = new Mock<HttpMessageHandler>();
+        handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ThrowsAsync(new OperationCanceledException());
+
+        var httpClient = new HttpClient(handlerMock.Object);
+        var service = new UploadThingService(httpClient, _loggerMock.Object);
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => service.UploadFileAsync(testFilePath, ct: cts.Token));
+    }
+
+    /// <summary>
     /// Verifies that DeleteFileAsync returns true when the gateway accepts the delete request.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
@@ -162,18 +218,73 @@ public sealed class UploadThingServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that DeleteFileAsync returns false when given empty or null parameters.
+    /// Verifies that DeleteFileAsync returns false when the gateway rejects the deletion.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DeleteFileAsync_WhenMissingParameters_ReturnsFalseAsync()
+    public async Task DeleteFileAsync_WhenGatewayRejects_ReturnsFalseAsync()
+    {
+        var handlerMock = new Mock<HttpMessageHandler>();
+        handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.Forbidden)
+            {
+                Content = new StringContent("{\"error\":\"Invalid or forged delete token signature\"}"),
+            });
+
+        var httpClient = new HttpClient(handlerMock.Object);
+        var service = new UploadThingService(httpClient, _loggerMock.Object);
+
+        var result = await service.DeleteFileAsync("test_key_123", "test_key_123:1755820800.invalid_sig");
+
+        Assert.False(result);
+    }
+
+    /// <summary>
+    /// Verifies that DeleteFileAsync returns false when given empty or whitespace parameters.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Theory]
+    [InlineData("", "valid_token")]
+    [InlineData("valid_key", "")]
+    [InlineData("   ", "valid_token")]
+    [InlineData("valid_key", "   ")]
+    public async Task DeleteFileAsync_WhenMissingParameters_ReturnsFalseAsync(string key, string token)
     {
         var handlerMock = new Mock<HttpMessageHandler>();
         var httpClient = new HttpClient(handlerMock.Object);
         var service = new UploadThingService(httpClient, _loggerMock.Object);
 
-        var result = await service.DeleteFileAsync(string.Empty, string.Empty);
+        var result = await service.DeleteFileAsync(key, token);
 
         Assert.False(result);
+    }
+
+    /// <summary>
+    /// Verifies that DeleteFileAsync propagates OperationCanceledException upon cancellation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task DeleteFileAsync_WhenCancelled_ThrowsOperationCanceledExceptionAsync()
+    {
+        var handlerMock = new Mock<HttpMessageHandler>();
+        handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ThrowsAsync(new OperationCanceledException());
+
+        var httpClient = new HttpClient(handlerMock.Object);
+        var service = new UploadThingService(httpClient, _loggerMock.Object);
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => service.DeleteFileAsync("key", "token", ct: cts.Token));
     }
 }
