@@ -1,0 +1,168 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- ============================================ -->
+  <!-- MODBUILDER ICON SET                          -->
+  <!-- Custom SVG Icons for Professional Look       -->
+  <!-- ============================================ -->
+
+  <!-- Project Management Icons -->
+
+  <!-- New Project Icon -->
+  <StreamGeometry x:Key="IconNewProject">
+    M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z
+  </StreamGeometry>
+
+  <!-- Open Folder Icon -->
+  <StreamGeometry x:Key="IconOpenFolder">
+    M20,18H4V8H20M20,6H12L10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6Z
+  </StreamGeometry>
+
+  <!-- Save Icon -->
+  <StreamGeometry x:Key="IconSave">
+    M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z
+  </StreamGeometry>
+
+  <!-- Reload Icon -->
+  <StreamGeometry x:Key="IconReload">
+    M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z
+  </StreamGeometry>
+
+  <!-- Build & Execution Icons -->
+
+  <!-- Play/Build Icon -->
+  <StreamGeometry x:Key="IconPlay">
+    M8,5.14V19.14L19,12.14L8,5.14Z
+  </StreamGeometry>
+
+  <!-- Stop Icon -->
+  <StreamGeometry x:Key="IconStop">
+    M18,18H6V6H18V18Z
+  </StreamGeometry>
+
+  <!-- Settings Icon -->
+  <StreamGeometry x:Key="IconSettings">
+    M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z
+  </StreamGeometry>
+
+  <!-- Clear/Delete Icon -->
+  <StreamGeometry x:Key="IconClear">
+    M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z
+  </StreamGeometry>
+
+  <!-- File Type Icons -->
+
+  <!-- Image File Icon (TGA, DDS, PSD) -->
+  <StreamGeometry x:Key="IconImageFile">
+    M8.5,13.5L11,16.5L14.5,12L19,18H5M21,19V5C21,3.89 20.1,3 19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19Z
+  </StreamGeometry>
+
+  <!-- Text File Icon (CSF, INI) -->
+  <StreamGeometry x:Key="IconTextFile">
+    M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z
+  </StreamGeometry>
+
+  <!-- Archive File Icon (BIG, ZIP) -->
+  <StreamGeometry x:Key="IconArchiveFile">
+    M14,17H12V15H10V13H12V15H14M14,9H12V7H10V9H12V11H10V13H12V11H14M20,6H12L10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6Z
+  </StreamGeometry>
+
+  <!-- Status Icons -->
+
+  <!-- Success/Check Icon -->
+  <StreamGeometry x:Key="IconSuccess">
+    M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z
+  </StreamGeometry>
+
+  <!-- Warning Icon -->
+  <StreamGeometry x:Key="IconWarning">
+    M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z
+  </StreamGeometry>
+
+  <!-- Error Icon -->
+  <StreamGeometry x:Key="IconError">
+    M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z
+  </StreamGeometry>
+
+  <!-- Info Icon -->
+  <StreamGeometry x:Key="IconInfo">
+    M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z
+  </StreamGeometry>
+
+  <!-- Navigation Icons -->
+
+  <!-- Expand/Chevron Down Icon -->
+  <StreamGeometry x:Key="IconChevronDown">
+    M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z
+  </StreamGeometry>
+
+  <!-- Collapse/Chevron Up Icon -->
+  <StreamGeometry x:Key="IconChevronUp">
+    M7.41,15.41L12,10.83L16.59,15.41L18,14L12,8L6,14L7.41,15.41Z
+  </StreamGeometry>
+
+  <!-- Chevron Right Icon -->
+  <StreamGeometry x:Key="IconChevronRight">
+    M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z
+  </StreamGeometry>
+
+  <!-- Action Icons -->
+
+  <!-- Add Icon -->
+  <StreamGeometry x:Key="IconAdd">
+    M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z
+  </StreamGeometry>
+
+  <!-- Remove Icon -->
+  <StreamGeometry x:Key="IconRemove">
+    M19,13H5V11H19V13Z
+  </StreamGeometry>
+
+  <!-- Edit Icon -->
+  <StreamGeometry x:Key="IconEdit">
+    M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z
+  </StreamGeometry>
+
+  <!-- Search Icon -->
+  <StreamGeometry x:Key="IconSearch">
+    M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z
+  </StreamGeometry>
+
+  <!-- Filter Icon -->
+  <StreamGeometry x:Key="IconFilter">
+    M14,12V19.88C14.04,20.18 13.94,20.5 13.71,20.71C13.32,21.1 12.69,21.1 12.3,20.71L10.29,18.7C10.06,18.47 9.96,18.16 10,17.87V12H9.97L4.21,4.62C3.87,4.19 3.95,3.56 4.38,3.22C4.57,3.08 4.78,3 5,3V3H19V3C19.22,3 19.43,3.08 19.62,3.22C20.05,3.56 20.13,4.19 19.79,4.62L14.03,12H14Z
+  </StreamGeometry>
+
+  <!-- More Options Icon -->
+  <StreamGeometry x:Key="IconMoreOptions">
+    M12,16A2,2 0 0,1 14,18A2,2 0 0,1 12,20A2,2 0 0,1 10,18A2,2 0 0,1 12,16M12,10A2,2 0 0,1 14,12A2,2 0 0,1 12,14A2,2 0 0,1 10,12A2,2 0 0,1 12,10M12,4A2,2 0 0,1 14,6A2,2 0 0,1 12,8A2,2 0 0,1 10,6A2,2 0 0,1 12,4Z
+  </StreamGeometry>
+
+  <!-- Build Stage Icons -->
+
+  <!-- Scanning Icon -->
+  <StreamGeometry x:Key="IconScanning">
+    M4,11V13H16L10.5,18.5L11.92,19.92L19.84,12L11.92,4.08L10.5,5.5L16,11H4Z
+  </StreamGeometry>
+
+  <!-- Converting Icon -->
+  <StreamGeometry x:Key="IconConverting">
+    M12,18A6,6 0 0,1 6,12C6,11 6.25,10.03 6.7,9.2L5.24,7.74C4.46,8.97 4,10.43 4,12A8,8 0 0,0 12,20V23L16,19L12,15M12,4V1L8,5L12,9V6A6,6 0 0,1 18,12C18,13 17.75,13.97 17.3,14.8L18.76,16.26C19.54,15.03 20,13.57 20,12A8,8 0 0,0 12,4Z
+  </StreamGeometry>
+
+  <!-- Caching Icon -->
+  <StreamGeometry x:Key="IconCaching">
+    M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,14.21 20,12V9C20,11.21 16.42,13 12,13C7.58,13 4,11.21 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,19.21 20,17V14C20,16.21 16.42,18 12,18C7.58,18 4,16.21 4,14Z
+  </StreamGeometry>
+
+  <!-- Archiving Icon -->
+  <StreamGeometry x:Key="IconArchiving">
+    M3,3H21V7H3V3M4,8H20V21H4V8M9.5,11A0.5,0.5 0 0,0 9,11.5V13H15V11.5A0.5,0.5 0 0,0 14.5,11H9.5Z
+  </StreamGeometry>
+
+  <!-- Package / Bundle Pack Icon -->
+  <StreamGeometry x:Key="IconPackage">
+    M12,2L3,7L12,12L21,7L12,2M3,17L12,22L21,17V10.5L12,15.5L3,10.5V17Z
+  </StreamGeometry>
+
+</ResourceDictionary>

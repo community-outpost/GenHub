@@ -651,6 +651,9 @@ public class MockConfigurationProviderService : IConfigurationProviderService
 
     /// <inheritdoc/>
     public string GetLogsPath() => @"C:\GenHub\Logs";
+
+    /// <inheritdoc/>
+    public CsvCatalogConfiguration? GetCsvCatalogConfiguration() => new();
 }
 
 /// <summary>

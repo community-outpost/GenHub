@@ -1,0 +1,190 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:conv="clr-namespace:GenHub.Infrastructure.Converters">
+
+  <!-- Converters -->
+  <conv:ActiveBorderConverter x:Key="ActiveBorderConverter"/>
+  <conv:IndentConverter x:Key="IndentConverter"/>
+  <conv:BoolToColorConverter x:Key="BoolToColorConverter"/>
+  <conv:BoolToTextConverter x:Key="BoolToStringConverter"/>
+  <conv:BoolToTextConverter x:Key="BoolToTextConverter"/>
+
+  <!-- ============================================ -->
+  <!-- MODBUILDER DESIGN SYSTEM                     -->
+  <!-- Modern, Professional Dark Theme              -->
+  <!-- ============================================ -->
+
+  <!-- ============================================ -->
+  <!-- COLOR PALETTE                                -->
+  <!-- ============================================ -->
+
+  <!-- Background Colors -->
+  <Color x:Key="BackgroundPrimaryColor">#0D0D14</Color>
+  <Color x:Key="BackgroundSecondaryColor">#151221</Color>
+  <Color x:Key="BackgroundTertiaryColor">#1A162B</Color>
+  <Color x:Key="BackgroundElevatedColor">#221C38</Color>
+
+  <!-- Surface Colors -->
+  <Color x:Key="SurfaceColor">#1E1830</Color>
+  <Color x:Key="SurfaceHoverColor">#282042</Color>
+  <Color x:Key="SurfaceActiveColor">#322754</Color>
+
+  <!-- Accent Colors (GenHub Purple theme) -->
+  <Color x:Key="AccentPrimaryColor">#7C4DFF</Color>
+  <Color x:Key="AccentSecondaryColor">#673AB7</Color>
+  <Color x:Key="AccentTertiaryColor">#5E35B1</Color>
+
+  <!-- Status Colors -->
+  <Color x:Key="SuccessColor">#00E676</Color>
+  <Color x:Key="WarningColor">#FFD740</Color>
+  <Color x:Key="ErrorColor">#FF5252</Color>
+  <Color x:Key="InfoColor">#7C4DFF</Color>
+
+  <!-- Text Colors -->
+  <Color x:Key="TextPrimaryColor">#FFFFFF</Color>
+  <Color x:Key="TextSecondaryColor">#B0B0B0</Color>
+  <Color x:Key="TextTertiaryColor">#808080</Color>
+  <Color x:Key="TextDisabledColor">#505050</Color>
+
+  <!-- Border Colors -->
+  <Color x:Key="BorderColor">#2C2448</Color>
+  <Color x:Key="BorderHoverColor">#453872</Color>
+  <Color x:Key="BorderActiveColor">#7C4DFF</Color>
+
+  <!-- Overlay Colors -->
+  <Color x:Key="OverlayColor">#CC000000</Color>
+  <Color x:Key="OverlayLightColor">#80000000</Color>
+
+  <!-- ============================================ -->
+  <!-- SOLID COLOR BRUSHES                          -->
+  <!-- ============================================ -->
+
+  <SolidColorBrush x:Key="BackgroundPrimaryBrush" Color="{StaticResource BackgroundPrimaryColor}"/>
+  <SolidColorBrush x:Key="BackgroundSecondaryBrush" Color="{StaticResource BackgroundSecondaryColor}"/>
+  <SolidColorBrush x:Key="BackgroundTertiaryBrush" Color="{StaticResource BackgroundTertiaryColor}"/>
+  <SolidColorBrush x:Key="BackgroundElevatedBrush" Color="{StaticResource BackgroundElevatedColor}"/>
+
+  <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}"/>
+  <SolidColorBrush x:Key="SurfaceHoverBrush" Color="{StaticResource SurfaceHoverColor}"/>
+  <SolidColorBrush x:Key="SurfaceActiveBrush" Color="{StaticResource SurfaceActiveColor}"/>
+
+  <SolidColorBrush x:Key="AccentPrimaryBrush" Color="{StaticResource AccentPrimaryColor}"/>
+  <SolidColorBrush x:Key="AccentSecondaryBrush" Color="{StaticResource AccentSecondaryColor}"/>
+  <SolidColorBrush x:Key="AccentTertiaryBrush" Color="{StaticResource AccentTertiaryColor}"/>
+
+  <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}"/>
+  <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}"/>
+  <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ErrorColor}"/>
+  <SolidColorBrush x:Key="InfoBrush" Color="{StaticResource InfoColor}"/>
+
+  <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimaryColor}"/>
+  <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}"/>
+  <SolidColorBrush x:Key="TextTertiaryBrush" Color="{StaticResource TextTertiaryColor}"/>
+  <SolidColorBrush x:Key="TextDisabledBrush" Color="{StaticResource TextDisabledColor}"/>
+
+  <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderColor}"/>
+  <SolidColorBrush x:Key="BorderHoverBrush" Color="{StaticResource BorderHoverColor}"/>
+  <SolidColorBrush x:Key="BorderActiveBrush" Color="{StaticResource BorderActiveColor}"/>
+
+  <SolidColorBrush x:Key="OverlayBrush" Color="{StaticResource OverlayColor}"/>
+  <SolidColorBrush x:Key="OverlayLightBrush" Color="{StaticResource OverlayLightColor}"/>
+
+  <!-- ============================================ -->
+  <!-- GRADIENT BRUSHES                             -->
+  <!-- ============================================ -->
+
+  <LinearGradientBrush x:Key="AccentGradientBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+    <GradientStop Color="{StaticResource AccentPrimaryColor}" Offset="0"/>
+    <GradientStop Color="{StaticResource AccentSecondaryColor}" Offset="1"/>
+  </LinearGradientBrush>
+
+  <LinearGradientBrush x:Key="SurfaceGradientBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+    <GradientStop Color="{StaticResource SurfaceColor}" Offset="0"/>
+    <GradientStop Color="{StaticResource BackgroundTertiaryColor}" Offset="1"/>
+  </LinearGradientBrush>
+
+  <!-- ============================================ -->
+  <!-- TYPOGRAPHY                                   -->
+  <!-- ============================================ -->
+
+  <!-- Font Families -->
+  <FontFamily x:Key="FontFamilyPrimary">Segoe UI, Arial, sans-serif</FontFamily>
+  <FontFamily x:Key="FontFamilyMonospace">JetBrains Mono, Consolas, Courier New, monospace</FontFamily>
+  <FontFamily x:Key="FontFamilyHeading">Segoe UI Semibold, Arial, sans-serif</FontFamily>
+
+  <!-- Font Sizes -->
+  <x:Double x:Key="FontSizeXSmall">10</x:Double>
+  <x:Double x:Key="FontSizeSmall">11</x:Double>
+  <x:Double x:Key="FontSizeNormal">12</x:Double>
+  <x:Double x:Key="FontSizeMedium">13</x:Double>
+  <x:Double x:Key="FontSizeLarge">14</x:Double>
+  <x:Double x:Key="FontSizeXLarge">16</x:Double>
+  <x:Double x:Key="FontSizeXXLarge">18</x:Double>
+  <x:Double x:Key="FontSizeHeading1">24</x:Double>
+  <x:Double x:Key="FontSizeHeading2">20</x:Double>
+  <x:Double x:Key="FontSizeHeading3">16</x:Double>
+
+  <!-- Font Weights -->
+  <FontWeight x:Key="FontWeightLight">Light</FontWeight>
+  <FontWeight x:Key="FontWeightNormal">Normal</FontWeight>
+  <FontWeight x:Key="FontWeightMedium">Medium</FontWeight>
+  <FontWeight x:Key="FontWeightSemiBold">SemiBold</FontWeight>
+  <FontWeight x:Key="FontWeightBold">Bold</FontWeight>
+
+  <!-- ============================================ -->
+  <!-- SPACING & SIZING                             -->
+  <!-- ============================================ -->
+
+  <!-- Spacing -->
+  <x:Double x:Key="SpacingXSmall">4</x:Double>
+  <x:Double x:Key="SpacingSmall">8</x:Double>
+  <x:Double x:Key="SpacingNormal">12</x:Double>
+  <x:Double x:Key="SpacingMedium">16</x:Double>
+  <x:Double x:Key="SpacingLarge">20</x:Double>
+  <x:Double x:Key="SpacingXLarge">24</x:Double>
+  <x:Double x:Key="SpacingXXLarge">32</x:Double>
+
+  <!-- Corner Radius -->
+  <CornerRadius x:Key="CornerRadiusSmall">4</CornerRadius>
+  <CornerRadius x:Key="CornerRadiusNormal">6</CornerRadius>
+  <CornerRadius x:Key="CornerRadiusMedium">8</CornerRadius>
+  <CornerRadius x:Key="CornerRadiusLarge">12</CornerRadius>
+  <CornerRadius x:Key="CornerRadiusXLarge">16</CornerRadius>
+
+  <!-- Border Thickness -->
+  <Thickness x:Key="BorderThicknessThin">1</Thickness>
+  <Thickness x:Key="BorderThicknessNormal">1.5</Thickness>
+  <Thickness x:Key="BorderThicknessThick">2</Thickness>
+
+  <!-- Padding -->
+  <Thickness x:Key="PaddingXSmall">4</Thickness>
+  <Thickness x:Key="PaddingSmall">8</Thickness>
+  <Thickness x:Key="PaddingNormal">12</Thickness>
+  <Thickness x:Key="PaddingMedium">16</Thickness>
+  <Thickness x:Key="PaddingLarge">20</Thickness>
+  <Thickness x:Key="PaddingXLarge">24</Thickness>
+
+  <!-- ============================================ -->
+  <!-- SHADOWS & EFFECTS                            -->
+  <!-- ============================================ -->
+
+  <BoxShadows x:Key="ShadowSmall">0 2 4 0 #20000000</BoxShadows>
+  <BoxShadows x:Key="ShadowNormal">0 4 8 0 #30000000</BoxShadows>
+  <BoxShadows x:Key="ShadowMedium">0 6 12 0 #40000000</BoxShadows>
+  <BoxShadows x:Key="ShadowLarge">0 8 16 0 #50000000</BoxShadows>
+  <BoxShadows x:Key="ShadowXLarge">0 12 24 0 #60000000</BoxShadows>
+
+  <!-- Glow Effects -->
+  <BoxShadows x:Key="GlowAccent">0 0 12 0 #807C4DFF</BoxShadows>
+  <BoxShadows x:Key="GlowSuccess">0 0 12 0 #8000E676</BoxShadows>
+  <BoxShadows x:Key="GlowError">0 0 12 0 #80FF5252</BoxShadows>
+
+  <!-- ============================================ -->
+  <!-- ANIMATIONS                                   -->
+  <!-- ============================================ -->
+
+  <x:Double x:Key="AnimationDurationFast">0.15</x:Double>
+  <x:Double x:Key="AnimationDurationNormal">0.25</x:Double>
+  <x:Double x:Key="AnimationDurationSlow">0.35</x:Double>
+
+</ResourceDictionary>

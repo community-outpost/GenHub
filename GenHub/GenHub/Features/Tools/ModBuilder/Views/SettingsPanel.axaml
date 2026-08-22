@@ -1,0 +1,249 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ModBuilder.ViewModels"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+             x:Class="GenHub.Features.Tools.ModBuilder.Views.SettingsPanel"
+             x:DataType="vm:SettingsPanelViewModel">
+
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="../Styles/ModBuilderStyles.axaml"/>
+        <ResourceInclude Source="../Styles/ModBuilderIcons.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </UserControl.Resources>
+
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel Spacing="16" Margin="16">
+
+      <!-- Header -->
+      <Border Background="{StaticResource BackgroundElevatedBrush}"
+              CornerRadius="{StaticResource CornerRadiusLarge}"
+              Padding="{StaticResource PaddingMedium}"
+              BoxShadow="{StaticResource ShadowNormal}">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Grid.Column="0" Spacing="4">
+            <TextBlock Text="ModBuilder Settings"
+                       FontSize="{StaticResource FontSizeHeading2}"
+                       FontWeight="{StaticResource FontWeightBold}"
+                       Foreground="{StaticResource TextPrimaryBrush}"/>
+            <TextBlock Text="Configure build performance, cache, and UI preferences"
+                       FontSize="{StaticResource FontSizeSmall}"
+                       Foreground="{StaticResource TextSecondaryBrush}"/>
+          </StackPanel>
+
+          <Button Grid.Column="1"
+                  Command="{Binding ResetToDefaultsCommand}"
+                  Classes="Secondary"
+                  Padding="12,8"
+                  ToolTip.Tip="Reset all settings to defaults">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="↻" FontSize="14"/>
+              <TextBlock Text="Reset to Defaults"/>
+            </StackPanel>
+          </Button>
+        </Grid>
+      </Border>
+
+      <!-- Cache Management Section -->
+      <Border Background="{StaticResource BackgroundElevatedBrush}"
+              CornerRadius="{StaticResource CornerRadiusLarge}"
+              Padding="{StaticResource PaddingMedium}"
+              BoxShadow="{StaticResource ShadowNormal}">
+        <StackPanel Spacing="16">
+          <TextBlock Text="Cache Management"
+                     FontSize="{StaticResource FontSizeLarge}"
+                     FontWeight="{StaticResource FontWeightSemiBold}"
+                     Foreground="{StaticResource TextPrimaryBrush}"/>
+
+          <!-- Cache Statistics -->
+          <Border Background="{StaticResource SurfaceBrush}"
+                  CornerRadius="{StaticResource CornerRadiusMedium}"
+                  Padding="{StaticResource PaddingNormal}">
+            <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,*">
+              <TextBlock Grid.Row="0" Grid.Column="0"
+                         Text="Cache Size:"
+                         Foreground="{StaticResource TextSecondaryBrush}"
+                         Width="120"/>
+              <TextBlock Grid.Row="0" Grid.Column="1"
+                         Text="{Binding CacheSizeFormatted}"
+                         FontWeight="{StaticResource FontWeightSemiBold}"
+                         Foreground="{StaticResource AccentPrimaryBrush}"/>
+
+              <TextBlock Grid.Row="1" Grid.Column="0"
+                         Text="Cached Files:"
+                         Foreground="{StaticResource TextSecondaryBrush}"/>
+              <TextBlock Grid.Row="1" Grid.Column="1"
+                         Text="{Binding CachedFileCount}"
+                         FontWeight="{StaticResource FontWeightSemiBold}"
+                         Foreground="{StaticResource AccentPrimaryBrush}"/>
+
+              <TextBlock Grid.Row="2" Grid.Column="0"
+                         Text="Status:"
+                         Foreground="{StaticResource TextSecondaryBrush}"/>
+              <TextBlock Grid.Row="2" Grid.Column="1"
+                         Text="{Binding IsCacheOperationInProgress, Converter={StaticResource BoolToStringConverter}, ConverterParameter='In Progress|Ready'}"
+                         FontWeight="{StaticResource FontWeightSemiBold}"
+                         Foreground="{Binding IsCacheOperationInProgress, Converter={StaticResource BoolToColorConverter}, ConverterParameter='#FFD740|#00E676'}"/>
+            </Grid>
+          </Border>
+
+          <!-- Cache Actions -->
+          <Grid ColumnDefinitions="*,*">
+            <Button Grid.Column="0"
+                    Command="{Binding ClearCacheCommand}"
+                    IsEnabled="{Binding !IsCacheOperationInProgress}"
+                    Classes="Secondary"
+                    HorizontalAlignment="Stretch"
+                    Padding="0,12"
+                    ToolTip.Tip="Clear all cached build files">
+              <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                <TextBlock Text="🗑️" FontSize="14"/>
+                <TextBlock Text="Clear Cache"/>
+              </StackPanel>
+            </Button>
+
+            <Button Grid.Column="1"
+                    Command="{Binding RebuildCacheCommand}"
+                    IsEnabled="{Binding !IsCacheOperationInProgress}"
+                    Classes="Secondary"
+                    HorizontalAlignment="Stretch"
+                    Padding="0,12"
+                    ToolTip.Tip="Rebuild cache index">
+              <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                <TextBlock Text="🔄" FontSize="14"/>
+                <TextBlock Text="Rebuild Index"/>
+              </StackPanel>
+            </Button>
+          </Grid>
+
+          <TextBlock Text="Clearing cache will remove all cached build artifacts. Files will be rebuilt on next build."
+                     FontSize="{StaticResource FontSizeSmall}"
+                     Foreground="{StaticResource TextTertiaryBrush}"
+                     TextWrapping="Wrap"/>
+        </StackPanel>
+      </Border>
+
+      <!-- Performance Settings Section -->
+      <Border Background="{StaticResource BackgroundElevatedBrush}"
+              CornerRadius="{StaticResource CornerRadiusLarge}"
+              Padding="{StaticResource PaddingMedium}"
+              BoxShadow="{StaticResource ShadowNormal}">
+        <StackPanel Spacing="16">
+          <TextBlock Text="Performance Settings"
+                     FontSize="{StaticResource FontSizeLarge}"
+                     FontWeight="{StaticResource FontWeightSemiBold}"
+                     Foreground="{StaticResource TextPrimaryBrush}"/>
+
+          <!-- Compression Level -->
+          <StackPanel Spacing="8">
+            <TextBlock Text="Default Compression Level"
+                       FontWeight="{StaticResource FontWeightMedium}"
+                       Foreground="{StaticResource TextPrimaryBrush}"/>
+            <ComboBox ItemsSource="{Binding CompressionLevels}"
+                      SelectedItem="{Binding SelectedCompressionLevel}"
+                      HorizontalAlignment="Stretch"
+                      ToolTip.Tip="Default compression level for archives"/>
+            <TextBlock Text="Higher compression = smaller files but slower builds"
+                       FontSize="{StaticResource FontSizeSmall}"
+                       Foreground="{StaticResource TextTertiaryBrush}"/>
+          </StackPanel>
+
+          <!-- Thread Count -->
+          <StackPanel Spacing="8">
+            <TextBlock Text="Thread Count"
+                       FontWeight="{StaticResource FontWeightMedium}"
+                       Foreground="{StaticResource TextPrimaryBrush}"/>
+            <Grid ColumnDefinitions="*,Auto">
+              <Slider Grid.Column="0"
+                      Minimum="1"
+                      Maximum="{Binding ThreadCountOptions.Count}"
+                      Value="{Binding SelectedThreadCount}"
+                      TickFrequency="1"
+                      IsSnapToTickEnabled="True"
+                      ToolTip.Tip="Number of parallel threads for builds"/>
+              <TextBlock Grid.Column="1"
+                         Text="{Binding SelectedThreadCount}"
+                         FontWeight="{StaticResource FontWeightSemiBold}"
+                         Foreground="{StaticResource AccentPrimaryBrush}"
+                         VerticalAlignment="Center"
+                         MinWidth="30"
+                         TextAlignment="Right"/>
+            </Grid>
+            <TextBlock Text="More threads = faster builds but higher CPU usage"
+                       FontSize="{StaticResource FontSizeSmall}"
+                       Foreground="{StaticResource TextTertiaryBrush}"/>
+          </StackPanel>
+
+          <!-- Buffer Size -->
+          <StackPanel Spacing="8">
+            <TextBlock Text="I/O Buffer Size (KB)"
+                       FontWeight="{StaticResource FontWeightMedium}"
+                       Foreground="{StaticResource TextPrimaryBrush}"/>
+            <ComboBox ItemsSource="{Binding BufferSizeOptions}"
+                      SelectedItem="{Binding SelectedBufferSize}"
+                      HorizontalAlignment="Stretch"
+                      ToolTip.Tip="Buffer size for file I/O operations"/>
+            <TextBlock Text="Larger buffers = better performance for large files"
+                       FontSize="{StaticResource FontSizeSmall}"
+                       Foreground="{StaticResource TextTertiaryBrush}"/>
+          </StackPanel>
+
+          <!-- Default Options -->
+          <Separator Background="{StaticResource BorderBrush}"/>
+
+          <CheckBox Content="Enable Multi-Processing by Default"
+                    IsChecked="{Binding EnableMultiProcessingByDefault}"
+                    ToolTip.Tip="Use parallel processing for new projects"/>
+
+          <CheckBox Content="Enable Verbose Logging by Default"
+                    IsChecked="{Binding EnableVerboseLoggingByDefault}"
+                    ToolTip.Tip="Show detailed build information for new projects"/>
+        </StackPanel>
+      </Border>
+
+      <!-- UI Preferences Section -->
+      <Border Background="{StaticResource BackgroundElevatedBrush}"
+              CornerRadius="{StaticResource CornerRadiusLarge}"
+              Padding="{StaticResource PaddingMedium}"
+              BoxShadow="{StaticResource ShadowNormal}">
+        <StackPanel Spacing="16">
+          <TextBlock Text="UI Preferences"
+                     FontSize="{StaticResource FontSizeLarge}"
+                     FontWeight="{StaticResource FontWeightSemiBold}"
+                     Foreground="{StaticResource TextPrimaryBrush}"/>
+
+          <!-- Font Size -->
+          <StackPanel Spacing="8">
+            <TextBlock Text="Build Output Font Size"
+                       FontWeight="{StaticResource FontWeightMedium}"
+                       Foreground="{StaticResource TextPrimaryBrush}"/>
+            <ComboBox ItemsSource="{Binding FontSizeOptions}"
+                      SelectedItem="{Binding SelectedFontSize}"
+                      HorizontalAlignment="Stretch"
+                      ToolTip.Tip="Font size for build output console"/>
+          </StackPanel>
+
+          <!-- UI Options -->
+          <Separator Background="{StaticResource BorderBrush}"/>
+
+          <CheckBox Content="Enable Animations"
+                    IsChecked="{Binding EnableAnimations}"
+                    ToolTip.Tip="Enable smooth transitions and animations"/>
+
+          <CheckBox Content="Auto-Scroll Build Output"
+                    IsChecked="{Binding EnableAutoScroll}"
+                    ToolTip.Tip="Automatically scroll to latest build output"/>
+
+          <CheckBox Content="Enable Syntax Highlighting"
+                    IsChecked="{Binding EnableSyntaxHighlighting}"
+                    ToolTip.Tip="Color-code build output by log level"/>
+        </StackPanel>
+      </Border>
+
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

@@ -6,9 +6,9 @@ namespace GenHub.Core.Constants;
 public static class IoConstants
 {
     /// <summary>
-    /// Default buffer size for file operations (4KB).
+    /// Default buffer size for file operations (64KB).
     /// </summary>
-    public const int DefaultFileBufferSize = 4096;
+    public const int DefaultFileBufferSize = 65536;
 
     /// <summary>
     /// How many times a path may be re-resolved while following symbolic links whose targets are

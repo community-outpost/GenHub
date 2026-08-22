@@ -1,0 +1,307 @@
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Platform.Storage;
+using Avalonia.Threading;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Interfaces.Tools.ModBuilder;
+using GenHub.Features.Tools.ModBuilder.Models;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+
+namespace GenHub.Features.Tools.ModBuilder.ViewModels;
+
+/// <summary>
+/// ViewModel for the Project Dashboard view.
+/// </summary>
+public sealed partial class ProjectDashboardViewModel(
+    IProjectConfigService projectConfigService,
+    INotificationService notificationService,
+    ILogger<ProjectDashboardViewModel> logger) : ObservableObject
+{
+    private readonly IProjectConfigService _projectConfigService = projectConfigService;
+    private readonly INotificationService _notificationService = notificationService;
+    private readonly ILogger<ProjectDashboardViewModel> _logger = logger;
+
+    /// <summary>
+    /// Gets the collection of recent projects.
+    /// </summary>
+    public ObservableCollection<RecentProjectInfo> RecentProjects { get; } = [];
+
+    /// <summary>
+    /// Gets or sets the search query for filtering projects.
+    /// </summary>
+    [ObservableProperty]
+    private string _searchQuery = string.Empty;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether there are recent projects.
+    /// </summary>
+    [ObservableProperty]
+    private bool _hasRecentProjects;
+
+    /// <summary>
+    /// Gets or sets the total number of projects.
+    /// </summary>
+    [ObservableProperty]
+    private int _totalProjects;
+
+    /// <summary>
+    /// Gets or sets the total number of builds.
+    /// </summary>
+    [ObservableProperty]
+    private int _totalBuilds;
+
+    /// <summary>
+    /// Event raised when a project is selected.
+    /// </summary>
+    public event EventHandler<string>? ProjectSelected;
+
+    /// <summary>
+    /// Event raised when a new project is requested.
+    /// </summary>
+    public event EventHandler? NewProjectRequested;
+
+    /// <summary>
+    /// Initializes the dashboard by loading recent projects.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public async Task InitializeAsync()
+    {
+        try
+        {
+            await LoadRecentProjectsAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to initialize project dashboard");
+            _notificationService.ShowError(
+                "Dashboard Error",
+                "Failed to load recent projects. Please try again.");
+        }
+    }
+
+    /// <summary>
+    /// Loads recent projects from the project configuration service.
+    /// </summary>
+    private async Task LoadRecentProjectsAsync()
+    {
+        var recentResult = await _projectConfigService.GetRecentProjectsAsync().ConfigureAwait(false);
+        var projects = new List<RecentProjectInfo>();
+
+        if (recentResult.Success && recentResult.Data != null)
+        {
+            foreach (var path in recentResult.Data)
+            {
+                if (File.Exists(path))
+                {
+                    projects.Add(new RecentProjectInfo
+                    {
+                        Name = Path.GetFileNameWithoutExtension(path),
+                        Path = path,
+                        Version = "1.0.0",
+                        LastBuildTime = File.GetLastWriteTime(path),
+                    });
+                }
+            }
+        }
+
+        void PopulateRecentProjects()
+        {
+            RecentProjects.Clear();
+            foreach (var p in projects)
+            {
+                RecentProjects.Add(p);
+            }
+
+            HasRecentProjects = RecentProjects.Count > 0;
+            TotalProjects = RecentProjects.Count;
+            TotalBuilds = RecentProjects.Count;
+        }
+
+        if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            PopulateRecentProjects();
+        }
+        else
+        {
+            await Dispatcher.UIThread.InvokeAsync(PopulateRecentProjects);
+        }
+    }
+
+    /// <summary>
+    /// Command to create a new project.
+    /// </summary>
+    [RelayCommand]
+    private async Task NewProjectAsync()
+    {
+        try
+        {
+            _logger.LogInformation("NewProjectAsync requested from Dashboard");
+            if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                return;
+            }
+
+            var mainWindow = desktop.MainWindow;
+            if (mainWindow == null)
+            {
+                return;
+            }
+
+            var defaultFolder = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                "ModBuilder");
+            if (!Directory.Exists(defaultFolder))
+            {
+                try
+                {
+                    Directory.CreateDirectory(defaultFolder);
+                }
+                catch
+                {
+                }
+            }
+
+            var suggestedFolder = Directory.Exists(defaultFolder)
+                ? await mainWindow.StorageProvider.TryGetFolderFromPathAsync(defaultFolder).ConfigureAwait(false)
+                : null;
+
+            var file = await mainWindow.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Create New ModBuilder Project",
+                SuggestedFileName = "MyMod.mbproj",
+                SuggestedStartLocation = suggestedFolder,
+                FileTypeChoices =
+                [
+                    new FilePickerFileType("ModBuilder Project")
+                    {
+                        Patterns = ["*.mbproj"]
+                    }
+                ]
+            });
+
+            if (file != null)
+            {
+                var projectPath = file.Path.LocalPath;
+                _logger.LogInformation("Creating new project at: {ProjectPath}", projectPath);
+
+                var projectName = Path.GetFileNameWithoutExtension(projectPath);
+                var result = await _projectConfigService.CreateProjectAsync(
+                    projectPath,
+                    projectName,
+                    cancellationToken: System.Threading.CancellationToken.None).ConfigureAwait(false);
+
+                if (result.Success && result.Data != null)
+                {
+                    await _projectConfigService.AddToRecentProjectsAsync(projectPath).ConfigureAwait(false);
+                    await LoadRecentProjectsAsync().ConfigureAwait(false);
+                    NewProjectRequested?.Invoke(this, EventArgs.Empty);
+                    ProjectSelected?.Invoke(this, projectPath);
+                    _notificationService.ShowSuccess(
+                        "Project Created",
+                        $"New project created at {Path.GetFileName(projectPath)}");
+                }
+                else
+                {
+                    _notificationService.ShowError(
+                        "Project Creation Failed",
+                        result.FirstError ?? "Failed to create project.");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create new project");
+            _notificationService.ShowError(
+                "Project Creation Failed",
+                "Failed to create new project. Please try again.");
+        }
+    }
+
+    /// <summary>
+    /// Command to open an existing project.
+    /// </summary>
+    [RelayCommand]
+    private async Task OpenProjectAsync()
+    {
+        try
+        {
+            _logger.LogInformation("OpenProjectAsync requested from Dashboard");
+            if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                return;
+            }
+
+            var mainWindow = desktop.MainWindow;
+            if (mainWindow == null)
+            {
+                return;
+            }
+
+            var defaultFolder = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                "ModBuilder");
+            var suggestedFolder = Directory.Exists(defaultFolder)
+                ? await mainWindow.StorageProvider.TryGetFolderFromPathAsync(defaultFolder).ConfigureAwait(false)
+                : null;
+
+            var files = await mainWindow.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Open ModBuilder Project",
+                AllowMultiple = false,
+                SuggestedStartLocation = suggestedFolder,
+                FileTypeFilter =
+                [
+                    new FilePickerFileType("ModBuilder Project")
+                    {
+                        Patterns = ["*.mbproj"]
+                    }
+                ]
+            });
+
+            if (files.Count > 0)
+            {
+                var projectPath = files[0].Path.LocalPath;
+                _logger.LogInformation("Opening project: {ProjectPath}", projectPath);
+
+                // Raise event to notify parent that a project should be opened
+                ProjectSelected?.Invoke(this, projectPath);
+
+                _notificationService.ShowSuccess(
+                    "Project Opened",
+                    $"Opened project: {Path.GetFileName(projectPath)}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to open project");
+            _notificationService.ShowError(
+                "Project Open Failed",
+                "Failed to open project. Please try again.");
+        }
+    }
+
+    /// <summary>
+    /// Command to open a specific recent project.
+    /// </summary>
+    /// <param name="projectInfo">The project information.</param>
+    [RelayCommand]
+    private void OpenRecentProject(RecentProjectInfo projectInfo)
+    {
+        if (projectInfo == null)
+        {
+            return;
+        }
+
+        _logger.LogInformation("Opening recent project: {ProjectName}", projectInfo.Name);
+        ProjectSelected?.Invoke(this, projectInfo.Path);
+    }
+}

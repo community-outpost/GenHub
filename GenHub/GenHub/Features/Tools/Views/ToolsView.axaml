@@ -174,11 +174,12 @@
           </Button>
       </controls:SidebarLayout.PaneFooter>
 
-      <!-- Main Content -->
+       <!-- Main Content -->
        <Grid RowDefinitions="Auto,*">
 
-         <!-- Header / Status Area -->
-         <Grid Grid.Row="0" Margin="24,16,24,16" ColumnDefinitions="Auto,*" >
+         <!-- Header / Status Area (Only shown when no tool is selected) -->
+         <Grid Grid.Row="0" Margin="24,16,24,16" ColumnDefinitions="Auto,*"
+               IsVisible="{Binding SelectedTool, Converter={x:Static ObjectConverters.IsNull}}">
            <TextBlock Text="{Binding SelectedTool.Metadata.Name, FallbackValue='GenHub Tools'}" Classes="header" />
 
            <!-- Status Messages -->
@@ -193,7 +194,7 @@
          </Grid>
 
          <!-- Content Area -->
-         <Panel Grid.Row="1" Margin="16,8,16,16">
+         <Panel Grid.Row="1" Margin="0">
             <!-- Empty State -->
             <Grid IsVisible="{Binding SelectedTool, Converter={x:Static ObjectConverters.IsNull}}"
                   HorizontalAlignment="Center"

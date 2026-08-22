@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.CommunityOutpost;
@@ -32,12 +33,46 @@ public static class BigFilePacker
     /// </summary>
     /// <param name="sourceDirectory">The directory containing files to pack.</param>
     /// <param name="destinationPath">The output .big file path.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-    public static async Task PackAsync(string sourceDirectory, string destinationPath)
+    public static Task PackAsync(string sourceDirectory, string destinationPath, CancellationToken cancellationToken = default)
+        => PackAsync(sourceDirectory, destinationPath, null, cancellationToken);
+
+    /// <summary>
+    /// Packs the contents of a directory into a .big file, excluding temporary and target archive files.
+    /// </summary>
+    /// <param name="sourceDirectory">The directory containing files to pack.</param>
+    /// <param name="destinationPath">The output .big file path.</param>
+    /// <param name="targetArchivePath">Optional target archive path to exclude if packing in-place.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    public static async Task PackAsync(string sourceDirectory, string destinationPath, string? targetArchivePath, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var destinationFullPath = Path.GetFullPath(destinationPath);
+        var targetArchiveFullPath = !string.IsNullOrEmpty(targetArchivePath) ? Path.GetFullPath(targetArchivePath) : null;
         var files = Directory.GetFiles(sourceDirectory, "*", SearchOption.AllDirectories)
-            .Where(f => !Path.GetFullPath(f).Equals(destinationFullPath, StringComparison.OrdinalIgnoreCase))
+            .Where(f =>
+            {
+                var full = Path.GetFullPath(f);
+                if (full.Equals(destinationFullPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                if (targetArchiveFullPath != null && full.Equals(targetArchiveFullPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                if (full.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                return true;
+            })
             .Select(f => new
             {
                 FullPath = f,
@@ -53,6 +88,8 @@ public static class BigFilePacker
 
         foreach (var file in files)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var relativePath = file.RelativePath;
 
             // Validate components are ASCII-only
@@ -82,40 +119,70 @@ public static class BigFilePacker
             throw new NotSupportedException($"Generated BIG archive size ({totalSize} bytes) exceeds the 4GB limit supported by the .big format.");
         }
 
-        using var fs = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None);
-        using var writer = new BinaryWriter(fs);
-
-        // Write Header
-        writer.Write(Encoding.ASCII.GetBytes(Signature));
-        WriteUInt32BigEndian(writer, (uint)totalSize);
-        WriteUInt32BigEndian(writer, (uint)entries.Count);
-        WriteUInt32BigEndian(writer, (uint)headerSize);
-
-        // Calculate initial offset
-        long currentOffset = headerSize;
-
-        // Write Index
-        foreach (var entry in entries)
+        var destinationDir = Path.GetDirectoryName(destinationPath);
+        if (!string.IsNullOrEmpty(destinationDir) && !Directory.Exists(destinationDir))
         {
-            WriteUInt32BigEndian(writer, (uint)currentOffset);
-            WriteUInt32BigEndian(writer, (uint)entry.Size);
-            writer.Write(Encoding.ASCII.GetBytes(entry.RelativePath));
-            writer.Write((byte)0); // Null terminator
-
-            currentOffset += entry.Size;
+            Directory.CreateDirectory(destinationDir);
         }
 
-        // Write Data
-        writer.Flush();
-        foreach (var entry in entries)
+        var tempPath = destinationPath + "." + Guid.NewGuid().ToString("N")[..8] + ".tmp";
+
+        try
         {
-            using var fileStream = File.OpenRead(entry.FullPath);
-            if (fileStream.Length != entry.Size)
+            await using (var fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
             {
-                throw new IOException($"File size changed during packing for {entry.RelativePath}. Expected {entry.Size} bytes, found {fileStream.Length} bytes.");
+                using var writer = new BinaryWriter(fs, Encoding.ASCII, leaveOpen: true);
+
+                // Write Header
+                writer.Write(Encoding.ASCII.GetBytes(Signature));
+                WriteUInt32BigEndian(writer, (uint)totalSize);
+                WriteUInt32BigEndian(writer, (uint)entries.Count);
+                WriteUInt32BigEndian(writer, (uint)headerSize);
+
+                // Calculate initial offset
+                long currentOffset = headerSize;
+
+                // Write Index
+                foreach (var entry in entries)
+                {
+                    WriteUInt32BigEndian(writer, (uint)currentOffset);
+                    WriteUInt32BigEndian(writer, (uint)entry.Size);
+                    writer.Write(Encoding.ASCII.GetBytes(entry.RelativePath));
+                    writer.Write((byte)0); // Null terminator
+
+                    currentOffset += entry.Size;
+                }
+
+                // Write Data
+                writer.Flush();
+                foreach (var entry in entries)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    using var fileStream = File.OpenRead(entry.FullPath);
+                    if (fileStream.Length != entry.Size)
+                    {
+                        throw new IOException($"File size changed during packing for {entry.RelativePath}. Expected {entry.Size} bytes, found {fileStream.Length} bytes.");
+                    }
+
+                    await fileStream.CopyToAsync(fs, cancellationToken).ConfigureAwait(false);
+                }
             }
 
-            await fileStream.CopyToAsync(fs);
+            File.Move(tempPath, destinationPath, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+            {
+                try
+                {
+                    File.Delete(tempPath);
+                }
+                catch
+                {
+                    // Ignore cleanup errors
+                }
+            }
         }
     }
 

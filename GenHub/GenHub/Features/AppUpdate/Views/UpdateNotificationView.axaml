@@ -1,6 +1,8 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:GenHub.Features.AppUpdate.ViewModels"
+             xmlns:views="using:GenHub.Features.AppUpdate.Views"
+             xmlns:models="using:GenHub.Core.Models.AppUpdate"
              xmlns:cv="using:GenHub.Infrastructure.Converters"
              x:Class="GenHub.Features.AppUpdate.Views.UpdateNotificationView"
              x:DataType="vm:UpdateNotificationViewModel"
@@ -196,7 +198,7 @@
                                     <ComboBox Grid.Column="0" ItemsSource="{Binding AvailableVersions}" SelectedItem="{Binding SelectedVersion}"
                                               HorizontalAlignment="Stretch" PlaceholderText="{Binding VersionPlaceholderText}">
                                         <ComboBox.ItemTemplate>
-                                            <DataTemplate>
+                                            <DataTemplate x:DataType="models:ArtifactUpdateInfo">
                                                 <StackPanel>
                                                     <TextBlock Text="{Binding DisplayVersion}" FontWeight="Bold"/>
                                                     <TextBlock Text="{Binding CreatedAt, StringFormat='{}{0:g}'}" FontSize="10" Opacity="0.7"/>
@@ -232,7 +234,7 @@
                         <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                             <ItemsControl ItemsSource="{Binding AvailablePullRequests}">
                                 <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
+                                    <DataTemplate x:DataType="models:PullRequestInfo">
                                         <Border Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,6,8">
                                             <Grid ColumnDefinitions="*,Auto">
                                                 <!-- Left side: PR Info (bounded for text trimming) -->
@@ -240,7 +242,7 @@
                                                     <!-- Row 0: PR Number + Title in a 2-column grid so Title trims with ellipsis -->
                                                     <Grid Grid.Row="0" ColumnDefinitions="Auto,*">
                                                         <Button Grid.Column="0"
-                                                                Command="{Binding #Root.((vm:UpdateNotificationViewModel)DataContext).OpenPullRequestUrlCommand}"
+                                                                Command="{Binding $parent[views:UpdateNotificationView].((vm:UpdateNotificationViewModel)DataContext).OpenPullRequestUrlCommand}"
                                                                 CommandParameter="{Binding Number}"
                                                                 Classes="pr-link"
                                                                 Margin="0,0,6,0"
@@ -270,14 +272,14 @@
                                                 <!-- Right side: Subscribe Button -->
                                                 <Button Grid.Column="1"
                                                         VerticalAlignment="Center"
-                                                        Command="{Binding #Root.((vm:UpdateNotificationViewModel)DataContext).SubscribeToPrCommand}"
+                                                        Command="{Binding $parent[views:UpdateNotificationView].((vm:UpdateNotificationViewModel)DataContext).SubscribeToPrCommand}"
                                                         CommandParameter="{Binding Number}"
                                                         Classes="SmallAction SubscribeState">
                                                     <Button.Tag>
                                                         <MultiBinding Converter="{StaticResource IsSubscribedConverter}">
                                                             <Binding Path="." />
-                                                            <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedPr" />
-                                                            <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedBranch" />
+                                                            <Binding Path="$parent[views:UpdateNotificationView].((vm:UpdateNotificationViewModel)DataContext).SubscribedPr" />
+                                                            <Binding Path="$parent[views:UpdateNotificationView].((vm:UpdateNotificationViewModel)DataContext).SubscribedBranch" />
                                                         </MultiBinding>
                                                     </Button.Tag>
                                                 </Button>
@@ -307,7 +309,7 @@
                         <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                             <ItemsControl ItemsSource="{Binding AvailableBranches}">
                                 <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
+                                    <DataTemplate x:DataType="x:String">
                                         <Border Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,6,8">
                                             <Grid ColumnDefinitions="*,Auto">
                                                 <TextBlock Grid.Column="0"
@@ -318,14 +320,14 @@
                                                            Margin="0,0,12,0"/>
                                                 <Button Grid.Column="1"
                                                         VerticalAlignment="Center"
-                                                        Command="{Binding #Root.((vm:UpdateNotificationViewModel)DataContext).SubscribeToBranchCommand}"
+                                                        Command="{Binding $parent[views:UpdateNotificationView].((vm:UpdateNotificationViewModel)DataContext).SubscribeToBranchCommand}"
                                                         CommandParameter="{Binding}"
                                                         Classes="SmallAction SubscribeState">
                                                     <Button.Tag>
                                                         <MultiBinding Converter="{StaticResource IsSubscribedConverter}">
                                                             <Binding Path="." />
-                                                            <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedPr" />
-                                                            <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedBranch" />
+                                                            <Binding Path="$parent[views:UpdateNotificationView].((vm:UpdateNotificationViewModel)DataContext).SubscribedPr" />
+                                                            <Binding Path="$parent[views:UpdateNotificationView].((vm:UpdateNotificationViewModel)DataContext).SubscribedBranch" />
                                                         </MultiBinding>
                                                     </Button.Tag>
                                                 </Button>

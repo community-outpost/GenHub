@@ -1,0 +1,14 @@
+{
+  "BundlePacks": [
+    {
+      "Name": "BasicMod",
+      "Items": [
+        "ModifiedINI",
+        "ModifiedTextures",
+        "ModifiedSounds"
+      ],
+      "OutputFile": ".Release/BasicMod.big",
+      "Description": "Complete BasicMod package with INI, texture, and audio changes"
+    }
+  ]
+}

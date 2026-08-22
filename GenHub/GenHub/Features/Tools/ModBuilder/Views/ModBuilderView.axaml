@@ -1,0 +1,477 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:GenHub.Features.Tools.ModBuilder.ViewModels"
+             xmlns:views="using:GenHub.Features.Tools.ModBuilder.Views"
+             mc:Ignorable="d" d:DesignWidth="1400" d:DesignHeight="900"
+             x:Class="GenHub.Features.Tools.ModBuilder.Views.ModBuilderView"
+             x:DataType="vm:ModBuilderViewModel"
+             x:Name="Root">
+
+  <UserControl.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="../Styles/ModBuilderStyles.axaml"/>
+        <ResourceInclude Source="../Styles/ModBuilderIcons.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </UserControl.Resources>
+
+  <Panel Background="Transparent">
+    <!-- Main Content -->
+    <Grid RowDefinitions="Auto,*" Margin="20">
+
+      <!-- Header: Project Management & Quick Actions -->
+      <Border Grid.Row="0" Background="#201A33" CornerRadius="16" Padding="14,10" Margin="0,0,0,14"
+              BorderBrush="#382E55" BorderThickness="1" BoxShadow="0 8 32 0 #40000000">
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <!-- Project Path -->
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+            <Border Width="34" Height="34" Background="#257C4DFF" BorderBrush="#407C4DFF" BorderThickness="1" CornerRadius="8" VerticalAlignment="Center">
+              <Path Width="16" Height="16" Fill="{StaticResource AccentPrimaryBrush}" Data="{StaticResource IconPackage}" HorizontalAlignment="Center" VerticalAlignment="Center" Stretch="Uniform"/>
+            </Border>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="Current Project" FontSize="11" Foreground="#9A9AA8" FontWeight="SemiBold"/>
+              <TextBlock Text="{Binding ProjectName, FallbackValue='No project loaded'}" FontSize="14" FontWeight="Bold" Foreground="White"/>
+            </StackPanel>
+            <TextBox Text="{Binding CurrentProjectPath}" IsReadOnly="True"
+                     Watermark="No project loaded..." Width="220" MaxWidth="260"
+                     Background="#15FFFFFF" BorderBrush="#20FFFFFF" CornerRadius="8"
+                     Padding="8,5" VerticalAlignment="Center" VerticalContentAlignment="Center"
+                     Foreground="#D0D0D0" FontSize="11" Margin="6,0,0,0"/>
+          </StackPanel>
+
+          <!-- Quick Actions -->
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <Button Command="{Binding NewProjectCommand}" Padding="10,6" CornerRadius="8"
+                    Background="#15FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1"
+                    VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                    ToolTip.Tip="Create a new ModBuilder project">
+              <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Path Width="14" Height="14" Fill="White" Data="{StaticResource IconNewProject}" Stretch="Uniform" VerticalAlignment="Center"/>
+                <TextBlock Text="New" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+            <Button Command="{Binding LoadProjectCommand}" Padding="10,6" CornerRadius="8"
+                    Background="#15FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1"
+                    VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                    ToolTip.Tip="Open an existing project">
+              <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Path Width="14" Height="14" Fill="White" Data="{StaticResource IconOpenFolder}" Stretch="Uniform" VerticalAlignment="Center"/>
+                <TextBlock Text="Open" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+            <Button Command="{Binding LoadSampleProjectCommand}" Padding="10,6" CornerRadius="8"
+                    Background="#507C4DFF" BorderBrush="#707C4DFF" BorderThickness="1"
+                    VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                    ToolTip.Tip="Load the bundled BasicMod sample project">
+              <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Path Width="14" Height="14" Fill="White" Data="{StaticResource IconArchiveFile}" Stretch="Uniform" VerticalAlignment="Center"/>
+                <TextBlock Text="Sample" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+            <Button Command="{Binding OpenFileManagerCommand}" Padding="10,6" CornerRadius="8"
+                    Background="#357C4DFF" BorderBrush="#507C4DFF" BorderThickness="1"
+                    VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                    IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}"
+                    ToolTip.Tip="Open dedicated Game Asset &amp; File Manager">
+              <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Path Width="14" Height="14" Fill="White" Data="{StaticResource IconPackage}" Stretch="Uniform" VerticalAlignment="Center"/>
+                <TextBlock Text="Asset Manager" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+            <Button Command="{Binding SaveProjectCommand}" Padding="10,6" CornerRadius="8"
+                    Background="#15FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1"
+                    VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                    IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}"
+                    ToolTip.Tip="Save current project configuration">
+              <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Path Width="14" Height="14" Fill="White" Data="{StaticResource IconSave}" Stretch="Uniform" VerticalAlignment="Center"/>
+                <TextBlock Text="Save" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+            <Button Command="{Binding CloseProjectCommand}" Padding="10,6" CornerRadius="8"
+                    Background="#15FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1"
+                    VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                    IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}"
+                    ToolTip.Tip="Close project and return to dashboard">
+              <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Path Width="12" Height="12" Fill="White" Data="{StaticResource IconClear}" Stretch="Uniform" VerticalAlignment="Center"/>
+                <TextBlock Text="Close" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <!-- Main Resizable 3-Column Content Area -->
+      <Grid Grid.Row="1">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="320" MinWidth="220" MaxWidth="500"/>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="*" MinWidth="300"/>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="340" MinWidth="240" MaxWidth="550"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Left Panel: Configuration & Actions -->
+        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="0,0,6,0">
+          <StackPanel Spacing="14">
+
+            <!-- Quick Start Guide (Removable with X) -->
+            <Border Background="#25673AB7" BorderBrush="#507C4DFF" BorderThickness="1"
+                    CornerRadius="12" Padding="14" BoxShadow="0 4 20 0 #30673AB7"
+                    IsVisible="{Binding ShowQuickStartGuide}">
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                  <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Path Width="14" Height="14" Fill="{StaticResource AccentPrimaryBrush}" Data="{StaticResource IconPlay}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="Quick Start" FontSize="13" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                  </StackPanel>
+                  <Button Grid.Column="1" Command="{Binding DismissQuickStartGuideCommand}"
+                          Background="#35EF4444" BorderBrush="#80EF4444" BorderThickness="1"
+                          CornerRadius="6" Width="24" Height="24" Padding="0"
+                          HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                          ToolTip.Tip="Dismiss Quick Start Guide" Cursor="Hand" VerticalAlignment="Center">
+                    <Button.Styles>
+                      <Style Selector="Button:pointerover">
+                        <Setter Property="Background" Value="#60EF4444"/>
+                        <Setter Property="BorderBrush" Value="#FFEF4444"/>
+                      </Style>
+                      <Style Selector="Button:pressed">
+                        <Setter Property="Background" Value="#80EF4444"/>
+                      </Style>
+                    </Button.Styles>
+                    <Path Width="10" Height="10" Fill="#FF8080" Data="{StaticResource IconClear}" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  </Button>
+                </Grid>
+                <Separator Background="#25FFFFFF" Height="1"/>
+                <TextBlock TextWrapping="Wrap" Foreground="#DDDDDD" FontSize="12" LineHeight="18">
+                  <Run Text="1." FontWeight="Bold" Foreground="White"/> Copy game assets to GameFilesEdited
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Foreground="#DDDDDD" FontSize="12" LineHeight="18">
+                  <Run Text="2." FontWeight="Bold" Foreground="White"/> Configure bundles in Edit Configuration
+                </TextBlock>
+                <TextBlock TextWrapping="Wrap" Foreground="#DDDDDD" FontSize="12" LineHeight="18">
+                  <Run Text="3." FontWeight="Bold" Foreground="White"/> Click Execute Build to generate packages
+                </TextBlock>
+              </StackPanel>
+            </Border>
+
+            <!-- File Count Card -->
+            <Border Background="#201A33" BorderBrush="#382E55" BorderThickness="1"
+                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #20000000"
+                    IsVisible="{Binding IsProjectLoaded}">
+              <Grid RowDefinitions="Auto,Auto,Auto">
+                <TextBlock Grid.Row="0" Text="Files to Build" FontSize="12" Foreground="#B0B0B0"
+                           HorizontalAlignment="Center"/>
+                <TextBlock Grid.Row="1" Text="{Binding FilesToBuildCount}" FontSize="40" FontWeight="Bold"
+                           Foreground="White" HorizontalAlignment="Center" Margin="0,4"/>
+                <Button Grid.Row="2" Command="{Binding RefreshFileCountCommand}"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                        Padding="10,6" CornerRadius="8"
+                        Background="#15FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1" Foreground="White">
+                  <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Path Width="12" Height="12" Fill="White" Data="{StaticResource IconReload}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="Refresh Count" FontSize="12" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+              </Grid>
+            </Border>
+
+            <!-- Quick Access -->
+            <Border Background="#201A33" BorderBrush="#382E55" BorderThickness="1"
+                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #20000000"
+                    IsVisible="{Binding IsProjectLoaded}">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Quick Access" FontWeight="Bold" FontSize="13" Foreground="White"/>
+                <Separator Background="#25FFFFFF" Height="1"/>
+                <Button Command="{Binding OpenProjectFolderCommand}" HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Left" VerticalContentAlignment="Center" Padding="12,8" CornerRadius="8"
+                        Background="#15FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1">
+                  <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Path Width="14" Height="14" Fill="{StaticResource TextSecondaryBrush}" Data="{StaticResource IconOpenFolder}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="Open Project Folder" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+                <Button Command="{Binding OpenEditFolderCommand}" HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Left" VerticalContentAlignment="Center" Padding="12,8" CornerRadius="8"
+                        Background="#15FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1">
+                  <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Path Width="14" Height="14" Fill="{StaticResource TextSecondaryBrush}" Data="{StaticResource IconEdit}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="Open GameFilesEdited" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+                <Button Command="{Binding OpenFileManagerCommand}" HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Left" VerticalContentAlignment="Center" Padding="12,8" CornerRadius="8"
+                        Background="#307C4DFF" BorderBrush="#507C4DFF" BorderThickness="1">
+                  <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Path Width="14" Height="14" Fill="{StaticResource AccentPrimaryBrush}" Data="{StaticResource IconPackage}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="Game Asset Manager" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+                <Button Command="{Binding OpenConfigEditorCommand}" HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Left" VerticalContentAlignment="Center" Padding="12,8" CornerRadius="8"
+                        Background="#40673AB7" BorderBrush="#607C4DFF" BorderThickness="1">
+                  <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Path Width="14" Height="14" Fill="#D0BFFF" Data="{StaticResource IconSettings}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="Edit Configuration" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+              </StackPanel>
+            </Border>
+
+            <!-- Bundle Packs -->
+            <Border Background="#201A33" BorderBrush="#382E55" BorderThickness="1"
+                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #20000000">
+              <StackPanel Spacing="10">
+                <TextBlock Text="Bundle Packs" FontWeight="Bold" FontSize="13" Foreground="White"/>
+                <Separator Background="#25FFFFFF" Height="1"/>
+                <Border Background="#10FFFFFF" CornerRadius="8" Padding="10" MinHeight="90">
+                  <ScrollViewer MaxHeight="160" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding BundlePacks}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:BundleItemViewModel">
+                          <CheckBox Content="{Binding Name}" IsChecked="{Binding IsSelected}"
+                                    Margin="0,4" Foreground="White"/>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </ScrollViewer>
+                </Border>
+              </StackPanel>
+            </Border>
+
+            <!-- Build Actions -->
+            <Border Background="#201A33" BorderBrush="#382E55" BorderThickness="1"
+                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #20000000">
+              <StackPanel Spacing="10" IsEnabled="{Binding !IsBuilding}">
+                <TextBlock Text="Build Actions" FontWeight="Bold" FontSize="13" Foreground="White"/>
+                <Separator Background="#25FFFFFF" Height="1"/>
+                <Border Background="#10FFFFFF" CornerRadius="8" Padding="10">
+                  <StackPanel Spacing="6">
+                    <CheckBox Content="Clean" IsChecked="{Binding CleanEnabled}" Foreground="White" ToolTip.Tip="Deletes temporary build and output artifacts before building"/>
+                    <CheckBox Content="Build" IsChecked="{Binding BuildEnabled}" Foreground="White" ToolTip.Tip="Compiles and packages edited assets into .big bundles"/>
+                    <CheckBox Content="Release" IsChecked="{Binding ReleaseEnabled}" Foreground="White" ToolTip.Tip="Generates distributable release archive packages"/>
+                    <CheckBox Content="Uninstall" IsChecked="{Binding UninstallEnabled}" Foreground="White" ToolTip.Tip="Removes previously installed mod files from the game directory"/>
+                    <CheckBox Content="Install" IsChecked="{Binding InstallEnabled}" Foreground="White" ToolTip.Tip="Copies newly built mod files into the target game directory"/>
+                    <CheckBox Content="Run Game" IsChecked="{Binding RunGameEnabled}" Foreground="White" ToolTip.Tip="Launches the game executable with configured arguments"/>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+            </Border>
+
+            <!-- Build Options -->
+            <Border Background="#201A33" BorderBrush="#382E55" BorderThickness="1"
+                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #20000000">
+              <StackPanel Spacing="10">
+                <TextBlock Text="Build Options" FontWeight="Bold" FontSize="13" Foreground="White"/>
+                <Separator Background="#25FFFFFF" Height="1"/>
+                <Border Background="#10FFFFFF" CornerRadius="8" Padding="10">
+                  <StackPanel Spacing="6">
+                    <CheckBox Content="Verbose Logging" IsChecked="{Binding VerboseLogging}" Foreground="White"/>
+                    <CheckBox Content="Multi-Processing" IsChecked="{Binding MultiProcessing}" Foreground="White"/>
+                    <CheckBox Content="Print Config" IsChecked="{Binding PrintConfig}" Foreground="White"/>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+            </Border>
+
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- Left Column Splitter -->
+        <GridSplitter Grid.Column="1" Width="8" Background="Transparent" ResizeDirection="Columns" Cursor="SizeWestEast"/>
+
+        <!-- Center: Build Output Terminal (Streaming Live) -->
+        <Border Grid.Column="2" Background="#1A1428" BorderBrush="#382E55" BorderThickness="1"
+                CornerRadius="16" Padding="16" BoxShadow="0 8 32 0 #40000000" Margin="4,0">
+          <Grid RowDefinitions="Auto,*">
+            <!-- Console Header -->
+            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+              <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Path Width="16" Height="16" Fill="{StaticResource AccentPrimaryBrush}" Data="{StaticResource IconTextFile}" Stretch="Uniform" VerticalAlignment="Center"/>
+                <TextBlock Text="Build Output" FontWeight="Bold" FontSize="14" Foreground="White" VerticalAlignment="Center"/>
+              </StackPanel>
+              <Button Grid.Column="1" Content="Clear Output" Command="{Binding ClearOutputCommand}"
+                      Padding="10,5" CornerRadius="8" Background="#15FFFFFF" Foreground="White"
+                      BorderBrush="#20FFFFFF" BorderThickness="1" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+            </Grid>
+
+            <!-- Live Streaming Console Output -->
+            <Border Grid.Row="1" Background="#0E0B1A" BorderBrush="#20FFFFFF" BorderThickness="1"
+                    CornerRadius="12" ClipToBounds="True">
+              <ScrollViewer Name="BuildOutputScroller" VerticalScrollBarVisibility="Auto"
+                            HorizontalScrollBarVisibility="Auto">
+                <TextBox Text="{Binding BuildOutput}" IsReadOnly="True" TextWrapping="NoWrap"
+                         BorderThickness="0" Background="Transparent"
+                         FontFamily="Consolas,JetBrains Mono,Courier New,monospace" FontSize="12"
+                         Foreground="#E8E8E8" Padding="14" AcceptsReturn="True"/>
+              </ScrollViewer>
+            </Border>
+          </Grid>
+        </Border>
+
+        <!-- Right Column Splitter -->
+        <GridSplitter Grid.Column="3" Width="8" Background="Transparent" ResizeDirection="Columns" Cursor="SizeWestEast"/>
+
+        <!-- Right Panel: Build Control & Status -->
+        <ScrollViewer Grid.Column="4" VerticalScrollBarVisibility="Auto" Margin="6,0,0,0">
+          <StackPanel Spacing="14">
+
+            <!-- Build Status Card -->
+            <Border Background="#201A33" BorderBrush="#382E55" BorderThickness="1"
+                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #20000000">
+              <StackPanel Spacing="12">
+                <TextBlock Text="Build Status" FontWeight="Bold" FontSize="14" Foreground="White"/>
+                <Separator Background="#25FFFFFF" Height="1"/>
+
+                <Border Background="#10FFFFFF" CornerRadius="8" Padding="14">
+                  <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="Auto,*">
+                      <TextBlock Grid.Column="0" Text="Status:" Foreground="#9A9AA8" Width="70"/>
+                      <TextBlock Grid.Column="1" Text="{Binding BuildStatus, FallbackValue='Ready'}"
+                                 FontWeight="SemiBold" Foreground="White"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                      <TextBlock Grid.Column="0" Text="Stage:" Foreground="#9A9AA8" Width="70"/>
+                      <TextBlock Grid.Column="1" Text="{Binding CurrentStage, FallbackValue='Idle'}"
+                                 FontWeight="SemiBold" Foreground="White"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                      <TextBlock Grid.Column="0" Text="File:" Foreground="#9A9AA8" Width="70"/>
+                      <TextBlock Grid.Column="1" Text="{Binding CurrentFile, FallbackValue='—'}"
+                                 TextTrimming="CharacterEllipsis" Foreground="White"
+                                 ToolTip.Tip="{Binding CurrentFile}"/>
+                    </Grid>
+
+                    <Separator Background="#20FFFFFF" Height="1" Margin="0,4"/>
+
+                    <Grid ColumnDefinitions="Auto,*">
+                      <TextBlock Grid.Column="0" Text="Progress:" Foreground="#9A9AA8" Width="70"/>
+                      <TextBlock Grid.Column="1" Text="{Binding ProgressText, FallbackValue='0%'}"
+                                 FontWeight="SemiBold" Foreground="White"/>
+                    </Grid>
+
+                    <ProgressBar Value="{Binding PercentComplete}" Minimum="0" Maximum="100"
+                                 Height="8" CornerRadius="4" Background="#20FFFFFF">
+                      <ProgressBar.Foreground>
+                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
+                          <GradientStop Color="#7C4DFF" Offset="0"/>
+                          <GradientStop Color="#673AB7" Offset="1"/>
+                        </LinearGradientBrush>
+                      </ProgressBar.Foreground>
+                    </ProgressBar>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+            </Border>
+
+            <!-- Project Info Card -->
+            <Border Background="#201A33" BorderBrush="#382E55" BorderThickness="1"
+                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #20000000"
+                    IsVisible="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}">
+              <StackPanel Spacing="12">
+                <TextBlock Text="Project Info" FontWeight="Bold" FontSize="14" Foreground="White"/>
+                <Separator Background="#25FFFFFF" Height="1"/>
+
+                <Border Background="#10FFFFFF" CornerRadius="8" Padding="14">
+                  <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="Auto,*">
+                      <TextBlock Grid.Column="0" Text="Name:" Foreground="#9A9AA8" Width="65"/>
+                      <TextBlock Grid.Column="1" Text="{Binding CurrentProject.Name, FallbackValue='—'}"
+                                 FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                      <TextBlock Grid.Column="0" Text="Version:" Foreground="#9A9AA8" Width="65"/>
+                      <TextBlock Grid.Column="1" Text="{Binding CurrentProject.Version, FallbackValue='—'}"
+                                 Foreground="White"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                      <TextBlock Grid.Column="0" Text="Author:" Foreground="#9A9AA8" Width="65"/>
+                      <TextBlock Grid.Column="1" Text="{Binding CurrentProject.Author, FallbackValue='—'}"
+                                 Foreground="White" TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                      <TextBlock Grid.Column="0" Text="Packs:" Foreground="#9A9AA8" Width="65"/>
+                      <TextBlock Grid.Column="1" Text="{Binding BundlePacks.Count, FallbackValue='0'}"
+                                 Foreground="White"/>
+                    </Grid>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+            </Border>
+
+            <!-- Build Control Buttons -->
+            <Border Background="#201A33" BorderBrush="#382E55" BorderThickness="1"
+                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #20000000">
+              <StackPanel Spacing="10">
+                <!-- Execute Build Button -->
+                <Button Command="{Binding BuildCommand}" HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                        Padding="0,14" CornerRadius="12">
+                  <Button.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                      <GradientStop Color="#7C4DFF" Offset="0"/>
+                      <GradientStop Color="#5E35B1" Offset="1"/>
+                    </LinearGradientBrush>
+                  </Button.Background>
+                  <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Path Width="16" Height="16" Fill="White" Data="{StaticResource IconPlay}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="Execute Build" FontWeight="Bold" FontSize="14" Foreground="White" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+
+                <!-- Abort Build Button -->
+                <Button Command="{Binding AbortBuildCommand}" HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                        Padding="0,10" CornerRadius="10"
+                        IsEnabled="{Binding IsBuilding}">
+                  <Button.Background>
+                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
+                      <GradientStop Color="#E53935" Offset="0"/>
+                      <GradientStop Color="#C62828" Offset="1"/>
+                    </LinearGradientBrush>
+                  </Button.Background>
+                  <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Path Width="14" Height="14" Fill="White" Data="{StaticResource IconStop}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="Abort Build" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+
+                <Separator Background="#25FFFFFF" Height="1" Margin="0,4"/>
+
+                <!-- Dedicated Folder Buttons -->
+                <Button Command="{Binding OpenBuildFolderCommand}"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                        Padding="0,10" CornerRadius="8"
+                        Background="#15FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1" Foreground="White"
+                        IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}">
+                  <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Path Width="14" Height="14" Fill="{StaticResource TextSecondaryBrush}" Data="{StaticResource IconOpenFolder}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="Open Build Folder" Foreground="White" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+
+                <Button Command="{Binding OpenReleaseFolderCommand}"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                        Padding="0,10" CornerRadius="8"
+                        Background="#15FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1" Foreground="White"
+                        IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}">
+                  <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Path Width="14" Height="14" Fill="{StaticResource TextSecondaryBrush}" Data="{StaticResource IconOpenFolder}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="Open Release Folder" Foreground="White" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+              </StackPanel>
+            </Border>
+
+          </StackPanel>
+        </ScrollViewer>
+
+      </Grid>
+
+    </Grid>
+  </Panel>
+</UserControl>

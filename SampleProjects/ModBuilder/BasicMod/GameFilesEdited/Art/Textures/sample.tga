@@ -1,0 +1,19 @@
+This is a placeholder TGA file.
+
+In a real project, this would be an actual TGA texture file copied from the game
+and modified in an image editor like Photoshop, GIMP, or Paint.NET.
+
+For example:
+1. Copy TXTankUSA.tga from game's Art/Textures/ folder
+2. Open in image editor
+3. Change colors (e.g., make it red)
+4. Save as TGA format
+5. Place here in GameFilesEdited/Art/Textures/
+
+The ModBuilder will automatically convert this TGA to DDS format with DXT5
+compression and include it in the BasicMod.big archive.
+
+To use this sample:
+- Replace this file with an actual TGA texture from the game
+- Or use any 64x64 or larger TGA image for testing
+- The build process will handle the conversion automatically

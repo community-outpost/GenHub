@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Text.Json;
 using GenHub.Core.Constants;
@@ -36,7 +37,6 @@ public static class LoggingModule
         services.AddLogging(builder =>
         {
             builder.ClearProviders();
-            builder.AddConsole();
             builder.AddDebug();
 
             var logger = new LoggerConfiguration()
@@ -73,7 +73,6 @@ public static class LoggingModule
 
         return LoggerFactory.Create(builder =>
         {
-            builder.AddConsole();
             builder.AddDebug();
 
             var logger = new LoggerConfiguration()
@@ -127,7 +126,7 @@ public static class LoggingModule
             DirectoryNames.Logs);
 
         Directory.CreateDirectory(logDir);
-        var timestamp = DateTime.Now.ToString("yyyy-MM-dd");
+        var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         return Path.Combine(logDir, $"{AppConstants.AppName.ToLowerInvariant()}-{timestamp}.log");
     }
 

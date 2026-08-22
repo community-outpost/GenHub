@@ -15,6 +15,12 @@
             <local:EqualityConverter x:Key="EqualityConverter" />
             <local:BoolToExpandIconConverter x:Key="BoolToExpandIconConverter" />
             <local:BoolToExpandTextConverter x:Key="BoolToExpandTextConverter" />
+            <local:FileIconConverter x:Key="FileIconConverter" />
+            <local:ActiveBorderConverter x:Key="ActiveBorderConverter" />
+            <local:IndentConverter x:Key="IndentConverter" />
+            <local:BoolToColorConverter x:Key="BoolToColorConverter" />
+            <local:BoolToTextConverter x:Key="BoolToTextConverter" />
+            <local:BoolToTextConverter x:Key="BoolToStringConverter" />
         </ResourceDictionary>
     </Application.Resources>
 
