@@ -871,8 +871,8 @@ public class UserDataTrackerService(
         {
             var backupPath = file.BackupPath;
             RestoreBackupCopy(backupPath, file.AbsolutePath);
-        file.BackupPath = null;
-        file.WasOverwritten = false;
+            file.BackupPath = null;
+            file.WasOverwritten = false;
 
             DeleteConsumedBackup(backupPath, logger);
         }
@@ -1435,11 +1435,14 @@ public class UserDataTrackerService(
                     // Delete-then-copy rather than File.Move: backups live under the application data
                     // tree while the deployed path is under Documents, which is routinely redirected
                     // to another drive or to OneDrive, and File.Move cannot cross a volume boundary.
-                    if (file.BackupPath is not null) RestoreBackupCopy(file.BackupPath, file.AbsolutePath);
-                    backupRestored = true;
-                    logger.LogInformation("[UserData] Restored backup: {Backup} -> {Path}", file.BackupPath, file.AbsolutePath);
+                    if (file.BackupPath is not null)
+                    {
+                        RestoreBackupCopy(file.BackupPath, file.AbsolutePath);
+                        backupRestored = true;
+                        logger.LogInformation("[UserData] Restored backup: {Backup} -> {Path}", file.BackupPath, file.AbsolutePath);
 
-                    DeleteConsumedBackup(file.BackupPath, logger);
+                        DeleteConsumedBackup(file.BackupPath, logger);
+                    }
                 }
             }
             catch (OperationCanceledException)
