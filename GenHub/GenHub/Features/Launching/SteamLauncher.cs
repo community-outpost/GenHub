@@ -664,7 +664,7 @@ public class SteamLauncher : ISteamLauncher
             await writer(stagingPath, contents, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             EnsureCapturedFileIsUnchanged(path);
-            var preparedContents = File.ReadAllBytes(stagingPath);
+            var preparedContents = await File.ReadAllBytesAsync(stagingPath, cancellationToken);
             File.Move(stagingPath, path, overwrite: true);
             _preparedFiles[path] = preparedContents;
             TrackMutation(path);

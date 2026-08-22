@@ -1,3 +1,10 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -17,12 +24,6 @@ using GenHub.Core.Models.Tools.MapManager;
 using GenHub.Features.Tools.ViewModels;
 using GenHub.Infrastructure.Imaging;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.MapManager.ViewModels;
 
@@ -553,7 +554,12 @@ public partial class MapManagerViewModel : ObservableObject
                 // Reveal in Explorer
                 try
                 {
-                    System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{result}\"");
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = PlatformConstants.WindowsExplorerPath,
+                        Arguments = string.Format(PlatformConstants.WindowsExplorerSelectArgument, result),
+                        UseShellExecute = true,
+                    });
                 }
                 catch
                 {

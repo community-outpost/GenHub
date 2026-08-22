@@ -296,7 +296,7 @@ public partial class MainViewModel(
                 if (result.DoNotAskAgain)
                 {
                     userSettingsService.Update(s => s.HasSeenQuickStart = true);
-                    _ = userSettingsService.SaveAsync();
+                    _ = userSettingsService.SaveAsync(_initializationCts.Token);
                 }
             });
         }
@@ -311,7 +311,7 @@ public partial class MainViewModel(
                 settings.LastSelectedTab = selectedTab;
             });
 
-            _ = userSettingsService.SaveAsync();
+            _ = userSettingsService.SaveAsync(CancellationToken.None);
             logger?.LogDebug("Updated last selected tab to: {Tab}", selectedTab);
         }
         catch (Exception ex)

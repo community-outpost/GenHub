@@ -17,10 +17,8 @@ namespace GenHub.Features.Info.ViewModels;
 /// <summary>
 /// ViewModel for the FAQ section.
 /// </summary>
-public partial class FaqSectionViewModel(IFaqService faqService, ILogger<FaqSectionViewModel> logger) : ObservableObject, IInfoSectionViewModel
+public partial class FaqSectionViewModel(IFaqService faqService, ILogger<FaqSectionViewModel> logger) : ObservableObject, IInfoSectionViewModel, IDisposable
 {
-    private readonly IFaqService _faqService = faqService;
-    private readonly ILogger<FaqSectionViewModel> _logger = logger;
     private CancellationTokenSource? _loadCts;
 
     [ObservableProperty]
@@ -65,17 +63,19 @@ public partial class FaqSectionViewModel(IFaqService faqService, ILogger<FaqSect
     [ObservableProperty]
     private FaqCategoryViewModel? _selectedCategory;
 
-    /// <summary>
-    /// Initializes static members of the <see cref="FaqSectionViewModel"/> class.
-    /// </summary>
-    static FaqSectionViewModel()
-    {
-    }
-
     /// <inheritdoc/>
     public async Task InitializeAsync()
     {
         await LoadFaqAsync();
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        _loadCts?.Cancel();
+        _loadCts?.Dispose();
+        _loadCts = null;
+        GC.SuppressFinalize(this);
     }
 
     [RelayCommand]
@@ -95,7 +95,12 @@ public partial class FaqSectionViewModel(IFaqService faqService, ILogger<FaqSect
     [RelayCommand]
     private async Task LoadFaqAsync()
     {
-        _loadCts?.Cancel();
+        if (_loadCts != null)
+        {
+            await _loadCts.CancelAsync();
+            _loadCts.Dispose();
+        }
+
         _loadCts = new CancellationTokenSource();
         var token = _loadCts.Token;
 
@@ -104,7 +109,7 @@ public partial class FaqSectionViewModel(IFaqService faqService, ILogger<FaqSect
 
         try
         {
-            var result = await _faqService.GetFaqAsync(SelectedLanguageOption.Code, token);
+            var result = await faqService.GetFaqAsync(SelectedLanguageOption.Code, token);
             if (result.Success)
             {
                 await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(
@@ -132,7 +137,7 @@ public partial class FaqSectionViewModel(IFaqService faqService, ILogger<FaqSect
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error loading FAQ");
+            logger.LogError(ex, "Error loading FAQ");
             StatusMessage = "An unexpected error occurred.";
         }
         finally

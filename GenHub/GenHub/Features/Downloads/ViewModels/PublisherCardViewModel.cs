@@ -716,7 +716,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
                     var installedVersion = result.Data.Version;
                     var publisherType = result.Data.Publisher?.PublisherType;
 
-                    var allManifests = await _manifestPool.GetAllManifestsAsync();
+                    var allManifests = await _manifestPool.GetAllManifestsAsync(_cts.Token);
                     if (allManifests.Success && allManifests.Data != null)
                     {
                         // Find all GameClient manifests with matching version and publisher
@@ -733,7 +733,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
 
                         foreach (var m in justInstalledGameClients)
                         {
-                            var profileResult = await _profileService.CreateProfileFromManifestAsync(m);
+                            var profileResult = await _profileService.CreateProfileFromManifestAsync(m, _cts.Token);
                             if (profileResult.Success)
                             {
                                 _logger.LogInformation(

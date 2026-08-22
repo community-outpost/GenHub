@@ -360,9 +360,12 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     private async Task LoadArtifactsForSubscribedItemAsync()
     {
         // cancel any previous in-flight load
-        _loadArtifactsCts?.Cancel();
-        _loadArtifactsCts?.Dispose();
-        _loadArtifactsCts = null;
+        if (_loadArtifactsCts != null)
+        {
+            await _loadArtifactsCts.CancelAsync();
+            _loadArtifactsCts.Dispose();
+            _loadArtifactsCts = null;
+        }
 
         var targetPr = SubscribedPr;
         var targetPrNumber = targetPr?.Number ?? _velopackUpdateManager.SubscribedPrNumber;
@@ -901,7 +904,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         if (!string.IsNullOrEmpty(settings.DismissedUpdateVersion))
         {
             _userSettingsService.Update(s => s.DismissedUpdateVersion = string.Empty);
-            await _userSettingsService.SaveAsync();
+            await _userSettingsService.SaveAsync(_cancellationTokenSource.Token);
         }
 
         // clear manager cache
@@ -1294,7 +1297,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         if (!string.IsNullOrEmpty(LatestVersion))
         {
             _userSettingsService.Update(s => s.DismissedUpdateVersion = LatestVersion);
-            _ = _userSettingsService.SaveAsync();
+            _ = _userSettingsService.SaveAsync(_cancellationTokenSource.Token);
             _logger.LogInformation("Dismissed update version {Version}", LatestVersion);
         }
 
@@ -1504,7 +1507,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             settings.SubscribedPrNumber = prNumber;
             settings.SubscribedBranch = null;
         });
-        _ = _userSettingsService.SaveAsync();
+        _ = _userSettingsService.SaveAsync(_cancellationTokenSource.Token);
 
         StatusMessage = $"Subscribed to PR #{prNumber}: {SubscribedPr.Title}";
         _logger.LogInformation("Subscribed to PR #{PrNumber}", prNumber);
@@ -1535,7 +1538,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             settings.SubscribedBranch = branchName;
             settings.SubscribedPrNumber = null;
         });
-        _ = _userSettingsService.SaveAsync();
+        _ = _userSettingsService.SaveAsync(_cancellationTokenSource.Token);
 
         StatusMessage = $"Subscribed to branch: {branchName}";
         _logger.LogInformation("Subscribed to branch '{Branch}'", branchName);
@@ -1579,7 +1582,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             settings.SubscribedPrNumber = null;
             settings.SubscribedBranch = null;
         });
-        _ = _userSettingsService.SaveAsync();
+        _ = _userSettingsService.SaveAsync(_cancellationTokenSource.Token);
 
         _logger.LogInformation("Unsubscribed from dev builds, switched to MAIN");
         _ = CheckForUpdatesAsync();

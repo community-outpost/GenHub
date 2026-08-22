@@ -118,7 +118,7 @@ public sealed class ReplayDirectoryService(ILogger<ReplayDirectoryService> logge
         {
             Process.Start(new ProcessStartInfo
             {
-                FileName = PlatformConstants.WindowsExplorerExecutable,
+                FileName = PlatformConstants.WindowsExplorerPath,
                 Arguments = path,
                 UseShellExecute = true,
             });
@@ -132,7 +132,7 @@ public sealed class ReplayDirectoryService(ILogger<ReplayDirectoryService> logge
         {
             Process.Start(new ProcessStartInfo
             {
-                FileName = PlatformConstants.WindowsExplorerExecutable,
+                FileName = PlatformConstants.WindowsExplorerPath,
                 Arguments = string.Format(PlatformConstants.WindowsExplorerSelectArgument, replay.FullPath),
                 UseShellExecute = true,
             });
