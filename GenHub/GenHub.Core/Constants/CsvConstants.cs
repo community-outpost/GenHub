@@ -63,5 +63,5 @@ public static class CsvConstants
     /// <summary>
     /// Special language filter value to include all languages.
     /// </summary>
-    public const string AllLanguagesFilter = "All";
+    public const string AllLanguagesFilter = "ALL";
 }
