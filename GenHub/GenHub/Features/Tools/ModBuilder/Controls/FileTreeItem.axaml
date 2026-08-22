@@ -70,7 +70,7 @@
               Background="{Binding FileTypeColor}"
               CornerRadius="4">
         <Path Width="14" Height="14"
-              Fill="White"
+              Fill="{DynamicResource TextPrimary}"
               Data="{Binding FileTypeIcon}"
               HorizontalAlignment="Center"
               VerticalAlignment="Center"
