@@ -278,7 +278,7 @@ public sealed class UploadHistoryService(
         {
             try
             {
-                var deleted = await uploadThingService.DeleteFileAsync(record.FileKey!, record.DeleteToken!);
+                var deleted = await uploadThingService.DeleteFileAsync(record.FileKey, record.DeleteToken);
                 if (!deleted)
                 {
                     logger.LogWarning(
