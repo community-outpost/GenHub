@@ -38,6 +38,7 @@ public class GenericCatalogDiscoverer(
     IGitHubApiClient gitHubClient) : IContentDiscoverer
 {
     private const string GeneralsGameSegment = "generals";
+    private const string ZeroHourGameSegment = "zerohour";
     private static readonly ConcurrentDictionary<string, (GitHubRelease Release, DateTime CachedAt)> ReleaseCache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, Task<GitHubRelease?>> PendingReleaseFetches = new(StringComparer.OrdinalIgnoreCase);
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(30);
@@ -506,7 +507,7 @@ public class GenericCatalogDiscoverer(
                         new CatalogDependency
                         {
                             PublisherId = "ea",
-                            ContentId = item.TargetGame == GameType.Generals ? GeneralsGameSegment : "zerohour",
+                            ContentId = item.TargetGame == GameType.Generals ? GeneralsGameSegment : ZeroHourGameSegment,
                             VersionConstraint = item.TargetGame == GameType.Generals ? "1.08" : "1.04",
                             ContentType = ContentType.GameInstallation.ToString(),
                             IsOptional = false,
@@ -828,7 +829,7 @@ public class GenericCatalogDiscoverer(
                     return new CatalogDependency
                     {
                         PublisherId = dep.PublisherId ?? "ea",
-                        ContentId = siblingTargetGame == GameType.Generals ? GeneralsGameSegment : "zerohour",
+                        ContentId = siblingTargetGame == GameType.Generals ? GeneralsGameSegment : ZeroHourGameSegment,
                         VersionConstraint = siblingTargetGame == GameType.Generals ? "1.08" : "1.04",
                         ContentType = ContentType.GameInstallation.ToString(),
                         IsOptional = dep.IsOptional,
