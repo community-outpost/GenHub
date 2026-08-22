@@ -96,7 +96,7 @@ public partial class GenPatcherViewModel(
     /// <summary>
     /// Gets a value indicating whether the user can change the target installation (not busy).
     /// </summary>
-    public bool CanChangeInstallation => !IsBatchApplying && ActionSets.All(x => !x.IsApplying);
+    public bool CanChangeInstallation => !isBatchApplying && actionSets.All(x => !x.IsApplying);
 
     /// <summary>
     /// Initializes the ViewModel asynchronously.
@@ -173,7 +173,7 @@ public partial class GenPatcherViewModel(
         return 2;
     }
 
-    private bool CanExecuteCancelBatchApply() => IsBatchApplying;
+    private bool CanExecuteCancelBatchApply() => isBatchApplying;
 
     /// <summary>
     /// Cancels the ongoing batch fix application if running.
@@ -299,43 +299,13 @@ public partial class GenPatcherViewModel(
                 installation.InstallationPath,
                 version);
 
-            var fixes = orchestrator.GetAllActionSets();
-            logger.LogInformation("Loading {Count} action sets...", fixes.Count);
-
-            // Parallelize status checks to prevent UI blocking
-            var tasks = fixes.Select(fix => Task.Run(
-                async () =>
-                {
-                    ct.ThrowIfCancellationRequested();
-                    var vm = new ActionSetViewModel(
-                        fix,
-                        installation,
-                        notificationService,
-                        logger,
-                        () => Avalonia.Threading.Dispatcher.UIThread.Post(SortActionSets),
-                        () => Avalonia.Threading.Dispatcher.UIThread.Post(NotifyExecutionStateChanged),
-                        () => IsBatchApplying || ActionSets.Any(x => !string.Equals(x.ActionSet.Id, fix.Id, StringComparison.OrdinalIgnoreCase) && x.IsApplying))
-                    {
-                        IsBatchApplying = IsBatchApplying,
-                    };
-                    await vm.CheckStatusAsync(ct);
-                    return vm;
-                },
-                ct)).ToList();
-
-            var loadedVms = await Task.WhenAll(tasks);
+            var sortedVms = await LoadAndSortActionSetViewModelsAsync(installation, ct);
 
             if (ct.IsCancellationRequested || version != _refreshVersion || SelectedInstallation != installation)
             {
                 logger.LogDebug("Refresh version {Version} was superseded or cancelled", version);
                 return;
             }
-
-            var sortedVms = loadedVms
-                .OrderBy(GetSortPriority)
-                .ThenByDescending(vm => vm.IsCore)
-                .ThenBy(vm => vm.Title, StringComparer.OrdinalIgnoreCase)
-                .ToList();
 
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
@@ -367,24 +337,7 @@ public partial class GenPatcherViewModel(
                 return;
             }
 
-            var applicableCount = ActionSets.Count(x => x.IsApplicable);
-            var appliedAndApplicableCount = ActionSets.Count(x => x.IsApplicable && x.IsApplied);
-            var totalAppliedCount = ActionSets.Count(x => x.IsApplied);
-            var notApplicableCount = ActionSets.Count(x => !x.IsApplicable);
-            var coreCount = ActionSets.Count(x => x.IsCore);
-
-            logger.LogInformation(
-                "Load complete - Total: {Total}, Core: {Core}, Applicable: {Applicable}, Applied (Total): {AppliedTotal}, Applied (Applicable): {AppliedApplicable}, NotApplicable: {NotApplicable}",
-                ActionSets.Count,
-                coreCount,
-                applicableCount,
-                totalAppliedCount,
-                appliedAndApplicableCount,
-                notApplicableCount);
-
-            notificationService.ShowSuccess(
-                "GenPatcher Loaded",
-                $"Successfully loaded {ActionSets.Count} fixes for {installation.InstallationType}.\nApplied: {appliedAndApplicableCount} / {applicableCount} applicable fixes.");
+            LogRefreshCompletionSummary(installation);
         }
         catch (OperationCanceledException ex)
         {
@@ -406,7 +359,64 @@ public partial class GenPatcherViewModel(
         }
     }
 
-    private bool CanExecuteApplyAllFixes() => !IsBatchApplying && SelectedInstallation != null && ActionSets.All(x => !x.IsApplying);
+    private async Task<List<ActionSetViewModel>> LoadAndSortActionSetViewModelsAsync(GameInstallation installation, CancellationToken ct)
+    {
+        var fixes = orchestrator.GetAllActionSets();
+        logger.LogInformation("Loading {Count} action sets...", fixes.Count);
+
+        // Parallelize status checks to prevent UI blocking
+        var tasks = fixes.Select(fix => Task.Run(
+            async () =>
+            {
+                ct.ThrowIfCancellationRequested();
+                var vm = new ActionSetViewModel(
+                    fix,
+                    installation,
+                    notificationService,
+                    logger,
+                    () => Avalonia.Threading.Dispatcher.UIThread.Post(SortActionSets),
+                    () => Avalonia.Threading.Dispatcher.UIThread.Post(NotifyExecutionStateChanged),
+                    () => IsBatchApplying || ActionSets.Any(x => !string.Equals(x.ActionSet.Id, fix.Id, StringComparison.OrdinalIgnoreCase) && x.IsApplying))
+                {
+                    IsBatchApplying = IsBatchApplying,
+                };
+                await vm.CheckStatusAsync(ct);
+                return vm;
+            },
+            ct)).ToList();
+
+        var loadedVms = await Task.WhenAll(tasks);
+
+        return loadedVms
+            .OrderBy(GetSortPriority)
+            .ThenByDescending(vm => vm.IsCore)
+            .ThenBy(vm => vm.Title, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private void LogRefreshCompletionSummary(GameInstallation installation)
+    {
+        var applicableCount = ActionSets.Count(x => x.IsApplicable);
+        var appliedAndApplicableCount = ActionSets.Count(x => x.IsApplicable && x.IsApplied);
+        var totalAppliedCount = ActionSets.Count(x => x.IsApplied);
+        var notApplicableCount = ActionSets.Count(x => !x.IsApplicable);
+        var coreCount = ActionSets.Count(x => x.IsCore);
+
+        logger.LogInformation(
+            "Load complete - Total: {Total}, Core: {Core}, Applicable: {Applicable}, Applied (Total): {AppliedTotal}, Applied (Applicable): {AppliedApplicable}, NotApplicable: {NotApplicable}",
+            ActionSets.Count,
+            coreCount,
+            applicableCount,
+            totalAppliedCount,
+            appliedAndApplicableCount,
+            notApplicableCount);
+
+        notificationService.ShowSuccess(
+            "GenPatcher Loaded",
+            $"Successfully loaded {ActionSets.Count} fixes for {installation.InstallationType}.\nApplied: {appliedAndApplicableCount} / {applicableCount} applicable fixes.");
+    }
+
+    private bool CanExecuteApplyAllFixes() => !isBatchApplying && selectedInstallation != null && actionSets.All(x => !x.IsApplying);
 
     private void NotifyExecutionStateChanged()
     {
@@ -629,22 +639,34 @@ public partial class GenPatcherViewModel(
 
     private void UpdateMetrics()
     {
-        TotalFixesCount = ActionSets.Count;
-        ApplicableFixesCount = ActionSets.Count(x => x.IsApplicable);
-        AppliedFixesCount = ActionSets.Count(x => x.IsApplicable && x.IsApplied);
-        UnappliedFixesCount = ActionSets.Count(x => x.IsApplicable && !x.IsApplied);
+        totalFixesCount = actionSets.Count;
+        applicableFixesCount = actionSets.Count(x => x.IsApplicable);
+        appliedFixesCount = actionSets.Count(x => x.IsApplicable && x.IsApplied);
+        unappliedFixesCount = actionSets.Count(x => x.IsApplicable && !x.IsApplied);
 
-        ProgressPercentage = ApplicableFixesCount > 0
-            ? (double)AppliedFixesCount / ApplicableFixesCount * 100.0
+        progressPercentage = applicableFixesCount > 0
+            ? (double)appliedFixesCount / applicableFixesCount * 100.0
             : 0.0;
 
-        ProgressSummaryText = $"{AppliedFixesCount} of {ApplicableFixesCount} applied";
+        progressSummaryText = $"{appliedFixesCount} of {applicableFixesCount} applied";
 
-        AllCategoryCount = ActionSets.Count;
-        CoreCategoryCount = ActionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.CoreAndStability, StringComparison.OrdinalIgnoreCase));
-        CompatibilityCategoryCount = ActionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.Compatibility, StringComparison.OrdinalIgnoreCase));
-        MultiplayerCategoryCount = ActionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.Multiplayer, StringComparison.OrdinalIgnoreCase));
-        QolCategoryCount = ActionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.QualityOfLife, StringComparison.OrdinalIgnoreCase));
+        allCategoryCount = actionSets.Count;
+        coreCategoryCount = actionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.CoreAndStability, StringComparison.OrdinalIgnoreCase));
+        compatibilityCategoryCount = actionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.Compatibility, StringComparison.OrdinalIgnoreCase));
+        multiplayerCategoryCount = actionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.Multiplayer, StringComparison.OrdinalIgnoreCase));
+        qolCategoryCount = actionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.QualityOfLife, StringComparison.OrdinalIgnoreCase));
+
+        OnPropertyChanged(nameof(TotalFixesCount));
+        OnPropertyChanged(nameof(ApplicableFixesCount));
+        OnPropertyChanged(nameof(AppliedFixesCount));
+        OnPropertyChanged(nameof(UnappliedFixesCount));
+        OnPropertyChanged(nameof(ProgressPercentage));
+        OnPropertyChanged(nameof(ProgressSummaryText));
+        OnPropertyChanged(nameof(AllCategoryCount));
+        OnPropertyChanged(nameof(CoreCategoryCount));
+        OnPropertyChanged(nameof(CompatibilityCategoryCount));
+        OnPropertyChanged(nameof(MultiplayerCategoryCount));
+        OnPropertyChanged(nameof(QolCategoryCount));
     }
 
     private void SortActionSets()

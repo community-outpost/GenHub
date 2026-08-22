@@ -18,7 +18,7 @@ using Microsoft.Extensions.Logging;
 /// <summary>
 /// Fix that applies essential crash-prevention settings to Options.ini for Generals and Zero Hour while preserving user preferences.
 /// </summary>
-public class OptionsINIFix(IGameSettingsService gameSettingsService, ILogger<OptionsINIFix> logger) : BaseActionSet(logger)
+public class OptionsIniFix(IGameSettingsService gameSettingsService, ILogger<OptionsIniFix> logger) : BaseActionSet(logger)
 {
     private const string BackupExtension = ".genhub.bak";
 

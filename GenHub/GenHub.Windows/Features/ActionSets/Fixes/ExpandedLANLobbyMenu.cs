@@ -15,9 +15,9 @@ using SharpCompress.Archives;
 /// <summary>
 /// Downloads and installs custom widescreen window definitions and the expanded LAN lobby menu addon.
 /// </summary>
-public class ExpandedLANLobbyMenu(
+public class ExpandedLanLobbyMenu(
     IHttpClientFactory httpClientFactory,
-    ILogger<ExpandedLANLobbyMenu> logger,
+    ILogger<ExpandedLanLobbyMenu> logger,
     string? markerPath = null)
     : BasePackageDeploymentFix(httpClientFactory, logger, "ExpandedLANLobbyMenu.done", markerPath)
 {

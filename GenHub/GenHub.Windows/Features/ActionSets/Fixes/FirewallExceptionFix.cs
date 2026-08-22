@@ -144,27 +144,12 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
 
     private (int Added, int Failed) ApplyAllRules(GameInstallation installation, List<string> details)
     {
-        var (portAdded, portFailed) = ApplyPortRules(details);
-        var (exeAdded, exeFailed) = ApplyInstallationExecutableRules(installation, details);
-        return (portAdded + exeAdded, portFailed + exeFailed);
-    }
-
-    private (int Added, int Failed) ApplyPortRules(List<string> details)
-    {
         int added = 0;
         int failed = 0;
 
         TryAddPortRule(PortRuleUdp16000, ActionSetConstants.FirewallRules.ProtocolUdp, 16000, details, ref added, ref failed);
         TryAddPortRule(PortRuleUdp16001, ActionSetConstants.FirewallRules.ProtocolUdp, 16001, details, ref added, ref failed);
         TryAddPortRule(PortRuleTcp16001, ActionSetConstants.FirewallRules.ProtocolTcp, 16001, details, ref added, ref failed);
-
-        return (added, failed);
-    }
-
-    private (int Added, int Failed) ApplyInstallationExecutableRules(GameInstallation installation, List<string> details)
-    {
-        int added = 0;
-        int failed = 0;
 
         if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
         {

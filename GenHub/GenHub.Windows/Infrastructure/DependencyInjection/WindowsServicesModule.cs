@@ -71,7 +71,7 @@ public static class WindowsServicesModule
         services.AddSingleton<IActionSet, DirectXRuntimeFix>();
         services.AddSingleton<IActionSet, Patch104Fix>();
         services.AddSingleton<IActionSet, Patch108Fix>();
-        services.AddSingleton<IActionSet, OptionsINIFix>();
+        services.AddSingleton<IActionSet, OptionsIniFix>();
         services.AddSingleton<IActionSet, VanillaExecutableFix>();
         services.AddSingleton<IActionSet, ZeroHourExecutableFix>();
         services.AddSingleton<IActionSet, OneDriveFix>();
@@ -86,7 +86,7 @@ public static class WindowsServicesModule
         services.AddSingleton<IActionSet, HDIconsFix>();
         services.AddSingleton<IActionSet, WindowsMediaFeaturePack>();
         services.AddSingleton<IActionSet, GameRangerRunAsAdmin>();
-        services.AddSingleton<IActionSet, ExpandedLANLobbyMenu>();
+        services.AddSingleton<IActionSet, ExpandedLanLobbyMenu>();
         services.AddSingleton<IActionSet, ProxyLauncher>();
         services.AddSingleton<IActionSet, StartMenuFix>();
         services.AddSingleton<IActionSet, SerialKeyFix>();

@@ -13,14 +13,14 @@ using Moq;
 using Xunit;
 
 /// <summary>
-/// Unit tests for <see cref="ExpandedLANLobbyMenu"/>.
+/// Unit tests for <see cref="ExpandedLanLobbyMenu"/>.
 /// </summary>
 public class ExpandedLANLobbyMenuTests : IDisposable
 {
     private readonly Mock<IHttpClientFactory> _httpClientFactoryMock = new();
-    private readonly Mock<ILogger<ExpandedLANLobbyMenu>> _loggerMock = new();
+    private readonly Mock<ILogger<ExpandedLanLobbyMenu>> _loggerMock = new();
     private readonly string _testDir;
-    private readonly ExpandedLANLobbyMenu _fix;
+    private readonly ExpandedLanLobbyMenu _fix;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ExpandedLANLobbyMenuTests"/> class.
@@ -30,7 +30,7 @@ public class ExpandedLANLobbyMenuTests : IDisposable
         _testDir = Path.Combine(Path.GetTempPath(), $"ExpandedLANLobbyMenuTests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_testDir);
         var markerPath = Path.Combine(_testDir, "ExpandedLANLobbyMenu.done");
-        _fix = new ExpandedLANLobbyMenu(_httpClientFactoryMock.Object, _loggerMock.Object, markerPath);
+        _fix = new ExpandedLanLobbyMenu(_httpClientFactoryMock.Object, _loggerMock.Object, markerPath);
     }
 
     /// <inheritdoc/>

@@ -174,9 +174,7 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
             {
                 var assemblyPath = files[0].Path.LocalPath;
                 IsLoading = true;
-                StatusMessage = "Installing tool...";
-                SetStatusType(MessageType.Info);
-                IsStatusVisible = true;
+                ShowStatusMessage("Installing tool...", MessageType.Info);
 
                 var result = await toolService.AddToolAsync(assemblyPath);
 
@@ -224,9 +222,7 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         try
         {
             IsLoading = true;
-            StatusMessage = $"Removing tool '{toolToRemove.Metadata.Name}'...";
-            SetStatusType(MessageType.Info);
-            IsStatusVisible = true;
+            ShowStatusMessage($"Removing tool '{toolToRemove.Metadata.Name}'...", MessageType.Info);
 
             // Deactivate the tool before removal
             toolToRemove.OnDeactivated();
@@ -282,9 +278,7 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         try
         {
             IsLoading = true;
-            StatusMessage = "Refreshing tools...";
-            SetStatusType(MessageType.Info);
-            IsStatusVisible = true;
+            ShowStatusMessage("Refreshing tools...", MessageType.Info);
 
             // Store the current selection
             var previousSelectedId = SelectedTool?.Metadata.Id;
@@ -387,13 +381,6 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         }
     }
 
-    private void SetStatusType(MessageType type)
-    {
-        IsStatusSuccess = type == MessageType.Success;
-        IsStatusError = type == MessageType.Error || type == MessageType.Warning;
-        IsStatusInfo = type == MessageType.Info;
-    }
-
     /// <summary>
     /// Shows the details dialog for a specific tool.
     /// </summary>
@@ -424,7 +411,9 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         _statusHideCts?.Dispose();
 
         StatusMessage = message;
-        SetStatusType(type);
+        IsStatusSuccess = type == MessageType.Success;
+        IsStatusError = type == MessageType.Error || type == MessageType.Warning;
+        IsStatusInfo = type == MessageType.Info;
         IsStatusVisible = true;
 
         // Auto-hide after 3 seconds

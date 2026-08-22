@@ -108,12 +108,12 @@ public partial class ActionSetViewModel(
     /// <summary>
     /// Gets a value indicating whether the fix can be applied.
     /// </summary>
-    public bool CanApply => IsApplicable && !IsApplied && !IsApplying && !IsBatchApplying && !IsParentBusy;
+    public bool CanApply => isApplicable && !isApplied && !isApplying && !isBatchApplying && !IsParentBusy;
 
     /// <summary>
     /// Gets the display status of the action set.
     /// </summary>
-    public string StatusDisplay => (IsApplied, IsApplicable) switch
+    public string StatusDisplay => (isApplied, isApplicable) switch
     {
         (true, _) => "APPLIED",
         (false, true) => "NOT APPLIED",
@@ -123,7 +123,7 @@ public partial class ActionSetViewModel(
     /// <summary>
     /// Gets the color for the status display.
     /// </summary>
-    public string StatusColor => (IsApplied, IsApplicable) switch
+    public string StatusColor => (isApplied, isApplicable) switch
     {
         (true, _) => ActionSetConstants.StatusColors.Applied,
         (false, true) => ActionSetConstants.StatusColors.Unapplied,
@@ -133,7 +133,7 @@ public partial class ActionSetViewModel(
     /// <summary>
     /// Gets the background color for the status badge.
     /// </summary>
-    public string StatusBackground => (IsApplied, IsApplicable) switch
+    public string StatusBackground => (isApplied, isApplicable) switch
     {
         (true, _) => ActionSetConstants.StatusColors.AppliedBackground,
         (false, true) => ActionSetConstants.StatusColors.UnappliedBackground,
@@ -143,7 +143,7 @@ public partial class ActionSetViewModel(
     /// <summary>
     /// Gets the border color for the status badge.
     /// </summary>
-    public string StatusBorder => (IsApplied, IsApplicable) switch
+    public string StatusBorder => (isApplied, isApplicable) switch
     {
         (true, _) => ActionSetConstants.StatusColors.AppliedBorder,
         (false, true) => ActionSetConstants.StatusColors.UnappliedBorder,
@@ -214,9 +214,9 @@ public partial class ActionSetViewModel(
 
     private bool CanExecuteApply() => CanApply;
 
-    private bool CanExecuteForceApply() => !IsApplying && !IsBatchApplying && !IsParentBusy;
+    private bool CanExecuteForceApply() => !isApplying && !isBatchApplying && !IsParentBusy;
 
-    private bool CanExecuteCancelApply() => IsApplying;
+    private bool CanExecuteCancelApply() => isApplying;
 
     [RelayCommand]
     private void ToggleExpanded() => IsExpanded = !IsExpanded;

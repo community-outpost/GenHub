@@ -185,14 +185,14 @@ public static class DownloadSecurityValidator
 
         // Check SHA-256 hash if specified
         bool hashMatched = false;
-        if (hasHashCheck)
+        if (allowedSha256Hashes is { Count: > 0 })
         {
             var actualHash = await ComputeSha256Async(filePath, ct);
-            hashMatched = allowedSha256Hashes!.Any(h => string.Equals(h, actualHash, StringComparison.OrdinalIgnoreCase));
+            hashMatched = allowedSha256Hashes.Any(h => string.Equals(h, actualHash, StringComparison.OrdinalIgnoreCase));
             if (!hashMatched && !hasPublisherCheck)
             {
                 return OperationResult<bool>.CreateFailure(
-                    $"SHA-256 hash mismatch for '{Path.GetFileName(filePath)}'. Computed hash: '{actualHash}'. Expected one of: [{string.Join(", ", allowedSha256Hashes ?? [])}].");
+                    $"SHA-256 hash mismatch for '{Path.GetFileName(filePath)}'. Computed hash: '{actualHash}'. Expected one of: [{string.Join(", ", allowedSha256Hashes)}].");
             }
         }
 
@@ -306,15 +306,15 @@ public static class DownloadSecurityValidator
         }
 
         bool hashMatched = false;
-        if (hasHashCheck)
+        if (allowedSha256Hashes is { Count: > 0 })
         {
             var actualHash = await ComputeSha256Async(stream, ct);
             stream.Position = 0;
-            hashMatched = allowedSha256Hashes!.Any(h => string.Equals(h, actualHash, StringComparison.OrdinalIgnoreCase));
+            hashMatched = allowedSha256Hashes.Any(h => string.Equals(h, actualHash, StringComparison.OrdinalIgnoreCase));
             if (!hashMatched && !hasPublisherCheck)
             {
                 return OperationResult<bool>.CreateFailure(
-                    $"SHA-256 hash mismatch for '{Path.GetFileName(filePath)}'. Computed hash: '{actualHash}'. Expected one of: [{string.Join(", ", allowedSha256Hashes ?? [])}].");
+                    $"SHA-256 hash mismatch for '{Path.GetFileName(filePath)}'. Computed hash: '{actualHash}'. Expected one of: [{string.Join(", ", allowedSha256Hashes)}].");
             }
         }
 
