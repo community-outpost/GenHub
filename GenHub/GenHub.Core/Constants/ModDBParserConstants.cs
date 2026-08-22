@@ -23,6 +23,9 @@ public static class ModDBParserConstants
     /// <summary>Selector for release date.</summary>
     public const string ReleaseDateSelector = "time[datetime], .date, .released";
 
+    /// <summary>Attribute name for HTML datetime attribute.</summary>
+    public const string DateTimeAttribute = "datetime";
+
     /// <summary>Selector for game name.</summary>
     public const string GameNameSelector = ".game, .parentgame";
 

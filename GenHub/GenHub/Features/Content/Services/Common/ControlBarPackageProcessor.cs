@@ -28,42 +28,12 @@ public class ControlBarPackageProcessor(
     /// <inheritdoc/>
     public bool IsControlBarContent(string extractedDirectory, ContentManifest manifest)
     {
-        if (manifest.ContentType is ContentType.Addon or ContentType.Mod)
+        if (IsControlBarManifest(manifest))
         {
-            var id = manifest.Id.Value.ToLowerInvariant();
-            if (id.Contains("controlbar") || id.Contains("cbpr") || id.Contains("cbpx"))
-            {
-                return true;
-            }
-
-            var name = manifest.Name.ToLowerInvariant();
-            if (name.Contains("controlbar") || name.Contains("control bar") || name.Contains("control-bar"))
-            {
-                return true;
-            }
-
-            if (manifest.Metadata?.Tags != null &&
-                manifest.Metadata.Tags.Any(t => t.Contains("controlbar", StringComparison.OrdinalIgnoreCase) ||
-                                                t.Contains("control-bar", StringComparison.OrdinalIgnoreCase)))
-            {
-                return true;
-            }
+            return true;
         }
 
-        if (Directory.Exists(extractedDirectory))
-        {
-            if (Directory.GetFiles(extractedDirectory, "*ControlBar*.big", SearchOption.AllDirectories).Length > 0)
-            {
-                return true;
-            }
-
-            if (Directory.GetFiles(extractedDirectory, "*ControlBar*.wnd", SearchOption.AllDirectories).Length > 0)
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return DirectoryContainsControlBarFiles(extractedDirectory);
     }
 
     /// <inheritdoc/>
@@ -326,12 +296,10 @@ public class ControlBarPackageProcessor(
             Path.Combine(extractedDirectory, rawSuffix),
         };
 
-        foreach (var candidate in candidates)
+        var existingCandidate = candidates.FirstOrDefault(Directory.Exists);
+        if (existingCandidate != null)
         {
-            if (Directory.Exists(candidate))
-            {
-                return candidate;
-            }
+            return existingCandidate;
         }
 
         if (Directory.Exists(Path.Combine(extractedDirectory, "Window")) ||
@@ -377,6 +345,41 @@ public class ControlBarPackageProcessor(
             || fileName.Equals("400_ControlBarHDEnglishZH.big", StringComparison.OrdinalIgnoreCase)
             || fileName.Equals("400_ControlBarProCoreZH.big", StringComparison.OrdinalIgnoreCase)
             || fileName.Equals("400_ControlBarHDBaseZH.big", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsControlBarManifest(ContentManifest manifest)
+    {
+        if (manifest.ContentType is not (ContentType.Addon or ContentType.Mod))
+        {
+            return false;
+        }
+
+        var id = manifest.Id.Value.ToLowerInvariant();
+        if (id.Contains("controlbar") || id.Contains("cbpr") || id.Contains("cbpx"))
+        {
+            return true;
+        }
+
+        var name = manifest.Name.ToLowerInvariant();
+        if (name.Contains("controlbar") || name.Contains("control bar") || name.Contains("control-bar"))
+        {
+            return true;
+        }
+
+        return manifest.Metadata?.Tags?.Any(t =>
+            t.Contains("controlbar", StringComparison.OrdinalIgnoreCase) ||
+            t.Contains("control-bar", StringComparison.OrdinalIgnoreCase)) == true;
+    }
+
+    private static bool DirectoryContainsControlBarFiles(string extractedDirectory)
+    {
+        if (!Directory.Exists(extractedDirectory))
+        {
+            return false;
+        }
+
+        return Directory.GetFiles(extractedDirectory, "*ControlBar*.big", SearchOption.AllDirectories).Length > 0 ||
+               Directory.GetFiles(extractedDirectory, "*ControlBar*.wnd", SearchOption.AllDirectories).Length > 0;
     }
 
     private static string DetermineVariantId(string extractedDirectory, ContentManifest manifest, string? requestedVariant)

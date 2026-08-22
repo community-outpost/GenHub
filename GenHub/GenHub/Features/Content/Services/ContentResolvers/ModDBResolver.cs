@@ -140,13 +140,14 @@ public class ModDBResolver(
             return parsedPage;
         }
 
-        var isFileDetail = discoveredItem.SourceUrl!.Contains("/mods/", StringComparison.OrdinalIgnoreCase)
-            && (discoveredItem.SourceUrl.Contains("/downloads/", StringComparison.OrdinalIgnoreCase)
-                || discoveredItem.SourceUrl.Contains("/addons/", StringComparison.OrdinalIgnoreCase));
+        var sourceUrl = discoveredItem.SourceUrl ?? string.Empty;
+        var isFileDetail = sourceUrl.Contains("/mods/", StringComparison.OrdinalIgnoreCase)
+            && (sourceUrl.Contains("/downloads/", StringComparison.OrdinalIgnoreCase)
+                || sourceUrl.Contains("/addons/", StringComparison.OrdinalIgnoreCase));
 
         parsedPage = isFileDetail
-            ? await webPageParser.ParseFileDetailAsync(discoveredItem.SourceUrl, cancellationToken)
-            : await webPageParser.ParseAsync(discoveredItem.SourceUrl, cancellationToken);
+            ? await webPageParser.ParseFileDetailAsync(sourceUrl, cancellationToken)
+            : await webPageParser.ParseAsync(sourceUrl, cancellationToken);
 
         discoveredItem.ParsedPageData = parsedPage;
         discoveredItem.SetData(parsedPage);

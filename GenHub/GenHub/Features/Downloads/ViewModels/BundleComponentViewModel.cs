@@ -402,47 +402,8 @@ public sealed partial class BundleComponentViewModel : ObservableObject
     {
         Enum.TryParse<ContentType>(descriptor.ContentType, ignoreCase: true, out var contentType);
 
-        var version = bundleResult.Version;
-        var lastUpdated = bundleResult.LastUpdated;
-
-        if (!string.IsNullOrWhiteSpace(variant.ReleaseJson))
-        {
-            try
-            {
-                var releaseObj = JsonSerializer.Deserialize<ContentRelease>(variant.ReleaseJson);
-                if (releaseObj != null)
-                {
-                    if (!string.IsNullOrWhiteSpace(releaseObj.Version))
-                    {
-                        version = releaseObj.Version;
-                    }
-
-                    if (releaseObj.ReleaseDate != default)
-                    {
-                        lastUpdated = releaseObj.ReleaseDate;
-                    }
-                }
-            }
-            catch
-            {
-                // Fallback to bundle metadata
-            }
-        }
-
-        var targetGame = bundleResult.TargetGame;
-        if (!string.IsNullOrWhiteSpace(variant.Axis) &&
-            variant.Axis.Equals("game-type", StringComparison.OrdinalIgnoreCase))
-        {
-            if (variant.Label.Equals("Generals", StringComparison.OrdinalIgnoreCase))
-            {
-                targetGame = GameType.Generals;
-            }
-            else if (variant.Label.Equals("Zero Hour", StringComparison.OrdinalIgnoreCase) ||
-                     variant.Label.Equals("ZeroHour", StringComparison.OrdinalIgnoreCase))
-            {
-                targetGame = GameType.ZeroHour;
-            }
-        }
+        var (version, lastUpdated) = ResolveReleaseTiming(bundleResult, variant.ReleaseJson);
+        var targetGame = ResolveVariantGameType(bundleResult, variant);
 
         var searchResult = new ContentSearchResult
         {
@@ -483,6 +444,57 @@ public sealed partial class BundleComponentViewModel : ObservableObject
 
         searchResult.ResolverMetadata[CatalogConstants.CatalogContentIdMetadataKey] = descriptor.ContentId;
         return searchResult;
+    }
+
+    private static (string Version, DateTime? LastUpdated) ResolveReleaseTiming(ContentSearchResult bundleResult, string? releaseJson)
+    {
+        var version = bundleResult.Version;
+        var lastUpdated = bundleResult.LastUpdated;
+
+        if (!string.IsNullOrWhiteSpace(releaseJson))
+        {
+            try
+            {
+                var releaseObj = JsonSerializer.Deserialize<ContentRelease>(releaseJson);
+                if (releaseObj != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(releaseObj.Version))
+                    {
+                        version = releaseObj.Version;
+                    }
+
+                    if (releaseObj.ReleaseDate != default)
+                    {
+                        lastUpdated = releaseObj.ReleaseDate;
+                    }
+                }
+            }
+            catch
+            {
+                // Fallback to bundle metadata
+            }
+        }
+
+        return (version, lastUpdated);
+    }
+
+    private static GameType ResolveVariantGameType(ContentSearchResult bundleResult, CatalogBundleComponentVariantDescriptor variant)
+    {
+        if (string.Equals(variant.Axis, "game-type", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.Equals(variant.Label, "Generals", StringComparison.OrdinalIgnoreCase))
+            {
+                return GameType.Generals;
+            }
+
+            if (string.Equals(variant.Label, "Zero Hour", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(variant.Label, "ZeroHour", StringComparison.OrdinalIgnoreCase))
+            {
+                return GameType.ZeroHour;
+            }
+        }
+
+        return bundleResult.TargetGame;
     }
 
     partial void OnSelectedVariantChanged(InstallableVariant? value)

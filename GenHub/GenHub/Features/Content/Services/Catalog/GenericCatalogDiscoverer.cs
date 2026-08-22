@@ -37,9 +37,17 @@ public class GenericCatalogDiscoverer(
     IVersionSelector versionSelector,
     IGitHubApiClient gitHubClient) : IContentDiscoverer
 {
+    private const string GeneralsGameSegment = "generals";
     private static readonly ConcurrentDictionary<string, (GitHubRelease Release, DateTime CachedAt)> ReleaseCache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, Task<GitHubRelease?>> PendingReleaseFetches = new(StringComparer.OrdinalIgnoreCase);
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(30);
+
+    private readonly record struct VariantSiblingContext(
+        ContentRelease OriginalRelease,
+        ContentRelease ResolvedRelease,
+        string GroupId,
+        string FamilyName,
+        string DeclaredPublisher);
 
     private PublisherCatalog? _cachedCatalog;
     private Core.Models.Providers.PublisherSubscription? _subscription;
@@ -72,7 +80,7 @@ public class GenericCatalogDiscoverer(
             var targetGame = query.TargetGame.Value;
             var hasGameVariant = release?.Artifacts?.Any(a =>
                 string.Equals(a.VariantAxis, "game-type", StringComparison.OrdinalIgnoreCase) &&
-                (string.Equals(a.Variant, "generals", StringComparison.OrdinalIgnoreCase) ? GameType.Generals : GameType.ZeroHour) == targetGame) == true;
+                (string.Equals(a.Variant, GeneralsGameSegment, StringComparison.OrdinalIgnoreCase) ? GameType.Generals : GameType.ZeroHour) == targetGame) == true;
 
             if (content.TargetGame != targetGame && !hasGameVariant)
             {
@@ -439,7 +447,7 @@ public class GenericCatalogDiscoverer(
             a.Name.Contains("_zh", StringComparison.OrdinalIgnoreCase));
 
         var genAsset = latestRelease.Assets?.FirstOrDefault(a =>
-            a.Name.Contains("generals", StringComparison.OrdinalIgnoreCase) &&
+            a.Name.Contains(GeneralsGameSegment, StringComparison.OrdinalIgnoreCase) &&
             !a.Name.Contains("generalszh", StringComparison.OrdinalIgnoreCase) &&
             !a.Name.Contains("zerohour", StringComparison.OrdinalIgnoreCase) &&
             !a.Name.Contains("zero-hour", StringComparison.OrdinalIgnoreCase) &&
@@ -450,6 +458,7 @@ public class GenericCatalogDiscoverer(
         foreach (var item in dynamicItems)
         {
             hydratedItemIds.Add(item.Id);
+
             var artifacts = new List<ReleaseArtifact>();
 
             if (zhAsset != null)
@@ -497,7 +506,7 @@ public class GenericCatalogDiscoverer(
                         new CatalogDependency
                         {
                             PublisherId = "ea",
-                            ContentId = item.TargetGame == GameType.Generals ? "generals" : "zerohour",
+                            ContentId = item.TargetGame == GameType.Generals ? GeneralsGameSegment : "zerohour",
                             VersionConstraint = item.TargetGame == GameType.Generals ? "1.08" : "1.04",
                             ContentType = ContentType.GameInstallation.ToString(),
                             IsOptional = false,
@@ -731,18 +740,21 @@ public class GenericCatalogDiscoverer(
             catalogItemsById);
         var declaredPublisher = CatalogManifestIdentity.ResolveDeclaredPublisherType(contentItem);
 
+        var siblingContext = new VariantSiblingContext(
+            release,
+            resolvedRelease,
+            groupId,
+            familyName,
+            declaredPublisher);
+
         var siblings = new List<(ContentSearchResult Result, ContentVariantInfo Info, ReleaseArtifact Artifact)>(variantArtifacts.Count);
         foreach (var artifact in variantArtifacts)
         {
             siblings.Add(BuildSingleVariantSibling(
                 catalog,
                 contentItem,
-                release,
-                resolvedRelease,
                 artifact,
-                groupId,
-                familyName,
-                declaredPublisher));
+                siblingContext));
         }
 
         // Ensure exactly one default — prefer an author-declared IsDefaultVariant, else 1080p,
@@ -763,12 +775,8 @@ public class GenericCatalogDiscoverer(
     private (ContentSearchResult Result, ContentVariantInfo Info, ReleaseArtifact Artifact) BuildSingleVariantSibling(
         PublisherCatalog catalog,
         CatalogContentItem contentItem,
-        ContentRelease originalRelease,
-        ContentRelease resolvedRelease,
         ReleaseArtifact artifact,
-        string groupId,
-        string familyName,
-        string declaredPublisher)
+        VariantSiblingContext context)
     {
         var variantLabel = artifact.Variant?.Trim() ?? string.Empty;
         var axis = artifact.VariantAxis?.Trim() ?? string.Empty;
@@ -777,15 +785,15 @@ public class GenericCatalogDiscoverer(
         var sibling = new ContentSearchResult
         {
             Id = CatalogManifestIdentity.CreateVariantContentId(
-                declaredPublisher,
+                context.DeclaredPublisher,
                 contentItem.ContentType,
                 contentItem.Id,
                 variantLabel,
-                resolvedRelease.Version,
+                context.ResolvedRelease.Version,
                 axis),
             Name = $"{contentItem.Name} ({variantLabel})",
             Description = contentItem.Description,
-            Version = resolvedRelease.Version,
+            Version = context.ResolvedRelease.Version,
             ContentType = contentItem.ContentType,
             TargetGame = siblingTargetGame,
             ProviderName = catalog.Publisher.Name,
@@ -793,34 +801,34 @@ public class GenericCatalogDiscoverer(
             ResolverId = ResolverId,
             IconUrl = catalog.Publisher.AvatarUrl,
             BannerUrl = contentItem.Metadata?.BannerUrl,
-            LastUpdated = resolvedRelease.ReleaseDate,
+            LastUpdated = context.ResolvedRelease.ReleaseDate,
             RequiresResolution = true,
             DownloadSize = artifact.Size,
-            VariantGroupId = groupId,
-            VariantFamilyName = familyName,
+            VariantGroupId = context.GroupId,
+            VariantFamilyName = context.FamilyName,
         };
 
-        PopulatePresentation(sibling, contentItem, resolvedRelease, contentNamesById: null);
+        PopulatePresentation(sibling, contentItem, context.ResolvedRelease, contentNamesById: null);
 
-        var siblingArtifacts = BuildSiblingArtifacts(artifact, resolvedRelease);
+        var siblingArtifacts = BuildSiblingArtifacts(artifact, context.ResolvedRelease);
         sibling.DownloadSize = siblingArtifacts.Sum(a => a.Size);
 
         var singleArtifactRelease = new ContentRelease
         {
-            Version = resolvedRelease.Version,
-            ReleaseDate = resolvedRelease.ReleaseDate,
-            IsPrerelease = resolvedRelease.IsPrerelease,
-            IsLatest = resolvedRelease.IsLatest,
-            Changelog = resolvedRelease.Changelog,
+            Version = context.ResolvedRelease.Version,
+            ReleaseDate = context.ResolvedRelease.ReleaseDate,
+            IsPrerelease = context.ResolvedRelease.IsPrerelease,
+            IsLatest = context.ResolvedRelease.IsLatest,
+            Changelog = context.ResolvedRelease.Changelog,
             Artifacts = siblingArtifacts,
-            Dependencies = resolvedRelease.Dependencies?.Select(dep =>
+            Dependencies = context.ResolvedRelease.Dependencies?.Select(dep =>
             {
                 if (CatalogManifestIdentity.IsBaseGameDependency(dep))
                 {
                     return new CatalogDependency
                     {
                         PublisherId = dep.PublisherId ?? "ea",
-                        ContentId = siblingTargetGame == GameType.Generals ? "generals" : "zerohour",
+                        ContentId = siblingTargetGame == GameType.Generals ? GeneralsGameSegment : "zerohour",
                         VersionConstraint = siblingTargetGame == GameType.Generals ? "1.08" : "1.04",
                         ContentType = ContentType.GameInstallation.ToString(),
                         IsOptional = dep.IsOptional,
@@ -835,7 +843,7 @@ public class GenericCatalogDiscoverer(
 
         if (contentItem.ContentType == ContentType.ContentBundle)
         {
-            var components = CatalogBundleComponentBuilder.Build(catalog, contentItem, originalRelease);
+            var components = CatalogBundleComponentBuilder.Build(catalog, contentItem, context.OriginalRelease);
             sibling.ResolverMetadata[CatalogConstants.BundleComponentsJsonMetadataKey] =
                 JsonSerializer.Serialize(components);
         }

@@ -24,6 +24,7 @@ namespace GenHub.Features.Content.Services.Common;
 public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : IArchivePayloadProcessor
 {
     private const int MaxNestedExtractionDepth = 5;
+    private const string ExtractingFilesStageDescription = "Extracting files";
     private static readonly byte[] SevenZipSignature = [0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C];
     private static readonly byte[] RarSignature = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07];
     private static readonly byte[] Rar5Signature = [0x52, 0x61, 0x72, 0x21, 0x1A, 0x07, 0x01, 0x00];
@@ -628,7 +629,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             {
                 CurrentStage = 3,
                 TotalStages = 5,
-                StageDescription = "Extracting files",
+                StageDescription = ExtractingFilesStageDescription,
                 CurrentOperation = $"Extracting {fileName}",
                 FilesProcessed = i + 1,
                 TotalFiles = totalEntries,
@@ -812,7 +813,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         {
             CurrentStage = 3,
             TotalStages = 5,
-            StageDescription = "Extracting files",
+            StageDescription = ExtractingFilesStageDescription,
             CurrentOperation = $"Extracting {fileName}",
             FilesProcessed = index + 1,
             TotalFiles = totalEntries,
@@ -1230,7 +1231,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             {
                 CurrentStage = 3,
                 TotalStages = 5,
-                StageDescription = "Extracting files",
+                StageDescription = ExtractingFilesStageDescription,
                 CurrentOperation = $"Extracting {shortName}",
                 FilesProcessed = fileIdx + 1,
                 TotalFiles = totalFiles,
@@ -1356,7 +1357,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             {
                 CurrentStage = 3,
                 TotalStages = 5,
-                StageDescription = "Extracting files",
+                StageDescription = ExtractingFilesStageDescription,
                 CurrentOperation = $"Extracting {shortName}",
                 FilesProcessed = i + 1,
                 TotalFiles = totalRecords,
@@ -1567,19 +1568,22 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         var records = new List<(string Name, uint UncompressedSize, uint StreamOffset, uint CompressedSize)>();
         var cumulativeUncompressedSize = 0L;
 
-        for (var i = 0; i < tableData.Length - 4; i++)
+        var i = 0;
+        while (i < tableData.Length - 4)
         {
             if (tableData[i] != '.' || i < 40)
             {
+                i++;
                 continue;
             }
 
             if (!TryExtractSimCandidateName(tableData, i, out var name, out var nextIndex, out var startOffset))
             {
+                i++;
                 continue;
             }
 
-            i = nextIndex;
+            i = nextIndex + 1;
 
             if (!IsValidSimEntryName(name))
             {

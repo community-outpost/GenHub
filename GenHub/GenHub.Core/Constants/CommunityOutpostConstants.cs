@@ -11,6 +11,11 @@ namespace GenHub.Core.Constants;
 public static class CommunityOutpostConstants
 {
     /// <summary>
+    /// Base URL for Community Outpost / GenPatcher service.
+    /// </summary>
+    public const string BaseUrl = "https://legi.cc";
+
+    /// <summary>
     /// The publisher ID for Community Outpost.
     /// </summary>
     public const string PublisherId = "community-outpost";

@@ -555,55 +555,73 @@ public partial class CommunityOutpostDeliverer(
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var downloadResult = await DownloadWithMirrorFallbackAsync(downloadUrl, archivePath, cancellationToken);
-            if (!downloadResult.Success)
+            var extractResult = await TryExtractCandidateAsync(downloadUrl, archivePath, extractPath, cancellationToken);
+            if (extractResult.Success)
             {
-                lastError = downloadResult.FirstError;
-                continue;
+                return extractResult;
             }
 
-            try
-            {
-                await ExtractArchiveAsync(archivePath, extractPath, cancellationToken);
-                return OperationResult<bool>.CreateSuccess(true);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to extract archive downloaded from {Url}, attempting fallback if available", downloadUrl);
-                lastError = ex.Message;
-
-                if (Directory.Exists(extractPath))
-                {
-                    try
-                    {
-                        Directory.Delete(extractPath, recursive: true);
-                    }
-                    catch
-                    {
-                    }
-
-                    Directory.CreateDirectory(extractPath);
-                }
-
-                if (File.Exists(archivePath))
-                {
-                    try
-                    {
-                        File.Delete(archivePath);
-                    }
-                    catch
-                    {
-                    }
-                }
-            }
+            lastError = extractResult.FirstError;
         }
 
         logger.LogError("Failed to extract Community Outpost archive from all attempted URLs: {Error}", lastError);
         return OperationResult<bool>.CreateFailure($"Extraction failed: {lastError}");
+    }
+
+    private async Task<OperationResult<bool>> TryExtractCandidateAsync(
+        string downloadUrl,
+        string archivePath,
+        string extractPath,
+        CancellationToken cancellationToken)
+    {
+        var downloadResult = await DownloadWithMirrorFallbackAsync(downloadUrl, archivePath, cancellationToken);
+        if (!downloadResult.Success)
+        {
+            return downloadResult;
+        }
+
+        try
+        {
+            await ExtractArchiveAsync(archivePath, extractPath, cancellationToken);
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to extract archive downloaded from {Url}, attempting fallback if available", downloadUrl);
+            TryCleanFailedExtraction(extractPath, archivePath);
+            return OperationResult<bool>.CreateFailure(ex.Message);
+        }
+    }
+
+    private void TryCleanFailedExtraction(string extractPath, string archivePath)
+    {
+        if (Directory.Exists(extractPath))
+        {
+            try
+            {
+                Directory.Delete(extractPath, recursive: true);
+            }
+            catch
+            {
+            }
+
+            Directory.CreateDirectory(extractPath);
+        }
+
+        if (File.Exists(archivePath))
+        {
+            try
+            {
+                File.Delete(archivePath);
+            }
+            catch
+            {
+            }
+        }
     }
 
     /// <summary>

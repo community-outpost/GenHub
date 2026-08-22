@@ -320,9 +320,9 @@ public abstract class WorkspaceStrategyBase<T>(
             if (executableManifest != null)
             {
                 var resolution = ManifestVariantResolver.ResolveEntryPoint(executableManifest);
-                if (resolution.Success)
+                if (resolution.Success && !string.IsNullOrEmpty(resolution.RelativePath))
                 {
-                    var resolvedRelativePath = resolution.RelativePath!.Replace('/', Path.DirectorySeparatorChar);
+                    var resolvedRelativePath = resolution.RelativePath.Replace('/', Path.DirectorySeparatorChar);
                     var resolvedFullPath = Path.Combine(workspaceInfo.WorkspacePath, resolvedRelativePath);
                     var resolvedFileName = Path.GetFileName(resolvedRelativePath);
 

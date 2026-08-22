@@ -464,55 +464,50 @@ public class CommunityOutpostResolver(
     /// </summary>
     private string? TryExtractVariantSuffix(ContentSearchResult item, GenPatcherContentMetadata metadata)
     {
-        // 1. Check ResolverMetadata
-        if (item.ResolverMetadata != null)
+        return TryExtractVariantFromResolverMetadata(item.ResolverMetadata)
+            ?? TryExtractVariantFromId(item.Id, metadata)
+            ?? TryExtractVariantFromName(item.Name, metadata);
+    }
+
+    private string? TryExtractVariantFromResolverMetadata(IDictionary<string, string>? resolverMetadata)
+    {
+        if (resolverMetadata == null)
         {
-            if (item.ResolverMetadata.TryGetValue("selectedVariant", out var selectedVariant) && !string.IsNullOrWhiteSpace(selectedVariant))
-            {
-                return selectedVariant.Trim();
-            }
+            return null;
+        }
 
-            if (item.ResolverMetadata.TryGetValue("requestedVariant", out var requestedVariant) && !string.IsNullOrWhiteSpace(requestedVariant))
+        string[] keys = ["selectedVariant", "requestedVariant", "variant"];
+        foreach (var key in keys)
+        {
+            if (resolverMetadata.TryGetValue(key, out var val) && !string.IsNullOrWhiteSpace(val))
             {
-                return requestedVariant.Trim();
-            }
-
-            if (item.ResolverMetadata.TryGetValue("variant", out var variant) && !string.IsNullOrWhiteSpace(variant))
-            {
-                return variant.Trim();
+                return val.Trim();
             }
         }
 
-        // 2. Check Id segment (e.g. 1.0.communityoutpost.addon.cbpr-1080p -> 1080p)
-        if (!string.IsNullOrEmpty(item.Id))
-        {
-            var parts = item.Id.Split('.');
-            var contentName = parts.Length >= 5 ? parts[4] : item.Id;
-            var dashIndex = contentName.IndexOf('-');
-            if (dashIndex > 0 && dashIndex < contentName.Length - 1)
-            {
-                return contentName[(dashIndex + 1)..];
-            }
+        return null;
+    }
 
-            if (metadata.Variants is { Count: > 0 })
-            {
-                var matchingVariant = metadata.Variants.FirstOrDefault(v =>
-                    contentName.EndsWith(v.Id, StringComparison.OrdinalIgnoreCase) ||
-                    contentName.EndsWith(v.Id.Replace("-", string.Empty), StringComparison.OrdinalIgnoreCase));
-                if (matchingVariant != null)
-                {
-                    return matchingVariant.Id;
-                }
-            }
+    private string? TryExtractVariantFromId(string? id, GenPatcherContentMetadata metadata)
+    {
+        if (string.IsNullOrEmpty(id))
+        {
+            return null;
         }
 
-        // 3. Check Name against known variants
-        if (!string.IsNullOrEmpty(item.Name) && metadata.Variants is { Count: > 0 })
+        var parts = id.Split('.');
+        var contentName = parts.Length >= 5 ? parts[4] : id;
+        var dashIndex = contentName.IndexOf('-');
+        if (dashIndex > 0 && dashIndex < contentName.Length - 1)
+        {
+            return contentName[(dashIndex + 1)..];
+        }
+
+        if (metadata.Variants is { Count: > 0 })
         {
             var matchingVariant = metadata.Variants.FirstOrDefault(v =>
-                item.Name.EndsWith(v.Name, StringComparison.OrdinalIgnoreCase) ||
-                item.Name.Contains(v.Name, StringComparison.OrdinalIgnoreCase) ||
-                item.Name.EndsWith(v.Id, StringComparison.OrdinalIgnoreCase));
+                contentName.EndsWith(v.Id, StringComparison.OrdinalIgnoreCase) ||
+                contentName.EndsWith(v.Id.Replace("-", string.Empty), StringComparison.OrdinalIgnoreCase));
             if (matchingVariant != null)
             {
                 return matchingVariant.Id;
@@ -520,6 +515,19 @@ public class CommunityOutpostResolver(
         }
 
         return null;
+    }
+
+    private string? TryExtractVariantFromName(string? name, GenPatcherContentMetadata metadata)
+    {
+        if (string.IsNullOrEmpty(name) || metadata.Variants is not { Count: > 0 })
+        {
+            return null;
+        }
+
+        return metadata.Variants.FirstOrDefault(v =>
+            name.EndsWith(v.Name, StringComparison.OrdinalIgnoreCase) ||
+            name.Contains(v.Name, StringComparison.OrdinalIgnoreCase) ||
+            name.EndsWith(v.Id, StringComparison.OrdinalIgnoreCase))?.Id;
     }
 
     /// <summary>

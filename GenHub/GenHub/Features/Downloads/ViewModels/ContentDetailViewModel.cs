@@ -1387,9 +1387,9 @@ public partial class ContentDetailViewModel(
             logger.LogError(ex, "Managed Chromium setup failed while parsing ModDB details from {Url}", searchResult.SourceUrl);
             notificationService.ShowError("Chromium setup failed", ex.Message);
         }
-        catch (OperationCanceledException) when (_cts.IsCancellationRequested)
+        catch (OperationCanceledException ex) when (_cts.IsCancellationRequested)
         {
-            logger.LogDebug("Parsing web page data cancelled for {Url}", searchResult.SourceUrl);
+            logger.LogDebug(ex, "Parsing web page data cancelled for {Url}", searchResult.SourceUrl);
         }
         catch (Exception ex)
         {
@@ -2125,7 +2125,7 @@ public partial class ContentDetailViewModel(
 
             // Try to get size from parsed files first
             var parsedFile = Files?.FirstOrDefault();
-            if (parsedFile?.SizeBytes.HasValue == true && parsedFile.SizeBytes.Value > 0)
+            if (parsedFile?.SizeBytes > 0)
             {
                 return parsedFile.SizeBytes.Value;
             }
@@ -3456,7 +3456,7 @@ public partial class ContentDetailViewModel(
             releaseItem.SelectCommand = new RelayCommand(
                 () =>
                 {
-                    if (variantSearchResults != null && variantSearchResults.TryGetValue(manifestId, out var swapSr))
+                    if (variantSearchResults?.TryGetValue(manifestId, out var swapSr) == true)
                     {
                         VariantSwap.Apply(searchResult, swapSr);
                         SelectedVariant = variant;
@@ -3468,7 +3468,7 @@ public partial class ContentDetailViewModel(
 
             releaseItem.DownloadCommand = new AsyncRelayCommand(async () =>
             {
-                if (variantSearchResults != null && variantSearchResults.TryGetValue(manifestId, out var swapSr))
+                if (variantSearchResults?.TryGetValue(manifestId, out var swapSr) == true)
                 {
                     VariantSwap.Apply(searchResult, swapSr);
                     SelectedVariant = variant;
@@ -3479,7 +3479,7 @@ public partial class ContentDetailViewModel(
 
             releaseItem.AddToProfileCommand = new AsyncRelayCommand(async () =>
             {
-                if (variantSearchResults != null && variantSearchResults.TryGetValue(manifestId, out var swapSr))
+                if (variantSearchResults?.TryGetValue(manifestId, out var swapSr) == true)
                 {
                     VariantSwap.Apply(searchResult, swapSr);
                     SelectedVariant = variant;
@@ -3783,7 +3783,7 @@ public partial class ContentDetailViewModel(
                 return (Item: item, Url: targetUrl, Parser: parser);
             })
             .Where(x => x.Parser != null && !string.IsNullOrEmpty(x.Url))
-            .GroupBy(x => x.Parser!);
+            .GroupBy(x => x.Parser);
 
         foreach (var group in itemsGroupedByParser)
         {
@@ -3793,15 +3793,25 @@ public partial class ContentDetailViewModel(
             }
 
             var parser = group.Key;
+            if (parser == null)
+            {
+                continue;
+            }
+
             var groupItems = group.ToList();
-            var urls = groupItems.Select(x => x.Url!).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            var urls = groupItems
+                .Select(x => x.Url)
+                .OfType<string>()
+                .Where(u => !string.IsNullOrEmpty(u))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
             try
             {
                 var parsedPages = await parser.ParseFileDetailsManyAsync(urls, cancellationToken);
                 foreach (var (item, url, _) in groupItems)
                 {
-                    if (parsedPages.TryGetValue(url!, out var parsedPage))
+                    if (!string.IsNullOrEmpty(url) && parsedPages.TryGetValue(url, out var parsedPage))
                     {
                         var detailedFile = parsedPage.Sections.OfType<DownloadableFile>().FirstOrDefault();
                         if (detailedFile != null)
@@ -3817,7 +3827,7 @@ public partial class ContentDetailViewModel(
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Failed to batch preload details for parser {ParserId}", parser.ParserId);
+                logger.LogWarning(ex, "Failed to batch fetch file details for parser {Parser}", parser.GetType().Name);
             }
         }
 

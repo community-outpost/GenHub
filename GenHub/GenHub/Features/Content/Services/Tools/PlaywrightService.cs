@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -431,19 +432,7 @@ public class PlaywrightService(
             return results;
         }
 
-        // Preserve caller order while skipping duplicate URLs (section sweeps sometimes repeat a path).
-        var orderedUnique = new List<string>(urls.Count);
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var url in urls)
-        {
-            if (string.IsNullOrWhiteSpace(url) || !seen.Add(url))
-            {
-                continue;
-            }
-
-            orderedUnique.Add(url);
-        }
-
+        var orderedUnique = GetOrderedUniqueUrls(urls);
         if (orderedUnique.Count == 0)
         {
             return results;
@@ -474,40 +463,11 @@ public class PlaywrightService(
                 throw new InvalidOperationException("Persistent browser context not initialized");
             }
 
-            var concurrentResults = new System.Collections.Concurrent.ConcurrentDictionary<string, IDocument>(StringComparer.Ordinal);
-
-            // Limit parallel tabs to avoid overwhelming system resources (max 5 parallel tabs)
+            var concurrentResults = new ConcurrentDictionary<string, IDocument>(StringComparer.Ordinal);
             using var tabSemaphore = new SemaphoreSlim(Math.Min(orderedUnique.Count, 5));
 
-            var tasks = orderedUnique.Select(async url =>
-            {
-                await tabSemaphore.WaitAsync(cancellationToken);
-                IPage? page = null;
-                try
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    page = await CreatePersistentPageAsync(profileName, cancellationToken);
-
-                    var html = await NavigatePersistentPageAsync(page, url, cancellationToken);
-                    var doc = await OpenDocumentAsync(html, cancellationToken);
-                    concurrentResults[url] = doc;
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    // Soft-fail per URL so one dead section does not abort the rest of the sweep.
-                    logger.LogWarning(ex, "Failed to fetch persistent URL in parallel batch: {Url}", url);
-                }
-                finally
-                {
-                    if (page != null)
-                    {
-                        await ClosePersistentPageAsync(page);
-                    }
-
-                    tabSemaphore.Release();
-                }
-            });
+            var tasks = orderedUnique.Select(url =>
+                FetchSinglePersistentUrlAsync(profileName, url, tabSemaphore, concurrentResults, cancellationToken));
 
             await Task.WhenAll(tasks);
 
@@ -518,16 +478,7 @@ public class PlaywrightService(
         }
         finally
         {
-            if (isOuterSession)
-            {
-                if (_activePersistentSessions == 0 && _inUsePersistentPages.Count == 0)
-                {
-                    await ClosePersistentContextCoreAsync();
-                }
-
-                _isInPersistentSession.Value = false;
-                _persistentFetchLock.Release();
-            }
+            await ReleasePersistentOuterSessionAsync(isOuterSession);
         }
 
         return results;
@@ -733,6 +684,76 @@ public class PlaywrightService(
         catch (PlaywrightException ex) when (IsContextClosedError(ex))
         {
             return false;
+        }
+    }
+
+    private List<string> GetOrderedUniqueUrls(IReadOnlyList<string> urls)
+    {
+        var orderedUnique = new List<string>(urls.Count);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var url in urls)
+        {
+            if (!string.IsNullOrWhiteSpace(url) && seen.Add(url))
+            {
+                orderedUnique.Add(url);
+            }
+        }
+
+        return orderedUnique;
+    }
+
+    private async Task FetchSinglePersistentUrlAsync(
+        string profileName,
+        string url,
+        SemaphoreSlim tabSemaphore,
+        ConcurrentDictionary<string, IDocument> concurrentResults,
+        CancellationToken cancellationToken)
+    {
+        await tabSemaphore.WaitAsync(cancellationToken);
+        IPage? page = null;
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            page = await CreatePersistentPageAsync(profileName, cancellationToken);
+            var html = await NavigatePersistentPageAsync(page, url, cancellationToken);
+            var doc = await OpenDocumentAsync(html, cancellationToken);
+            concurrentResults[url] = doc;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // Soft-fail per URL so one dead section does not abort the rest of the sweep.
+            logger.LogWarning(ex, "Failed to fetch persistent URL in parallel batch: {Url}", url);
+        }
+        finally
+        {
+            if (page != null)
+            {
+                await ClosePersistentPageAsync(page);
+            }
+
+            tabSemaphore.Release();
+        }
+    }
+
+    private async Task ReleasePersistentOuterSessionAsync(bool isOuterSession)
+    {
+        if (!isOuterSession)
+        {
+            return;
+        }
+
+        try
+        {
+            if (_activePersistentSessions == 0 && _inUsePersistentPages.Count == 0)
+            {
+                await ClosePersistentContextCoreAsync();
+            }
+        }
+        finally
+        {
+            _isInPersistentSession.Value = false;
+            _persistentFetchLock.Release();
         }
     }
 
@@ -943,22 +964,7 @@ public class PlaywrightService(
         {
             page.Popup -= OnPopup;
             page.Download -= OnDownload;
-            for (var i = 0; i < popups.Count; i++)
-            {
-                var popup = popups[i];
-                popup.Download -= OnDownload;
-                if (!popup.IsClosed)
-                {
-                    try
-                    {
-                        await popup.CloseAsync();
-                    }
-                    catch (PlaywrightException ex)
-                    {
-                        logger.LogDebug(ex, "Popup already closed during download cleanup.");
-                    }
-                }
-            }
+            await CleanupPopupsAsync(popups, OnDownload);
 
             if (usePersistentModDbProfile)
             {
@@ -987,6 +993,25 @@ public class PlaywrightService(
                             logger.LogDebug(ex, "Context already closed during download cleanup.");
                         }
                     }
+                }
+            }
+        }
+    }
+
+    private async Task CleanupPopupsAsync(IReadOnlyList<IPage> popups, EventHandler<IDownload> onDownload)
+    {
+        foreach (var popup in popups)
+        {
+            popup.Download -= onDownload;
+            if (!popup.IsClosed)
+            {
+                try
+                {
+                    await popup.CloseAsync();
+                }
+                catch (PlaywrightException ex)
+                {
+                    logger.LogDebug(ex, "Popup already closed during download cleanup.");
                 }
             }
         }

@@ -299,7 +299,7 @@ public static class CatalogBundleComponentBuilder
         }
 
         var multiAxes = hinted
-            .GroupBy(a => a.VariantAxis!, StringComparer.OrdinalIgnoreCase)
+            .GroupBy(a => a.VariantAxis ?? string.Empty, StringComparer.OrdinalIgnoreCase)
             .Where(g => g.Count() > 1)
             .Select(g => g.Key)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -309,7 +309,7 @@ public static class CatalogBundleComponentBuilder
             return [];
         }
 
-        return hinted.Where(a => multiAxes.Contains(a.VariantAxis!)).ToList();
+        return hinted.Where(a => multiAxes.Contains(a.VariantAxis ?? string.Empty)).ToList();
     }
 
     private static ContentRelease CloneVariantRelease(ContentRelease release, ReleaseArtifact selectedArtifact, List<ReleaseArtifact> allArtifacts)
@@ -320,7 +320,7 @@ public static class CatalogBundleComponentBuilder
         // For other axes, pick their default or first artifact
         var otherAxisGroups = allArtifacts
             .Where(a => !string.Equals(a.VariantAxis, selectedAxis, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(a.VariantAxis))
-            .GroupBy(a => a.VariantAxis!, StringComparer.OrdinalIgnoreCase);
+            .GroupBy(a => a.VariantAxis ?? string.Empty, StringComparer.OrdinalIgnoreCase);
 
         foreach (var group in otherAxisGroups)
         {

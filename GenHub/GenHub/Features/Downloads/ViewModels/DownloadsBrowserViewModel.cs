@@ -510,36 +510,7 @@ public sealed partial class DownloadsBrowserViewModel(
         _searchCts = null;
 
         // Save current outgoing publisher state to _browseCache before switching
-        if (!string.IsNullOrEmpty(_lastPopulatedPublisherId))
-        {
-            lock (_cacheLock)
-            {
-                if (_browseCache.TryGetValue(_lastPopulatedPublisherId, out var outgoingState))
-                {
-                    outgoingState.ActiveDetailViewModel = SelectedContent;
-                    outgoingState.SearchTerm = SearchTerm;
-                    outgoingState.HasCustomQuery = _hasCustomQuery;
-                    outgoingState.CurrentPage = CurrentPage;
-                    outgoingState.CanLoadMore = CanLoadMore;
-                    if (_hasCustomQuery)
-                    {
-                        outgoingState.Items = [.. ContentItems];
-                    }
-                }
-                else if (ContentItems.Count > 0 || SelectedContent != null)
-                {
-                    _browseCache[_lastPopulatedPublisherId] = new PublisherBrowseState
-                    {
-                        Items = [.. ContentItems],
-                        CurrentPage = CurrentPage,
-                        CanLoadMore = CanLoadMore,
-                        SearchTerm = SearchTerm,
-                        HasCustomQuery = _hasCustomQuery,
-                        ActiveDetailViewModel = SelectedContent,
-                    };
-                }
-            }
-        }
+        SaveOutgoingPublisherState(_lastPopulatedPublisherId);
 
         // Update selection state
         foreach (var publisher in Publishers)
@@ -547,30 +518,8 @@ public sealed partial class DownloadsBrowserViewModel(
             publisher.IsSelected = publisher == value;
         }
 
-        // Clear previous filter state
-        if (CurrentFilterViewModel != null)
-        {
-            CurrentFilterViewModel.FiltersApplied -= OnFiltersApplied;
-            CurrentFilterViewModel.FiltersCleared -= OnFiltersCleared;
-            CurrentFilterViewModel.ClearFilters();
-        }
-
         // Switch filter panel
-        if (_filterViewModels.TryGetValue(value.PublisherId, out var filterVm))
-        {
-            CurrentFilterViewModel = filterVm;
-            CurrentFilterViewModel.FiltersApplied += OnFiltersApplied;
-            CurrentFilterViewModel.FiltersCleared += OnFiltersCleared;
-            IsFilterPanelVisible = string.Equals(
-                value.PublisherId,
-                AODMapsConstants.PublisherType,
-                StringComparison.OrdinalIgnoreCase);
-        }
-        else
-        {
-            CurrentFilterViewModel = null;
-            IsFilterPanelVisible = false;
-        }
+        SwitchFilterPanel(value.PublisherId);
 
         // Detach UI collection and detail view immediately so previous publisher's cards vanish from UI without disposing cached objects
         ContentItems = [];
@@ -599,7 +548,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 logger.LogInformation(
                     "Restored {Count} cached items for {Publisher} (no refresh needed)",
                     cached.Items.Count,
-                    value.PublisherId);
+                    value.DisplayName);
                 return;
             }
 
@@ -637,6 +586,68 @@ public sealed partial class DownloadsBrowserViewModel(
         SelectedContent = null;
         _lastPopulatedPublisherId = value.PublisherId;
         _ = RefreshContentAsync();
+    }
+
+    private void SaveOutgoingPublisherState(string? publisherId)
+    {
+        if (string.IsNullOrEmpty(publisherId))
+        {
+            return;
+        }
+
+        lock (_cacheLock)
+        {
+            if (_browseCache.TryGetValue(publisherId, out var outgoingState))
+            {
+                outgoingState.ActiveDetailViewModel = SelectedContent;
+                outgoingState.SearchTerm = SearchTerm;
+                outgoingState.HasCustomQuery = _hasCustomQuery;
+                outgoingState.CurrentPage = CurrentPage;
+                outgoingState.CanLoadMore = CanLoadMore;
+                if (_hasCustomQuery)
+                {
+                    outgoingState.Items = [.. ContentItems];
+                }
+            }
+            else if (ContentItems.Count > 0 || SelectedContent != null)
+            {
+                _browseCache[publisherId] = new PublisherBrowseState
+                {
+                    Items = [.. ContentItems],
+                    CurrentPage = CurrentPage,
+                    CanLoadMore = CanLoadMore,
+                    SearchTerm = SearchTerm,
+                    HasCustomQuery = _hasCustomQuery,
+                    ActiveDetailViewModel = SelectedContent,
+                };
+            }
+        }
+    }
+
+    private void SwitchFilterPanel(string publisherId)
+    {
+        if (CurrentFilterViewModel != null)
+        {
+            CurrentFilterViewModel.FiltersApplied -= OnFiltersApplied;
+            CurrentFilterViewModel.FiltersCleared -= OnFiltersCleared;
+            CurrentFilterViewModel.ClearFilters();
+        }
+
+        if (_filterViewModels.TryGetValue(publisherId, out var filterVm))
+        {
+            CurrentFilterViewModel = filterVm;
+            CurrentFilterViewModel.FiltersApplied += OnFiltersApplied;
+            CurrentFilterViewModel.FiltersCleared += OnFiltersCleared;
+            IsFilterPanelVisible = string.Equals(
+                publisherId,
+                AODMapsConstants.PublisherType,
+                StringComparison.OrdinalIgnoreCase);
+        }
+        else
+        {
+            CurrentFilterViewModel = null;
+            IsFilterPanelVisible = false;
+        }
     }
 
     private void OnFiltersCleared(object? sender, EventArgs e)
@@ -701,54 +712,7 @@ public sealed partial class DownloadsBrowserViewModel(
             IsLoading = true;
             if (!append)
             {
-                if (isCustomQuery)
-                {
-                    lock (_cacheLock)
-                    {
-                        var cachedItemSet = new HashSet<ContentGridItemViewModel>(_browseCache.Values.SelectMany(s => s.Items));
-                        foreach (var inFlight in _inFlightOperations.Values)
-                        {
-                            cachedItemSet.UnionWith(inFlight.ResolvedItems);
-                        }
-
-                        foreach (var item in ContentItems)
-                        {
-                            if (!cachedItemSet.Contains(item))
-                            {
-                                item.Dispose();
-                            }
-                        }
-                    }
-
-                    ContentItems.Clear();
-                }
-                else
-                {
-                    lock (_cacheLock)
-                    {
-                        if (_browseCache.Remove(publisherId, out var cachedState))
-                        {
-                            cachedState.ActiveDetailViewModel?.Dispose();
-                            cachedState.ActiveDetailViewModel = null;
-                            foreach (var cachedItem in cachedState.Items)
-                            {
-                                cachedItem.Dispose();
-                            }
-                        }
-
-                        if (_inFlightOperations.Remove(publisherId, out var oldInFlight))
-                        {
-                            oldInFlight.Cts.Cancel();
-                            oldInFlight.Cts.Dispose();
-                            foreach (var item in oldInFlight.ResolvedItems)
-                            {
-                                item.Dispose();
-                            }
-                        }
-                    }
-
-                    ContentItems.Clear();
-                }
+                PrepareContentCollectionForRefresh(publisherId, isCustomQuery);
             }
 
             // Build base query
@@ -781,6 +745,58 @@ public sealed partial class DownloadsBrowserViewModel(
         {
             logger.LogError(ex, "Failed to refresh content for publisher {Publisher}", publisherId);
             return false;
+        }
+    }
+
+    private void PrepareContentCollectionForRefresh(string publisherId, bool isCustomQuery)
+    {
+        if (isCustomQuery)
+        {
+            lock (_cacheLock)
+            {
+                var cachedItemSet = new HashSet<ContentGridItemViewModel>(_browseCache.Values.SelectMany(s => s.Items));
+                foreach (var inFlight in _inFlightOperations.Values)
+                {
+                    cachedItemSet.UnionWith(inFlight.ResolvedItems);
+                }
+
+                foreach (var item in ContentItems)
+                {
+                    if (!cachedItemSet.Contains(item))
+                    {
+                        item.Dispose();
+                    }
+                }
+            }
+
+            ContentItems.Clear();
+        }
+        else
+        {
+            lock (_cacheLock)
+            {
+                if (_browseCache.Remove(publisherId, out var cachedState))
+                {
+                    cachedState.ActiveDetailViewModel?.Dispose();
+                    cachedState.ActiveDetailViewModel = null;
+                    foreach (var cachedItem in cachedState.Items)
+                    {
+                        cachedItem.Dispose();
+                    }
+                }
+
+                if (_inFlightOperations.Remove(publisherId, out var oldInFlight))
+                {
+                    oldInFlight.Cts.Cancel();
+                    oldInFlight.Cts.Dispose();
+                    foreach (var item in oldInFlight.ResolvedItems)
+                    {
+                        item.Dispose();
+                    }
+                }
+            }
+
+            ContentItems.Clear();
         }
     }
 

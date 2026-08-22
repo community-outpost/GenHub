@@ -30,7 +30,7 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <param name="searchResult">The content search result to display.</param>
 /// <param name="contentStateService">The content state service.</param>
 /// <param name="logger">The logger.</param>
-public partial class ContentGridItemViewModel(
+public sealed partial class ContentGridItemViewModel(
     ContentSearchResult searchResult,
     IContentStateService contentStateService,
     ILogger<ContentGridItemViewModel> logger) : ObservableObject, IDisposable
@@ -822,36 +822,7 @@ public partial class ContentGridItemViewModel(
 
         foreach (var variant in Variants)
         {
-            // Resolve install state through the provenance-aware detection path using the sibling
-            // ContentSearchResult. A variant's ManifestId is frequently the catalog card ID (e.g.
-            // GitHub multi-asset releases), not the on-disk manifest ID, so GetStateByManifestIdAsync
-            // would misreport. GetStateAsync maps the card to the stored manifest via OriginalContentId.
-            var key = !string.IsNullOrEmpty(variant.ManifestId) ? variant.ManifestId : variant.Name;
-            if (key != null && _variantSearchResults.TryGetValue(key, out var sibling))
-            {
-                try
-                {
-                    variant.CurrentState = await contentStateService.GetStateAsync(sibling);
-                    continue;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogDebug(ex, "Failed to resolve state for variant {Key}", key);
-                }
-            }
-
-            // Fallback: direct manifest-ID lookup when no sibling search result is mapped.
-            if (!string.IsNullOrEmpty(variant.ManifestId))
-            {
-                try
-                {
-                    variant.CurrentState = await contentStateService.GetStateByManifestIdAsync(variant.ManifestId);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogDebug(ex, "Failed to resolve state for variant {ManifestId}", variant.ManifestId);
-                }
-            }
+            await RefreshSingleVariantStateAsync(variant);
         }
 
         OnPropertyChanged(nameof(EffectiveCurrentState));
@@ -1032,6 +1003,40 @@ public partial class ContentGridItemViewModel(
             OnPropertyChanged(nameof(AreBundleComponentsReadyForProfile));
             OnPropertyChanged(nameof(ShowDownloadButton));
             OnPropertyChanged(nameof(ShowAddToProfileButton));
+        }
+    }
+
+    private async Task RefreshSingleVariantStateAsync(InstallableVariant variant)
+    {
+        // Resolve install state through the provenance-aware detection path using the sibling
+        // ContentSearchResult. A variant's ManifestId is frequently the catalog card ID (e.g.
+        // GitHub multi-asset releases), not the on-disk manifest ID, so GetStateByManifestIdAsync
+        // would misreport. GetStateAsync maps the card to the stored manifest via OriginalContentId.
+        var key = !string.IsNullOrEmpty(variant.ManifestId) ? variant.ManifestId : variant.Name;
+        if (key != null && _variantSearchResults.TryGetValue(key, out var sibling))
+        {
+            try
+            {
+                variant.CurrentState = await contentStateService.GetStateAsync(sibling);
+                return;
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Failed to resolve state for variant {Key}", key);
+            }
+        }
+
+        // Fallback: direct manifest-ID lookup when no sibling search result is mapped.
+        if (!string.IsNullOrEmpty(variant.ManifestId))
+        {
+            try
+            {
+                variant.CurrentState = await contentStateService.GetStateByManifestIdAsync(variant.ManifestId);
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Failed to resolve state for variant {ManifestId}", variant.ManifestId);
+            }
         }
     }
 }

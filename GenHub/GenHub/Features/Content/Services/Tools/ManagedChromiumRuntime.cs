@@ -62,7 +62,7 @@ internal sealed class ManagedChromiumRuntime(
             return;
         }
 
-        logger.LogInformation(
+        logger.LogDebug(
             "Managed Chromium is missing. Requesting user consent before installing under {RuntimeDirectory}",
             runtimeDirectory);
 
@@ -155,14 +155,14 @@ internal sealed class ManagedChromiumRuntime(
         }
         catch (OperationCanceledException)
         {
-            progressCts.Cancel();
+            await progressCts.CancelAsync();
             await progressTask;
             notificationService?.Dismiss(toastId);
             throw;
         }
         catch (Exception ex)
         {
-            progressCts.Cancel();
+            await progressCts.CancelAsync();
             await progressTask;
             notificationService?.Dismiss(toastId);
             notificationService?.ShowError(

@@ -213,7 +213,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
         DateTime? releaseDate = null;
         if (dateEl != null)
         {
-            var dateStr = dateEl.GetAttribute("datetime") ?? dateEl.GetAttribute("title") ?? dateEl.TextContent?.Trim();
+            var dateStr = dateEl.GetAttribute(ModDBParserConstants.DateTimeAttribute) ?? dateEl.GetAttribute("title") ?? dateEl.TextContent?.Trim();
             if (!string.IsNullOrEmpty(dateStr))
             {
                 if (DateTime.TryParse(dateStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out var standardDate))
@@ -1220,8 +1220,8 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
             DateTime? publishDate = null;
             if (dateEl != null)
             {
-                var dateStr = dateEl.GetAttribute("datetime") ?? dateEl.TextContent?.Trim();
-                if (!string.IsNullOrEmpty(dateStr) && DateTime.TryParse(dateStr, out var parsedDate))
+                var dateStr = dateEl.GetAttribute(ModDBParserConstants.DateTimeAttribute) ?? dateEl.TextContent?.Trim();
+                if (!string.IsNullOrEmpty(dateStr) && DateTime.TryParse(dateStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
                 {
                     publishDate = parsedDate;
                 }
@@ -1279,8 +1279,8 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
             DateTime? date = null;
             if (dateEl != null)
             {
-                var dateStr = dateEl.GetAttribute("datetime") ?? dateEl.TextContent?.Trim();
-                if (!string.IsNullOrEmpty(dateStr) && DateTime.TryParse(dateStr, out var parsedDate))
+                var dateStr = dateEl.GetAttribute(ModDBParserConstants.DateTimeAttribute) ?? dateEl.TextContent?.Trim();
+                if (!string.IsNullOrEmpty(dateStr) && DateTime.TryParse(dateStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
                 {
                     date = parsedDate;
                 }
@@ -1445,10 +1445,10 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
         var dateEl = row.QuerySelector(ModDBParserConstants.CommentDateSelector);
         if (dateEl != null)
         {
-            var dateStr = dateEl.GetAttribute("datetime") ?? dateEl.TextContent?.Trim();
+            var dateStr = dateEl.GetAttribute(ModDBParserConstants.DateTimeAttribute) ?? dateEl.TextContent?.Trim();
             if (!string.IsNullOrEmpty(dateStr))
             {
-                return DateTime.TryParse(dateStr, out var parsedDate)
+                return DateTime.TryParse(dateStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate)
                     ? parsedDate
                     : ParseModDBDate(dateStr);
             }
@@ -2138,7 +2138,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
     /// <summary>
     /// Helper class for profile metadata.
     /// </summary>
-    private record ProfileMeta(
+    private sealed record ProfileMeta(
         string? Name,
         long? SizeBytes,
         string? SizeDisplay,
@@ -2923,7 +2923,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
         var releaseDateEl = document.QuerySelector(ModDBParserConstants.ReleaseDateSelector);
         if (releaseDateEl != null)
         {
-            var dateStr = releaseDateEl.GetAttribute("datetime") ?? releaseDateEl.TextContent?.Trim();
+            var dateStr = releaseDateEl.GetAttribute(ModDBParserConstants.DateTimeAttribute) ?? releaseDateEl.TextContent?.Trim();
             if (!string.IsNullOrEmpty(dateStr) && DateTime.TryParse(dateStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
             {
                 releaseDate = parsedDate;
@@ -2936,7 +2936,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
         var iconUrl = iconEl?.GetAttribute("src");
         if (!string.IsNullOrEmpty(iconUrl))
         {
-            if (!iconUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            if (iconUrl.StartsWith("//", StringComparison.Ordinal))
             {
                 iconUrl = "https:" + iconUrl;
             }
@@ -2950,8 +2950,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
             }
         }
 
-        // 5. Extract description. File pages put copy in #downloadsummary / #downloaddescription;
-        // the first .summary on those pages is the breadcrumb "Games : ... : Files".
+        // 5. Extract description text from page
         var description = ExtractDescription(document);
 
         // 6. Extract game name

@@ -667,75 +667,25 @@ public partial class AODMapsDiscoverer(
     /// <returns>True if a next page is available, otherwise false.</returns>
     private bool CheckForNextPage(IDocument document, int currentPage)
     {
-        // AODMaps uses pagination links at the bottom of pages
-        // We need to check if there's a link to the next page
-
-        // Method 1: Look for a "Next" link text
-        var nextLink = document.QuerySelectorAll("a").FirstOrDefault(a =>
-            a.TextContent != null &&
-            a.TextContent.Trim().Equals("Next", StringComparison.OrdinalIgnoreCase));
-
-        if (nextLink != null)
+        if (HasNextTextLink(document, out var nextHref))
         {
-            var href = nextLink.GetAttribute("href");
-            if (!string.IsNullOrWhiteSpace(href) &&
-                !href.Equals("#", StringComparison.Ordinal) &&
-                !href.StartsWith("javascript:", StringComparison.OrdinalIgnoreCase))
-            {
-                logger.LogInformation("[AODMaps] Found 'Next' link: {Url}", href);
-                return true;
-            }
-        }
-
-        // Method 2: Look for numbered pagination links and check if any are greater than current page
-        // AODMaps typically shows page numbers like: 1 2 3 4 ... Next
-        var allLinks = document.QuerySelectorAll("a").Where(a =>
-        {
-            var href = a.GetAttribute("href");
-            var text = a.TextContent?.Trim();
-
-            // Look for links that might be page numbers (digits or patterns like "new2.html", "new3.html")
-            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(href))
-                return false;
-
-            // Check if href contains page pattern (new2.html, new3.html, etc.)
-            if (href.Contains("new") || href.Contains("players") || href.Contains("compstomp") || href.Contains("Map_Packs"))
-            {
-                // Extract page number from href patterns
-                // e.g., "new2.html" -> page 2, "6_players2.html" -> page 2
-                var match = HtmlPageNumberRegex().Match(href);
-                if (match.Success && int.TryParse(match.Groups[1].Value, out var pageNum))
-                {
-                    return pageNum > currentPage;
-                }
-
-                // Also check the link text for page numbers
-                if (int.TryParse(text, out var textPageNum))
-                {
-                    return textPageNum > currentPage;
-                }
-            }
-
-            return false;
-        }).ToList();
-
-        if (allLinks.Count > 0)
-        {
-            logger.LogInformation("[AODMaps] Found {Count} pagination links to higher pages", allLinks.Count);
+            logger.LogInformation("[AODMaps] Found 'Next' link: {Url}", nextHref);
             return true;
         }
 
-        // Method 3: Check for any link that points to the next page based on URL patterns
-        // Look for links with "new{N}.html" pattern where N > currentPage
+        var higherPageCount = document.QuerySelectorAll("a").Count(a => IsHigherPageLink(a, currentPage));
+        if (higherPageCount > 0)
+        {
+            logger.LogInformation("[AODMaps] Found {Count} pagination links to higher pages", higherPageCount);
+            return true;
+        }
+
         var nextPagePattern = currentPage > 1
             ? $"new{currentPage + 1}.html"
             : "new2.html";
 
         var directNextLink = document.QuerySelectorAll("a").FirstOrDefault(a =>
-        {
-            var href = a.GetAttribute("href");
-            return href?.Contains(nextPagePattern) == true;
-        });
+            a.GetAttribute("href")?.Contains(nextPagePattern) == true);
 
         if (directNextLink != null)
         {
@@ -744,6 +694,51 @@ public partial class AODMapsDiscoverer(
         }
 
         logger.LogInformation("[AODMaps] No next page link found on page {Page}", currentPage);
+        return false;
+    }
+
+    private bool HasNextTextLink(IDocument document, out string? href)
+    {
+        href = null;
+        var nextLink = document.QuerySelectorAll("a").FirstOrDefault(a =>
+            a.TextContent != null &&
+            a.TextContent.Trim().Equals("Next", StringComparison.OrdinalIgnoreCase));
+
+        if (nextLink == null)
+        {
+            return false;
+        }
+
+        href = nextLink.GetAttribute("href");
+        return !string.IsNullOrWhiteSpace(href) &&
+               !href.Equals("#", StringComparison.Ordinal) &&
+               !href.StartsWith("javascript:", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool IsHigherPageLink(IElement a, int currentPage)
+    {
+        var href = a.GetAttribute("href");
+        var text = a.TextContent?.Trim();
+
+        if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(href))
+        {
+            return false;
+        }
+
+        if (href.Contains("new") || href.Contains("players") || href.Contains("compstomp") || href.Contains("Map_Packs"))
+        {
+            var match = HtmlPageNumberRegex().Match(href);
+            if (match.Success && int.TryParse(match.Groups[1].Value, out var pageNum) && pageNum > currentPage)
+            {
+                return true;
+            }
+
+            if (int.TryParse(text, out var textPageNum) && textPageNum > currentPage)
+            {
+                return true;
+            }
+        }
+
         return false;
     }
 }
