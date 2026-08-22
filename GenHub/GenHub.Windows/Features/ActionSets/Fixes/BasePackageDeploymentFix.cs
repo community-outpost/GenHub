@@ -335,15 +335,12 @@ public abstract class BasePackageDeploymentFix(
             // Clean up restored backup files only after the marker update succeeded
             var remainingBackups = remainingRecords
                 .Where(r => !string.IsNullOrEmpty(r.BackupPath))
-                .Select(r => r.BackupPath!)
+                .Select(r => r.BackupPath)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var backupPath in restoredBackupPaths)
+            foreach (var backupPath in restoredBackupPaths.Where(b => !remainingBackups.Contains(b)))
             {
-                if (!remainingBackups.Contains(backupPath))
-                {
-                    DeleteFileSafely(backupPath);
-                }
+                DeleteFileSafely(backupPath);
             }
 
             if (remainingRecords.Count == 0)
@@ -517,21 +514,13 @@ public abstract class BasePackageDeploymentFix(
             {
                 if (!string.IsNullOrEmpty(backupPath))
                 {
-                    if (File.Exists(backupPath))
+                    if (TryRestoreBackup(trimmedDest, backupPath))
                     {
-                        var destDir = Path.GetDirectoryName(trimmedDest);
-                        if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
-                        {
-                            Directory.CreateDirectory(destDir);
-                        }
-
-                        File.Copy(backupPath, trimmedDest, overwrite: true);
                         restoredBackupPaths.Add(backupPath);
                         restoredCount++;
                     }
                     else
                     {
-                        Logger.LogWarning("Recorded backup missing for {FilePath} during undo; retaining destination to prevent data loss.", trimmedDest);
                         remainingRecords.Add((trimmedDest, backupPath));
                     }
                 }
@@ -561,6 +550,24 @@ public abstract class BasePackageDeploymentFix(
         }
 
         return (removedCount, restoredCount, restoredBackupPaths, remainingRecords);
+    }
+
+    private bool TryRestoreBackup(string destPath, string backupPath)
+    {
+        if (!File.Exists(backupPath))
+        {
+            Logger.LogWarning("Recorded backup missing for {FilePath} during undo; retaining destination to prevent data loss.", destPath);
+            return false;
+        }
+
+        var destDir = Path.GetDirectoryName(destPath);
+        if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
+        {
+            Directory.CreateDirectory(destDir);
+        }
+
+        File.Copy(backupPath, destPath, overwrite: true);
+        return true;
     }
 
     private bool UpdateMarkerAfterUndo(string targetMarkerPath, IReadOnlyList<(string DestPath, string? BackupPath)> remainingRecords)

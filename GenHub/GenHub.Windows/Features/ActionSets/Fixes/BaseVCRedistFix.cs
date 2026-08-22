@@ -2,6 +2,7 @@ namespace GenHub.Windows.Features.ActionSets.Fixes;
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
@@ -222,21 +223,36 @@ public abstract class BaseVCRedistFix(
             CreateNoWindow = true,
         };
 
-        using var process = Process.Start(psi);
-        if (process == null)
+        Process? process;
+        try
         {
-            return (false, -1, "Failed to start installer process");
+            process = Process.Start(psi);
+            if (process == null)
+            {
+                return (false, -1, "Failed to start installer process");
+            }
+        }
+        catch (Win32Exception ex) when (ex.NativeErrorCode == 1223)
+        {
+            return (false, 1223, "Installation declined: administrator approval was not granted.");
+        }
+        catch (Win32Exception ex)
+        {
+            return (false, ex.NativeErrorCode, $"Failed to launch installer process: {ex.Message}");
         }
 
-        await process.WaitForExitAsync(ct);
-        var exitCode = process.ExitCode;
-
-        if (exitCode is ProcessConstants.ExitCodeSuccess or ProcessConstants.ExitCodeRebootRequired)
+        using (process)
         {
-            return (true, exitCode, null);
-        }
+            await process.WaitForExitAsync(ct);
+            var exitCode = process.ExitCode;
 
-        return (false, exitCode, $"Installer returned non-zero exit code: {exitCode}");
+            if (exitCode is ProcessConstants.ExitCodeSuccess or ProcessConstants.ExitCodeRebootRequired)
+            {
+                return (true, exitCode, null);
+            }
+
+            return (false, exitCode, $"Installer returned non-zero exit code: {exitCode}");
+        }
     }
 
     private async Task<bool> DownloadInstallerAsync(string tempFile, CancellationToken ct)
