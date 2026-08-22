@@ -5,6 +5,10 @@ export interface Env {
   TOKEN_MAX_AGE_SECONDS?: string;
 }
 
+type TokenValidationResult =
+  | { valid: true; payload: string; signature: string }
+  | { valid: false; error: string };
+
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Content-Type": "application/json",
@@ -41,7 +45,7 @@ const parseAndValidateTokenFormat = (
   deleteToken: string,
   fileKey: string,
   maxAgeSeconds: number
-): { valid: boolean; payload?: string; signature?: string; error?: string } => {
+): TokenValidationResult => {
   const dotIdx = deleteToken.lastIndexOf(".");
   if (dotIdx === -1) {
     return { valid: false, error: "Malformed delete token" };
@@ -49,7 +53,9 @@ const parseAndValidateTokenFormat = (
 
   const payload = deleteToken.substring(0, dotIdx);
   const signature = deleteToken.substring(dotIdx + 1);
-  const [tokenKey, tokenTimeStr] = payload.split(":");
+  const parts = payload.split(":");
+  const tokenKey = parts[0] ?? "";
+  const tokenTimeStr = parts[1] ?? "";
 
   if (tokenKey !== fileKey) {
     return { valid: false, error: "Delete token does not match fileKey" };
@@ -85,7 +91,7 @@ const isValidExtension = (name: string): boolean => {
 };
 
 const validatePrepareRequest = (fileName: string, fileSize: number, maxSizeBytes: number): string | null => {
-  if (!fileName || fileSize <= 0) {
+  if (fileName.length === 0 || fileSize <= 0) {
     return "Invalid file metadata";
   }
   if (fileSize > maxSizeBytes) {
@@ -140,17 +146,17 @@ const executeCloudDelete = async (fileKey: string, token: string): Promise<boole
 
 const handlePrepareUpload = async (request: Request, env: Env): Promise<Response> => {
   const body = (await request.json()) as { fileName?: string; fileSize?: number; contentType?: string };
-  const maxSizeBytes = parseInt(env.MAX_FILE_SIZE_BYTES || "10485760", 10);
-  const fileName = body.fileName || "";
-  const fileSize = body.fileSize || 0;
+  const maxSizeBytes = parseInt(env.MAX_FILE_SIZE_BYTES ?? "10485760", 10);
+  const fileName = body.fileName ?? "";
+  const fileSize = body.fileSize ?? 0;
 
   const validationError = validatePrepareRequest(fileName, fileSize, maxSizeBytes);
-  if (validationError) {
+  if (validationError !== null) {
     return new Response(JSON.stringify({ error: validationError }), { status: 400, headers: CORS_HEADERS });
   }
 
-  const slot = await requestPresignedSlot(fileName, fileSize, body.contentType || "application/zip", env.UPLOADTHING_TOKEN);
-  if (!slot) {
+  const slot = await requestPresignedSlot(fileName, fileSize, body.contentType ?? "application/zip", env.UPLOADTHING_TOKEN);
+  if (slot === null) {
     return new Response(JSON.stringify({ error: "Storage provider rejected upload" }), { status: 502, headers: CORS_HEADERS });
   }
 
@@ -164,17 +170,17 @@ const handlePrepareUpload = async (request: Request, env: Env): Promise<Response
 
 const handleDeleteUpload = async (request: Request, env: Env): Promise<Response> => {
   const body = (await request.json()) as { fileKey?: string; deleteToken?: string };
-  const fileKey = body.fileKey || "";
-  const deleteToken = body.deleteToken || "";
+  const fileKey = body.fileKey ?? "";
+  const deleteToken = body.deleteToken ?? "";
 
-  if (!fileKey || !deleteToken) {
+  if (fileKey.length === 0 || deleteToken.length === 0) {
     return new Response(JSON.stringify({ error: "Missing fileKey or deleteToken" }), { status: 400, headers: CORS_HEADERS });
   }
 
-  const maxAgeSeconds = parseInt(env.TOKEN_MAX_AGE_SECONDS || "31536000", 10);
+  const maxAgeSeconds = parseInt(env.TOKEN_MAX_AGE_SECONDS ?? "31536000", 10);
   const tokenData = parseAndValidateTokenFormat(deleteToken, fileKey, maxAgeSeconds);
-  if (!tokenData.valid || !tokenData.payload || !tokenData.signature) {
-    return new Response(JSON.stringify({ error: tokenData.error || "Invalid delete token" }), { status: 403, headers: CORS_HEADERS });
+  if (!tokenData.valid) {
+    return new Response(JSON.stringify({ error: tokenData.error }), { status: 403, headers: CORS_HEADERS });
   }
 
   const isValidSig = await verifyHmacSignature(tokenData.payload, tokenData.signature, env.GATEWAY_HMAC_SECRET);
