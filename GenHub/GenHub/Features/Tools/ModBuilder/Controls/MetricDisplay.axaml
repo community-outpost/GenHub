@@ -14,11 +14,11 @@
     </ResourceDictionary>
   </UserControl.Resources>
 
-  <Border Background="{StaticResource SurfaceBrush}"
-          BorderBrush="{StaticResource BorderBrush}"
-          BorderThickness="{StaticResource BorderThicknessThin}"
-          CornerRadius="{StaticResource CornerRadiusMedium}"
-          Padding="{StaticResource PaddingMedium}">
+  <Border Background="{DynamicResource SurfaceElevatedBrush}"
+          BorderBrush="{DynamicResource BorderBrush}"
+          BorderThickness="1"
+          CornerRadius="8"
+          Padding="12">
 
     <Grid RowDefinitions="Auto,Auto,Auto">
 
@@ -27,22 +27,23 @@
 
         <!-- Icon -->
         <Border Grid.Column="0"
-                Width="32" Height="32"
+                Width="30" Height="30"
                 Background="{Binding IconBackground}"
-                CornerRadius="{StaticResource CornerRadiusSmall}"
-                Margin="0,0,12,0">
-          <Path Width="18" Height="18"
+                CornerRadius="6"
+                Margin="0,0,10,0">
+          <Path Width="16" Height="16"
                 Fill="{Binding IconForeground}"
                 Data="{Binding Icon}"
                 HorizontalAlignment="Center"
-                VerticalAlignment="Center"/>
+                VerticalAlignment="Center"
+                Stretch="Uniform"/>
         </Border>
 
         <!-- Label -->
         <TextBlock Grid.Column="1"
                    Text="{Binding Label}"
-                   FontSize="{StaticResource FontSizeSmall}"
-                   Foreground="{StaticResource TextSecondaryBrush}"
+                   FontSize="11.5"
+                   Foreground="{DynamicResource TextSecondary}"
                    VerticalAlignment="Center"/>
 
       </Grid>
@@ -50,11 +51,10 @@
       <!-- Value -->
       <TextBlock Grid.Row="1"
                  Text="{Binding Value}"
-                 FontSize="{StaticResource FontSizeHeading2}"
-                 FontWeight="{StaticResource FontWeightBold}"
-                 Foreground="{Binding IsHighlighted, Converter={StaticResource BoolToColorConverter}, ConverterParameter='#00D9FF|#FFFFFF', FallbackValue={StaticResource TextPrimaryBrush}}"
-                 Margin="0,8,0,0"/>
-
+                 FontSize="18"
+                 FontWeight="Bold"
+                 Foreground="{Binding IsHighlighted, Converter={StaticResource BoolToColorConverter}, ConverterParameter='#A855F7|#FFFFFF', FallbackValue={DynamicResource TextPrimary}}"
+                 Margin="0,6,0,0"/>
 
       <!-- Trend Indicator -->
       <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto" Margin="0,4,0,0">
@@ -66,12 +66,13 @@
               Data="{Binding TrendIcon}"
               VerticalAlignment="Center"
               Margin="0,0,4,0"
+              Stretch="Uniform"
               IsVisible="{Binding HasTrend}"/>
 
         <!-- Trend Text -->
         <TextBlock Grid.Column="1"
                    Text="{Binding TrendText}"
-                   FontSize="{StaticResource FontSizeXSmall}"
+                   FontSize="10.5"
                    Foreground="{Binding TrendColor}"
                    VerticalAlignment="Center"
                    IsVisible="{Binding HasTrend}"/>

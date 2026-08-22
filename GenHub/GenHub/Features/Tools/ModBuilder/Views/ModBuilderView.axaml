@@ -18,87 +18,198 @@
     </ResourceDictionary>
   </UserControl.Resources>
 
+  <UserControl.Styles>
+    <!-- Modern Header Action Button -->
+    <Style Selector="Button.header-action-btn">
+      <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="12,7" />
+      <Setter Property="FontSize" Value="12.5" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15" />
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.header-action-btn:pointerover">
+      <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
+    </Style>
+
+    <!-- Accent Header Button -->
+    <Style Selector="Button.header-accent-btn">
+      <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="12,7" />
+      <Setter Property="FontSize" Value="12.5" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15" />
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.header-accent-btn:pointerover">
+      <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <!-- Quick Access Navigation Row Button -->
+    <Style Selector="Button.quick-nav-btn">
+      <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="12,9" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15" />
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.quick-nav-btn:pointerover">
+      <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
+    </Style>
+
+    <!-- Execute Build CTA Button -->
+    <Style Selector="Button.build-cta-btn">
+      <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="16,13" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15" />
+          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.build-cta-btn:pointerover">
+      <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
+      <Setter Property="RenderTransform" Value="scale(1.01)" />
+    </Style>
+    <Style Selector="Button.build-cta-btn:pressed">
+      <Setter Property="Background" Value="{DynamicResource AccentDarkBrush}" />
+      <Setter Property="RenderTransform" Value="scale(0.99)" />
+    </Style>
+
+    <!-- Abort Danger Button -->
+    <Style Selector="Button.abort-danger-btn">
+      <Setter Property="Background" Value="#25EF4444" />
+      <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="14,9" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="Background" Duration="0:0:0.15" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.abort-danger-btn:pointerover">
+      <Setter Property="Background" Value="{DynamicResource ErrorBrush}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+  </UserControl.Styles>
+
   <Panel Background="Transparent">
     <!-- Main Content -->
     <Grid RowDefinitions="Auto,*" Margin="20">
 
       <!-- Header: Project Management & Quick Actions -->
-      <Border Grid.Row="0" Background="#201A33" CornerRadius="16" Padding="14,10" Margin="0,0,0,14"
-              BorderBrush="#382E55" BorderThickness="1" BoxShadow="0 8 32 0 #40000000">
+      <Border Grid.Row="0" Background="{DynamicResource CardBackground}"
+              CornerRadius="12" Padding="16,12" Margin="0,0,0,16"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              BoxShadow="0 4 16 0 #30000000">
         <Grid ColumnDefinitions="Auto,*,Auto">
           <!-- Project Path -->
-          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-            <Border Width="34" Height="34" Background="#257C4DFF" BorderBrush="#407C4DFF" BorderThickness="1" CornerRadius="8" VerticalAlignment="Center">
-              <Path Width="16" Height="16" Fill="{StaticResource AccentPrimaryBrush}" Data="{StaticResource IconPackage}" HorizontalAlignment="Center" VerticalAlignment="Center" Stretch="Uniform"/>
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+            <Border Width="38" Height="38" Background="{DynamicResource AccentBadgeBackgroundBrush}"
+                    BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                    CornerRadius="8" VerticalAlignment="Center">
+              <Path Width="18" Height="18" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconPackage}"
+                    HorizontalAlignment="Center" VerticalAlignment="Center" Stretch="Uniform"/>
             </Border>
             <StackPanel VerticalAlignment="Center">
-              <TextBlock Text="Current Project" FontSize="11" Foreground="#9A9AA8" FontWeight="SemiBold"/>
-              <TextBlock Text="{Binding ProjectName, FallbackValue='No project loaded'}" FontSize="14" FontWeight="Bold" Foreground="White"/>
+              <TextBlock Text="CURRENT PROJECT" FontSize="10.5" Foreground="{DynamicResource TextSecondary}" FontWeight="Bold" LetterSpacing="0.5"/>
+              <TextBlock Text="{Binding ProjectName, FallbackValue='No project loaded'}" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
             </StackPanel>
             <TextBox Text="{Binding CurrentProjectPath}" IsReadOnly="True"
-                     Watermark="No project loaded..." Width="220" MaxWidth="260"
-                     Background="#15FFFFFF" BorderBrush="#20FFFFFF" CornerRadius="8"
-                     Padding="8,5" VerticalAlignment="Center" VerticalContentAlignment="Center"
-                     Foreground="#D0D0D0" FontSize="11" Margin="6,0,0,0"/>
+                     Watermark="No project loaded..." Width="240" MaxWidth="280"
+                     Background="{DynamicResource SurfaceElevatedBrush}"
+                     BorderBrush="{DynamicResource BorderBrush}"
+                     CornerRadius="8" Padding="10,6"
+                     VerticalAlignment="Center" VerticalContentAlignment="Center"
+                     Foreground="{DynamicResource TextSecondary}" FontSize="11.5" Margin="8,0,0,0"/>
           </StackPanel>
 
           <!-- Quick Actions -->
-          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-            <Button Command="{Binding NewProjectCommand}" Padding="10,6" CornerRadius="8"
-                    Background="#15FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1"
-                    VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <Button Command="{Binding NewProjectCommand}" Classes="header-action-btn"
                     ToolTip.Tip="Create a new ModBuilder project">
               <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                <Path Width="14" Height="14" Fill="White" Data="{StaticResource IconNewProject}" Stretch="Uniform" VerticalAlignment="Center"/>
-                <TextBlock Text="New" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
+                <Path Width="13" Height="13" Fill="{DynamicResource TextPrimary}" Data="{StaticResource IconNewProject}" Stretch="Uniform" VerticalAlignment="Center"/>
+                <TextBlock Text="New" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
-            <Button Command="{Binding LoadProjectCommand}" Padding="10,6" CornerRadius="8"
-                    Background="#15FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1"
-                    VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+            <Button Command="{Binding LoadProjectCommand}" Classes="header-action-btn"
                     ToolTip.Tip="Open an existing project">
               <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                <Path Width="14" Height="14" Fill="White" Data="{StaticResource IconOpenFolder}" Stretch="Uniform" VerticalAlignment="Center"/>
-                <TextBlock Text="Open" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
+                <Path Width="13" Height="13" Fill="{DynamicResource TextPrimary}" Data="{StaticResource IconOpenFolder}" Stretch="Uniform" VerticalAlignment="Center"/>
+                <TextBlock Text="Open" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
-            <Button Command="{Binding LoadSampleProjectCommand}" Padding="10,6" CornerRadius="8"
-                    Background="#507C4DFF" BorderBrush="#707C4DFF" BorderThickness="1"
-                    VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+            <Button Command="{Binding LoadSampleProjectCommand}" Classes="header-accent-btn"
                     ToolTip.Tip="Load the bundled BasicMod sample project">
               <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                <Path Width="14" Height="14" Fill="White" Data="{StaticResource IconArchiveFile}" Stretch="Uniform" VerticalAlignment="Center"/>
-                <TextBlock Text="Sample" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                <Path Width="13" Height="13" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconArchiveFile}" Stretch="Uniform" VerticalAlignment="Center"/>
+                <TextBlock Text="Sample" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
-            <Button Command="{Binding OpenFileManagerCommand}" Padding="10,6" CornerRadius="8"
-                    Background="#357C4DFF" BorderBrush="#507C4DFF" BorderThickness="1"
-                    VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+            <Button Command="{Binding OpenFileManagerCommand}" Classes="header-action-btn"
                     IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}"
                     ToolTip.Tip="Open dedicated Game Asset &amp; File Manager">
               <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                <Path Width="14" Height="14" Fill="White" Data="{StaticResource IconPackage}" Stretch="Uniform" VerticalAlignment="Center"/>
-                <TextBlock Text="Asset Manager" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
+                <Path Width="13" Height="13" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconPackage}" Stretch="Uniform" VerticalAlignment="Center"/>
+                <TextBlock Text="Asset Manager" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
-            <Button Command="{Binding SaveProjectCommand}" Padding="10,6" CornerRadius="8"
-                    Background="#15FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1"
-                    VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+            <Button Command="{Binding SaveProjectCommand}" Classes="header-action-btn"
                     IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}"
                     ToolTip.Tip="Save current project configuration">
               <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                <Path Width="14" Height="14" Fill="White" Data="{StaticResource IconSave}" Stretch="Uniform" VerticalAlignment="Center"/>
-                <TextBlock Text="Save" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
+                <Path Width="13" Height="13" Fill="{DynamicResource TextPrimary}" Data="{StaticResource IconSave}" Stretch="Uniform" VerticalAlignment="Center"/>
+                <TextBlock Text="Save" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
-            <Button Command="{Binding CloseProjectCommand}" Padding="10,6" CornerRadius="8"
-                    Background="#15FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1"
-                    VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+            <Button Command="{Binding CloseProjectCommand}" Classes="header-action-btn"
                     IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}"
                     ToolTip.Tip="Close project and return to dashboard">
               <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                <Path Width="12" Height="12" Fill="White" Data="{StaticResource IconClear}" Stretch="Uniform" VerticalAlignment="Center"/>
-                <TextBlock Text="Close" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
+                <Path Width="12" Height="12" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconClear}" Stretch="Uniform" VerticalAlignment="Center"/>
+                <TextBlock Text="Close" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
           </StackPanel>
@@ -108,72 +219,65 @@
       <!-- Main Resizable 3-Column Content Area -->
       <Grid Grid.Row="1">
         <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="320" MinWidth="220" MaxWidth="500"/>
-          <ColumnDefinition Width="Auto"/>
-          <ColumnDefinition Width="*" MinWidth="300"/>
-          <ColumnDefinition Width="Auto"/>
-          <ColumnDefinition Width="340" MinWidth="240" MaxWidth="550"/>
+          <ColumnDefinition Width="320" MinWidth="240" MaxWidth="480"/>
+          <ColumnDefinition Width="8"/>
+          <ColumnDefinition Width="*" MinWidth="320"/>
+          <ColumnDefinition Width="8"/>
+          <ColumnDefinition Width="340" MinWidth="260" MaxWidth="520"/>
         </Grid.ColumnDefinitions>
 
         <!-- Left Panel: Configuration & Actions -->
-        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="0,0,6,0">
-          <StackPanel Spacing="14">
+        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,4,0">
+          <StackPanel Spacing="12">
 
             <!-- Quick Start Guide (Removable with X) -->
-            <Border Background="#25673AB7" BorderBrush="#507C4DFF" BorderThickness="1"
-                    CornerRadius="12" Padding="14" BoxShadow="0 4 20 0 #30673AB7"
+            <Border Background="{DynamicResource AccentTintBackgroundBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="10" Padding="14"
                     IsVisible="{Binding ShowQuickStartGuide}">
-              <StackPanel Spacing="8">
+              <StackPanel Spacing="10">
                 <Grid ColumnDefinitions="*,Auto">
                   <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Path Width="14" Height="14" Fill="{StaticResource AccentPrimaryBrush}" Data="{StaticResource IconPlay}" Stretch="Uniform" VerticalAlignment="Center"/>
-                    <TextBlock Text="Quick Start" FontSize="13" FontWeight="Bold" Foreground="White" VerticalAlignment="Center"/>
+                    <Path Width="14" Height="14" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconPlay}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="Quick Start" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
                   </StackPanel>
                   <Button Grid.Column="1" Command="{Binding DismissQuickStartGuideCommand}"
-                          Background="#35EF4444" BorderBrush="#80EF4444" BorderThickness="1"
+                          Background="Transparent" BorderThickness="0"
                           CornerRadius="6" Width="24" Height="24" Padding="0"
                           HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                           ToolTip.Tip="Dismiss Quick Start Guide" Cursor="Hand" VerticalAlignment="Center">
-                    <Button.Styles>
-                      <Style Selector="Button:pointerover">
-                        <Setter Property="Background" Value="#60EF4444"/>
-                        <Setter Property="BorderBrush" Value="#FFEF4444"/>
-                      </Style>
-                      <Style Selector="Button:pressed">
-                        <Setter Property="Background" Value="#80EF4444"/>
-                      </Style>
-                    </Button.Styles>
-                    <Path Width="10" Height="10" Fill="#FF8080" Data="{StaticResource IconClear}" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <Path Width="10" Height="10" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconClear}" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                   </Button>
                 </Grid>
-                <Separator Background="#25FFFFFF" Height="1"/>
-                <TextBlock TextWrapping="Wrap" Foreground="#DDDDDD" FontSize="12" LineHeight="18">
-                  <Run Text="1." FontWeight="Bold" Foreground="White"/> Copy game assets to GameFilesEdited
+                <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
+                <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}" FontSize="12" LineHeight="18">
+                  <Run Text="1." FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/> Copy game assets to GameFilesEdited
                 </TextBlock>
-                <TextBlock TextWrapping="Wrap" Foreground="#DDDDDD" FontSize="12" LineHeight="18">
-                  <Run Text="2." FontWeight="Bold" Foreground="White"/> Configure bundles in Edit Configuration
+                <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}" FontSize="12" LineHeight="18">
+                  <Run Text="2." FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/> Configure bundles in Edit Configuration
                 </TextBlock>
-                <TextBlock TextWrapping="Wrap" Foreground="#DDDDDD" FontSize="12" LineHeight="18">
-                  <Run Text="3." FontWeight="Bold" Foreground="White"/> Click Execute Build to generate packages
+                <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}" FontSize="12" LineHeight="18">
+                  <Run Text="3." FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/> Click Execute Build to generate packages
                 </TextBlock>
               </StackPanel>
             </Border>
 
             <!-- File Count Card -->
-            <Border Background="#201A33" BorderBrush="#382E55" BorderThickness="1"
-                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #20000000"
+            <Border Background="{DynamicResource CardBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="10" Padding="16"
                     IsVisible="{Binding IsProjectLoaded}">
               <Grid RowDefinitions="Auto,Auto,Auto">
-                <TextBlock Grid.Row="0" Text="Files to Build" FontSize="12" Foreground="#B0B0B0"
-                           HorizontalAlignment="Center"/>
-                <TextBlock Grid.Row="1" Text="{Binding FilesToBuildCount}" FontSize="40" FontWeight="Bold"
-                           Foreground="White" HorizontalAlignment="Center" Margin="0,4"/>
+                <TextBlock Grid.Row="0" Text="Files to Build" FontSize="12" Foreground="{DynamicResource TextSecondary}"
+                           HorizontalAlignment="Center" FontWeight="SemiBold"/>
+                <TextBlock Grid.Row="1" Text="{Binding FilesToBuildCount}" FontSize="36" FontWeight="Bold"
+                           Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" Margin="0,4"/>
                 <Button Grid.Row="2" Command="{Binding RefreshFileCountCommand}"
-                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                        Padding="10,6" CornerRadius="8"
-                        Background="#15FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1" Foreground="White">
+                        Classes="quick-nav-btn"
+                        HorizontalContentAlignment="Center"
+                        Padding="10,6">
                   <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <Path Width="12" Height="12" Fill="White" Data="{StaticResource IconReload}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <Path Width="12" Height="12" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconReload}" Stretch="Uniform" VerticalAlignment="Center"/>
                     <TextBlock Text="Refresh Count" FontSize="12" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
@@ -181,60 +285,56 @@
             </Border>
 
             <!-- Quick Access -->
-            <Border Background="#201A33" BorderBrush="#382E55" BorderThickness="1"
-                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #20000000"
+            <Border Background="{DynamicResource CardBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="10" Padding="16"
                     IsVisible="{Binding IsProjectLoaded}">
-              <StackPanel Spacing="8">
-                <TextBlock Text="Quick Access" FontWeight="Bold" FontSize="13" Foreground="White"/>
-                <Separator Background="#25FFFFFF" Height="1"/>
-                <Button Command="{Binding OpenProjectFolderCommand}" HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Left" VerticalContentAlignment="Center" Padding="12,8" CornerRadius="8"
-                        Background="#15FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1">
+              <StackPanel Spacing="10">
+                <TextBlock Text="Quick Access" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
+                <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
+                <Button Command="{Binding OpenProjectFolderCommand}" Classes="quick-nav-btn">
                   <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Path Width="14" Height="14" Fill="{StaticResource TextSecondaryBrush}" Data="{StaticResource IconOpenFolder}" Stretch="Uniform" VerticalAlignment="Center"/>
-                    <TextBlock Text="Open Project Folder" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
+                    <Path Width="14" Height="14" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconOpenFolder}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="Open Project Folder" FontWeight="Medium" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
-                <Button Command="{Binding OpenEditFolderCommand}" HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Left" VerticalContentAlignment="Center" Padding="12,8" CornerRadius="8"
-                        Background="#15FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1">
+                <Button Command="{Binding OpenEditFolderCommand}" Classes="quick-nav-btn">
                   <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Path Width="14" Height="14" Fill="{StaticResource TextSecondaryBrush}" Data="{StaticResource IconEdit}" Stretch="Uniform" VerticalAlignment="Center"/>
-                    <TextBlock Text="Open GameFilesEdited" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
+                    <Path Width="14" Height="14" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconEdit}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="Open GameFilesEdited" FontWeight="Medium" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
-                <Button Command="{Binding OpenFileManagerCommand}" HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Left" VerticalContentAlignment="Center" Padding="12,8" CornerRadius="8"
-                        Background="#307C4DFF" BorderBrush="#507C4DFF" BorderThickness="1">
+                <Button Command="{Binding OpenFileManagerCommand}" Classes="quick-nav-btn">
                   <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Path Width="14" Height="14" Fill="{StaticResource AccentPrimaryBrush}" Data="{StaticResource IconPackage}" Stretch="Uniform" VerticalAlignment="Center"/>
-                    <TextBlock Text="Game Asset Manager" FontWeight="Medium" Foreground="White" VerticalAlignment="Center"/>
+                    <Path Width="14" Height="14" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconPackage}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="Game Asset Manager" FontWeight="Medium" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
-                <Button Command="{Binding OpenConfigEditorCommand}" HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Left" VerticalContentAlignment="Center" Padding="12,8" CornerRadius="8"
-                        Background="#40673AB7" BorderBrush="#607C4DFF" BorderThickness="1">
+                <Button Command="{Binding OpenConfigEditorCommand}" Classes="quick-nav-btn">
                   <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Path Width="14" Height="14" Fill="#D0BFFF" Data="{StaticResource IconSettings}" Stretch="Uniform" VerticalAlignment="Center"/>
-                    <TextBlock Text="Edit Configuration" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                    <Path Width="14" Height="14" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconSettings}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="Edit Configuration" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
               </StackPanel>
             </Border>
 
             <!-- Bundle Packs -->
-            <Border Background="#201A33" BorderBrush="#382E55" BorderThickness="1"
-                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #20000000">
+            <Border Background="{DynamicResource CardBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="10" Padding="16">
               <StackPanel Spacing="10">
-                <TextBlock Text="Bundle Packs" FontWeight="Bold" FontSize="13" Foreground="White"/>
-                <Separator Background="#25FFFFFF" Height="1"/>
-                <Border Background="#10FFFFFF" CornerRadius="8" Padding="10" MinHeight="90">
-                  <ScrollViewer MaxHeight="160" VerticalScrollBarVisibility="Auto">
+                <TextBlock Text="Bundle Packs" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
+                <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
+                <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                        CornerRadius="8" Padding="10" MinHeight="90">
+                  <ScrollViewer MaxHeight="160" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <ItemsControl ItemsSource="{Binding BundlePacks}">
                       <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:BundleItemViewModel">
                           <CheckBox Content="{Binding Name}" IsChecked="{Binding IsSelected}"
-                                    Margin="0,4" Foreground="White"/>
+                                    Margin="0,4" Foreground="{DynamicResource TextPrimary}"/>
                         </DataTemplate>
                       </ItemsControl.ItemTemplate>
                     </ItemsControl>
@@ -244,35 +344,41 @@
             </Border>
 
             <!-- Build Actions -->
-            <Border Background="#201A33" BorderBrush="#382E55" BorderThickness="1"
-                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #20000000">
+            <Border Background="{DynamicResource CardBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="10" Padding="16">
               <StackPanel Spacing="10" IsEnabled="{Binding !IsBuilding}">
-                <TextBlock Text="Build Actions" FontWeight="Bold" FontSize="13" Foreground="White"/>
-                <Separator Background="#25FFFFFF" Height="1"/>
-                <Border Background="#10FFFFFF" CornerRadius="8" Padding="10">
+                <TextBlock Text="Build Actions" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
+                <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
+                <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                        CornerRadius="8" Padding="10">
                   <StackPanel Spacing="6">
-                    <CheckBox Content="Clean" IsChecked="{Binding CleanEnabled}" Foreground="White" ToolTip.Tip="Deletes temporary build and output artifacts before building"/>
-                    <CheckBox Content="Build" IsChecked="{Binding BuildEnabled}" Foreground="White" ToolTip.Tip="Compiles and packages edited assets into .big bundles"/>
-                    <CheckBox Content="Release" IsChecked="{Binding ReleaseEnabled}" Foreground="White" ToolTip.Tip="Generates distributable release archive packages"/>
-                    <CheckBox Content="Uninstall" IsChecked="{Binding UninstallEnabled}" Foreground="White" ToolTip.Tip="Removes previously installed mod files from the game directory"/>
-                    <CheckBox Content="Install" IsChecked="{Binding InstallEnabled}" Foreground="White" ToolTip.Tip="Copies newly built mod files into the target game directory"/>
-                    <CheckBox Content="Run Game" IsChecked="{Binding RunGameEnabled}" Foreground="White" ToolTip.Tip="Launches the game executable with configured arguments"/>
+                    <CheckBox Content="Clean" IsChecked="{Binding CleanEnabled}" Foreground="{DynamicResource TextPrimary}" ToolTip.Tip="Deletes temporary build and output artifacts before building"/>
+                    <CheckBox Content="Build" IsChecked="{Binding BuildEnabled}" Foreground="{DynamicResource TextPrimary}" ToolTip.Tip="Compiles and packages edited assets into .big bundles"/>
+                    <CheckBox Content="Release" IsChecked="{Binding ReleaseEnabled}" Foreground="{DynamicResource TextPrimary}" ToolTip.Tip="Generates distributable release archive packages"/>
+                    <CheckBox Content="Uninstall" IsChecked="{Binding UninstallEnabled}" Foreground="{DynamicResource TextPrimary}" ToolTip.Tip="Removes previously installed mod files from the game directory"/>
+                    <CheckBox Content="Install" IsChecked="{Binding InstallEnabled}" Foreground="{DynamicResource TextPrimary}" ToolTip.Tip="Copies newly built mod files into the target game directory"/>
+                    <CheckBox Content="Run Game" IsChecked="{Binding RunGameEnabled}" Foreground="{DynamicResource TextPrimary}" ToolTip.Tip="Launches the game executable with configured arguments"/>
                   </StackPanel>
                 </Border>
               </StackPanel>
             </Border>
 
             <!-- Build Options -->
-            <Border Background="#201A33" BorderBrush="#382E55" BorderThickness="1"
-                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #20000000">
+            <Border Background="{DynamicResource CardBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="10" Padding="16">
               <StackPanel Spacing="10">
-                <TextBlock Text="Build Options" FontWeight="Bold" FontSize="13" Foreground="White"/>
-                <Separator Background="#25FFFFFF" Height="1"/>
-                <Border Background="#10FFFFFF" CornerRadius="8" Padding="10">
+                <TextBlock Text="Build Options" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimary}"/>
+                <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
+                <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                        CornerRadius="8" Padding="10">
                   <StackPanel Spacing="6">
-                    <CheckBox Content="Verbose Logging" IsChecked="{Binding VerboseLogging}" Foreground="White"/>
-                    <CheckBox Content="Multi-Processing" IsChecked="{Binding MultiProcessing}" Foreground="White"/>
-                    <CheckBox Content="Print Config" IsChecked="{Binding PrintConfig}" Foreground="White"/>
+                    <CheckBox Content="Verbose Logging" IsChecked="{Binding VerboseLogging}" Foreground="{DynamicResource TextPrimary}"/>
+                    <CheckBox Content="Multi-Processing" IsChecked="{Binding MultiProcessing}" Foreground="{DynamicResource TextPrimary}"/>
+                    <CheckBox Content="Print Config" IsChecked="{Binding PrintConfig}" Foreground="{DynamicResource TextPrimary}"/>
                   </StackPanel>
                 </Border>
               </StackPanel>
@@ -285,29 +391,30 @@
         <GridSplitter Grid.Column="1" Width="8" Background="Transparent" ResizeDirection="Columns" Cursor="SizeWestEast"/>
 
         <!-- Center: Build Output Terminal (Streaming Live) -->
-        <Border Grid.Column="2" Background="#1A1428" BorderBrush="#382E55" BorderThickness="1"
-                CornerRadius="16" Padding="16" BoxShadow="0 8 32 0 #40000000" Margin="4,0">
+        <Border Grid.Column="2" Background="{DynamicResource CardBackground}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #30000000">
           <Grid RowDefinitions="Auto,*">
             <!-- Console Header -->
             <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
               <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                <Path Width="16" Height="16" Fill="{StaticResource AccentPrimaryBrush}" Data="{StaticResource IconTextFile}" Stretch="Uniform" VerticalAlignment="Center"/>
-                <TextBlock Text="Build Output" FontWeight="Bold" FontSize="14" Foreground="White" VerticalAlignment="Center"/>
+                <Path Width="16" Height="16" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconTerminal}" Stretch="Uniform" VerticalAlignment="Center"/>
+                <TextBlock Text="Build Output" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
               </StackPanel>
               <Button Grid.Column="1" Content="Clear Output" Command="{Binding ClearOutputCommand}"
-                      Padding="10,5" CornerRadius="8" Background="#15FFFFFF" Foreground="White"
-                      BorderBrush="#20FFFFFF" BorderThickness="1" VerticalContentAlignment="Center" HorizontalContentAlignment="Center"/>
+                      Classes="header-action-btn" Padding="10,5"/>
             </Grid>
 
             <!-- Live Streaming Console Output -->
-            <Border Grid.Row="1" Background="#0E0B1A" BorderBrush="#20FFFFFF" BorderThickness="1"
-                    CornerRadius="12" ClipToBounds="True">
+            <Border Grid.Row="1" Background="{DynamicResource SurfaceBackgroundDarkBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="8" ClipToBounds="True">
               <ScrollViewer Name="BuildOutputScroller" VerticalScrollBarVisibility="Auto"
                             HorizontalScrollBarVisibility="Auto">
                 <TextBox Text="{Binding BuildOutput}" IsReadOnly="True" TextWrapping="NoWrap"
                          BorderThickness="0" Background="Transparent"
-                         FontFamily="Consolas,JetBrains Mono,Courier New,monospace" FontSize="12"
-                         Foreground="#E8E8E8" Padding="14" AcceptsReturn="True"/>
+                         FontFamily="JetBrains Mono,Consolas,Courier New,monospace" FontSize="12"
+                         Foreground="{DynamicResource TextPrimary}" Padding="14" AcceptsReturn="True"/>
               </ScrollViewer>
             </Border>
           </Grid>
@@ -317,86 +424,87 @@
         <GridSplitter Grid.Column="3" Width="8" Background="Transparent" ResizeDirection="Columns" Cursor="SizeWestEast"/>
 
         <!-- Right Panel: Build Control & Status -->
-        <ScrollViewer Grid.Column="4" VerticalScrollBarVisibility="Auto" Margin="6,0,0,0">
-          <StackPanel Spacing="14">
+        <ScrollViewer Grid.Column="4" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="4,0,0,0">
+          <StackPanel Spacing="12">
 
             <!-- Build Status Card -->
-            <Border Background="#201A33" BorderBrush="#382E55" BorderThickness="1"
-                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #20000000">
+            <Border Background="{DynamicResource CardBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="10" Padding="16">
               <StackPanel Spacing="12">
-                <TextBlock Text="Build Status" FontWeight="Bold" FontSize="14" Foreground="White"/>
-                <Separator Background="#25FFFFFF" Height="1"/>
+                <TextBlock Text="Build Status" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimary}"/>
+                <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
 
-                <Border Background="#10FFFFFF" CornerRadius="8" Padding="14">
+                <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                        CornerRadius="8" Padding="14">
                   <StackPanel Spacing="10">
                     <Grid ColumnDefinitions="Auto,*">
-                      <TextBlock Grid.Column="0" Text="Status:" Foreground="#9A9AA8" Width="70"/>
+                      <TextBlock Grid.Column="0" Text="Status:" Foreground="{DynamicResource TextSecondary}" Width="70"/>
                       <TextBlock Grid.Column="1" Text="{Binding BuildStatus, FallbackValue='Ready'}"
-                                 FontWeight="SemiBold" Foreground="White"/>
+                                 FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
                     </Grid>
                     <Grid ColumnDefinitions="Auto,*">
-                      <TextBlock Grid.Column="0" Text="Stage:" Foreground="#9A9AA8" Width="70"/>
+                      <TextBlock Grid.Column="0" Text="Stage:" Foreground="{DynamicResource TextSecondary}" Width="70"/>
                       <TextBlock Grid.Column="1" Text="{Binding CurrentStage, FallbackValue='Idle'}"
-                                 FontWeight="SemiBold" Foreground="White"/>
+                                 FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
                     </Grid>
                     <Grid ColumnDefinitions="Auto,*">
-                      <TextBlock Grid.Column="0" Text="File:" Foreground="#9A9AA8" Width="70"/>
+                      <TextBlock Grid.Column="0" Text="File:" Foreground="{DynamicResource TextSecondary}" Width="70"/>
                       <TextBlock Grid.Column="1" Text="{Binding CurrentFile, FallbackValue='—'}"
-                                 TextTrimming="CharacterEllipsis" Foreground="White"
+                                 TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextPrimary}"
                                  ToolTip.Tip="{Binding CurrentFile}"/>
                     </Grid>
 
-                    <Separator Background="#20FFFFFF" Height="1" Margin="0,4"/>
+                    <Separator Background="{DynamicResource BorderBrush}" Height="1" Margin="0,4"/>
 
                     <Grid ColumnDefinitions="Auto,*">
-                      <TextBlock Grid.Column="0" Text="Progress:" Foreground="#9A9AA8" Width="70"/>
+                      <TextBlock Grid.Column="0" Text="Progress:" Foreground="{DynamicResource TextSecondary}" Width="70"/>
                       <TextBlock Grid.Column="1" Text="{Binding ProgressText, FallbackValue='0%'}"
-                                 FontWeight="SemiBold" Foreground="White"/>
+                                 FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
                     </Grid>
 
                     <ProgressBar Value="{Binding PercentComplete}" Minimum="0" Maximum="100"
-                                 Height="8" CornerRadius="4" Background="#20FFFFFF">
-                      <ProgressBar.Foreground>
-                        <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
-                          <GradientStop Color="#7C4DFF" Offset="0"/>
-                          <GradientStop Color="#673AB7" Offset="1"/>
-                        </LinearGradientBrush>
-                      </ProgressBar.Foreground>
-                    </ProgressBar>
+                                 Height="8" CornerRadius="4"
+                                 Background="{DynamicResource SurfaceHoverBrush}"
+                                 Foreground="{DynamicResource AccentBrush}"/>
                   </StackPanel>
                 </Border>
               </StackPanel>
             </Border>
 
             <!-- Project Info Card -->
-            <Border Background="#201A33" BorderBrush="#382E55" BorderThickness="1"
-                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #20000000"
+            <Border Background="{DynamicResource CardBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="10" Padding="16"
                     IsVisible="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}">
               <StackPanel Spacing="12">
-                <TextBlock Text="Project Info" FontWeight="Bold" FontSize="14" Foreground="White"/>
-                <Separator Background="#25FFFFFF" Height="1"/>
+                <TextBlock Text="Project Info" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource TextPrimary}"/>
+                <Separator Background="{DynamicResource BorderBrush}" Height="1"/>
 
-                <Border Background="#10FFFFFF" CornerRadius="8" Padding="14">
+                <Border Background="{DynamicResource SurfaceElevatedBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                        CornerRadius="8" Padding="14">
                   <StackPanel Spacing="8">
                     <Grid ColumnDefinitions="Auto,*">
-                      <TextBlock Grid.Column="0" Text="Name:" Foreground="#9A9AA8" Width="65"/>
+                      <TextBlock Grid.Column="0" Text="Name:" Foreground="{DynamicResource TextSecondary}" Width="65"/>
                       <TextBlock Grid.Column="1" Text="{Binding CurrentProject.Name, FallbackValue='—'}"
-                                 FontWeight="SemiBold" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                                 FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
                     </Grid>
                     <Grid ColumnDefinitions="Auto,*">
-                      <TextBlock Grid.Column="0" Text="Version:" Foreground="#9A9AA8" Width="65"/>
+                      <TextBlock Grid.Column="0" Text="Version:" Foreground="{DynamicResource TextSecondary}" Width="65"/>
                       <TextBlock Grid.Column="1" Text="{Binding CurrentProject.Version, FallbackValue='—'}"
-                                 Foreground="White"/>
+                                 Foreground="{DynamicResource TextPrimary}"/>
                     </Grid>
                     <Grid ColumnDefinitions="Auto,*">
-                      <TextBlock Grid.Column="0" Text="Author:" Foreground="#9A9AA8" Width="65"/>
+                      <TextBlock Grid.Column="0" Text="Author:" Foreground="{DynamicResource TextSecondary}" Width="65"/>
                       <TextBlock Grid.Column="1" Text="{Binding CurrentProject.Author, FallbackValue='—'}"
-                                 Foreground="White" TextTrimming="CharacterEllipsis"/>
+                                 Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
                     </Grid>
                     <Grid ColumnDefinitions="Auto,*">
-                      <TextBlock Grid.Column="0" Text="Packs:" Foreground="#9A9AA8" Width="65"/>
+                      <TextBlock Grid.Column="0" Text="Packs:" Foreground="{DynamicResource TextSecondary}" Width="65"/>
                       <TextBlock Grid.Column="1" Text="{Binding BundlePacks.Count, FallbackValue='0'}"
-                                 Foreground="White"/>
+                                 Foreground="{DynamicResource TextPrimary}"/>
                     </Grid>
                   </StackPanel>
                 </Border>
@@ -404,19 +512,15 @@
             </Border>
 
             <!-- Build Control Buttons -->
-            <Border Background="#201A33" BorderBrush="#382E55" BorderThickness="1"
-                    CornerRadius="12" Padding="16" BoxShadow="0 4 16 0 #20000000">
+            <Border Background="{DynamicResource CardBackground}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    CornerRadius="10" Padding="16">
               <StackPanel Spacing="10">
                 <!-- Execute Build Button -->
-                <Button Command="{Binding BuildCommand}" HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                        Padding="0,14" CornerRadius="12">
-                  <Button.Background>
-                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                      <GradientStop Color="#7C4DFF" Offset="0"/>
-                      <GradientStop Color="#5E35B1" Offset="1"/>
-                    </LinearGradientBrush>
-                  </Button.Background>
+                <Button Command="{Binding BuildCommand}"
+                        Classes="build-cta-btn"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
                   <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <Path Width="16" Height="16" Fill="White" Data="{StaticResource IconPlay}" Stretch="Uniform" VerticalAlignment="Center"/>
                     <TextBlock Text="Execute Build" FontWeight="Bold" FontSize="14" Foreground="White" VerticalAlignment="Center"/>
@@ -424,44 +528,37 @@
                 </Button>
 
                 <!-- Abort Build Button -->
-                <Button Command="{Binding AbortBuildCommand}" HorizontalAlignment="Stretch"
+                <Button Command="{Binding AbortBuildCommand}"
+                        Classes="abort-danger-btn"
+                        HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                        Padding="0,10" CornerRadius="10"
                         IsEnabled="{Binding IsBuilding}">
-                  <Button.Background>
-                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                      <GradientStop Color="#E53935" Offset="0"/>
-                      <GradientStop Color="#C62828" Offset="1"/>
-                    </LinearGradientBrush>
-                  </Button.Background>
                   <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Path Width="14" Height="14" Fill="White" Data="{StaticResource IconStop}" Stretch="Uniform" VerticalAlignment="Center"/>
-                    <TextBlock Text="Abort Build" FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                    <Path Width="14" Height="14" Fill="{Binding $parent[Button].Foreground}" Data="{StaticResource IconStop}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="Abort Build" FontWeight="SemiBold" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
 
-                <Separator Background="#25FFFFFF" Height="1" Margin="0,4"/>
+                <Separator Background="{DynamicResource BorderBrush}" Height="1" Margin="0,4"/>
 
                 <!-- Dedicated Folder Buttons -->
                 <Button Command="{Binding OpenBuildFolderCommand}"
-                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                        Padding="0,10" CornerRadius="8"
-                        Background="#15FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1" Foreground="White"
+                        Classes="quick-nav-btn"
+                        HorizontalContentAlignment="Center"
                         IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}">
                   <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <Path Width="14" Height="14" Fill="{StaticResource TextSecondaryBrush}" Data="{StaticResource IconOpenFolder}" Stretch="Uniform" VerticalAlignment="Center"/>
-                    <TextBlock Text="Open Build Folder" Foreground="White" VerticalAlignment="Center"/>
+                    <Path Width="14" Height="14" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconOpenFolder}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="Open Build Folder" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
 
                 <Button Command="{Binding OpenReleaseFolderCommand}"
-                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                        Padding="0,10" CornerRadius="8"
-                        Background="#15FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1" Foreground="White"
+                        Classes="quick-nav-btn"
+                        HorizontalContentAlignment="Center"
                         IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}">
                   <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <Path Width="14" Height="14" Fill="{StaticResource TextSecondaryBrush}" Data="{StaticResource IconOpenFolder}" Stretch="Uniform" VerticalAlignment="Center"/>
-                    <TextBlock Text="Open Release Folder" Foreground="White" VerticalAlignment="Center"/>
+                    <Path Width="14" Height="14" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconOpenFolder}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Text="Open Release Folder" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
               </StackPanel>

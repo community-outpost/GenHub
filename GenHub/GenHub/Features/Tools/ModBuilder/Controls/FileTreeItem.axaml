@@ -15,17 +15,17 @@
   </UserControl.Resources>
 
   <Border Background="Transparent"
-          BorderBrush="{StaticResource BorderBrush}"
+          BorderBrush="{DynamicResource BorderBrush}"
           BorderThickness="0,0,0,1"
-          Padding="{StaticResource PaddingSmall}"
-          CornerRadius="{StaticResource CornerRadiusSmall}">
+          Padding="8,6"
+          CornerRadius="6">
 
     <Border.Styles>
       <Style Selector="Border:pointerover">
-        <Setter Property="Background" Value="{StaticResource SurfaceHoverBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
       </Style>
       <Style Selector="Border:pressed">
-        <Setter Property="Background" Value="{StaticResource SurfaceActiveBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
       </Style>
     </Border.Styles>
 
@@ -43,7 +43,7 @@
               IsVisible="{Binding HasChildren}"
               Command="{Binding ToggleExpandCommand}">
         <Path Width="12" Height="12"
-              Fill="{StaticResource TextSecondaryBrush}"
+              Fill="{DynamicResource TextSecondary}"
               Data="{StaticResource IconChevronRight}"
               RenderTransform="rotate(0deg)">
           <Path.Styles>
@@ -68,19 +68,20 @@
               Width="24" Height="24"
               Margin="4,0"
               Background="{Binding FileTypeColor}"
-              CornerRadius="{StaticResource CornerRadiusSmall}">
-        <Path Width="16" Height="16"
-              Fill="{StaticResource TextPrimaryBrush}"
+              CornerRadius="4">
+        <Path Width="14" Height="14"
+              Fill="White"
               Data="{Binding FileTypeIcon}"
               HorizontalAlignment="Center"
-              VerticalAlignment="Center"/>
+              VerticalAlignment="Center"
+              Stretch="Uniform"/>
       </Border>
 
       <!-- File Name -->
       <TextBlock Grid.Column="3"
                  Text="{Binding FileName}"
-                 FontSize="{StaticResource FontSizeNormal}"
-                 Foreground="{StaticResource TextPrimaryBrush}"
+                 FontSize="12"
+                 Foreground="{DynamicResource TextPrimary}"
                  VerticalAlignment="Center"
                  TextTrimming="CharacterEllipsis"
                  ToolTip.Tip="{Binding FullPath}"/>
@@ -97,8 +98,8 @@
       <!-- File Size -->
       <TextBlock Grid.Column="5"
                  Text="{Binding FileSize}"
-                 FontSize="{StaticResource FontSizeSmall}"
-                 Foreground="{StaticResource TextTertiaryBrush}"
+                 FontSize="11"
+                 Foreground="{DynamicResource TextSecondary}"
                  VerticalAlignment="Center"
                  Margin="8,0,0,0"/>
 

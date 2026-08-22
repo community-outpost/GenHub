@@ -16,12 +16,12 @@
 
   <Border Background="Transparent"
           Padding="8,4"
-          BorderBrush="{StaticResource BorderBrush}"
+          BorderBrush="{DynamicResource BorderBrush}"
           BorderThickness="0,0,0,0.5">
 
     <Border.Styles>
       <Style Selector="Border:pointerover">
-        <Setter Property="Background" Value="#10FFFFFF"/>
+        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
       </Style>
     </Border.Styles>
 
@@ -30,31 +30,32 @@
       <!-- Timestamp -->
       <TextBlock Grid.Column="0"
                  Text="{Binding Timestamp, StringFormat='{}{0:HH:mm:ss.fff}'}"
-                 FontFamily="{StaticResource FontFamilyMonospace}"
-                 FontSize="{StaticResource FontSizeSmall}"
-                 Foreground="{StaticResource TextTertiaryBrush}"
+                 FontFamily="JetBrains Mono, Consolas, Courier New, monospace"
+                 FontSize="11"
+                 Foreground="{DynamicResource TextSecondary}"
                  VerticalAlignment="Center"
                  Margin="0,0,12,0"/>
 
       <!-- Log Level Icon -->
       <Border Grid.Column="1"
-              Width="20" Height="20"
+              Width="18" Height="18"
               Margin="0,0,8,0"
               Background="{Binding LogLevelBackground}"
-              CornerRadius="{StaticResource CornerRadiusSmall}">
-        <Path Width="12" Height="12"
+              CornerRadius="4">
+        <Path Width="10" Height="10"
               Fill="{Binding LogLevelForeground}"
               Data="{Binding LogLevelIcon}"
               HorizontalAlignment="Center"
-              VerticalAlignment="Center"/>
+              VerticalAlignment="Center"
+              Stretch="Uniform"/>
       </Border>
 
       <!-- Log Level Text -->
       <TextBlock Grid.Column="2"
                  Text="{Binding LogLevel}"
-                 FontFamily="{StaticResource FontFamilyMonospace}"
-                 FontSize="{StaticResource FontSizeSmall}"
-                 FontWeight="{StaticResource FontWeightSemiBold}"
+                 FontFamily="JetBrains Mono, Consolas, Courier New, monospace"
+                 FontSize="11"
+                 FontWeight="SemiBold"
                  Foreground="{Binding LogLevelForeground}"
                  VerticalAlignment="Center"
                  Width="60"
@@ -63,9 +64,9 @@
       <!-- Message -->
       <TextBlock Grid.Column="3"
                  Text="{Binding Message}"
-                 FontFamily="{StaticResource FontFamilyMonospace}"
-                 FontSize="{StaticResource FontSizeNormal}"
-                 Foreground="{StaticResource TextPrimaryBrush}"
+                 FontFamily="JetBrains Mono, Consolas, Courier New, monospace"
+                 FontSize="12"
+                 Foreground="{DynamicResource TextPrimary}"
                  VerticalAlignment="Center"
                  TextWrapping="NoWrap"
                  TextTrimming="CharacterEllipsis"
@@ -74,9 +75,9 @@
       <!-- Duration (if applicable) -->
       <TextBlock Grid.Column="4"
                  Text="{Binding Duration, StringFormat='{}({0:F2}s)'}"
-                 FontFamily="{StaticResource FontFamilyMonospace}"
-                 FontSize="{StaticResource FontSizeSmall}"
-                 Foreground="{StaticResource AccentSecondaryBrush}"
+                 FontFamily="JetBrains Mono, Consolas, Courier New, monospace"
+                 FontSize="11"
+                 Foreground="{DynamicResource AccentBrush}"
                  VerticalAlignment="Center"
                  Margin="12,0,0,0"
                  IsVisible="{Binding HasDuration}"/>
