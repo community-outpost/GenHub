@@ -17,7 +17,7 @@ namespace GenHub.Features.Info.ViewModels;
 /// <summary>
 /// ViewModel for the FAQ section.
 /// </summary>
-public partial class FaqSectionViewModel(IFaqService faqService, ILogger<FaqSectionViewModel> logger) : ObservableObject, IInfoSectionViewModel, IDisposable
+public sealed partial class FaqSectionViewModel(IFaqService faqService, ILogger<FaqSectionViewModel> logger) : ObservableObject, IInfoSectionViewModel, IDisposable
 {
     private CancellationTokenSource? _loadCts;
 

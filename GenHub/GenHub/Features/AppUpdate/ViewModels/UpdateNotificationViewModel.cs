@@ -359,13 +359,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
     private async Task LoadArtifactsForSubscribedItemAsync()
     {
-        // cancel any previous in-flight load
-        if (_loadArtifactsCts != null)
-        {
-            await _loadArtifactsCts.CancelAsync();
-            _loadArtifactsCts.Dispose();
-            _loadArtifactsCts = null;
-        }
+        await CancelPreviousArtifactLoadAsync();
 
         var targetPr = SubscribedPr;
         var targetPrNumber = targetPr?.Number ?? _velopackUpdateManager.SubscribedPrNumber;
@@ -373,9 +367,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
         if (targetPrNumber == null && string.IsNullOrEmpty(targetBranch))
         {
-            IsLoadingVersions = false;
-            AvailableVersions.Clear();
-            SelectedVersion = null;
+            ResetAvailableVersions();
             return;
         }
 
@@ -389,48 +381,13 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
         try
         {
-            IReadOnlyList<ArtifactUpdateInfo> artifacts = [];
-
-            if (targetPrNumber.HasValue)
-            {
-                _logger.LogInformation("Loading artifacts for PR #{PrNumber}", targetPrNumber.Value);
-                artifacts = await _velopackUpdateManager.GetArtifactsForPullRequestAsync(targetPrNumber.Value, token);
-            }
-            else if (!string.IsNullOrEmpty(targetBranch))
-            {
-                _logger.LogInformation("Loading artifacts for branch '{Branch}'", targetBranch);
-                artifacts = await _velopackUpdateManager.GetArtifactsForBranchAsync(targetBranch, token);
-            }
-
+            var artifacts = await FetchSubscribedArtifactsAsync(targetPrNumber, targetBranch, token);
             if (token.IsCancellationRequested)
             {
                 return;
             }
 
-            _logger.LogInformation("Received {Count} platform-compatible artifacts from update manager", artifacts.Count);
-
-            // use hashset to prevent duplicates based on artifact id
-            var addedArtifactIds = new HashSet<long>();
-            foreach (var artifact in artifacts)
-            {
-                if (addedArtifactIds.Add(artifact.ArtifactId))
-                {
-                    AvailableVersions.Add(artifact);
-                    _logger.LogDebug("Added artifact: {Version} ({Hash}) - ID: {Id}", artifact.DisplayVersion, artifact.GitHash, artifact.ArtifactId);
-                }
-                else
-                {
-                    _logger.LogWarning("Duplicate artifact detected in ViewModel: {Version} ({Hash}) - ID: {Id}", artifact.DisplayVersion, artifact.GitHash, artifact.ArtifactId);
-                }
-            }
-
-            _logger.LogInformation("Loaded {Count} artifacts into AvailableVersions", AvailableVersions.Count);
-
-            // auto-select latest version for improved user experience
-            if (AvailableVersions.Count > 0)
-            {
-                SelectedVersion = AvailableVersions[0];
-            }
+            PopulateAvailableVersions(artifacts);
         }
         catch (OperationCanceledException)
         {
@@ -449,6 +406,69 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             {
                 IsLoadingVersions = false;
             }
+        }
+    }
+
+    private async Task CancelPreviousArtifactLoadAsync()
+    {
+        if (_loadArtifactsCts != null)
+        {
+            await _loadArtifactsCts.CancelAsync();
+            _loadArtifactsCts.Dispose();
+            _loadArtifactsCts = null;
+        }
+    }
+
+    private void ResetAvailableVersions()
+    {
+        IsLoadingVersions = false;
+        AvailableVersions.Clear();
+        SelectedVersion = null;
+    }
+
+    private async Task<IReadOnlyList<ArtifactUpdateInfo>> FetchSubscribedArtifactsAsync(
+        int? targetPrNumber,
+        string? targetBranch,
+        CancellationToken token)
+    {
+        if (targetPrNumber.HasValue)
+        {
+            _logger.LogInformation("Loading artifacts for PR #{PrNumber}", targetPrNumber.Value);
+            return await _velopackUpdateManager.GetArtifactsForPullRequestAsync(targetPrNumber.Value, token);
+        }
+
+        if (!string.IsNullOrEmpty(targetBranch))
+        {
+            _logger.LogInformation("Loading artifacts for branch '{Branch}'", targetBranch);
+            return await _velopackUpdateManager.GetArtifactsForBranchAsync(targetBranch, token);
+        }
+
+        return [];
+    }
+
+    private void PopulateAvailableVersions(IReadOnlyList<ArtifactUpdateInfo> artifacts)
+    {
+        _logger.LogInformation("Received {Count} platform-compatible artifacts from update manager", artifacts.Count);
+
+        var addedArtifactIds = new HashSet<long>();
+        foreach (var artifact in artifacts)
+        {
+            if (addedArtifactIds.Add(artifact.ArtifactId))
+            {
+                AvailableVersions.Add(artifact);
+                _logger.LogDebug("Added artifact: {Version} ({Hash}) - ID: {Id}", artifact.DisplayVersion, artifact.GitHash, artifact.ArtifactId);
+            }
+            else
+            {
+                _logger.LogWarning("Duplicate artifact detected in ViewModel: {Version} ({Hash}) - ID: {Id}", artifact.DisplayVersion, artifact.GitHash, artifact.ArtifactId);
+            }
+        }
+
+        _logger.LogInformation("Loaded {Count} artifacts into AvailableVersions", AvailableVersions.Count);
+
+        if (AvailableVersions.Count > 0)
+        {
+            SelectedVersion = AvailableVersions[0];
         }
     }
 

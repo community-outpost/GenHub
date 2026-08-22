@@ -47,5 +47,8 @@ public partial class NotificationActionViewModel(NotificationAction action, Acti
     /// <summary>
     /// Gets the foreground brush for the action button based on its style.
     /// </summary>
-    public IBrush ForegroundBrush => DefaultForegroundBrush;
+    public IBrush ForegroundBrush => Style switch
+    {
+        _ => DefaultForegroundBrush,
+    };
 }
