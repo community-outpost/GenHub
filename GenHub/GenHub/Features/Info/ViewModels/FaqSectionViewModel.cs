@@ -6,10 +6,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Info;
 using GenHub.Core.Models.Info;
-using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Info.ViewModels;
@@ -30,6 +28,12 @@ public sealed partial class FaqSectionViewModel(IFaqService faqService, ILogger<
     [ObservableProperty]
     private string _statusMessage = string.Empty;
 
+    [ObservableProperty]
+    private LanguageOption _selectedLanguageOption = new("English", "en", "avares://GenHub/Assets/Images/Flags/en.png");
+
+    [ObservableProperty]
+    private FaqCategoryViewModel? _selectedCategory;
+
     /// <inheritdoc/>
     public string Id => "faq";
 
@@ -39,7 +43,7 @@ public sealed partial class FaqSectionViewModel(IFaqService faqService, ILogger<
     /// <summary>
     /// Gets the icon key.
     /// </summary>
-    public string IconKey => "HelpCircleOutline"; // Material Design Icon
+    public string IconKey => "HelpCircleOutline";
 
     /// <inheritdoc/>
     public int Order => 0;
@@ -60,12 +64,6 @@ public sealed partial class FaqSectionViewModel(IFaqService faqService, ILogger<
         new LanguageOption("Arabic", "ar", "avares://GenHub/Assets/Images/Flags/ar.webp"),
     ];
 
-    [ObservableProperty]
-    private LanguageOption _selectedLanguageOption = new("English", "en", "avares://GenHub/Assets/Images/Flags/en.png"); // Default, updated in constructor logic if needed but simpler to just init here or OnActivated
-
-    [ObservableProperty]
-    private FaqCategoryViewModel? _selectedCategory;
-
     /// <inheritdoc/>
     public async Task InitializeAsync()
     {
@@ -75,7 +73,7 @@ public sealed partial class FaqSectionViewModel(IFaqService faqService, ILogger<
     /// <inheritdoc/>
     public void Dispose()
     {
-        CancellationTokenSource? ctsToDispose;
+        CancellationTokenSource? ctsToDispose = null;
         lock (_gate)
         {
             if (_disposed)
@@ -97,6 +95,17 @@ public sealed partial class FaqSectionViewModel(IFaqService faqService, ILogger<
         GC.SuppressFinalize(this);
     }
 
+    private static async Task CancelAndDisposeAsync(CancellationTokenSource? cts)
+    {
+        if (cts == null)
+        {
+            return;
+        }
+
+        await cts.CancelAsync();
+        cts.Dispose();
+    }
+
     [RelayCommand]
     private void SelectLanguage(LanguageOption option)
     {
@@ -114,72 +123,27 @@ public sealed partial class FaqSectionViewModel(IFaqService faqService, ILogger<
     [RelayCommand]
     private async Task LoadFaqAsync()
     {
-        CancellationTokenSource? oldCts;
-        CancellationTokenSource cts;
-        int currentGeneration;
-
-        lock (_gate)
+        if (!TryPrepareLoad(out var token, out var currentGeneration, out var oldCts))
         {
-            if (_disposed)
-            {
-                return;
-            }
-
-            oldCts = _loadCts;
-            cts = new CancellationTokenSource();
-            _loadCts = cts;
-            currentGeneration = ++_loadGeneration;
+            return;
         }
 
-        if (oldCts != null)
-        {
-            await oldCts.CancelAsync();
-            oldCts.Dispose();
-        }
+        await CancelAndDisposeAsync(oldCts);
 
-        var token = cts.Token;
         IsLoading = true;
         StatusMessage = string.Empty;
 
         try
         {
             var result = await faqService.GetFaqAsync(SelectedLanguageOption.Code, token);
-            if (token.IsCancellationRequested)
+            if (token.IsCancellationRequested || !IsCurrentGeneration(currentGeneration))
             {
                 return;
             }
 
-            lock (_gate)
+            if (result.Success && result.Data != null)
             {
-                if (_disposed || _loadGeneration != currentGeneration)
-                {
-                    return;
-                }
-            }
-
-            if (result.Success)
-            {
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(
-                    () =>
-                    {
-                        lock (_gate)
-                        {
-                            if (_disposed || _loadGeneration != currentGeneration)
-                            {
-                                return;
-                            }
-                        }
-
-                        Categories.Clear();
-                        foreach (var category in result.Data)
-                        {
-                            Categories.Add(new FaqCategoryViewModel(category));
-                        }
-
-                        SelectedCategory = Categories.FirstOrDefault();
-                    },
-                    Avalonia.Threading.DispatcherPriority.Normal,
-                    token);
+                await PopulateCategoriesAsync(result.Data, currentGeneration, token);
             }
             else
             {
@@ -188,7 +152,7 @@ public sealed partial class FaqSectionViewModel(IFaqService faqService, ILogger<
         }
         catch (OperationCanceledException)
         {
-            // Expected
+            // Expected when a newer load request preempts this one.
         }
         catch (Exception ex)
         {
@@ -197,12 +161,68 @@ public sealed partial class FaqSectionViewModel(IFaqService faqService, ILogger<
         }
         finally
         {
-            lock (_gate)
+            CompleteLoad(currentGeneration);
+        }
+    }
+
+    private bool TryPrepareLoad(out CancellationToken token, out int generation, out CancellationTokenSource? oldCts)
+    {
+        lock (_gate)
+        {
+            if (_disposed)
             {
-                if (_loadGeneration == currentGeneration)
+                token = CancellationToken.None;
+                generation = 0;
+                oldCts = null;
+                return false;
+            }
+
+            oldCts = _loadCts;
+            var cts = new CancellationTokenSource();
+            _loadCts = cts;
+            generation = ++_loadGeneration;
+            token = cts.Token;
+            return true;
+        }
+    }
+
+    private bool IsCurrentGeneration(int generation)
+    {
+        lock (_gate)
+        {
+            return !_disposed && _loadGeneration == generation;
+        }
+    }
+
+    private async Task PopulateCategoriesAsync(IReadOnlyList<FaqCategory> categories, int generation, CancellationToken token)
+    {
+        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(
+            () =>
+            {
+                if (!IsCurrentGeneration(generation))
                 {
-                    IsLoading = false;
+                    return;
                 }
+
+                Categories.Clear();
+                foreach (var category in categories)
+                {
+                    Categories.Add(new FaqCategoryViewModel(category));
+                }
+
+                SelectedCategory = Categories.FirstOrDefault();
+            },
+            Avalonia.Threading.DispatcherPriority.Normal,
+            token);
+    }
+
+    private void CompleteLoad(int generation)
+    {
+        lock (_gate)
+        {
+            if (_loadGeneration == generation)
+            {
+                IsLoading = false;
             }
         }
     }
