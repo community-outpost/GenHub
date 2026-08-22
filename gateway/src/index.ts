@@ -1,14 +1,10 @@
+import { UTApi } from "uploadthing/server";
+
 export interface Env {
   UPLOADTHING_TOKEN: string;
   GATEWAY_HMAC_SECRET: string;
   MAX_FILE_SIZE_BYTES?: string;
   TOKEN_MAX_AGE_SECONDS?: string;
-}
-
-interface PreparePayload {
-  fileName: string;
-  fileSize: number;
-  contentType: string;
 }
 
 interface DeletePayload {
@@ -41,25 +37,6 @@ const parseMaxAgeSeconds = (rawAge: string | undefined): number => {
     return parseInt(rawAge, 10);
   }
   return 31536000;
-};
-
-const parsePrepareBody = (body: { fileName?: unknown; fileSize?: unknown; contentType?: unknown }): PreparePayload => {
-  let fileName = "";
-  if (typeof body.fileName === "string") {
-    fileName = body.fileName;
-  }
-
-  let fileSize = 0;
-  if (typeof body.fileSize === "number") {
-    fileSize = body.fileSize;
-  }
-
-  let contentType = "application/zip";
-  if (typeof body.contentType === "string") {
-    contentType = body.contentType;
-  }
-
-  return { fileName, fileSize, contentType };
 };
 
 const parseDeleteBody = (body: { fileKey?: unknown; deleteToken?: unknown }): DeletePayload => {
@@ -175,7 +152,7 @@ const isValidExtension = (name: string): boolean => {
   return lower.endsWith(".rep");
 };
 
-const validatePrepareRequest = (fileName: string, fileSize: number, maxSizeBytes: number): string | null => {
+const validateUploadFile = (fileName: string, fileSize: number, maxSizeBytes: number): string | null => {
   if (fileName.length === 0) {
     return "Invalid file name";
   }
@@ -191,83 +168,61 @@ const validatePrepareRequest = (fileName: string, fileSize: number, maxSizeBytes
   return null;
 };
 
-const requestPresignedSlot = async (
-  fileName: string,
-  fileSize: number,
-  contentType: string,
-  token: string
-): Promise<{ url: string; key: string } | null> => {
-  const res = await fetch("https://api.uploadthing.com/v6/uploadFiles", {
-    method: "POST",
-    headers: {
-      "x-uploadthing-api-key": token,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      files: [{ name: fileName, size: fileSize, type: contentType }],
-    }),
-  });
-
-  if (!res.ok) {
+const extractFileFromForm = (formData: FormData): File | null => {
+  const fileEntry = formData.get("file");
+  if (fileEntry === null) {
     return null;
   }
-
-  const data = (await res.json()) as { data?: Array<{ url: string; key: string }> };
-  const list = data.data;
-  if (!list) {
+  if (typeof fileEntry === "string") {
     return null;
   }
-  if (list.length === 0) {
-    return null;
-  }
-
-  return list[0];
-};
-
-const executeCloudDelete = async (fileKey: string, token: string): Promise<boolean> => {
-  const res = await fetch("https://api.uploadthing.com/v6/deleteFiles", {
-    method: "POST",
-    headers: {
-      "x-uploadthing-api-key": token,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ fileKeys: [fileKey] }),
-  });
-  return res.ok;
+  return fileEntry;
 };
 
 const createUploadSuccessResponse = async (
-  slot: { url: string; key: string },
+  key: string,
+  ufsUrl: string,
   secret: string
 ): Promise<Response> => {
   const timestamp = Math.floor(Date.now() / 1000);
-  const deleteToken = await signDeleteToken(slot.key, timestamp, secret);
+  const deleteToken = await signDeleteToken(key, timestamp, secret);
   return new Response(
     JSON.stringify({
-      uploadUrl: slot.url,
-      fileKey: slot.key,
+      publicUrl: ufsUrl,
+      fileKey: key,
       deleteToken,
-      publicUrl: `https://utfs.io/f/${slot.key}`,
     }),
     { status: 200, headers: CORS_HEADERS }
   );
 };
 
-const handlePrepareUpload = async (request: Request, env: Env): Promise<Response> => {
-  const payload = parsePrepareBody((await request.json()) as Record<string, unknown>);
-  const maxSizeBytes = parseMaxSizeBytes(env.MAX_FILE_SIZE_BYTES);
+const handleDirectUpload = async (request: Request, env: Env): Promise<Response> => {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (!contentType.includes("multipart/form-data")) {
+    return new Response(JSON.stringify({ error: "Expected multipart/form-data" }), { status: 400, headers: CORS_HEADERS });
+  }
 
-  const validationError = validatePrepareRequest(payload.fileName, payload.fileSize, maxSizeBytes);
+  const formData = await request.formData();
+  const file = extractFileFromForm(formData);
+  if (file === null) {
+    return new Response(JSON.stringify({ error: "Missing 'file' in form-data" }), { status: 400, headers: CORS_HEADERS });
+  }
+
+  const maxSizeBytes = parseMaxSizeBytes(env.MAX_FILE_SIZE_BYTES);
+  const validationError = validateUploadFile(file.name, file.size, maxSizeBytes);
   if (validationError !== null) {
     return new Response(JSON.stringify({ error: validationError }), { status: 400, headers: CORS_HEADERS });
   }
 
-  const slot = await requestPresignedSlot(payload.fileName, payload.fileSize, payload.contentType, env.UPLOADTHING_TOKEN);
-  if (slot === null) {
-    return new Response(JSON.stringify({ error: "Storage provider rejected upload" }), { status: 502, headers: CORS_HEADERS });
+  const utapi = new UTApi({ token: env.UPLOADTHING_TOKEN });
+  const uploadRes = await utapi.uploadFiles([file]);
+  const first = Array.isArray(uploadRes) ? uploadRes[0] : uploadRes;
+  if (!first || first.error || !first.data) {
+    const errorMsg = first?.error?.message ?? "Storage provider upload failed";
+    return new Response(JSON.stringify({ error: errorMsg }), { status: 502, headers: CORS_HEADERS });
   }
 
-  return createUploadSuccessResponse(slot, env.GATEWAY_HMAC_SECRET);
+  return createUploadSuccessResponse(first.data.key, first.data.ufsUrl ?? first.data.url, env.GATEWAY_HMAC_SECRET);
 };
 
 const verifyDeleteRequest = async (
@@ -304,8 +259,9 @@ const handleDeleteUpload = async (request: Request, env: Env): Promise<Response>
     return new Response(JSON.stringify({ error: verification.error }), { status: 403, headers: CORS_HEADERS });
   }
 
-  const success = await executeCloudDelete(payload.fileKey, env.UPLOADTHING_TOKEN);
-  return new Response(JSON.stringify({ success }), { status: 200, headers: CORS_HEADERS });
+  const utapi = new UTApi({ token: env.UPLOADTHING_TOKEN });
+  const result = await utapi.deleteFiles([payload.fileKey]);
+  return new Response(JSON.stringify({ success: result.success }), { status: 200, headers: CORS_HEADERS });
 };
 
 const handleCorsPreflight = (): Response =>
@@ -334,8 +290,8 @@ const handleApiRoute = async (routeKey: string, request: Request, env: Env): Pro
   switch (routeKey) {
     case "GET /api/v1/health":
       return handleHealth();
-    case "POST /api/v1/uploads/prepare":
-      return handlePrepareUpload(request, env);
+    case "POST /api/v1/uploads":
+      return handleDirectUpload(request, env);
     case "POST /api/v1/uploads/delete":
       return handleDeleteUpload(request, env);
     default:

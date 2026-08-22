@@ -62,45 +62,34 @@ public sealed class UploadThingServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that UploadFileAsync completes successfully through the prepare and S3 PUT flow.
+    /// Verifies that UploadFileAsync completes successfully through direct gateway upload.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task UploadFileAsync_WhenGatewayAndStorageSucceed_ReturnsUploadResultAsync()
+    public async Task UploadFileAsync_WhenGatewaySucceeds_ReturnsUploadResultAsync()
     {
         var testFilePath = Path.Combine(_tempDirectory, "test_replay.zip");
         await File.WriteAllBytesAsync(testFilePath, [0x50, 0x4B, 0x03, 0x04, 0x00, 0x00]);
 
-        var prepareResponse = new PrepareUploadResponse(
-            "https://storage.provider.com/presigned-put",
+        var uploadResponse = new DirectUploadResponse(
+            "https://utfs.io/f/test_key_123",
             "test_key_123",
-            "test_key_123:1755820800.hmac_sig",
-            "https://utfs.io/f/test_key_123");
+            "test_key_123:1755820800.hmac_sig");
 
         var handlerMock = new Mock<HttpMessageHandler>();
 
-        // Mock Gateway POST /api/v1/uploads/prepare
+        // Mock Gateway POST /api/v1/uploads
         handlerMock.Protected()
             .Setup<Task<HttpResponseMessage>>(
                 "SendAsync",
                 ItExpr.Is<HttpRequestMessage>(req =>
                     req.Method == HttpMethod.Post &&
-                    req.RequestUri!.ToString().Contains(ApiConstants.UploadPrepareEndpoint)),
+                    req.RequestUri!.ToString().Contains(ApiConstants.UploadEndpoint)),
                 ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent(JsonSerializer.Serialize(prepareResponse)),
+                Content = new StringContent(JsonSerializer.Serialize(uploadResponse)),
             });
-
-        // Mock Storage PUT
-        handlerMock.Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.Is<HttpRequestMessage>(req =>
-                    req.Method == HttpMethod.Put &&
-                    req.RequestUri!.ToString().StartsWith("https://storage.provider.com")),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
 
         var httpClient = new HttpClient(handlerMock.Object);
         var service = new UploadThingService(httpClient, _loggerMock.Object);

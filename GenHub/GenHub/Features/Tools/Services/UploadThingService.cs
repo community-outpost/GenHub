@@ -33,53 +33,36 @@ public sealed class UploadThingService(
 
         try
         {
-            var fileInfo = new FileInfo(filePath);
             var fileName = Path.GetFileName(filePath);
 
-            // Step 1: Request presigned upload URL and HMAC deletion token from the gateway
-            var prepareRequest = new PrepareUploadRequest(fileName, fileInfo.Length, ApiConstants.MediaTypeZip);
-            using var prepareResponse = await httpClient.PostAsJsonAsync(ApiConstants.DefaultUploadPrepareUrl, prepareRequest, ct);
+            progress?.Report(0.1);
 
-            if (!prepareResponse.IsSuccessStatusCode)
-            {
-                var errorBody = await prepareResponse.Content.ReadAsStringAsync(ct);
-                logger.LogError("Upload preparation failed with status {Status}: {Error}", prepareResponse.StatusCode, errorBody);
-                return null;
-            }
-
-            var instruction = await prepareResponse.Content.ReadFromJsonAsync<PrepareUploadResponse>(cancellationToken: ct);
-            if (instruction?.UploadUrl == null || instruction.FileKey == null || instruction.DeleteToken == null)
-            {
-                logger.LogError("Gateway returned incomplete upload instructions.");
-                return null;
-            }
-
-            progress?.Report(0.2);
-
-            // Step 2: Stream the binary directly to UploadThing / S3 presigned URL
             await using var fileStream = File.OpenRead(filePath);
-            using var content = new StreamContent(fileStream);
-            content.Headers.ContentType = new MediaTypeHeaderValue(ApiConstants.MediaTypeZip);
+            using var fileContent = new StreamContent(fileStream);
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue(ApiConstants.MediaTypeZip);
 
-            using var uploadRequest = new HttpRequestMessage(HttpMethod.Put, instruction.UploadUrl)
-            {
-                Content = content,
-            };
+            using var formContent = new MultipartFormDataContent();
+            formContent.Add(fileContent, "file", fileName);
 
-            using var uploadResponse = await httpClient.SendAsync(uploadRequest, ct);
-            if (!uploadResponse.IsSuccessStatusCode)
+            using var response = await httpClient.PostAsync(ApiConstants.DefaultUploadUrl, formContent, ct);
+            if (!response.IsSuccessStatusCode)
             {
-                var uploadError = await uploadResponse.Content.ReadAsStringAsync(ct);
-                logger.LogError("Direct upload to storage provider failed with status {Status}: {Error}", uploadResponse.StatusCode, uploadError);
+                var errorBody = await response.Content.ReadAsStringAsync(ct);
+                logger.LogError("Upload failed with status {Status}: {Error}", response.StatusCode, errorBody);
+                return null;
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<DirectUploadResponse>(cancellationToken: ct);
+            if (result?.PublicUrl == null || result.FileKey == null || result.DeleteToken == null)
+            {
+                logger.LogError("Gateway returned incomplete upload response.");
                 return null;
             }
 
             progress?.Report(1.0);
+            logger.LogInformation("File uploaded successfully to {Url}", result.PublicUrl);
 
-            var publicUrl = instruction.PublicUrl ?? string.Format(ApiConstants.UploadThingPublicUrlFormat, instruction.FileKey);
-            logger.LogInformation("File uploaded successfully to {Url}", publicUrl);
-
-            return new UploadResult(publicUrl, instruction.FileKey, instruction.DeleteToken);
+            return new UploadResult(result.PublicUrl, result.FileKey, result.DeleteToken);
         }
         catch (OperationCanceledException)
         {
