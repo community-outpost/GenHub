@@ -20,7 +20,7 @@
   <!-- Full-screen modal overlay -->
   <Panel>
     <!-- Semi-transparent backdrop -->
-    <Border Background="#CC000000"
+    <Border Background="{DynamicResource OverlayBrush}"
             IsVisible="{Binding IsVisible}">
       <Border.Transitions>
         <Transitions>
@@ -180,7 +180,7 @@
                   Margin="0,18,0,0"
                   HorizontalAlignment="Center"
                   Command="{Binding CancelCommand}"
-                  Background="#25EF4444"
+                  Background="{DynamicResource ErrorBadgeBackgroundBrush}"
                   Foreground="{DynamicResource ErrorBrush}"
                   BorderBrush="{DynamicResource ErrorBrush}"
                   BorderThickness="1"

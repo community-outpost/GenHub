@@ -248,7 +248,7 @@
     <!-- Footer actions -->
     <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" Margin="0,16,0,0">
       <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-        <Border Background="#1AFFD740"
+        <Border Background="{DynamicResource WarningBadgeBackgroundBrush}"
                 BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1"
                 CornerRadius="4"
                 Padding="8,3"

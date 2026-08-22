@@ -208,7 +208,7 @@
 
                   <!-- Status badges -->
                   <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" Margin="8,0">
-                    <Border Background="#1A10B981"
+                    <Border Background="{DynamicResource SuccessBadgeBackgroundBrush}"
                             BorderBrush="{DynamicResource SuccessBrush}" BorderThickness="1"
                             CornerRadius="4"
                             Padding="6,2"
@@ -219,7 +219,7 @@
                                  Foreground="{DynamicResource SuccessBrush}"/>
                     </Border>
 
-                    <Border Background="#1AFFD740"
+                    <Border Background="{DynamicResource WarningBadgeBackgroundBrush}"
                             BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1"
                             CornerRadius="4"
                             Padding="6,2"
