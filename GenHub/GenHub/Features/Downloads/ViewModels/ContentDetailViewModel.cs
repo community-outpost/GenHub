@@ -1554,79 +1554,9 @@ public partial class ContentDetailViewModel(
                 return;
             }
 
-            if (catalogItem.Metadata?.ScreenshotUrls != null && catalogItem.Metadata.ScreenshotUrls.Count > 0)
-            {
-                foreach (var screenshot in catalogItem.Metadata.ScreenshotUrls)
-                {
-                    if (!Screenshots.Contains(screenshot))
-                    {
-                        Screenshots.Add(screenshot);
-                    }
-                }
-
-                if (string.IsNullOrEmpty(SelectedScreenshotUrl))
-                {
-                    SelectedScreenshotUrl = Screenshots.FirstOrDefault() ?? string.Empty;
-                }
-            }
-
-            if (catalogItem.Releases is { Count: > 0 })
-            {
-                Releases.Clear();
-                var sortedCatalogReleases = catalogItem.Releases
-                    .OrderByDescending(r => r.ReleaseDate)
-                    .ThenByDescending(r => r.Version, StringComparer.OrdinalIgnoreCase);
-
-                foreach (var rel in sortedCatalogReleases)
-                {
-                    var releaseItem = CreateCatalogReleaseItem(rel, catalogItem);
-                    Releases.Add(releaseItem);
-                    if (!HasBundleComponents && searchResult.ContentType != ContentType.ContentBundle && releaseItem.File != null)
-                    {
-                        _ = ResolveRowStateAsync(releaseItem, releaseItem.File);
-                    }
-                }
-
-                if (!_userManuallySelectedDownloadableItem || SelectedDownloadableItem == null || !Releases.Contains(SelectedDownloadableItem))
-                {
-                    var preferredRelease = FindPreferredRelease(Releases);
-                    if (preferredRelease != null)
-                    {
-                        SelectDownloadableItem(preferredRelease, isUserInitiated: false);
-                    }
-                }
-
-                OnPropertyChanged(nameof(HasReleases));
-                OnPropertyChanged(nameof(ReleasesCount));
-                OnPropertyChanged(nameof(ShowSelectedTargetBanner));
-            }
-
-            var videoList = new List<Video>();
-            if (!string.IsNullOrWhiteSpace(catalogItem.Metadata?.VideoUrl))
-            {
-                videoList.Add(new Video(
-                    Title: $"{catalogItem.Name} Preview",
-                    ThumbnailUrl: catalogItem.Metadata.BannerUrl ?? searchResult.IconUrl ?? string.Empty,
-                    EmbedUrl: catalogItem.Metadata.VideoUrl,
-                    Platform: "Web"));
-            }
-
-            Videos = videoList.ToObservableCollection();
-
-            var imageList = new List<Image>();
-            if (catalogItem.Metadata?.ScreenshotUrls != null)
-            {
-                var shotIndex = 1;
-                foreach (var shot in catalogItem.Metadata.ScreenshotUrls)
-                {
-                    imageList.Add(new Image(
-                        Title: $"Screenshot {shotIndex++}",
-                        ThumbnailUrl: shot,
-                        FullSizeUrl: shot));
-                }
-            }
-
-            Images = imageList.ToObservableCollection();
+            PopulateCatalogScreenshots(catalogItem);
+            PopulateCatalogReleases(catalogItem);
+            PopulateCatalogMedia(catalogItem);
 
             OnPropertyChanged(nameof(Description));
             OnPropertyChanged(nameof(HasReleases));
@@ -1639,6 +1569,93 @@ public partial class ContentDetailViewModel(
         {
             logger.LogError(ex, "error populating content details from catalog metadata json");
         }
+    }
+
+    private void PopulateCatalogScreenshots(CatalogContentItem catalogItem)
+    {
+        if (catalogItem.Metadata?.ScreenshotUrls == null || catalogItem.Metadata.ScreenshotUrls.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var screenshot in catalogItem.Metadata.ScreenshotUrls)
+        {
+            if (!Screenshots.Contains(screenshot))
+            {
+                Screenshots.Add(screenshot);
+            }
+        }
+
+        if (string.IsNullOrEmpty(SelectedScreenshotUrl))
+        {
+            SelectedScreenshotUrl = Screenshots.FirstOrDefault() ?? string.Empty;
+        }
+    }
+
+    private void PopulateCatalogReleases(CatalogContentItem catalogItem)
+    {
+        if (catalogItem.Releases is not { Count: > 0 })
+        {
+            return;
+        }
+
+        Releases.Clear();
+        var sortedCatalogReleases = catalogItem.Releases
+            .OrderByDescending(r => r.ReleaseDate)
+            .ThenByDescending(r => r.Version, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var rel in sortedCatalogReleases)
+        {
+            var releaseItem = CreateCatalogReleaseItem(rel, catalogItem);
+            Releases.Add(releaseItem);
+            if (!HasBundleComponents && searchResult.ContentType != ContentType.ContentBundle && releaseItem.File != null)
+            {
+                _ = ResolveRowStateAsync(releaseItem, releaseItem.File);
+            }
+        }
+
+        if (!_userManuallySelectedDownloadableItem || SelectedDownloadableItem == null || !Releases.Contains(SelectedDownloadableItem))
+        {
+            var preferredRelease = FindPreferredRelease(Releases);
+            if (preferredRelease != null)
+            {
+                SelectDownloadableItem(preferredRelease, isUserInitiated: false);
+            }
+        }
+
+        OnPropertyChanged(nameof(HasReleases));
+        OnPropertyChanged(nameof(ReleasesCount));
+        OnPropertyChanged(nameof(ShowSelectedTargetBanner));
+    }
+
+    private void PopulateCatalogMedia(CatalogContentItem catalogItem)
+    {
+        var videoList = new List<Video>();
+        if (!string.IsNullOrWhiteSpace(catalogItem.Metadata?.VideoUrl))
+        {
+            videoList.Add(new Video(
+                Title: $"{catalogItem.Name} Preview",
+                ThumbnailUrl: catalogItem.Metadata.BannerUrl ?? searchResult.IconUrl ?? string.Empty,
+                EmbedUrl: catalogItem.Metadata.VideoUrl,
+                Platform: "Web"));
+        }
+
+        Videos = videoList.ToObservableCollection();
+
+        var imageList = new List<Image>();
+        if (catalogItem.Metadata?.ScreenshotUrls != null)
+        {
+            var shotIndex = 1;
+            foreach (var shot in catalogItem.Metadata.ScreenshotUrls)
+            {
+                imageList.Add(new Image(
+                    Title: $"Screenshot {shotIndex++}",
+                    ThumbnailUrl: shot,
+                    FullSizeUrl: shot));
+            }
+        }
+
+        Images = imageList.ToObservableCollection();
     }
 
     private ReleaseItemViewModel CreateCatalogReleaseItem(ContentRelease rel, CatalogContentItem catalogItem)
@@ -2964,7 +2981,7 @@ public partial class ContentDetailViewModel(
             var manifest = manifestResult.Data;
             if (manifest.ContentType == newType)
             {
-                RunOnUiThread(() => UpdateDependencySummary(manifest));
+                await RunOnUiThreadAsync(() => UpdateDependencySummary(manifest));
                 return;
             }
 
@@ -2997,7 +3014,7 @@ public partial class ContentDetailViewModel(
                 return;
             }
 
-            RunOnUiThread(() => UpdateDependencySummary(manifest));
+            await RunOnUiThreadAsync(() => UpdateDependencySummary(manifest));
             logger.LogInformation(
                 "Updated stored content type for {ManifestId} to {ContentType}",
                 manifestId,
@@ -3392,12 +3409,12 @@ public partial class ContentDetailViewModel(
     /// <summary>
     /// Gets a value indicating whether there are addons to display.
     /// </summary>
-    public bool HasAddons => Addons?.Count > 0;
+    public bool HasAddons => Addons.Count > 0;
 
     /// <summary>
     /// Gets the count of addons for display.
     /// </summary>
-    public int AddonsCount => Addons?.Count ?? 0;
+    public int AddonsCount => Addons.Count;
 
     /// <summary>
     /// Populates the Releases collection from parsed page data.
@@ -3421,72 +3438,12 @@ public partial class ContentDetailViewModel(
                 continue;
             }
 
-            var isDetailsAlreadyLoaded = IsFileDetailsAlreadyLoaded(file);
-
-            var mappedType = !string.IsNullOrWhiteSpace(file.Category)
-                ? ModDBCategoryMapper.MapCategoryByName(file.Category)
-                : ContentType.Mod;
-
-            ReleaseItemViewModel releaseItem = new()
-            {
-                Id = Guid.NewGuid().ToString(),
-                Name = file.Name ?? "Unknown Release",
-                Version = file.Version,
-                ReleaseDate = file.ReleaseDate ?? file.UploadDate,
-                FileSize = file.SizeBytes ?? 0,
-                SizeDisplay = file.SizeDisplay,
-                DownloadUrl = file.DownloadUrl,
-                DetailsUrl = file.DetailsUrl ?? file.DownloadUrl,
-                ThumbnailUrl = file.ThumbnailUrl,
-                Category = file.Category,
-                ContentType = mappedType,
-                File = file,
-                Uploader = file.Uploader,
-                Filename = file.Filename,
-                Md5Hash = file.Md5Hash,
-                CommentCount = file.CommentCount,
-                DownloadCount = file.DownloadCount,
-                FullDescription = file.Description,
-                TargetGame = searchResult.TargetGame != GameType.Unknown ? searchResult.TargetGame.ToString() : null,
-                IsDetailsLoaded = isDetailsAlreadyLoaded,
-                FetchDetailsAsync = LoadItemDetailsAsync,
-            };
-
-            if (file.PreviewImages != null)
-            {
-                foreach (var img in file.PreviewImages)
-                {
-                    releaseItem.PreviewImages.Add(img);
-                }
-            }
-
-            // Keep this row's state and manifest ID independent of the parent content card.
-            releaseItem.SelectCommand = new RelayCommand(
-                () => SelectDownloadableItem(releaseItem, isUserInitiated: true),
-                () => !IsDownloading);
-            releaseItem.DownloadCommand = new AsyncRelayCommand(() => DownloadReleaseAsync(releaseItem, releaseItem.File ?? file));
-            releaseItem.AddToProfileCommand = new AsyncRelayCommand(
-                () => AddFileToProfileAsync(releaseItem.File ?? file, releaseItem.DownloadedManifestId));
-
+            var releaseItem = CreateReleaseItemViewModel(file);
             Releases.Add(releaseItem);
             _ = ResolveRowStateAsync(releaseItem, file);
         }
 
-        if (!_userManuallySelectedDownloadableItem || SelectedDownloadableItem == null || !Releases.Contains(SelectedDownloadableItem))
-        {
-            var preferredRelease = (SelectedVariant != null
-                ? Releases.FirstOrDefault(r =>
-                    string.Equals(r.DownloadedManifestId, SelectedVariant.ManifestId, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(r.Name, SelectedVariant.Name, StringComparison.OrdinalIgnoreCase))
-                : null)
-                ?? FindMatchingReleaseForSearchResult(Releases)
-                ?? FindPreferredRelease(Releases);
-
-            if (preferredRelease != null)
-            {
-                SelectDownloadableItem(preferredRelease, isUserInitiated: false);
-            }
-        }
+        SelectInitialPreferredRelease();
 
         OnPropertyChanged(nameof(HasReleases));
         OnPropertyChanged(nameof(ReleasesCount));
@@ -3515,72 +3472,12 @@ public partial class ContentDetailViewModel(
                 continue;
             }
 
-            var isDetailsAlreadyLoaded = IsFileDetailsAlreadyLoaded(file);
-
-            var mappedType = !string.IsNullOrWhiteSpace(file.Category)
-                ? ModDBCategoryMapper.MapCategoryByName(file.Category)
-                : ContentType.Addon;
-
-            AddonItemViewModel addonItem = new()
-            {
-                Id = Guid.NewGuid().ToString(),
-                Name = file.Name ?? "Unknown Addon",
-                ReleaseDate = file.ReleaseDate ?? file.UploadDate,
-                FileSize = file.SizeBytes ?? 0,
-                SizeDisplay = file.SizeDisplay,
-                DownloadUrl = file.DownloadUrl,
-                DetailsUrl = file.DetailsUrl ?? file.DownloadUrl,
-                ThumbnailUrl = file.ThumbnailUrl,
-                Category = file.Category,
-                ContentType = mappedType,
-                File = file,
-                Uploader = file.Uploader,
-                Filename = file.Filename,
-                Md5Hash = file.Md5Hash,
-                CommentCount = file.CommentCount,
-                DownloadCount = file.DownloadCount,
-                FullDescription = file.Description,
-                TargetGame = searchResult.TargetGame != GameType.Unknown ? searchResult.TargetGame.ToString() : null,
-                IsDetailsLoaded = isDetailsAlreadyLoaded,
-                FetchDetailsAsync = LoadItemDetailsAsync,
-            };
-
-            if (file.PreviewImages != null)
-            {
-                foreach (var img in file.PreviewImages)
-                {
-                    addonItem.PreviewImages.Add(img);
-                }
-            }
-
-            // Keep this row's state and manifest ID independent of the parent content card.
-            addonItem.SelectCommand = new RelayCommand(
-                () => SelectDownloadableItem(addonItem, isUserInitiated: true),
-                () => !IsDownloading);
-            addonItem.DownloadCommand = new AsyncRelayCommand(() => DownloadAddonAsync(addonItem, addonItem.File ?? file));
-            addonItem.AddToProfileCommand = new AsyncRelayCommand(
-                () => AddFileToProfileAsync(addonItem.File ?? file, addonItem.DownloadedManifestId));
-
+            var addonItem = CreateAddonItemViewModel(file);
             Addons.Add(addonItem);
             _ = ResolveRowStateAsync(addonItem, file);
         }
 
-        if (!_userManuallySelectedDownloadableItem && (SelectedDownloadableItem == null || !Releases.Contains(SelectedDownloadableItem)))
-        {
-            var matchingAddon = FindMatchingAddonForSearchResult(Addons);
-            if (matchingAddon != null)
-            {
-                SelectDownloadableItem(matchingAddon, isUserInitiated: false);
-            }
-            else if (SelectedDownloadableItem == null && Releases.Count == 0 && Addons.Count > 0)
-            {
-                SelectDownloadableItem(Addons[0], isUserInitiated: false);
-            }
-        }
-
-        OnPropertyChanged(nameof(HasAddons));
-        OnPropertyChanged(nameof(AddonsCount));
-        OnPropertyChanged(nameof(ShowSelectedTargetBanner));
+        SelectInitialPreferredAddon();
     }
 
     /// <summary>
@@ -3600,6 +3497,150 @@ public partial class ContentDetailViewModel(
             _preloadTask = PreloadRecentItemDetailsCoreAsync(cancellationToken);
             return _preloadTask;
         }
+    }
+
+    private ReleaseItemViewModel CreateReleaseItemViewModel(DownloadableFile file)
+    {
+        var isDetailsAlreadyLoaded = IsFileDetailsAlreadyLoaded(file);
+        var mappedType = !string.IsNullOrWhiteSpace(file.Category)
+            ? ModDBCategoryMapper.MapCategoryByName(file.Category)
+            : ContentType.Mod;
+
+        ReleaseItemViewModel releaseItem = new()
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = file.Name ?? "Unknown Release",
+            Version = file.Version,
+            ReleaseDate = file.ReleaseDate ?? file.UploadDate,
+            FileSize = file.SizeBytes ?? 0,
+            SizeDisplay = file.SizeDisplay,
+            DownloadUrl = file.DownloadUrl,
+            DetailsUrl = file.DetailsUrl ?? file.DownloadUrl,
+            ThumbnailUrl = file.ThumbnailUrl,
+            Category = file.Category,
+            ContentType = mappedType,
+            File = file,
+            Uploader = file.Uploader,
+            Filename = file.Filename,
+            Md5Hash = file.Md5Hash,
+            CommentCount = file.CommentCount,
+            DownloadCount = file.DownloadCount,
+            FullDescription = file.Description,
+            TargetGame = searchResult.TargetGame != GameType.Unknown ? searchResult.TargetGame.ToString() : null,
+            IsDetailsLoaded = isDetailsAlreadyLoaded,
+            FetchDetailsAsync = LoadItemDetailsAsync,
+        };
+
+        if (file.PreviewImages != null)
+        {
+            foreach (var img in file.PreviewImages)
+            {
+                releaseItem.PreviewImages.Add(img);
+            }
+        }
+
+        // Keep this row's state and manifest ID independent of the parent content card.
+        releaseItem.SelectCommand = new RelayCommand(
+            () => SelectDownloadableItem(releaseItem, isUserInitiated: true),
+            () => !IsDownloading);
+        releaseItem.DownloadCommand = new AsyncRelayCommand(() => DownloadReleaseAsync(releaseItem, releaseItem.File ?? file));
+        releaseItem.AddToProfileCommand = new AsyncRelayCommand(
+            () => AddFileToProfileAsync(releaseItem.File ?? file, releaseItem.DownloadedManifestId));
+
+        return releaseItem;
+    }
+
+    private void SelectInitialPreferredRelease()
+    {
+        if (_userManuallySelectedDownloadableItem && SelectedDownloadableItem != null && Releases.Contains(SelectedDownloadableItem))
+        {
+            return;
+        }
+
+        var preferredRelease = (SelectedVariant != null
+            ? Releases.FirstOrDefault(r =>
+                string.Equals(r.DownloadedManifestId, SelectedVariant.ManifestId, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(r.Name, SelectedVariant.Name, StringComparison.OrdinalIgnoreCase))
+            : null)
+            ?? FindMatchingReleaseForSearchResult(Releases)
+            ?? FindPreferredRelease(Releases);
+
+        if (preferredRelease != null)
+        {
+            SelectDownloadableItem(preferredRelease, isUserInitiated: false);
+        }
+    }
+
+    private AddonItemViewModel CreateAddonItemViewModel(DownloadableFile file)
+    {
+        var isDetailsAlreadyLoaded = IsFileDetailsAlreadyLoaded(file);
+        var mappedType = !string.IsNullOrWhiteSpace(file.Category)
+            ? ModDBCategoryMapper.MapCategoryByName(file.Category)
+            : ContentType.Addon;
+
+        AddonItemViewModel addonItem = new()
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = file.Name ?? "Unknown Addon",
+            ReleaseDate = file.ReleaseDate ?? file.UploadDate,
+            FileSize = file.SizeBytes ?? 0,
+            SizeDisplay = file.SizeDisplay,
+            DownloadUrl = file.DownloadUrl,
+            DetailsUrl = file.DetailsUrl ?? file.DownloadUrl,
+            ThumbnailUrl = file.ThumbnailUrl,
+            Category = file.Category,
+            ContentType = mappedType,
+            File = file,
+            Uploader = file.Uploader,
+            Filename = file.Filename,
+            Md5Hash = file.Md5Hash,
+            CommentCount = file.CommentCount,
+            DownloadCount = file.DownloadCount,
+            FullDescription = file.Description,
+            TargetGame = searchResult.TargetGame != GameType.Unknown ? searchResult.TargetGame.ToString() : null,
+            IsDetailsLoaded = isDetailsAlreadyLoaded,
+            FetchDetailsAsync = LoadItemDetailsAsync,
+        };
+
+        if (file.PreviewImages != null)
+        {
+            foreach (var img in file.PreviewImages)
+            {
+                addonItem.PreviewImages.Add(img);
+            }
+        }
+
+        // Keep this row's state and manifest ID independent of the parent content card.
+        addonItem.SelectCommand = new RelayCommand(
+            () => SelectDownloadableItem(addonItem, isUserInitiated: true),
+            () => !IsDownloading);
+        addonItem.DownloadCommand = new AsyncRelayCommand(() => DownloadAddonAsync(addonItem, addonItem.File ?? file));
+        addonItem.AddToProfileCommand = new AsyncRelayCommand(
+            () => AddFileToProfileAsync(addonItem.File ?? file, addonItem.DownloadedManifestId));
+
+        return addonItem;
+    }
+
+    private void SelectInitialPreferredAddon()
+    {
+        if (_userManuallySelectedDownloadableItem || (SelectedDownloadableItem != null && Releases.Contains(SelectedDownloadableItem)))
+        {
+            return;
+        }
+
+        var matchingAddon = FindMatchingAddonForSearchResult(Addons);
+        if (matchingAddon != null)
+        {
+            SelectDownloadableItem(matchingAddon, isUserInitiated: false);
+        }
+        else if (SelectedDownloadableItem == null && Releases.Count == 0 && Addons.Count > 0)
+        {
+            SelectDownloadableItem(Addons[0], isUserInitiated: false);
+        }
+
+        OnPropertyChanged(nameof(HasAddons));
+        OnPropertyChanged(nameof(AddonsCount));
+        OnPropertyChanged(nameof(ShowSelectedTargetBanner));
     }
 
     private async Task PreloadRecentItemDetailsCoreAsync(CancellationToken cancellationToken = default)
@@ -3924,7 +3965,7 @@ public partial class ContentDetailViewModel(
     {
         try
         {
-            var tabs = await tabProviderRegistry.GetTabsForContentAsync(searchResult);
+            var tabs = await tabProviderRegistry.GetTabsForContentAsync(searchResult, _cts.Token);
 
             await RunOnUiThreadAsync(() =>
             {

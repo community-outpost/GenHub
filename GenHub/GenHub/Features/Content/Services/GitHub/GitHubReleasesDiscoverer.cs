@@ -160,6 +160,44 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
     [GeneratedRegex(@"^v?\d+(\.\d+)*(-[a-zA-Z0-9\.\-_]+)?$", RegexOptions.CultureInvariant)]
     private static partial Regex VersionPatternRegex();
 
+    private static (ContentType ContentType, GameType GameType, bool IsTypeInferred, bool IsGameInferred) InferTypes(
+        IReadOnlyList<string> topics,
+        string repo,
+        string? releaseName)
+    {
+        var (contentType, isTypeInferred) = GitHubInferenceHelper.InferContentTypeFromTopics(topics);
+        if (isTypeInferred)
+        {
+            var nameInference = GitHubInferenceHelper.InferContentType(repo, releaseName);
+            contentType = nameInference.Type;
+            isTypeInferred = nameInference.IsInferred;
+        }
+
+        var (gameType, isGameInferred) = GitHubInferenceHelper.InferGameTypeFromTopics(topics);
+        if (isGameInferred)
+        {
+            var nameInference = GitHubInferenceHelper.InferTargetGame(repo, releaseName);
+            gameType = nameInference.Type;
+            isGameInferred = nameInference.IsInferred;
+        }
+
+        return (contentType, gameType, isTypeInferred, isGameInferred);
+    }
+
+    private static string ResolveCardName(bool isSuperHackers, string repo, GitHubRelease release)
+    {
+        if (isSuperHackers && repo.Equals(SuperHackersConstants.GeneralsGamePatch2Repo, StringComparison.OrdinalIgnoreCase))
+        {
+            return IsPureVersionString(release.Name, release.TagName)
+                ? SuperHackersConstants.GeneralsGamePatch2DisplayName
+                : (release.Name ?? SuperHackersConstants.GeneralsGamePatch2DisplayName);
+        }
+
+        return IsPureVersionString(release.Name, release.TagName)
+            ? $"{repo} {release.TagName}"
+            : (release.Name ?? $"{repo} {release.TagName}");
+    }
+
     /// <summary>
     /// Builds a single SuperHackers game-client variant card. TheSuperHackers releases contain both
     /// a Generals and a Zero Hour executable; one card is emitted per game type so each variant has
@@ -288,21 +326,7 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
         var totalSize = release.Assets?.Sum(a => a.Size) ?? 0;
         var variantCount = release.Assets?.Count ?? 0;
 
-        var (contentType, isTypeInferred) = GitHubInferenceHelper.InferContentTypeFromTopics(topics);
-        if (isTypeInferred)
-        {
-            var nameInference = GitHubInferenceHelper.InferContentType(repo, release.Name);
-            contentType = nameInference.Type;
-            isTypeInferred = nameInference.IsInferred;
-        }
-
-        var (gameType, isGameInferred) = GitHubInferenceHelper.InferGameTypeFromTopics(topics);
-        if (isGameInferred)
-        {
-            var nameInference = GitHubInferenceHelper.InferTargetGame(repo, release.Name);
-            gameType = nameInference.Type;
-            isGameInferred = nameInference.IsInferred;
-        }
+        var (contentType, gameType, isTypeInferred, isGameInferred) = InferTypes(topics, repo, release.Name);
 
         var isSuperHackers = owner.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) ||
                              owner.Equals(SuperHackersConstants.PublisherName, StringComparison.OrdinalIgnoreCase);
@@ -328,20 +352,7 @@ public partial class GitHubReleasesDiscoverer(IGitHubApiClient gitHubClient, ILo
                 ? PublisherInfoConstants.TheSuperHackers.LogoSource
                 : (PublisherInfoConstants.GetPublisherLogo(owner, repo) ?? PublisherInfoConstants.GitHub.LogoSource);
 
-            string cardName;
-            if (isSuperHackers && repo.Equals(SuperHackersConstants.GeneralsGamePatch2Repo, StringComparison.OrdinalIgnoreCase))
-            {
-                cardName = IsPureVersionString(release.Name, release.TagName)
-                    ? SuperHackersConstants.GeneralsGamePatch2DisplayName
-                    : release.Name!;
-            }
-            else
-            {
-                cardName = IsPureVersionString(release.Name, release.TagName)
-                    ? $"{repo} {release.TagName}"
-                    : (release.Name ?? $"{repo} {release.TagName}");
-            }
-
+            var cardName = ResolveCardName(isSuperHackers, repo, release);
             results.Add(BuildStandardSearchResult(release, owner, repo, cardName, contentType, gameType, isTypeInferred, isGameInferred, totalSize, variantCount, providerName, iconUrl));
         }
     }

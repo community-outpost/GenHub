@@ -54,7 +54,7 @@ public class OctokitGitHubApiClient(
     /// Gets the current GitHub token.
     /// </summary>
     /// <returns>The GitHub token.</returns>
-    public SecureString GetToken() => _token!;
+    public SecureString? GetToken() => _token;
 
     /// <summary>
     /// Downloads a release asset to the specified path.

@@ -288,9 +288,9 @@ public class GenericCatalogDiscoverer(
 
             return OperationResult<ContentDiscoveryResult>.CreateSuccess(result);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
         {
-            logger.LogInformation("Content discovery cancelled by user for publisher '{PublisherId}'", _subscription.PublisherId);
+            logger.LogInformation(ex, "Content discovery cancelled by user for publisher '{PublisherId}'", _subscription.PublisherId);
             throw;
         }
         catch (Exception ex)

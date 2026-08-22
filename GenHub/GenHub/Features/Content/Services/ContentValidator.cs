@@ -140,7 +140,7 @@ public class ContentValidator(IFileOperationsService fileOperations, ICasService
                         return fileIssues;
                     }
 
-                    var casExistsResult = await _casService.ExistsAsync(file.Hash!, cancellationToken);
+                    var casExistsResult = await _casService.ExistsAsync(file.Hash, cancellationToken);
                     if (!casExistsResult.Success)
                     {
                         fileIssues.Add(new ValidationIssue($"CAS check failed for hash {file.Hash}: {casExistsResult.FirstError}", ValidationSeverity.Error));

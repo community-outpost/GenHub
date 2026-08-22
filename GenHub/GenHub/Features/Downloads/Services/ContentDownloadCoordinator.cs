@@ -87,14 +87,14 @@ public sealed class ContentDownloadCoordinator(
 
             return OperationResult<ContentManifest>.CreateFailure(errorMsg);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
         {
-            logger.LogInformation("Download cancelled for: {Name}", searchResult.Name);
+            logger.LogInformation(ex, "Download cancelled for: {Name}", searchResult.Name);
             throw;
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogInformation("Download timed out or cancelled internally for: {Name}", searchResult.Name);
+            logger.LogInformation(ex, "Download timed out or cancelled internally for: {Name}", searchResult.Name);
             return OperationResult<ContentManifest>.CreateFailure("Download cancelled");
         }
         catch (Exception ex)

@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using Avalonia;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
 using GenHub.Core.Models.Enums;
@@ -47,15 +48,15 @@ public class ContentTypeToBadgeBackgroundConverter : IValueConverter
     }
 
     /// <summary>
-    /// Converts back from a brush to a ContentType (not implemented).
+    /// Converts back from a brush to a ContentType (not supported).
     /// </summary>
     /// <param name="value">The value to convert back.</param>
     /// <param name="targetType">The target type.</param>
     /// <param name="parameter">Optional parameter.</param>
     /// <param name="culture">The culture.</param>
-    /// <returns>Throws NotImplementedException.</returns>
+    /// <returns><see cref="AvaloniaProperty.UnsetValue"/> as two-way conversion is not supported.</returns>
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        throw new NotImplementedException();
+        return AvaloniaProperty.UnsetValue;
     }
 }

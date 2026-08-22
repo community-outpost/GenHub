@@ -53,12 +53,12 @@ public class ContentTypeToBrushConverterTests
     }
 
     /// <summary>
-    /// Verifies that ConvertBack throws NotImplementedException.
+    /// Verifies that ConvertBack returns AvaloniaProperty.UnsetValue.
     /// </summary>
     [Fact]
-    public void ConvertBack_ThrowsNotImplementedException()
+    public void ConvertBack_ReturnsUnsetValue()
     {
-        Assert.Throws<NotImplementedException>(() =>
-            _converter.ConvertBack(null, typeof(ContentType), null, _culture));
+        var result = _converter.ConvertBack(null, typeof(ContentType), null, _culture);
+        Assert.Equal(Avalonia.AvaloniaProperty.UnsetValue, result);
     }
 }

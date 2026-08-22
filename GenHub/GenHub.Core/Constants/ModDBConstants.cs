@@ -35,6 +35,9 @@ public static class ModDBConstants
     /// <summary>Downloads section for Zero Hour.</summary>
     public const string ZeroHourDownloadsUrl = ZeroHourBaseUrl + "/downloads";
 
+    /// <summary>Addons URL path segment.</summary>
+    public const string AddonsSegment = "/addons/";
+
     /// <summary>Addons section for Generals.</summary>
     public const string GeneralsAddonsUrl = GeneralsBaseUrl + "/addons";
 
@@ -43,14 +46,17 @@ public static class ModDBConstants
 
     // ===== Publisher Info =====
 
+    /// <summary>Canonical identifier string for ModDB.</summary>
+    public const string ModDbKey = "moddb";
+
     /// <summary>Publisher prefix for ModDB content (to be combined with author: moddb-{author}).</summary>
-    public const string PublisherPrefix = "moddb";
+    public const string PublisherPrefix = ModDbKey;
 
     /// <summary>Publisher type identifier for ModDB content pipeline.</summary>
-    public const string PublisherType = "moddb";
+    public const string PublisherType = ModDbKey;
 
     /// <summary>Publisher ID for the ModDB service.</summary>
-    public const string PublisherId = "moddb";
+    public const string PublisherId = ModDbKey;
 
     /// <summary>Display name for the publisher.</summary>
     public const string PublisherDisplayName = "ModDB";

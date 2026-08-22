@@ -54,7 +54,7 @@ public class GenericCatalogManifestFactory(
         IProgress<GenHub.Core.Models.Content.ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken = default)
     {
-        logger.LogInformation(
+        logger.LogDebug(
             "Processing extracted content for manifest {ManifestId} from directory {Directory}",
             originalManifest.Id,
             extractedDirectory);
@@ -71,7 +71,7 @@ public class GenericCatalogManifestFactory(
         if (topLevelFiles.Length == 0 &&
             Directory.GetDirectories(extractedDirectory, "*", SearchOption.TopDirectoryOnly).Length == 0)
         {
-            logger.LogInformation(
+            logger.LogDebug(
                 "No staged files for manifest {ManifestId}; treating as dependency-only package",
                 originalManifest.Id);
             return [originalManifest];
@@ -87,7 +87,7 @@ public class GenericCatalogManifestFactory(
 
         if (controlBarProcessor?.IsControlBarContent(extractedDirectory, originalManifest) == true)
         {
-            logger.LogInformation("Detected Control Bar content in catalog payload, repacking into BIG archives");
+            logger.LogDebug("Detected Control Bar content in catalog payload, repacking into BIG archives");
             await controlBarProcessor.ProcessAndRepackControlBarAsync(
                 extractedDirectory,
                 originalManifest,
@@ -101,7 +101,7 @@ public class GenericCatalogManifestFactory(
             return [originalManifest];
         }
 
-        logger.LogInformation("Found {Count} files in extracted directory", extractedFiles.Length);
+        logger.LogDebug("Found {Count} files in extracted directory", extractedFiles.Length);
 
         // Create updated file entries with computed hashes
         var updatedFiles = new List<ManifestFile>();

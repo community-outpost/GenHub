@@ -86,17 +86,13 @@ to_file_uri() {
         return
     fi
     local uri
-    if command -v python3 >/dev/null 2>&1; then
-        if uri="$(python3 -c 'import pathlib,sys; print(pathlib.Path(sys.argv[1]).resolve().as_uri())' "$p" 2>/dev/null)"; then
-            printf '%s\n' "$uri"
-            return
-        fi
+    if command -v python3 >/dev/null 2>&1 && uri="$(python3 -c 'import pathlib,sys; print(pathlib.Path(sys.argv[1]).resolve().as_uri())' "$p" 2>/dev/null)"; then
+        printf '%s\n' "$uri"
+        return
     fi
-    if command -v python >/dev/null 2>&1; then
-        if uri="$(python -c 'import pathlib,sys; print(pathlib.Path(sys.argv[1]).resolve().as_uri())' "$p" 2>/dev/null)"; then
-            printf '%s\n' "$uri"
-            return
-        fi
+    if command -v python >/dev/null 2>&1 && uri="$(python -c 'import pathlib,sys; print(pathlib.Path(sys.argv[1]).resolve().as_uri())' "$p" 2>/dev/null)"; then
+        printf '%s\n' "$uri"
+        return
     fi
     printf 'file://%s\n' "$p"
 }
@@ -432,12 +428,12 @@ EOF
 
 # --- main --------------------------------------------------------------------
 
-if [ ! -f "$CATALOG_PATH" ]; then
+if [[ ! -f "$CATALOG_PATH" ]]; then
     echo "ERROR: catalog not found at '$CATALOG_PATH'." >&2
     exit 1
 fi
 
-if [ "$PLATFORM" = "unknown" ]; then
+if [[ "$PLATFORM" = "unknown" ]]; then
     echo "ERROR: unrecognized platform '$(uname -s)'." >&2
     exit 1
 fi
@@ -446,7 +442,7 @@ resolve_targets
 FILE_URI="$(to_file_uri "$CATALOG_PATH" | tr -d '\r')"
 SUBSCRIBE_URI="genhub://subscribe?url=$FILE_URI"
 
-if [ ! -f "$EXE_PATH" ] && [ ! -f "${EXE_PATH}.exe" ]; then
+if [[ ! -f "$EXE_PATH" && ! -f "${EXE_PATH}.exe" ]]; then
     warn_missing_exe "$EXE_PATH" "$PROJECT"
 fi
 
@@ -454,6 +450,7 @@ case "$PLATFORM" in
     windows) emit_windows ;;
     linux)   emit_linux   ;;
     macos)   emit_macos   ;;
+    *)       echo "ERROR: unsupported platform '$PLATFORM'" >&2; exit 1 ;;
 esac
 
 print_launch_fallback "$SUBSCRIBE_URI"

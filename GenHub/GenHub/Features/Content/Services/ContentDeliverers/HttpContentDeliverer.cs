@@ -216,7 +216,7 @@ public class HttpContentDeliverer(
             return OperationResult<ContentManifest>.CreateFailure(pathResult);
         }
 
-        var localPath = pathResult.Data!;
+        var localPath = pathResult.Data;
         var directory = Path.GetDirectoryName(localPath);
         if (!string.IsNullOrEmpty(directory))
         {

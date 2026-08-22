@@ -325,7 +325,7 @@ public partial class ModDBDiscoverer(
         var href = titleLink.GetAttribute("href");
         if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(href)) return null;
 
-        if (!href.Contains("/mods/") && !href.Contains("/downloads/") && !href.Contains("/addons/")) return null;
+        if (!href.Contains("/mods/") && !href.Contains("/downloads/") && !href.Contains(ModDBConstants.AddonsSegment)) return null;
 
         var detailUrl = href.StartsWith("http") ? href : ModDBConstants.BaseUrl + href;
         return (title, detailUrl);
@@ -370,7 +370,7 @@ public partial class ModDBDiscoverer(
             }
             else if (!iconUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
             {
-                iconUrl = ModDBConstants.BaseUrl.TrimEnd('/') + (iconUrl.StartsWith('/') ? iconUrl : "/" + iconUrl);
+                iconUrl = $"{ModDBConstants.BaseUrl.TrimEnd('/')}/{(iconUrl.StartsWith('/') ? iconUrl.TrimStart('/') : iconUrl)}";
             }
         }
 
@@ -391,10 +391,10 @@ public partial class ModDBDiscoverer(
 
     private static void ApplyParentModMetadata(ContentSearchResult result, string detailUrl)
     {
-        var isMod = detailUrl.Contains("/mods/") && !detailUrl.Contains("/addons/");
+        var isMod = detailUrl.Contains("/mods/") && !detailUrl.Contains(ModDBConstants.AddonsSegment);
         result.ResolverMetadata[ModDBConstants.IsModMetadataKey] = isMod.ToString();
 
-        if (detailUrl.Contains("/mods/") && detailUrl.Contains("/addons/"))
+        if (detailUrl.Contains("/mods/") && detailUrl.Contains(ModDBConstants.AddonsSegment))
         {
             var modMatch = ParentModUrlRegex().Match(detailUrl);
             if (modMatch.Success)
@@ -416,7 +416,7 @@ public partial class ModDBDiscoverer(
         }
 
         var isModUrl = url.Contains("/mods/", StringComparison.OrdinalIgnoreCase);
-        var isAddonUrl = url.Contains("/addons/", StringComparison.OrdinalIgnoreCase);
+        var isAddonUrl = url.Contains(ModDBConstants.AddonsSegment, StringComparison.OrdinalIgnoreCase);
 
         return section switch
         {
@@ -703,8 +703,9 @@ public partial class ModDBDiscoverer(
                 pageTitle = await page.TitleAsync();
             }
         }
-        catch (PlaywrightException)
+        catch (PlaywrightException ex)
         {
+            logger.LogDebug(ex, "Failed to retrieve page title for {Url}", url);
         }
 
         if (IsChallengePage(pageTitle) || challengeObserved)
@@ -805,7 +806,7 @@ public partial class ModDBDiscoverer(
 
                 result.ResolverMetadata[ModDBConstants.ContentIdMetadataKey] = moddbId;
                 result.ResolverMetadata[ModDBConstants.SectionMetadataKey] = section;
-                result.ResolverMetadata[ModDBConstants.IsModMetadataKey] = (link.Contains("/mods/") && !link.Contains("/addons/")).ToString();
+                result.ResolverMetadata[ModDBConstants.IsModMetadataKey] = (link.Contains("/mods/") && !link.Contains(ModDBConstants.AddonsSegment)).ToString();
 
                 results.Add(result);
             }

@@ -11,6 +11,8 @@ namespace GenHub.Core.Models.CommunityOutpost;
 /// </summary>
 public static class GenPatcherContentRegistry
 {
+    private const string CommunityPatchCode = "community-patch";
+
     /// <summary>
     /// Language code mappings for patch suffixes.
     /// </summary>
@@ -56,9 +58,9 @@ public static class GenPatcherContentRegistry
     private static readonly Dictionary<string, GenPatcherContentMetadata> KnownContent = new(StringComparer.OrdinalIgnoreCase)
     {
         // Community Patch (TheSuperHackers Build from legi.cc/patch)
-        ["community-patch"] = new GenPatcherContentMetadata
+        [CommunityPatchCode] = new GenPatcherContentMetadata
         {
-            ContentCode = "community-patch",
+            ContentCode = CommunityPatchCode,
             DisplayName = "Community Patch (TheSuperHackers Build)",
             Description = "The latest TheSuperHackers patch build for Zero Hour. Includes bug fixes, balance changes, and quality of life improvements.",
             ContentType = ContentType.GameClient,
@@ -435,10 +437,10 @@ public static class GenPatcherContentRegistry
         ["communityoutpost-controlbar-pro"] = "cbpr",
         ["controlbarproexile"] = "cbpr",
         ["controlbarproxezon"] = "cbpx",
-        ["communitypatch"] = "community-patch",
-        ["communitypatchthesuperhackersbuild"] = "community-patch",
-        ["communityoutpostgameclientcommunitypatch"] = "community-patch",
-        ["community-patch-gameclient"] = "community-patch",
+        ["communitypatch"] = CommunityPatchCode,
+        ["communitypatchthesuperhackersbuild"] = CommunityPatchCode,
+        ["communityoutpostgameclientcommunitypatch"] = CommunityPatchCode,
+        ["community-patch-gameclient"] = CommunityPatchCode,
         ["zerohour104"] = "10zh",
         ["zerohour-104"] = "10zh",
         ["generals108"] = "10gn",

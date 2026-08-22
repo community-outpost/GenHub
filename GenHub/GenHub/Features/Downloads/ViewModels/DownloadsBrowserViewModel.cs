@@ -44,7 +44,7 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// without a custom publisher class. After <c>genhub://subscribe</c> confirms,
 /// <see cref="InitializeAsync"/> refreshes only the subscribed sidebar rows.
 /// </remarks>
-public partial class DownloadsBrowserViewModel(
+public sealed partial class DownloadsBrowserViewModel(
     IServiceProvider serviceProvider,
     ILogger<DownloadsBrowserViewModel> logger,
     IReadOnlyList<IContentDiscoverer> contentDiscoverers,
@@ -72,7 +72,6 @@ public partial class DownloadsBrowserViewModel(
     private readonly CancellationTokenSource _vmCts = new();
     private CancellationTokenSource? _searchCts;
     private int _activeRequestId;
-    private string? _activePublisherId;
     private string? _lastPopulatedPublisherId;
     private bool _hasCustomQuery;
     private bool _disposed;
@@ -176,7 +175,7 @@ public partial class DownloadsBrowserViewModel(
     {
         if (!_builtInPublishersInitialized)
         {
-            InitializeBuiltInPublishers();
+            Publishers = CreateBuiltInPublishers();
             InitializeFilterViewModels();
             _builtInPublishersInitialized = true;
         }
@@ -440,6 +439,51 @@ public partial class DownloadsBrowserViewModel(
             ?? variantVm.Variants[^1];
     }
 
+    /// <summary>
+    /// Seeds the sidebar with shipped/built-in providers (not user subscriptions).
+    /// </summary>
+    private static ObservableCollection<PublisherItemViewModel> CreateBuiltInPublishers()
+    {
+        return
+        [
+            new PublisherItemViewModel(
+                PublisherTypeConstants.GeneralsOnline,
+                "Generals Online",
+                "avares://GenHub/Assets/Logos/generalsonline-logo.png",
+                CategoryStatic),
+            new PublisherItemViewModel(
+                PublisherTypeConstants.TheSuperHackers,
+                "TheSuperHackers",
+                "avares://GenHub/Assets/Logos/thesuperhackers-logo.png",
+                CategoryStatic),
+            new PublisherItemViewModel(
+                CommunityOutpostConstants.PublisherType,
+                "CommunityOutpost",
+                "avares://GenHub/Assets/Logos/communityoutpost-logo.png",
+                CategoryStatic),
+            new PublisherItemViewModel(
+                ModDBConstants.PublisherType,
+                "ModDB",
+                "avares://GenHub/Assets/Logos/moddb-logo.png",
+                CategoryDynamic),
+            new PublisherItemViewModel(
+                CNCLabsConstants.PublisherType,
+                "CNC Labs",
+                "avares://GenHub/Assets/Logos/cnclabs-logo.png",
+                CategoryDynamic),
+            new PublisherItemViewModel(
+                GitHubTopicsConstants.PublisherType,
+                "GitHub",
+                "avares://GenHub/Assets/Logos/github-logo.png",
+                CategoryDynamic),
+            new PublisherItemViewModel(
+                AODMapsConstants.PublisherType,
+                "AOD Maps",
+                "avares://GenHub/Assets/Logos/aodmaps-logo.png",
+                CategoryDynamic),
+        ];
+    }
+
     private void HandleSelectedPublisherChanged(PublisherItemViewModel? value)
     {
         if (value == null)
@@ -485,8 +529,6 @@ public partial class DownloadsBrowserViewModel(
                 }
             }
         }
-
-        _activePublisherId = value.PublisherId;
 
         // Update selection state
         foreach (var publisher in Publishers)
@@ -719,9 +761,9 @@ public partial class DownloadsBrowserViewModel(
 
             return await ExecuteStreamingFetchAsync(publisherId, baseQuery, requestId, isCustomQuery, append);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogInformation("Search for {Publisher} was canceled", publisherId);
+            logger.LogInformation(ex, "Search for {Publisher} was canceled", publisherId);
             return false;
         }
         catch (Exception ex)
@@ -1232,51 +1274,6 @@ public partial class DownloadsBrowserViewModel(
                 }
             });
         }
-    }
-
-    /// <summary>
-    /// Seeds the sidebar with shipped/built-in providers (not user subscriptions).
-    /// </summary>
-    private void InitializeBuiltInPublishers()
-    {
-        Publishers =
-        [
-            new PublisherItemViewModel(
-                PublisherTypeConstants.GeneralsOnline,
-                "Generals Online",
-                "avares://GenHub/Assets/Logos/generalsonline-logo.png",
-                CategoryStatic),
-            new PublisherItemViewModel(
-                PublisherTypeConstants.TheSuperHackers,
-                "TheSuperHackers",
-                "avares://GenHub/Assets/Logos/thesuperhackers-logo.png",
-                CategoryStatic),
-            new PublisherItemViewModel(
-                CommunityOutpostConstants.PublisherType,
-                "CommunityOutpost",
-                "avares://GenHub/Assets/Logos/communityoutpost-logo.png",
-                CategoryStatic),
-            new PublisherItemViewModel(
-                ModDBConstants.PublisherType,
-                "ModDB",
-                "avares://GenHub/Assets/Logos/moddb-logo.png",
-                CategoryDynamic),
-            new PublisherItemViewModel(
-                CNCLabsConstants.PublisherType,
-                "CNC Labs",
-                "avares://GenHub/Assets/Logos/cnclabs-logo.png",
-                CategoryDynamic),
-            new PublisherItemViewModel(
-                GitHubTopicsConstants.PublisherType,
-                "GitHub",
-                "avares://GenHub/Assets/Logos/github-logo.png",
-                CategoryDynamic),
-            new PublisherItemViewModel(
-                AODMapsConstants.PublisherType,
-                "AOD Maps",
-                "avares://GenHub/Assets/Logos/aodmaps-logo.png",
-                CategoryDynamic),
-        ];
     }
 
     /// <summary>

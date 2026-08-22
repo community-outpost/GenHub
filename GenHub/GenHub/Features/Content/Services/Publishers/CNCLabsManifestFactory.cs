@@ -207,7 +207,7 @@ public partial class CNCLabsManifestFactory(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed to extract ZIP file: {ZipPath}", zipPath);
-                throw;
+                throw new InvalidOperationException($"Failed to extract ZIP file '{zipPath}': {ex.Message}", ex);
             }
         }
 

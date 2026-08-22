@@ -1297,19 +1297,13 @@ public partial class AddLocalContentViewModel(
 
         try
         {
-            foreach (var extension in GenLauncherConstants.InactiveBigExtensions)
-            {
-                if (Directory.EnumerateFiles(_stagingPath, "*" + extension, SearchOption.AllDirectories).Any())
-                {
-                    return true;
-                }
-            }
+            return GenLauncherConstants.InactiveBigExtensions
+                .Any(extension => Directory.EnumerateFiles(_stagingPath, "*" + extension, SearchOption.AllDirectories).Any());
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore enumeration errors
+            logger?.LogDebug(ex, "Failed to enumerate inactive archives in staging path");
+            return false;
         }
-
-        return false;
     }
 }

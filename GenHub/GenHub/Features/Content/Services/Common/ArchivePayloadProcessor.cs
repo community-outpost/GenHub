@@ -458,18 +458,9 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
     private static IReadOnlyList<string> FindArchiveFiles(string rootDirectory, ContentType? contentType = null)
     {
-        var allFiles = Directory.GetFiles(rootDirectory, "*", SearchOption.AllDirectories);
-        var archives = new List<string>();
-
-        foreach (var file in allFiles)
-        {
-            if (IsArchiveFile(file, contentType))
-            {
-                archives.Add(file);
-            }
-        }
-
-        return archives;
+        return Directory.GetFiles(rootDirectory, "*", SearchOption.AllDirectories)
+            .Where(file => IsArchiveFile(file, contentType))
+            .ToList();
     }
 
     private static void EnsureValidArchivePayload(string archivePath)
@@ -619,14 +610,19 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 throw new InvalidDataException($"Archive entry has an unsafe path: {entryKey}");
             }
 
-            var destinationPath = pathResult.Data!;
+            var destinationPath = pathResult.Data;
+            if (destinationPath == null)
+            {
+                throw new InvalidDataException($"Archive entry could not be resolved: {entryKey}");
+            }
+
             var destinationDir = Path.GetDirectoryName(destinationPath);
             if (!string.IsNullOrEmpty(destinationDir))
             {
                 Directory.CreateDirectory(destinationDir);
             }
 
-            var stageProgress = totalEntries > 0 ? (double)(i + 1) / totalEntries * 100 : 100;
+            var stageProgress = (double)(i + 1) / totalEntries * 100;
             var fileName = Path.GetFileName(entryKey);
             progress?.Report(new ContentAcquisitionProgress
             {
@@ -1169,13 +1165,16 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             var buf0 = new byte[8192];
             while (z0.Read(buf0, 0, buf0.Length) > 0)
             {
+                // Discard decompressed uninstaller info script stream bytes until EOF.
+                continue;
             }
 
             stream.Position = payloadOffset + z0.TotalIn;
         }
-        catch
+        catch (Exception ex)
         {
             // If stream 0 decompression fails, reset to payloadOffset
+            logger.LogDebug(ex, "Failed to decompress Smart Install Maker stream 0 script");
             stream.Position = payloadOffset;
         }
 

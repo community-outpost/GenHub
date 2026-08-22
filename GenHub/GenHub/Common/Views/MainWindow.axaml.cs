@@ -30,7 +30,7 @@ public partial class MainWindow : Window
     /// </summary>
     /// <param name="sender">the event sender.</param>
     /// <param name="e">the drag event arguments.</param>
-    private void OnDragOver(object? sender, DragEventArgs e)
+    private static void OnDragOver(object? sender, DragEventArgs e)
     {
         // accept file drag operations so users can drop publisher catalog files directly onto the window
         e.DragEffects = e.Data.Contains(DataFormats.Files) ? DragDropEffects.Link : DragDropEffects.None;

@@ -327,7 +327,7 @@ public sealed partial class ProfileSelectionViewModel(
                     CancellationToken.None)
                 : await profileContentService.AddContentToProfileAsync(
                     profile.Id,
-                    selectedManifestId!,
+                    selectedManifestId ?? string.Empty,
                     CancellationToken.None);
 
             if (result.Success)

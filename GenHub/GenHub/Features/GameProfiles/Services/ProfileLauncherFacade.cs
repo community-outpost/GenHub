@@ -331,10 +331,10 @@ public class ProfileLauncherFacade(
             // Use dynamic workspace path based on game installation location
             workspaceConfig.WorkspaceRootPath = storageLocationService.GetWorkspacePath(resolvedInstallation);
 
-            Guid? workspaceNotificationId = null;
+            var notificationTracker = new WorkspaceNotificationTracker();
             var workspaceProgress = new SynchronousProgress<WorkspacePreparationProgress>(_ =>
             {
-                if (workspaceNotificationId == null)
+                if (notificationTracker.NotificationId == null)
                 {
                     var message = new NotificationMessage(
                         NotificationType.Info,
@@ -342,22 +342,22 @@ public class ProfileLauncherFacade(
                         $"Initializing workspace for '{profile.Name}'. First launch may take a moment while files are set up...",
                         autoDismissMilliseconds: null,
                         isPersistent: true);
-                    workspaceNotificationId = message.Id;
+                    notificationTracker.NotificationId = message.Id;
                     notificationService.Show(message);
                 }
             });
 
             var prepareResult = await workspaceManager.PrepareWorkspaceAsync(workspaceConfig, workspaceProgress, cancellationToken: cancellationToken);
-            if (workspaceNotificationId.HasValue)
+            if (notificationTracker.NotificationId.HasValue)
             {
                 if (prepareResult.Success)
                 {
-                    notificationService.Dismiss(workspaceNotificationId.Value);
+                    notificationService.Dismiss(notificationTracker.NotificationId.Value);
                 }
                 else
                 {
                     notificationService.Update(
-                        workspaceNotificationId.Value,
+                        notificationTracker.NotificationId.Value,
                         $"Workspace initialization failed for '{profile.Name}'.",
                         "Workspace Error");
                 }
@@ -591,7 +591,7 @@ public class ProfileLauncherFacade(
                     $"{ProfileValidationConstants.FailedToPrepareToolWorkspace}: {prepareResult.FirstError}");
             }
 
-            toolWorkspacePath = prepareResult.Data!.WorkspacePath;
+            toolWorkspacePath = prepareResult.Data?.WorkspacePath ?? string.Empty;
             logger.LogInformation("[Launch] Tool workspace prepared at: {Path}", toolWorkspacePath);
         }
 
@@ -725,7 +725,11 @@ public class ProfileLauncherFacade(
                 return ProfileOperationResult<GameLaunchInfo>.CreateFailure(installationResult.FirstError ?? "Could not resolve game installation for profile");
             }
 
-            var resolvedInstallation = installationResult.Data!;
+            var resolvedInstallation = installationResult.Data;
+            if (resolvedInstallation == null)
+            {
+                return ProfileOperationResult<GameLaunchInfo>.CreateFailure("Could not resolve game installation data for profile");
+            }
 
             var reconcileResult = await ReconcileProfileUpdatesAsync(profile, cancellationToken);
             if (reconcileResult.Failed)
@@ -1417,7 +1421,7 @@ public class ProfileLauncherFacade(
                 $"{ProfileValidationConstants.FailedToPrepareToolWorkspace}: {prepareResult.FirstError}");
         }
 
-        var toolWorkspacePath = prepareResult.Data!.WorkspacePath;
+        var toolWorkspacePath = prepareResult.Data?.WorkspacePath ?? string.Empty;
         logger.LogInformation("[Launch] Tool workspace prepared at: {Path}", toolWorkspacePath);
         return ProfileOperationResult<(string, string?)>.CreateSuccess((toolWorkspacePath, actualWorkspaceId));
     }
@@ -2167,91 +2171,111 @@ public class ProfileLauncherFacade(
             return exactMatch;
         }
 
-        if (DependencyResolver.CommunityOutpostDependencyIdentity.TryGetCommunityOutpostContentCode(
+        return TryResolveCommunityOutpostMatch(dependency, potentialMatches)
+            ?? TryResolveCatalogMatch(dependency, potentialMatches)
+            ?? TryResolveSemanticMatch(dependency, potentialMatches);
+    }
+
+    private ContentManifest? TryResolveCommunityOutpostMatch(ContentDependency dependency, List<ContentManifest> potentialMatches)
+    {
+        if (!DependencyResolver.CommunityOutpostDependencyIdentity.TryGetCommunityOutpostContentCode(
                 dependency.Id.Value,
                 out var depContentType,
                 out var depContentCode))
         {
-            var match = potentialMatches.FirstOrDefault(m =>
-            {
-                if (!string.Equals(
-                        m.Publisher?.PublisherType,
-                        CommunityOutpostConstants.PublisherType,
-                        StringComparison.OrdinalIgnoreCase) &&
-                    !DependencyResolver.CommunityOutpostDependencyIdentity.TryGetCommunityOutpostContentCode(
-                        m.Id.Value,
-                        out _,
-                        out _))
-                {
-                    return false;
-                }
-
-                var candidateCode = DependencyResolver.CommunityOutpostDependencyIdentity.GetCommunityOutpostContentCode(m);
-                return m.ContentType.ToString().Equals(depContentType, StringComparison.OrdinalIgnoreCase) &&
-                       candidateCode.Equals(depContentCode, StringComparison.OrdinalIgnoreCase);
-            });
-
-            if (match != null)
-            {
-                logger.LogDebug(
-                    "Community Outpost dependency match: {DependencyId} satisfied by {MatchedId}",
-                    dependency.Id,
-                    match.Id);
-                return match;
-            }
+            return null;
         }
 
+        var match = potentialMatches.FirstOrDefault(m =>
+        {
+            if (!string.Equals(
+                    m.Publisher?.PublisherType,
+                    CommunityOutpostConstants.PublisherType,
+                    StringComparison.OrdinalIgnoreCase) &&
+                !DependencyResolver.CommunityOutpostDependencyIdentity.TryGetCommunityOutpostContentCode(
+                    m.Id.Value,
+                    out _,
+                    out _))
+            {
+                return false;
+            }
+
+            var candidateCode = DependencyResolver.CommunityOutpostDependencyIdentity.GetCommunityOutpostContentCode(m);
+            return m.ContentType.ToString().Equals(depContentType, StringComparison.OrdinalIgnoreCase) &&
+                   candidateCode.Equals(depContentCode, StringComparison.OrdinalIgnoreCase);
+        });
+
+        if (match != null)
+        {
+            logger.LogDebug(
+                "Community Outpost dependency match: {DependencyId} satisfied by {MatchedId}",
+                dependency.Id,
+                match.Id);
+        }
+
+        return match;
+    }
+
+    private ContentManifest? TryResolveCatalogMatch(ContentDependency dependency, List<ContentManifest> potentialMatches)
+    {
         var depIdParts = dependency.Id.ToString().Split('.');
-        var catalogMatch = potentialMatches.FirstOrDefault(m =>
+        var match = potentialMatches.FirstOrDefault(m =>
         {
             var manifestIdParts = m.Id.ToString().Split('.');
             return DependencyResolver.HasCompatibleCatalogIdentity(depIdParts, manifestIdParts);
         });
 
-        if (catalogMatch != null)
+        if (match != null)
         {
             logger.LogDebug(
                 "Catalog identity dependency match: {DependencyId} satisfied by {MatchedId}",
                 dependency.Id,
-                catalogMatch.Id);
-            return catalogMatch;
+                match.Id);
         }
 
-        if (!dependency.StrictPublisher)
+        return match;
+    }
+
+    private ContentManifest? TryResolveSemanticMatch(ContentDependency dependency, List<ContentManifest> potentialMatches)
+    {
+        if (dependency.StrictPublisher)
         {
-            var depIdSegments = dependency.Id.ToString().Split('.');
-            if (depIdSegments.Length >= 5)
-            {
-                var targetContentType = depIdSegments[3];
-                var targetContentName = depIdSegments[4];
-
-                var semanticMatch = potentialMatches.FirstOrDefault(m =>
-                {
-                    var manifestIdSegments = m.Id.ToString().Split('.');
-                    if (manifestIdSegments.Length >= 5)
-                    {
-                        var manifestContentType = manifestIdSegments[3];
-                        var manifestContentName = manifestIdSegments[4];
-                        return string.Equals(manifestContentType, targetContentType, StringComparison.OrdinalIgnoreCase) &&
-                               (string.Equals(manifestContentName, targetContentName, StringComparison.OrdinalIgnoreCase) ||
-                                manifestContentName.StartsWith(targetContentName + "-", StringComparison.OrdinalIgnoreCase));
-                    }
-
-                    return false;
-                });
-
-                if (semanticMatch != null)
-                {
-                    logger.LogDebug(
-                        "Semantic dependency match: {DependencyId} satisfied by {MatchedId} (StrictPublisher=false)",
-                        dependency.Id,
-                        semanticMatch.Id);
-                    return semanticMatch;
-                }
-            }
+            return null;
         }
 
-        return null;
+        var depIdSegments = dependency.Id.ToString().Split('.');
+        if (depIdSegments.Length < 5)
+        {
+            return null;
+        }
+
+        var targetContentType = depIdSegments[3];
+        var targetContentName = depIdSegments[4];
+
+        var match = potentialMatches.FirstOrDefault(m =>
+        {
+            var manifestIdSegments = m.Id.ToString().Split('.');
+            if (manifestIdSegments.Length < 5)
+            {
+                return false;
+            }
+
+            var manifestContentType = manifestIdSegments[3];
+            var manifestContentName = manifestIdSegments[4];
+            return string.Equals(manifestContentType, targetContentType, StringComparison.OrdinalIgnoreCase) &&
+                   (string.Equals(manifestContentName, targetContentName, StringComparison.OrdinalIgnoreCase) ||
+                    manifestContentName.StartsWith(targetContentName + "-", StringComparison.OrdinalIgnoreCase));
+        });
+
+        if (match != null)
+        {
+            logger.LogDebug(
+                "Semantic dependency match: {DependencyId} satisfied by {MatchedId} (StrictPublisher=false)",
+                dependency.Id,
+                match.Id);
+        }
+
+        return match;
     }
 
     /// <summary>
@@ -2496,12 +2520,17 @@ public class ProfileLauncherFacade(
             }
 
             var manifestResult = await manifestPool.GetManifestAsync(id, cancellationToken);
-            if (manifestResult.Success && manifestResult.Data!.ContentType.IsStandalone())
+            if (manifestResult.Success && manifestResult.Data?.ContentType.IsStandalone() == true)
             {
                 return idString;
             }
         }
 
         return null;
+    }
+
+    private sealed class WorkspaceNotificationTracker
+    {
+        public Guid? NotificationId { get; set; }
     }
 }

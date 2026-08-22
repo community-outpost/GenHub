@@ -1914,7 +1914,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             {
                 _notificationService.ShowInfo("Logs Empty", "No log files found to clear.", 3000);
             }
-            else if (lockedCount > 0 && deletedCount == 0)
+            else if (deletedCount == 0)
             {
                 _notificationService.ShowError("Error", "Could not clear active log files (files in use).", 3000);
             }
