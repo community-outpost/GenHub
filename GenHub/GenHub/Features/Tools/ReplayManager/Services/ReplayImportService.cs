@@ -78,8 +78,10 @@ public sealed class ReplayImportService(
                     };
                 }
 
+                var isZip = IsZipFile(tempPath);
+                var maxAllowedBytes = isZip ? ReplayManagerConstants.MaxUploadBytesPerPeriod : ReplayManagerConstants.MaxReplaySizeBytes;
                 var info = new FileInfo(tempPath);
-                if (info.Length > ReplayManagerConstants.MaxReplaySizeBytes)
+                if (info.Length > maxAllowedBytes)
                 {
                     if (File.Exists(tempPath))
                     {
@@ -95,8 +97,7 @@ public sealed class ReplayImportService(
                     };
                 }
 
-                // Detect if the downloaded file is a ZIP by checking magic bytes
-                if (IsZipFile(tempPath))
+                if (isZip)
                 {
                     logger.LogInformation(LogMessages.DetectedZipFile);
                     return await ImportFromZipAsync(tempPath, targetVersion, progress, ct);
@@ -362,11 +363,22 @@ public sealed class ReplayImportService(
         try
         {
             var fileName = Path.GetFileName(uri.LocalPath);
-            return string.IsNullOrEmpty(fileName) ? ReplayManagerConstants.DefaultImportedReplayFileName : fileName;
+            if (string.IsNullOrEmpty(fileName))
+            {
+                return ReplayManagerConstants.DefaultImportedReplayFileName;
+            }
+
+            if (!fileName.EndsWith(FileTypes.ReplayFileExtension, StringComparison.OrdinalIgnoreCase) &&
+                !fileName.EndsWith(FileTypes.ZipFileExtension, StringComparison.OrdinalIgnoreCase))
+            {
+                return $"{fileName}{FileTypes.ReplayFileExtension}";
+            }
+
+            return fileName;
         }
         catch
         {
-            return "imported_replay.rep";
+            return ReplayManagerConstants.DefaultImportedReplayFileName;
         }
     }
 }

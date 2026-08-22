@@ -29,7 +29,9 @@ public sealed partial class UrlParserService(HttpClient httpClient, ILogger<UrlP
             return ReplaySource.GeneralsOnline;
         }
 
-        if (url.Contains(ApiConstants.UploadThingUrlFragment))
+        if (url.Contains(ApiConstants.UploadThingUrlFragment, StringComparison.OrdinalIgnoreCase) ||
+            url.Contains(ApiConstants.UploadThingUfsUrlFragment, StringComparison.OrdinalIgnoreCase) ||
+            url.Contains(ApiConstants.UploadThingUfsShortUrlFragment, StringComparison.OrdinalIgnoreCase))
         {
             return ReplaySource.UploadThing;
         }

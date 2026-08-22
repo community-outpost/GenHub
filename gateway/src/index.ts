@@ -71,6 +71,14 @@ const validateDeletePayload = (payload: DeletePayload): string | null => {
   return null;
 };
 
+const trimTrailingEquals = (str: string): string => {
+  let end = str.length;
+  while (end > 0 && str.charCodeAt(end - 1) === 61) {
+    end--;
+  }
+  return str.substring(0, end);
+};
+
 const signDeleteToken = async (fileKey: string, timestamp: number, secret: string): Promise<string> => {
   const hmacKey = await crypto.subtle.importKey(
     "raw",
@@ -82,10 +90,10 @@ const signDeleteToken = async (fileKey: string, timestamp: number, secret: strin
 
   const payloadToSign = `${fileKey}:${timestamp}`;
   const sigBuf = await crypto.subtle.sign("HMAC", hmacKey, new TextEncoder().encode(payloadToSign));
-  const sigBase64Url = btoa(String.fromCodePoint(...new Uint8Array(sigBuf)))
+  const rawBase64 = btoa(String.fromCodePoint(...new Uint8Array(sigBuf)))
     .replaceAll("+", "-")
-    .replaceAll("/", "_")
-    .replace(/=+$/, "");
+    .replaceAll("/", "_");
+  const sigBase64Url = trimTrailingEquals(rawBase64);
 
   return `${payloadToSign}.${sigBase64Url}`;
 };

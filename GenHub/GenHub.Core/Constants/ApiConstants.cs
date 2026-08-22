@@ -112,6 +112,16 @@ public static class ApiConstants
     public const string UploadThingUrlFragment = "utfs.io/f/";
 
     /// <summary>
+    /// Modern UploadThing (v7) UFS URL fragment for identification.
+    /// </summary>
+    public const string UploadThingUfsUrlFragment = ".ufs.sh/f/";
+
+    /// <summary>
+    /// Modern UploadThing (v7) UFS short URL fragment for identification.
+    /// </summary>
+    public const string UploadThingUfsShortUrlFragment = "ufs.sh/f/";
+
+    /// <summary>
     /// Media type for ZIP archives.
     /// </summary>
     public const string MediaTypeZip = "application/zip";
