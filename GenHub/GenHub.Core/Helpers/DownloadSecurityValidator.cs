@@ -141,38 +141,12 @@ public static class DownloadSecurityValidator
             }
         }
 
-        // Verify publisher from the embedded certificate
-        try
+        if (!string.IsNullOrWhiteSpace(expectedPublisher))
         {
-            using var cert = new X509Certificate2(X509Certificate.CreateFromSignedFile(filePath));
+            return VerifyPublisherMatch(filePath, expectedPublisher);
+        }
 
-            if (!string.IsNullOrWhiteSpace(expectedPublisher))
-            {
-                var subject = cert.Subject;
-                var issuer = cert.Issuer;
-
-                if (!subject.Contains(expectedPublisher, StringComparison.OrdinalIgnoreCase) &&
-                    !issuer.Contains(expectedPublisher, StringComparison.OrdinalIgnoreCase))
-                {
-                    return OperationResult<bool>.CreateFailure(
-                        $"Authenticode signature publisher mismatch. Expected publisher containing '{expectedPublisher}', but found subject '{subject}' and issuer '{issuer}'.");
-                }
-            }
-
-            return OperationResult<bool>.CreateSuccess(true);
-        }
-        catch (CryptographicException ex)
-        {
-            return OperationResult<bool>.CreateFailure($"Authenticode certificate verification failed: {ex.Message}");
-        }
-        catch (IOException ex)
-        {
-            return OperationResult<bool>.CreateFailure($"Authenticode certificate read failed: {ex.Message}");
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return OperationResult<bool>.CreateFailure($"Authenticode certificate access denied: {ex.Message}");
-        }
+        return OperationResult<bool>.CreateSuccess(true);
     }
 
     /// <summary>
@@ -367,6 +341,38 @@ public static class DownloadSecurityValidator
         }
 
         return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static OperationResult<bool> VerifyPublisherMatch(string filePath, string expectedPublisher)
+    {
+        try
+        {
+            using var cert = new X509Certificate2(X509Certificate.CreateFromSignedFile(filePath));
+
+            var subject = cert.Subject;
+            var issuer = cert.Issuer;
+
+            if (!subject.Contains(expectedPublisher, StringComparison.OrdinalIgnoreCase) &&
+                !issuer.Contains(expectedPublisher, StringComparison.OrdinalIgnoreCase))
+            {
+                return OperationResult<bool>.CreateFailure(
+                    $"Authenticode signature publisher mismatch. Expected publisher containing '{expectedPublisher}', but found subject '{subject}' and issuer '{issuer}'.");
+            }
+
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (CryptographicException ex)
+        {
+            return OperationResult<bool>.CreateFailure($"Authenticode certificate verification failed: {ex.Message}");
+        }
+        catch (IOException ex)
+        {
+            return OperationResult<bool>.CreateFailure($"Authenticode certificate read failed: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return OperationResult<bool>.CreateFailure($"Authenticode certificate access denied: {ex.Message}");
+        }
     }
 
     private static OperationResult<int> VerifyWindowsAuthenticodeTrust(string filePath)

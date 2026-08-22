@@ -153,11 +153,9 @@ public abstract class BasePackageDeploymentFix(
             }
 
             var extractedFilePath = Path.Combine(extractDir, fileName);
-            using (var entryStream = entry.OpenEntryStream())
-            await using (var fs = new FileStream(extractedFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
-            {
-                await entryStream.CopyToAsync(fs, ct);
-            }
+            await using var entryStream = entry.OpenEntryStream();
+            await using var fs = new FileStream(extractedFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true);
+            await entryStream.CopyToAsync(fs, ct);
 
             extractedFiles[fileName] = extractedFilePath;
         }
@@ -208,17 +206,6 @@ public abstract class BasePackageDeploymentFix(
             "GenHub",
             "Backups",
             $"{Id}_{key}");
-    }
-
-    private static string ComputeInstallationKey(GameInstallation installation)
-    {
-        if (string.IsNullOrEmpty(installation.InstallationPath))
-        {
-            return "default";
-        }
-
-        var bytes = System.Text.Encoding.UTF8.GetBytes(installation.InstallationPath.ToUpperInvariant());
-        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes))[..12].ToLowerInvariant();
     }
 
     /// <inheritdoc/>
@@ -335,32 +322,7 @@ public abstract class BasePackageDeploymentFix(
                 return Task.FromResult(new ActionSetResult(true, null, ["No deployment record found to undo."]));
             }
 
-            // Parse marker records: format "destPath|backupPath" or legacy "destPath"
-            var records = new List<(string DestPath, string? BackupPath)>();
-            foreach (var line in lines)
-            {
-                if (string.IsNullOrWhiteSpace(line))
-                {
-                    continue;
-                }
-
-                var parts = line.Split('|');
-                var dest = parts[0].Trim();
-                var backup = parts.Length > 1 && !string.IsNullOrWhiteSpace(parts[1]) ? parts[1].Trim() : null;
-                if (!string.IsNullOrEmpty(dest))
-                {
-                    records.Add((dest, backup));
-                }
-            }
-
-            var hasRootedPaths = records.Any(r => Path.IsPathRooted(r.DestPath));
-            if (!hasRootedPaths)
-            {
-                // Legacy marker with relative or simple filenames
-                var legacyPaths = GetLegacyFilePaths(installation);
-                records = legacyPaths.Select(p => (p, (string?)null)).ToList();
-            }
-
+            var records = ParseMarkerRecords(lines, installation);
             var (removedCount, restoredCount, remainingRecords) = RestoreOrDeleteRecordedFiles(records, ct);
 
             UpdateMarkerAfterUndo(targetMarkerPath, remainingRecords);
@@ -377,10 +339,6 @@ public abstract class BasePackageDeploymentFix(
 
             details.Add($"⚠ Partial undo: {removedCount} files removed, {restoredCount} restored, {remainingRecords.Count} files could not be processed.");
             return Task.FromResult(new ActionSetResult(false, $"Failed to remove/restore {remainingRecords.Count} files during undo.", details));
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
         }
         catch (IOException ex)
         {
@@ -476,6 +434,46 @@ public abstract class BasePackageDeploymentFix(
         }
 
         return false;
+    }
+
+    private static string ComputeInstallationKey(GameInstallation installation)
+    {
+        if (string.IsNullOrEmpty(installation.InstallationPath))
+        {
+            return "default";
+        }
+
+        var bytes = System.Text.Encoding.UTF8.GetBytes(installation.InstallationPath.ToUpperInvariant());
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes))[..12].ToLowerInvariant();
+    }
+
+    private List<(string DestPath, string? BackupPath)> ParseMarkerRecords(string[] lines, GameInstallation installation)
+    {
+        var records = new List<(string DestPath, string? BackupPath)>();
+        foreach (var line in lines)
+        {
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            var parts = line.Split('|');
+            var dest = parts[0].Trim();
+            var backup = parts.Length > 1 && !string.IsNullOrWhiteSpace(parts[1]) ? parts[1].Trim() : null;
+            if (!string.IsNullOrEmpty(dest))
+            {
+                records.Add((dest, backup));
+            }
+        }
+
+        var hasRootedPaths = records.Any(r => Path.IsPathRooted(r.DestPath));
+        if (!hasRootedPaths)
+        {
+            var legacyPaths = GetLegacyFilePaths(installation);
+            records = legacyPaths.Select(p => (p, (string?)null)).ToList();
+        }
+
+        return records;
     }
 
     private (int RemovedCount, int RestoredCount, List<(string DestPath, string? BackupPath)> RemainingRecords) RestoreOrDeleteRecordedFiles(

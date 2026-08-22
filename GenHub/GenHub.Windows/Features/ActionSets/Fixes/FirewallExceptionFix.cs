@@ -292,7 +292,7 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
             using var process = Process.Start(psi);
             if (process != null)
             {
-                var stdout = process.StandardOutput.ReadToEnd();
+                _ = process.StandardOutput.ReadToEnd();
                 var stderr = process.StandardError.ReadToEnd();
                 process.WaitForExit();
                 if (process.ExitCode != ProcessConstants.ExitCodeSuccess)

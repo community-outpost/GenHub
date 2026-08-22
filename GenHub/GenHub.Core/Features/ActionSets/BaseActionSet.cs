@@ -232,9 +232,11 @@ public abstract class BaseActionSet(ILogger logger) : IActionSet
                 }
                 catch (IOException)
                 {
+                    // Ignored - best-effort attribute reset before directory deletion
                 }
                 catch (UnauthorizedAccessException)
                 {
+                    // Ignored - best-effort attribute reset before directory deletion
                 }
             }
 

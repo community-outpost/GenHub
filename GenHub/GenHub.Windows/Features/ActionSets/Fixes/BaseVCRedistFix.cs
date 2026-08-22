@@ -73,7 +73,7 @@ public abstract class BaseVCRedistFix(
     /// </summary>
     /// <param name="productCode">The MSI product GUID.</param>
     /// <returns>True if installed; otherwise false.</returns>
-    protected static bool IsProductInstalled(string productCode)
+    protected bool IsProductInstalled(string productCode)
     {
         try
         {

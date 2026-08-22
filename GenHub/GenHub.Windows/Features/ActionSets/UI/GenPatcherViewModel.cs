@@ -108,7 +108,7 @@ public partial class GenPatcherViewModel(
     {
         logger.LogInformation("[GENPATCHER_INIT_001] GenPatcher tool opened by user");
 
-        var isAdmin = await Task.Run(() => registryService.IsRunningAsAdministrator());
+        var isAdmin = await Task.Run(() => registryService.IsRunningAsAdministrator(), CancellationToken.None);
         var osVersion = Environment.OSVersion.VersionString;
         var dotnetVersion = Environment.Version.ToString();
 
