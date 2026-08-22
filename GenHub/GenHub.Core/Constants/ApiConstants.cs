@@ -71,7 +71,7 @@ public static class ApiConstants
     /// <summary>
     /// Base URL for the GenHub community upload gateway.
     /// </summary>
-    public const string DefaultUploadGatewayBaseUrl = "https://api.genhub.community-outpost.org";
+    public const string DefaultUploadGatewayBaseUrl = "https://genhub-upload-gateway.mustafa2146.workers.dev";
 
     /// <summary>
     /// Gets the active base URL for the upload gateway, checking environment variable overrides first.
