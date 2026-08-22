@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Net.Http;
@@ -66,23 +67,35 @@ public partial class ModDBDiscoverer(
             {
                 page = await playwrightService.CreatePersistentPageAsync(ModDBConstants.BrowserProfileName, cancellationToken);
 
-                foreach (var section in sectionsToSearch)
+                if (TryNormalizeModDBUrl(query.SearchTerm, out var directUrl))
                 {
-                    var (sectionResults, sectionHasMore, sectionKeepOpen, sectionChallenge) = await DiscoverFromSectionAsync(page, section, gameType, query, cancellationToken);
-                    results.AddRange(sectionResults);
-                    if (sectionHasMore)
+                    logger.LogInformation("[ModDB] Search term is a direct ModDB URL: {Url}", directUrl);
+                    var (directResults, directHasMore, directKeepOpen, directChallenge) = await DiscoverFromDirectUrlAsync(page, directUrl, gameType, cancellationToken);
+                    results.AddRange(directResults);
+                    hasMoreItems = directHasMore;
+                    keepPageOpenForVerification = directKeepOpen;
+                    challengeDetected = directChallenge;
+                }
+                else
+                {
+                    foreach (var section in sectionsToSearch)
                     {
-                        hasMoreItems = true;
-                    }
+                        var (sectionResults, sectionHasMore, sectionKeepOpen, sectionChallenge) = await DiscoverFromSectionAsync(page, section, gameType, query, cancellationToken);
+                        results.AddRange(sectionResults);
+                        if (sectionHasMore)
+                        {
+                            hasMoreItems = true;
+                        }
 
-                    if (sectionKeepOpen)
-                    {
-                        keepPageOpenForVerification = true;
-                    }
+                        if (sectionKeepOpen)
+                        {
+                            keepPageOpenForVerification = true;
+                        }
 
-                    if (sectionChallenge)
-                    {
-                        challengeDetected = true;
+                        if (sectionChallenge)
+                        {
+                            challengeDetected = true;
+                        }
                     }
                 }
             }
@@ -140,6 +153,64 @@ public partial class ModDBDiscoverer(
         {
             return Guid.NewGuid().ToString();
         }
+    }
+
+    /// <summary>
+    /// Checks if an input search term is a ModDB URL and normalizes it to an absolute URL.
+    /// </summary>
+    /// <param name="input">The raw search term or URL string.</param>
+    /// <param name="normalizedUrl">The normalized absolute ModDB URL if valid.</param>
+    /// <returns><c>true</c> if input represents a ModDB URL; otherwise, <c>false</c>.</returns>
+    internal static bool TryNormalizeModDBUrl(string? input, [NotNullWhen(true)] out string? normalizedUrl)
+    {
+        normalizedUrl = null;
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return false;
+        }
+
+        var trimmed = input.Trim();
+        if (trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) &&
+                (uri.Host.Equals("moddb.com", StringComparison.OrdinalIgnoreCase) ||
+                 uri.Host.EndsWith(".moddb.com", StringComparison.OrdinalIgnoreCase)))
+            {
+                normalizedUrl = uri.AbsoluteUri;
+                return true;
+            }
+
+            return false;
+        }
+
+        if (trimmed.StartsWith("moddb.com", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("www.moddb.com", StringComparison.OrdinalIgnoreCase))
+        {
+            if (Uri.TryCreate("https://" + trimmed, UriKind.Absolute, out var uri) &&
+                (uri.Host.Equals("moddb.com", StringComparison.OrdinalIgnoreCase) ||
+                 uri.Host.EndsWith(".moddb.com", StringComparison.OrdinalIgnoreCase)))
+            {
+                normalizedUrl = uri.AbsoluteUri;
+                return true;
+            }
+
+            return false;
+        }
+
+        if (trimmed.StartsWith("/mods/", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("/games/", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("/downloads/", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("/addons/", StringComparison.OrdinalIgnoreCase))
+        {
+            if (Uri.TryCreate(ModDBConstants.BaseUrl.TrimEnd('/') + trimmed, UriKind.Absolute, out var uri))
+            {
+                normalizedUrl = uri.AbsoluteUri;
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static List<ContentSearchResult> OrderDiscoveredResults(List<ContentSearchResult> results, ContentSearchQuery query)
@@ -527,6 +598,109 @@ public partial class ModDBDiscoverer(
         return nextLink != null;
     }
 
+    private static string DetermineSectionFromUrl(string url)
+    {
+        if (url.Contains(ModDBConstants.AddonsSegment, StringComparison.OrdinalIgnoreCase))
+        {
+            return "addons";
+        }
+
+        if (url.Contains(ModDBConstants.DownloadsSegment, StringComparison.OrdinalIgnoreCase))
+        {
+            return ModDBConstants.DownloadsSection;
+        }
+
+        return ModDBConstants.ModsSection;
+    }
+
+    private static string NormalizeRelativeUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url) || url.Contains("blank.gif", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Empty;
+        }
+
+        if (url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        {
+            return url;
+        }
+
+        return $"{ModDBConstants.BaseUrl.TrimEnd('/')}/{(url.StartsWith('/') ? url.TrimStart('/') : url)}";
+    }
+
+    private static ContentSearchResult? ParseSinglePageItem(
+        IDocument document,
+        string url,
+        GameType gameType,
+        string section)
+    {
+        var title = document.QuerySelector("h1 a, h1, #profiletitle")?.TextContent?.Trim();
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            var docTitle = document.Title?.Trim();
+            if (!string.IsNullOrWhiteSpace(docTitle))
+            {
+                var titleParts = docTitle.Split([" - Mod DB", " - Command & Conquer"], StringSplitOptions.RemoveEmptyEntries);
+                title = titleParts.Length > 0 ? titleParts[0].Trim() : docTitle;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(title) && title.EndsWith(" file", StringComparison.OrdinalIgnoreCase))
+        {
+            title = title[..^5].Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            title = ExtractModDBIdFromUrl(url);
+        }
+
+        var authorLink = document.QuerySelector("a[href*='/members/'], span.by a, span.author a, .subheading a");
+        var author = authorLink?.TextContent?.Trim() ?? "Unknown";
+
+        var descEl = document.QuerySelector("meta[name='description']");
+        var descriptionText = descEl?.GetAttribute("content")
+            ?? document.QuerySelector("p, div.summary, span.summary, #profiledescription, .description")?.TextContent?.Trim();
+        var description = HtmlTextHelper.NormalizeHtml(descriptionText);
+
+        var iconEl = document.QuerySelector(".imagebox img, img.image, img.screenshot, div.image img, #profilemain img, meta[property='og:image']");
+        var rawIcon = iconEl?.GetAttribute("src") ?? iconEl?.GetAttribute("content") ?? string.Empty;
+        var iconUrl = !string.IsNullOrWhiteSpace(rawIcon) ? NormalizeRelativeUrl(rawIcon) : string.Empty;
+
+        var categoryEl = document.QuerySelector(".category, .type, span.category, span.subheading");
+        var category = categoryEl?.TextContent?.Trim();
+
+        var lastUpdated = ExtractLastUpdatedDate(document.DocumentElement);
+        var contentType = DetermineContentType(section, category, url, title);
+        var moddbId = ExtractModDBIdFromUrl(url);
+        var prospectiveId = lastUpdated.HasValue && lastUpdated.Value > DateTime.MinValue
+            ? ManifestIdGenerator.GeneratePublisherContentId(ModDBConstants.PublisherPrefix, contentType, title, lastUpdated.Value)
+            : ManifestIdGenerator.GeneratePublisherContentId(ModDBConstants.PublisherPrefix, contentType, title, 0);
+
+        var result = new ContentSearchResult
+        {
+            Id = prospectiveId,
+            Name = title,
+            Description = description,
+            AuthorName = author,
+            ContentType = contentType,
+            TargetGame = gameType,
+            ProviderName = ModDBConstants.DiscovererSourceName,
+            IconUrl = iconUrl,
+            RequiresResolution = true,
+            ResolverId = ModDBConstants.ResolverId,
+            SourceUrl = url,
+            LastUpdated = lastUpdated,
+        };
+
+        result.ResolverMetadata[ModDBConstants.ContentIdMetadataKey] = moddbId;
+        result.ResolverMetadata[ModDBConstants.SectionMetadataKey] = section;
+        ContentCardBadgeHelper.ApplyCategory(result, category);
+        ApplyParentModMetadata(result, url);
+
+        return result;
+    }
+
     private async Task<(List<ContentSearchResult> Items, bool HasMoreItems, bool KeepPageOpen, bool ChallengeDetected)> DiscoverFromSectionAsync(
         IPage page,
         string section,
@@ -853,5 +1027,70 @@ public partial class ModDBDiscoverer(
         }
 
         return results;
+    }
+
+    private async Task<(List<ContentSearchResult> Items, bool HasMoreItems, bool KeepPageOpen, bool ChallengeDetected)> DiscoverFromDirectUrlAsync(
+        IPage page,
+        string url,
+        GameType gameType,
+        CancellationToken cancellationToken)
+    {
+        var keepPageOpenForVerification = false;
+        try
+        {
+            logger.LogInformation("[ModDB] Navigating directly to requested URL: {Url}", url);
+            await page.GotoAsync(url, new PageGotoOptions { Timeout = ModDBConstants.DefaultGotoTimeout, WaitUntil = WaitUntilState.Commit });
+
+            var (listingReady, challengeObserved) = await WaitForListingOrChallengeAsync(page, url, cancellationToken);
+            if (!listingReady)
+            {
+                var isChallenge = await HandleVerificationFailureAsync(page, url, challengeObserved);
+                if (isChallenge)
+                {
+                    keepPageOpenForVerification = !page.IsClosed;
+                    return ([], false, keepPageOpenForVerification, true);
+                }
+            }
+
+            if (page.IsClosed)
+            {
+                return ([], false, false, challengeObserved);
+            }
+
+            var html = await page.ContentAsync();
+            var browsingContext = BrowsingContext.New(Configuration.Default);
+            var document = await browsingContext.OpenAsync(req => req.Content(html), cancellationToken);
+
+            var section = DetermineSectionFromUrl(url);
+
+            // Check if this page is a listing page (has multiple list items)
+            var listingItems = ParseDocumentSearchResults(document, gameType, section);
+            if (listingItems.Count > 0)
+            {
+                var hasMore = HasMorePages(document);
+                logger.LogInformation("[ModDB] Discovered {Count} items from listing URL: {Url}", listingItems.Count, url);
+                return (listingItems, hasMore, keepPageOpenForVerification, false);
+            }
+
+            // Otherwise, parse as a single mod / addon / download / article detail page
+            var singleItem = ParseSinglePageItem(document, url, gameType, section);
+            if (singleItem != null)
+            {
+                logger.LogInformation("[ModDB] Discovered single item '{Name}' from direct URL: {Url}", singleItem.Name, url);
+                return ([singleItem], false, keepPageOpenForVerification, false);
+            }
+
+            logger.LogWarning("[ModDB] Could not parse content item from direct URL: {Url}", url);
+            return ([], false, keepPageOpenForVerification, false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to discover from direct ModDB URL {Url}", url);
+            return ([], false, keepPageOpenForVerification, false);
+        }
     }
 }

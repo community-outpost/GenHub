@@ -932,7 +932,7 @@ public class GameProcessManager(
         BoundedErrorBuffer capturedErrors,
         CancellationToken cancellationToken)
     {
-        var expectedName = configuration.ExpectedChildProcessName;
+        var expectedName = configuration.ExpectedChildProcessName ?? string.Empty;
         var timeout = configuration.ExpectedChildDiscoveryTimeout
             ?? TimeSpan.FromMilliseconds(ProcessConstants.SpawnedChildDiscoveryTimeoutMs);
         var deadline = DateTime.UtcNow + timeout;

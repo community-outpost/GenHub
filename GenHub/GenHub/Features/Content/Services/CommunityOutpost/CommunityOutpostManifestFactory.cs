@@ -481,6 +481,7 @@ public class CommunityOutpostManifestFactory(
 
         return dependencyBigFiles;
     }
+
     private bool HasVariantBigFiles(
         string[] allFiles,
         ContentVariant variant,

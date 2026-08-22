@@ -26,6 +26,7 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Catalog;
+using GenHub.Features.Content.Services.ContentDiscoverers;
 using GenHub.Features.Content.Services.GeneralsOnline;
 using GenHub.Features.Downloads.Services;
 using GenHub.Features.Downloads.ViewModels.Filters;
@@ -670,6 +671,17 @@ public sealed partial class DownloadsBrowserViewModel(
     [RelayCommand]
     private async Task SearchAsync()
     {
+        if (ModDBDiscoverer.TryNormalizeModDBUrl(SearchTerm, out _) &&
+            SelectedPublisher?.PublisherId != PublisherTypeConstants.ModDB)
+        {
+            var moddbPublisher = Publishers.FirstOrDefault(p => p.PublisherId == PublisherTypeConstants.ModDB);
+            if (moddbPublisher != null)
+            {
+                SelectedPublisher = moddbPublisher;
+                return;
+            }
+        }
+
         _hasCustomQuery = !string.IsNullOrWhiteSpace(SearchTerm) || (CurrentFilterViewModel != null && CurrentFilterViewModel.HasActiveFilters);
         CurrentPage = 1;
         Interlocked.Increment(ref _activeRequestId);

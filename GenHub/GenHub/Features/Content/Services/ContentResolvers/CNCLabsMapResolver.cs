@@ -254,7 +254,8 @@ public class CNCLabsMapResolver(
 
         var screenshots = document.QuerySelectorAll("img.Screenshot")
             .Select(img => img.GetAttribute("src"))
-            .Where(src => !string.IsNullOrEmpty(src))
+            .OfType<string>()
+            .Where(src => !string.IsNullOrWhiteSpace(src))
             .Select(src => src.StartsWith("http", StringComparison.OrdinalIgnoreCase)
                 ? src
                 : $"{CNCLabsConstants.PublisherWebsite}{src}")

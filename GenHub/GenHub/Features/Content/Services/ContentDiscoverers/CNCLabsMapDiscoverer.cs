@@ -552,15 +552,21 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
 
     private static MapListItem? ParseSearchListItem(IElement item, ContentSearchQuery query)
     {
-        var idValue = item.QuerySelector(CNCLabsConstants.FileIdHiddenSelector)?.GetAttribute(CNCLabsConstants.ValueAttribute);
-        if (string.IsNullOrWhiteSpace(idValue) || !int.TryParse(idValue, out var id))
+        var nameAnchor = item.QuerySelector(CNCLabsConstants.DisplayNameAnchorSelector);
+        var name = nameAnchor?.TextContent?.Trim();
+        var detailsHref = nameAnchor?.GetAttribute(CNCLabsConstants.HrefAttribute);
+        if (string.IsNullOrWhiteSpace(detailsHref) || string.IsNullOrWhiteSpace(name))
         {
             return null;
         }
 
-        var nameAnchor = item.QuerySelector(CNCLabsConstants.DisplayNameAnchorSelector);
-        var name = nameAnchor?.TextContent?.Trim();
-        var detailsHref = nameAnchor?.GetAttribute(CNCLabsConstants.HrefAttribute);
+        var idMatch = DetailsIdRegex().Match(detailsHref);
+        if (!idMatch.Success || !int.TryParse(idMatch.Groups[1].Value, out var id))
+        {
+            return null;
+        }
+
+        detailsHref = new Uri(new Uri(CNCLabsConstants.PublisherWebsite), detailsHref).ToString();
 
         string? description = null;
         var descEl = item.QuerySelector(CNCLabsConstants.DescriptionSelector);

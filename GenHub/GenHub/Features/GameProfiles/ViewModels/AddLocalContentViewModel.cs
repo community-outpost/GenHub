@@ -557,6 +557,11 @@ public partial class AddLocalContentViewModel(
             StatusMessage = $"Importing {Path.GetFileName(path)}...";
             logger?.LogInformation("Importing content from {Path} to staging {Staging}", path, _stagingPath);
 
+            if (!Directory.Exists(_stagingPath))
+            {
+                Directory.CreateDirectory(_stagingPath);
+            }
+
             await StageContentFromPathAsync(path, cancellationToken);
             CreateMapFoldersIfNeeded();
 
