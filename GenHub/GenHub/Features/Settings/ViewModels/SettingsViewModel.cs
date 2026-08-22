@@ -26,6 +26,7 @@ using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Messages;
 using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Theming;
 using GenHub.Features.AppUpdate.Interfaces;
 using Microsoft.Extensions.Logging;
 
@@ -39,11 +40,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private static readonly char[] LineSeparators = ['\r', '\n'];
 
     /// <summary>
-    /// Gets the available themes for selection in the UI.
-    /// </summary>
-    public static IEnumerable<string> AvailableThemes => ["Dark", "Light"];
-
-    /// <summary>
     /// Gets the available workspace strategies for selection in the UI.
     /// </summary>
     public static IEnumerable<WorkspaceStrategy> AvailableWorkspaceStrategies => Enum.GetValues<WorkspaceStrategy>();
@@ -52,6 +48,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// Gets the current application version for display.
     /// </summary>
     public static string CurrentVersion => AppConstants.FullDisplayVersion;
+
+    /// <summary>
+    /// Gets the available themes for selection in the UI.
+    /// </summary>
+    public IReadOnlyList<ColorTheme> AvailableThemes => _themeService?.AvailableThemes ?? ThemeConstants.AllThemes;
 
     private readonly IUserSettingsService _userSettingsService;
     private readonly ICasService _casService;
@@ -69,6 +70,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly IStorageLocationService _storageLocationService;
     private readonly IUserDataTracker _userDataTracker;
     private readonly IDialogService _dialogService;
+    private readonly IThemeService? _themeService;
 
     private bool _isViewVisible;
     private bool _disposed;
@@ -79,7 +81,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private int _downloadTimeoutSeconds = DownloadDefaults.TimeoutSeconds;
 
     [ObservableProperty]
-    private string _theme = "Dark";
+    private string _theme = ThemeConstants.DefaultTheme.Id;
+
+    [ObservableProperty]
+    private ColorTheme _selectedTheme = ThemeConstants.DefaultTheme;
 
     [ObservableProperty]
     private string _latestVersion = "Checking...";
@@ -218,6 +223,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <param name="storageLocationService">Storage location service.</param>
     /// <param name="userDataTracker">User data tracker service.</param>
     /// <param name="dialogService">Dialog service used to confirm destructive actions.</param>
+    /// <param name="themeService">Theme service for dynamic accent theming.</param>
     /// <param name="gitHubTokenStorage">GitHub token storage.</param>
     public SettingsViewModel(
         IUserSettingsService userSettingsService,
@@ -233,6 +239,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IStorageLocationService storageLocationService,
         IUserDataTracker userDataTracker,
         IDialogService dialogService,
+        IThemeService? themeService = null,
         IGitHubTokenStorage? gitHubTokenStorage = null)
     {
         _userSettingsService = userSettingsService ?? throw new ArgumentNullException(nameof(userSettingsService));
@@ -248,6 +255,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _storageLocationService = storageLocationService ?? throw new ArgumentNullException(nameof(storageLocationService));
         _userDataTracker = userDataTracker ?? throw new ArgumentNullException(nameof(userDataTracker));
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+        _themeService = themeService;
         _gitHubTokenStorage = gitHubTokenStorage;
 
         LoadSettings();
@@ -256,7 +264,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         // Initialize with default if needed
         if (string.IsNullOrWhiteSpace(_theme))
         {
-            _theme = AppConstants.DefaultThemeName;
+            _theme = ThemeConstants.DefaultTheme.Id;
         }
 
         if (DownloadTimeoutSeconds == 0) DownloadTimeoutSeconds = 30;
@@ -486,6 +494,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             var settings = _userSettingsService.Get();
+            var currentThemeId = settings.Theme ?? AppConstants.DefaultThemeName;
+            SelectedTheme = AvailableThemes.FirstOrDefault(t =>
+                string.Equals(t.Id, currentThemeId, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(t.DisplayName, currentThemeId, StringComparison.OrdinalIgnoreCase))
+                ?? ThemeConstants.DefaultTheme;
             Theme = settings.Theme ?? AppConstants.DefaultThemeName;
             WorkspacePath = settings.WorkspacePath;
             MaxConcurrentDownloads = settings.MaxConcurrentDownloads;
@@ -520,6 +533,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to load settings");
+            Theme = AppConstants.DefaultThemeName;
+            SelectedTheme = ThemeConstants.DefaultTheme;
         }
     }
 
@@ -1380,9 +1395,62 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         DownloadUserAgent = message.UserAgent;
     }
 
+    partial void OnThemeChanged(string value)
+    {
+        var matchingTheme = AvailableThemes.FirstOrDefault(t =>
+            string.Equals(t.Id, value, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(t.DisplayName, value, StringComparison.OrdinalIgnoreCase));
+
+        if (matchingTheme != null && SelectedTheme != matchingTheme)
+        {
+            SelectedTheme = matchingTheme;
+            _themeService?.ApplyTheme(matchingTheme);
+            _userSettingsService.Update(settings => settings.Theme = matchingTheme.Id);
+            _ = _userSettingsService.SaveAsync();
+        }
+    }
+
+    /// <summary>
+    /// Selects and immediately applies the specified color theme.
+    /// </summary>
+    /// <param name="theme">The color theme to select and apply.</param>
+    [RelayCommand]
+    private async Task SelectColorTheme(ColorTheme? theme)
+    {
+        if (theme is null)
+        {
+            return;
+        }
+
+        SelectedTheme = theme;
+        Theme = theme.Id;
+        _themeService?.ApplyTheme(theme);
+
+        _userSettingsService.Update(settings =>
+        {
+            settings.Theme = theme.Id;
+        });
+        await _userSettingsService.SaveAsync();
+    }
+
     private void OnThemeSettingsChanged(ThemeChangedMessage message)
     {
-        Theme = message.ThemeName;
+        var matchingTheme = AvailableThemes.FirstOrDefault(t =>
+            string.Equals(t.Id, message.ThemeName, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(t.DisplayName, message.ThemeName, StringComparison.OrdinalIgnoreCase));
+
+        if (matchingTheme != null)
+        {
+            if (SelectedTheme != matchingTheme)
+            {
+                SelectedTheme = matchingTheme;
+            }
+
+            if (!string.Equals(Theme, matchingTheme.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                Theme = matchingTheme.Id;
+            }
+        }
     }
 
     [RelayCommand]

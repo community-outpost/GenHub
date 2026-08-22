@@ -27,6 +27,7 @@ public partial class App : Application
     private readonly IUserSettingsService _userSettingsService;
     private readonly IConfigurationProviderService _configurationProvider;
     private readonly IProfileLauncherFacade _profileLauncherFacade;
+    private readonly IThemeService? _themeService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="App"/> class with the specified service provider.
@@ -38,6 +39,7 @@ public partial class App : Application
         _userSettingsService = _serviceProvider.GetService<IUserSettingsService>() ?? throw new InvalidOperationException("IUserSettingsService not registered");
         _configurationProvider = _serviceProvider.GetService<IConfigurationProviderService>() ?? throw new InvalidOperationException("IConfigurationProviderService not registered");
         _profileLauncherFacade = _serviceProvider.GetRequiredService<IProfileLauncherFacade>();
+        _themeService = _serviceProvider.GetService<IThemeService>();
     }
 
     /// <summary>
@@ -54,6 +56,8 @@ public partial class App : Application
     /// </summary>
     public override void OnFrameworkInitializationCompleted()
     {
+        _themeService?.InitializeTheme();
+
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var mainWindow = new MainWindow

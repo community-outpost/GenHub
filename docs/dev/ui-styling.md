@@ -158,6 +158,23 @@ All scrollbars automatically inherit global theme styling from `GenHub/GenHub/As
   - Explicitly set `VerticalScrollBarVisibility="Auto"` and `HorizontalScrollBarVisibility="Disabled"` on vertical content viewers to prevent unwanted horizontal shifts.
   - Never wrap components that already have internal scrolling (such as `MarkdownScrollViewer` or `DataGrid`) in an outer `ScrollViewer`.
 
+## Dynamic accent color themes
+
+GenHub supports live hot-swappable accent color palettes managed by `IThemeService`:
+
+- **Preset Palettes:** Void Purple (Default), Generals Orange, Zero Hour Cyan, Emerald Green, Crimson Red, Cyber Amber, Cobalt Blue, Neon Rose.
+- **Live Updating:** Mutating `Application.Current.Resources[...]` updates all active views and open windows immediately without application restart.
+- **Tokens Updated on Theme Change:** `AccentColor`, `AccentBrush`, `SystemAccentColorBrush`, `PrimaryButtonBackground`, `SidebarSelectedIndicator`, `ScrollbarThumbPressedBrush`, `ComboBoxItemBackgroundSelected`, `PrimaryGradientBrush`.
+
+## Dropdown styling (ComboBox & ComboBoxItem)
+
+All dropdowns inherit styles from `GenHub/GenHub/Assets/Styles/ComboBoxStyles.axaml`:
+
+- **Item Template:** `ComboBoxItem` uses a custom `ControlTemplate` with `x:Name="PART_ContentPresenter"` and 6px rounded corners.
+- **Hover on Unselected:** Highlights with `{DynamicResource SurfaceHoverBrush}`.
+- **Selected State:** Outlined with `{DynamicResource AccentBrush}` and filled with soft `{DynamicResource AccentBadgeBackgroundBrush}`.
+- **Hover on Selected:** Filled with vibrant `{DynamicResource AccentBrush}` and high-contrast white text.
+
 ## Button classes
 
 Use standardized button classes rather than ad-hoc button styling:

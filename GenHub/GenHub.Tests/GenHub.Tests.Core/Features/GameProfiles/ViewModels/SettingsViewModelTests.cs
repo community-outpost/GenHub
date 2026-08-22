@@ -14,6 +14,7 @@ using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.CAS;
 using GenHub.Core.Models.Storage;
+using GenHub.Core.Models.Theming;
 using GenHub.Core.Models.Workspace;
 using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Settings.ViewModels;
@@ -306,7 +307,7 @@ public class SettingsViewModelTests
     public void AvailableThemes_ReturnsExpectedValues()
     {
         // Arrange
-        _ = new SettingsViewModel(
+        var viewModel = new SettingsViewModel(
             _mockConfigService.Object,
             _mockLogger.Object,
             _mockCasService.Object,
@@ -322,12 +323,12 @@ public class SettingsViewModelTests
             _mockDialogService.Object);
 
         // Act
-        var themes = SettingsViewModel.AvailableThemes.ToList();
+        var themes = viewModel.AvailableThemes.Select(t => t.Id).ToList();
 
         // Assert
-        Assert.Contains("Dark", themes);
-        Assert.Contains("Light", themes);
-        Assert.Equal(2, themes.Count);
+        Assert.Contains("Purple", themes);
+        Assert.Contains("Generals", themes);
+        Assert.True(themes.Count >= 8);
     }
 
     /// <summary>
@@ -689,6 +690,44 @@ public class SettingsViewModelTests
         Assert.Contains("irreversible", capturedMessage!, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("backups", capturedMessage!, StringComparison.OrdinalIgnoreCase);
         Assert.Null(capturedSessionKey);
+    }
+
+    /// <summary>
+    /// Verifies that SelectColorThemeCommand updates selected theme and saves user settings.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task SelectColorThemeCommand_UpdatesSelectedThemeAndPersistsAsync()
+    {
+        // Arrange
+        var mockThemeService = new Mock<IThemeService>();
+        mockThemeService.Setup(s => s.AvailableThemes).Returns(ThemeConstants.AllThemes);
+
+        var viewModel = new SettingsViewModel(
+            _mockConfigService.Object,
+            _mockLogger.Object,
+            _mockCasService.Object,
+            _mockProfileManager.Object,
+            _mockWorkspaceManager.Object,
+            _mockManifestPool.Object,
+            _mockUpdateManager.Object,
+            _mockNotificationService.Object,
+            _mockConfigurationProvider.Object,
+            _mockInstallationService.Object,
+            _mockStorageLocationService.Object,
+            _mockUserDataTracker.Object,
+            _mockDialogService.Object,
+            mockThemeService.Object);
+
+        // Act
+        await viewModel.SelectColorThemeCommand.ExecuteAsync(ThemeConstants.EmeraldTheme);
+
+        // Assert
+        Assert.Equal("Emerald", viewModel.Theme);
+        Assert.Equal(ThemeConstants.EmeraldTheme, viewModel.SelectedTheme);
+        mockThemeService.Verify(s => s.ApplyTheme(ThemeConstants.EmeraldTheme), Times.Once);
+        _mockConfigService.Verify(s => s.Update(It.IsAny<Action<UserSettings>>()), Times.Once);
+        _mockConfigService.Verify(s => s.SaveAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     private void SetupDeletableData()

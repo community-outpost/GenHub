@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Enums;
@@ -138,20 +139,20 @@ public class AppConfiguration(IConfiguration? configuration, ILogger<AppConfigur
         var configured = _configuration?[ConfigurationKeys.UiDefaultTheme];
         if (!string.IsNullOrEmpty(configured))
         {
-            // Validate that the configured theme is valid (only "Dark" and "Light" are supported)
             var normalizedTheme = configured.Trim();
-            if (string.Equals(normalizedTheme, "Dark", StringComparison.OrdinalIgnoreCase) ||
+            if (ThemeConstants.AllThemes.Any(t =>
+                    string.Equals(t.Id, normalizedTheme, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(t.DisplayName, normalizedTheme, StringComparison.OrdinalIgnoreCase)) ||
+                string.Equals(normalizedTheme, "Dark", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(normalizedTheme, "Light", StringComparison.OrdinalIgnoreCase))
             {
                 return normalizedTheme;
             }
-            else
-            {
-                _logger?.LogWarning("Invalid theme '{Theme}' configured, falling back to default", configured);
-            }
+
+            _logger?.LogWarning("Invalid theme '{Theme}' configured, falling back to default", configured);
         }
 
-        return AppConstants.DefaultThemeName; // Default theme
+        return ThemeConstants.DefaultTheme.Id;
     }
 
     /// <summary>

@@ -3,6 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.Settings.ViewModels"
+             xmlns:theming="clr-namespace:GenHub.Core.Models.Theming;assembly=GenHub.Core"
              xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
              x:Class="GenHub.Features.Settings.Views.SettingsView"
@@ -170,6 +171,25 @@
     <Style Selector="Button.danger-button:pressed">
       <Setter Property="RenderTransform" Value="scale(0.98)" />
     </Style>
+
+    <Style Selector="Button.theme-card-button">
+      <Setter Property="RenderTransform" Value="none" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="Button.theme-card-button:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Button.theme-card-button:pointerover Border">
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="Background" Value="{DynamicResource SurfaceHoverDarkBrush}" />
+    </Style>
+    <Style Selector="Button.theme-card-button:pressed">
+      <Setter Property="RenderTransform" Value="scale(0.97)" />
+    </Style>
   </UserControl.Styles>
 
   <ScrollViewer Focusable="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -289,7 +309,7 @@
         </Border>
       </Expander>
 
-      <!-- Application Settings -->
+      <!-- Application Settings / Appearance -->
       <Expander IsExpanded="False" HorizontalAlignment="Stretch">
         <Expander.Header>
             <StackPanel Orientation="Horizontal" Spacing="10">
@@ -299,16 +319,71 @@
             </StackPanel>
         </Expander.Header>
         <Border Padding="20">
-          <StackPanel Spacing="20">
+          <StackPanel Spacing="16">
             <!-- Theme Selection -->
             <StackPanel Spacing="8">
-              <TextBlock Text="Theme" Classes="setting-label" />
-              <ComboBox ItemsSource="{Binding AvailableThemes}"
-                        SelectedItem="{Binding Theme}"
-                        HorizontalAlignment="Left"
-                        MinWidth="200" />
-              <TextBlock Text="Select application color theme (More coming soon)"
+              <TextBlock Text="Accent Color Theme" Classes="setting-label" />
+              <TextBlock Text="Choose an accent color theme for buttons, tabs, highlights, glows, and scrollbars across GenHub."
                          Classes="setting-description" />
+
+              <ItemsControl ItemsSource="{Binding AvailableThemes}" Margin="0,8,0,0">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="theming:ColorTheme">
+                    <Button Classes="theme-card-button"
+                            Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).SelectColorThemeCommand}"
+                            CommandParameter="{Binding}"
+                            Margin="0,0,12,12"
+                            Padding="0"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Cursor="Hand">
+                      <Border CornerRadius="8"
+                              Padding="12,10"
+                              MinWidth="165"
+                              Background="{DynamicResource SurfaceElevatedDarkBrush}"
+                              BorderBrush="{DynamicResource BorderBrush}"
+                              BorderThickness="1">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                          <!-- Color Circle Preview -->
+                          <Border Grid.Column="0"
+                                  Width="20"
+                                  Height="20"
+                                  CornerRadius="10"
+                                  Background="{Binding PrimaryHex, Converter={StaticResource ColorToBrushConverter}}"
+                                  BorderBrush="#33FFFFFF"
+                                  BorderThickness="1"
+                                  VerticalAlignment="Center"
+                                  Margin="0,0,10,0" />
+
+                          <!-- Theme Display Name -->
+                          <TextBlock Grid.Column="1"
+                                     Text="{Binding DisplayName}"
+                                     FontSize="13"
+                                     FontWeight="Medium"
+                                     Foreground="{DynamicResource TextPrimary}"
+                                     VerticalAlignment="Center" />
+                        </Grid>
+                      </Border>
+                    </Button>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+
+              <!-- Active theme indicator -->
+              <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0">
+                <TextBlock Text="Active Theme:" FontSize="12.5" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" />
+                <Border Width="10" Height="10" CornerRadius="5" Background="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding SelectedTheme.DisplayName, FallbackValue='Void Purple'}"
+                           FontSize="12.5"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource AccentBrush}"
+                           VerticalAlignment="Center" />
+              </StackPanel>
             </StackPanel>
           </StackPanel>
         </Border>
