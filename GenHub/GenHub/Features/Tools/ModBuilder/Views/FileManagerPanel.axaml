@@ -85,7 +85,7 @@
             </StackPanel>
           </Border>
 
-          <Border Background="#1AFFD740"
+          <Border Background="{DynamicResource WarningBadgeBackgroundBrush}"
                   BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1"
                   CornerRadius="6" Padding="8,4">
             <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
@@ -95,7 +95,7 @@
             </StackPanel>
           </Border>
 
-          <Border Background="#1A10B981"
+          <Border Background="{DynamicResource SuccessBadgeBackgroundBrush}"
                   BorderBrush="{DynamicResource SuccessBrush}" BorderThickness="1"
                   CornerRadius="6" Padding="8,4">
             <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
@@ -257,7 +257,7 @@
           <Button Grid.Row="2" Command="{Binding RemoveFilesFromProjectCommand}"
                   HorizontalAlignment="Stretch"
                   Margin="0,10,0,0" Padding="0,10"
-                  Background="#25EF4444"
+                  Background="{DynamicResource ErrorBadgeBackgroundBrush}"
                   Foreground="{DynamicResource ErrorBrush}"
                   BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1"
                   CornerRadius="8"

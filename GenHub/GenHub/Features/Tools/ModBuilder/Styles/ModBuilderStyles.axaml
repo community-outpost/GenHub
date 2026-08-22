@@ -33,6 +33,10 @@
   <SolidColorBrush x:Key="ErrorBrush" Color="{DynamicResource ErrorColor}"/>
   <SolidColorBrush x:Key="InfoBrush" Color="{DynamicResource AccentColor}"/>
 
+  <SolidColorBrush x:Key="SuccessBadgeBackgroundBrush" Color="#2010B981"/>
+  <SolidColorBrush x:Key="WarningBadgeBackgroundBrush" Color="#20F59E0B"/>
+  <SolidColorBrush x:Key="ErrorBadgeBackgroundBrush" Color="#20EF4444"/>
+
   <SolidColorBrush x:Key="TextPrimaryBrush" Color="{DynamicResource TextPrimaryColor}"/>
   <SolidColorBrush x:Key="TextSecondaryBrush" Color="{DynamicResource TextSecondaryColor}"/>
   <SolidColorBrush x:Key="TextTertiaryBrush" Color="{DynamicResource TextMutedColor}"/>
