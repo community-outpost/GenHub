@@ -213,54 +213,87 @@ const parsePartBytes = (part: string, headerEnd: number): Uint8Array => {
   return bytes;
 };
 
-const extractFileFromMultipartBuffer = (buffer: ArrayBuffer, contentType: string): File | null => {
+const getBoundaryString = (contentType: string): string | null => {
   const match = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/i);
   if (!match) {
     return null;
   }
-  const boundaryStr = "--" + (match[1] || match[2]).trim();
+  const token = match[1] ?? match[2] ?? "";
+  return `--${token.trim()}`;
+};
+
+const extractPartFile = (part: string): File | null => {
+  if (!part.includes("Content-Disposition")) {
+    return null;
+  }
+  const headerEnd = part.indexOf("\r\n\r\n");
+  if (headerEnd === -1) {
+    return null;
+  }
+  const headerText = part.substring(0, headerEnd);
+  const fileName = parseMultipartFilename(headerText);
+  const bytes = parsePartBytes(part, headerEnd);
+  return new File([bytes], fileName, { type: "application/zip" });
+};
+
+const extractFileFromMultipartBuffer = (buffer: ArrayBuffer, contentType: string): File | null => {
+  const boundaryStr = getBoundaryString(contentType);
+  if (boundaryStr === null) {
+    return null;
+  }
   const rawText = new TextDecoder("latin1").decode(buffer);
   const parts = rawText.split(boundaryStr);
-
   for (const part of parts) {
-    if (!part.includes("Content-Disposition")) {
-      continue;
+    const file = extractPartFile(part);
+    if (file !== null) {
+      return file;
     }
-    const headerEnd = part.indexOf("\r\n\r\n");
-    if (headerEnd === -1) {
-      continue;
-    }
-    const headerText = part.substring(0, headerEnd);
-    const fileName = parseMultipartFilename(headerText);
-    const bytes = parsePartBytes(part, headerEnd);
-    return new File([bytes], fileName, { type: "application/zip" });
   }
   return null;
+};
+
+const extractFileFromFormData = async (request: Request): Promise<File | null> => {
+  try {
+    const cloned = request.clone();
+    const formData = await cloned.formData();
+    return extractFileFromForm(formData);
+  } catch {
+    return null;
+  }
+};
+
+const getDirectFileName = (request: Request): string | null => {
+  const headerName = request.headers.get("x-filename");
+  if (typeof headerName === "string" && headerName.length > 0) {
+    return headerName;
+  }
+  const paramName = new URL(request.url).searchParams.get("filename");
+  if (typeof paramName === "string" && paramName.length > 0) {
+    return paramName;
+  }
+  return null;
+};
+
+const extractFileFromDirectStream = async (request: Request, contentType: string): Promise<File | null> => {
+  const rawFileName = getDirectFileName(request);
+  if (rawFileName === null) {
+    return null;
+  }
+  const buffer = await request.arrayBuffer();
+  const fileType = contentType.length > 0 ? contentType : "application/zip";
+  return new File([buffer], rawFileName, { type: fileType });
 };
 
 const extractFileFromRequest = async (request: Request): Promise<File | null> => {
   const contentType = request.headers.get("content-type") ?? "";
   if (contentType.includes("multipart/form-data")) {
-    try {
-      const cloned = request.clone();
-      const formData = await cloned.formData();
-      const formFile = extractFileFromForm(formData);
-      if (formFile !== null) {
-        return formFile;
-      }
-    } catch {
-      // Fall through to manual multipart extraction
+    const fromForm = await extractFileFromFormData(request);
+    if (fromForm !== null) {
+      return fromForm;
     }
     return extractFileFromMultipartBuffer(await request.arrayBuffer(), contentType);
   }
-
-  const rawFileName = request.headers.get("x-filename") ?? new URL(request.url).searchParams.get("filename");
-  if (rawFileName) {
-    const buffer = await request.arrayBuffer();
-    return new File([buffer], rawFileName, { type: contentType || "application/zip" });
-  }
-
-  return null;
+  return await extractFileFromDirectStream(request, contentType);
 };
 
 const resolveUfsUrl = (data: { key: string; ufsUrl?: string; url?: string }): string => {
