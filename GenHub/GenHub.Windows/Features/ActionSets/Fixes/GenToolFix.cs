@@ -44,12 +44,6 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
     public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
-    {
-        return Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
-    }
-
-    /// <inheritdoc/>
     public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         bool appliedGenerals = !installation.HasGenerals || File.Exists(Path.Combine(installation.GeneralsPath, D3D8Dll));
@@ -96,7 +90,8 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
         }
         finally
         {
-            CleanupTemporaryFiles(tempFile, tempExtractDir);
+            DeleteFileSafely(tempFile);
+            DeleteDirectorySafely(tempExtractDir);
         }
     }
 
@@ -181,7 +176,7 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
                 if (fileInfo.Length < ActionSetConstants.Validation.MinimumAddonPackageSizeBytes)
                 {
                     logger.LogWarning("Downloaded file from {Url} is too small ({Size} bytes). Skipping mirror.", url, fileInfo.Length);
-                    TryDeleteFile(tempFile);
+                    DeleteFileSafely(tempFile);
                     continue;
                 }
 
@@ -193,7 +188,7 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
                 if (!validation.Success)
                 {
                     logger.LogWarning("Validation failed for {Url}: {Error}", url, string.Join("; ", validation.Errors));
-                    TryDeleteFile(tempFile);
+                    DeleteFileSafely(tempFile);
                     continue;
                 }
 
@@ -207,7 +202,7 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Download failed from {Url}", url);
-                TryDeleteFile(tempFile);
+                DeleteFileSafely(tempFile);
             }
         }
 
@@ -249,45 +244,5 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
 
         await dllValidation.Data.DisposeAsync();
         return (true, extractedDllPath, null);
-    }
-
-    private void CleanupTemporaryFiles(string tempFile, string tempExtractDir)
-    {
-        TryDeleteFile(tempFile);
-
-        try
-        {
-            if (Directory.Exists(tempExtractDir))
-            {
-                foreach (var file in Directory.GetFiles(tempExtractDir, "*", SearchOption.AllDirectories))
-                {
-                    TryDeleteFile(file);
-                }
-
-                Directory.Delete(tempExtractDir, recursive: true);
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            logger.LogDebug(ex, "Failed to delete temp directory {TempDir}", tempExtractDir);
-        }
-    }
-
-    private void TryDeleteFile(string path)
-    {
-        if (!File.Exists(path))
-        {
-            return;
-        }
-
-        try
-        {
-            File.SetAttributes(path, FileAttributes.Normal);
-            File.Delete(path);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            logger.LogDebug(ex, "Failed to delete temporary file {Path}", path);
-        }
     }
 }

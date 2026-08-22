@@ -133,7 +133,8 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
         }
         finally
         {
-            CleanupTemp(tempPath, extractPath);
+            DeleteFileSafely(tempPath);
+            DeleteDirectorySafely(extractPath);
         }
     }
 
@@ -338,11 +339,5 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
             logger.LogError(ex, "Failed during rollback of patch files");
             details.Add($"✗ Rollback warning: {ex.Message}");
         }
-    }
-
-    private void CleanupTemp(string tempPath, string extractPath)
-    {
-        DeleteFileSafely(tempPath);
-        DeleteDirectorySafely(extractPath);
     }
 }

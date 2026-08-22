@@ -114,7 +114,8 @@ public class Patch104Fix(ILogger<Patch104Fix> logger, IHttpClientFactory httpCli
         }
         finally
         {
-            CleanupTemp(downloadPath, extractPath);
+            DeleteFileSafely(downloadPath);
+            DeleteDirectorySafely(extractPath);
         }
     }
 
@@ -302,11 +303,5 @@ public class Patch104Fix(ILogger<Patch104Fix> logger, IHttpClientFactory httpCli
         }
 
         details.Add($"✓ Installed {copiedCount} files");
-    }
-
-    private void CleanupTemp(string downloadPath, string extractPath)
-    {
-        DeleteFileSafely(downloadPath);
-        DeleteDirectorySafely(extractPath);
     }
 }
