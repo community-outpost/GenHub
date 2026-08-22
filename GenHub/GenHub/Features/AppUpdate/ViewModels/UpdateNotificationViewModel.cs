@@ -78,6 +78,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     private readonly List<PullRequestInfo> _allPullRequests = [];
     private CancellationTokenSource? _loadArtifactsCts;
     private UpdateInfo? _currentUpdateInfo;
+    private bool _disposed;
 
     /// <summary>
     /// Gets or sets the status message.
@@ -359,10 +360,12 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
     private async Task LoadArtifactsForSubscribedItemAsync()
     {
-        // cancel any previous in-flight load
-        _loadArtifactsCts?.Cancel();
-        _loadArtifactsCts?.Dispose();
-        _loadArtifactsCts = null;
+        await CancelPreviousArtifactLoadAsync();
+
+        if (_disposed || _cancellationTokenSource.IsCancellationRequested)
+        {
+            return;
+        }
 
         var targetPr = SubscribedPr;
         var targetPrNumber = targetPr?.Number ?? _velopackUpdateManager.SubscribedPrNumber;
@@ -389,51 +392,13 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
         try
         {
-            IReadOnlyList<ArtifactUpdateInfo> artifacts = [];
-
-            if (targetPrNumber.HasValue)
-            {
-                _logger.LogInformation("Loading artifacts for PR #{PrNumber}", targetPrNumber.Value);
-                artifacts = await _velopackUpdateManager.GetArtifactsForPullRequestAsync(targetPrNumber.Value, token);
-            }
-            else if (!string.IsNullOrEmpty(targetBranch))
-            {
-                _logger.LogInformation("Loading artifacts for branch '{Branch}'", targetBranch);
-                artifacts = await _velopackUpdateManager.GetArtifactsForBranchAsync(targetBranch, token);
-            }
-
+            var artifacts = await FetchSubscribedArtifactsAsync(targetPrNumber, targetBranch, token);
             if (token.IsCancellationRequested)
             {
                 return;
             }
 
-            _logger.LogInformation("Received {Count} platform-compatible artifacts from update manager", artifacts.Count);
-
-            // use hashset to prevent duplicates based on artifact id
-            var addedArtifactIds = new HashSet<long>();
-            await RunOnUiAsync(() =>
-            {
-                foreach (var artifact in artifacts)
-                {
-                    if (addedArtifactIds.Add(artifact.ArtifactId))
-                    {
-                        AvailableVersions.Add(artifact);
-                        _logger.LogDebug("Added artifact: {Version} ({Hash}) - ID: {Id}", artifact.DisplayVersion, artifact.GitHash, artifact.ArtifactId);
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Duplicate artifact detected in ViewModel: {Version} ({Hash}) - ID: {Id}", artifact.DisplayVersion, artifact.GitHash, artifact.ArtifactId);
-                    }
-                }
-
-                _logger.LogInformation("Loaded {Count} artifacts into AvailableVersions", AvailableVersions.Count);
-
-                // auto-select latest version for improved user experience
-                if (AvailableVersions.Count > 0)
-                {
-                    SelectedVersion = AvailableVersions[0];
-                }
-            });
+            PopulateAvailableVersions(artifacts);
         }
         catch (OperationCanceledException)
         {
@@ -452,6 +417,62 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             {
                 IsLoadingVersions = false;
             }
+        }
+    }
+
+    private async Task CancelPreviousArtifactLoadAsync()
+    {
+        var oldCts = Interlocked.Exchange(ref _loadArtifactsCts, null);
+        if (oldCts != null)
+        {
+            await oldCts.CancelAsync();
+            oldCts.Dispose();
+        }
+    }
+
+    private async Task<IReadOnlyList<ArtifactUpdateInfo>> FetchSubscribedArtifactsAsync(
+        int? targetPrNumber,
+        string? targetBranch,
+        CancellationToken token)
+    {
+        if (targetPrNumber.HasValue)
+        {
+            _logger.LogInformation("Loading artifacts for PR #{PrNumber}", targetPrNumber.Value);
+            return await _velopackUpdateManager.GetArtifactsForPullRequestAsync(targetPrNumber.Value, token);
+        }
+
+        if (!string.IsNullOrEmpty(targetBranch))
+        {
+            _logger.LogInformation("Loading artifacts for branch '{Branch}'", targetBranch);
+            return await _velopackUpdateManager.GetArtifactsForBranchAsync(targetBranch, token);
+        }
+
+        return [];
+    }
+
+    private void PopulateAvailableVersions(IReadOnlyList<ArtifactUpdateInfo> artifacts)
+    {
+        _logger.LogInformation("Received {Count} platform-compatible artifacts from update manager", artifacts.Count);
+
+        var addedArtifactIds = new HashSet<long>();
+        foreach (var artifact in artifacts)
+        {
+            if (addedArtifactIds.Add(artifact.ArtifactId))
+            {
+                AvailableVersions.Add(artifact);
+                _logger.LogDebug("Added artifact: {Version} ({Hash}) - ID: {Id}", artifact.DisplayVersion, artifact.GitHash, artifact.ArtifactId);
+            }
+            else
+            {
+                _logger.LogWarning("Duplicate artifact detected in ViewModel: {Version} ({Hash}) - ID: {Id}", artifact.DisplayVersion, artifact.GitHash, artifact.ArtifactId);
+            }
+        }
+
+        _logger.LogInformation("Loaded {Count} artifacts into AvailableVersions", AvailableVersions.Count);
+
+        if (AvailableVersions.Count > 0)
+        {
+            SelectedVersion = AvailableVersions[0];
         }
     }
 
@@ -593,6 +614,12 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// </summary>
     public void Dispose()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
         _loadArtifactsCts?.Cancel();
         _loadArtifactsCts?.Dispose();
         _loadArtifactsCts = null;
@@ -907,7 +934,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         if (!string.IsNullOrEmpty(settings.DismissedUpdateVersion))
         {
             _userSettingsService.Update(s => s.DismissedUpdateVersion = string.Empty);
-            await _userSettingsService.SaveAsync();
+            await _userSettingsService.SaveAsync(CancellationToken.None);
         }
 
         // clear manager cache
@@ -1300,7 +1327,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         if (!string.IsNullOrEmpty(LatestVersion))
         {
             _userSettingsService.Update(s => s.DismissedUpdateVersion = LatestVersion);
-            _ = _userSettingsService.SaveAsync();
+            _ = _userSettingsService.SaveAsync(CancellationToken.None);
             _logger.LogInformation("Dismissed update version {Version}", LatestVersion);
         }
 
@@ -1526,7 +1553,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             settings.SubscribedPrNumber = prNumber;
             settings.SubscribedBranch = null;
         });
-        _ = _userSettingsService.SaveAsync();
+        _ = _userSettingsService.SaveAsync(CancellationToken.None);
 
         StatusMessage = $"Subscribed to PR #{prNumber}: {SubscribedPr.Title}";
         _logger.LogInformation("Subscribed to PR #{PrNumber}", prNumber);
@@ -1557,7 +1584,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             settings.SubscribedBranch = branchName;
             settings.SubscribedPrNumber = null;
         });
-        _ = _userSettingsService.SaveAsync();
+        _ = _userSettingsService.SaveAsync(CancellationToken.None);
 
         StatusMessage = $"Subscribed to branch: {branchName}";
         _logger.LogInformation("Subscribed to branch '{Branch}'", branchName);
@@ -1601,7 +1628,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             settings.SubscribedPrNumber = null;
             settings.SubscribedBranch = null;
         });
-        _ = _userSettingsService.SaveAsync();
+        _ = _userSettingsService.SaveAsync(CancellationToken.None);
 
         _logger.LogInformation("Unsubscribed from dev builds, switched to MAIN");
         _ = CheckForUpdatesAsync();

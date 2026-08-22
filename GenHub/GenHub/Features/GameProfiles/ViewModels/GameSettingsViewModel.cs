@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -24,9 +25,9 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 public partial class GameSettingsViewModel(IGameSettingsService gameSettingsService, ILogger<GameSettingsViewModel> logger) : ViewModelBase
 {
     /// <summary>
-    /// The available texture quality levels.
+    /// Gets the available texture quality levels.
     /// </summary>
-    public static readonly TextureQuality[] TextureQualityValues = Enum.GetValues<TextureQuality>();
+    public static IReadOnlyList<TextureQuality> TextureQualityValues { get; } = Enum.GetValues<TextureQuality>();
 
     private const TextureQuality MaxTextureQuality = TextureQuality.VeryHigh; // Will be VeryHigh when SH version supports 'very high' texture quality (see TheSuperHackers/GeneralsGameCode#1629)
     private const int TextureReductionOffset = GameSettingsConstants.TextureQuality.ReductionOffset;
@@ -942,8 +943,8 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
                 }
             }
 
-            var optionsSaved = result?.Success == true;
-            var generalsOnlineWritten = goResult?.Success == true;
+            var optionsSaved = result is { Success: true };
+            var generalsOnlineWritten = goResult is { Success: true };
             var generalsOnlineBlocked = writeGeneralsOnlineSettings && !generalsOnlineWritten;
 
             if (optionsSaved)
@@ -953,13 +954,30 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             }
 
             var optionsErrors = new List<string>();
-            if (result == null) optionsErrors.Add("SaveOptions result was null");
-            if (result?.Success == false) optionsErrors.AddRange(result.Errors);
+            if (result is null)
+            {
+                optionsErrors.Add("SaveOptions result was null");
+            }
+            else if (result is { Success: false })
+            {
+                optionsErrors.AddRange(result.Errors);
+            }
 
             var generalsOnlineErrors = new List<string>();
-            if (goLoadError != null) generalsOnlineErrors.Add(goLoadError);
-            if (goResult?.Success == false) generalsOnlineErrors.AddRange(goResult.Errors);
-            if (generalsOnlineBlocked && goLoadError == null && goResult == null) generalsOnlineErrors.Add("SaveGeneralsOnlineSettings result was null");
+            if (goLoadError != null)
+            {
+                generalsOnlineErrors.Add(goLoadError);
+            }
+
+            if (goResult is { Success: false })
+            {
+                generalsOnlineErrors.AddRange(goResult.Errors);
+            }
+
+            if (generalsOnlineBlocked && goLoadError == null && goResult == null)
+            {
+                generalsOnlineErrors.Add("SaveGeneralsOnlineSettings result was null");
+            }
 
             if (optionsSaved && !generalsOnlineBlocked)
             {
@@ -1044,7 +1062,12 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             var directory = System.IO.Path.GetDirectoryName(OptionsFilePath);
             if (!string.IsNullOrEmpty(directory) && System.IO.Directory.Exists(directory))
             {
-                System.Diagnostics.Process.Start("explorer.exe", directory);
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = PlatformConstants.WindowsExplorerPath,
+                    Arguments = directory,
+                    UseShellExecute = true,
+                });
                 _logger.LogInformation("Opened file location {Directory}", directory);
             }
             else

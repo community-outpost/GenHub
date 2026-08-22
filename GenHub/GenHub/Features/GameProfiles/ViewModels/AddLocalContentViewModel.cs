@@ -287,7 +287,8 @@ public partial class AddLocalContentViewModel(
             // Retrieve content from CAS to staging
             var result = await contentStorageService.RetrieveContentAsync(
                 Core.Models.Manifest.ManifestId.Create(_originalManifestId),
-                _stagingPath);
+                _stagingPath,
+                _cts?.Token ?? CancellationToken.None);
 
             if (result.Success)
             {
@@ -358,7 +359,7 @@ public partial class AddLocalContentViewModel(
                 var extension = Path.GetExtension(path);
                 if (extension.Equals(".zip", StringComparison.OrdinalIgnoreCase))
                 {
-                    await Task.Run(() => ZipFile.ExtractToDirectory(path, _stagingPath, true));
+                    await Task.Run(() => ZipFile.ExtractToDirectory(path, _stagingPath, true), _cts?.Token ?? CancellationToken.None);
                 }
                 else
                 {
@@ -381,7 +382,7 @@ public partial class AddLocalContentViewModel(
                 var targetSubDir = Path.Combine(_stagingPath, dirName);
                 logger?.LogDebug("ImportContentAsync: Preserving directory structure. Source: {Source}, Target: {Target}", path, targetSubDir);
 
-                await Task.Run(() => CopyDirectory(dirInfo, new DirectoryInfo(targetSubDir)));
+                await Task.Run(() => CopyDirectory(dirInfo, new DirectoryInfo(targetSubDir)), _cts?.Token ?? CancellationToken.None);
             }
 
             // Auto-organization: If we have .map files at the root level, move them into subdirectories
@@ -907,7 +908,7 @@ public partial class AddLocalContentViewModel(
             if (Directory.Exists(_stagingPath))
             {
                 var dirInfo = new DirectoryInfo(_stagingPath);
-                var items = await Task.Run(() => BuildDirectoryTree(dirInfo));
+                var items = await Task.Run(() => BuildDirectoryTree(dirInfo), _cts?.Token ?? CancellationToken.None);
                 foreach (var item in items)
                 {
                     FileTree.Add(item);

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -16,6 +17,7 @@ using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Helpers;
 using GenHub.Features.Content.Services.Publishers;
 using Microsoft.Extensions.Logging;
+
 using File = GenHub.Core.Models.Parsers.File;
 using ParsedContentDetails = GenHub.Core.Models.Content.ParsedContentDetails;
 
@@ -25,6 +27,7 @@ namespace GenHub.Features.Content.Services.ContentResolvers;
 /// Resolves CNC Labs map details from discovered content items.
 /// Parses HTML detail pages and generates content manifests.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S101:Types should be named in PascalCase", Justification = "Domain acronym")]
 public class CNCLabsMapResolver(
     HttpClient httpClient,
     CNCLabsManifestFactory manifestFactory,
@@ -226,7 +229,7 @@ public class CNCLabsMapResolver(
         var screenshots = document.QuerySelectorAll("img.Screenshot")
             .Select(img => img.GetAttribute("src"))
             .Where(src => !string.IsNullOrEmpty(src))
-            .Select(src => src!.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+            .Select(src => src.StartsWith("http", StringComparison.OrdinalIgnoreCase)
                 ? src
                 : $"https://www.cnclabs.com{src}")
             .ToList();

@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
@@ -8,6 +10,7 @@ namespace GenHub.Core.Constants;
 /// Endpoint URLs and timeouts are configured via data-driven configuration.
 /// See <c>Providers/communityoutpost.provider.json</c> for runtime-configurable values.
 /// </remarks>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized URI constants / mock demo paths")]
 public static class CommunityOutpostConstants
 {
     /// <summary>

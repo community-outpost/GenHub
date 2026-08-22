@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using AngleSharp;
@@ -21,8 +23,7 @@ namespace GenHub.Features.Info.Services;
 /// <param name="logger">The logger.</param>
 public class FaqService(IHttpClientFactory httpClientFactory, ILogger<FaqService> logger) : IFaqService
 {
-    private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
-    private readonly ILogger<FaqService> _logger = logger;
+    private static readonly Regex HtmlTagRegex = new("<.*?>", RegexOptions.Compiled, TimeSpan.FromSeconds(1));
 
     /// <inheritdoc/>
     public IReadOnlyList<string> SupportedLanguages => InfoConstants.SupportedFaqLanguages;
@@ -40,7 +41,7 @@ public class FaqService(IHttpClientFactory httpClientFactory, ILogger<FaqService
             }
 
             var url = $"{InfoConstants.FaqBaseUrl}?lang={language}";
-            using var client = _httpClientFactory.CreateClient();
+            using var client = httpClientFactory.CreateClient();
             client.Timeout = TimeSpan.FromSeconds(DownloadDefaults.TimeoutSeconds);
             var html = await client.GetStringAsync(url, cancellationToken);
 
@@ -52,7 +53,7 @@ public class FaqService(IHttpClientFactory httpClientFactory, ILogger<FaqService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to fetch FAQ.");
+            logger.LogError(ex, "Failed to fetch FAQ.");
             return OperationResult<IReadOnlyList<FaqCategory>>.CreateFailure("Failed to load FAQ. Please check your internet connection.");
         }
     }
@@ -118,7 +119,7 @@ public class FaqService(IHttpClientFactory httpClientFactory, ILogger<FaqService
 
     private static string ExtractAnswerText(IElement section, IElement questionHeader)
     {
-        var sb = new System.Text.StringBuilder();
+        var sb = new StringBuilder();
 
         // Get all siblings after the h3, or just all children that serve as content
         foreach (var child in section.Children)
@@ -180,6 +181,6 @@ public class FaqService(IHttpClientFactory httpClientFactory, ILogger<FaqService
         if (string.IsNullOrWhiteSpace(input)) return input;
 
         // Remove HTML tags that might have been double-encoded or preserved
-        return System.Text.RegularExpressions.Regex.Replace(input, "<.*?>", string.Empty);
+        return HtmlTagRegex.Replace(input, string.Empty);
     }
 }

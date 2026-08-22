@@ -160,18 +160,15 @@ internal class Program
 
         if (config.Arguments != null)
         {
-            foreach (var arg in config.Arguments)
+            foreach (var arg in config.Arguments.Where(arg => !string.IsNullOrWhiteSpace(arg) && dedupe.Add(arg)))
             {
-                if (!string.IsNullOrWhiteSpace(arg) && dedupe.Add(arg))
-                {
-                    arguments.Add(arg);
-                }
+                arguments.Add(arg);
             }
         }
 
         if (args.Length > 0)
         {
-            foreach (var arg in args)
+            foreach (var arg in args.Where(arg => !string.IsNullOrWhiteSpace(arg) && dedupe.Add(arg)))
             {
                 var cleanArg = arg.Trim('"');
                 if (string.Equals(cleanArg, Environment.ProcessPath, StringComparison.OrdinalIgnoreCase))
@@ -469,7 +466,7 @@ internal class Program
         }
     }
 
-    private class ProxyConfig
+    private sealed class ProxyConfig
     {
         public string? TargetExecutable { get; set; }
 

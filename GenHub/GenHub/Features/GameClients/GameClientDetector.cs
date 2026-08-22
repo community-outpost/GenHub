@@ -138,7 +138,7 @@ public class GameClientDetector(
         var gameClients = new List<GameClient>();
 
         // Search for all possible executable names using manual recursion to skip excluded directories
-        var allFiles = await Task.Run(() => FindGameExecutablesRecursively(path));
+        var allFiles = await Task.Run(() => FindGameExecutablesRecursively(path), cancellationToken);
 
         foreach (var exe in allFiles)
         {
