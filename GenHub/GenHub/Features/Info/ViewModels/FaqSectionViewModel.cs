@@ -34,16 +34,16 @@ public sealed partial class FaqSectionViewModel(IFaqService faqService, ILogger<
     [ObservableProperty]
     private FaqCategoryViewModel? _selectedCategory;
 
+    /// <summary>
+    /// Gets the icon key.
+    /// </summary>
+    public static string IconKey => "HelpCircleOutline";
+
     /// <inheritdoc/>
     public string Id => "faq";
 
     /// <inheritdoc/>
     public string Title => "Zero Hour";
-
-    /// <summary>
-    /// Gets the icon key.
-    /// </summary>
-    public string IconKey => "HelpCircleOutline";
 
     /// <inheritdoc/>
     public int Order => 0;
