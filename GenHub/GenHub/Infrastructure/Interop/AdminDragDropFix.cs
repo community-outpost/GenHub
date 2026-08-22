@@ -53,7 +53,7 @@ public static partial class AdminDragDropFix
     private static partial void DragAcceptFiles(IntPtr hwnd, [MarshalAs(UnmanagedType.Bool)] bool fAccept);
 
     [LibraryImport("shell32.dll", EntryPoint = "DragQueryFileW", StringMarshalling = StringMarshalling.Utf16)]
-    private static unsafe partial uint DragQueryFile(IntPtr hDrop, uint iFile, char* lpszFile, uint cch);
+    private static partial uint DragQueryFile(IntPtr hDrop, uint iFile, [Out] char[]? lpszFile, uint cch);
 
     [LibraryImport("shell32.dll")]
     private static partial void DragFinish(IntPtr hDrop);
@@ -143,7 +143,7 @@ public static partial class AdminDragDropFix
             return CallWindowProc(_oldWndProc, hWnd, msg, wParam, lParam);
         }
 
-        private unsafe void HandleDrop(IntPtr hDrop)
+        private void HandleDrop(IntPtr hDrop)
         {
             try
             {
@@ -164,18 +164,15 @@ public static partial class AdminDragDropFix
                     }
 
                     var buffer = new char[(int)size + 1];
-                    fixed (char* pBuffer = buffer)
+                    uint result = DragQueryFile(hDrop, i, buffer, (uint)buffer.Length);
+                    if (result > 0)
                     {
-                        uint result = DragQueryFile(hDrop, i, pBuffer, (uint)buffer.Length);
-                        if (result > 0)
-                        {
-                            string path = new(buffer, 0, (int)result);
-                            files.Add(path);
+                        string path = new(buffer, 0, (int)result);
+                        files.Add(path);
 
-                            if (DiagnosticsEnabled)
-                            {
-                                Debug.WriteLine($"[AdminDragDropFix]   File {i + 1}: {path}");
-                            }
+                        if (DiagnosticsEnabled)
+                        {
+                            Debug.WriteLine($"[AdminDragDropFix]   File {i + 1}: {path}");
                         }
                     }
                 }

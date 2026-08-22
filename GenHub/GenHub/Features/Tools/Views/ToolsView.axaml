@@ -125,8 +125,9 @@
   <Grid>
     <controls:SidebarLayout PaneTitle="Installed Tools"
                             ItemsSource="{Binding InstalledTools}"
-                            SelectedItem="{Binding SelectedTool}"
+                            SelectedItem="{Binding SelectedTool, Mode=TwoWay}"
                             IsPaneOpen="{Binding IsPaneOpen, Mode=TwoWay}"
+                            OpenPaneLength="{Binding OpenPaneLength, Mode=TwoWay}"
                             ItemTemplate="{StaticResource ToolItemTemplate}">
 
       <controls:SidebarLayout.Resources>

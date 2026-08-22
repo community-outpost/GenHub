@@ -1,10 +1,11 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
+using System.Text.Json;
 using CsvHelper;
 using CsvHelper.Configuration;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Content;
 using Microsoft.Extensions.Logging;
-using System.Text.Json;
 
 namespace GenHub.Tools;
 
@@ -132,12 +133,9 @@ internal class CsvGenerator(Dictionary<string, string> arguments, ILogger logger
             LanguageDirectoryNames.DataChineseTraditional,
         };
 
-        foreach (var dir in languageDirectories)
+        if (languageDirectories.Any(dir => relativePath.StartsWith(dir, StringComparison.OrdinalIgnoreCase)))
         {
-            if (relativePath.StartsWith(dir, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
+            return true;
         }
 
         // Check for language-specific .big file patterns
@@ -166,17 +164,16 @@ internal class CsvGenerator(Dictionary<string, string> arguments, ILogger logger
             LanguageFilePatterns.ChineseTraditionalBig, LanguageFilePatterns.AudioChineseTraditionalBig,
         };
 
-        foreach (var pattern in languageFilePatterns)
+        if (languageFilePatterns.Any(pattern => relativePath.Contains(pattern, StringComparison.OrdinalIgnoreCase)))
         {
-            if (relativePath.Contains(pattern, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
+            return true;
         }
 
         return false;
     }
 
+    [SuppressMessage("Security", "CA5351:Do Not Use Broken Cryptographic Algorithms", Justification = "MD5 hash is required by the CSV catalog format for backward compatibility.")]
+    [SuppressMessage("Security", "S4790:Make sure this weak hash algorithm is not used in a sensitive cryptographic context", Justification = "MD5 hash is required for legacy game file checksum comparison.")]
     private async Task<(string Md5, string Sha256)> CalculateHashesAsync(string filePath)
     {
         using var stream = File.OpenRead(filePath);

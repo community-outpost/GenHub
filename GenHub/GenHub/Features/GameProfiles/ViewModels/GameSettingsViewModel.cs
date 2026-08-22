@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -9,6 +11,7 @@ using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameSettings;
@@ -24,9 +27,9 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 public partial class GameSettingsViewModel(IGameSettingsService gameSettingsService, ILogger<GameSettingsViewModel> logger) : ViewModelBase
 {
     /// <summary>
-    /// The available texture quality levels.
+    /// Gets the available texture quality levels.
     /// </summary>
-    public static readonly TextureQuality[] TextureQualityValues = Enum.GetValues<TextureQuality>();
+    public static IReadOnlyList<TextureQuality> TextureQualityValues { get; } = Enum.GetValues<TextureQuality>();
 
     private const TextureQuality MaxTextureQuality = TextureQuality.VeryHigh; // Will be VeryHigh when SH version supports 'very high' texture quality (see TheSuperHackers/GeneralsGameCode#1629)
     private const int TextureReductionOffset = GameSettingsConstants.TextureQuality.ReductionOffset;
@@ -320,6 +323,9 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     [ObservableProperty]
     private int _tshMoneyTransactionVolume = GameSettingsTheSuperHackersConstants.DefaultMoneyTransactionVolume;
 
+    [ObservableProperty]
+    private float _tshGameWindowTransitionSpeedMultiplier = GameSettingsTheSuperHackersConstants.DefaultGameWindowTransitionSpeedMultiplier;
+
     // ===== GeneralsOnline Client Settings =====
     [ObservableProperty]
     private bool _goShowFps;
@@ -545,6 +551,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             TshScreenEdgeScrollEnabledInFullscreenApp = TshScreenEdgeScrollEnabledInFullscreenApp,
             TshScreenEdgeScrollEnabledInWindowedApp = TshScreenEdgeScrollEnabledInWindowedApp,
             TshMoneyTransactionVolume = TshMoneyTransactionVolume,
+            TshGameWindowTransitionSpeedMultiplier = GameSettingsMapper.NormalizeTransitionSpeedMultiplier(TshGameWindowTransitionSpeedMultiplier) ?? GameSettingsTheSuperHackersConstants.DefaultGameWindowTransitionSpeedMultiplier,
 
             // GeneralsOnline settings
             GoShowFps = GoShowFps,
@@ -855,6 +862,10 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         if (profile.TshScreenEdgeScrollEnabledInFullscreenApp.HasValue) TshScreenEdgeScrollEnabledInFullscreenApp = profile.TshScreenEdgeScrollEnabledInFullscreenApp.Value;
         if (profile.TshScreenEdgeScrollEnabledInWindowedApp.HasValue) TshScreenEdgeScrollEnabledInWindowedApp = profile.TshScreenEdgeScrollEnabledInWindowedApp.Value;
         if (profile.TshMoneyTransactionVolume.HasValue) TshMoneyTransactionVolume = profile.TshMoneyTransactionVolume.Value;
+        if (GameSettingsMapper.NormalizeTransitionSpeedMultiplier(profile.TshGameWindowTransitionSpeedMultiplier) is { } speedVal)
+        {
+            TshGameWindowTransitionSpeedMultiplier = speedVal;
+        }
     }
 
     private void LoadGeneralsOnlineSettingsFromProfile(Core.Models.GameProfile.GameProfile profile)
@@ -942,8 +953,8 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
                 }
             }
 
-            var optionsSaved = result?.Success == true;
-            var generalsOnlineWritten = goResult?.Success == true;
+            var optionsSaved = result is { Success: true };
+            var generalsOnlineWritten = goResult is { Success: true };
             var generalsOnlineBlocked = writeGeneralsOnlineSettings && !generalsOnlineWritten;
 
             if (optionsSaved)
@@ -953,13 +964,30 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             }
 
             var optionsErrors = new List<string>();
-            if (result == null) optionsErrors.Add("SaveOptions result was null");
-            if (result?.Success == false) optionsErrors.AddRange(result.Errors);
+            if (result is null)
+            {
+                optionsErrors.Add("SaveOptions result was null");
+            }
+            else if (result is { Success: false })
+            {
+                optionsErrors.AddRange(result.Errors);
+            }
 
             var generalsOnlineErrors = new List<string>();
-            if (goLoadError != null) generalsOnlineErrors.Add(goLoadError);
-            if (goResult?.Success == false) generalsOnlineErrors.AddRange(goResult.Errors);
-            if (generalsOnlineBlocked && goLoadError == null && goResult == null) generalsOnlineErrors.Add("SaveGeneralsOnlineSettings result was null");
+            if (goLoadError != null)
+            {
+                generalsOnlineErrors.Add(goLoadError);
+            }
+
+            if (goResult is { Success: false })
+            {
+                generalsOnlineErrors.AddRange(goResult.Errors);
+            }
+
+            if (generalsOnlineBlocked && goLoadError == null && goResult == null)
+            {
+                generalsOnlineErrors.Add("SaveGeneralsOnlineSettings result was null");
+            }
 
             if (optionsSaved && !generalsOnlineBlocked)
             {
@@ -1044,7 +1072,12 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             var directory = System.IO.Path.GetDirectoryName(OptionsFilePath);
             if (!string.IsNullOrEmpty(directory) && System.IO.Directory.Exists(directory))
             {
-                System.Diagnostics.Process.Start("explorer.exe", directory);
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = PlatformConstants.WindowsExplorerPath,
+                    Arguments = directory,
+                    UseShellExecute = true,
+                });
                 _logger.LogInformation("Opened file location {Directory}", directory);
             }
             else
@@ -1195,6 +1228,14 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         if (tsh.TryGetValue("ShowMoneyPerMinute", out var smpm)) TshShowMoneyPerMinute = ParseBool(smpm);
         if (tsh.TryGetValue("PlayerObserverEnabled", out var poe)) TshPlayerObserverEnabled = ParseBool(poe);
         if (tsh.TryGetValue("MoneyTransactionVolume", out var mtv) && int.TryParse(mtv, out var mtvVal)) TshMoneyTransactionVolume = mtvVal;
+        if (tsh.TryGetValue(GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, out var gwt))
+        {
+            var parsed = GameSettingsMapper.ParseTransitionSpeedMultiplier(gwt);
+            if (parsed.HasValue)
+            {
+                TshGameWindowTransitionSpeedMultiplier = parsed.Value;
+            }
+        }
     }
 
     private void ApplyTshUiCursorProperties(Dictionary<string, string> tsh)
@@ -1294,6 +1335,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         tshDict["ScreenEdgeScrollEnabledInFullscreenApp"] = BoolToString(TshScreenEdgeScrollEnabledInFullscreenApp);
         tshDict["ScreenEdgeScrollEnabledInWindowedApp"] = BoolToString(TshScreenEdgeScrollEnabledInWindowedApp);
         tshDict["MoneyTransactionVolume"] = TshMoneyTransactionVolume.ToString();
+        tshDict[GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey] = (GameSettingsMapper.NormalizeTransitionSpeedMultiplier(TshGameWindowTransitionSpeedMultiplier) ?? GameSettingsTheSuperHackersConstants.DefaultGameWindowTransitionSpeedMultiplier).ToString(CultureInfo.InvariantCulture);
 
         return options;
     }

@@ -7,6 +7,7 @@ using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools;
 using Microsoft.Extensions.Logging;
 
@@ -53,12 +54,8 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
     [ObservableProperty]
     private bool _isPaneOpen = true;
 
-    // We'll add commands to explicitly Open and Close the pane.
-    [RelayCommand]
-    private void OpenPane() => IsPaneOpen = true;
-
-    [RelayCommand]
-    private void ClosePane() => IsPaneOpen = false;
+    [ObservableProperty]
+    private double _openPaneLength = SidebarConstants.DefaultOpenPaneLength;
 
     [ObservableProperty]
     private bool _isDetailsDialogOpen = false;
@@ -97,11 +94,7 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
 
                 if (HasTools)
                 {
-                    // Select the first tool by default
-                    if (InstalledTools.Count > 0)
-                    {
-                        SelectedTool = InstalledTools[0];
-                    }
+                    SelectedTool = InstalledTools[0];
                 }
 
                 logger.LogInformation("Loaded {Count} tool plugins", InstalledTools.Count);
@@ -115,13 +108,32 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         catch (Exception ex)
         {
             ShowStatusMessage($"⚠ An error occurred while loading tools: {ex.Message}", error: true);
-            logger.LogError(ex, "Error loading tools");
+            logger.LogError(ex, "Error initializing ToolsViewModel");
         }
         finally
         {
             IsLoading = false;
         }
     }
+
+    private static async Task AutoHideStatusAsync(Action onHide, System.Threading.CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(3000, cancellationToken);
+            onHide();
+        }
+        catch (OperationCanceledException)
+        {
+            // Timer was cancelled, ignore
+        }
+    }
+
+    [RelayCommand]
+    private void OpenPane() => IsPaneOpen = true;
+
+    [RelayCommand]
+    private void ClosePane() => IsPaneOpen = false;
 
     /// <summary>
     /// Adds a new tool plugin from a file.
@@ -404,7 +416,7 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         ToolForDetails = null;
     }
 
-    private async void ShowStatusMessage(string message, bool success = false, bool error = false, bool info = false)
+    private void ShowStatusMessage(string message, bool success = false, bool error = false, bool info = false)
     {
         // Cancel any existing hide timer
         _statusHideCts?.Cancel();
@@ -414,16 +426,8 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         SetStatusType(success, error, info);
         IsStatusVisible = true;
 
-        // Auto-hide after 5 seconds
-        _statusHideCts = new System.Threading.CancellationTokenSource();
-        try
-        {
-            await Task.Delay(3000, _statusHideCts.Token);
-            IsStatusVisible = false;
-        }
-        catch (TaskCanceledException)
-        {
-            // Timer was cancelled, ignore
-        }
+        var cts = new System.Threading.CancellationTokenSource();
+        _statusHideCts = cts;
+        _ = AutoHideStatusAsync(() => IsStatusVisible = false, cts.Token);
     }
 }

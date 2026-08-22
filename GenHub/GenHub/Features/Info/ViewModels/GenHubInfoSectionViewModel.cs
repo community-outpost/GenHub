@@ -27,6 +27,7 @@ namespace GenHub.Features.Info.ViewModels;
 /// <param name="changelogsViewModel">The changelogs view model.</param>
 /// <param name="goChangelogViewModel">The Generals Online changelog view model.</param>
 /// <param name="notificationService">Optional notification service for demo actions.</param>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Observable property access on view model")]
 public partial class GenHubInfoSectionViewModel(
     IInfoContentProvider contentProvider,
     ChangelogsViewModel changelogsViewModel,

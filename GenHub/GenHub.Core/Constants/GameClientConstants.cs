@@ -21,6 +21,9 @@ public static class GameClientConstants
     /// <summary>Steam game.dat executable (primary for Steam installations, avoids launcher stubs).</summary>
     public const string SteamGameDatExecutable = "game.dat";
 
+    /// <summary>Contra modded client executable filename.</summary>
+    public const string ContraExecutable = "generals.ctr";
+
     // ===== SuperHackers Client Detection =====
 
     /// <summary>SuperHackers Generals executable filename.</summary>
@@ -60,6 +63,20 @@ public static class GameClientConstants
 
     /// <summary>Standard retail Zero Hour directory name.</summary>
     public const string ZeroHourRetailDirectoryName = "Command & Conquer Generals Zero Hour";
+
+    // ===== Core Game Archives =====
+
+    /// <summary>Primary Zero Hour INI archive filename.</summary>
+    public const string ZeroHourIniBig = "INIZH.big";
+
+    /// <summary>Primary Zero Hour Patch archive filename.</summary>
+    public const string ZeroHourPatchBig = "PatchZH.big";
+
+    /// <summary>Primary Generals Vanilla INI archive filename.</summary>
+    public const string GeneralsIniBig = "INI.big";
+
+    /// <summary>Primary Generals Vanilla Patch archive filename.</summary>
+    public const string GeneralsPatchBig = "Patch.big";
 
     // ===== GeneralsOnline Client Detection =====
 

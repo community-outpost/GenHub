@@ -85,7 +85,13 @@ public partial class GameProfileSettingsViewModel
                 });
             }
 
-            var coreItems = await _profileContentLoader!.LoadAvailableContentAsync(
+            if (_profileContentLoader == null)
+            {
+                StatusMessage = "Content loader unavailable";
+                return;
+            }
+
+            var coreItems = await _profileContentLoader.LoadAvailableContentAsync(
                 SelectedContentType,
                 new ObservableCollection<Core.Models.Content.ContentDisplayItem>(coreAvailableInstallations),
                 enabledContentIds);

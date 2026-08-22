@@ -34,7 +34,8 @@ public class CommunityOutpostManifestFactory(
         var normalized = pattern.ToLowerInvariant();
         return RegexCache.GetOrAdd(normalized, p => new Regex(
             "^" + Regex.Escape(p).Replace("\\*", ".*") + "$",
-            RegexOptions.IgnoreCase | RegexOptions.Compiled));
+            RegexOptions.IgnoreCase | RegexOptions.Compiled,
+            TimeSpan.FromSeconds(1)));
     }
 
     /// <inheritdoc />
@@ -765,7 +766,7 @@ public class CommunityOutpostManifestFactory(
             try
             {
                 var metadataBytes = Convert.FromBase64String(ControlBarMetadataBigBase64);
-                File.WriteAllBytes(metadataTargetPath, metadataBytes);
+                await File.WriteAllBytesAsync(metadataTargetPath, metadataBytes, cancellationToken);
                 controlBarRepackedOutputs.Add(metadataFileName);
                 logger.LogInformation("Created Control Bar metadata file {FileName} from embedded fallback", metadataFileName);
             }

@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Launching;
 using GenHub.Features.GameProfiles.Infrastructure;
@@ -278,6 +279,57 @@ public class GameProcessManagerTests
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => _processManager.StartProcessAsync(config, cts.Token));
+    }
+
+    /// <summary>
+    /// When the launcher exits immediately with code 0 and the subsequent adoption poll loop is cancelled,
+    /// the operation must throw OperationCanceledException and clean up any resources.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task StartProcessAsync_WhenImmediateExitPollIsCancelled_ThrowsOperationCanceledExceptionAsync()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            // On Windows batch files bypass immediate-exit adoption handling.
+            return;
+        }
+
+        // Arrange
+        var tempScript = Path.Combine(Path.GetTempPath(), $"genhub_exit0_{Guid.NewGuid():N}.sh");
+        var scriptContent = "#!/bin/sh\nexit 0\n";
+        await File.WriteAllTextAsync(tempScript, scriptContent);
+
+        using var chmod = System.Diagnostics.Process.Start("chmod", ["+x", tempScript]);
+        chmod?.WaitForExit();
+
+        try
+        {
+            var config = new GameLaunchConfiguration
+            {
+                ExecutablePath = tempScript,
+            };
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(ProcessConstants.LauncherDetectionDelayMs + 200));
+
+            // Act & Assert
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                () => _processManager.StartProcessAsync(config, cts.Token));
+        }
+        finally
+        {
+            if (File.Exists(tempScript))
+            {
+                try
+                {
+                    File.Delete(tempScript);
+                }
+                catch
+                {
+                    // Best effort.
+                }
+            }
+        }
     }
 
     /// <summary>

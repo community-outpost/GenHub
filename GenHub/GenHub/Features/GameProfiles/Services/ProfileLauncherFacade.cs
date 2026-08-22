@@ -627,7 +627,7 @@ public class ProfileLauncherFacade(
                 $"{ProfileValidationConstants.FailedToPrepareToolWorkspace}: {prepareResult.FirstError}");
         }
 
-        var toolWorkspacePath = prepareResult.Data!.WorkspacePath;
+        var toolWorkspacePath = prepareResult.Data.WorkspacePath;
         logger.LogInformation("[Launch] Tool workspace prepared at: {Path}", toolWorkspacePath);
         return ProfileOperationResult<(string, string?)>.CreateSuccess((toolWorkspacePath, actualWorkspaceId));
     }
@@ -1608,8 +1608,8 @@ public class ProfileLauncherFacade(
                 // First try to match by both game type AND installation path (most specific match)
                 var exactPathMatches = allInstallationsResult.Data
                     .Where(inst =>
-                        ((profile.GameClient?.GameType == Core.Models.Enums.GameType.Generals && inst.HasGenerals && !string.IsNullOrEmpty(inst.GeneralsPath) && inst.GeneralsPath.Equals(profile.GameClient?.WorkingDirectory, StringComparison.OrdinalIgnoreCase)) ||
-                         (profile.GameClient?.GameType == Core.Models.Enums.GameType.ZeroHour && inst.HasZeroHour && !string.IsNullOrEmpty(inst.ZeroHourPath) && inst.ZeroHourPath.Equals(profile.GameClient?.WorkingDirectory, StringComparison.OrdinalIgnoreCase))))
+                        ((profile.GameClient?.GameType == Core.Models.Enums.GameType.Generals && inst.HasGenerals && !string.IsNullOrEmpty(inst.GeneralsPath) && !string.IsNullOrEmpty(profile.GameClient?.WorkingDirectory) && PathHelper.AreSamePath(inst.GeneralsPath, profile.GameClient.WorkingDirectory)) ||
+                         (profile.GameClient?.GameType == Core.Models.Enums.GameType.ZeroHour && inst.HasZeroHour && !string.IsNullOrEmpty(inst.ZeroHourPath) && !string.IsNullOrEmpty(profile.GameClient?.WorkingDirectory) && PathHelper.AreSamePath(inst.ZeroHourPath, profile.GameClient.WorkingDirectory))))
                     .ToList();
 
                 if (exactPathMatches.Count == 1)
@@ -1815,7 +1815,7 @@ public class ProfileLauncherFacade(
             return null;
         }
 
-        foreach (var idString in profile.EnabledContentIds!)
+        foreach (var idString in profile.EnabledContentIds)
         {
             if (!ManifestId.TryCreate(idString, out var id))
             {

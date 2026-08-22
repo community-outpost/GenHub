@@ -470,7 +470,7 @@ public class ContentReconciliationService(
         {
             try
             {
-                var newContentIds = profile.EnabledContentIds!
+                var newContentIds = profile.EnabledContentIds
                     .Select(id => replacements.TryGetValue(id, out var newManifest) ? newManifest.Id.Value : id)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
@@ -571,7 +571,7 @@ public class ContentReconciliationService(
         {
             try
             {
-                var newContentIds = profile.EnabledContentIds!
+                var newContentIds = profile.EnabledContentIds
                     .Where(id => !id.Equals(manifestId.Value, StringComparison.OrdinalIgnoreCase))
                     .ToList();
 

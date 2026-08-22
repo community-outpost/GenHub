@@ -116,13 +116,7 @@ public class CasPoolManager : ICasPoolManager
     public IReadOnlyList<ICasStorage> GetAllStorages()
     {
         var storages = _storages.Values.ToList();
-        foreach (var legacyInstallationStorage in _legacyInstallationStorages)
-        {
-            if (!storages.Contains(legacyInstallationStorage))
-            {
-                storages.Add(legacyInstallationStorage);
-            }
-        }
+        storages.AddRange(_legacyInstallationStorages.Where(legacyInstallationStorage => !storages.Contains(legacyInstallationStorage)));
 
         return storages.AsReadOnly();
     }
@@ -178,6 +172,17 @@ public class CasPoolManager : ICasPoolManager
         return string.IsNullOrWhiteSpace(rootPath)
             ? string.Empty
             : Path.TrimEndingDirectorySeparator(Path.GetFullPath(rootPath));
+    }
+
+    private static bool IsInsideApplicationDirectory(string rootPath)
+    {
+        var appBaseDirectory = Path.TrimEndingDirectorySeparator(Path.GetFullPath(AppContext.BaseDirectory));
+        var normalizedRootPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(rootPath));
+
+        return normalizedRootPath.Equals(appBaseDirectory, PathHelper.PathComparison) ||
+            normalizedRootPath.StartsWith(
+                appBaseDirectory + Path.DirectorySeparatorChar,
+                PathHelper.PathComparison);
     }
 
     private void InitializePool(CasPoolType poolType)
@@ -311,16 +316,5 @@ public class CasPoolManager : ICasPoolManager
                 retainedRoots.Count,
                 string.Join(", ", retainedRoots));
         }
-    }
-
-    private bool IsInsideApplicationDirectory(string rootPath)
-    {
-        var appBaseDirectory = Path.TrimEndingDirectorySeparator(Path.GetFullPath(AppContext.BaseDirectory));
-        var normalizedRootPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(rootPath));
-
-        return normalizedRootPath.Equals(appBaseDirectory, PathHelper.PathComparison) ||
-            normalizedRootPath.StartsWith(
-                appBaseDirectory + Path.DirectorySeparatorChar,
-                PathHelper.PathComparison);
     }
 }

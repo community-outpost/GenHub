@@ -350,4 +350,197 @@ public class GameInstallationServiceTests : IDisposable
             x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()),
             Times.Once);
     }
+
+    /// <summary>
+    /// Verifies that persisted manifests reconstruct an installation with both Generals and Zero Hour capabilities.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetAllInstallationsAsync_ReconstructsInstallationWithGeneralsAndZeroHour_FromPersistedManifestsAsync()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHubManifestReconstruct_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "generals.exe"), string.Empty);
+            File.WriteAllText(Path.Combine(tempDir, "INIZH.big"), string.Empty);
+
+            _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([], TimeSpan.Zero));
+
+            var generalsManifest = new ContentManifest
+            {
+                Id = "1.108.retail.gameinstallation.generals",
+                ContentType = GenHub.Core.Models.Enums.ContentType.GameInstallation,
+                TargetGame = GameType.Generals,
+                Version = "1.08",
+                Metadata = new ContentMetadata { SourcePath = tempDir },
+            };
+
+            var zeroHourManifest = new ContentManifest
+            {
+                Id = "1.104.retail.gameinstallation.zerohour",
+                ContentType = GenHub.Core.Models.Enums.ContentType.GameInstallation,
+                TargetGame = GameType.ZeroHour,
+                Version = "1.04",
+                Metadata = new ContentMetadata { SourcePath = tempDir },
+            };
+
+            _manifestPoolMock
+                .Setup(x => x.SearchManifestsAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([generalsManifest, zeroHourManifest]));
+
+            var result = await _service.GetAllInstallationsAsync();
+
+            Assert.True(result.Success);
+            Assert.NotNull(result.Data);
+            var install = Assert.Single(result.Data);
+            Assert.True(install.HasGenerals);
+            Assert.Equal(tempDir, install.GeneralsPath);
+            Assert.True(install.HasZeroHour);
+            Assert.Equal(tempDir, install.ZeroHourPath);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when TargetGame defaults to Generals (0) because it was omitted in JSON, a Zero Hour manifest ID only sets the Zero Hour path.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetAllInstallationsAsync_ReconstructsZeroHourInstallation_WhenTargetGameOmittedAsync()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHubZHManifestReconstruct_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "generals.exe"), string.Empty);
+            File.WriteAllText(Path.Combine(tempDir, "INIZH.big"), string.Empty);
+
+            _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([], TimeSpan.Zero));
+
+            // TargetGame is omitted / default(GameType) which equals GameType.Generals (0)
+            var zeroHourManifest = new ContentManifest
+            {
+                Id = "1.104.retail.gameinstallation.zerohour",
+                ContentType = GenHub.Core.Models.Enums.ContentType.GameInstallation,
+                Version = "1.04",
+                Metadata = new ContentMetadata { SourcePath = tempDir },
+            };
+
+            _manifestPoolMock
+                .Setup(x => x.SearchManifestsAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([zeroHourManifest]));
+
+            var result = await _service.GetAllInstallationsAsync();
+
+            Assert.True(result.Success);
+            Assert.NotNull(result.Data);
+            var install = Assert.Single(result.Data);
+            Assert.True(install.HasZeroHour);
+            Assert.Equal(tempDir, install.ZeroHourPath);
+            Assert.False(install.HasGenerals);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that manifests with distinct source paths reconstruct into distinct installations.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetAllInstallationsAsync_ReconstructsInstallations_RespectingPathComparerAsync()
+    {
+        var tempDir1 = Path.Combine(Path.GetTempPath(), "GenHubPathTest_A_" + Guid.NewGuid().ToString("N"));
+        var tempDir2 = Path.Combine(Path.GetTempPath(), "GenHubPathTest_B_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir1);
+        Directory.CreateDirectory(tempDir2);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir1, "generals.exe"), string.Empty);
+            File.WriteAllText(Path.Combine(tempDir1, "INIZH.big"), string.Empty);
+            File.WriteAllText(Path.Combine(tempDir2, "generals.exe"), string.Empty);
+            File.WriteAllText(Path.Combine(tempDir2, "INIZH.big"), string.Empty);
+
+            _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([], TimeSpan.Zero));
+
+            var manifest1 = new ContentManifest
+            {
+                Id = "1.104.retail.gameinstallation.zerohour",
+                ContentType = GenHub.Core.Models.Enums.ContentType.GameInstallation,
+                TargetGame = GameType.ZeroHour,
+                Version = "1.04",
+                Metadata = new ContentMetadata { SourcePath = tempDir1 },
+            };
+
+            var manifest2 = new ContentManifest
+            {
+                Id = "1.104.retail.gameinstallation.zerohour",
+                ContentType = GenHub.Core.Models.Enums.ContentType.GameInstallation,
+                TargetGame = GameType.ZeroHour,
+                Version = "1.04",
+                Metadata = new ContentMetadata { SourcePath = tempDir2 },
+            };
+
+            _manifestPoolMock
+                .Setup(x => x.SearchManifestsAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest1, manifest2]));
+
+            var result = await _service.GetAllInstallationsAsync();
+
+            Assert.True(result.Success);
+            Assert.NotNull(result.Data);
+            Assert.Equal(2, result.Data.Count);
+        }
+        finally
+        {
+            Directory.Delete(tempDir1, true);
+            Directory.Delete(tempDir2, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that installations with paths differing only by case are handled according to platform path comparison semantics.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AddInstallationToCacheAsync_HandlesCaseDistinctPaths_AccordingToPlatformPathComparisonAsync()
+    {
+        var basePath = Path.Combine(Path.GetTempPath(), "GenHubCaseTest_" + Guid.NewGuid().ToString("N"));
+        var path1 = Path.Combine(basePath, "zh");
+        var path2 = Path.Combine(basePath, "ZH");
+
+        var install1 = new GameInstallation(path1, GameInstallationType.Steam);
+        var install2 = new GameInstallation(path2, GameInstallationType.Retail);
+
+        _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([], TimeSpan.Zero));
+
+        var addResult1 = await _service.AddInstallationToCacheAsync(install1);
+        var addResult2 = await _service.AddInstallationToCacheAsync(install2);
+
+        Assert.True(addResult1.Success);
+        Assert.True(addResult2.Success);
+
+        var allResult = await _service.GetAllInstallationsAsync();
+        Assert.True(allResult.Success);
+        Assert.NotNull(allResult.Data);
+
+        if (OperatingSystem.IsWindows())
+        {
+            Assert.Single(allResult.Data);
+        }
+        else
+        {
+            Assert.Equal(2, allResult.Data.Count);
+        }
+    }
 }

@@ -280,7 +280,7 @@ public class ContentReconciliationOrchestrator(
                     }
                     catch (Exception ex)
                     {
-                        logger.LogWarning("[Orchestrator:{OpId}] Failed to remove manifest {ManifestId} due to exception: {Error}", operationId, id, ex.Message);
+                        logger.LogWarning(ex, "[Orchestrator:{OpId}] Failed to remove manifest {ManifestId}", operationId, id);
                         criticalFailureOccurred = true;
                     }
                 }

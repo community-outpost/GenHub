@@ -30,8 +30,8 @@ APP_NAME="GenHub"
 EXECUTABLE_NAME="GenHub.MacOS"
 BUNDLE_ID="org.communityoutpost.genhub"
 
-[ -d "$PUBLISH_DIR" ] || { echo "error: publish dir not found: $PUBLISH_DIR" >&2; exit 1; }
-[ -f "$PUBLISH_DIR/$EXECUTABLE_NAME" ] || {
+[[ -d "$PUBLISH_DIR" ]] || { echo "error: publish dir not found: $PUBLISH_DIR" >&2; exit 1; }
+[[ -f "$PUBLISH_DIR/$EXECUTABLE_NAME" ]] || {
   echo "error: $EXECUTABLE_NAME not found in $PUBLISH_DIR" >&2
   echo "hint: publish GenHub.MacOS with -r osx-arm64 --self-contained true first" >&2
   exit 1
@@ -90,7 +90,7 @@ PLIST
 # An .icns is optional; without one macOS shows a generic application icon. Generate it
 # from the existing PNG when the source and tooling are both available.
 ICON_PNG="GenHub/GenHub/Assets/Icons/generalshub-icon.png"
-if [ -f "$ICON_PNG" ] && command -v iconutil >/dev/null 2>&1 && command -v sips >/dev/null 2>&1; then
+if [[ -f "$ICON_PNG" ]] && command -v iconutil >/dev/null 2>&1 && command -v sips >/dev/null 2>&1; then
   ICON_TEMP_DIR="$(mktemp -d)"
   ICONSET="$ICON_TEMP_DIR/AppIcon.iconset"
   ICON_GENERATION_FAILED=0
@@ -99,18 +99,18 @@ if [ -f "$ICON_PNG" ] && command -v iconutil >/dev/null 2>&1 && command -v sips 
     ICON_1X="$ICONSET/icon_${size}x${size}.png"
     ICON_2X="$ICONSET/icon_${size}x${size}@2x.png"
     if ! sips -z "$size" "$size" "$ICON_PNG" --out "$ICON_1X" >/dev/null 2>&1 \
-        || [ ! -s "$ICON_1X" ]; then
+        || [[ ! -s "$ICON_1X" ]]; then
       echo "  warning: failed to generate ${size}x${size} icon"
       ICON_GENERATION_FAILED=1
     fi
     if ! sips -z $((size * 2)) $((size * 2)) "$ICON_PNG" --out "$ICON_2X" >/dev/null 2>&1 \
-        || [ ! -s "$ICON_2X" ]; then
+        || [[ ! -s "$ICON_2X" ]]; then
       echo "  warning: failed to generate ${size}x${size}@2x icon"
       ICON_GENERATION_FAILED=1
     fi
   done
 
-  if [ "$ICON_GENERATION_FAILED" -eq 0 ] \
+  if [[ "$ICON_GENERATION_FAILED" -eq 0 ]] \
       && iconutil -c icns "$ICONSET" -o "$CONTENTS/Resources/AppIcon.icns" 2>/dev/null; then
     echo "  embedded AppIcon.icns"
   else
