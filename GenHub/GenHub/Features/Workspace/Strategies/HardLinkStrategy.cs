@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Core.Models.Enums;
@@ -221,8 +222,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             if (!success)
             {
                 throw new UnauthorizedAccessException(
-                    $"Failed to create hard link or symbolic link from CAS for hash {hash} to {targetPath}. " +
-                    "To use zero-copy workspaces without copying game files, please run GenHub as Administrator or enable Windows Developer Mode.");
+                    $"Failed to create hard link or symbolic link from CAS for hash {hash} to {targetPath}. {WorkspaceConstants.ZeroCopyElevationGuidance}");
             }
         }
     }
@@ -266,8 +266,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                         file.RelativePath);
 
                     throw new UnauthorizedAccessException(
-                        $"Failed to create hard link or symbolic link for '{file.RelativePath}'. " +
-                        "To use zero-copy workspaces without copying game files, please run GenHub as Administrator or enable Windows Developer Mode.",
+                        $"Failed to create hard link or symbolic link for '{file.RelativePath}'. {WorkspaceConstants.ZeroCopyElevationGuidance}",
                         symlinkEx);
                 }
             }
@@ -287,8 +286,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                     file.RelativePath);
 
                 throw new UnauthorizedAccessException(
-                    $"Failed to create symbolic link across volumes for '{file.RelativePath}'. " +
-                    "To use zero-copy workspaces without copying game files, please run GenHub as Administrator or enable Windows Developer Mode.",
+                    $"Failed to create symbolic link across volumes for '{file.RelativePath}'. {WorkspaceConstants.ZeroCopyElevationGuidance}",
                     symlinkEx);
             }
         }
@@ -335,8 +333,8 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             return (true, false, 0);
         }
 
-        bool hardLinked;
-        long bytesProcessed;
+        bool hardLinked = false;
+        long bytesProcessed = 0;
 
         if (sameVolume)
         {
@@ -399,8 +397,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                     file.RelativePath);
 
                 throw new UnauthorizedAccessException(
-                    $"Failed to create hard link or symbolic link for '{file.RelativePath}'. " +
-                    "To use zero-copy workspaces without copying game files, please run GenHub as Administrator or enable Windows Developer Mode.",
+                    $"Failed to create hard link or symbolic link for '{file.RelativePath}'. {WorkspaceConstants.ZeroCopyElevationGuidance}",
                     symlinkEx);
             }
         }
@@ -431,8 +428,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                 file.RelativePath);
 
             throw new UnauthorizedAccessException(
-                $"Failed to create symbolic link across volumes for '{file.RelativePath}'. " +
-                "To use zero-copy workspaces without copying game files, please run GenHub as Administrator or enable Windows Developer Mode.",
+                $"Failed to create symbolic link across volumes for '{file.RelativePath}'. {WorkspaceConstants.ZeroCopyElevationGuidance}",
                 symlinkEx);
         }
     }
