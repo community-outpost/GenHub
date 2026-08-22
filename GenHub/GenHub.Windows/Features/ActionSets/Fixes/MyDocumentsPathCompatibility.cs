@@ -15,8 +15,6 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public partial class MyDocumentsPathCompatibility(ILogger<MyDocumentsPathCompatibility> logger) : BaseActionSet(logger)
 {
-    private readonly string _markerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GenHub", ActionSetConstants.Paths.SubActionSetMarkers, "MyDocumentsPathCompatibility.done");
-
     /// <inheritdoc/>
     public override string Id => "MyDocumentsPathCompatibility";
 
