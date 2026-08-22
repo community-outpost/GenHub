@@ -346,7 +346,7 @@ public sealed class ProfileContentService(
 
             var createRequest = manifest.ContentType.IsStandalone()
                 ? BuildStandaloneCreateProfileRequest(profileName, manifest, manifestId, enabledContentIds)
-                : BuildStandardCreateProfileRequest(profileName, manifest, installation, gameClient, requiredGameType, requiredGameClient, profileGameClient, enabledContentIds);
+                : BuildStandardCreateProfileRequest(profileName, manifest, installation, gameClient, requiredGameClient, profileGameClient, enabledContentIds);
 
             var createResult = await profileManager.CreateProfileAsync(createRequest, cancellationToken);
             if (createResult.Failed)
@@ -896,14 +896,13 @@ public sealed class ProfileContentService(
         ContentManifest manifest,
         Core.Models.GameInstallations.GameInstallation installation,
         GameClient gameClient,
-        GameType requiredGameType,
         ContentManifest? requiredGameClient,
         GameClient? profileGameClient,
         List<string> enabledContentIds)
     {
         var gameInstallationManifestId = Core.Models.Manifest.ManifestIdGenerator.GenerateGameInstallationId(
             installation,
-            requiredGameType,
+            gameClient.GameType,
             gameClient.Version);
 
         if (!enabledContentIds.Contains(gameInstallationManifestId, StringComparer.OrdinalIgnoreCase))
@@ -1044,12 +1043,9 @@ public sealed class ProfileContentService(
                 .Concat(acquisition.Data)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
-            foreach (var requestedId in requestedContentIds)
+            foreach (var requestedId in requestedContentIds.Where(id => !enabledContentIds.Contains(id, StringComparer.OrdinalIgnoreCase)))
             {
-                if (!enabledContentIds.Contains(requestedId, StringComparer.OrdinalIgnoreCase))
-                {
-                    enabledContentIds.Add(requestedId);
-                }
+                enabledContentIds.Add(requestedId);
             }
 
             return OperationResult<ProfileContentResolution>.CreateSuccess(

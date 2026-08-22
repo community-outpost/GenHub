@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Threading;
@@ -944,10 +945,10 @@ public class ProfileLauncherFacade(
     {
         logger.LogDebug("[Launch] Step 6: Delegating to GameLauncher for workspace prep and process start");
 
-        Guid? workspaceNotificationId = null;
+        var workspaceNotificationHolder = new StrongBox<Guid?>(null);
         var launchProgress = new SynchronousProgress<LaunchProgress>(p =>
         {
-            if (p.IsInitializingWorkspace && workspaceNotificationId == null)
+            if (p.IsInitializingWorkspace && workspaceNotificationHolder.Value == null)
             {
                 var message = new NotificationMessage(
                     NotificationType.Info,
@@ -955,23 +956,23 @@ public class ProfileLauncherFacade(
                     $"Initializing workspace for '{profile.Name}'. First launch may take a moment while files are set up...",
                     autoDismissMilliseconds: null,
                     isPersistent: true);
-                workspaceNotificationId = message.Id;
+                workspaceNotificationHolder.Value = message.Id;
                 notificationService.Show(message);
             }
         });
 
         var launchResult = await gameLauncher.LaunchProfileAsync(profile, progress: launchProgress, skipUserDataCleanup: skipUserDataCleanup, cancellationToken: cancellationToken);
 
-        if (workspaceNotificationId.HasValue)
+        if (workspaceNotificationHolder.Value.HasValue)
         {
             if (launchResult.Success)
             {
-                notificationService.Dismiss(workspaceNotificationId.Value);
+                notificationService.Dismiss(workspaceNotificationHolder.Value.Value);
             }
             else
             {
                 notificationService.Update(
-                    workspaceNotificationId.Value,
+                    workspaceNotificationHolder.Value.Value,
                     $"Workspace initialization failed for '{profile.Name}'.",
                     "Workspace Error");
             }

@@ -890,16 +890,16 @@ public sealed partial class ContentStateService(
             return false;
         }
 
-        if (ManifestIdValidator.IsValid(item.Id!, out _))
+        if (ManifestIdValidator.IsValid(item.Id, out _))
         {
-            var direct = await manifestPool.IsManifestAcquiredAsync(item.Id!, cancellationToken);
+            var direct = await manifestPool.IsManifestAcquiredAsync(item.Id, cancellationToken);
             if (direct?.Success == true && direct.Data)
             {
                 return true;
             }
         }
 
-        if (_sessionDownloads.TryGetValue(item.Id!, out var sessionManifestId))
+        if (_sessionDownloads.TryGetValue(item.Id, out var sessionManifestId))
         {
             var mapped = await manifestPool.IsManifestAcquiredAsync(sessionManifestId, cancellationToken);
             if (mapped?.Success == true && mapped.Data)

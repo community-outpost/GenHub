@@ -621,45 +621,42 @@ public partial class AODMapsDiscoverer(
     {
         var results = new List<ContentSearchResult>();
 
-        // Strategy 1: Gallery Items (Common on Players, New, Packs pages)
+        ExtractGalleryItems(document, sourceUrl, results);
+        ExtractMapMakerItems(document, sourceUrl, results);
+
+        // Check for next page indicator to support progressive loading
+        bool hasMoreItems = CheckForNextPage(document, currentPage);
+        return (results, hasMoreItems);
+    }
+
+    private void ExtractGalleryItems(IDocument document, string sourceUrl, List<ContentSearchResult> results)
+    {
         var galleryItems = document.QuerySelectorAll(AODMapsConstants.GalleryItemSelector);
-        if (galleryItems.Length > 0)
+        foreach (var item in galleryItems)
         {
-            foreach (var item in galleryItems)
+            var result = ParseGalleryItem(item, sourceUrl);
+            if (result != null)
             {
-                var result = ParseGalleryItem(item, sourceUrl);
+                results.Add(result);
+            }
+        }
+    }
+
+    private void ExtractMapMakerItems(IDocument document, string sourceUrl, List<ContentSearchResult> results)
+    {
+        var mmItems = document.QuerySelectorAll(AODMapsConstants.MapMakerContainerSelector);
+        foreach (var item in mmItems)
+        {
+            var contentDiv = item.QuerySelector(AODMapsConstants.MapMakerContentSelector);
+            if (contentDiv != null)
+            {
+                var result = ParseMapMakerItem(contentDiv, sourceUrl);
                 if (result != null)
                 {
                     results.Add(result);
                 }
             }
         }
-
-        // Strategy 2: Map Maker Page Items (Vertical layout)
-        // Only if Gallery items were not found or we want to support mixed pages
-        var mmItems = document.QuerySelectorAll(AODMapsConstants.MapMakerContainerSelector);
-        if (mmItems.Length > 0)
-        {
-            foreach (var item in mmItems)
-            {
-                // Each 'main' block is an item on map maker pages
-                // Need to go deeper into .content
-                var contentDiv = item.QuerySelector(AODMapsConstants.MapMakerContentSelector);
-                if (contentDiv != null)
-                {
-                    var result = ParseMapMakerItem(contentDiv, sourceUrl);
-                    if (result != null)
-                    {
-                        results.Add(result);
-                    }
-                }
-            }
-        }
-
-        // Check for next page indicator to support progressive loading
-        bool hasMoreItems = CheckForNextPage(document, currentPage);
-
-        return (results, hasMoreItems);
     }
 
     /// <summary>

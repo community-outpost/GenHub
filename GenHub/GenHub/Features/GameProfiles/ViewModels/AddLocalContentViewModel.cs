@@ -835,46 +835,7 @@ public partial class AddLocalContentViewModel(
             StatusMessage = "Normalizing inactive archives (.ctr / .gib) to .big...";
             logger?.LogInformation("User triggered archive normalization in staging: {StagingPath}", _stagingPath);
 
-            await Task.Run(() =>
-            {
-                foreach (var extension in GenLauncherConstants.InactiveBigExtensions)
-                {
-                    var searchPattern = "*" + extension;
-                    foreach (var inactiveFile in Directory.GetFiles(_stagingPath, searchPattern, SearchOption.AllDirectories))
-                    {
-                        if (IsExecutableFile(inactiveFile))
-                        {
-                            var exeFile = Path.ChangeExtension(inactiveFile, ".exe");
-                            if (!File.Exists(exeFile))
-                            {
-                                File.Move(inactiveFile, exeFile);
-                                logger?.LogInformation("Normalized disguised executable '{InactiveFile}' to '{ExeFile}'", inactiveFile, exeFile);
-                            }
-
-                            continue;
-                        }
-
-                        if (!IsBigArchiveFile(inactiveFile))
-                        {
-                            logger?.LogDebug("Skipping non-BIG inactive file '{InactiveFile}' during archive normalization", inactiveFile);
-                            continue;
-                        }
-
-                        var bigFile = Path.ChangeExtension(inactiveFile, GenLauncherConstants.BigExtension);
-                        if (File.Exists(bigFile))
-                        {
-                            if (FilesHaveIdenticalContent(inactiveFile, bigFile))
-                            {
-                                File.Delete(inactiveFile);
-                            }
-                        }
-                        else
-                        {
-                            File.Move(inactiveFile, bigFile);
-                        }
-                    }
-                }
-            });
+            await Task.Run(NormalizeStagingDirectory);
 
             await RefreshStagingTreeAsync();
             StatusMessage = "Inactive archives normalized to .big successfully.";
@@ -888,6 +849,52 @@ public partial class AddLocalContentViewModel(
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    private void NormalizeStagingDirectory()
+    {
+        foreach (var extension in GenLauncherConstants.InactiveBigExtensions)
+        {
+            var searchPattern = "*" + extension;
+            foreach (var inactiveFile in Directory.GetFiles(_stagingPath, searchPattern, SearchOption.AllDirectories))
+            {
+                NormalizeSingleInactiveFile(inactiveFile);
+            }
+        }
+    }
+
+    private void NormalizeSingleInactiveFile(string inactiveFile)
+    {
+        if (IsExecutableFile(inactiveFile))
+        {
+            var exeFile = Path.ChangeExtension(inactiveFile, ".exe");
+            if (!File.Exists(exeFile))
+            {
+                File.Move(inactiveFile, exeFile);
+                logger?.LogInformation("Normalized disguised executable '{InactiveFile}' to '{ExeFile}'", inactiveFile, exeFile);
+            }
+
+            return;
+        }
+
+        if (!IsBigArchiveFile(inactiveFile))
+        {
+            logger?.LogDebug("Skipping non-BIG inactive file '{InactiveFile}' during archive normalization", inactiveFile);
+            return;
+        }
+
+        var bigFile = Path.ChangeExtension(inactiveFile, GenLauncherConstants.BigExtension);
+        if (File.Exists(bigFile))
+        {
+            if (FilesHaveIdenticalContent(inactiveFile, bigFile))
+            {
+                File.Delete(inactiveFile);
+            }
+        }
+        else
+        {
+            File.Move(inactiveFile, bigFile);
         }
     }
 

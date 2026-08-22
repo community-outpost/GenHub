@@ -64,6 +64,106 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
         return DateTime.MinValue;
     }
 
+    private static MapListItem? ParseMapListItem(IElement item, ContentSearchQuery query)
+    {
+        var nameAnchor = item.QuerySelector(CNCLabsConstants.DisplayNameAnchorSelector);
+        var detailsHref = nameAnchor?.GetAttribute(CNCLabsConstants.HrefAttribute);
+        var name = nameAnchor?.TextContent?.Trim();
+        if (string.IsNullOrWhiteSpace(detailsHref) || string.IsNullOrWhiteSpace(name))
+        {
+            return null;
+        }
+
+        var idMatch = DetailsIdRegex().Match(detailsHref);
+        if (!idMatch.Success || !int.TryParse(idMatch.Groups[1].Value, out var id))
+        {
+            return null;
+        }
+
+        detailsHref = new Uri(new Uri(CNCLabsConstants.PublisherWebsite), detailsHref).ToString();
+
+        var description = CNCLabsHelper.NormalizeHtmlDescription(
+            item.QuerySelector(CNCLabsConstants.DescriptionSelector)?.InnerHtml) ?? string.Empty;
+
+        var author = item.QuerySelectorAll("span")
+            .FirstOrDefault(s => s.QuerySelector("i.bi-person") != null)?
+            .TextContent?.Trim();
+
+        long? dlCount = null;
+        var dlSpan = item.QuerySelectorAll("span")
+            .FirstOrDefault(s => s.QuerySelector("i.bi-download") != null);
+        var dlMatch = DownloadCountRegex().Match(dlSpan?.TextContent ?? string.Empty);
+        if (dlMatch.Success && long.TryParse(dlMatch.Groups[1].Value.Replace(",", string.Empty), out var dl))
+        {
+            dlCount = dl;
+        }
+
+        var fSize = item.QuerySelector("div.ms-3 div.small")?.TextContent?.Trim();
+
+        string? imgUrl = null;
+        var img = item.QuerySelector("img.download-list-thumbnail");
+        var src = img?.GetAttribute("src");
+        if (!string.IsNullOrEmpty(src))
+        {
+            imgUrl = src.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                ? src
+                : new Uri(new Uri(CNCLabsConstants.PublisherWebsite), src).ToString();
+        }
+
+        var tags = item.QuerySelectorAll("span.badge")
+            .Select(b => b.TextContent?.Trim())
+            .Where(t => !string.IsNullOrEmpty(t))
+            .Select(t => t!)
+            .ToList();
+
+        return new MapListItem(id, name, description, author ?? CNCLabsConstants.DefaultAuthorName, detailsHref, query.TargetGame, query.ContentType, DateTime.MinValue, dlCount, fSize, imgUrl, tags);
+    }
+
+    private static bool CheckPaginationHasMore(IDocument document, int currentPage)
+    {
+        var pagingLinks = document.QuerySelectorAll("ul.pagination a.page-link");
+        foreach (var link in pagingLinks)
+        {
+            var text = link.TextContent?.Trim() ?? string.Empty;
+            if (text.Contains("Next", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (int.TryParse(text, out var pNum) && pNum > currentPage)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string? ExtractFileSize(IDocument document, string docText)
+    {
+        var sizeMatch = FileSizeRegex().Match(docText);
+        if (sizeMatch.Success)
+        {
+            return sizeMatch.Groups[1].Value.Trim();
+        }
+
+        var sizeLabels = new[] { "File Size:", "Size:" };
+        foreach (var label in sizeLabels)
+        {
+            var sizeEl = document.QuerySelectorAll("strong").FirstOrDefault(e => e.TextContent.Contains(label, StringComparison.OrdinalIgnoreCase));
+            if (sizeEl != null)
+            {
+                var fileSize = CNCLabsHelper.GetNextNonEmptyTextSibling(sizeEl);
+                if (!string.IsNullOrEmpty(fileSize))
+                {
+                    return fileSize;
+                }
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>
     /// Gets the source name for this discoverer.
     /// </summary>
@@ -279,86 +379,15 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
         foreach (var item in results)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var nameAnchor = item.QuerySelector(CNCLabsConstants.DisplayNameAnchorSelector);
-            var detailsHref = nameAnchor?.GetAttribute(CNCLabsConstants.HrefAttribute);
-            var name = nameAnchor?.TextContent?.Trim();
-            if (string.IsNullOrWhiteSpace(detailsHref) || string.IsNullOrWhiteSpace(name))
+            var parsed = ParseMapListItem(item, query);
+            if (parsed != null)
             {
-                continue;
-            }
-
-            // The numeric id is the last path segment: /downloads/details/3365/
-            var idMatch = DetailsIdRegex().Match(detailsHref);
-            if (!idMatch.Success || !int.TryParse(idMatch.Groups[1].Value, out var id))
-            {
-                continue;
-            }
-
-            // Make the detail URL absolute at the source so downstream stages see a full URL.
-            detailsHref = new Uri(new Uri(CNCLabsConstants.PublisherWebsite), detailsHref).ToString();
-
-            var description = CNCLabsHelper.NormalizeHtmlDescription(
-                item.QuerySelector(CNCLabsConstants.DescriptionSelector)?.InnerHtml) ?? string.Empty;
-
-            // Author: the span that contains the bi-person icon; its text is the author name.
-            var author = item.QuerySelectorAll("span")
-                .FirstOrDefault(s => s.QuerySelector("i.bi-person") != null)?
-                .TextContent?.Trim();
-
-            // Download count: span containing the bi-download icon, text like "2397 downloads".
-            long? dlCount = null;
-            var dlSpan = item.QuerySelectorAll("span")
-                .FirstOrDefault(s => s.QuerySelector("i.bi-download") != null);
-            var dlMatch = DownloadCountRegex().Match(dlSpan?.TextContent ?? string.Empty);
-            if (dlMatch.Success && long.TryParse(dlMatch.Groups[1].Value.Replace(",", string.Empty), out var dl))
-            {
-                dlCount = dl;
-            }
-
-            // File size: the small text under the Download button, e.g. "234.2 KB".
-            var fSize = item.QuerySelector("div.ms-3 div.small")?.TextContent?.Trim();
-
-            // Thumbnail.
-            string? imgUrl = null;
-            var img = item.QuerySelector("img.download-list-thumbnail");
-            var src = img?.GetAttribute("src");
-            if (!string.IsNullOrEmpty(src))
-            {
-                imgUrl = src.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-                    ? src
-                    : new Uri(new Uri(CNCLabsConstants.PublisherWebsite), src).ToString();
-            }
-
-            // Badges become tags (e.g. "Multiplayer-only", "6 Players").
-            var tags = item.QuerySelectorAll("span.badge")
-                .Select(b => b.TextContent?.Trim())
-                .Where(t => !string.IsNullOrEmpty(t))
-                .Select(t => t!)
-                .ToList();
-
-            mapList.Add(new MapListItem(id, name, description, author ?? CNCLabsConstants.DefaultAuthorName, detailsHref, query.TargetGame, query.ContentType, DateTime.MinValue, dlCount, fSize, imgUrl, tags));
-        }
-
-        // Bootstrap pagination: <ul class="pagination"> with page-link anchors; a "Next" anchor
-        // exists on every page except the last.
-        bool hasMoreItems = false;
-        int currentPage = query.Page ?? 1;
-        var pagingLinks = document.QuerySelectorAll("ul.pagination a.page-link");
-        foreach (var link in pagingLinks)
-        {
-            var text = link.TextContent?.Trim() ?? string.Empty;
-            if (text.Contains("Next", StringComparison.OrdinalIgnoreCase))
-            {
-                hasMoreItems = true;
-                break;
-            }
-
-            if (int.TryParse(text, out var pNum) && pNum > currentPage)
-            {
-                hasMoreItems = true;
-                break;
+                mapList.Add(parsed);
             }
         }
+
+        var currentPage = query.Page ?? 1;
+        var hasMoreItems = CheckPaginationHasMore(document, currentPage);
 
         return (mapList, hasMoreItems);
     }
@@ -452,31 +481,6 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
                                        StringComparison.OrdinalIgnoreCase));
 
         return CNCLabsHelper.GetNextNonEmptyTextSibling(authorStrong) ?? string.Empty;
-    }
-
-    private string? ExtractFileSize(IDocument document, string docText)
-    {
-        var sizeMatch = FileSizeRegex().Match(docText);
-        if (sizeMatch.Success)
-        {
-            return sizeMatch.Groups[1].Value.Trim();
-        }
-
-        var sizeLabels = new[] { "File Size:", "Size:" };
-        foreach (var label in sizeLabels)
-        {
-            var sizeEl = document.QuerySelectorAll("strong").FirstOrDefault(e => e.TextContent.Contains(label, StringComparison.OrdinalIgnoreCase));
-            if (sizeEl != null)
-            {
-                var fileSize = CNCLabsHelper.GetNextNonEmptyTextSibling(sizeEl);
-                if (!string.IsNullOrEmpty(fileSize))
-                {
-                    return fileSize;
-                }
-            }
-        }
-
-        return null;
     }
 
     private long? ExtractDownloadCount(string docText)

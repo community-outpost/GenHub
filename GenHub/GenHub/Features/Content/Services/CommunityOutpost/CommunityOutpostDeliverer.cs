@@ -61,6 +61,15 @@ public partial class CommunityOutpostDeliverer(
         return (actualContentCode, depMetadata);
     }
 
+    private static ManifestFile? FindDownloadableArchive(ContentManifest packageManifest)
+    {
+        return packageManifest.Files.FirstOrDefault(f =>
+            !string.IsNullOrEmpty(f.DownloadUrl) &&
+            (f.DownloadUrl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
+             f.DownloadUrl.EndsWith(".dat", StringComparison.OrdinalIgnoreCase) ||
+             f.DownloadUrl.EndsWith(".7z", StringComparison.OrdinalIgnoreCase)));
+    }
+
     /// <summary>
     /// Extracts the content code from the manifest metadata.
     /// </summary>
@@ -466,15 +475,6 @@ public partial class CommunityOutpostDeliverer(
         }
     }
 
-    private ManifestFile? FindDownloadableArchive(ContentManifest packageManifest)
-    {
-        return packageManifest.Files.FirstOrDefault(f =>
-            !string.IsNullOrEmpty(f.DownloadUrl) &&
-            (f.DownloadUrl.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
-             f.DownloadUrl.EndsWith(".dat", StringComparison.OrdinalIgnoreCase) ||
-             f.DownloadUrl.EndsWith(".7z", StringComparison.OrdinalIgnoreCase)));
-    }
-
     private async Task<List<string>> CollectCandidateUrlsAsync(
         ManifestFile archiveFile,
         ContentManifest packageManifest,
@@ -639,8 +639,9 @@ public partial class CommunityOutpostDeliverer(
                     {
                         File.Delete(targetPath);
                     }
-                    catch
+                    catch (Exception deleteEx)
                     {
+                        logger.LogDebug(deleteEx, "Failed to delete invalid archive at {Path}", targetPath);
                     }
 
                     return OperationResult<bool>.CreateFailure($"Downloaded payload from {primaryUrl} is not a valid archive: {ex.Message}");
@@ -1017,8 +1018,9 @@ public partial class CommunityOutpostDeliverer(
                     Directory.Delete(tempDir, recursive: true);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                logger.LogDebug(ex, "Failed to clean up temporary dependency archive or directory for {DependencyId}", dep.Id);
             }
         }
     }
@@ -1092,8 +1094,9 @@ public partial class CommunityOutpostDeliverer(
                     {
                         File.Delete(depArchive);
                     }
-                    catch
+                    catch (Exception deleteEx)
                     {
+                        logger.LogDebug(deleteEx, "Failed to delete fallback dependency archive at {Path}", depArchive);
                     }
                 }
             }

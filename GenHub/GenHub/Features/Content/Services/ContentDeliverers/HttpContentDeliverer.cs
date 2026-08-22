@@ -82,14 +82,17 @@ public class HttpContentDeliverer(
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var downloadResult = await DownloadFileItemAsync(
-                    file,
+                var downloadContext = new FileDownloadContext(
                     targetDirectory,
                     packageManifest,
                     deliveredManifest,
                     progress,
                     processedFiles,
-                    totalFiles,
+                    totalFiles);
+
+                var downloadResult = await DownloadFileItemAsync(
+                    file,
+                    downloadContext,
                     cancellationToken);
 
                 if (!downloadResult.Success)
@@ -200,17 +203,20 @@ public class HttpContentDeliverer(
         return deliveredManifest;
     }
 
+    private readonly record struct FileDownloadContext(
+        string TargetDirectory,
+        ContentManifest PackageManifest,
+        IContentManifestBuilder DeliveredManifest,
+        IProgress<ContentAcquisitionProgress>? Progress,
+        int ProcessedFiles,
+        int TotalFiles);
+
     private async Task<OperationResult<ContentManifest>> DownloadFileItemAsync(
         ManifestFile file,
-        string targetDirectory,
-        ContentManifest packageManifest,
-        IContentManifestBuilder deliveredManifest,
-        IProgress<ContentAcquisitionProgress>? progress,
-        int processedFiles,
-        int totalFiles,
+        FileDownloadContext context,
         CancellationToken cancellationToken)
     {
-        var pathResult = ContentPathPolicy.ResolveContainedFile(targetDirectory, file.RelativePath);
+        var pathResult = ContentPathPolicy.ResolveContainedFile(context.TargetDirectory, file.RelativePath);
         if (!pathResult.Success)
         {
             return OperationResult<ContentManifest>.CreateFailure(pathResult);
@@ -223,14 +229,14 @@ public class HttpContentDeliverer(
             Directory.CreateDirectory(directory);
         }
 
-        progress?.Report(new ContentAcquisitionProgress
+        context.Progress?.Report(new ContentAcquisitionProgress
         {
             Phase = ContentAcquisitionPhase.Downloading,
-            ProgressPercentage = (double)processedFiles / totalFiles * 100,
+            ProgressPercentage = (double)context.ProcessedFiles / context.TotalFiles * 100,
             CurrentOperation = $"Downloading {file.RelativePath}",
             CurrentFile = file.RelativePath,
-            FilesProcessed = processedFiles,
-            TotalFiles = totalFiles,
+            FilesProcessed = context.ProcessedFiles,
+            TotalFiles = context.TotalFiles,
         });
 
         if (!Uri.TryCreate(file.DownloadUrl, UriKind.Absolute, out var downloadUri) ||
@@ -242,37 +248,37 @@ public class HttpContentDeliverer(
 
         var downloadProgress = new Progress<DownloadProgress>(download =>
         {
-            progress?.Report(new ContentAcquisitionProgress
+            context.Progress?.Report(new ContentAcquisitionProgress
             {
                 Phase = ContentAcquisitionPhase.Downloading,
-                ProgressPercentage = totalFiles == 0
+                ProgressPercentage = context.TotalFiles == 0
                     ? 0
-                    : (((double)processedFiles + (download.Percentage / 100)) / totalFiles) * 100,
+                    : (((double)context.ProcessedFiles + (download.Percentage / 100)) / context.TotalFiles) * 100,
                 CurrentOperation = $"Downloading {download.FormattedProgress} at {download.FormattedSpeed}",
                 CurrentFile = file.RelativePath,
                 BytesProcessed = download.BytesReceived,
                 TotalBytes = download.TotalBytes,
-                FilesProcessed = processedFiles,
-                TotalFiles = totalFiles,
+                FilesProcessed = context.ProcessedFiles,
+                TotalFiles = context.TotalFiles,
                 EstimatedTimeRemaining = download.EstimatedTimeRemaining ?? TimeSpan.Zero,
             });
         });
 
-        var downloadResult = await ExecuteFileDownloadAsync(downloadUri, localPath, file, packageManifest, downloadProgress, cancellationToken);
+        var downloadResult = await ExecuteFileDownloadAsync(downloadUri, localPath, file, context.PackageManifest, downloadProgress, cancellationToken);
         if (!downloadResult.Success)
         {
             return OperationResult<ContentManifest>.CreateFailure(
                 $"Failed to download {file.RelativePath}: {downloadResult.FirstError}");
         }
 
-        await deliveredManifest.AddLocalFileAsync(
+        await context.DeliveredManifest.AddLocalFileAsync(
             file.RelativePath,
             localPath,
             ContentSourceType.ContentAddressable,
             isExecutable: file.IsExecutable,
             permissions: file.Permissions);
 
-        return OperationResult<ContentManifest>.CreateSuccess(packageManifest);
+        return OperationResult<ContentManifest>.CreateSuccess(context.PackageManifest);
     }
 
     private async Task<DownloadResult> ExecuteFileDownloadAsync(

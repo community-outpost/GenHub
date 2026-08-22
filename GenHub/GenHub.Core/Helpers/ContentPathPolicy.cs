@@ -165,11 +165,15 @@ public static class ContentPathPolicy
 
     private static string? TryResolveFileSystemLink(string current, string originalPath)
     {
-        FileSystemInfo? info = File.Exists(current)
-            ? new FileInfo(current)
-            : Directory.Exists(current)
-                ? new DirectoryInfo(current)
-                : null;
+        FileSystemInfo? info = null;
+        if (File.Exists(current))
+        {
+            info = new FileInfo(current);
+        }
+        else if (Directory.Exists(current))
+        {
+            info = new DirectoryInfo(current);
+        }
 
         if (info?.LinkTarget == null)
         {

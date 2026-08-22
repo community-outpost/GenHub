@@ -46,135 +46,11 @@ public static class CatalogBundleComponentBuilder
                 continue;
             }
 
-            if (CatalogManifestIdentity.IsBaseGameDependency(dependency))
+            var descriptor = BuildDependencyDescriptor(dependency, parent, itemsById);
+            if (descriptor != null)
             {
-                components.Add(new CatalogBundleComponentDescriptor
-                {
-                    PublisherId = dependency.PublisherId,
-                    ContentId = dependency.ContentId,
-                    Name = CatalogManifestIdentity.HumanizeContentId(dependency.ContentId),
-                    ContentType = ContentType.GameInstallation.ToString(),
-                    IsOptional = dependency.IsOptional,
-                    IsBaseGame = true,
-                });
-                continue;
+                components.Add(descriptor);
             }
-
-            itemsById.TryGetValue(dependency.ContentId, out var sibling);
-            var contentType = CatalogManifestIdentity.ResolveDependencyContentType(dependency, parent, itemsById);
-            var name = sibling?.Name;
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                name = CatalogManifestIdentity.HumanizeContentId(dependency.ContentId);
-            }
-
-            var declaredPublisherId = sibling != null
-                ? CatalogManifestIdentity.ResolveDeclaredPublisherType(sibling)
-                : CatalogConstants.GenericCatalogResolverId;
-
-            var siblingRelease = SelectRelease(sibling, dependency.VersionConstraint);
-            if (sibling == null || siblingRelease == null)
-            {
-                // Skip missing siblings or items with no releases so they don't look downloadable
-                continue;
-            }
-
-            var descriptor = new CatalogBundleComponentDescriptor
-            {
-                PublisherId = declaredPublisherId,
-                ContentId = dependency.ContentId,
-                Name = name,
-                ContentType = contentType.ToString(),
-                IsOptional = dependency.IsOptional,
-                IsBaseGame = false,
-                CatalogItemJson = JsonSerializer.Serialize(sibling),
-            };
-
-            var resolvedSiblingRelease = CloneReleaseWithResolvedTypes(siblingRelease, sibling, itemsById);
-            var variantArtifacts = GetMultiOptionVariantArtifacts(resolvedSiblingRelease);
-            if (parent.TargetGame is GameType.Generals or GameType.ZeroHour)
-            {
-                variantArtifacts = variantArtifacts.Where(artifact =>
-                {
-                    if (artifact.VariantAxis?.Equals("game-type", StringComparison.OrdinalIgnoreCase) == true)
-                    {
-                        var isGen = artifact.Variant?.Equals("Generals", StringComparison.OrdinalIgnoreCase) == true;
-                        var isZh = artifact.Variant?.Equals("Zero Hour", StringComparison.OrdinalIgnoreCase) == true ||
-                                   artifact.Variant?.Equals("ZeroHour", StringComparison.OrdinalIgnoreCase) == true;
-                        if (parent.TargetGame == GameType.ZeroHour && isGen && !isZh)
-                        {
-                            return false;
-                        }
-
-                        if (parent.TargetGame == GameType.Generals && isZh && !isGen)
-                        {
-                            return false;
-                        }
-                    }
-
-                    return true;
-                }).ToList();
-            }
-
-            if (variantArtifacts.Count > 0)
-            {
-                var defaultAssigned = false;
-                foreach (var artifact in variantArtifacts)
-                {
-                    var label = artifact.Variant!.Trim();
-                    var axis = artifact.VariantAxis!.Trim();
-                    var isDefault = artifact.IsDefaultVariant && !defaultAssigned;
-                    if (isDefault)
-                    {
-                        defaultAssigned = true;
-                    }
-
-                    var variantRelease = CloneVariantRelease(resolvedSiblingRelease, artifact, resolvedSiblingRelease.Artifacts);
-                    descriptor.Variants.Add(new CatalogBundleComponentVariantDescriptor
-                    {
-                        Label = label,
-                        Axis = axis,
-                        IsDefault = isDefault,
-                        CatalogId = CatalogManifestIdentity.CreateVariantContentId(
-                            descriptor.PublisherId,
-                            sibling.ContentType,
-                            sibling.Id,
-                            label,
-                            resolvedSiblingRelease.Version,
-                            axis),
-                        ReleaseJson = JsonSerializer.Serialize(variantRelease),
-                        DownloadSize = artifact.Size,
-                    });
-                }
-
-                if (!defaultAssigned && descriptor.Variants.Count > 0)
-                {
-                    var preferred = descriptor.Variants.FirstOrDefault(v =>
-                                        v.Label.Contains("1080p", StringComparison.OrdinalIgnoreCase))
-                                    ?? descriptor.Variants[0];
-                    preferred.IsDefault = true;
-                }
-            }
-            else
-            {
-                descriptor.Variants.Add(new CatalogBundleComponentVariantDescriptor
-                {
-                    Label = string.Empty,
-                    Axis = string.Empty,
-                    IsDefault = true,
-                    CatalogId = CatalogManifestIdentity.CreateContentId(
-                        descriptor.PublisherId,
-                        sibling.ContentType,
-                        sibling.Id,
-                        resolvedSiblingRelease.Version),
-                    ReleaseJson = JsonSerializer.Serialize(resolvedSiblingRelease),
-                    DownloadSize = resolvedSiblingRelease.Artifacts?.FirstOrDefault(a => a.IsPrimary)?.Size
-                        ?? resolvedSiblingRelease.Artifacts?.FirstOrDefault()?.Size
-                        ?? 0,
-                });
-            }
-
-            components.Add(descriptor);
         }
 
         return components;
@@ -227,6 +103,159 @@ public static class CatalogBundleComponentBuilder
                     : dependency.ContentType,
             })],
         };
+    }
+
+    private static CatalogBundleComponentDescriptor BuildBaseGameDescriptor(CatalogDependency dependency)
+    {
+        return new CatalogBundleComponentDescriptor
+        {
+            PublisherId = dependency.PublisherId,
+            ContentId = dependency.ContentId,
+            Name = CatalogManifestIdentity.HumanizeContentId(dependency.ContentId),
+            ContentType = ContentType.GameInstallation.ToString(),
+            IsOptional = dependency.IsOptional,
+            IsBaseGame = true,
+        };
+    }
+
+    private static CatalogBundleComponentDescriptor? BuildDependencyDescriptor(
+        CatalogDependency dependency,
+        CatalogContentItem parent,
+        Dictionary<string, CatalogContentItem> itemsById)
+    {
+        if (CatalogManifestIdentity.IsBaseGameDependency(dependency))
+        {
+            return BuildBaseGameDescriptor(dependency);
+        }
+
+        itemsById.TryGetValue(dependency.ContentId, out var sibling);
+        var siblingRelease = SelectRelease(sibling, dependency.VersionConstraint);
+        if (sibling == null || siblingRelease == null)
+        {
+            return null;
+        }
+
+        var contentType = CatalogManifestIdentity.ResolveDependencyContentType(dependency, parent, itemsById);
+        var name = !string.IsNullOrWhiteSpace(sibling.Name)
+            ? sibling.Name
+            : CatalogManifestIdentity.HumanizeContentId(dependency.ContentId);
+
+        var declaredPublisherId = CatalogManifestIdentity.ResolveDeclaredPublisherType(sibling);
+
+        var descriptor = new CatalogBundleComponentDescriptor
+        {
+            PublisherId = declaredPublisherId,
+            ContentId = dependency.ContentId,
+            Name = name,
+            ContentType = contentType.ToString(),
+            IsOptional = dependency.IsOptional,
+            IsBaseGame = false,
+            CatalogItemJson = JsonSerializer.Serialize(sibling),
+        };
+
+        var resolvedSiblingRelease = CloneReleaseWithResolvedTypes(siblingRelease, sibling, itemsById);
+        var variantArtifacts = GetMultiOptionVariantArtifacts(resolvedSiblingRelease);
+        variantArtifacts = FilterVariantArtifactsByTargetGame(variantArtifacts, parent.TargetGame);
+
+        PopulateComponentVariants(descriptor, sibling, resolvedSiblingRelease, variantArtifacts);
+
+        return descriptor;
+    }
+
+    private static List<ReleaseArtifact> FilterVariantArtifactsByTargetGame(
+        List<ReleaseArtifact> variantArtifacts,
+        GameType parentTargetGame)
+    {
+        if (parentTargetGame is not (GameType.Generals or GameType.ZeroHour))
+        {
+            return variantArtifacts;
+        }
+
+        return variantArtifacts.Where(artifact =>
+        {
+            if (string.Equals(artifact.VariantAxis, "game-type", StringComparison.OrdinalIgnoreCase))
+            {
+                var isGen = string.Equals(artifact.Variant, "Generals", StringComparison.OrdinalIgnoreCase);
+                var isZh = string.Equals(artifact.Variant, "Zero Hour", StringComparison.OrdinalIgnoreCase) ||
+                           string.Equals(artifact.Variant, "ZeroHour", StringComparison.OrdinalIgnoreCase);
+                if (parentTargetGame == GameType.ZeroHour && isGen && !isZh)
+                {
+                    return false;
+                }
+
+                if (parentTargetGame == GameType.Generals && isZh && !isGen)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }).ToList();
+    }
+
+    private static void PopulateComponentVariants(
+        CatalogBundleComponentDescriptor descriptor,
+        CatalogContentItem sibling,
+        ContentRelease resolvedSiblingRelease,
+        List<ReleaseArtifact> variantArtifacts)
+    {
+        if (variantArtifacts.Count > 0)
+        {
+            var defaultAssigned = false;
+            foreach (var artifact in variantArtifacts)
+            {
+                var label = artifact.Variant?.Trim() ?? string.Empty;
+                var axis = artifact.VariantAxis?.Trim() ?? string.Empty;
+                var isDefault = artifact.IsDefaultVariant && !defaultAssigned;
+                if (isDefault)
+                {
+                    defaultAssigned = true;
+                }
+
+                var variantRelease = CloneVariantRelease(resolvedSiblingRelease, artifact, resolvedSiblingRelease.Artifacts);
+                descriptor.Variants.Add(new CatalogBundleComponentVariantDescriptor
+                {
+                    Label = label,
+                    Axis = axis,
+                    IsDefault = isDefault,
+                    CatalogId = CatalogManifestIdentity.CreateVariantContentId(
+                        descriptor.PublisherId,
+                        sibling.ContentType,
+                        sibling.Id,
+                        label,
+                        resolvedSiblingRelease.Version,
+                        axis),
+                    ReleaseJson = JsonSerializer.Serialize(variantRelease),
+                    DownloadSize = artifact.Size,
+                });
+            }
+
+            if (!defaultAssigned && descriptor.Variants.Count > 0)
+            {
+                var preferred = descriptor.Variants.FirstOrDefault(v =>
+                                    v.Label.Contains("1080p", StringComparison.OrdinalIgnoreCase))
+                                ?? descriptor.Variants[0];
+                preferred.IsDefault = true;
+            }
+        }
+        else
+        {
+            descriptor.Variants.Add(new CatalogBundleComponentVariantDescriptor
+            {
+                Label = string.Empty,
+                Axis = string.Empty,
+                IsDefault = true,
+                CatalogId = CatalogManifestIdentity.CreateContentId(
+                    descriptor.PublisherId,
+                    sibling.ContentType,
+                    sibling.Id,
+                    resolvedSiblingRelease.Version),
+                ReleaseJson = JsonSerializer.Serialize(resolvedSiblingRelease),
+                DownloadSize = resolvedSiblingRelease.Artifacts?.FirstOrDefault(a => a.IsPrimary)?.Size
+                    ?? resolvedSiblingRelease.Artifacts?.FirstOrDefault()?.Size
+                    ?? 0,
+            });
+        }
     }
 
     private static ContentRelease? SelectRelease(CatalogContentItem? item, string? versionConstraint = null)

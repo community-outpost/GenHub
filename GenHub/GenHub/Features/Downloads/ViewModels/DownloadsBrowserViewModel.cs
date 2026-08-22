@@ -484,6 +484,18 @@ public sealed partial class DownloadsBrowserViewModel(
         ];
     }
 
+    private static void RunOnUi(Action action)
+    {
+        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess() || Avalonia.Application.Current == null)
+        {
+            action();
+        }
+        else
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(action);
+        }
+    }
+
     private void HandleSelectedPublisherChanged(PublisherItemViewModel? value)
     {
         if (value == null)
@@ -1144,18 +1156,6 @@ public sealed partial class DownloadsBrowserViewModel(
         return vm;
     }
 
-    private void RunOnUi(Action action)
-    {
-        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess() || Avalonia.Application.Current == null)
-        {
-            action();
-        }
-        else
-        {
-            Avalonia.Threading.Dispatcher.UIThread.Post(action);
-        }
-    }
-
     /// <returns>The discoverer for the specified publisher, or null if not found.</returns>
     private IContentDiscoverer? GetDiscovererForPublisher(string publisherId)
     {
@@ -1258,21 +1258,23 @@ public sealed partial class DownloadsBrowserViewModel(
                 match.SelectVariantByManifestId(selectedVariantId);
             }
 
-            _ = Task.Run(async () =>
-            {
-                try
+            _ = Task.Run(
+                async () =>
                 {
-                    if (match != null)
+                    try
                     {
-                        var state = await contentStateService.GetStateAsync(match.SearchResult);
-                        Avalonia.Threading.Dispatcher.UIThread.Post(() => match.CurrentState = state);
+                        if (match != null)
+                        {
+                            var state = await contentStateService.GetStateAsync(match.SearchResult, _vmCts.Token);
+                            Avalonia.Threading.Dispatcher.UIThread.Post(() => match.CurrentState = state);
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to refresh grid item state after closing detail");
-                }
-            });
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Failed to refresh grid item state after closing detail");
+                    }
+                },
+                _vmCts.Token);
         }
     }
 
@@ -1283,7 +1285,7 @@ public sealed partial class DownloadsBrowserViewModel(
     {
         try
         {
-            var result = await subscriptionStore.GetSubscriptionsAsync();
+            var result = await subscriptionStore.GetSubscriptionsAsync(_vmCts.Token);
             if (!result.Success || result.Data == null)
             {
                 logger.LogWarning(

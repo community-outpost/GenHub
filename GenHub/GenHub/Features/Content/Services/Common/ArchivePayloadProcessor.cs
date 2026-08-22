@@ -747,56 +747,19 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 .Where(e => !string.IsNullOrEmpty(e.FullName) && !e.FullName.EndsWith('/') && !e.FullName.EndsWith('\\'))
                 .ToList();
             var totalEntries = validEntries.Count;
-            var entryCount = 0;
+            if (totalEntries > CatalogConstants.MaxZipEntryCount)
+            {
+                throw new InvalidDataException(
+                    $"Archive exceeds maximum entry count of {CatalogConstants.MaxZipEntryCount}");
+            }
+
             long totalUncompressedSize = 0;
             var extractRoot = Path.GetFullPath(extractPath);
 
             for (var i = 0; i < totalEntries; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var entry = validEntries[i];
-
-                entryCount++;
-                if (entryCount > CatalogConstants.MaxZipEntryCount)
-                {
-                    throw new InvalidDataException(
-                        $"Archive exceeds maximum entry count of {CatalogConstants.MaxZipEntryCount}");
-                }
-
-                if (Path.IsPathRooted(entry.FullName))
-                {
-                    throw new InvalidDataException($"Archive entry has an unsafe path: {entry.FullName}");
-                }
-
-                var pathResult = ContentPathPolicy.ResolveContainedFile(extractRoot, entry.FullName);
-                if (!pathResult.Success)
-                {
-                    throw new InvalidDataException($"Archive entry has an unsafe path: {entry.FullName}");
-                }
-
-                var destinationPath = pathResult.Data!;
-                var destinationDir = Path.GetDirectoryName(destinationPath);
-                if (!string.IsNullOrEmpty(destinationDir))
-                {
-                    Directory.CreateDirectory(destinationDir);
-                }
-
-                var stageProgress = totalEntries > 0 ? (double)(i + 1) / totalEntries * 100 : 100;
-                var fileName = Path.GetFileName(entry.FullName);
-                progress?.Report(new ContentAcquisitionProgress
-                {
-                    CurrentStage = 3,
-                    TotalStages = 5,
-                    StageDescription = "Extracting files",
-                    CurrentOperation = $"Extracting {fileName}",
-                    FilesProcessed = i + 1,
-                    TotalFiles = totalEntries,
-                    StageProgress = stageProgress,
-                });
-
-                using var entryStream = entry.Open();
-                CopyEntryWithCap(entryStream, destinationPath, ref totalUncompressedSize, cancellationToken);
-                logger.LogInformation("Extracted zip entry {Current}/{Total}: {EntryName} ({Size} bytes)", i + 1, totalEntries, entry.FullName, entry.Length);
+                ExtractSingleZipEntry(validEntries[i], extractRoot, i, totalEntries, ref totalUncompressedSize, progress, logger, cancellationToken);
             }
 
             return true;
@@ -813,6 +776,52 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         {
             return false;
         }
+    }
+
+    private static void ExtractSingleZipEntry(
+        ZipArchiveEntry entry,
+        string extractRoot,
+        int index,
+        int totalEntries,
+        ref long totalUncompressedSize,
+        IProgress<ContentAcquisitionProgress>? progress,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        if (Path.IsPathRooted(entry.FullName))
+        {
+            throw new InvalidDataException($"Archive entry has an unsafe path: {entry.FullName}");
+        }
+
+        var pathResult = ContentPathPolicy.ResolveContainedFile(extractRoot, entry.FullName);
+        if (!pathResult.Success)
+        {
+            throw new InvalidDataException($"Archive entry has an unsafe path: {entry.FullName}");
+        }
+
+        var destinationPath = pathResult.Data!;
+        var destinationDir = Path.GetDirectoryName(destinationPath);
+        if (!string.IsNullOrEmpty(destinationDir))
+        {
+            Directory.CreateDirectory(destinationDir);
+        }
+
+        var stageProgress = totalEntries > 0 ? (double)(index + 1) / totalEntries * 100 : 100;
+        var fileName = Path.GetFileName(entry.FullName);
+        progress?.Report(new ContentAcquisitionProgress
+        {
+            CurrentStage = 3,
+            TotalStages = 5,
+            StageDescription = "Extracting files",
+            CurrentOperation = $"Extracting {fileName}",
+            FilesProcessed = index + 1,
+            TotalFiles = totalEntries,
+            StageProgress = stageProgress,
+        });
+
+        using var entryStream = entry.Open();
+        CopyEntryWithCap(entryStream, destinationPath, ref totalUncompressedSize, cancellationToken);
+        logger.LogInformation("Extracted zip entry {Current}/{Total}: {EntryName} ({Size} bytes)", index + 1, totalEntries, entry.FullName, entry.Length);
     }
 
     private static bool TryExtractSubStreamArchive(
@@ -1450,110 +1459,105 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
         if (headerRead >= 2 && header[0] == (byte)'B' && header[1] == (byte)'Z')
         {
-            try
-            {
-                using var bz2 = SharpCompress.Compressors.BZip2.BZip2Stream.Create(
-                    stream,
-                    SharpCompress.Compressors.CompressionMode.Decompress,
-                    decompressConcatenated: false,
-                    leaveOpen: true);
-
-                using var outStream = File.Create(destinationPath);
-                while (written < uncompressedSize)
-                {
-                    var toRead = (int)Math.Min(copyBuffer.Length, uncompressedSize - written);
-                    var readBytes = bz2.Read(copyBuffer, 0, toRead);
-                    if (readBytes <= 0)
-                    {
-                        break;
-                    }
-
-                    outStream.Write(copyBuffer, 0, readBytes);
-                    written += readBytes;
-                }
-            }
-            catch
-            {
-                // Fallback
-            }
+            written = TryDecompressBZip2(stream, destinationPath, uncompressedSize, copyBuffer);
         }
         else if (headerRead >= 2 && header[0] == 0x78 && (((header[0] * 256) + header[1]) % 31 == 0))
         {
-            try
-            {
-                stream.Position = filePos + 2; // skip zlib header
-                using var def = new DeflateStream(stream, CompressionMode.Decompress, leaveOpen: true);
-                using var outStream = File.Create(destinationPath);
-                while (written < uncompressedSize)
-                {
-                    var toRead = (int)Math.Min(copyBuffer.Length, uncompressedSize - written);
-                    var readBytes = def.Read(copyBuffer, 0, toRead);
-                    if (readBytes <= 0)
-                    {
-                        break;
-                    }
-
-                    outStream.Write(copyBuffer, 0, readBytes);
-                    written += readBytes;
-                }
-            }
-            catch
-            {
-                // Fallback
-            }
+            written = TryDecompressDeflate(stream, filePos, destinationPath, uncompressedSize, copyBuffer);
         }
         else if (headerRead >= 2 && header[0] == 0x1F && header[1] == 0x8B)
         {
-            try
-            {
-                stream.Position = filePos;
-                using var gz = new GZipStream(stream, CompressionMode.Decompress, leaveOpen: true);
-                using var outStream = File.Create(destinationPath);
-                while (written < uncompressedSize)
-                {
-                    var toRead = (int)Math.Min(copyBuffer.Length, uncompressedSize - written);
-                    var readBytes = gz.Read(copyBuffer, 0, toRead);
-                    if (readBytes <= 0)
-                    {
-                        break;
-                    }
-
-                    outStream.Write(copyBuffer, 0, readBytes);
-                    written += readBytes;
-                }
-            }
-            catch
-            {
-                // Fallback
-            }
+            written = TryDecompressGZip(stream, filePos, destinationPath, uncompressedSize, copyBuffer);
         }
 
         if (written == 0)
         {
-            try
-            {
-                stream.Position = filePos;
-                using var outStream = File.Create(destinationPath);
-                while (written < uncompressedSize)
-                {
-                    var toRead = (int)Math.Min(copyBuffer.Length, uncompressedSize - written);
-                    var readBytes = stream.Read(copyBuffer, 0, toRead);
-                    if (readBytes <= 0)
-                    {
-                        break;
-                    }
-
-                    outStream.Write(copyBuffer, 0, readBytes);
-                    written += readBytes;
-                }
-            }
-            catch
-            {
-                // Ignore
-            }
+            written = TryCopyRawStream(stream, filePos, destinationPath, uncompressedSize, copyBuffer);
         }
 
         return written;
+    }
+
+    private static long CopyStreamUpToCap(Stream input, Stream output, uint maxBytes, byte[] copyBuffer)
+    {
+        long written = 0;
+        while (written < maxBytes)
+        {
+            var toRead = (int)Math.Min(copyBuffer.Length, maxBytes - written);
+            var readBytes = input.Read(copyBuffer, 0, toRead);
+            if (readBytes <= 0)
+            {
+                break;
+            }
+
+            output.Write(copyBuffer, 0, readBytes);
+            written += readBytes;
+        }
+
+        return written;
+    }
+
+    private static long TryDecompressBZip2(Stream stream, string destinationPath, uint uncompressedSize, byte[] copyBuffer)
+    {
+        try
+        {
+            using var bz2 = SharpCompress.Compressors.BZip2.BZip2Stream.Create(
+                stream,
+                SharpCompress.Compressors.CompressionMode.Decompress,
+                decompressConcatenated: false,
+                leaveOpen: true);
+
+            using var outStream = File.Create(destinationPath);
+            return CopyStreamUpToCap(bz2, outStream, uncompressedSize, copyBuffer);
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private static long TryDecompressDeflate(Stream stream, long filePos, string destinationPath, uint uncompressedSize, byte[] copyBuffer)
+    {
+        try
+        {
+            stream.Position = filePos + 2; // skip zlib header
+            using var def = new DeflateStream(stream, CompressionMode.Decompress, leaveOpen: true);
+            using var outStream = File.Create(destinationPath);
+            return CopyStreamUpToCap(def, outStream, uncompressedSize, copyBuffer);
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private static long TryDecompressGZip(Stream stream, long filePos, string destinationPath, uint uncompressedSize, byte[] copyBuffer)
+    {
+        try
+        {
+            stream.Position = filePos;
+            using var gz = new GZipStream(stream, CompressionMode.Decompress, leaveOpen: true);
+            using var outStream = File.Create(destinationPath);
+            return CopyStreamUpToCap(gz, outStream, uncompressedSize, copyBuffer);
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private static long TryCopyRawStream(Stream stream, long filePos, string destinationPath, uint uncompressedSize, byte[] copyBuffer)
+    {
+        try
+        {
+            stream.Position = filePos;
+            using var outStream = File.Create(destinationPath);
+            return CopyStreamUpToCap(stream, outStream, uncompressedSize, copyBuffer);
+        }
+        catch
+        {
+            return 0;
+        }
     }
 
     private static List<(string Name, uint UncompressedSize, uint StreamOffset, uint CompressedSize)> ParseSmartInstallMakerFileTable(

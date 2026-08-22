@@ -1836,20 +1836,17 @@ public class GameLauncher(
             Path.Combine(workspacePath, "data", "movies", "EA_LOGO.BIK"),
         };
 
-        foreach (var logoPath in possiblePaths)
+        foreach (var logoPath in possiblePaths.Where(File.Exists))
         {
-            if (File.Exists(logoPath))
+            try
             {
-                try
-                {
-                    File.Delete(logoPath);
-                    logger.LogInformation("[GameLauncher] Successfully deleted EA logo at: {LogoPath}", logoPath);
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "[GameLauncher] Failed to delete EA_LOGO.BIK at {LogoPath}", logoPath);
-                }
+                File.Delete(logoPath);
+                logger.LogInformation("[GameLauncher] Successfully deleted EA logo at: {LogoPath}", logoPath);
+                break;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "[GameLauncher] Failed to delete EA_LOGO.BIK at {LogoPath}", logoPath);
             }
         }
     }

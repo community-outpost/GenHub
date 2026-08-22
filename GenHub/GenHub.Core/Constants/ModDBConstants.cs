@@ -35,6 +35,12 @@ public static class ModDBConstants
     /// <summary>Downloads section for Zero Hour.</summary>
     public const string ZeroHourDownloadsUrl = ZeroHourBaseUrl + "/downloads";
 
+    /// <summary>Mods URL path segment.</summary>
+    public const string ModsSegment = "/mods/";
+
+    /// <summary>Downloads URL path segment.</summary>
+    public const string DownloadsSegment = "/downloads/";
+
     /// <summary>Addons URL path segment.</summary>
     public const string AddonsSegment = "/addons/";
 

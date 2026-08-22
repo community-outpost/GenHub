@@ -136,13 +136,14 @@ public class CommunityOutpostResolver(
 
             ApplyPostResolutionMetadata(
                 builtManifest,
-                discoveredItem,
-                contentMetadata,
-                contentCode,
-                filename,
-                requestedVariantSuffix,
-                mirrorUrls,
-                fileSize);
+                new PostResolutionContext(
+                    discoveredItem,
+                    contentMetadata,
+                    contentCode,
+                    filename,
+                    requestedVariantSuffix,
+                    mirrorUrls,
+                    fileSize));
 
             logger.LogInformation(
                 "Successfully resolved Community Outpost manifest: {ManifestId} for {ContentCode} ({Category})",
@@ -327,75 +328,90 @@ public class CommunityOutpostResolver(
         return manifest;
     }
 
-    private void ApplyPostResolutionMetadata(
-        ContentManifest builtManifest,
-        ContentSearchResult discoveredItem,
-        GenPatcherContentMetadata contentMetadata,
-        string contentCode,
-        string filename,
-        string? requestedVariantSuffix,
-        List<string> mirrorUrls,
-        long fileSize)
+    private readonly record struct PostResolutionContext(
+        ContentSearchResult DiscoveredItem,
+        GenPatcherContentMetadata ContentMetadata,
+        string ContentCode,
+        string Filename,
+        string? RequestedVariantSuffix,
+        List<string> MirrorUrls,
+        long FileSize);
+
+    private static void ApplyPostResolutionMetadata(ContentManifest builtManifest, in PostResolutionContext context)
     {
         builtManifest.InstallationInstructions ??= new InstallationInstructions();
         builtManifest.Metadata ??= new ContentMetadata();
 
-        if (!string.IsNullOrEmpty(requestedVariantSuffix))
-        {
-            builtManifest.Metadata.SelectedVariantId = requestedVariantSuffix;
-            builtManifest.Metadata.Tags ??= [];
-            builtManifest.Metadata.Tags.Add($"requestedVariant:{requestedVariantSuffix}");
-            builtManifest.Metadata.Tags.Add($"selectedVariant:{requestedVariantSuffix}");
-            builtManifest.Metadata.Tags.Add($"variant:{requestedVariantSuffix}");
-        }
+        ApplyMetadataTags(builtManifest, context);
+        ApplyManifestFileConfig(builtManifest, context);
 
-        if (mirrorUrls.Count > 1)
-        {
-            builtManifest.Metadata.Tags ??= [];
-            builtManifest.Metadata.Tags.Add($"mirrors:{mirrorUrls.Count}");
-        }
+        builtManifest.Name = context.ContentMetadata.SupportsVariants && !string.IsNullOrEmpty(context.ContentMetadata.DisplayName)
+            ? context.ContentMetadata.DisplayName
+            : context.DiscoveredItem.Name ?? context.ContentMetadata.DisplayName;
 
+        builtManifest.Version = ResolveManifestVersion(context.ContentCode, context.ContentMetadata, context.DiscoveredItem);
+    }
+
+    private static void ApplyMetadataTags(ContentManifest builtManifest, in PostResolutionContext context)
+    {
+        builtManifest.Metadata ??= new ContentMetadata();
         builtManifest.Metadata.Tags ??= [];
-        builtManifest.Metadata.Tags.Add($"contentCode:{contentCode}");
-        builtManifest.Metadata.Tags.Add($"installTarget:{contentMetadata.InstallTarget}");
 
-        if (filename.EndsWith(CommunityOutpostConstants.DatFileExtension, StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrEmpty(context.RequestedVariantSuffix))
+        {
+            builtManifest.Metadata.SelectedVariantId = context.RequestedVariantSuffix;
+            builtManifest.Metadata.Tags.Add($"requestedVariant:{context.RequestedVariantSuffix}");
+            builtManifest.Metadata.Tags.Add($"selectedVariant:{context.RequestedVariantSuffix}");
+            builtManifest.Metadata.Tags.Add($"variant:{context.RequestedVariantSuffix}");
+        }
+
+        if (context.MirrorUrls.Count > 1)
+        {
+            builtManifest.Metadata.Tags.Add($"mirrors:{context.MirrorUrls.Count}");
+        }
+
+        builtManifest.Metadata.Tags.Add($"contentCode:{context.ContentCode}");
+        builtManifest.Metadata.Tags.Add($"installTarget:{context.ContentMetadata.InstallTarget}");
+    }
+
+    private static void ApplyManifestFileConfig(ContentManifest builtManifest, in PostResolutionContext context)
+    {
+        if (context.Filename.EndsWith(CommunityOutpostConstants.DatFileExtension, StringComparison.OrdinalIgnoreCase))
         {
             foreach (var file in builtManifest.Files)
             {
-                if (file.RelativePath == filename)
+                if (file.RelativePath == context.Filename)
                 {
                     file.SourcePath = "archive:7z";
-                    file.InstallTarget = contentMetadata.InstallTarget;
+                    file.InstallTarget = context.ContentMetadata.InstallTarget;
                 }
             }
         }
 
-        if (fileSize > 0 && builtManifest.Files.Count > 0)
+        if (context.FileSize > 0 && builtManifest.Files.Count > 0)
         {
-            builtManifest.Files[0].Size = fileSize;
+            builtManifest.Files[0].Size = context.FileSize;
         }
+    }
 
-        builtManifest.Name = contentMetadata.SupportsVariants && !string.IsNullOrEmpty(contentMetadata.DisplayName)
-            ? contentMetadata.DisplayName
-            : discoveredItem.Name ?? contentMetadata.DisplayName;
-
+    private static string ResolveManifestVersion(string contentCode, GenPatcherContentMetadata contentMetadata, ContentSearchResult discoveredItem)
+    {
         if (contentCode == "community-patch" && !string.IsNullOrWhiteSpace(discoveredItem.Version))
         {
-            builtManifest.Version = discoveredItem.Version;
+            return discoveredItem.Version;
         }
-        else if (!string.IsNullOrWhiteSpace(contentMetadata.Version))
+
+        if (!string.IsNullOrWhiteSpace(contentMetadata.Version))
         {
-            builtManifest.Version = contentMetadata.Version;
+            return contentMetadata.Version;
         }
-        else if (!string.IsNullOrWhiteSpace(discoveredItem.Version))
+
+        if (!string.IsNullOrWhiteSpace(discoveredItem.Version))
         {
-            builtManifest.Version = discoveredItem.Version;
+            return discoveredItem.Version;
         }
-        else
-        {
-            builtManifest.Version = CommunityOutpostCatalogConstants.DefaultMetadataVersion;
-        }
+
+        return CommunityOutpostCatalogConstants.DefaultMetadataVersion;
     }
 
     /// <summary>

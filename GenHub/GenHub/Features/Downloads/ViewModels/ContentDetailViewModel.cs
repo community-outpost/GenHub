@@ -1285,7 +1285,7 @@ public partial class ContentDetailViewModel(
         try
         {
             logger.LogDebug("Loading thumbnail from URL: {ThumbnailUrl}", thumbnailUrl);
-            var loadedBitmap = await ImageCacheService.Instance.GetBitmapAsync(thumbnailUrl);
+            var loadedBitmap = await ImageCacheService.Instance.GetBitmapAsync(thumbnailUrl, _cts.Token);
 
             if (currentVersion == _iconLoadVersion && loadedBitmap != null)
             {
@@ -3391,7 +3391,8 @@ public partial class ContentDetailViewModel(
             var manifestId = variant.ManifestId;
             ContentSearchResult? sibling = null;
             if (!string.IsNullOrEmpty(manifestId) &&
-                variantSearchResults?.TryGetValue(manifestId, out var sr) == true)
+                variantSearchResults != null &&
+                variantSearchResults.TryGetValue(manifestId, out var sr))
             {
                 sibling = sr;
             }
@@ -3453,7 +3454,7 @@ public partial class ContentDetailViewModel(
             releaseItem.SelectCommand = new RelayCommand(
                 () =>
                 {
-                    if (variantSearchResults?.TryGetValue(manifestId, out var swapSr) == true)
+                    if (variantSearchResults != null && variantSearchResults.TryGetValue(manifestId, out var swapSr))
                     {
                         VariantSwap.Apply(searchResult, swapSr);
                         SelectedVariant = variant;
@@ -3465,7 +3466,7 @@ public partial class ContentDetailViewModel(
 
             releaseItem.DownloadCommand = new AsyncRelayCommand(async () =>
             {
-                if (variantSearchResults?.TryGetValue(manifestId, out var swapSr) == true)
+                if (variantSearchResults != null && variantSearchResults.TryGetValue(manifestId, out var swapSr))
                 {
                     VariantSwap.Apply(searchResult, swapSr);
                     SelectedVariant = variant;
@@ -3476,7 +3477,7 @@ public partial class ContentDetailViewModel(
 
             releaseItem.AddToProfileCommand = new AsyncRelayCommand(async () =>
             {
-                if (variantSearchResults?.TryGetValue(manifestId, out var swapSr) == true)
+                if (variantSearchResults != null && variantSearchResults.TryGetValue(manifestId, out var swapSr))
                 {
                     VariantSwap.Apply(searchResult, swapSr);
                     SelectedVariant = variant;

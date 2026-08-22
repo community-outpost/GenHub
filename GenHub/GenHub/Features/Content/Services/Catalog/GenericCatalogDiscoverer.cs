@@ -220,6 +220,86 @@ public class GenericCatalogDiscoverer(
         return names;
     }
 
+    private static GameType ResolveSiblingTargetGame(GameType defaultTargetGame, string axis, string variantLabel)
+    {
+        if (axis.Equals("game-type", StringComparison.OrdinalIgnoreCase))
+        {
+            if (variantLabel.Equals("Generals", StringComparison.OrdinalIgnoreCase))
+            {
+                return GameType.Generals;
+            }
+
+            if (variantLabel.Equals("Zero Hour", StringComparison.OrdinalIgnoreCase) ||
+                variantLabel.Equals("ZeroHour", StringComparison.OrdinalIgnoreCase))
+            {
+                return GameType.ZeroHour;
+            }
+        }
+
+        return defaultTargetGame;
+    }
+
+    private static List<ReleaseArtifact> BuildSiblingArtifacts(ReleaseArtifact artifact, ContentRelease resolvedRelease)
+    {
+        var siblingArtifacts = new List<ReleaseArtifact>
+        {
+            new ReleaseArtifact
+            {
+                Filename = artifact.Filename,
+                DownloadUrl = artifact.DownloadUrl,
+                Size = artifact.Size,
+                Sha256 = artifact.Sha256,
+                ContentType = artifact.ContentType,
+                IsPrimary = true,
+                VariantAxis = artifact.VariantAxis,
+                Variant = artifact.Variant,
+                IsDefaultVariant = artifact.IsDefaultVariant,
+            },
+        };
+
+        if (resolvedRelease.Artifacts != null)
+        {
+            var otherAxisGroups = resolvedRelease.Artifacts
+                .Where(a => !string.Equals(a.VariantAxis, artifact.VariantAxis, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(a.VariantAxis))
+                .GroupBy(a => a.VariantAxis ?? string.Empty, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var group in otherAxisGroups)
+            {
+                var defaultOther = group.FirstOrDefault(a => a.IsDefaultVariant) ?? group.First();
+                siblingArtifacts.Add(new ReleaseArtifact
+                {
+                    Filename = defaultOther.Filename,
+                    DownloadUrl = defaultOther.DownloadUrl,
+                    Size = defaultOther.Size,
+                    Sha256 = defaultOther.Sha256,
+                    ContentType = defaultOther.ContentType,
+                    IsPrimary = false,
+                    VariantAxis = defaultOther.VariantAxis,
+                    Variant = defaultOther.Variant,
+                    IsDefaultVariant = defaultOther.IsDefaultVariant,
+                });
+            }
+
+            foreach (var nonVariant in resolvedRelease.Artifacts.Where(a => string.IsNullOrWhiteSpace(a.VariantAxis)))
+            {
+                siblingArtifacts.Add(new ReleaseArtifact
+                {
+                    Filename = nonVariant.Filename,
+                    DownloadUrl = nonVariant.DownloadUrl,
+                    Size = nonVariant.Size,
+                    Sha256 = nonVariant.Sha256,
+                    ContentType = nonVariant.ContentType,
+                    IsPrimary = false,
+                    VariantAxis = nonVariant.VariantAxis,
+                    Variant = nonVariant.Variant,
+                    IsDefaultVariant = nonVariant.IsDefaultVariant,
+                });
+            }
+        }
+
+        return siblingArtifacts;
+    }
+
     /// <inheritdoc />
     public string SourceName => _subscription?.PublisherName ?? "Generic Catalog";
 
@@ -651,162 +731,18 @@ public class GenericCatalogDiscoverer(
             catalogItemsById);
         var declaredPublisher = CatalogManifestIdentity.ResolveDeclaredPublisherType(contentItem);
 
-        // Build one sibling per variant artifact, each with a single-artifact release clone.
-        var siblings = new List<(ContentSearchResult Result, ContentVariantInfo Info, ReleaseArtifact Artifact)>();
-
+        var siblings = new List<(ContentSearchResult Result, ContentVariantInfo Info, ReleaseArtifact Artifact)>(variantArtifacts.Count);
         foreach (var artifact in variantArtifacts)
         {
-            var variantLabel = artifact.Variant!.Trim();
-            var axis = artifact.VariantAxis!.Trim();
-
-            var siblingTargetGame = contentItem.TargetGame;
-            if (axis.Equals("game-type", StringComparison.OrdinalIgnoreCase))
-            {
-                if (variantLabel.Equals("Generals", StringComparison.OrdinalIgnoreCase))
-                {
-                    siblingTargetGame = GameType.Generals;
-                }
-                else if (variantLabel.Equals("Zero Hour", StringComparison.OrdinalIgnoreCase) ||
-                         variantLabel.Equals("ZeroHour", StringComparison.OrdinalIgnoreCase))
-                {
-                    siblingTargetGame = GameType.ZeroHour;
-                }
-            }
-
-            var sibling = new ContentSearchResult
-            {
-                Id = CatalogManifestIdentity.CreateVariantContentId(
-                    declaredPublisher,
-                    contentItem.ContentType,
-                    contentItem.Id,
-                    variantLabel,
-                    release.Version,
-                    axis),
-                Name = $"{contentItem.Name} ({variantLabel})",
-                Description = contentItem.Description,
-                Version = release.Version,
-                ContentType = contentItem.ContentType,
-                TargetGame = siblingTargetGame,
-                ProviderName = catalog.Publisher.Name,
-                AuthorName = !string.IsNullOrWhiteSpace(contentItem.Metadata?.Author) ? contentItem.Metadata.Author : catalog.Publisher.Name,
-                ResolverId = ResolverId,
-                IconUrl = catalog.Publisher.AvatarUrl,
-                BannerUrl = contentItem.Metadata?.BannerUrl,
-                LastUpdated = release.ReleaseDate,
-                RequiresResolution = true,
-                DownloadSize = artifact.Size,
-                VariantGroupId = groupId,
-                VariantFamilyName = familyName,
-            };
-
-            PopulatePresentation(sibling, contentItem, release, contentNamesById: null);
-
-            var siblingArtifacts = new List<ReleaseArtifact>
-            {
-                new ReleaseArtifact
-                {
-                    Filename = artifact.Filename,
-                    DownloadUrl = artifact.DownloadUrl,
-                    Size = artifact.Size,
-                    Sha256 = artifact.Sha256,
-                    ContentType = artifact.ContentType,
-                    IsPrimary = true,
-                    VariantAxis = artifact.VariantAxis,
-                    Variant = artifact.Variant,
-                    IsDefaultVariant = artifact.IsDefaultVariant,
-                },
-            };
-
-            // For other axes, include their default or first artifact so multi-axis releases retain a full selection
-            if (resolvedRelease.Artifacts != null)
-            {
-                var otherAxisGroups = resolvedRelease.Artifacts
-                    .Where(a => !string.Equals(a.VariantAxis, artifact.VariantAxis, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(a.VariantAxis))
-                    .GroupBy(a => a.VariantAxis!, StringComparer.OrdinalIgnoreCase);
-
-                foreach (var group in otherAxisGroups)
-                {
-                    var defaultOther = group.FirstOrDefault(a => a.IsDefaultVariant) ?? group.First();
-                    siblingArtifacts.Add(new ReleaseArtifact
-                    {
-                        Filename = defaultOther.Filename,
-                        DownloadUrl = defaultOther.DownloadUrl,
-                        Size = defaultOther.Size,
-                        Sha256 = defaultOther.Sha256,
-                        ContentType = defaultOther.ContentType,
-                        IsPrimary = false,
-                        VariantAxis = defaultOther.VariantAxis,
-                        Variant = defaultOther.Variant,
-                        IsDefaultVariant = defaultOther.IsDefaultVariant,
-                    });
-                }
-
-                // Also include non-variant artifacts
-                foreach (var nonVariant in resolvedRelease.Artifacts.Where(a => string.IsNullOrWhiteSpace(a.VariantAxis)))
-                {
-                    siblingArtifacts.Add(new ReleaseArtifact
-                    {
-                        Filename = nonVariant.Filename,
-                        DownloadUrl = nonVariant.DownloadUrl,
-                        Size = nonVariant.Size,
-                        Sha256 = nonVariant.Sha256,
-                        ContentType = nonVariant.ContentType,
-                        IsPrimary = false,
-                        VariantAxis = nonVariant.VariantAxis,
-                        Variant = nonVariant.Variant,
-                        IsDefaultVariant = nonVariant.IsDefaultVariant,
-                    });
-                }
-            }
-
-            sibling.DownloadSize = siblingArtifacts.Sum(a => a.Size);
-
-            // Release clone with composed artifacts so the resolver can download all selected components.
-            var singleArtifactRelease = new ContentRelease
-            {
-                Version = resolvedRelease.Version,
-                ReleaseDate = resolvedRelease.ReleaseDate,
-                IsPrerelease = resolvedRelease.IsPrerelease,
-                IsLatest = resolvedRelease.IsLatest,
-                Changelog = resolvedRelease.Changelog,
-                Artifacts = siblingArtifacts,
-                Dependencies = resolvedRelease.Dependencies?.Select(dep =>
-                {
-                    if (CatalogManifestIdentity.IsBaseGameDependency(dep))
-                    {
-                        return new CatalogDependency
-                        {
-                            PublisherId = dep.PublisherId ?? "ea",
-                            ContentId = siblingTargetGame == GameType.Generals ? "generals" : "zerohour",
-                            VersionConstraint = siblingTargetGame == GameType.Generals ? "1.08" : "1.04",
-                            ContentType = ContentType.GameInstallation.ToString(),
-                            IsOptional = dep.IsOptional,
-                        };
-                    }
-
-                    return dep;
-                }).ToList() ?? [],
-            };
-
-            AttachResolverMetadata(sibling, catalog, contentItem, singleArtifactRelease);
-
-            if (contentItem.ContentType == ContentType.ContentBundle)
-            {
-                var components = CatalogBundleComponentBuilder.Build(catalog, contentItem, release);
-                sibling.ResolverMetadata[CatalogConstants.BundleComponentsJsonMetadataKey] =
-                    JsonSerializer.Serialize(components);
-            }
-
-            var info = new ContentVariantInfo
-            {
-                Id = $"{axis}:{variantLabel}",
-                Name = variantLabel,
-                VariantType = axis,
-                ManifestId = sibling.Id,
-                IsDefault = artifact.IsDefaultVariant,
-            };
-
-            siblings.Add((sibling, info, artifact));
+            siblings.Add(BuildSingleVariantSibling(
+                catalog,
+                contentItem,
+                release,
+                resolvedRelease,
+                artifact,
+                groupId,
+                familyName,
+                declaredPublisher));
         }
 
         // Ensure exactly one default — prefer an author-declared IsDefaultVariant, else 1080p,
@@ -822,6 +758,98 @@ public class GenericCatalogDiscoverer(
         }
 
         return results;
+    }
+
+    private (ContentSearchResult Result, ContentVariantInfo Info, ReleaseArtifact Artifact) BuildSingleVariantSibling(
+        PublisherCatalog catalog,
+        CatalogContentItem contentItem,
+        ContentRelease originalRelease,
+        ContentRelease resolvedRelease,
+        ReleaseArtifact artifact,
+        string groupId,
+        string familyName,
+        string declaredPublisher)
+    {
+        var variantLabel = artifact.Variant?.Trim() ?? string.Empty;
+        var axis = artifact.VariantAxis?.Trim() ?? string.Empty;
+        var siblingTargetGame = ResolveSiblingTargetGame(contentItem.TargetGame, axis, variantLabel);
+
+        var sibling = new ContentSearchResult
+        {
+            Id = CatalogManifestIdentity.CreateVariantContentId(
+                declaredPublisher,
+                contentItem.ContentType,
+                contentItem.Id,
+                variantLabel,
+                resolvedRelease.Version,
+                axis),
+            Name = $"{contentItem.Name} ({variantLabel})",
+            Description = contentItem.Description,
+            Version = resolvedRelease.Version,
+            ContentType = contentItem.ContentType,
+            TargetGame = siblingTargetGame,
+            ProviderName = catalog.Publisher.Name,
+            AuthorName = !string.IsNullOrWhiteSpace(contentItem.Metadata?.Author) ? contentItem.Metadata.Author : catalog.Publisher.Name,
+            ResolverId = ResolverId,
+            IconUrl = catalog.Publisher.AvatarUrl,
+            BannerUrl = contentItem.Metadata?.BannerUrl,
+            LastUpdated = resolvedRelease.ReleaseDate,
+            RequiresResolution = true,
+            DownloadSize = artifact.Size,
+            VariantGroupId = groupId,
+            VariantFamilyName = familyName,
+        };
+
+        PopulatePresentation(sibling, contentItem, resolvedRelease, contentNamesById: null);
+
+        var siblingArtifacts = BuildSiblingArtifacts(artifact, resolvedRelease);
+        sibling.DownloadSize = siblingArtifacts.Sum(a => a.Size);
+
+        var singleArtifactRelease = new ContentRelease
+        {
+            Version = resolvedRelease.Version,
+            ReleaseDate = resolvedRelease.ReleaseDate,
+            IsPrerelease = resolvedRelease.IsPrerelease,
+            IsLatest = resolvedRelease.IsLatest,
+            Changelog = resolvedRelease.Changelog,
+            Artifacts = siblingArtifacts,
+            Dependencies = resolvedRelease.Dependencies?.Select(dep =>
+            {
+                if (CatalogManifestIdentity.IsBaseGameDependency(dep))
+                {
+                    return new CatalogDependency
+                    {
+                        PublisherId = dep.PublisherId ?? "ea",
+                        ContentId = siblingTargetGame == GameType.Generals ? "generals" : "zerohour",
+                        VersionConstraint = siblingTargetGame == GameType.Generals ? "1.08" : "1.04",
+                        ContentType = ContentType.GameInstallation.ToString(),
+                        IsOptional = dep.IsOptional,
+                    };
+                }
+
+                return dep;
+            }).ToList() ?? [],
+        };
+
+        AttachResolverMetadata(sibling, catalog, contentItem, singleArtifactRelease);
+
+        if (contentItem.ContentType == ContentType.ContentBundle)
+        {
+            var components = CatalogBundleComponentBuilder.Build(catalog, contentItem, originalRelease);
+            sibling.ResolverMetadata[CatalogConstants.BundleComponentsJsonMetadataKey] =
+                JsonSerializer.Serialize(components);
+        }
+
+        var info = new ContentVariantInfo
+        {
+            Id = $"{axis}:{variantLabel}",
+            Name = variantLabel,
+            VariantType = axis,
+            ManifestId = sibling.Id,
+            IsDefault = artifact.IsDefaultVariant,
+        };
+
+        return (sibling, info, artifact);
     }
 
     /// <summary>

@@ -173,7 +173,7 @@ internal sealed class ManagedChromiumRuntime(
         }
         finally
         {
-            progressCts.Cancel();
+            await progressCts.CancelAsync();
             await progressTask;
         }
 
@@ -198,7 +198,7 @@ internal sealed class ManagedChromiumRuntime(
                 ModDBConstants.ChromiumReadyMessage,
                 ModDBConstants.ChromiumReadyTitle);
 
-            _ = Task.Delay(NotificationDurations.Medium).ContinueWith(_ =>
+            _ = Task.Delay(NotificationDurations.Medium, CancellationToken.None).ContinueWith(_ =>
             {
                 try
                 {
@@ -206,6 +206,7 @@ internal sealed class ManagedChromiumRuntime(
                 }
                 catch
                 {
+                    // Ignore dismissal errors during cleanup
                 }
             });
         }
@@ -235,7 +236,7 @@ internal sealed class ManagedChromiumRuntime(
         return "win32_x64";
     }
 
-    private static string? _cachedDriverPath;
+    private string? _cachedDriverPath;
 
     private void EnsureDriverEnvironmentVariable()
     {

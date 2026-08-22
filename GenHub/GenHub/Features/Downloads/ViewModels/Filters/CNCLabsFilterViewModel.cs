@@ -205,12 +205,9 @@ public partial class CNCLabsFilterViewModel : FilterPanelViewModelBase
     private void ToggleContentType(ContentTypeFilterItem item)
     {
         // Enforce radio button behavior: deselect all others
-        foreach (var filter in ContentTypeFilters)
+        foreach (var filter in ContentTypeFilters.Where(f => f != item))
         {
-            if (filter != item)
-            {
-                filter.IsSelected = false;
-            }
+            filter.IsSelected = false;
         }
 
         // Ensure current is selected (in case it was already selected, it stays selected)

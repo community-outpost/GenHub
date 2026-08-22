@@ -520,10 +520,8 @@ public partial class GitHubTopicsDiscoverer(
         if (variants.Count == 0)
             return;
 
-        ContentVariantInfo? chosen = null;
-
         // Priority 1: prefer 1080p (standard HD) for resolution-typed variants
-        chosen ??= variants.FirstOrDefault(v =>
+        var chosen = variants.FirstOrDefault(v =>
             v.Name.Contains("1080p", StringComparison.OrdinalIgnoreCase) ||
             v.Name.Contains("1920x1080", StringComparison.OrdinalIgnoreCase));
 

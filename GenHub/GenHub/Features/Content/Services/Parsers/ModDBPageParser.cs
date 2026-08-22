@@ -216,7 +216,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
             var dateStr = dateEl.GetAttribute("datetime") ?? dateEl.GetAttribute("title") ?? dateEl.TextContent?.Trim();
             if (!string.IsNullOrEmpty(dateStr))
             {
-                if (DateTime.TryParse(dateStr, out var standardDate))
+                if (DateTime.TryParse(dateStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out var standardDate))
                 {
                     uploadDate = standardDate;
                     releaseDate = standardDate;
@@ -414,7 +414,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
                 case "added":
                 case "date":
                 case "release date":
-                    if (DateTime.TryParse(content, out var dt))
+                    if (DateTime.TryParse(content, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
                     {
                          releaseDate = dt;
                     }
@@ -809,20 +809,20 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
         var linkTitle = linkEl.GetAttribute("title");
         if (IsUsableVideoTitle(linkTitle))
         {
-            return FormatVideoTitle(linkTitle!);
+            return FormatVideoTitle(linkTitle);
         }
 
         var imgAlt = img?.GetAttribute("alt") ?? img?.GetAttribute("title");
         if (IsUsableVideoTitle(imgAlt))
         {
-            return FormatVideoTitle(imgAlt!);
+            return FormatVideoTitle(imgAlt);
         }
 
         var containerTitleEl = container.QuerySelector(".title a, .title, h4 a, h4, h3 a, h3, h5, .caption");
         var containerTitle = containerTitleEl?.TextContent?.Trim();
         if (IsUsableVideoTitle(containerTitle))
         {
-            return FormatVideoTitle(containerTitle!);
+            return FormatVideoTitle(containerTitle);
         }
 
         var slug = GalleryImageKey(absoluteHref);
@@ -1136,7 +1136,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
             formatted = CamelCaseSplitRegex().Replace(formatted, " ");
         }
 
-        formatted = Regex.Replace(formatted, @"\s+", " ").Trim();
+        formatted = Regex.Replace(formatted, @"\s+", " ", RegexOptions.None, TimeSpan.FromSeconds(1)).Trim();
 
         return string.IsNullOrWhiteSpace(formatted) ? "Image" : formatted;
     }
@@ -2924,7 +2924,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
         if (releaseDateEl != null)
         {
             var dateStr = releaseDateEl.GetAttribute("datetime") ?? releaseDateEl.TextContent?.Trim();
-            if (!string.IsNullOrEmpty(dateStr) && DateTime.TryParse(dateStr, out var parsedDate))
+            if (!string.IsNullOrEmpty(dateStr) && DateTime.TryParse(dateStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
             {
                 releaseDate = parsedDate;
             }

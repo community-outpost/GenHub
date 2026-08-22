@@ -1138,7 +1138,7 @@ public class PlaywrightService(
     /// </summary>
     private async Task<IPage> CreatePersistentPageWithRecoveryAsync(string profileDir, CancellationToken cancellationToken)
     {
-        IPage page;
+        IPage? page = null;
         try
         {
             await _persistentLock.WaitAsync(cancellationToken);
@@ -1173,7 +1173,7 @@ public class PlaywrightService(
             }
         }
 
-        return page;
+        return page ?? throw new InvalidOperationException("Failed to get or create persistent page");
     }
 
     private async Task<IPage> GetOrCreatePersistentPageCoreAsync()

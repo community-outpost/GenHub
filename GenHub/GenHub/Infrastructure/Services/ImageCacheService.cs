@@ -256,69 +256,14 @@ public sealed class ImageCacheService
             return cached;
         }
 
-        // Handle avares:// URIs (embedded resources)
-        if (url.StartsWith("avares://", StringComparison.OrdinalIgnoreCase))
+        var embeddedBitmap = TryLoadEmbeddedAsset(url);
+        if (embeddedBitmap != null)
         {
-            try
-            {
-                var uri = new Uri(url);
-                if (AssetLoader.Exists(uri))
-                {
-                    using var stream = AssetLoader.Open(uri);
-                    var bitmap = new Bitmap(stream);
-                    memoryCache.AddOrUpdate(url, bitmap);
-                    return bitmap;
-                }
-            }
-            catch
-            {
-                // ignore asset loading error and fall through
-            }
-
-            return null;
+            return embeddedBitmap;
         }
 
-        // Handle relative asset paths (e.g., "/Assets/Logos/logo.png")
-        if (url.StartsWith("/", StringComparison.Ordinal))
+        if (IsEmbeddedAssetUrl(url))
         {
-            try
-            {
-                var uri = new Uri($"avares://GenHub{url}");
-                if (AssetLoader.Exists(uri))
-                {
-                    using var stream = AssetLoader.Open(uri);
-                    var bitmap = new Bitmap(stream);
-                    memoryCache.AddOrUpdate(url, bitmap);
-                    return bitmap;
-                }
-            }
-            catch
-            {
-                // ignore asset loading error and fall through
-            }
-
-            return null;
-        }
-
-        // Handle asset paths starting with 'Assets/'
-        if (url.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
-        {
-            try
-            {
-                var uri = new Uri($"avares://GenHub/{url}");
-                if (AssetLoader.Exists(uri))
-                {
-                    using var stream = AssetLoader.Open(uri);
-                    var bitmap = new Bitmap(stream);
-                    memoryCache.AddOrUpdate(url, bitmap);
-                    return bitmap;
-                }
-            }
-            catch
-            {
-                // ignore asset loading error and fall through
-            }
-
             return null;
         }
 
@@ -329,41 +274,10 @@ public sealed class ImageCacheService
         }
 
         var diskPath = GetDiskCachePath(url);
-        if (!string.IsNullOrEmpty(diskPath) && File.Exists(diskPath))
+        var diskBitmap = TryLoadFromDiskCache(url, diskPath);
+        if (diskBitmap != null)
         {
-            var fileInfo = new FileInfo(diskPath);
-            var cutoff = DateTime.UtcNow.AddDays(-ImageCacheConstants.DiskCacheTtlDays);
-            if (fileInfo.LastWriteTimeUtc < cutoff)
-            {
-                try
-                {
-                    File.Delete(diskPath);
-                }
-                catch
-                {
-                    // ignore file deletion failure
-                }
-            }
-            else
-            {
-                try
-                {
-                    var diskBitmap = new Bitmap(diskPath);
-                    memoryCache.AddOrUpdate(url, diskBitmap);
-                    return diskBitmap;
-                }
-                catch
-                {
-                    try
-                    {
-                        File.Delete(diskPath);
-                    }
-                    catch
-                    {
-                        // ignore file deletion failure
-                    }
-                }
-            }
+            return diskBitmap;
         }
 
         var downloadTask = pendingDownloads.GetOrAdd(url, u => DownloadAndCacheAsync(u, diskPath));
@@ -377,6 +291,94 @@ public sealed class ImageCacheService
         }
         catch
         {
+            return null;
+        }
+    }
+
+    private static bool IsEmbeddedAssetUrl(string url) =>
+        url.StartsWith("avares://", StringComparison.OrdinalIgnoreCase) ||
+        url.StartsWith("/", StringComparison.Ordinal) ||
+        url.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase);
+
+    private Bitmap? TryLoadEmbeddedAsset(string url)
+    {
+        Uri? uri = null;
+        if (url.StartsWith("avares://", StringComparison.OrdinalIgnoreCase))
+        {
+            Uri.TryCreate(url, UriKind.Absolute, out uri);
+        }
+        else if (url.StartsWith("/", StringComparison.Ordinal))
+        {
+            Uri.TryCreate($"avares://GenHub{url}", UriKind.Absolute, out uri);
+        }
+        else if (url.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
+        {
+            Uri.TryCreate($"avares://GenHub/{url}", UriKind.Absolute, out uri);
+        }
+
+        if (uri == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            if (AssetLoader.Exists(uri))
+            {
+                using var stream = AssetLoader.Open(uri);
+                var bitmap = new Bitmap(stream);
+                memoryCache.AddOrUpdate(url, bitmap);
+                return bitmap;
+            }
+        }
+        catch
+        {
+            // ignore asset loading error and fall through
+        }
+
+        return null;
+    }
+
+    private Bitmap? TryLoadFromDiskCache(string url, string diskPath)
+    {
+        if (string.IsNullOrEmpty(diskPath) || !File.Exists(diskPath))
+        {
+            return null;
+        }
+
+        var fileInfo = new FileInfo(diskPath);
+        var cutoff = DateTime.UtcNow.AddDays(-ImageCacheConstants.DiskCacheTtlDays);
+        if (fileInfo.LastWriteTimeUtc < cutoff)
+        {
+            try
+            {
+                File.Delete(diskPath);
+            }
+            catch
+            {
+                // ignore file deletion failure
+            }
+
+            return null;
+        }
+
+        try
+        {
+            var diskBitmap = new Bitmap(diskPath);
+            memoryCache.AddOrUpdate(url, diskBitmap);
+            return diskBitmap;
+        }
+        catch
+        {
+            try
+            {
+                File.Delete(diskPath);
+            }
+            catch
+            {
+                // ignore file deletion failure
+            }
+
             return null;
         }
     }

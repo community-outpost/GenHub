@@ -125,6 +125,45 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         return true;
     }
 
+    private static void ValidateDependencies(
+        CatalogContentItem content,
+        ContentRelease release,
+        Dictionary<string, CatalogContentItem> itemsById,
+        string? hostPublisherId,
+        List<string> errors)
+    {
+        if (release.Dependencies == null)
+        {
+            return;
+        }
+
+        foreach (var dep in release.Dependencies)
+        {
+            if (dep == null)
+            {
+                errors.Add($"Content '{content.Id}' v{release.Version} has null dependency");
+                continue;
+            }
+
+            if (CatalogManifestIdentity.IsBaseGameDependency(dep))
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(dep.ContentId) &&
+                itemsById.TryGetValue(dep.ContentId, out var sibling))
+            {
+                var expectedPublisherType = CatalogManifestIdentity.ResolveDeclaredPublisherType(sibling);
+                if (!string.IsNullOrWhiteSpace(dep.PublisherId) &&
+                    !dep.PublisherId.Equals(expectedPublisherType, StringComparison.OrdinalIgnoreCase) &&
+                    !dep.PublisherId.Equals(hostPublisherId, StringComparison.OrdinalIgnoreCase))
+                {
+                    errors.Add($"Dependency '{dep.ContentId}' in '{content.Id}' specifies publisherId '{dep.PublisherId}' which does not match sibling's declared publisherType '{expectedPublisherType}' or host catalog id '{hostPublisherId}'");
+                }
+            }
+        }
+    }
+
     private void ValidatePublisherInfo(PublisherCatalog catalog, List<string> errors)
     {
         if (string.IsNullOrWhiteSpace(catalog.Publisher?.Id))
@@ -249,46 +288,17 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         }
     }
 
-    private void ValidateDependencies(
-        CatalogContentItem content,
-        ContentRelease release,
-        Dictionary<string, CatalogContentItem> itemsById,
-        string? hostPublisherId,
-        List<string> errors)
-    {
-        foreach (var dep in release.Dependencies!)
-        {
-            if (dep == null)
-            {
-                errors.Add($"Content '{content.Id}' v{release.Version} has null dependency");
-                continue;
-            }
-
-            if (CatalogManifestIdentity.IsBaseGameDependency(dep))
-            {
-                continue;
-            }
-
-            if (!string.IsNullOrWhiteSpace(dep.ContentId) &&
-                itemsById.TryGetValue(dep.ContentId, out var sibling))
-            {
-                var expectedPublisherType = CatalogManifestIdentity.ResolveDeclaredPublisherType(sibling);
-                if (!string.IsNullOrWhiteSpace(dep.PublisherId) &&
-                    !dep.PublisherId.Equals(expectedPublisherType, StringComparison.OrdinalIgnoreCase) &&
-                    !dep.PublisherId.Equals(hostPublisherId, StringComparison.OrdinalIgnoreCase))
-                {
-                    errors.Add($"Dependency '{dep.ContentId}' in '{content.Id}' specifies publisherId '{dep.PublisherId}' which does not match sibling's declared publisherType '{expectedPublisherType}' or host catalog id '{hostPublisherId}'");
-                }
-            }
-        }
-    }
-
     private void ValidateArtifacts(
         CatalogContentItem content,
         ContentRelease release,
         List<string> errors)
     {
-        foreach (var artifact in release.Artifacts!)
+        if (release.Artifacts == null)
+        {
+            return;
+        }
+
+        foreach (var artifact in release.Artifacts)
         {
             if (artifact == null)
             {

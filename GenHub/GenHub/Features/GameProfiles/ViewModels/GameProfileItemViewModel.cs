@@ -833,6 +833,45 @@ public partial class GameProfileItemViewModel : ViewModelBase
         };
     }
 
+    private static (string Publisher, string? ColorValue, string? CoverImagePath) ResolvePublisherAndBranding(string publisherSegment, string fallbackRaw)
+    {
+        var publisher = publisherSegment switch
+        {
+            PublisherTypeConstants.Steam => "Steam",
+            PublisherTypeConstants.EaApp => "EA App",
+            "thefirstdecade" => "The First Decade",
+            PublisherTypeConstants.Retail => "Retail",
+            "cdiso" => "CD/ISO",
+            "wine" => "Wine",
+            PublisherTypeConstants.GeneralsOnline => "Generals Online",
+            PublisherTypeConstants.TheSuperHackers => "The Super Hackers",
+            CommunityOutpostConstants.PublisherType => "Community Outpost",
+            "local" => "Local",
+            _ => fallbackRaw.ToUpperInvariant(),
+        };
+
+        string? colorValue = null;
+        string? coverImagePath = null;
+
+        if (publisherSegment == PublisherTypeConstants.TheSuperHackers)
+        {
+            colorValue = SuperHackersConstants.ZeroHourThemeColor;
+            coverImagePath = SuperHackersConstants.ZeroHourCoverSource;
+        }
+        else if (publisherSegment == PublisherTypeConstants.GeneralsOnline)
+        {
+            colorValue = GeneralsOnlineConstants.ThemeColor;
+            coverImagePath = GeneralsOnlineConstants.CoverSource;
+        }
+        else if (publisherSegment == CommunityOutpostConstants.PublisherType)
+        {
+            colorValue = CommunityOutpostConstants.ThemeColor;
+            coverImagePath = CommunityOutpostConstants.CoverSource;
+        }
+
+        return (publisher, colorValue, coverImagePath);
+    }
+
     private void UpdateDescription(GameProfile gameProfile)
     {
         // Use actual profile description if available
@@ -935,47 +974,24 @@ public partial class GameProfileItemViewModel : ViewModelBase
         try
         {
             var publisherSegment = segments[2].ToLowerInvariant();
-            ResolvePublisherAndBranding(publisherSegment, segments[2]);
+            var (resolvedPublisher, resolvedColor, resolvedCover) = ResolvePublisherAndBranding(publisherSegment, segments[2]);
+            Publisher = resolvedPublisher;
+            if (!string.IsNullOrEmpty(resolvedColor))
+            {
+                ColorValue = resolvedColor;
+            }
+
+            if (!string.IsNullOrEmpty(resolvedCover))
+            {
+                CoverImagePath = resolvedCover;
+            }
+
             GameVersion = FormatManifestGameVersion(publisherSegment, segments[1]);
             ContentType = FormatManifestContentType(segments[3]);
         }
         catch
         {
             // If parsing fails, leave the fields empty
-        }
-    }
-
-    private void ResolvePublisherAndBranding(string publisherSegment, string fallbackRaw)
-    {
-        Publisher = publisherSegment switch
-        {
-            PublisherTypeConstants.Steam => "Steam",
-            PublisherTypeConstants.EaApp => "EA App",
-            "thefirstdecade" => "The First Decade",
-            PublisherTypeConstants.Retail => "Retail",
-            "cdiso" => "CD/ISO",
-            "wine" => "Wine",
-            PublisherTypeConstants.GeneralsOnline => "Generals Online",
-            PublisherTypeConstants.TheSuperHackers => "The Super Hackers",
-            CommunityOutpostConstants.PublisherType => "Community Outpost",
-            "local" => "Local",
-            _ => fallbackRaw.ToUpperInvariant(),
-        };
-
-        if (publisherSegment == PublisherTypeConstants.TheSuperHackers)
-        {
-            ColorValue = SuperHackersConstants.ZeroHourThemeColor;
-            CoverImagePath = SuperHackersConstants.ZeroHourCoverSource;
-        }
-        else if (publisherSegment == PublisherTypeConstants.GeneralsOnline)
-        {
-            ColorValue = GeneralsOnlineConstants.ThemeColor;
-            CoverImagePath = GeneralsOnlineConstants.CoverSource;
-        }
-        else if (publisherSegment == CommunityOutpostConstants.PublisherType)
-        {
-            ColorValue = CommunityOutpostConstants.ThemeColor;
-            CoverImagePath = CommunityOutpostConstants.CoverSource;
         }
     }
 }

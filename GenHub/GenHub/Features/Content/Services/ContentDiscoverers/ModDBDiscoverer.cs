@@ -325,7 +325,7 @@ public partial class ModDBDiscoverer(
         var href = titleLink.GetAttribute("href");
         if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(href)) return null;
 
-        if (!href.Contains("/mods/") && !href.Contains("/downloads/") && !href.Contains(ModDBConstants.AddonsSegment)) return null;
+        if (!href.Contains(ModDBConstants.ModsSegment) && !href.Contains(ModDBConstants.DownloadsSegment) && !href.Contains(ModDBConstants.AddonsSegment)) return null;
 
         var detailUrl = href.StartsWith("http") ? href : ModDBConstants.BaseUrl + href;
         return (title, detailUrl);
@@ -391,10 +391,10 @@ public partial class ModDBDiscoverer(
 
     private static void ApplyParentModMetadata(ContentSearchResult result, string detailUrl)
     {
-        var isMod = detailUrl.Contains("/mods/") && !detailUrl.Contains(ModDBConstants.AddonsSegment);
+        var isMod = detailUrl.Contains(ModDBConstants.ModsSegment) && !detailUrl.Contains(ModDBConstants.AddonsSegment);
         result.ResolverMetadata[ModDBConstants.IsModMetadataKey] = isMod.ToString();
 
-        if (detailUrl.Contains("/mods/") && detailUrl.Contains(ModDBConstants.AddonsSegment))
+        if (detailUrl.Contains(ModDBConstants.ModsSegment) && detailUrl.Contains(ModDBConstants.AddonsSegment))
         {
             var modMatch = ParentModUrlRegex().Match(detailUrl);
             if (modMatch.Success)
@@ -433,9 +433,9 @@ public partial class ModDBDiscoverer(
             }
         }
 
-        var isModUrl = url.Contains("/mods/", StringComparison.OrdinalIgnoreCase);
+        var isModUrl = url.Contains(ModDBConstants.ModsSegment, StringComparison.OrdinalIgnoreCase);
         var isAddonUrl = url.Contains(ModDBConstants.AddonsSegment, StringComparison.OrdinalIgnoreCase);
-        var isDownloadUrl = url.Contains("/downloads/", StringComparison.OrdinalIgnoreCase);
+        var isDownloadUrl = url.Contains(ModDBConstants.DownloadsSegment, StringComparison.OrdinalIgnoreCase);
 
         return section switch
         {
@@ -828,7 +828,7 @@ public partial class ModDBDiscoverer(
 
                 result.ResolverMetadata[ModDBConstants.ContentIdMetadataKey] = moddbId;
                 result.ResolverMetadata[ModDBConstants.SectionMetadataKey] = section;
-                result.ResolverMetadata[ModDBConstants.IsModMetadataKey] = (link.Contains("/mods/") && !link.Contains(ModDBConstants.AddonsSegment)).ToString();
+                result.ResolverMetadata[ModDBConstants.IsModMetadataKey] = (link.Contains(ModDBConstants.ModsSegment) && !link.Contains(ModDBConstants.AddonsSegment)).ToString();
 
                 results.Add(result);
             }
