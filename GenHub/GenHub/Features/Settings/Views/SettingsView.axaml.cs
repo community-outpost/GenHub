@@ -47,6 +47,7 @@ public partial class SettingsView : UserControl
         if (DataContext is SettingsViewModel vm)
         {
             vm.IsViewVisible = false;
+            _ = vm.SaveSettingsCommand.ExecuteAsync(null);
         }
     }
 
