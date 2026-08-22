@@ -221,7 +221,7 @@
 
   </UserControl.Styles>
 
-  <ScrollViewer Padding="60,40,60,40" ClipToBounds="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+  <ScrollViewer Padding="60,40,60,40" ClipToBounds="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
       <StackPanel Spacing="10" MaxWidth="1000" HorizontalAlignment="Center" ClipToBounds="False">
 
         <!-- Main Section Header -->
