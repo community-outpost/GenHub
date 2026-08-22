@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
@@ -11,6 +12,7 @@ namespace GenHub.Features.Downloads.ViewModels.Filters;
 /// <summary>
 /// Filter view model for AODMaps publisher with game type and map tag filters.
 /// </summary>
+[SuppressMessage("Naming", "S101:Types should be named in PascalCase", Justification = "AODMaps is an established domain name")]
 public partial class AODMapsFilterViewModel : FilterPanelViewModelBase
 {
     /// <inheritdoc />

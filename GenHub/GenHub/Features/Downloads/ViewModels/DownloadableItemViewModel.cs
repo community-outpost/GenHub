@@ -238,7 +238,18 @@ public abstract partial class DownloadableItemViewModel : ObservableObject, IDow
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasDescription))]
+    [NotifyPropertyChangedFor(nameof(Description))]
     private string? _fullDescription;
+
+    /// <summary>
+    /// Gets or sets the short summary or description of the item.
+    /// Maps to <see cref="FullDescription"/>.
+    /// </summary>
+    public string? Description
+    {
+        get => FullDescription;
+        set => FullDescription = value;
+    }
 
     /// <summary>
     /// Gets a value indicating whether a description is present.

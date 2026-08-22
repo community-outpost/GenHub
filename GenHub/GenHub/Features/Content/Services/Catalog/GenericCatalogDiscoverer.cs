@@ -39,6 +39,7 @@ public class GenericCatalogDiscoverer(
 {
     private const string GeneralsGameSegment = "generals";
     private const string ZeroHourGameSegment = "zerohour";
+    private const string GameTypeVariantAxis = "game-type";
     private static readonly ConcurrentDictionary<string, (GitHubRelease Release, DateTime CachedAt)> ReleaseCache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, Task<GitHubRelease?>> PendingReleaseFetches = new(StringComparer.OrdinalIgnoreCase);
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(30);
@@ -50,7 +51,6 @@ public class GenericCatalogDiscoverer(
         string FamilyName,
         string DeclaredPublisher);
 
-    private PublisherCatalog? _cachedCatalog;
     private Core.Models.Providers.PublisherSubscription? _subscription;
 
     /// <summary>
@@ -80,7 +80,7 @@ public class GenericCatalogDiscoverer(
         {
             var targetGame = query.TargetGame.Value;
             var hasGameVariant = release?.Artifacts?.Any(a =>
-                string.Equals(a.VariantAxis, "game-type", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(a.VariantAxis, GameTypeVariantAxis, StringComparison.OrdinalIgnoreCase) &&
                 (string.Equals(a.Variant, GeneralsGameSegment, StringComparison.OrdinalIgnoreCase) ? GameType.Generals : GameType.ZeroHour) == targetGame) == true;
 
             if (content.TargetGame != targetGame && !hasGameVariant)
@@ -231,7 +231,7 @@ public class GenericCatalogDiscoverer(
 
     private static GameType ResolveSiblingTargetGame(GameType defaultTargetGame, string axis, string variantLabel)
     {
-        if (axis.Equals("game-type", StringComparison.OrdinalIgnoreCase))
+        if (axis.Equals(GameTypeVariantAxis, StringComparison.OrdinalIgnoreCase))
         {
             if (variantLabel.Equals("Generals", StringComparison.OrdinalIgnoreCase))
             {
@@ -309,6 +309,46 @@ public class GenericCatalogDiscoverer(
         return siblingArtifacts;
     }
 
+    /// <summary>
+    /// Applies shared presentation metadata (screenshots, tags, badges, includes summary) to a
+    /// search result. Variant siblings skip the includes summary (bundle contents are not
+    /// per-variant).
+    /// </summary>
+    private static void PopulatePresentation(
+        ContentSearchResult searchResult,
+        CatalogContentItem contentItem,
+        ContentRelease release,
+        IReadOnlyDictionary<string, string>? contentNamesById)
+    {
+        if (contentItem.Metadata?.ScreenshotUrls != null)
+        {
+            foreach (var url in contentItem.Metadata.ScreenshotUrls)
+            {
+                searchResult.ScreenshotUrls.Add(url);
+            }
+        }
+
+        foreach (var tag in contentItem.Tags)
+        {
+            searchResult.Tags.Add(tag);
+        }
+
+        if (contentItem.Metadata?.PlayerCount is int playerCount && playerCount > 0)
+        {
+            ContentCardBadgeHelper.ApplyPlayerCount(searchResult, playerCount);
+        }
+
+        ContentCardBadgeHelper.ApplyCategory(searchResult, contentItem.Metadata?.Category);
+        ContentCardBadgeHelper.PromoteFromTags(searchResult);
+
+        if (contentNamesById != null)
+        {
+            ContentCardBadgeHelper.ApplyIncludesSummary(
+                searchResult,
+                ResolveIncludedContentNames(release, contentNamesById));
+        }
+    }
+
     /// <inheritdoc />
     public string SourceName => _subscription?.PublisherName ?? "Generic Catalog";
 
@@ -355,7 +395,6 @@ public class GenericCatalogDiscoverer(
             }
 
             var catalog = catalogResult.Data!;
-            _cachedCatalog = catalog;
 
             // Dynamically hydrate upstream releases (e.g. TheSuperHackers latest release)
             await HydrateDynamicReleasesAsync(catalog, cancellationToken);
@@ -470,7 +509,7 @@ public class GenericCatalogDiscoverer(
                     DownloadUrl = zhAsset.BrowserDownloadUrl,
                     Size = zhAsset.Size,
                     ContentType = "application/zip",
-                    VariantAxis = "game-type",
+                    VariantAxis = GameTypeVariantAxis,
                     Variant = "Zero Hour",
                     IsDefaultVariant = item.TargetGame == GameType.ZeroHour,
                     IsPrimary = item.TargetGame == GameType.ZeroHour,
@@ -485,7 +524,7 @@ public class GenericCatalogDiscoverer(
                     DownloadUrl = genAsset.BrowserDownloadUrl,
                     Size = genAsset.Size,
                     ContentType = "application/zip",
-                    VariantAxis = "game-type",
+                    VariantAxis = GameTypeVariantAxis,
                     Variant = "Generals",
                     IsDefaultVariant = item.TargetGame == GameType.Generals,
                     IsPrimary = item.TargetGame == GameType.Generals,
@@ -859,45 +898,5 @@ public class GenericCatalogDiscoverer(
         };
 
         return (sibling, info, artifact);
-    }
-
-    /// <summary>
-    /// Applies shared presentation metadata (screenshots, tags, badges, includes summary) to a
-    /// search result. Variant siblings skip the includes summary (bundle contents are not
-    /// per-variant).
-    /// </summary>
-    private void PopulatePresentation(
-        ContentSearchResult searchResult,
-        CatalogContentItem contentItem,
-        ContentRelease release,
-        IReadOnlyDictionary<string, string>? contentNamesById)
-    {
-        if (contentItem.Metadata?.ScreenshotUrls != null)
-        {
-            foreach (var url in contentItem.Metadata.ScreenshotUrls)
-            {
-                searchResult.ScreenshotUrls.Add(url);
-            }
-        }
-
-        foreach (var tag in contentItem.Tags)
-        {
-            searchResult.Tags.Add(tag);
-        }
-
-        if (contentItem.Metadata?.PlayerCount is int playerCount && playerCount > 0)
-        {
-            ContentCardBadgeHelper.ApplyPlayerCount(searchResult, playerCount);
-        }
-
-        ContentCardBadgeHelper.ApplyCategory(searchResult, contentItem.Metadata?.Category);
-        ContentCardBadgeHelper.PromoteFromTags(searchResult);
-
-        if (contentNamesById != null)
-        {
-            ContentCardBadgeHelper.ApplyIncludesSummary(
-                searchResult,
-                ResolveIncludedContentNames(release, contentNamesById));
-        }
     }
 }

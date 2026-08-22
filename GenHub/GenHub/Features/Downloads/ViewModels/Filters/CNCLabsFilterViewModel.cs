@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -13,6 +14,7 @@ namespace GenHub.Features.Downloads.ViewModels.Filters;
 /// <summary>
 /// Filter view model for CNCLabs publisher with map tag toggle filters.
 /// </summary>
+[SuppressMessage("Naming", "S101:Types should be named in PascalCase", Justification = "CNCLabs is an established domain name")]
 public partial class CNCLabsFilterViewModel : FilterPanelViewModelBase
 {
     /// <inheritdoc />

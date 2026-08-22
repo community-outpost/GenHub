@@ -66,6 +66,7 @@ public partial class ContentDetailViewModel(
     IReadOnlyDictionary<string, ContentSearchResult>? variantSearchResults = null) : ObservableObject, IDisposable
 {
     private const string UnknownValue = "Unknown";
+    private const string ContentNotDownloadedTitle = "Content Not Downloaded";
 
     [ObservableProperty]
     private ObservableCollection<InstallableVariant> _variants = [];
@@ -300,26 +301,8 @@ public partial class ContentDetailViewModel(
     /// </summary>
     public void Dispose()
     {
-        if (!_disposed)
-        {
-            _cts.Cancel();
-            _cts.Dispose();
-
-            // Unsubscribe from state changes
-            contentStateService.ContentStateChanged -= OnContentStateChanged;
-            WeakReferenceMessenger.Default.Unregister<ContentLibraryClearedMessage>(this);
-            _unsubscribeAxisHandlers?.Invoke();
-            _unsubscribeAxisHandlers = null;
-            foreach (var component in BundleComponents)
-            {
-                component.PropertyChanged -= OnBundleComponentPropertyChanged;
-            }
-
-            IconBitmap = null;
-
-            _disposed = true;
-            GC.SuppressFinalize(this);
-        }
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
 
     /// <summary>
@@ -444,6 +427,36 @@ public partial class ContentDetailViewModel(
     /// </summary>
     /// <returns>A task that completes when persistence finishes.</returns>
     protected Task WaitForContentTypePersistAsync() => _contentTypePersistTask ?? Task.CompletedTask;
+
+    /// <summary>
+    /// Disposes unmanaged and managed resources.
+    /// </summary>
+    /// <param name="disposing">Whether managed resources should be disposed.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!_disposed)
+        {
+            if (disposing)
+            {
+                _cts.Cancel();
+                _cts.Dispose();
+
+                // Unsubscribe from state changes
+                contentStateService.ContentStateChanged -= OnContentStateChanged;
+                WeakReferenceMessenger.Default.Unregister<ContentLibraryClearedMessage>(this);
+                _unsubscribeAxisHandlers?.Invoke();
+                _unsubscribeAxisHandlers = null;
+                foreach (var component in BundleComponents)
+                {
+                    component.PropertyChanged -= OnBundleComponentPropertyChanged;
+                }
+
+                IconBitmap = null;
+            }
+
+            _disposed = true;
+        }
+    }
 
     /// <summary>
     /// Extracts a filename from a URL, or returns null if not possible.
@@ -717,11 +730,8 @@ public partial class ContentDetailViewModel(
         var snapshot = VariantSwap.Clone(sibling);
 
         if (!string.IsNullOrEmpty(catalogKey) &&
-            ManifestIdValidator.IsValid(snapshot.Id ?? string.Empty, out _) &&
-            !string.Equals(snapshot.Id, catalogKey, StringComparison.OrdinalIgnoreCase))
-        {
-        }
-        else if (!string.IsNullOrEmpty(catalogKey))
+            (!ManifestIdValidator.IsValid(snapshot.Id ?? string.Empty, out _) ||
+             string.Equals(snapshot.Id, catalogKey, StringComparison.OrdinalIgnoreCase)))
         {
             snapshot.Id = catalogKey;
         }
@@ -802,6 +812,16 @@ public partial class ContentDetailViewModel(
         {
             item.PreviewImages.Add(img);
         }
+    }
+
+    private static string? ResolveTargetGameString(ContentSearchResult? sibling, ContentSearchResult fallbackResult)
+    {
+        if (sibling?.TargetGame is not null and not GameType.Unknown)
+        {
+            return sibling.TargetGame.ToString();
+        }
+
+        return fallbackResult.TargetGame != GameType.Unknown ? fallbackResult.TargetGame.ToString() : null;
     }
 
     private async Task InitializeVariantsAsync()
@@ -1196,12 +1216,12 @@ public partial class ContentDetailViewModel(
             var state = await contentStateService.GetStateAsync(searchResult, _cts.Token);
 
             if (state == ContentState.Downloaded &&
-                (string.IsNullOrEmpty(searchResult.Id) || !ManifestIdValidator.IsValid(searchResult.Id!, out _)))
+                (string.IsNullOrEmpty(searchResult.Id) || !ManifestIdValidator.IsValid(searchResult.Id, out _)))
             {
                 var manifestId = await contentStateService.GetLocalManifestIdAsync(searchResult, _cts.Token);
                 if (!string.IsNullOrEmpty(manifestId))
                 {
-                    searchResult.UpdateId(manifestId!);
+                    searchResult.UpdateId(manifestId);
                 }
             }
 
@@ -1422,14 +1442,14 @@ public partial class ContentDetailViewModel(
 
             // PlaywrightService actively waits for a real ModDB document (or reports an
             // actionable verification timeout). Use cancellable view token.
-            return await parser.ParseAsync(searchResult.SourceUrl!, _cts.Token);
+            return await parser.ParseAsync(searchResult.SourceUrl ?? string.Empty, _cts.Token);
         }
 
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
         timeoutCts.CancelAfter(TimeSpan.FromSeconds(15));
         try
         {
-            return await parser.ParseAsync(searchResult.SourceUrl!, timeoutCts.Token)
+            return await parser.ParseAsync(searchResult.SourceUrl ?? string.Empty, timeoutCts.Token)
                 .WaitAsync(timeoutCts.Token);
         }
         catch (OperationCanceledException)
@@ -2316,7 +2336,7 @@ public partial class ContentDetailViewModel(
     /// </summary>
     public string IncludesSummary =>
         !string.IsNullOrWhiteSpace(RequiredDependenciesSummary)
-            ? RequiredDependenciesSummary!
+            ? RequiredDependenciesSummary
             : ContentCardBadgeHelper.GetIncludesSummary(searchResult);
 
     /// <summary>
@@ -2765,7 +2785,7 @@ public partial class ContentDetailViewModel(
             // state for the supplied ID, so sharing it would incorrectly mark the parent as
             // downloaded and make its Add to Profile action target whichever row finished last.
             Id = CreateFileContentId(file),
-            Name = file.Name ?? file.DownloadUrl!,
+            Name = file.Name ?? file.DownloadUrl ?? UnknownValue,
             Version = rowVersion,
             ProviderName = searchResult.ProviderName,
             ContentType = fileContentType,
@@ -3017,7 +3037,7 @@ public partial class ContentDetailViewModel(
         if (manifestResult.Success && manifestResult.Data != null)
         {
             var manifest = manifestResult.Data;
-            RunOnUiThread(() => ApplyStoredManifestMetadata(manifest));
+            await RunOnUiThreadAsync(() => ApplyStoredManifestMetadata(manifest));
         }
     }
 
@@ -3165,7 +3185,7 @@ public partial class ContentDetailViewModel(
             {
                 logger.LogWarning("Cannot add to profile: bundle members are not all downloaded");
                 notificationService.ShowWarning(
-                    "Content Not Downloaded",
+                    ContentNotDownloadedTitle,
                     "Download every selected bundle item (including the chosen variants) before adding them to a profile.");
                 return;
             }
@@ -3180,7 +3200,7 @@ public partial class ContentDetailViewModel(
             if (!SelectedDownloadableItem.IsDownloaded || string.IsNullOrWhiteSpace(SelectedDownloadableItem.DownloadedManifestId))
             {
                 logger.LogWarning("Cannot add to profile: selected downloadable item not downloaded yet");
-                notificationService.ShowWarning("Content Not Downloaded", "Please download this item before adding it to a profile.");
+                notificationService.ShowWarning(ContentNotDownloadedTitle, "Please download this item before adding it to a profile.");
                 return;
             }
 
@@ -3202,7 +3222,7 @@ public partial class ContentDetailViewModel(
         if (!IsDownloaded)
         {
             logger.LogWarning("Cannot add to profile: content not downloaded yet");
-            notificationService.ShowWarning("Content Not Downloaded", "Please download the content before adding it to a profile.");
+            notificationService.ShowWarning(ContentNotDownloadedTitle, "Please download the content before adding it to a profile.");
             return;
         }
 
@@ -3229,7 +3249,7 @@ public partial class ContentDetailViewModel(
 
         if (string.IsNullOrWhiteSpace(manifestId) || !ManifestIdValidator.IsValid(manifestId, out _))
         {
-            notificationService.ShowWarning("Content Not Downloaded", "Please download this file before adding it to a profile.");
+            notificationService.ShowWarning(ContentNotDownloadedTitle, "Please download this file before adding it to a profile.");
             return;
         }
 
@@ -3266,7 +3286,7 @@ public partial class ContentDetailViewModel(
                 if (bundleIds.Count == 0)
                 {
                     notificationService.ShowWarning(
-                        "Content Not Downloaded",
+                        ContentNotDownloadedTitle,
                         "Please download the content before adding it to a profile.");
                     return;
                 }
@@ -3298,7 +3318,7 @@ public partial class ContentDetailViewModel(
                 if (string.IsNullOrEmpty(contentManifestId))
                 {
                     notificationService.ShowWarning(
-                        "Content Not Downloaded",
+                        ContentNotDownloadedTitle,
                         "Please download the content before adding it to a profile.");
                     return;
                 }
@@ -3456,7 +3476,7 @@ public partial class ContentDetailViewModel(
             releaseItem.SelectCommand = new RelayCommand(
                 () =>
                 {
-                    if (variantSearchResults?.TryGetValue(manifestId, out var swapSr) == true)
+                    if (variantSearchResults != null && variantSearchResults.TryGetValue(manifestId, out var swapSr))
                     {
                         VariantSwap.Apply(searchResult, swapSr);
                         SelectedVariant = variant;
@@ -3468,7 +3488,7 @@ public partial class ContentDetailViewModel(
 
             releaseItem.DownloadCommand = new AsyncRelayCommand(async () =>
             {
-                if (variantSearchResults?.TryGetValue(manifestId, out var swapSr) == true)
+                if (variantSearchResults != null && variantSearchResults.TryGetValue(manifestId, out var swapSr))
                 {
                     VariantSwap.Apply(searchResult, swapSr);
                     SelectedVariant = variant;
@@ -3479,7 +3499,7 @@ public partial class ContentDetailViewModel(
 
             releaseItem.AddToProfileCommand = new AsyncRelayCommand(async () =>
             {
-                if (variantSearchResults?.TryGetValue(manifestId, out var swapSr) == true)
+                if (variantSearchResults != null && variantSearchResults.TryGetValue(manifestId, out var swapSr))
                 {
                     VariantSwap.Apply(searchResult, swapSr);
                     SelectedVariant = variant;
@@ -3836,7 +3856,7 @@ public partial class ContentDetailViewModel(
             var preferred = FindPreferredRelease(Releases);
             if (preferred != null && !ReferenceEquals(SelectedDownloadableItem, preferred))
             {
-                RunOnUiThread(() => SelectDownloadableItem(preferred, isUserInitiated: false));
+                await RunOnUiThreadAsync(() => SelectDownloadableItem(preferred, isUserInitiated: false));
             }
         }
     }
@@ -4054,16 +4074,6 @@ public partial class ContentDetailViewModel(
         {
             logger.LogError(ex, "Failed to load custom tabs for content: {Name}", Name);
         }
-    }
-
-    private string? ResolveTargetGameString(ContentSearchResult? sibling, ContentSearchResult fallbackResult)
-    {
-        if (sibling?.TargetGame is not null and not GameType.Unknown)
-        {
-            return sibling.TargetGame.ToString();
-        }
-
-        return fallbackResult.TargetGame != GameType.Unknown ? fallbackResult.TargetGame.ToString() : null;
     }
 
     private ReleaseItemViewModel? FindMatchingReleaseForSearchResult(IReadOnlyList<ReleaseItemViewModel> releases)

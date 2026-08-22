@@ -98,39 +98,12 @@ public sealed class ImageCacheService
         }
 
         var bytes = ip.GetAddressBytes();
-        if (bytes.Length == 4)
+        return bytes.Length switch
         {
-            // 0.0.0.0/8
-            if (bytes[0] == 0) return false;
-
-            // 10.0.0.0/8
-            if (bytes[0] == 10) return false;
-
-            // 100.64.0.0/10 (Carrier-grade NAT)
-            if (bytes[0] == 100 && bytes[1] >= 64 && bytes[1] <= 127) return false;
-
-            // 127.0.0.0/8
-            if (bytes[0] == 127) return false;
-
-            // 169.254.0.0/16 (Link-local)
-            if (bytes[0] == 169 && bytes[1] == 254) return false;
-
-            // 172.16.0.0/12
-            if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) return false;
-
-            // 192.168.0.0/16
-            if (bytes[0] == 192 && bytes[1] == 168) return false;
-        }
-        else if (bytes.Length == 16)
-        {
-            // Unique local address (fc00::/7)
-            if ((bytes[0] & 0xfe) == 0xfc) return false;
-
-            // Link-local address (fe80::/10)
-            if (bytes[0] == 0xfe && (bytes[1] & 0xc0) == 0x80) return false;
-        }
-
-        return true;
+            4 => IsSafeIPv4Bytes(bytes),
+            16 => IsSafeIPv6Bytes(bytes),
+            _ => true,
+        };
     }
 
     /// <summary>
@@ -287,6 +260,140 @@ public sealed class ImageCacheService
         url.StartsWith("/", StringComparison.Ordinal) ||
         url.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase);
 
+    private static bool IsSafeIPv4Bytes(byte[] bytes)
+    {
+        return bytes[0] switch
+        {
+            0 or 10 or 127 => false,
+            100 => bytes[1] < 64 || bytes[1] > 127,
+            169 => bytes[1] != 254,
+            172 => bytes[1] < 16 || bytes[1] > 31,
+            192 => bytes[1] != 168,
+            _ => true,
+        };
+    }
+
+    private static bool IsSafeIPv6Bytes(byte[] bytes)
+    {
+        if ((bytes[0] & 0xfe) == 0xfc)
+        {
+            return false;
+        }
+
+        if (bytes[0] == 0xfe && (bytes[1] & 0xc0) == 0x80)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static async Task<byte[]?> ReadValidImageBytesAsync(HttpResponseMessage response)
+    {
+        var mediaType = response.Content.Headers.ContentType?.MediaType;
+        if (!string.IsNullOrEmpty(mediaType) &&
+            !mediaType.StartsWith("image/", StringComparison.OrdinalIgnoreCase) &&
+            !mediaType.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        if (response.Content.Headers.ContentLength is long len && len > ImageCacheConstants.MaxImageDownloadSizeBytes)
+        {
+            return null;
+        }
+
+        using var responseStream = await response.Content.ReadAsStreamAsync();
+        using var ms = new MemoryStream();
+        var buffer = new byte[81920];
+        long totalRead = 0;
+        int read;
+
+        while ((read = await responseStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+        {
+            totalRead += read;
+            if (totalRead > ImageCacheConstants.MaxImageDownloadSizeBytes)
+            {
+                return null;
+            }
+
+            await ms.WriteAsync(buffer.AsMemory(0, read));
+        }
+
+        return ms.Length == 0 ? null : ms.ToArray();
+    }
+
+    private static void ExecuteDiskCleanup(string cacheDir)
+    {
+        try
+        {
+            if (!Directory.Exists(cacheDir))
+            {
+                return;
+            }
+
+            var di = new DirectoryInfo(cacheDir);
+            var files = di.GetFiles("*.img");
+            var cutoff = DateTime.UtcNow.AddDays(-ImageCacheConstants.DiskCacheTtlDays);
+            var remainingFiles = new List<FileInfo>();
+            long totalSize = 0;
+
+            foreach (var file in files)
+            {
+                if (file.LastWriteTimeUtc < cutoff)
+                {
+                    TryDeleteFile(file);
+                }
+                else
+                {
+                    remainingFiles.Add(file);
+                    totalSize += file.Length;
+                }
+            }
+
+            if (totalSize > ImageCacheConstants.MaxDiskCacheSizeBytes)
+            {
+                PruneOversizedCache(remainingFiles, totalSize);
+            }
+        }
+        catch
+        {
+            // ignore disk cleanup failures
+        }
+    }
+
+    private static void PruneOversizedCache(List<FileInfo> fileList, long totalSize)
+    {
+        var sorted = fileList.OrderBy(f => f.LastWriteTimeUtc).ToList();
+        var targetSize = ImageCacheConstants.MaxDiskCacheSizeBytes * 0.8;
+        foreach (var file in sorted)
+        {
+            if (totalSize <= targetSize)
+            {
+                break;
+            }
+
+            var fileLen = file.Length;
+            if (TryDeleteFile(file))
+            {
+                totalSize -= fileLen;
+            }
+        }
+    }
+
+    private static bool TryDeleteFile(FileInfo file)
+    {
+        try
+        {
+            file.Delete();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private Bitmap? TryLoadEmbeddedAsset(string url)
     {
         Uri? uri = null;
@@ -370,111 +477,90 @@ public sealed class ImageCacheService
         }
     }
 
+    private async Task<HttpResponseMessage?> FetchImageResponseAsync(string initialUrl)
+    {
+        var currentUrl = initialUrl;
+        HttpResponseMessage? response = null;
+
+        for (var redirectCount = 0; redirectCount <= ImageCacheConstants.MaxRedirects; redirectCount++)
+        {
+            if (!IsSafeRemoteUrl(currentUrl, out var targetUri) || targetUri == null)
+            {
+                return null;
+            }
+
+            var isSafeHost = await IsSafeHostAsync(targetUri.Host);
+            if (!isSafeHost)
+            {
+                return null;
+            }
+
+            var request = new HttpRequestMessage(HttpMethod.Get, currentUrl);
+            request.Headers.Add("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8");
+            if (currentUrl.Contains("moddb.com", StringComparison.OrdinalIgnoreCase))
+            {
+                request.Headers.Referrer = new Uri(ModDBConstants.BaseUrl);
+            }
+
+            response?.Dispose();
+            response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+
+            if ((int)response.StatusCode >= 300 && (int)response.StatusCode <= 399)
+            {
+                var redirectLocation = response.Headers.Location;
+                if (redirectLocation == null)
+                {
+                    response.Dispose();
+                    return null;
+                }
+
+                var nextUri = redirectLocation.IsAbsoluteUri
+                    ? redirectLocation
+                    : new Uri(targetUri, redirectLocation);
+
+                currentUrl = nextUri.ToString();
+                continue;
+            }
+
+            break;
+        }
+
+        if (response is not { IsSuccessStatusCode: true })
+        {
+            response?.Dispose();
+            return null;
+        }
+
+        return response;
+    }
+
     private async Task<Bitmap?> DownloadAndCacheAsync(string initialUrl, string diskPath)
     {
         try
         {
-            var currentUrl = initialUrl;
-            HttpResponseMessage? response = null;
-
-            for (int redirectCount = 0; redirectCount <= ImageCacheConstants.MaxRedirects; redirectCount++)
+            using var response = await FetchImageResponseAsync(initialUrl);
+            if (response == null)
             {
-                if (!IsSafeRemoteUrl(currentUrl, out var targetUri) || targetUri == null)
-                {
-                    return null;
-                }
-
-                var isSafeHost = await IsSafeHostAsync(targetUri.Host);
-                if (!isSafeHost)
-                {
-                    return null;
-                }
-
-                var request = new HttpRequestMessage(HttpMethod.Get, currentUrl);
-                request.Headers.Add("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8");
-                if (currentUrl.Contains("moddb.com", StringComparison.OrdinalIgnoreCase))
-                {
-                    request.Headers.Referrer = new Uri(ModDBConstants.BaseUrl);
-                }
-
-                response?.Dispose();
-                response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-
-                if ((int)response.StatusCode >= 300 && (int)response.StatusCode <= 399)
-                {
-                    var redirectLocation = response.Headers.Location;
-                    if (redirectLocation == null)
-                    {
-                        return null;
-                    }
-
-                    var nextUri = redirectLocation.IsAbsoluteUri
-                        ? redirectLocation
-                        : new Uri(targetUri, redirectLocation);
-
-                    currentUrl = nextUri.ToString();
-                    continue;
-                }
-
-                break;
-            }
-
-            if (response is not { IsSuccessStatusCode: true })
-            {
-                response?.Dispose();
                 return null;
             }
 
-            using (response)
+            var bytes = await ReadValidImageBytesAsync(response);
+            if (bytes == null)
             {
-                var mediaType = response.Content.Headers.ContentType?.MediaType;
-                if (!string.IsNullOrEmpty(mediaType) &&
-                    !mediaType.StartsWith("image/", StringComparison.OrdinalIgnoreCase) &&
-                    !mediaType.Equals("application/octet-stream", StringComparison.OrdinalIgnoreCase))
-                {
-                    return null;
-                }
-
-                if (response.Content.Headers.ContentLength is long len && len > ImageCacheConstants.MaxImageDownloadSizeBytes)
-                {
-                    return null;
-                }
-
-                using var responseStream = await response.Content.ReadAsStreamAsync();
-                using var ms = new MemoryStream();
-                var buffer = new byte[81920];
-                long totalRead = 0;
-                int read = 0;
-
-                while ((read = await responseStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
-                {
-                    totalRead += read;
-                    if (totalRead > ImageCacheConstants.MaxImageDownloadSizeBytes)
-                    {
-                        return null;
-                    }
-
-                    await ms.WriteAsync(buffer.AsMemory(0, read));
-                }
-
-                if (ms.Length == 0)
-                {
-                    return null;
-                }
-
-                var bytes = ms.ToArray();
-                if (!string.IsNullOrEmpty(diskPath))
-                {
-                    await File.WriteAllBytesAsync(diskPath, bytes);
-                }
-
-                using var decodeStream = new MemoryStream(bytes);
-                var bitmap = new Bitmap(decodeStream);
-
-                memoryCache.AddOrUpdate(initialUrl, bitmap);
-                TriggerDiskCleanupIfNeeded();
-                return bitmap;
+                return null;
             }
+
+            if (!string.IsNullOrEmpty(diskPath))
+            {
+                await File.WriteAllBytesAsync(diskPath, bytes);
+            }
+
+            using var decodeStream = new MemoryStream(bytes);
+            var bitmap = new Bitmap(decodeStream);
+
+            memoryCache.AddOrUpdate(initialUrl, bitmap);
+            TriggerDiskCleanupIfNeeded();
+            return bitmap;
         }
         catch
         {
@@ -520,67 +606,7 @@ public sealed class ImageCacheService
                 }
 
                 lastDiskCleanup = DateTime.UtcNow;
-
-                try
-                {
-                    if (!Directory.Exists(cacheDirectory))
-                    {
-                        return;
-                    }
-
-                    var di = new DirectoryInfo(cacheDirectory);
-                    var files = di.GetFiles("*.img");
-                    var cutoff = DateTime.UtcNow.AddDays(-ImageCacheConstants.DiskCacheTtlDays);
-                    long totalSize = 0;
-
-                    var fileList = new List<FileInfo>();
-                    foreach (var file in files)
-                    {
-                        if (file.LastWriteTimeUtc < cutoff)
-                        {
-                            try
-                            {
-                                file.Delete();
-                            }
-                            catch
-                            {
-                                // ignore cleanup failure
-                            }
-                        }
-                        else
-                        {
-                            fileList.Add(file);
-                            totalSize += file.Length;
-                        }
-                    }
-
-                    if (totalSize > ImageCacheConstants.MaxDiskCacheSizeBytes)
-                    {
-                        var sorted = fileList.OrderBy(f => f.LastWriteTimeUtc).ToList();
-                        foreach (var file in sorted)
-                        {
-                            if (totalSize <= ImageCacheConstants.MaxDiskCacheSizeBytes * 0.8)
-                            {
-                                break;
-                            }
-
-                            try
-                            {
-                                var fileLen = file.Length;
-                                file.Delete();
-                                totalSize -= fileLen;
-                            }
-                            catch
-                            {
-                                // ignore cleanup failure
-                            }
-                        }
-                    }
-                }
-                catch
-                {
-                    // ignore disk cleanup failures
-                }
+                ExecuteDiskCleanup(cacheDirectory);
             }
         });
     }

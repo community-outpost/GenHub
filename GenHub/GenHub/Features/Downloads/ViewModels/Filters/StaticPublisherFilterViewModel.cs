@@ -27,7 +27,7 @@ public partial class StaticPublisherFilterViewModel : FilterPanelViewModelBase
     public StaticPublisherFilterViewModel(string publisherId)
     {
         PublisherId = publisherId;
-        InitializeContentTypeFilters();
+        ContentTypeFilters = CreateDefaultContentTypeFilters();
     }
 
     /// <inheritdoc />
@@ -68,6 +68,17 @@ public partial class StaticPublisherFilterViewModel : FilterPanelViewModelBase
         }
     }
 
+    private static ObservableCollection<ContentTypeFilterItem> CreateDefaultContentTypeFilters()
+    {
+        return
+        [
+            new ContentTypeFilterItem(ContentType.GameClient, "Game clients"),
+            new ContentTypeFilterItem(ContentType.Addon, "Add-ons"),
+            new ContentTypeFilterItem(ContentType.MapPack, "Map packs"),
+            new ContentTypeFilterItem(ContentType.Executable, "Runtime components"),
+        ];
+    }
+
     [RelayCommand]
     private void ToggleContentType(ContentTypeFilterItem item)
     {
@@ -89,16 +100,5 @@ public partial class StaticPublisherFilterViewModel : FilterPanelViewModelBase
         }
 
         NotifyFiltersChanged();
-    }
-
-    private void InitializeContentTypeFilters()
-    {
-        ContentTypeFilters =
-        [
-            new ContentTypeFilterItem(ContentType.GameClient, "Game clients"),
-            new ContentTypeFilterItem(ContentType.Addon, "Add-ons"),
-            new ContentTypeFilterItem(ContentType.MapPack, "Map packs"),
-            new ContentTypeFilterItem(ContentType.Executable, "Runtime components"),
-        ];
     }
 }

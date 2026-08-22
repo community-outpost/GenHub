@@ -41,8 +41,14 @@ public static class ModDBConstants
     /// <summary>Downloads URL path segment.</summary>
     public const string DownloadsSegment = "/downloads/";
 
+    /// <summary>Downloads section name.</summary>
+    public const string DownloadsSection = "downloads";
+
     /// <summary>Addons URL path segment.</summary>
     public const string AddonsSegment = "/addons/";
+
+    /// <summary>Addons section name.</summary>
+    public const string AddonsSection = "addons";
 
     /// <summary>Articles URL path segment.</summary>
     public const string ArticlesSegment = "/articles";

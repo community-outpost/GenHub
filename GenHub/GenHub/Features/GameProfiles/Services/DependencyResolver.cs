@@ -215,47 +215,12 @@ public class DependencyResolver(
 
             try
             {
-                var manifest = allManifests.FirstOrDefault(m => string.Equals(m.Id.Value, contentId, StringComparison.OrdinalIgnoreCase));
-                if (manifest == null)
-                {
-                    var manifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(contentId), cancellationToken);
-                    manifest = manifestResult.Success ? manifestResult.Data : null;
-                }
+                var manifest = await TryFetchManifestAsync(contentId, allManifests, cancellationToken);
 
                 if (manifest != null)
                 {
                     resolvedManifests.Add(manifest);
-
-                    if (manifest.Dependencies != null)
-                    {
-                        var relevantDeps = manifest.Dependencies.Where(d => d.InstallBehavior == DependencyInstallBehavior.RequireExisting || d.InstallBehavior == DependencyInstallBehavior.AutoInstall);
-                        foreach (var dep in relevantDeps)
-                        {
-                            // Skip default/placeholder IDs - these are generic type-based constraints validated separately
-                            if (dep.Id.ToString() == ManifestConstants.DefaultContentDependencyId)
-                            {
-                                logger.LogDebug("Skipping generic dependency {DependencyName} (type-based constraint, not specific manifest)", dep.Name);
-                                continue;
-                            }
-
-                            // Skip type-only constraints such as "1.104.any.gameinstallation.zerohour".
-                            // A concrete ID is still a real dependency when StrictPublisher is false:
-                            // Community Outpost emits those IDs with semantic matching metadata.
-                            if (CommunityOutpostDependencyIdentity.IsGenericTypeDependency(dep))
-                            {
-                                logger.LogDebug("Skipping type-based dependency {DependencyName} (validated by type matching)", dep.Name);
-                                continue;
-                            }
-
-                            var canonicalDependencyId = ResolveCanonicalDependencyId(
-                                dep,
-                                allManifests);
-                            if (!resolvedIds.Contains(canonicalDependencyId))
-                            {
-                                toProcess.Enqueue(canonicalDependencyId);
-                            }
-                        }
-                    }
+                    EnqueueDependencies(manifest, allManifests, resolvedIds, toProcess);
                 }
                 else
                 {
@@ -287,6 +252,58 @@ public class DependencyResolver(
         }
 
         return DependencyResolutionResult.CreateSuccess([..resolvedIds], resolvedManifests, missingContentIds);
+    }
+
+    private async Task<ContentManifest?> TryFetchManifestAsync(
+        string contentId,
+        IReadOnlyList<ContentManifest> allManifests,
+        CancellationToken cancellationToken)
+    {
+        var manifest = allManifests.FirstOrDefault(m => string.Equals(m.Id.Value, contentId, StringComparison.OrdinalIgnoreCase));
+        if (manifest != null)
+        {
+            return manifest;
+        }
+
+        var manifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(contentId), cancellationToken);
+        return manifestResult.Success ? manifestResult.Data : null;
+    }
+
+    private void EnqueueDependencies(
+        ContentManifest manifest,
+        IReadOnlyList<ContentManifest> allManifests,
+        HashSet<string> resolvedIds,
+        Queue<string> toProcess)
+    {
+        if (manifest.Dependencies == null)
+        {
+            return;
+        }
+
+        var relevantDeps = manifest.Dependencies.Where(d =>
+            d.InstallBehavior == DependencyInstallBehavior.RequireExisting ||
+            d.InstallBehavior == DependencyInstallBehavior.AutoInstall);
+
+        foreach (var dep in relevantDeps)
+        {
+            if (dep.Id.ToString() == ManifestConstants.DefaultContentDependencyId)
+            {
+                logger.LogDebug("Skipping generic dependency {DependencyName} (type-based constraint, not specific manifest)", dep.Name);
+                continue;
+            }
+
+            if (CommunityOutpostDependencyIdentity.IsGenericTypeDependency(dep))
+            {
+                logger.LogDebug("Skipping type-based dependency {DependencyName} (validated by type matching)", dep.Name);
+                continue;
+            }
+
+            var canonicalDependencyId = ResolveCanonicalDependencyId(dep, allManifests);
+            if (!resolvedIds.Contains(canonicalDependencyId))
+            {
+                toProcess.Enqueue(canonicalDependencyId);
+            }
+        }
     }
 
     /// <summary>

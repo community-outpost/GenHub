@@ -214,6 +214,23 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
         return deltas;
     }
 
+    private static bool IsOptionalOrSkippedFile(string relativePath)
+    {
+        var fileName = Path.GetFileName(relativePath.Replace('\\', '/'));
+        return string.Equals(fileName, "EA_LOGO.BIK", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(fileName, "EA_LOGO640.BIK", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsRuntimeOrIgnoredWorkspaceFile(string relativePath)
+    {
+        var fileName = Path.GetFileName(relativePath.Replace('\\', '/'));
+        return fileName.StartsWith(".gh", StringComparison.OrdinalIgnoreCase) ||
+               fileName.EndsWith(".log", StringComparison.OrdinalIgnoreCase) ||
+               fileName.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(fileName, "launch.receipt.json", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(fileName, "ReleaseCrashInfo.txt", StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>
     /// Determines if a file needs to be updated based on hash or symlink validity.
     /// </summary>
@@ -305,22 +322,5 @@ public class WorkspaceReconciler(ILogger<WorkspaceReconciler> logger, IFileOpera
             logger.LogWarning(ex, "Error checking if file needs update: {FilePath}", filePath);
             return true; // Assume needs update if we can't verify
         }
-    }
-
-    private bool IsOptionalOrSkippedFile(string relativePath)
-    {
-        var fileName = Path.GetFileName(relativePath.Replace('\\', '/'));
-        return string.Equals(fileName, "EA_LOGO.BIK", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(fileName, "EA_LOGO640.BIK", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private bool IsRuntimeOrIgnoredWorkspaceFile(string relativePath)
-    {
-        var fileName = Path.GetFileName(relativePath.Replace('\\', '/'));
-        return fileName.StartsWith(".gh", StringComparison.OrdinalIgnoreCase) ||
-               fileName.EndsWith(".log", StringComparison.OrdinalIgnoreCase) ||
-               fileName.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(fileName, "launch.receipt.json", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(fileName, "ReleaseCrashInfo.txt", StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -30,6 +30,7 @@ public sealed partial class ContentStateService(
     IContentManifestPool manifestPool,
     ILogger<ContentStateService> logger) : IContentStateService
 {
+    private const string GitHubPublisher = "github";
     private const string FileSchemePrefix = "file:";
     private const int MaxSessionDownloadsEntries = 1000;
 
@@ -70,7 +71,7 @@ public sealed partial class ContentStateService(
                 }
             }
 
-            _sessionDownloads[contentId] = manifestId!;
+            _sessionDownloads[contentId] = manifestId;
         }
         else if (newState == ContentState.NotDownloaded && !string.IsNullOrEmpty(contentId))
         {
@@ -235,7 +236,7 @@ public sealed partial class ContentStateService(
             return true;
         }
 
-        if (p1.StartsWith("github", StringComparison.OrdinalIgnoreCase) && p2.StartsWith("github", StringComparison.OrdinalIgnoreCase))
+        if (p1.StartsWith(GitHubPublisher, StringComparison.OrdinalIgnoreCase) && p2.StartsWith(GitHubPublisher, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
@@ -339,31 +340,9 @@ public sealed partial class ContentStateService(
         string? localVersionStr = null)
     {
         // 1. If human-readable version strings are available on both sides, compare them first.
-        if (!string.IsNullOrWhiteSpace(prospectiveVersionStr) && !string.IsNullOrWhiteSpace(localVersionStr))
+        if (CompareVersionStrings(prospectiveVersionStr, localVersionStr, out var stringCompareResult))
         {
-            var cleanedP = prospectiveVersionStr.Trim().TrimStart('v', 'V');
-            var cleanedL = localVersionStr.Trim().TrimStart('v', 'V');
-            if (string.Equals(cleanedP, cleanedL, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            if (Version.TryParse(cleanedP, out var vP) && Version.TryParse(cleanedL, out var vL))
-            {
-                return vP > vL;
-            }
-
-            var pNum = CatalogManifestIdentity.ExtractVersionNumber(prospectiveVersionStr);
-            var lNum = CatalogManifestIdentity.ExtractVersionNumber(localVersionStr);
-            if (pNum > 0 && lNum > 0)
-            {
-                bool pIsDate = IsDateVersion(pNum);
-                bool lIsDate = IsDateVersion(lNum);
-                if (pIsDate == lIsDate)
-                {
-                    return pNum > lNum;
-                }
-            }
+            return stringCompareResult;
         }
 
         // 2. Parse 5-segment manifest IDs.
@@ -395,7 +374,47 @@ public sealed partial class ContentStateService(
         return false;
     }
 
-    // TODO: [Architecture] Extrapolate publisher-specific variant state matching heuristics (e.g. IsSuperHackersVariant
+    private static bool CompareVersionStrings(
+        string? prospectiveVersionStr,
+        string? localVersionStr,
+        out bool isNewer)
+    {
+        isNewer = false;
+        if (string.IsNullOrWhiteSpace(prospectiveVersionStr) || string.IsNullOrWhiteSpace(localVersionStr))
+        {
+            return false;
+        }
+
+        var cleanedP = prospectiveVersionStr.Trim().TrimStart('v', 'V');
+        var cleanedL = localVersionStr.Trim().TrimStart('v', 'V');
+        if (string.Equals(cleanedP, cleanedL, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (Version.TryParse(cleanedP, out var vP) && Version.TryParse(cleanedL, out var vL))
+        {
+            isNewer = vP > vL;
+            return true;
+        }
+
+        var pNum = CatalogManifestIdentity.ExtractVersionNumber(prospectiveVersionStr);
+        var lNum = CatalogManifestIdentity.ExtractVersionNumber(localVersionStr);
+        if (pNum > 0 && lNum > 0)
+        {
+            bool pIsDate = IsDateVersion(pNum);
+            bool lIsDate = IsDateVersion(lNum);
+            if (pIsDate == lIsDate)
+            {
+                isNewer = pNum > lNum;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Architecture note: Extrapolate publisher-specific variant state matching heuristics (e.g. IsSuperHackersVariant
     // and CommunityOutpost content code lookups) into an IContentPublisherStateMatcher strategy pattern to keep ContentStateService generic.
     private static bool IsSuperHackersVariant(
         ContentSearchResult item,
@@ -572,17 +591,14 @@ public sealed partial class ContentStateService(
             if (idSegments.Length == 5)
             {
                 var idName = NormalizeSegment(idSegments[4]);
-                if (!candidateNames.Contains(idName, StringComparer.OrdinalIgnoreCase))
-                {
-                    candidateNames.Add(idName);
-                }
+                candidateNames.Add(idName);
             }
             else
             {
                 var rawId = item.Id.StartsWith(FileSchemePrefix, StringComparison.OrdinalIgnoreCase)
                     ? string.Empty
                     : NormalizeSegment(item.Id);
-                if (!string.IsNullOrEmpty(rawId) && !candidateNames.Contains(rawId, StringComparer.OrdinalIgnoreCase))
+                if (!string.IsNullOrEmpty(rawId))
                 {
                     candidateNames.Add(rawId);
                 }
@@ -751,29 +767,36 @@ public sealed partial class ContentStateService(
         return version is >= 19900101 and <= 21001231;
     }
 
+    private static bool MatchesSourceUrl(ContentManifest manifest, string sourceUrl)
+    {
+        var cleanSource = sourceUrl.TrimEnd('/');
+        if (!string.IsNullOrWhiteSpace(manifest.Publisher?.SupportUrl) &&
+            string.Equals(manifest.Publisher.SupportUrl.TrimEnd('/'), cleanSource, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(manifest.Publisher?.Website) &&
+            string.Equals(manifest.Publisher.Website.TrimEnd('/'), cleanSource, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(manifest.OriginalContentId) &&
+            (string.Equals(manifest.OriginalContentId.TrimEnd('/'), cleanSource, StringComparison.OrdinalIgnoreCase) ||
+             manifest.OriginalContentId.Contains(cleanSource, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
     private static bool IsSameContentSource(ContentManifest manifest, ContentSearchResult item)
     {
-        if (!string.IsNullOrWhiteSpace(item.SourceUrl))
+        if (!string.IsNullOrWhiteSpace(item.SourceUrl) && MatchesSourceUrl(manifest, item.SourceUrl))
         {
-            var cleanSource = item.SourceUrl.TrimEnd('/');
-            if (!string.IsNullOrWhiteSpace(manifest.Publisher?.SupportUrl) &&
-                string.Equals(manifest.Publisher.SupportUrl.TrimEnd('/'), cleanSource, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            if (!string.IsNullOrWhiteSpace(manifest.Publisher?.Website) &&
-                string.Equals(manifest.Publisher.Website.TrimEnd('/'), cleanSource, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            if (!string.IsNullOrWhiteSpace(manifest.OriginalContentId) &&
-                (string.Equals(manifest.OriginalContentId.TrimEnd('/'), cleanSource, StringComparison.OrdinalIgnoreCase) ||
-                 manifest.OriginalContentId.Contains(cleanSource, StringComparison.OrdinalIgnoreCase)))
-            {
-                return true;
-            }
+            return true;
         }
 
         if (!string.IsNullOrWhiteSpace(item.Id) &&
@@ -852,6 +875,129 @@ public sealed partial class ContentStateService(
         return string.CompareOrdinal(existingVersion, bestMatchVersion);
     }
 
+    private static (string ProspectiveId, DateTime ReleaseDate, bool HasRealDate) DetermineProspectiveManifestId(ContentSearchResult item)
+    {
+        bool hasRealDate = item.LastUpdated.HasValue && item.LastUpdated.Value > DateTime.MinValue;
+        var releaseDate = item.LastUpdated ?? DateTime.MinValue;
+
+        var providerName = string.IsNullOrWhiteSpace(item.ProviderName) ? "unknown" : item.ProviderName;
+        var contentName = item.Name;
+        if (string.IsNullOrWhiteSpace(contentName))
+        {
+            contentName = string.IsNullOrWhiteSpace(item.Id) ? "unknown" : item.Id;
+        }
+
+        var prospectiveId = hasRealDate
+            ? ManifestIdGenerator.GeneratePublisherContentId(providerName, item.ContentType, contentName, releaseDate)
+            : ManifestIdGenerator.GeneratePublisherContentId(providerName, item.ContentType, contentName, userVersion: 0);
+
+        return (prospectiveId, releaseDate, hasRealDate);
+    }
+
+    private static ContentManifest? FindDirectFileMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item)
+    {
+        return manifests.FirstOrDefault(manifest =>
+            (!string.IsNullOrEmpty(manifest.OriginalContentId) && string.Equals(manifest.OriginalContentId, item.Id, StringComparison.Ordinal)) ||
+            (!string.IsNullOrWhiteSpace(item.SelectedDownloadUrl) && manifest.Files != null && manifest.Files.Any(file =>
+                !string.IsNullOrWhiteSpace(file.DownloadUrl) &&
+                string.Equals(file.DownloadUrl, item.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase))));
+    }
+
+    private static ContentManifest? FindOriginMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item)
+    {
+        return manifests.FirstOrDefault(manifest =>
+            (string.Equals(manifest.OriginalProviderName, item.ProviderName, StringComparison.OrdinalIgnoreCase) ||
+             IsCompatiblePublisherAlias(manifest.OriginalProviderName ?? string.Empty, item.ProviderName)) &&
+            (string.Equals(manifest.OriginalContentId, item.Id, StringComparison.Ordinal) ||
+             ContentNameMatches(manifest, item.ProviderName, item.ContentType.ToString(), item.TargetGame, item.Name)));
+    }
+
+    private static ContentManifest? FindGitHubRepoMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item)
+    {
+        if (string.IsNullOrWhiteSpace(item.SourceUrl) || !IsGitHubUrl(item.SourceUrl))
+        {
+            return null;
+        }
+
+        return manifests.FirstOrDefault(manifest => IsGitHubManifestMatch(manifest, item));
+    }
+
+    private static bool IsGitHubManifestMatch(ContentManifest manifest, ContentSearchResult item)
+    {
+        if (manifest.ContentType != item.ContentType || manifest.TargetGame != item.TargetGame)
+        {
+            return false;
+        }
+
+        var manifestPublisher = manifest.Publisher?.PublisherType ?? manifest.OriginalProviderName ?? string.Empty;
+        if (!IsCompatiblePublisherAlias(manifestPublisher, GitHubPublisher) &&
+            !manifestPublisher.StartsWith(GitHubPublisher, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var website = manifest.Publisher?.Website;
+        var supportUrl = manifest.Publisher?.SupportUrl;
+        var changelog = manifest.Metadata?.ChangelogUrl;
+        var cleanSource = (item.SourceUrl ?? string.Empty).TrimEnd('/');
+
+        bool urlMatches = (!string.IsNullOrEmpty(website) && string.Equals(website.TrimEnd('/'), cleanSource, StringComparison.OrdinalIgnoreCase)) ||
+                          (!string.IsNullOrEmpty(supportUrl) && string.Equals(supportUrl.TrimEnd('/'), cleanSource, StringComparison.OrdinalIgnoreCase)) ||
+                          (!string.IsNullOrEmpty(changelog) && changelog.StartsWith(cleanSource, StringComparison.OrdinalIgnoreCase));
+
+        if (!urlMatches)
+        {
+            return false;
+        }
+
+        var itemVariant = ExtractVariantToken(item.Name) ?? ExtractVariantToken(item.Id);
+        var manifestVariant = ExtractVariantToken(manifest.Name) ?? ExtractVariantToken(manifest.Id.Value);
+
+        if (!string.IsNullOrEmpty(itemVariant) && !string.IsNullOrEmpty(manifestVariant))
+        {
+            return string.Equals(itemVariant, manifestVariant, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (!string.IsNullOrEmpty(itemVariant) || !string.IsNullOrEmpty(manifestVariant))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static ContentManifest? FindDownloadUrlMatch(IReadOnlyList<ContentManifest> manifests, string? selectedDownloadUrl)
+    {
+        if (string.IsNullOrWhiteSpace(selectedDownloadUrl))
+        {
+            return null;
+        }
+
+        return manifests.FirstOrDefault(manifest =>
+            manifest.Files?.Any(file =>
+                !string.IsNullOrWhiteSpace(file.DownloadUrl) &&
+                string.Equals(file.DownloadUrl, selectedDownloadUrl, StringComparison.OrdinalIgnoreCase)) == true);
+    }
+
+    private static ContentManifest? FindSuperHackersMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item)
+    {
+        if (!IsSuperHackersVariant(item, out var expectedVersion, out var expectedContentName))
+        {
+            return null;
+        }
+
+        return manifests.FirstOrDefault(manifest =>
+        {
+            var segments = manifest.Id.Value.Split('.');
+            return segments.Length == 5
+                && string.Equals(segments[1], expectedVersion, StringComparison.Ordinal)
+                && string.Equals(segments[2], PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(segments[3], ContentType.GameClient.ToString(), StringComparison.OrdinalIgnoreCase)
+                && string.Equals(segments[4], expectedContentName, StringComparison.OrdinalIgnoreCase)
+                && manifest.TargetGame == item.TargetGame;
+        });
+    }
+
     private async Task<bool> CheckDirectSessionManifestFastPathAsync(ContentSearchResult item, CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(item.Id))
@@ -878,25 +1024,6 @@ public sealed partial class ContentStateService(
         }
 
         return false;
-    }
-
-    private (string ProspectiveId, DateTime ReleaseDate, bool HasRealDate) DetermineProspectiveManifestId(ContentSearchResult item)
-    {
-        bool hasRealDate = item.LastUpdated.HasValue && item.LastUpdated.Value > DateTime.MinValue;
-        var releaseDate = hasRealDate ? item.LastUpdated!.Value : DateTime.MinValue;
-
-        var providerName = string.IsNullOrWhiteSpace(item.ProviderName) ? "unknown" : item.ProviderName;
-        var contentName = item.Name;
-        if (string.IsNullOrWhiteSpace(contentName))
-        {
-            contentName = string.IsNullOrWhiteSpace(item.Id) ? "unknown" : item.Id;
-        }
-
-        var prospectiveId = hasRealDate
-            ? ManifestIdGenerator.GeneratePublisherContentId(providerName, item.ContentType, contentName, releaseDate)
-            : ManifestIdGenerator.GeneratePublisherContentId(providerName, item.ContentType, contentName, userVersion: 0);
-
-        return (prospectiveId, releaseDate, hasRealDate);
     }
 
     private async Task<ContentState> EvaluatePersistedManifestStateAsync(
@@ -1004,16 +1131,16 @@ public sealed partial class ContentStateService(
             return null;
         }
 
-        if (ManifestIdValidator.IsValid(item.Id!, out _))
+        if (ManifestIdValidator.IsValid(item.Id, out _))
         {
-            var direct = await manifestPool.IsManifestAcquiredAsync(item.Id!, cancellationToken);
+            var direct = await manifestPool.IsManifestAcquiredAsync(item.Id, cancellationToken);
             if (direct.Success && direct.Data)
             {
                 return item.Id;
             }
         }
 
-        if (_sessionDownloads.TryGetValue(item.Id!, out var sessionManifestId))
+        if (_sessionDownloads.TryGetValue(item.Id, out var sessionManifestId))
         {
             var mapped = await manifestPool.IsManifestAcquiredAsync(sessionManifestId, cancellationToken);
             if (mapped.Success && mapped.Data)
@@ -1100,110 +1227,6 @@ public sealed partial class ContentStateService(
             ?? FindDownloadUrlMatch(manifests, item.SelectedDownloadUrl)
             ?? FindSuperHackersMatch(manifests, item)
             ?? FindByPublisherTypeAndGame(manifests, item);
-    }
-
-    private ContentManifest? FindDirectFileMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item)
-    {
-        return manifests.FirstOrDefault(manifest =>
-            (!string.IsNullOrEmpty(manifest.OriginalContentId) && string.Equals(manifest.OriginalContentId, item.Id, StringComparison.Ordinal)) ||
-            (!string.IsNullOrWhiteSpace(item.SelectedDownloadUrl) && manifest.Files != null && manifest.Files.Any(file =>
-                !string.IsNullOrWhiteSpace(file.DownloadUrl) &&
-                string.Equals(file.DownloadUrl, item.SelectedDownloadUrl, StringComparison.OrdinalIgnoreCase))));
-    }
-
-    private ContentManifest? FindOriginMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item)
-    {
-        return manifests.FirstOrDefault(manifest =>
-            (string.Equals(manifest.OriginalProviderName, item.ProviderName, StringComparison.OrdinalIgnoreCase) ||
-             IsCompatiblePublisherAlias(manifest.OriginalProviderName ?? string.Empty, item.ProviderName)) &&
-            (string.Equals(manifest.OriginalContentId, item.Id, StringComparison.Ordinal) ||
-             ContentNameMatches(manifest, item.ProviderName, item.ContentType.ToString(), item.TargetGame, item.Name)));
-    }
-
-    private ContentManifest? FindGitHubRepoMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item)
-    {
-        if (string.IsNullOrWhiteSpace(item.SourceUrl) || !IsGitHubUrl(item.SourceUrl))
-        {
-            return null;
-        }
-
-        return manifests.FirstOrDefault(manifest => IsGitHubManifestMatch(manifest, item));
-    }
-
-    private bool IsGitHubManifestMatch(ContentManifest manifest, ContentSearchResult item)
-    {
-        if (manifest.ContentType != item.ContentType || manifest.TargetGame != item.TargetGame)
-        {
-            return false;
-        }
-
-        var manifestPublisher = manifest.Publisher?.PublisherType ?? manifest.OriginalProviderName ?? string.Empty;
-        if (!IsCompatiblePublisherAlias(manifestPublisher, "github") &&
-            !manifestPublisher.StartsWith("github", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var website = manifest.Publisher?.Website;
-        var supportUrl = manifest.Publisher?.SupportUrl;
-        var changelog = manifest.Metadata?.ChangelogUrl;
-        var cleanSource = item.SourceUrl!.TrimEnd('/');
-
-        bool urlMatches = (!string.IsNullOrEmpty(website) && string.Equals(website.TrimEnd('/'), cleanSource, StringComparison.OrdinalIgnoreCase)) ||
-                          (!string.IsNullOrEmpty(supportUrl) && string.Equals(supportUrl.TrimEnd('/'), cleanSource, StringComparison.OrdinalIgnoreCase)) ||
-                          (!string.IsNullOrEmpty(changelog) && changelog.StartsWith(cleanSource, StringComparison.OrdinalIgnoreCase));
-
-        if (!urlMatches)
-        {
-            return false;
-        }
-
-        var itemVariant = ExtractVariantToken(item.Name) ?? ExtractVariantToken(item.Id);
-        var manifestVariant = ExtractVariantToken(manifest.Name) ?? ExtractVariantToken(manifest.Id.Value);
-
-        if (!string.IsNullOrEmpty(itemVariant) && !string.IsNullOrEmpty(manifestVariant))
-        {
-            return string.Equals(itemVariant, manifestVariant, StringComparison.OrdinalIgnoreCase);
-        }
-
-        if (!string.IsNullOrEmpty(itemVariant) || !string.IsNullOrEmpty(manifestVariant))
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    private ContentManifest? FindDownloadUrlMatch(IReadOnlyList<ContentManifest> manifests, string? selectedDownloadUrl)
-    {
-        if (string.IsNullOrWhiteSpace(selectedDownloadUrl))
-        {
-            return null;
-        }
-
-        return manifests.FirstOrDefault(manifest =>
-            manifest.Files?.Any(file =>
-                !string.IsNullOrWhiteSpace(file.DownloadUrl) &&
-                string.Equals(file.DownloadUrl, selectedDownloadUrl, StringComparison.OrdinalIgnoreCase)) == true);
-    }
-
-    private ContentManifest? FindSuperHackersMatch(IReadOnlyList<ContentManifest> manifests, ContentSearchResult item)
-    {
-        if (!IsSuperHackersVariant(item, out var expectedVersion, out var expectedContentName))
-        {
-            return null;
-        }
-
-        return manifests.FirstOrDefault(manifest =>
-        {
-            var segments = manifest.Id.Value.Split('.');
-            return segments.Length == 5
-                && string.Equals(segments[1], expectedVersion, StringComparison.Ordinal)
-                && string.Equals(segments[2], PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase)
-                && string.Equals(segments[3], ContentType.GameClient.ToString(), StringComparison.OrdinalIgnoreCase)
-                && string.Equals(segments[4], expectedContentName, StringComparison.OrdinalIgnoreCase)
-                && manifest.TargetGame == item.TargetGame;
-        });
     }
 
     /// <summary>

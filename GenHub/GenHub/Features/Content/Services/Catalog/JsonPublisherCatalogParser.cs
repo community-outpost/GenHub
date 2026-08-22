@@ -164,7 +164,7 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         }
     }
 
-    private void ValidatePublisherInfo(PublisherCatalog catalog, List<string> errors)
+    private static void ValidatePublisherInfo(PublisherCatalog catalog, List<string> errors)
     {
         if (string.IsNullOrWhiteSpace(catalog.Publisher?.Id))
         {
@@ -174,6 +174,26 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
         if (string.IsNullOrWhiteSpace(catalog.Publisher?.Name))
         {
             errors.Add("Publisher name is required");
+        }
+    }
+
+    private static void NormalizeCatalogCollections(PublisherCatalog catalog)
+    {
+        catalog.Content ??= [];
+        foreach (var content in catalog.Content)
+        {
+            content.Tags ??= [];
+            if (content.Metadata != null)
+            {
+                content.Metadata.ScreenshotUrls ??= [];
+            }
+
+            content.Releases ??= [];
+            foreach (var release in content.Releases)
+            {
+                release.Artifacts ??= [];
+                release.Dependencies ??= [];
+            }
         }
     }
 
@@ -323,26 +343,6 @@ public class JsonPublisherCatalogParser(ILogger<JsonPublisherCatalogParser> logg
                     artifact.Filename,
                     content.Id,
                     release.Version);
-            }
-        }
-    }
-
-    private void NormalizeCatalogCollections(PublisherCatalog catalog)
-    {
-        catalog.Content ??= [];
-        foreach (var content in catalog.Content)
-        {
-            content.Tags ??= [];
-            if (content.Metadata != null)
-            {
-                content.Metadata.ScreenshotUrls ??= [];
-            }
-
-            content.Releases ??= [];
-            foreach (var release in content.Releases)
-            {
-                release.Artifacts ??= [];
-                release.Dependencies ??= [];
             }
         }
     }

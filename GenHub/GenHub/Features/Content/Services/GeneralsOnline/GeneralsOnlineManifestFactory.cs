@@ -194,7 +194,7 @@ public class GeneralsOnlineManifestFactory(
         var manifests = CreateVariantManifestsFromOriginal(originalManifest);
 
         // Update manifests with extracted files (compute hashes, set file entries)
-        return await UpdateManifestsWithExtractedFiles(manifests, extractedDirectory, originalManifest, cancellationToken);
+        return await UpdateManifestsWithExtractedFiles(manifests, extractedDirectory, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -241,7 +241,7 @@ public class GeneralsOnlineManifestFactory(
         var manifests = CreateManifests(release);
 
         // Update with file hashes from the installation
-        return await UpdateManifestsWithExtractedFiles(manifests, installationPath, null, cancellationToken);
+        return await UpdateManifestsWithExtractedFiles(manifests, installationPath, cancellationToken);
     }
 
     private static int ParseVersionForManifestId(string version) => GameVersionHelper.GetGeneralsOnlineManifestIdComponent(version);
@@ -250,6 +250,9 @@ public class GeneralsOnlineManifestFactory(
     /// Determines whether a manifest-relative path is the named file at the archive root.
     /// Nested files that merely share the name are not the published entry point.
     /// </summary>
+    /// <param name="relativePath">The candidate path.</param>
+    /// <param name="fileName">The target file name.</param>
+    /// <returns><c>true</c> if the path resolves to <paramref name="fileName"/> at the root; otherwise, <c>false</c>.</returns>
     private static bool IsArchiveRootFile(string relativePath, string fileName) =>
         string.Equals(
             relativePath.Replace('\\', '/').TrimStart('/'),
@@ -260,7 +263,7 @@ public class GeneralsOnlineManifestFactory(
     {
         // For maps, relative path should be relative to the Maps directory if present
         var mapRelativePath = relativePath;
-        var pathSegments = relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var pathSegments = relativePath.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]);
         var mapsIndex = Array.FindIndex(pathSegments, s => s.Equals(GeneralsOnlineConstants.MapsSubdirectory, StringComparison.OrdinalIgnoreCase));
         if (mapsIndex >= 0 && mapsIndex < pathSegments.Length - 1)
         {
@@ -622,13 +625,11 @@ public class GeneralsOnlineManifestFactory(
     /// </summary>
     /// <param name="manifests">The original content manifests to update.</param>
     /// <param name="extractPath">The path to the directory containing extracted files.</param>
-    /// <param name="originalManifest">The original manifest being acquired, if available.</param>
     /// <param name="cancellationToken">Token to cancel the operation if needed.</param>
     /// <returns>Updated content manifests with file hashes and details.</returns>
     private async Task<List<ContentManifest>> UpdateManifestsWithExtractedFiles(
         List<ContentManifest> manifests,
         string extractPath,
-        ContentManifest? originalManifest = null,
         CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Updating manifests with extracted files from: {Path}", extractPath);

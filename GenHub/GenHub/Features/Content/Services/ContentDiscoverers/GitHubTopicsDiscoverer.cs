@@ -449,29 +449,9 @@ public partial class GitHubTopicsDiscoverer(
 
     private static string ExtractVersionOrTokenVariant(string[] parts, string fallback)
     {
-        for (var i = parts.Length - 1; i >= 0; i--)
+        if (TryExtractVersionToken(parts, out var versionToken))
         {
-            var part = parts[i];
-            if (part.Length >= 2 &&
-                (part[0] == 'v' || part[0] == 'V') &&
-                char.IsDigit(part[1]))
-            {
-                if (i + 1 < parts.Length && !VariantPatterns.NonDigitPattern().IsMatch(parts[i + 1]))
-                {
-                    return $"{part}.{parts[i + 1]}";
-                }
-
-                return part;
-            }
-
-            if (i > 0 &&
-                !VariantPatterns.NonDigitPattern().IsMatch(part) &&
-                parts[i - 1].Length >= 2 &&
-                (parts[i - 1][0] == 'v' || parts[i - 1][0] == 'V') &&
-                char.IsDigit(parts[i - 1][1]))
-            {
-                return $"{parts[i - 1]}.{part}";
-            }
+            return versionToken!;
         }
 
         for (var i = parts.Length - 1; i >= 0; i--)
@@ -483,6 +463,40 @@ public partial class GitHubTopicsDiscoverer(
         }
 
         return fallback;
+    }
+
+    private static bool TryExtractVersionToken(string[] parts, out string? versionToken)
+    {
+        for (var i = parts.Length - 1; i >= 0; i--)
+        {
+            var part = parts[i];
+            if (part.Length >= 2 &&
+                (part[0] == 'v' || part[0] == 'V') &&
+                char.IsDigit(part[1]))
+            {
+                if (i + 1 < parts.Length && !VariantPatterns.NonDigitPattern().IsMatch(parts[i + 1]))
+                {
+                    versionToken = $"{part}.{parts[i + 1]}";
+                    return true;
+                }
+
+                versionToken = part;
+                return true;
+            }
+
+            if (i > 0 &&
+                !VariantPatterns.NonDigitPattern().IsMatch(part) &&
+                parts[i - 1].Length >= 2 &&
+                (parts[i - 1][0] == 'v' || parts[i - 1][0] == 'V') &&
+                char.IsDigit(parts[i - 1][1]))
+            {
+                versionToken = $"{parts[i - 1]}.{part}";
+                return true;
+            }
+        }
+
+        versionToken = null;
+        return false;
     }
 
     /// <summary>

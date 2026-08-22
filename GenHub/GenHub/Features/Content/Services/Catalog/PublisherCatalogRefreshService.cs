@@ -27,9 +27,12 @@ public class PublisherCatalogRefreshService(
         try
         {
             var subsResult = await subscriptionStore.GetSubscriptionsAsync(cancellationToken);
-            if (!subsResult.Success) return OperationResult<bool>.CreateFailure(subsResult);
+            if (!subsResult.Success || subsResult.Data == null)
+            {
+                return OperationResult<bool>.CreateFailure(subsResult);
+            }
 
-            var subscriptions = subsResult.Data!;
+            var subscriptions = subsResult.Data;
             var tasks = subscriptions.Select(s => RefreshPublisherAsync(s.PublisherId, cancellationToken));
 
             var results = await Task.WhenAll(tasks);

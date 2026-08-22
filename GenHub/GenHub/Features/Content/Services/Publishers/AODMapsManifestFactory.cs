@@ -247,7 +247,12 @@ public partial class AODMapsManifestFactory(
                 throw new InvalidDataException($"ZIP entry has an unsafe path: {entry.FullName}");
             }
 
-            Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
+            var dir = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrEmpty(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+
             entry.ExtractToFile(destinationPath, overwrite: true);
         }
     }

@@ -144,11 +144,11 @@ public partial class CNCLabsManifestFactory(
         var zipFiles = Directory.GetFiles(extractedDirectory, "*.zip", SearchOption.AllDirectories);
         if (zipFiles.Length == 0)
         {
-            logger.LogInformation("No ZIP files found in directory, returning original manifest");
+            logger.LogDebug("No ZIP files found in directory, returning original manifest");
             return new List<ContentManifest> { originalManifest };
         }
 
-        logger.LogInformation("Found {Count} ZIP files to extract", zipFiles.Length);
+        logger.LogDebug("Found {Count} ZIP files to extract", zipFiles.Length);
 
         // Extract all ZIP files
         var extractedFiles = new List<ManifestFile>();
@@ -156,7 +156,7 @@ public partial class CNCLabsManifestFactory(
         {
             try
             {
-                logger.LogInformation("Extracting ZIP file: {ZipPath}", zipPath);
+                logger.LogDebug("Extracting ZIP file: {ZipPath}", zipPath);
 
                 // Extract ZIP to a subdirectory
                 var extractPath = Path.Combine(extractedDirectory, Path.GetFileNameWithoutExtension(zipPath));
@@ -167,12 +167,12 @@ public partial class CNCLabsManifestFactory(
 
                 Directory.CreateDirectory(extractPath);
 
-                ZipFile.ExtractToDirectory(zipPath, extractPath);
-                logger.LogInformation("Extracted ZIP to: {ExtractPath}", extractPath);
+                await Task.Run(() => ZipFile.ExtractToDirectory(zipPath, extractPath), cancellationToken);
+                logger.LogDebug("Extracted ZIP to: {ExtractPath}", extractPath);
 
                 // Scan extracted files
                 var files = Directory.GetFiles(extractPath, "*", SearchOption.AllDirectories);
-                logger.LogInformation("Found {Count} files in extracted ZIP", files.Length);
+                logger.LogDebug("Found {Count} files in extracted ZIP", files.Length);
 
                 foreach (var filePath in files)
                 {

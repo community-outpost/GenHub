@@ -47,18 +47,7 @@ public class CatalogTabProvider(
     {
         try
         {
-            // Generic catalog search results show a human-readable publisher name, while the
-            // subscription store is keyed by the catalog publisher ID. Prefer the ID preserved
-            // in resolver metadata and retain the name lookup for older/non-catalog providers.
-            var publisherId = searchResult.ProviderName;
-            if (searchResult.ResolverMetadata.TryGetValue(CatalogConstants.PublisherProfileJsonMetadataKey, out var publisherProfileJson))
-            {
-                var publisherProfile = JsonSerializer.Deserialize<PublisherProfile>(publisherProfileJson);
-                if (!string.IsNullOrWhiteSpace(publisherProfile?.Id))
-                {
-                    publisherId = publisherProfile.Id;
-                }
-            }
+            var publisherId = ResolvePublisherId(searchResult);
 
             // Query subscription store to retrieve publisher catalog details.
             var subscriptionResult = await subscriptionStore.GetSubscriptionAsync(
@@ -67,7 +56,6 @@ public class CatalogTabProvider(
 
             if (!subscriptionResult.Success || subscriptionResult.Data == null)
             {
-                // Return empty read-only list if publisher subscription is not found or fails to resolve
                 return [];
             }
 
@@ -86,63 +74,90 @@ public class CatalogTabProvider(
 
             if (!catalogResult.Success || catalogResult.Data?.CustomTabs == null || catalogResult.Data.CustomTabs.Count == 0)
             {
-                // Return empty read-only list if publisher catalog defines no custom tabs
                 return [];
             }
 
             // Convert parsed catalog tab definitions into runtime tab definitions for the downloads detail view
             var tabs = new List<CustomTabDefinition>();
+            searchResult.ResolverMetadata.TryGetValue(CatalogConstants.CatalogContentIdMetadataKey, out var catalogContentId);
+            var contentId = !string.IsNullOrWhiteSpace(catalogContentId) ? catalogContentId : searchResult.Id ?? string.Empty;
+            var resultId = searchResult.Id ?? string.Empty;
 
             foreach (var catalogTab in catalogResult.Data.CustomTabs)
             {
-                searchResult.ResolverMetadata.TryGetValue(CatalogConstants.CatalogContentIdMetadataKey, out var catalogContentId);
-                var contentId = !string.IsNullOrWhiteSpace(catalogContentId) ? catalogContentId : searchResult.Id ?? string.Empty;
-
-                if (catalogTab.AppliesTo is { Count: > 0 } &&
-                    catalogTab.AppliesTo.All(a => !a.Equals(contentId, StringComparison.OrdinalIgnoreCase) &&
-                                                   !a.Equals(searchResult.Id ?? string.Empty, StringComparison.OrdinalIgnoreCase)))
+                if (!TabAppliesToContent(catalogTab, contentId, resultId))
                 {
                     continue;
                 }
 
-                // Parse tab content type with fallback to custom tab type if an unknown value is specified in catalog json
-                if (!Enum.TryParse<TabContentType>(catalogTab.ContentType, true, out var contentType))
-                {
-                    logger.LogWarning("invalid content type '{ContentType}' for tab '{TabId}' in publisher '{Publisher}'", catalogTab.ContentType, catalogTab.TabId, searchResult.ProviderName);
-                    contentType = TabContentType.Custom;
-                }
-
-                tabs.Add(new CustomTabDefinition
-                {
-                    TabId = catalogTab.TabId,
-                    Header = catalogTab.Header,
-                    Icon = catalogTab.Icon,
-                    Order = catalogTab.Order,
-                    ContentType = contentType,
-                    DataSourceUrl = catalogTab.DataSourceUrl,
-                    ContentTemplate = catalogTab.ContentTemplate,
-                    Intro = catalogTab.Intro,
-                    Cards = catalogTab.Cards?.ConvertAll(card => new CustomTabCardDefinition
-                    {
-                        Title = card.Title,
-                        Description = card.Description,
-                        ImageUrl = card.ImageUrl,
-                        Label = card.Label,
-                        AccentColor = card.AccentColor,
-                    }) ?? [],
-                    Metadata = catalogTab.Metadata,
-                    IsVisible = catalogTab.IsVisible,
-                    LazyLoad = catalogTab.LazyLoad,
-                });
+                tabs.Add(MapToTabDefinition(catalogTab, searchResult));
             }
 
             return tabs;
         }
         catch (Exception ex)
         {
-            // Log error and return empty read-only list to ensure failure loading custom tabs does not crash the downloads detail view
             logger.LogError(ex, "error loading custom tabs for content '{ContentId}' from publisher '{Publisher}'", searchResult.Id, searchResult.ProviderName);
             return [];
         }
+    }
+
+    private static string ResolvePublisherId(ContentSearchResult searchResult)
+    {
+        var publisherId = searchResult.ProviderName;
+        if (searchResult.ResolverMetadata.TryGetValue(CatalogConstants.PublisherProfileJsonMetadataKey, out var publisherProfileJson))
+        {
+            var publisherProfile = JsonSerializer.Deserialize<PublisherProfile>(publisherProfileJson);
+            if (!string.IsNullOrWhiteSpace(publisherProfile?.Id))
+            {
+                publisherId = publisherProfile.Id;
+            }
+        }
+
+        return publisherId;
+    }
+
+    private static bool TabAppliesToContent(CatalogTabDefinition catalogTab, string contentId, string resultId)
+    {
+        if (catalogTab.AppliesTo is not { Count: > 0 })
+        {
+            return true;
+        }
+
+        return catalogTab.AppliesTo.Any(a =>
+            a.Equals(contentId, StringComparison.OrdinalIgnoreCase) ||
+            a.Equals(resultId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private CustomTabDefinition MapToTabDefinition(CatalogTabDefinition catalogTab, ContentSearchResult searchResult)
+    {
+        if (!Enum.TryParse<TabContentType>(catalogTab.ContentType, true, out var contentType))
+        {
+            logger.LogWarning("invalid content type '{ContentType}' for tab '{TabId}' in publisher '{Publisher}'", catalogTab.ContentType, catalogTab.TabId, searchResult.ProviderName);
+            contentType = TabContentType.Custom;
+        }
+
+        return new CustomTabDefinition
+        {
+            TabId = catalogTab.TabId,
+            Header = catalogTab.Header,
+            Icon = catalogTab.Icon,
+            Order = catalogTab.Order,
+            ContentType = contentType,
+            DataSourceUrl = catalogTab.DataSourceUrl,
+            ContentTemplate = catalogTab.ContentTemplate,
+            Intro = catalogTab.Intro,
+            Cards = catalogTab.Cards?.ConvertAll(card => new CustomTabCardDefinition
+            {
+                Title = card.Title,
+                Description = card.Description,
+                ImageUrl = card.ImageUrl,
+                Label = card.Label,
+                AccentColor = card.AccentColor,
+            }) ?? [],
+            Metadata = catalogTab.Metadata,
+            IsVisible = catalogTab.IsVisible,
+            LazyLoad = catalogTab.LazyLoad,
+        };
     }
 }

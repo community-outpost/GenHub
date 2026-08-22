@@ -72,37 +72,12 @@ public static partial class ContentCardBadgeHelper
 
         if (!HasMetadata(result, ContentConstants.PlayerCountMetadataKey))
         {
-            foreach (var tag in result.Tags)
-            {
-                var match = PlayerCountTagRegex().Match(tag);
-                if (match.Success && int.TryParse(match.Groups["players"].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var count))
-                {
-                    ApplyPlayerCount(result, count);
-                    break;
-                }
-            }
+            PromotePlayerCountFromTags(result);
         }
 
         if (!HasMetadata(result, ContentConstants.CategoryMetadataKey))
         {
-            foreach (var tag in result.Tags)
-            {
-                if (string.IsNullOrWhiteSpace(tag))
-                {
-                    continue;
-                }
-
-                var match = CategoryTagRegex().Match(tag);
-                if (match.Success)
-                {
-                    var cat = match.Groups["category"].Value.Trim();
-                    if (!string.IsNullOrWhiteSpace(cat))
-                    {
-                        ApplyCategory(result, cat);
-                        break;
-                    }
-                }
-            }
+            PromoteCategoryFromTags(result);
         }
     }
 
@@ -382,6 +357,41 @@ public static partial class ContentCardBadgeHelper
 
         value = string.Empty;
         return false;
+    }
+
+    private static void PromotePlayerCountFromTags(ContentSearchResult result)
+    {
+        foreach (var tag in result.Tags)
+        {
+            var match = PlayerCountTagRegex().Match(tag);
+            if (match.Success && int.TryParse(match.Groups["players"].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var count))
+            {
+                ApplyPlayerCount(result, count);
+                break;
+            }
+        }
+    }
+
+    private static void PromoteCategoryFromTags(ContentSearchResult result)
+    {
+        foreach (var tag in result.Tags)
+        {
+            if (string.IsNullOrWhiteSpace(tag))
+            {
+                continue;
+            }
+
+            var match = CategoryTagRegex().Match(tag);
+            if (match.Success)
+            {
+                var cat = match.Groups["category"].Value.Trim();
+                if (!string.IsNullOrWhiteSpace(cat))
+                {
+                    ApplyCategory(result, cat);
+                    break;
+                }
+            }
+        }
     }
 
     [GeneratedRegex(@"^(?:players?:)?(?<players>[1-8])\s*players?$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]

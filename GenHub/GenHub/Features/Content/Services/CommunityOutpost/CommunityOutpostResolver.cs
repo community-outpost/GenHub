@@ -192,40 +192,51 @@ public class CommunityOutpostResolver(
             return "0";
         }
 
-        // Handle date versions like "2025-11-07" (YYYY-MM-DD)
-        if (trimmed.Length == 10 && trimmed[4] == '-' && trimmed[7] == '-')
+        if (TryParseDateVersion(trimmed, out var dateResult))
         {
-            var dateDigits = trimmed.Replace("-", string.Empty);
-            if (dateDigits.Length == 8 && int.TryParse(dateDigits, out var dateValue))
-            {
-                return dateValue.ToString();
-            }
-        }
-
-        // Handle date versions like "13-02-2025" (DD-MM-YYYY)
-        if (trimmed.Length == 10 && trimmed[2] == '-' && trimmed[5] == '-')
-        {
-            // Reorder to YYYYMMDD
-            var parts = trimmed.Split('-');
-            if (parts.Length == 3)
-            {
-                var dateDigits = $"{parts[2]}{parts[1]}{parts[0]}";
-                if (dateDigits.Length == 8 && int.TryParse(dateDigits, out var dateValue))
-                {
-                    return dateValue.ToString();
-                }
-            }
+            return dateResult!;
         }
 
         // Remove dots and leading zeros to get numeric version
         var digits = trimmed.Replace(".", string.Empty);
-
         if (int.TryParse(digits, out var numericVersion))
         {
             return numericVersion.ToString();
         }
 
         return "0";
+    }
+
+    private static bool TryParseDateVersion(string trimmed, out string? result)
+    {
+        // Handle date versions like "2025-11-07" (YYYY-MM-DD)
+        if (trimmed.Length == 10 && trimmed[4] == '-' && trimmed[7] == '-')
+        {
+            var dateDigits = trimmed.Replace("-", string.Empty);
+            if (dateDigits.Length == 8 && int.TryParse(dateDigits, out var dateValue))
+            {
+                result = dateValue.ToString();
+                return true;
+            }
+        }
+
+        // Handle date versions like "13-02-2025" (DD-MM-YYYY)
+        if (trimmed.Length == 10 && trimmed[2] == '-' && trimmed[5] == '-')
+        {
+            var parts = trimmed.Split('-');
+            if (parts.Length == 3)
+            {
+                var dateDigits = $"{parts[2]}{parts[1]}{parts[0]}";
+                if (dateDigits.Length == 8 && int.TryParse(dateDigits, out var dateValue))
+                {
+                    result = dateValue.ToString();
+                    return true;
+                }
+            }
+        }
+
+        result = null;
+        return false;
     }
 
     /// <summary>
@@ -267,7 +278,7 @@ public class CommunityOutpostResolver(
         return long.TryParse(stringValue, out var result) ? result : defaultValue;
     }
 
-    private string DetermineManifestVersion(
+    private static string DetermineManifestVersion(
         ContentSearchResult discoveredItem,
         GenPatcherContentMetadata contentMetadata)
     {
@@ -283,7 +294,7 @@ public class CommunityOutpostResolver(
         return ExtractManifestVersion(versionSource);
     }
 
-    private IContentManifestBuilder BuildBaseManifest(
+    private static IContentManifestBuilder BuildBaseManifest(
         IContentManifestBuilder manifestBuilder,
         ContentSearchResult discoveredItem,
         GenPatcherContentMetadata contentMetadata,
@@ -417,7 +428,7 @@ public class CommunityOutpostResolver(
     /// <summary>
     /// Generates a deterministic content name for manifest ID generation.
     /// </summary>
-    private string GenerateContentName(string contentCode, GenPatcherContentMetadata metadata)
+    private static string GenerateContentName(string contentCode, GenPatcherContentMetadata metadata)
     {
         // For official patches like "104p" -> "patch104polish"
         if (metadata.Category == GenPatcherContentCategory.OfficialPatch && !string.IsNullOrEmpty(metadata.LanguageCode))
@@ -441,7 +452,7 @@ public class CommunityOutpostResolver(
     /// <summary>
     /// Gets a display name for a language code.
     /// </summary>
-    private string GetLanguageDisplayName(string languageCode)
+    private static string GetLanguageDisplayName(string languageCode)
     {
         return languageCode.ToLowerInvariant() switch
         {
@@ -462,14 +473,14 @@ public class CommunityOutpostResolver(
     /// <summary>
     /// Extracts a variant suffix from a search result ID, metadata, or name (e.g. cbpr-1080p -> 1080p).
     /// </summary>
-    private string? TryExtractVariantSuffix(ContentSearchResult item, GenPatcherContentMetadata metadata)
+    private static string? TryExtractVariantSuffix(ContentSearchResult item, GenPatcherContentMetadata metadata)
     {
         return TryExtractVariantFromResolverMetadata(item.ResolverMetadata)
             ?? TryExtractVariantFromId(item.Id, metadata)
             ?? TryExtractVariantFromName(item.Name, metadata);
     }
 
-    private string? TryExtractVariantFromResolverMetadata(IDictionary<string, string>? resolverMetadata)
+    private static string? TryExtractVariantFromResolverMetadata(IDictionary<string, string>? resolverMetadata)
     {
         if (resolverMetadata == null)
         {
@@ -488,7 +499,7 @@ public class CommunityOutpostResolver(
         return null;
     }
 
-    private string? TryExtractVariantFromId(string? id, GenPatcherContentMetadata metadata)
+    private static string? TryExtractVariantFromId(string? id, GenPatcherContentMetadata metadata)
     {
         if (string.IsNullOrEmpty(id))
         {
@@ -517,7 +528,7 @@ public class CommunityOutpostResolver(
         return null;
     }
 
-    private string? TryExtractVariantFromName(string? name, GenPatcherContentMetadata metadata)
+    private static string? TryExtractVariantFromName(string? name, GenPatcherContentMetadata metadata)
     {
         if (string.IsNullOrEmpty(name) || metadata.Variants is not { Count: > 0 })
         {

@@ -789,15 +789,16 @@ public class GameLauncher(
             var (finalExecutablePath, launchConfig, steamPrep, steamAppId) = configResult.Data;
 
             var executionResult = await ExecuteAndRegisterProcessAsync(
-                launchId,
-                profile,
-                manifests,
-                workspaceInfo,
-                finalExecutablePath,
-                launchConfig,
-                steamPrep,
-                steamAppId,
-                isSteamLaunch,
+                new ProcessExecutionRequest(
+                    launchId,
+                    profile,
+                    manifests,
+                    workspaceInfo,
+                    finalExecutablePath,
+                    launchConfig,
+                    steamPrep,
+                    steamAppId,
+                    isSteamLaunch),
                 cancellationToken);
 
             if (!executionResult.Success || executionResult.Data == null)
@@ -947,29 +948,32 @@ public class GameLauncher(
             (finalExecutablePath, launchConfig, steamPrep, steamAppId));
     }
 
+    private readonly record struct ProcessExecutionRequest(
+        string LaunchId,
+        GameProfile Profile,
+        List<ContentManifest> Manifests,
+        WorkspaceInfo WorkspaceInfo,
+        string FinalExecutablePath,
+        GameLaunchConfiguration LaunchConfig,
+        SteamLaunchPrepResult? SteamPrep,
+        string? SteamAppId,
+        bool IsSteamLaunch);
+
     private async Task<OperationResult<GameLaunchInfo>> ExecuteAndRegisterProcessAsync(
-        string launchId,
-        GameProfile profile,
-        List<ContentManifest> manifests,
-        WorkspaceInfo workspaceInfo,
-        string finalExecutablePath,
-        GameLaunchConfiguration launchConfig,
-        SteamLaunchPrepResult? steamPrep,
-        string? steamAppId,
-        bool isSteamLaunch,
+        ProcessExecutionRequest request,
         CancellationToken cancellationToken)
     {
-        var effectiveStrategy = profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy();
+        var effectiveStrategy = request.Profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy();
 
         var processResult = await LaunchProcessAsync(
-            isSteamLaunch,
-            manifests,
-            finalExecutablePath,
+            request.IsSteamLaunch,
+            request.Manifests,
+            request.FinalExecutablePath,
             effectiveStrategy,
-            launchConfig,
-            workspaceInfo,
-            steamPrep,
-            steamAppId,
+            request.LaunchConfig,
+            request.WorkspaceInfo,
+            request.SteamPrep,
+            request.SteamAppId,
             cancellationToken);
 
         if (!processResult.Success || processResult.Data == null)
@@ -983,9 +987,9 @@ public class GameLauncher(
 
         var launchInfo = new GameLaunchInfo
         {
-            LaunchId = launchId,
-            ProfileId = profile.Id,
-            WorkspaceId = workspaceInfo.Id,
+            LaunchId = request.LaunchId,
+            ProfileId = request.Profile.Id,
+            WorkspaceId = request.WorkspaceInfo.Id,
             ProcessInfo = processInfo,
             LaunchedAt = DateTime.UtcNow,
         };
@@ -1162,31 +1166,6 @@ public class GameLauncher(
         }
 
         return OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo);
-    }
-
-    private async Task<OperationResult<WorkspaceInfo>> PrepareWorkspaceForLaunchAsync(
-        WorkspaceConfiguration workspaceConfig,
-        bool isSteamLaunch,
-        IProgress<LaunchProgress>? progress,
-        CancellationToken cancellationToken)
-    {
-        logger.LogInformation("[GameLauncher] Preparing workspace at: {WorkspacePath}", workspaceConfig.WorkspaceRootPath);
-        var workspaceProgress = new Progress<WorkspacePreparationProgress>(
-            wp =>
-            {
-                var percentComplete = 20 + (int)(wp.FilesProcessed / (double)Math.Max(1, wp.TotalFiles) * 60);
-                progress?.Report(new LaunchProgress
-                {
-                    Phase = LaunchPhase.PreparingWorkspace,
-                    PercentComplete = Math.Min(percentComplete, 80),
-                    IsInitializingWorkspace = true,
-                    TotalFiles = wp.TotalFiles,
-                    FilesProcessed = wp.FilesProcessed,
-                    CurrentFile = wp.CurrentFile,
-                });
-            });
-
-        return await workspaceManager.PrepareWorkspaceAsync(workspaceConfig, workspaceProgress, skipCleanup: false, cancellationToken);
     }
 
     private void TriggerBackgroundUserDataSwitch(
@@ -1534,9 +1513,9 @@ public class GameLauncher(
     {
         var possiblePaths = new[]
         {
-            Path.Combine(workspacePath, "Data", "Movies", GameContentConstants.EaLogoBikFileName),
-            Path.Combine(workspacePath, "Data", "English", "Movies", GameContentConstants.EaLogoBikFileName),
-            Path.Combine(workspacePath, "Movies", GameContentConstants.EaLogoBikFileName),
+            Path.Combine(workspacePath, DirectoryNames.Data, DirectoryNames.Movies, GameContentConstants.EaLogoBikFileName),
+            Path.Combine(workspacePath, DirectoryNames.Data, "English", DirectoryNames.Movies, GameContentConstants.EaLogoBikFileName),
+            Path.Combine(workspacePath, DirectoryNames.Movies, GameContentConstants.EaLogoBikFileName),
             Path.Combine(workspacePath, "data", "movies", GameContentConstants.EaLogoBikFileName),
         };
 
@@ -1754,29 +1733,6 @@ public class GameLauncher(
 
         return OperationResult<(GameInstallation, GameClient, string, string, bool)>.CreateSuccess(
             (installation, gameClient, actualInstallationPath, dynamicWorkspacePath, isSteamLaunch));
-    }
-
-    private WorkspaceConfiguration CreateWorkspaceLaunchConfiguration(
-        GameProfile profile,
-        List<ContentManifest> workspaceManifests,
-        GameClient gameClient,
-        Dictionary<string, string> manifestSourcePaths,
-        string actualInstallationPath,
-        string dynamicWorkspacePath,
-        bool isSteamLaunch)
-    {
-        var effectiveStrategy = profile.WorkspaceStrategy ?? configurationProvider.GetDefaultWorkspaceStrategy();
-        return new WorkspaceConfiguration
-        {
-            Id = profile.Id,
-            Manifests = workspaceManifests,
-            GameClient = gameClient,
-            Strategy = effectiveStrategy,
-            ForceRecreate = false,
-            WorkspaceRootPath = dynamicWorkspacePath,
-            BaseInstallationPath = actualInstallationPath,
-            ManifestSourcePaths = manifestSourcePaths,
-        };
     }
 
     private void HandlePostWorkspacePreparation(

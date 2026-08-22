@@ -595,73 +595,17 @@ public partial class GameProfileItemViewModel : ViewModelBase
         // Re-extract version and publisher info from updated profile
         if (updatedProfile is GameProfile gameProfile)
         {
-            // Reset version info before re-extracting
-            GameVersion = string.Empty;
-            Publisher = string.Empty;
-
-            // First try to get info from enabled GameInstallation manifests
-            var installationManifestId = gameProfile.EnabledContentIds?.FirstOrDefault(id => id.Contains("-installation"));
-            if (!string.IsNullOrEmpty(installationManifestId))
-            {
-                ExtractManifestInfo(installationManifestId);
-            }
-
-            // Fallback to GameClient manifest
-            else if (gameProfile.GameClient != null)
-            {
-                ExtractManifestInfo(gameProfile.GameClient.Id);
-
-                // Fallback: use GameClient.Version directly
-                // But SKIP if the publisher is "Local"
-                if (string.IsNullOrEmpty(GameVersion) &&
-                    !string.IsNullOrEmpty(gameProfile.GameClient.Version) &&
-                    !string.Equals(Publisher, "Local", StringComparison.OrdinalIgnoreCase))
-                {
-                    var version = gameProfile.GameClient.Version;
-                    GameVersion = IsZeroOrPlaceholderVersion(version) ? string.Empty : version;
-                }
-            }
-
-            // Update description
-            // Update description layout
+            UpdateManifestAndVersionInfo(gameProfile);
             UpdateDescription(gameProfile);
 
-            // Update workspace info
             ActiveWorkspaceId = gameProfile.ActiveWorkspaceId;
             UseSteamLaunch = gameProfile.UseSteamLaunch ?? true;
 
-            // Update visuals
-            if (!string.IsNullOrEmpty(gameProfile.ThemeColor))
-            {
-                ColorValue = gameProfile.ThemeColor;
-            }
-
-            if (!string.IsNullOrEmpty(gameProfile.IconPath))
-            {
-                IconPath = gameProfile.IconPath;
-            }
-
-            if (!string.IsNullOrEmpty(gameProfile.CoverPath))
-            {
-                var normalizedCoverPath = NormalizeCoverPath(gameProfile.CoverPath);
-                CoverPath = normalizedCoverPath;
-                CoverImagePath = normalizedCoverPath;
-            }
-
+            UpdateVisuals(gameProfile);
             CommandLineArguments = gameProfile.CommandLineArguments;
         }
 
-        // Notify UI of all property changes
-        OnPropertyChanged(nameof(Name));
-        OnPropertyChanged(nameof(Version));
-        OnPropertyChanged(nameof(GameVersion));
-        OnPropertyChanged(nameof(Publisher));
-        OnPropertyChanged(nameof(Description));
-        OnPropertyChanged(nameof(ColorValue));
-        OnPropertyChanged(nameof(IconPath));
-        OnPropertyChanged(nameof(CoverPath));
-        OnPropertyChanged(nameof(CoverImagePath));
-        OnPropertyChanged(nameof(CommandLineArguments));
+        NotifyProfilePropertiesChanged();
 
         OnPropertyChanged(nameof(IsWorkspacePrepared));
         OnPropertyChanged(nameof(WorkspaceStatus));
@@ -696,25 +640,15 @@ public partial class GameProfileItemViewModel : ViewModelBase
         };
     }
 
-    /// <summary>
-    /// Gets a user-friendly name for the game type.
-    /// </summary>
-    /// <param name="gameType">The game type.</param>
-    /// <returns>A user-friendly display name.</returns>
     private static string GetFriendlyGameTypeName(GameType? gameType)
     {
         return gameType switch
         {
             GameType.Generals => GameClientConstants.GeneralsFullName,
-            _ => GameClientConstants.ZeroHourFullName, // Default to Zero Hour as it's the most commonly played
+            _ => GameClientConstants.ZeroHourFullName,
         };
     }
 
-    /// <summary>
-    /// Gets a user-friendly name for the installation type.
-    /// </summary>
-    /// <param name="installationType">The installation type.</param>
-    /// <returns>A user-friendly display name.</returns>
     private static string GetFriendlyInstallationTypeName(GameInstallationType? installationType)
     {
         return installationType switch
@@ -729,27 +663,16 @@ public partial class GameProfileItemViewModel : ViewModelBase
         };
     }
 
-    /// <summary>
-    /// Gets the default color for a game type.
-    /// </summary>
-    /// <param name="gameType">The game type.</param>
-    /// <returns>A hex color code.</returns>
     private static string GetDefaultColorForGameType(GameType? gameType)
     {
         return gameType switch
         {
-            GameType.Generals => "#BD5A0F", // Orange/yellow for Generals
-            GameType.ZeroHour => "#1B6575", // Teal/blue for Zero Hour
-            _ => "#2A2A2A", // Default dark gray
+            GameType.Generals => "#BD5A0F",
+            GameType.ZeroHour => "#1B6575",
+            _ => "#2A2A2A",
         };
     }
 
-    /// <summary>
-    /// Normalizes old cover paths to new paths for backward compatibility.
-    /// Handles migration from Assets/Images/*.png to Assets/Covers/*.png.
-    /// </summary>
-    /// <param name="coverPath">The cover path to normalize.</param>
-    /// <returns>The normalized cover path.</returns>
     private static string NormalizeCoverPath(string coverPath)
     {
         if (string.IsNullOrEmpty(coverPath))
@@ -757,8 +680,6 @@ public partial class GameProfileItemViewModel : ViewModelBase
             return coverPath;
         }
 
-        // Map old paths to new paths for backward compatibility
-        // Images were renamed/moved: Assets/Images/china-poster.png → Assets/Covers/china-cover.png
         return coverPath switch
         {
             var p when p.Contains("china-poster.png", StringComparison.OrdinalIgnoreCase) =>
@@ -770,8 +691,6 @@ public partial class GameProfileItemViewModel : ViewModelBase
             var p when p.Contains("gla-poster.png", StringComparison.OrdinalIgnoreCase) =>
                 p.Replace("gla-poster.png", "gla-cover.png", StringComparison.OrdinalIgnoreCase)
                  .Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase),
-
-            // Also handle just the directory change for any other files in Images/ that might reference covers
             var p when p.Contains("/Assets/Images/", StringComparison.OrdinalIgnoreCase) &&
                        (p.Contains("cover", StringComparison.OrdinalIgnoreCase) || p.Contains("poster", StringComparison.OrdinalIgnoreCase)) =>
                 p.Replace("/Assets/Images/", "/Assets/Covers/", StringComparison.OrdinalIgnoreCase),
@@ -870,6 +789,69 @@ public partial class GameProfileItemViewModel : ViewModelBase
         }
 
         return (publisher, colorValue, coverImagePath);
+    }
+
+    private void UpdateManifestAndVersionInfo(GameProfile gameProfile)
+    {
+        // Reset version info before re-extracting
+        GameVersion = string.Empty;
+        Publisher = string.Empty;
+
+        // First try to get info from enabled GameInstallation manifests
+        var installationManifestId = gameProfile.EnabledContentIds?.FirstOrDefault(id => id.Contains("-installation"));
+        if (!string.IsNullOrEmpty(installationManifestId))
+        {
+            ExtractManifestInfo(installationManifestId);
+        }
+        else if (gameProfile.GameClient != null)
+        {
+            ExtractManifestInfo(gameProfile.GameClient.Id);
+
+            // Fallback: use GameClient.Version directly
+            // But SKIP if the publisher is "Local"
+            if (string.IsNullOrEmpty(GameVersion) &&
+                !string.IsNullOrEmpty(gameProfile.GameClient.Version) &&
+                !string.Equals(Publisher, "Local", StringComparison.OrdinalIgnoreCase))
+            {
+                var version = gameProfile.GameClient.Version;
+                GameVersion = IsZeroOrPlaceholderVersion(version) ? string.Empty : version;
+            }
+        }
+    }
+
+    private void UpdateVisuals(GameProfile gameProfile)
+    {
+        if (!string.IsNullOrEmpty(gameProfile.ThemeColor))
+        {
+            ColorValue = gameProfile.ThemeColor;
+        }
+
+        if (!string.IsNullOrEmpty(gameProfile.IconPath))
+        {
+            IconPath = gameProfile.IconPath;
+        }
+
+        if (!string.IsNullOrEmpty(gameProfile.CoverPath))
+        {
+            var normalizedCoverPath = NormalizeCoverPath(gameProfile.CoverPath);
+            CoverPath = normalizedCoverPath;
+            CoverImagePath = normalizedCoverPath;
+        }
+    }
+
+    private void NotifyProfilePropertiesChanged()
+    {
+        OnPropertyChanged(nameof(Name));
+        OnPropertyChanged(nameof(Version));
+        OnPropertyChanged(nameof(GameVersion));
+        OnPropertyChanged(nameof(Publisher));
+        OnPropertyChanged(nameof(Description));
+        OnPropertyChanged(nameof(ColorValue));
+        OnPropertyChanged(nameof(IconPath));
+        OnPropertyChanged(nameof(CoverPath));
+        OnPropertyChanged(nameof(CoverImagePath));
+        OnPropertyChanged(nameof(ExecutablePath));
+        OnPropertyChanged(nameof(CommandLineArguments));
     }
 
     private void UpdateDescription(GameProfile gameProfile)

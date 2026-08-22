@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Text.RegularExpressions;
@@ -177,14 +178,14 @@ public partial class ModDBDiscoverer(
         {
             return query.ContentType.Value switch
             {
-                ContentType.Mod or ContentType.Patch or ContentType.Video => ["downloads"],
-                ContentType.Map or ContentType.Skin or ContentType.LanguagePack => ["addons"],
-                _ => ["downloads", "addons"],
+                ContentType.Mod or ContentType.Patch or ContentType.Video => [ModDBConstants.DownloadsSection],
+                ContentType.Map or ContentType.Skin or ContentType.LanguagePack => [ModDBConstants.AddonsSection],
+                _ => [ModDBConstants.DownloadsSection, ModDBConstants.AddonsSection],
             };
         }
 
         // Default: browse both sections so the grid has more content.
-        return ["downloads", "addons"];
+        return [ModDBConstants.DownloadsSection, ModDBConstants.AddonsSection];
     }
 
     private static ModDBFilter BuildFilterFromQuery(ContentSearchQuery query)
@@ -242,7 +243,7 @@ public partial class ModDBDiscoverer(
 
     private static string? MapContentTypeToCategory(ContentType contentType, string section)
     {
-        if (section == "downloads")
+        if (section == ModDBConstants.DownloadsSection)
         {
             return contentType switch
             {
@@ -381,7 +382,7 @@ public partial class ModDBDiscoverer(
     {
         var dateEl = item.QuerySelector("time[datetime]") ?? item.QuerySelector("abbr.timeago");
         var dateStr = dateEl?.GetAttribute("datetime") ?? dateEl?.GetAttribute("title");
-        if (!string.IsNullOrEmpty(dateStr) && DateTime.TryParse(dateStr, out var parsedDate))
+        if (!string.IsNullOrEmpty(dateStr) && DateTime.TryParse(dateStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
         {
             return parsedDate;
         }
@@ -404,6 +405,31 @@ public partial class ModDBDiscoverer(
         }
     }
 
+    private static ContentType? InferContentTypeFromTitle(string? title)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            return null;
+        }
+
+        if (title.Contains("patch", StringComparison.OrdinalIgnoreCase) || title.Contains("hotfix", StringComparison.OrdinalIgnoreCase))
+        {
+            return ContentType.Patch;
+        }
+
+        if (title.Contains("tool", StringComparison.OrdinalIgnoreCase) || title.Contains("editor", StringComparison.OrdinalIgnoreCase) || title.Contains("genpatcher", StringComparison.OrdinalIgnoreCase))
+        {
+            return ContentType.ModdingTool;
+        }
+
+        if (title.Contains("multiplayer map", StringComparison.OrdinalIgnoreCase) || title.Contains("singleplayer map", StringComparison.OrdinalIgnoreCase) || title.Contains("map pack", StringComparison.OrdinalIgnoreCase))
+        {
+            return ContentType.Map;
+        }
+
+        return null;
+    }
+
     private static ContentType DetermineContentType(string section, string? category, string url, string? title = null)
     {
         if (!string.IsNullOrEmpty(category))
@@ -415,22 +441,10 @@ public partial class ModDBDiscoverer(
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(title))
+        var fromTitle = InferContentTypeFromTitle(title);
+        if (fromTitle.HasValue)
         {
-            if (title.Contains("patch", StringComparison.OrdinalIgnoreCase) || title.Contains("hotfix", StringComparison.OrdinalIgnoreCase))
-            {
-                return ContentType.Patch;
-            }
-
-            if (title.Contains("tool", StringComparison.OrdinalIgnoreCase) || title.Contains("editor", StringComparison.OrdinalIgnoreCase) || title.Contains("genpatcher", StringComparison.OrdinalIgnoreCase))
-            {
-                return ContentType.ModdingTool;
-            }
-
-            if (title.Contains("multiplayer map", StringComparison.OrdinalIgnoreCase) || title.Contains("singleplayer map", StringComparison.OrdinalIgnoreCase) || title.Contains("map pack", StringComparison.OrdinalIgnoreCase))
-            {
-                return ContentType.Map;
-            }
+            return fromTitle.Value;
         }
 
         var isModUrl = url.Contains(ModDBConstants.ModsSegment, StringComparison.OrdinalIgnoreCase);
@@ -440,12 +454,12 @@ public partial class ModDBDiscoverer(
         return section switch
         {
             "mods" when !isDownloadUrl => ContentType.Mod,
-            "downloads" when url.Contains("/maps/", StringComparison.OrdinalIgnoreCase) => ContentType.Map,
-            "downloads" when url.Contains("/tools/", StringComparison.OrdinalIgnoreCase) => ContentType.ModdingTool,
-            "downloads" when url.Contains("/patches/", StringComparison.OrdinalIgnoreCase) => ContentType.Patch,
-            "downloads" when isModUrl && !isAddonUrl => ContentType.Mod,
-            "downloads" => ContentType.Addon,
-            "addons" => url.Contains("/maps/", StringComparison.OrdinalIgnoreCase) ? ContentType.Map : ContentType.Addon,
+            ModDBConstants.DownloadsSection when url.Contains("/maps/", StringComparison.OrdinalIgnoreCase) => ContentType.Map,
+            ModDBConstants.DownloadsSection when url.Contains("/tools/", StringComparison.OrdinalIgnoreCase) => ContentType.ModdingTool,
+            ModDBConstants.DownloadsSection when url.Contains("/patches/", StringComparison.OrdinalIgnoreCase) => ContentType.Patch,
+            ModDBConstants.DownloadsSection when isModUrl && !isAddonUrl => ContentType.Mod,
+            ModDBConstants.DownloadsSection => ContentType.Addon,
+            ModDBConstants.AddonsSection => url.Contains("/maps/", StringComparison.OrdinalIgnoreCase) ? ContentType.Map : ContentType.Addon,
             _ => isModUrl && !isAddonUrl ? ContentType.Mod : ContentType.Addon,
         };
     }
@@ -558,7 +572,7 @@ public partial class ModDBDiscoverer(
         // HasMoreItems is false regardless of what the scrape thought.
         logger.LogWarning("[ModDB] Scrape returned no items for '{Section}', falling back to RSS", section);
         var rssSection = string.Equals(section, "mods", StringComparison.OrdinalIgnoreCase)
-            ? "downloads"
+            ? ModDBConstants.DownloadsSection
             : section;
         var rssResults = await DiscoverFromRssFeedAsync(rssSection, gameType, cancellationToken);
         return (rssResults, false, keepOpen, false);
@@ -788,7 +802,7 @@ public partial class ModDBDiscoverer(
                 var rawDescription = item.Element("description")?.Value?.Trim() ?? string.Empty;
                 var description = HtmlTextHelper.NormalizeHtml(rawDescription);
                 DateTime? published = null;
-                if (DateTime.TryParse(item.Element("pubDate")?.Value, out var parsedDate))
+                if (DateTime.TryParse(item.Element("pubDate")?.Value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
                 {
                     published = parsedDate;
                 }

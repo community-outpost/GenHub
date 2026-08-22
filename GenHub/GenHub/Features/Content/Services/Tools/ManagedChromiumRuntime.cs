@@ -34,6 +34,8 @@ internal sealed class ManagedChromiumRuntime(
     /// </summary>
     internal const string DriverPathEnvironmentVariable = "PLAYWRIGHT_DRIVER_PATH";
 
+    private static string? _cachedDriverPath;
+
     /// <summary>
     /// Configures Playwright to resolve browsers only from GenHub's managed runtime directory.
     /// </summary>
@@ -62,6 +64,92 @@ internal sealed class ManagedChromiumRuntime(
             return;
         }
 
+        await RequestInstallConsentOrThrowAsync(cancellationToken);
+
+        var toastId = Guid.NewGuid();
+        ShowInitialInstallNotification(toastId);
+
+        var exitCode = await ExecuteInstallWithProgressAsync(toastId, cancellationToken);
+
+        cancellationToken.ThrowIfCancellationRequested();
+        if (exitCode != 0 || !File.Exists(chromium.ExecutablePath))
+        {
+            notificationService?.Dismiss(toastId);
+            notificationService?.ShowError(
+                ModDBConstants.ChromiumInstallFailedTitle,
+                ModDBConstants.ChromiumInstallFailedMessage,
+                autoDismissMs: NotificationDurations.VeryLong);
+            throw new InvalidOperationException(
+                "GenHub could not install its managed Chromium runtime. Check the network connection and try the ModDB action again.");
+        }
+
+        logger.LogInformation("Managed Chromium installation completed in {RuntimeDirectory}", runtimeDirectory);
+        ShowInstallCompletedNotification(toastId);
+    }
+
+    private static string GetPlatformFolder()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return "win32_x64";
+        }
+
+        if (OperatingSystem.IsLinux())
+        {
+            return System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture == System.Runtime.InteropServices.Architecture.Arm64
+                ? "linux-arm64"
+                : "linux-x64";
+        }
+
+        if (OperatingSystem.IsMacOS())
+        {
+            return System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture == System.Runtime.InteropServices.Architecture.Arm64
+                ? "darwin-arm64"
+                : "darwin-x64";
+        }
+
+        return "win32_x64";
+    }
+
+    private static string DetermineProgressMessage(string runtimeDir, int elapsedSec)
+    {
+        var hasExtractedDirs = Directory.Exists(runtimeDir) &&
+                               Directory.GetDirectories(runtimeDir).Length > 0;
+
+        if (hasExtractedDirs)
+        {
+            return ModDBConstants.ChromiumExtractingMessage;
+        }
+
+        return elapsedSec > 10
+            ? $"{ModDBConstants.ChromiumDownloadingMessage} ({elapsedSec}s)"
+            : ModDBConstants.ChromiumDownloadingMessage;
+    }
+
+    private static string? TryFindDriverInDirectory(string dir, string platformFolder, string nodeBinaryName)
+    {
+        var candidate = Path.Combine(dir, ".playwright", "node", platformFolder, nodeBinaryName);
+        if (File.Exists(candidate))
+        {
+            return candidate;
+        }
+
+        var current = new DirectoryInfo(dir);
+        for (var depth = 0; depth < 4 && current.Parent != null; depth++)
+        {
+            current = current.Parent;
+            candidate = Path.Combine(current.FullName, ".playwright", "node", platformFolder, nodeBinaryName);
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private async Task RequestInstallConsentOrThrowAsync(CancellationToken cancellationToken)
+    {
         logger.LogDebug(
             "Managed Chromium is missing. Requesting user consent before installing under {RuntimeDirectory}",
             runtimeDirectory);
@@ -77,75 +165,33 @@ internal sealed class ManagedChromiumRuntime(
         }
 
         logger.LogInformation("Managed Chromium install consented. Installing under {RuntimeDirectory}", runtimeDirectory);
+    }
 
-        var toastId = Guid.NewGuid();
-        if (notificationService != null)
+    private void ShowInitialInstallNotification(Guid toastId)
+    {
+        notificationService?.Show(new NotificationMessage(
+            NotificationType.Info,
+            ModDBConstants.ChromiumInstallTitle,
+            ModDBConstants.ChromiumDownloadingMessage,
+            autoDismissMilliseconds: null,
+            actions: null,
+            isPersistent: false,
+            showInBadge: false)
         {
-            notificationService.Show(new NotificationMessage(
-                NotificationType.Info,
-                ModDBConstants.ChromiumInstallTitle,
-                ModDBConstants.ChromiumDownloadingMessage,
-                autoDismissMilliseconds: null,
-                actions: null,
-                isPersistent: false,
-                showInBadge: false)
-            {
-                Id = toastId,
-            });
-        }
+            Id = toastId,
+        });
+    }
 
-        int exitCode = 0;
+    private async Task<int> ExecuteInstallWithProgressAsync(Guid toastId, CancellationToken cancellationToken)
+    {
         using var progressCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var progressTask = Task.Run(
-            async () =>
-            {
-                try
-            {
-                var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-                while (!progressCts.Token.IsCancellationRequested)
-                {
-                    await Task.Delay(2000, progressCts.Token);
-                    if (progressCts.Token.IsCancellationRequested)
-                    {
-                        break;
-                    }
-
-                    var elapsedSec = (int)stopwatch.Elapsed.TotalSeconds;
-
-                    var hasExtractedDirs = Directory.Exists(runtimeDirectory) &&
-                                           Directory.GetDirectories(runtimeDirectory).Length > 0;
-
-                    string statusMessage;
-                    if (hasExtractedDirs)
-                    {
-                        statusMessage = ModDBConstants.ChromiumExtractingMessage;
-                    }
-                    else if (elapsedSec > 10)
-                    {
-                        statusMessage = $"{ModDBConstants.ChromiumDownloadingMessage} ({elapsedSec}s)";
-                    }
-                    else
-                    {
-                        statusMessage = ModDBConstants.ChromiumDownloadingMessage;
-                    }
-
-                    notificationService?.Update(toastId, statusMessage, ModDBConstants.ChromiumInstallTitle);
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                // Normal termination when progress is cancelled
-            }
-            catch (Exception ex)
-            {
-                logger.LogDebug(ex, "Error updating Chromium install progress notification");
-            }
-        },
+            () => RunProgressNotificationLoopAsync(toastId, progressCts.Token),
             progressCts.Token);
 
         try
         {
-            exitCode = await Task.Run(
+            return await Task.Run(
                 () =>
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -178,70 +224,63 @@ internal sealed class ManagedChromiumRuntime(
             await progressCts.CancelAsync();
             await progressTask;
         }
-
-        cancellationToken.ThrowIfCancellationRequested();
-        if (exitCode != 0 || !File.Exists(chromium.ExecutablePath))
-        {
-            notificationService?.Dismiss(toastId);
-            notificationService?.ShowError(
-                ModDBConstants.ChromiumInstallFailedTitle,
-                ModDBConstants.ChromiumInstallFailedMessage,
-                autoDismissMs: NotificationDurations.VeryLong);
-            throw new InvalidOperationException(
-                "GenHub could not install its managed Chromium runtime. Check the network connection and try the ModDB action again.");
-        }
-
-        logger.LogInformation("Managed Chromium installation completed in {RuntimeDirectory}", runtimeDirectory);
-
-        if (notificationService != null)
-        {
-            notificationService.Update(
-                toastId,
-                ModDBConstants.ChromiumReadyMessage,
-                ModDBConstants.ChromiumReadyTitle);
-
-            _ = Task.Run(
-                async () =>
-                {
-                    try
-                    {
-                        await Task.Delay(NotificationDurations.Medium, CancellationToken.None);
-                        notificationService.Dismiss(toastId);
-                    }
-                    catch
-                    {
-                        // Ignore dismissal errors during cleanup
-                    }
-                },
-                CancellationToken.None);
-        }
     }
 
-    private static string GetPlatformFolder()
+    private async Task RunProgressNotificationLoopAsync(Guid toastId, CancellationToken cancellationToken)
     {
-        if (OperatingSystem.IsWindows())
+        try
         {
-            return "win32_x64";
-        }
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await Task.Delay(2000, cancellationToken);
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
 
-        if (OperatingSystem.IsLinux())
+                var elapsedSec = (int)stopwatch.Elapsed.TotalSeconds;
+                var statusMessage = DetermineProgressMessage(runtimeDirectory, elapsedSec);
+                notificationService?.Update(toastId, statusMessage, ModDBConstants.ChromiumInstallTitle);
+            }
+        }
+        catch (OperationCanceledException)
         {
-            return System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture == System.Runtime.InteropServices.Architecture.Arm64
-                ? "linux-arm64"
-                : "linux-x64";
+            // Normal termination when progress is cancelled
         }
-
-        if (OperatingSystem.IsMacOS())
+        catch (Exception ex)
         {
-            return System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture == System.Runtime.InteropServices.Architecture.Arm64
-                ? "darwin-arm64"
-                : "darwin-x64";
+            logger.LogDebug(ex, "Error updating Chromium install progress notification");
         }
-
-        return "win32_x64";
     }
 
-    private string? _cachedDriverPath;
+    private void ShowInstallCompletedNotification(Guid toastId)
+    {
+        if (notificationService == null)
+        {
+            return;
+        }
+
+        notificationService.Update(
+            toastId,
+            ModDBConstants.ChromiumReadyMessage,
+            ModDBConstants.ChromiumReadyTitle);
+
+        _ = Task.Run(
+            async () =>
+            {
+                try
+                {
+                    await Task.Delay(NotificationDurations.Medium, CancellationToken.None);
+                    notificationService.Dismiss(toastId);
+                }
+                catch
+                {
+                    // Ignore dismissal errors during cleanup
+                }
+            },
+            CancellationToken.None);
+    }
 
     private void EnsureDriverEnvironmentVariable()
     {
@@ -258,6 +297,21 @@ internal sealed class ManagedChromiumRuntime(
             return;
         }
 
+        var foundDriver = FindDriverPath();
+        if (foundDriver != null)
+        {
+            _cachedDriverPath = foundDriver;
+            Environment.SetEnvironmentVariable(DriverPathEnvironmentVariable, foundDriver);
+            logger.LogInformation("Resolved Playwright driver path: {DriverPath}", foundDriver);
+        }
+        else
+        {
+            logger.LogWarning("Could not resolve Playwright driver node executable in any standard directory");
+        }
+    }
+
+    private string? FindDriverPath()
+    {
         var platformFolder = GetPlatformFolder();
         var nodeBinaryName = OperatingSystem.IsWindows() ? "node.exe" : "node";
 
@@ -276,30 +330,13 @@ internal sealed class ManagedChromiumRuntime(
                 continue;
             }
 
-            var candidate = Path.Combine(dir, ".playwright", "node", platformFolder, nodeBinaryName);
-            if (File.Exists(candidate))
+            var driver = TryFindDriverInDirectory(dir, platformFolder, nodeBinaryName);
+            if (driver != null)
             {
-                _cachedDriverPath = candidate;
-                Environment.SetEnvironmentVariable(DriverPathEnvironmentVariable, candidate);
-                logger.LogInformation("Resolved Playwright driver path: {DriverPath}", candidate);
-                return;
-            }
-
-            var current = new DirectoryInfo(dir);
-            for (var depth = 0; depth < 4 && current?.Parent != null; depth++)
-            {
-                current = current.Parent;
-                candidate = Path.Combine(current.FullName, ".playwright", "node", platformFolder, nodeBinaryName);
-                if (File.Exists(candidate))
-                {
-                    _cachedDriverPath = candidate;
-                    Environment.SetEnvironmentVariable(DriverPathEnvironmentVariable, candidate);
-                    logger.LogInformation("Resolved Playwright driver path from parent directory: {DriverPath}", candidate);
-                    return;
-                }
+                return driver;
             }
         }
 
-        logger.LogWarning("Could not resolve Playwright driver node executable in any standard directory");
+        return null;
     }
 }

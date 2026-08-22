@@ -35,6 +35,8 @@ public sealed partial class ContentGridItemViewModel(
     IContentStateService contentStateService,
     ILogger<ContentGridItemViewModel> logger) : ObservableObject, IDisposable
 {
+    private const string UnknownValue = "Unknown";
+
     private bool _disposed;
 
     /// <summary>
@@ -109,7 +111,7 @@ public sealed partial class ContentGridItemViewModel(
                 return SearchResult.Name;
             }
 
-            return SearchResult.VariantFamilyName ?? "Unknown";
+            return SearchResult.VariantFamilyName ?? UnknownValue;
         }
     }
 
@@ -228,9 +230,9 @@ public sealed partial class ContentGridItemViewModel(
         get
         {
             var author = SearchResult.AuthorName;
-            if (string.IsNullOrWhiteSpace(author) || string.Equals(author, "Unknown", StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrWhiteSpace(author) || string.Equals(author, UnknownValue, StringComparison.OrdinalIgnoreCase))
             {
-                return !string.IsNullOrWhiteSpace(ProviderName) ? ProviderName : "Unknown";
+                return !string.IsNullOrWhiteSpace(ProviderName) ? ProviderName : UnknownValue;
             }
 
             if (string.Equals(author, "GenHub Test Publishers", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(ProviderName))
@@ -246,7 +248,7 @@ public sealed partial class ContentGridItemViewModel(
     /// Gets a value indicating whether the author is known (not null/empty/Unknown).
     /// </summary>
     public bool HasAuthor => !string.IsNullOrEmpty(AuthorName) &&
-                             !string.Equals(AuthorName, "Unknown", StringComparison.OrdinalIgnoreCase);
+                             !string.Equals(AuthorName, UnknownValue, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Gets the content type.

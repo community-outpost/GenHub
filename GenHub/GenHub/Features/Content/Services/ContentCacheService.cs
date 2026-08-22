@@ -17,7 +17,7 @@ public sealed class ContentCacheService(ILogger<ContentCacheService> logger) : I
     private readonly ConcurrentDictionary<string, CacheEntry> _cache = new();
     private readonly TimeSpan _defaultTtl = TimeSpan.FromHours(1);
 
-    private record CacheEntry(ParsedWebPage Data, DateTime ExpiresAt);
+    private sealed record CacheEntry(ParsedWebPage Data, DateTime ExpiresAt);
 
     /// <inheritdoc/>
     public Task<ParsedWebPage?> GetAsync(string cacheKey, CancellationToken ct = default)

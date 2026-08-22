@@ -124,7 +124,6 @@ public class HttpContentDeliverer(
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            logger.LogInformation("HTTP delivery cancelled for manifest {ManifestId}", packageManifest.Id);
             throw;
         }
         catch (Exception ex)
@@ -210,6 +209,12 @@ public class HttpContentDeliverer(
         IProgress<ContentAcquisitionProgress>? Progress,
         int ProcessedFiles,
         int TotalFiles);
+
+    private static bool IsModDbUrl(Uri uri)
+    {
+        return uri.Host.Equals("moddb.com", StringComparison.OrdinalIgnoreCase) ||
+               uri.Host.EndsWith(".moddb.com", StringComparison.OrdinalIgnoreCase);
+    }
 
     private async Task<OperationResult<ContentManifest>> DownloadFileItemAsync(
         ManifestFile file,
@@ -305,12 +310,6 @@ public class HttpContentDeliverer(
         }
 
         return await downloadService.DownloadFileAsync(downloadUri, localPath, file.Hash, downloadProgress, cancellationToken);
-    }
-
-    private bool IsModDbUrl(Uri uri)
-    {
-        return uri.Host.Equals("moddb.com", StringComparison.OrdinalIgnoreCase) ||
-               uri.Host.EndsWith(".moddb.com", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<DownloadResult> DownloadProtectedModDbFileAsync(

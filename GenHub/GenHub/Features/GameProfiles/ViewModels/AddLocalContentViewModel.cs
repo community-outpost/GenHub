@@ -718,10 +718,15 @@ public partial class AddLocalContentViewModel(
 
     private async Task<bool> ExecuteGenLauncherNormalizationAsync(CancellationToken cancellationToken)
     {
+        if (genLauncherNormalizationService == null)
+        {
+            return false;
+        }
+
         StatusMessage = "Normalizing GenLauncher files...";
         logger?.LogInformation("User confirmed normalization");
 
-        var normalizationResult = await genLauncherNormalizationService!.NormalizeFilesAsync(
+        var normalizationResult = await genLauncherNormalizationService.NormalizeFilesAsync(
             _stagingPath,
             cancellationToken);
 

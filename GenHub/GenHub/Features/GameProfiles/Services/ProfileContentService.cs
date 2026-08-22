@@ -96,7 +96,7 @@ public sealed class ProfileContentService(
                 return AddToProfileResult.CreateFailure(contextResult.FirstError ?? "Failed to load profile or manifest", sw.Elapsed);
             }
 
-            var (profile, manifest, contentName) = contextResult.Data;
+            var (profile, _, contentName) = contextResult.Data;
 
             var candidateConflictError = await ValidateCandidateSetPairwiseConflictsAsync(requestedIds, cancellationToken);
             if (candidateConflictError != null)
@@ -108,12 +108,12 @@ public sealed class ProfileContentService(
         }
         catch (ManifestNotFoundException ex)
         {
-            logger.LogWarning("Content {ManifestId} not found: {Message}", primaryManifestId, ex.Message);
+            logger.LogWarning(ex, "Content {ManifestId} not found: {Message}", primaryManifestId, ex.Message);
             return AddToProfileResult.CreateFailure("Content not found. Please download it again and retry.", sw.Elapsed);
         }
         catch (ManifestValidationException ex)
         {
-            logger.LogWarning("Content {ManifestId} validation failed: {Message}", primaryManifestId, ex.Message);
+            logger.LogWarning(ex, "Content {ManifestId} validation failed: {Message}", primaryManifestId, ex.Message);
             return AddToProfileResult.CreateFailure("Content validation failed. Please re-download and retry.", sw.Elapsed);
         }
         catch (OperationCanceledException)
@@ -500,6 +500,74 @@ public sealed class ProfileContentService(
         }
 
         return installationClient;
+    }
+
+    private static OperationResult<GameType?> DetermineCompatibleGameTypes(
+        IReadOnlyList<ContentDependency> installationDependencies,
+        ContentManifest? singleGameClient)
+    {
+        HashSet<GameType>? compatibleGameTypesIntersection = null;
+        foreach (var dep in installationDependencies)
+        {
+            var depSet = new HashSet<GameType>(dep.CompatibleGameTypes);
+            if (compatibleGameTypesIntersection == null)
+            {
+                compatibleGameTypesIntersection = depSet;
+            }
+            else
+            {
+                compatibleGameTypesIntersection.IntersectWith(depSet);
+            }
+        }
+
+        if (singleGameClient is { TargetGame: not GameType.Unknown })
+        {
+            if (compatibleGameTypesIntersection == null)
+            {
+                compatibleGameTypesIntersection = [singleGameClient.TargetGame];
+            }
+            else
+            {
+                compatibleGameTypesIntersection.IntersectWith([singleGameClient.TargetGame]);
+            }
+        }
+
+        if (compatibleGameTypesIntersection is { Count: 0 })
+        {
+            var declaredGameTypes = installationDependencies
+                .SelectMany(d => d.CompatibleGameTypes)
+                .Distinct()
+                .ToList();
+            return OperationResult<GameType?>.CreateFailure(
+                $"Selected content requires incompatible game installations: {string.Join(", ", declaredGameTypes)}.");
+        }
+
+        var requiredGameType = compatibleGameTypesIntersection is { Count: 1 }
+            ? compatibleGameTypesIntersection.First()
+            : singleGameClient?.TargetGame;
+
+        return OperationResult<GameType?>.CreateSuccess(requiredGameType);
+    }
+
+    private static string? CheckPairConflict(ContentManifest m1, ContentManifest m2)
+    {
+        if (ExclusiveContentTypes.Contains(m1.ContentType) && m1.ContentType == m2.ContentType)
+        {
+            return $"Selected items contain conflicting exclusive content of type {m1.ContentType}: '{m1.Name}' and '{m2.Name}' cannot be enabled together.";
+        }
+
+        var code1 = GetContentCodeFromManifest(m1);
+        var code2 = GetContentCodeFromManifest(m2);
+        if (!string.IsNullOrEmpty(code1) && !string.IsNullOrEmpty(code2))
+        {
+            var conflicts = Core.Models.CommunityOutpost.GenPatcherDependencyBuilder.GetConflictingCodes(code1);
+            if (conflicts.Contains(code2, StringComparer.OrdinalIgnoreCase))
+            {
+                return $"Selected items contain conflicting addons: '{m1.Name}' and '{m2.Name}' cannot be enabled together.";
+            }
+        }
+
+        return null;
     }
 
     private static bool TryParseCommunityOutpostContentCode(string manifestId, out string contentCode)
@@ -998,46 +1066,14 @@ public sealed class ProfileContentService(
                     dependency.CompatibleGameTypes.Count > 0)
                 .ToList();
 
-            HashSet<GameType>? compatibleGameTypesIntersection = null;
-            foreach (var dep in installationDependencies)
+            var gameTypeResult = DetermineCompatibleGameTypes(installationDependencies, requiredGameClients.SingleOrDefault());
+            if (gameTypeResult.Failed)
             {
-                var depSet = new HashSet<GameType>(dep.CompatibleGameTypes);
-                if (compatibleGameTypesIntersection == null)
-                {
-                    compatibleGameTypesIntersection = depSet;
-                }
-                else
-                {
-                    compatibleGameTypesIntersection.IntersectWith(depSet);
-                }
-            }
-
-            var singleGameClient = requiredGameClients.SingleOrDefault();
-            if (singleGameClient is { TargetGame: not GameType.Unknown })
-            {
-                if (compatibleGameTypesIntersection == null)
-                {
-                    compatibleGameTypesIntersection = [singleGameClient.TargetGame];
-                }
-                else
-                {
-                    compatibleGameTypesIntersection.IntersectWith([singleGameClient.TargetGame]);
-                }
-            }
-
-            if (compatibleGameTypesIntersection is { Count: 0 })
-            {
-                var declaredGameTypes = installationDependencies
-                    .SelectMany(d => d.CompatibleGameTypes)
-                    .Distinct()
-                    .ToList();
                 return OperationResult<ProfileContentResolution>.CreateFailure(
-                    $"Selected content requires incompatible game installations: {string.Join(", ", declaredGameTypes)}.");
+                    gameTypeResult.FirstError ?? "Selected content requires incompatible game installations.");
             }
 
-            var requiredGameType = compatibleGameTypesIntersection is { Count: 1 }
-                ? compatibleGameTypesIntersection.First()
-                : singleGameClient?.TargetGame;
+            var requiredGameType = gameTypeResult.Data;
 
             var enabledContentIds = completeResolution.ResolvedContentIds
                 .Concat(acquisition.Data)
@@ -1450,23 +1486,10 @@ public sealed class ProfileContentService(
         {
             for (int j = i + 1; j < candidateManifests.Count; j++)
             {
-                var m1 = candidateManifests[i];
-                var m2 = candidateManifests[j];
-
-                if (ExclusiveContentTypes.Contains(m1.ContentType) && m1.ContentType == m2.ContentType)
+                var conflict = CheckPairConflict(candidateManifests[i], candidateManifests[j]);
+                if (conflict != null)
                 {
-                    return $"Selected items contain conflicting exclusive content of type {m1.ContentType}: '{m1.Name}' and '{m2.Name}' cannot be enabled together.";
-                }
-
-                var code1 = GetContentCodeFromManifest(m1);
-                var code2 = GetContentCodeFromManifest(m2);
-                if (!string.IsNullOrEmpty(code1) && !string.IsNullOrEmpty(code2))
-                {
-                    var conflicts = Core.Models.CommunityOutpost.GenPatcherDependencyBuilder.GetConflictingCodes(code1);
-                    if (conflicts.Contains(code2, StringComparer.OrdinalIgnoreCase))
-                    {
-                        return $"Selected items contain conflicting addons: '{m1.Name}' and '{m2.Name}' cannot be enabled together.";
-                    }
+                    return conflict;
                 }
             }
         }

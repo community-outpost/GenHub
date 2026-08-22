@@ -103,4 +103,9 @@ public static class DirectoryNames
     /// Directory for the app-owned Playwright Chromium runtime (not the system Chrome/Edge install).
     /// </summary>
     public const string BrowserRuntime = "BrowserRuntime";
+
+    /// <summary>
+    /// Directory for game movie assets.
+    /// </summary>
+    public const string Movies = "Movies";
 }

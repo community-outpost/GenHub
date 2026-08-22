@@ -54,6 +54,8 @@ public class ContentOrchestrator(
     IEnumerable<IContentDeliverer>? deliverers = null) : IContentOrchestrator
 {
     private const string StoringPhase = "Storing";
+    private const string ResolvingContentPhase = "Resolving content";
+    private const string ProcessingFilesPhase = "Processing files";
 
     private readonly ConcurrentBag<IContentProvider> _providers = [.. providers];
     private readonly ConcurrentBag<IContentDiscoverer> _discoverers = [.. discoverers];
@@ -649,6 +651,29 @@ public class ContentOrchestrator(
         };
     }
 
+    private static bool MatchesVariant(ContentManifest m, ContentSearchResult searchResult)
+    {
+        var variantId = m.Metadata?.SelectedVariantId;
+        if (string.IsNullOrEmpty(variantId))
+        {
+            return false;
+        }
+
+        var cleanVariantId = variantId.Replace("-", string.Empty).Trim();
+        var searchId = searchResult.Id ?? string.Empty;
+        var searchName = searchResult.Name ?? string.Empty;
+
+        if (searchId.EndsWith($"-{variantId}", StringComparison.OrdinalIgnoreCase) ||
+            searchId.EndsWith(variantId, StringComparison.OrdinalIgnoreCase) ||
+            searchId.Replace("-", string.Empty).EndsWith(cleanVariantId, StringComparison.OrdinalIgnoreCase) ||
+            searchName.Contains(variantId, StringComparison.OrdinalIgnoreCase))
+        {
+            return searchResult.TargetGame == GameType.Unknown || m.TargetGame == searchResult.TargetGame;
+        }
+
+        return false;
+    }
+
     private static ContentManifest SelectPrimaryManifest(
         IReadOnlyList<ContentManifest> manifests,
         ContentSearchResult searchResult)
@@ -672,32 +697,7 @@ public class ContentOrchestrator(
         }
 
         // match by SelectedVariantId against search result id or name
-        var variantMatch = manifests.FirstOrDefault(m =>
-        {
-            var variantId = m.Metadata?.SelectedVariantId;
-            if (string.IsNullOrEmpty(variantId))
-            {
-                return false;
-            }
-
-            var cleanVariantId = variantId.Replace("-", string.Empty).Trim();
-            var searchId = searchResult.Id ?? string.Empty;
-            var searchName = searchResult.Name ?? string.Empty;
-
-            if (searchId.EndsWith($"-{variantId}", StringComparison.OrdinalIgnoreCase) ||
-                searchId.EndsWith(variantId, StringComparison.OrdinalIgnoreCase) ||
-                searchId.Replace("-", string.Empty).EndsWith(cleanVariantId, StringComparison.OrdinalIgnoreCase))
-            {
-                return searchResult.TargetGame == GameType.Unknown || m.TargetGame == searchResult.TargetGame;
-            }
-
-            if (searchName.Contains(variantId, StringComparison.OrdinalIgnoreCase))
-            {
-                return searchResult.TargetGame == GameType.Unknown || m.TargetGame == searchResult.TargetGame;
-            }
-
-            return false;
-        });
+        var variantMatch = manifests.FirstOrDefault(m => MatchesVariant(m, searchResult));
         if (variantMatch != null)
         {
             return variantMatch;
@@ -722,20 +722,20 @@ public class ContentOrchestrator(
         Action<int, string, double, string?, bool, string?, long, long, int, int, string?, TimeSpan> reportProgress,
         CancellationToken cancellationToken)
     {
-        reportProgress(1, "Resolving content", 0, "Finding content provider...", false, null, 0, 0, 0, 0, null, default);
-        reportProgress(1, "Resolving content", 30, "Validating manifest structure...", false, null, 0, 0, 0, 0, null, default);
+        reportProgress(1, ResolvingContentPhase, 0, "Finding content provider...", false, null, 0, 0, 0, 0, null, default);
+        reportProgress(1, ResolvingContentPhase, 30, "Validating manifest structure...", false, null, 0, 0, 0, 0, null, default);
 
         ContentManifest? manifest = null;
         var embeddedManifest = searchResult.GetData<ContentManifest>();
         if (embeddedManifest != null)
         {
             manifest = embeddedManifest;
-            reportProgress(1, "Resolving content", 60, "Using embedded manifest", false, null, 0, 0, 0, 0, null, default);
+            reportProgress(1, ResolvingContentPhase, 60, "Using embedded manifest", false, null, 0, 0, 0, 0, null, default);
         }
         else if (searchResult.RequiresResolution && !string.IsNullOrEmpty(searchResult.ResolverId))
         {
             logger.LogInformation("Content requires resolution. Using resolver: {ResolverId}", searchResult.ResolverId);
-            reportProgress(1, "Resolving content", 40, "Resolving content details...", false, null, 0, 0, 0, 0, null, default);
+            reportProgress(1, ResolvingContentPhase, 40, "Resolving content details...", false, null, 0, 0, 0, 0, null, default);
 
             var resolveResult = await ResolveManifestAsync(searchResult, cancellationToken);
             if (!resolveResult.Success || resolveResult.Data == null)
@@ -744,11 +744,11 @@ public class ContentOrchestrator(
             }
 
             manifest = resolveResult.Data;
-            reportProgress(1, "Resolving content", 80, "Manifest resolved", false, null, 0, 0, 0, 0, null, default);
+            reportProgress(1, ResolvingContentPhase, 80, "Manifest resolved", false, null, 0, 0, 0, 0, null, default);
         }
         else if (provider != null)
         {
-            reportProgress(1, "Resolving content", 40, "Fetching manifest from provider...", false, null, 0, 0, 0, 0, null, default);
+            reportProgress(1, ResolvingContentPhase, 40, "Fetching manifest from provider...", false, null, 0, 0, 0, 0, null, default);
             var manifestResult = await provider.GetValidatedContentAsync(searchResult.Id, cancellationToken);
             if (!manifestResult.Success || manifestResult.Data == null)
             {
@@ -765,7 +765,7 @@ public class ContentOrchestrator(
         manifest.OriginalProviderName ??= searchResult.ProviderName;
         manifest.OriginalContentId ??= searchResult.Id;
 
-        reportProgress(1, "Resolving content", 90, "Validating manifest...", false, null, 0, 0, 0, 0, null, default);
+        reportProgress(1, ResolvingContentPhase, 90, "Validating manifest...", false, null, 0, 0, 0, 0, null, default);
 
         var validationResult = await contentValidator.ValidateManifestAsync(manifest, cancellationToken);
         if (!validationResult.IsValid)
@@ -778,7 +778,7 @@ public class ContentOrchestrator(
             }
         }
 
-        reportProgress(1, "Resolving content", 100, "Manifest validated", false, null, 0, 0, 0, 0, null, default);
+        reportProgress(1, ResolvingContentPhase, 100, "Manifest validated", false, null, 0, 0, 0, 0, null, default);
         return OperationResult<ContentManifest>.CreateSuccess(manifest);
     }
 
@@ -847,13 +847,13 @@ public class ContentOrchestrator(
         Action<int, string, double, string?, bool, string?, long, long, int, int, string?, TimeSpan> reportProgress,
         CancellationToken cancellationToken)
     {
-        reportProgress(3, "Processing files", 0, "Extracting content...", false, null, 0, 0, 0, 0, null, default);
+        reportProgress(3, ProcessingFilesPhase, 0, "Extracting content...", false, null, 0, 0, 0, 0, null, default);
 
         var factory = factoryResolver?.ResolveFactory(preparedData);
         if (factory == null)
         {
             logger.LogDebug("No factory found for manifest {ManifestId}, skipping post-processing", preparedData.Id);
-            reportProgress(3, "Processing files", 100, "Files processed", false, null, 0, 0, 0, 0, null, default);
+            reportProgress(3, ProcessingFilesPhase, 100, "Files processed", false, null, 0, 0, 0, 0, null, default);
             return OperationResult<ContentManifest>.CreateSuccess(preparedData);
         }
 
@@ -863,7 +863,7 @@ public class ContentOrchestrator(
         {
             reportProgress(
                 3,
-                string.IsNullOrEmpty(p.StageDescription) ? "Processing files" : p.StageDescription,
+                string.IsNullOrEmpty(p.StageDescription) ? ProcessingFilesPhase : p.StageDescription,
                 p.StageProgress,
                 p.CurrentOperation,
                 false,
@@ -896,55 +896,75 @@ public class ContentOrchestrator(
 
         var primaryManifest = SelectPrimaryManifest(processedManifests, searchResult);
         var otherVariants = processedManifests.Where(m => !m.Id.Equals(primaryManifest.Id)).ToList();
-        List<ManifestId> storedVariantIds = [];
 
         if (otherVariants.Count > 0)
         {
             logger.LogInformation("Factory created {Count} manifests from {OriginalId}. Storing all variants.", processedManifests.Count, preparedData.Id);
-
-            for (int i = 0; i < otherVariants.Count; i++)
+            var storeResult = await StoreOtherVariantsAsync(factory, otherVariants, stagingDir, cancellationToken);
+            if (storeResult.Failed)
             {
-                var variantManifest = otherVariants[i];
-                if (variantManifest.Files.Count == 0)
-                {
-                    logger.LogInformation("Skipping storage of variant manifest {ManifestId} because it contains 0 files", variantManifest.Id);
-                    continue;
-                }
-
-                var variantDirectory = factory.GetManifestDirectory(variantManifest, stagingDir);
-                logger.LogInformation("Storing variant manifest {ManifestId} ({Index}/{Total}) from {Directory}", variantManifest.Id, i + 1, otherVariants.Count, variantDirectory);
-
-                var variantAddResult = await manifestPool.AddManifestAsync(
-                    variantManifest,
-                    variantDirectory,
-                    cancellationToken: cancellationToken);
-
-                if (!variantAddResult.Success)
-                {
-                    logger.LogError("Failed to store variant manifest {ManifestId}: {Error}", variantManifest.Id, variantAddResult.FirstError);
-                    foreach (var rollbackId in storedVariantIds)
-                    {
-                        try
-                        {
-                            await manifestPool.RemoveManifestAsync(rollbackId, cancellationToken: cancellationToken);
-                        }
-                        catch (Exception rbEx)
-                        {
-                            logger.LogWarning(rbEx, "Failed to roll back stored variant {ManifestId}", rollbackId);
-                        }
-                    }
-
-                    return OperationResult<ContentManifest>.CreateFailure(
-                        $"Failed to store variant manifest {variantManifest.Id}: {variantAddResult.FirstError}");
-                }
-
-                storedVariantIds.Add(variantManifest.Id);
+                return OperationResult<ContentManifest>.CreateFailure(storeResult.FirstError ?? "Failed to store variant manifest");
             }
         }
 
-        reportProgress(3, "Processing files", 80, "Factory processing complete", false, null, 0, 0, 0, 0, null, default);
-        reportProgress(3, "Processing files", 100, "Files processed", false, null, 0, 0, 0, 0, null, default);
+        reportProgress(3, ProcessingFilesPhase, 80, "Factory processing complete", false, null, 0, 0, 0, 0, null, default);
+        reportProgress(3, ProcessingFilesPhase, 100, "Files processed", false, null, 0, 0, 0, 0, null, default);
         return OperationResult<ContentManifest>.CreateSuccess(primaryManifest);
+    }
+
+    private async Task<OperationResult<bool>> StoreOtherVariantsAsync(
+        IPublisherManifestFactory factory,
+        IReadOnlyList<ContentManifest> otherVariants,
+        string stagingDir,
+        CancellationToken cancellationToken)
+    {
+        List<ManifestId> storedVariantIds = [];
+
+        for (int i = 0; i < otherVariants.Count; i++)
+        {
+            var variantManifest = otherVariants[i];
+            if (variantManifest.Files.Count == 0)
+            {
+                logger.LogInformation("Skipping storage of variant manifest {ManifestId} because it contains 0 files", variantManifest.Id);
+                continue;
+            }
+
+            var variantDirectory = factory.GetManifestDirectory(variantManifest, stagingDir);
+            logger.LogInformation("Storing variant manifest {ManifestId} ({Index}/{Total}) from {Directory}", variantManifest.Id, i + 1, otherVariants.Count, variantDirectory);
+
+            var variantAddResult = await manifestPool.AddManifestAsync(
+                variantManifest,
+                variantDirectory,
+                cancellationToken: cancellationToken);
+
+            if (!variantAddResult.Success)
+            {
+                logger.LogError("Failed to store variant manifest {ManifestId}: {Error}", variantManifest.Id, variantAddResult.FirstError);
+                await RollbackStoredVariantsAsync(storedVariantIds, cancellationToken);
+
+                return OperationResult<bool>.CreateFailure(
+                    $"Failed to store variant manifest {variantManifest.Id}: {variantAddResult.FirstError}");
+            }
+
+            storedVariantIds.Add(variantManifest.Id);
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private async Task RollbackStoredVariantsAsync(IReadOnlyList<ManifestId> storedVariantIds, CancellationToken cancellationToken)
+    {
+        foreach (var rollbackId in storedVariantIds)
+        {
+            try
+            {
+                await manifestPool.RemoveManifestAsync(rollbackId, cancellationToken: cancellationToken);
+            }
+            catch (Exception rbEx)
+            {
+                logger.LogWarning(rbEx, "Failed to roll back stored variant {ManifestId}", rollbackId);
+            }
+        }
     }
 
     private async Task<OperationResult<bool>> ValidateStagedFilesAsync(

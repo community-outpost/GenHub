@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
@@ -37,58 +38,56 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// handles drop events to process catalog json files dropped onto the main window.
+    /// Handles drop events to process catalog json files dropped onto the main window.
     /// </summary>
-    /// <param name="sender">the event sender.</param>
-    /// <param name="e">the drag event arguments.</param>
-    private async void OnDrop(object? sender, DragEventArgs e)
+    /// <param name="sender">The event sender.</param>
+    /// <param name="e">The drag event arguments.</param>
+    private static async void OnDrop(object? sender, DragEventArgs e)
     {
-        // process dropped files to allow subscribing to publisher catalogs via file drop as an alternative to protocol links
+        // Process dropped files to allow subscribing to publisher catalogs via file drop as an alternative to protocol links
         var files = e.Data.GetFiles()?.ToList();
-        if (files == null || files.Count == 0) return;
+        if (files == null || files.Count == 0 || Avalonia.Application.Current is not App app)
+        {
+            return;
+        }
 
         foreach (var file in files)
         {
             var filePath = file.Path.LocalPath;
             if (System.IO.Path.GetExtension(filePath).Equals(".json", StringComparison.OrdinalIgnoreCase))
             {
-                try
-                {
-                    // inspect json content for catalogurl property to initiate subscription workflow
-                    var json = await System.IO.File.ReadAllTextAsync(filePath);
-                    using var doc = System.Text.Json.JsonDocument.Parse(json);
-                    if (doc.RootElement.TryGetProperty("catalogUrl", out var urlProp))
-                    {
-                        var url = urlProp.GetString();
-                        if (!string.IsNullOrEmpty(url))
-                        {
-                            if (Avalonia.Application.Current is App app)
-                            {
-                                // route catalog url to main app subscription handler (same flow as genhub://subscribe?url=...)
-                                await app.HandleSubscribeCommandAsync(url);
-                            }
-                        }
-                        else if (Avalonia.Application.Current is App app)
-                        {
-                            var logger = app.ServiceProvider.GetService<Microsoft.Extensions.Logging.ILogger<MainWindow>>();
-                            logger?.LogWarning("Dropped catalog JSON has an empty 'catalogUrl' property: {FilePath}", filePath);
-                        }
-                    }
-                    else if (Avalonia.Application.Current is App app)
-                    {
-                        var logger = app.ServiceProvider.GetService<Microsoft.Extensions.Logging.ILogger<MainWindow>>();
-                        logger?.LogWarning("Dropped JSON file does not contain a 'catalogUrl' property: {FilePath}", filePath);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    if (Avalonia.Application.Current is App app)
-                    {
-                        var logger = app.ServiceProvider.GetService<Microsoft.Extensions.Logging.ILogger<MainWindow>>();
-                        logger?.LogError(ex, "Failed to process dropped JSON file: {FilePath}", filePath);
-                    }
-                }
+                await ProcessDroppedJsonFileAsync(filePath, app);
             }
+        }
+    }
+
+    private static async Task ProcessDroppedJsonFileAsync(string filePath, App app)
+    {
+        var logger = app.ServiceProvider.GetService<ILogger<MainWindow>>();
+        try
+        {
+            // Inspect json content for catalogUrl property to initiate subscription workflow
+            var json = await System.IO.File.ReadAllTextAsync(filePath);
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("catalogUrl", out var urlProp))
+            {
+                logger?.LogWarning("Dropped JSON file does not contain a 'catalogUrl' property: {FilePath}", filePath);
+                return;
+            }
+
+            var url = urlProp.GetString();
+            if (string.IsNullOrEmpty(url))
+            {
+                logger?.LogWarning("Dropped catalog JSON has an empty 'catalogUrl' property: {FilePath}", filePath);
+                return;
+            }
+
+            // Route catalog URL to main app subscription handler (same flow as genhub://subscribe?url=...)
+            await app.HandleSubscribeCommandAsync(url);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to process dropped JSON file: {FilePath}", filePath);
         }
     }
 

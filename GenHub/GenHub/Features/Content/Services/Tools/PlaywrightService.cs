@@ -29,7 +29,7 @@ namespace GenHub.Features.Content.Services.Tools;
 /// <param name="configurationProvider">Application configuration provider.</param>
 /// <param name="dialogService">Dialog service used to confirm managed Chromium installation.</param>
 /// <param name="notificationService">Optional notifications shown before a headed browser window opens.</param>
-public class PlaywrightService(
+public sealed class PlaywrightService(
     ILogger<PlaywrightService> logger,
     IConfigurationProviderService configurationProvider,
     IDialogService dialogService,
@@ -169,8 +169,9 @@ public class PlaywrightService(
             {
                 await context.CloseAsync();
             }
-            catch (PlaywrightException)
+            catch (PlaywrightException ex)
             {
+                logger.LogDebug(ex, "Failed to close context on page creation error.");
             }
 
             throw;
@@ -216,88 +217,11 @@ public class PlaywrightService(
 
             if (_persistentContext != null && IsPersistentContextAlive())
             {
-                try
-                {
-                    var otherPages = _persistentContext.Pages.Where(p => !p.IsClosed && p != page).ToList();
-
-                    if (_activePersistentSessions > 0)
-                    {
-                        // inside an active session: if this is the last page, navigate to about:blank
-                        // so chromium remains alive for subsequent steps within the session.
-                        if (otherPages.Count == 0 && _inUsePersistentPages.Count == 0)
-                        {
-                            if (!page.IsClosed)
-                            {
-                                try
-                                {
-                                    await page.GotoAsync("about:blank");
-                                }
-                                catch (PlaywrightException)
-                                {
-                                }
-                            }
-                        }
-                        else if (!page.IsClosed)
-                        {
-                            try
-                            {
-                                await page.CloseAsync();
-                            }
-                            catch (PlaywrightException ex)
-                            {
-                                logger.LogDebug(ex, "Persistent page already closed during cleanup.");
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // outside an active session: close page and immediately shut down persistent context
-                        // once all active pages finish.
-                        if (!page.IsClosed)
-                        {
-                            try
-                            {
-                                await page.CloseAsync();
-                            }
-                            catch (PlaywrightException ex)
-                            {
-                                logger.LogDebug(ex, "Persistent page already closed during cleanup.");
-                            }
-                        }
-
-                        if (_inUsePersistentPages.Count == 0)
-                        {
-                            await ClosePersistentContextCoreUnderLockAsync();
-                        }
-                    }
-                }
-                catch (PlaywrightException ex) when (IsContextClosedError(ex))
-                {
-                    _inUsePersistentPages.Clear();
-                    _persistentContext = null;
-                    _persistentProfileName = null;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogDebug(ex, "Failed to inspect persistent context after page close.");
-                    _inUsePersistentPages.Clear();
-                    _persistentContext = null;
-                    _persistentProfileName = null;
-                }
+                await HandlePersistentPageCloseUnderLockAsync(page);
             }
             else
             {
-                if (!page.IsClosed)
-                {
-                    try
-                    {
-                        await page.CloseAsync();
-                    }
-                    catch (PlaywrightException ex)
-                    {
-                        logger.LogDebug(ex, "Failed to close page cleanly");
-                    }
-                }
+                await TryClosePageAsync(page);
             }
         }
         finally
@@ -309,44 +233,36 @@ public class PlaywrightService(
     /// <inheritdoc />
     public async Task<string> FetchHtmlAsync(string url, CancellationToken cancellationToken = default)
     {
+        logger.LogDebug("Fetching HTML from {Url}", url);
+
+        var page = await CreatePageAsync(cancellationToken: cancellationToken);
         try
         {
-            logger.LogDebug("Fetching HTML from {Url}", url);
+            await page.GotoAsync(url, new PageGotoOptions
+            {
+                Timeout = 30000,
+                WaitUntil = WaitUntilState.DOMContentLoaded,
+            });
 
-            var page = await CreatePageAsync(cancellationToken: cancellationToken);
+            // Wait a bit for dynamic content to load
+            await Task.Delay(500, cancellationToken);
+
+            return await page.ContentAsync();
+        }
+        finally
+        {
+            var context = page.Context;
             try
             {
-                await page.GotoAsync(url, new PageGotoOptions
-                {
-                    Timeout = 30000,
-                    WaitUntil = WaitUntilState.DOMContentLoaded,
-                });
-
-                // Wait a bit for dynamic content to load
-                await Task.Delay(500, cancellationToken);
-
-                return await page.ContentAsync();
+                await page.CloseAsync();
             }
             finally
             {
-                var context = page.Context;
-                try
+                if (context != null)
                 {
-                    await page.CloseAsync();
-                }
-                finally
-                {
-                    if (context != null)
-                    {
-                        await context.CloseAsync();
-                    }
+                    await context.CloseAsync();
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to fetch HTML from {Url}", url);
-            throw;
         }
     }
 
@@ -506,6 +422,7 @@ public class PlaywrightService(
         }
 
         Task.Run(() => DisposeAsync().AsTask()).GetAwaiter().GetResult();
+        GC.SuppressFinalize(this);
     }
 
     /// <inheritdoc />
@@ -547,6 +464,7 @@ public class PlaywrightService(
         }
 
         _disposed = true;
+        GC.SuppressFinalize(this);
     }
 
     /// <inheritdoc />
@@ -662,6 +580,21 @@ public class PlaywrightService(
         return await browsingContext.OpenAsync(req => req.Content(html), cancellationToken);
     }
 
+    private static List<string> GetOrderedUniqueUrls(IReadOnlyList<string> urls)
+    {
+        var orderedUnique = new List<string>(urls.Count);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var url in urls)
+        {
+            if (!string.IsNullOrWhiteSpace(url) && seen.Add(url))
+            {
+                orderedUnique.Add(url);
+            }
+        }
+
+        return orderedUnique;
+    }
+
     /// <summary>
     /// A persistent context is only reusable while it is live and still owns at least one open
     /// page. A headed Chromium process exits once its final page closes, after which the cached
@@ -685,21 +618,6 @@ public class PlaywrightService(
         {
             return false;
         }
-    }
-
-    private List<string> GetOrderedUniqueUrls(IReadOnlyList<string> urls)
-    {
-        var orderedUnique = new List<string>(urls.Count);
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var url in urls)
-        {
-            if (!string.IsNullOrWhiteSpace(url) && seen.Add(url))
-            {
-                orderedUnique.Add(url);
-            }
-        }
-
-        return orderedUnique;
     }
 
     private async Task FetchSinglePersistentUrlAsync(
@@ -828,6 +746,86 @@ public class PlaywrightService(
         }
     }
 
+    private async Task HandlePersistentPageCloseUnderLockAsync(IPage page)
+    {
+        try
+        {
+            var otherPages = _persistentContext!.Pages.Where(p => !p.IsClosed && p != page).ToList();
+
+            if (_activePersistentSessions > 0)
+            {
+                await HandleActiveSessionPageCloseAsync(page, otherPages);
+            }
+            else
+            {
+                await HandleNonSessionPageCloseAsync(page);
+            }
+        }
+        catch (PlaywrightException ex) when (IsContextClosedError(ex))
+        {
+            ResetPersistentContextState();
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Failed to inspect persistent context after page close.");
+            ResetPersistentContextState();
+        }
+    }
+
+    private async Task HandleActiveSessionPageCloseAsync(IPage page, List<IPage> otherPages)
+    {
+        if (otherPages.Count == 0 && _inUsePersistentPages.Count == 0)
+        {
+            if (!page.IsClosed)
+            {
+                try
+                {
+                    await page.GotoAsync("about:blank");
+                }
+                catch (PlaywrightException ex)
+                {
+                    logger.LogDebug(ex, "Failed to navigate to about:blank during active session cleanup.");
+                }
+            }
+        }
+        else
+        {
+            await TryClosePageAsync(page);
+        }
+    }
+
+    private async Task HandleNonSessionPageCloseAsync(IPage page)
+    {
+        await TryClosePageAsync(page);
+
+        if (_inUsePersistentPages.Count == 0)
+        {
+            await ClosePersistentContextCoreUnderLockAsync();
+        }
+    }
+
+    private async Task TryClosePageAsync(IPage page)
+    {
+        if (!page.IsClosed)
+        {
+            try
+            {
+                await page.CloseAsync();
+            }
+            catch (PlaywrightException ex)
+            {
+                logger.LogDebug(ex, "Persistent page already closed during cleanup.");
+            }
+        }
+    }
+
+    private void ResetPersistentContextState()
+    {
+        _inUsePersistentPages.Clear();
+        _persistentContext = null;
+        _persistentProfileName = null;
+    }
+
     private async Task<DownloadResult> DownloadFileCoreAsync(
         GenHub.Core.Models.Common.DownloadConfiguration configuration,
         bool usePersistentModDbProfile,
@@ -886,43 +884,7 @@ public class PlaywrightService(
 
             if (completedTask != downloadTcs.Task)
             {
-                logger.LogInformation("Download did not start automatically within 5s. Attempting to find fallback link...");
-
-                const string FallbackSelector = "a[href*='media.moddb.com'], a[href*='files.moddb.com'], a:has-text('click here'), a:has-text('Click here'), a:has-text('here'), a#download, a.download, a.btn-download, a.buttondownload, a[href*='/mirror/'], a[href*='/downloads/start/'], a[href*='/addons/start/'], a:has-text('Download Now'), a:has-text('download now'), a:has-text('Download'), a:has-text('download'), a:has-text('mirror')";
-
-                var fallbackLink = await page.QuerySelectorAsync(FallbackSelector);
-
-                if (fallbackLink != null)
-                {
-                    var text = await fallbackLink.InnerTextAsync();
-                    logger.LogInformation("Found fallback link '{Text}', clicking...", text);
-                    try
-                    {
-                        await fallbackLink.ClickAsync(new ElementHandleClickOptions { Timeout = 5000 });
-
-                        // If clicking navigated to a /start/ page, wait briefly and check for direct mirror link
-                        var secondWait = Task.Delay(4000, cancellationToken);
-                        var secondCompleted = await Task.WhenAny(downloadTcs.Task, secondWait);
-                        if (secondCompleted != downloadTcs.Task && !string.IsNullOrWhiteSpace(page.Url) && page.Url.Contains("/start/", StringComparison.OrdinalIgnoreCase))
-                        {
-                            var startPageFallback = await page.QuerySelectorAsync("a:has-text('click here'), a:has-text('Click here'), a[href*='media.moddb.com'], a[href*='files.moddb.com'], a[href*='/mirror/']");
-                            if (startPageFallback != null)
-                            {
-                                var startText = await startPageFallback.InnerTextAsync();
-                                logger.LogInformation("Found start-page mirror link '{Text}', clicking...", startText);
-                                await startPageFallback.ClickAsync(new ElementHandleClickOptions { Timeout = 5000 });
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "Failed to click fallback link.");
-                    }
-                }
-                else
-                {
-                    logger.LogWarning("No fallback download link found. Continuing to wait for download event...");
-                }
+                await TryTriggerFallbackDownloadLinkAsync(page, downloadTcs, cancellationToken);
             }
 
             // Wait for the download to START (not finish) with a generous timeout. ModDB's
@@ -994,6 +956,54 @@ public class PlaywrightService(
                         }
                     }
                 }
+            }
+        }
+    }
+
+    private async Task TryTriggerFallbackDownloadLinkAsync(
+        IPage page,
+        TaskCompletionSource<IDownload> downloadTcs,
+        CancellationToken cancellationToken)
+    {
+        logger.LogInformation("Download did not start automatically within 5s. Attempting to find fallback link...");
+
+        const string FallbackSelector = "a[href*='media.moddb.com'], a[href*='files.moddb.com'], a:has-text('click here'), a:has-text('Click here'), a:has-text('here'), a#download, a.download, a.btn-download, a.buttondownload, a[href*='/mirror/'], a[href*='/downloads/start/'], a[href*='/addons/start/'], a:has-text('Download Now'), a:has-text('download now'), a:has-text('Download'), a:has-text('download'), a:has-text('mirror')";
+
+        var fallbackLink = await page.QuerySelectorAsync(FallbackSelector);
+        if (fallbackLink == null)
+        {
+            logger.LogWarning("No fallback download link found. Continuing to wait for download event...");
+            return;
+        }
+
+        var text = await fallbackLink.InnerTextAsync();
+        logger.LogInformation("Found fallback link '{Text}', clicking...", text);
+        try
+        {
+            await fallbackLink.ClickAsync(new ElementHandleClickOptions { Timeout = 5000 });
+            await TryClickStartPageMirrorLinkAsync(page, downloadTcs, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to click fallback link.");
+        }
+    }
+
+    private async Task TryClickStartPageMirrorLinkAsync(
+        IPage page,
+        TaskCompletionSource<IDownload> downloadTcs,
+        CancellationToken cancellationToken)
+    {
+        var secondWait = Task.Delay(4000, cancellationToken);
+        var secondCompleted = await Task.WhenAny(downloadTcs.Task, secondWait);
+        if (secondCompleted != downloadTcs.Task && !string.IsNullOrWhiteSpace(page.Url) && page.Url.Contains("/start/", StringComparison.OrdinalIgnoreCase))
+        {
+            var startPageFallback = await page.QuerySelectorAsync("a:has-text('click here'), a:has-text('Click here'), a[href*='media.moddb.com'], a[href*='files.moddb.com'], a[href*='/mirror/']");
+            if (startPageFallback != null)
+            {
+                var startText = await startPageFallback.InnerTextAsync();
+                logger.LogInformation("Found start-page mirror link '{Text}', clicking...", startText);
+                await startPageFallback.ClickAsync(new ElementHandleClickOptions { Timeout = 5000 });
             }
         }
     }
@@ -1236,7 +1246,7 @@ public class PlaywrightService(
             return;
         }
 
-        List<IPage> pages = [];
+        List<IPage> pages;
         try
         {
             pages = [.. _persistentContext.Pages];

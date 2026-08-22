@@ -34,25 +34,25 @@ public class GenericCatalogResolver(
 
     /// <inheritdoc />
     public async Task<OperationResult<ContentManifest>> ResolveAsync(
-        ContentSearchResult searchResult,
+        ContentSearchResult discoveredItem,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(searchResult);
+        ArgumentNullException.ThrowIfNull(discoveredItem);
 
         try
         {
             // Extract catalog metadata from search result (stored as JSON strings)
-            if (!searchResult.ResolverMetadata.TryGetValue(CatalogConstants.ReleaseJsonMetadataKey, out var releaseJson))
+            if (!discoveredItem.ResolverMetadata.TryGetValue(CatalogConstants.ReleaseJsonMetadataKey, out var releaseJson))
             {
                 return OperationResult<ContentManifest>.CreateFailure("Missing release metadata");
             }
 
-            if (!searchResult.ResolverMetadata.TryGetValue(CatalogConstants.CatalogItemJsonMetadataKey, out var contentItemJson))
+            if (!discoveredItem.ResolverMetadata.TryGetValue(CatalogConstants.CatalogItemJsonMetadataKey, out var contentItemJson))
             {
                 return OperationResult<ContentManifest>.CreateFailure("Missing content item metadata");
             }
 
-            if (!searchResult.ResolverMetadata.TryGetValue(CatalogConstants.PublisherProfileJsonMetadataKey, out var publisherJson))
+            if (!discoveredItem.ResolverMetadata.TryGetValue(CatalogConstants.PublisherProfileJsonMetadataKey, out var publisherJson))
             {
                 return OperationResult<ContentManifest>.CreateFailure("Missing publisher profile");
             }
@@ -92,8 +92,8 @@ public class GenericCatalogResolver(
                 ? $"{contentItem.Id}-{primaryArtifact.Variant.Trim()}"
                 : contentItem.Id;
 
-            var resolvedName = ResolveManifestName(searchResult, contentItem, primaryArtifact);
-            var resolvedTargetGame = ResolveTargetGame(contentItem, primaryArtifact, searchResult);
+            var resolvedName = ResolveManifestName(discoveredItem, contentItem, primaryArtifact);
+            var resolvedTargetGame = ResolveTargetGame(contentItem, primaryArtifact, discoveredItem);
 
             var builder = manifestBuilderFactory()
                 .WithBasicInfo(declaredPublisherId, effectiveContentId, release.Version)
@@ -144,7 +144,7 @@ public class GenericCatalogResolver(
                 primaryArtifact,
                 declaredPublisherId,
                 resolvedName,
-                searchResult.Id);
+                discoveredItem.Id);
 
             logger.LogInformation(
                 "Successfully resolved manifest for '{ContentName}' with {FileCount} files",
@@ -218,7 +218,7 @@ public class GenericCatalogResolver(
                 "application/zip" => ".zip",
                 "application/x-rar-compressed" => ".rar",
                 "application/x-7z-compressed" => ".7z",
-                _ => Path.GetExtension(primaryArtifact.DownloadUrl.Split('?', '#')[0]) is { Length: > 1 } urlExt
+                _ => Path.GetExtension(primaryArtifact.DownloadUrl.Split(['?', '#'])[0]) is { Length: > 1 } urlExt
                     ? urlExt
                     : ".zip",
             };

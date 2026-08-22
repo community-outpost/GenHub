@@ -102,37 +102,28 @@ public partial class AODMapsDiscoverer(
 
     private static string? InferCategoryFromUrl(string sourceUrl)
     {
-        if (string.IsNullOrWhiteSpace(sourceUrl))
-        {
-            return null;
-        }
-
-        if (!Uri.TryCreate(sourceUrl, UriKind.Absolute, out var uri))
+        if (string.IsNullOrWhiteSpace(sourceUrl) || !Uri.TryCreate(sourceUrl, UriKind.Absolute, out var uri))
         {
             return null;
         }
 
         var path = uri.AbsolutePath;
-        if (path.Contains("/AOA/", StringComparison.OrdinalIgnoreCase) ||
-            path.Contains("aoamaps", StringComparison.OrdinalIgnoreCase))
+        if (ContainsAny(path, "/AOA/", "aoamaps"))
         {
             return AODMapsConstants.CategoryAoa;
         }
 
-        if (path.Contains("/race/", StringComparison.OrdinalIgnoreCase) ||
-            path.Contains("racemaps", StringComparison.OrdinalIgnoreCase))
+        if (ContainsAny(path, "/race/", "racemaps"))
         {
             return AODMapsConstants.CategoryRace;
         }
 
-        if (path.Contains("/air/", StringComparison.OrdinalIgnoreCase) ||
-            path.Contains("airmaps", StringComparison.OrdinalIgnoreCase))
+        if (ContainsAny(path, "/air/", "airmaps"))
         {
             return AODMapsConstants.CategoryAir;
         }
 
-        if (path.Contains("/ContraAOD/", StringComparison.OrdinalIgnoreCase) ||
-            path.Contains("contraaod", StringComparison.OrdinalIgnoreCase))
+        if (ContainsAny(path, "/ContraAOD/", "contraaod"))
         {
             return AODMapsConstants.CategoryContra;
         }
@@ -142,14 +133,17 @@ public partial class AODMapsDiscoverer(
             return AODMapsConstants.CategoryCompstomp;
         }
 
-        if (path.Contains("/packs/", StringComparison.OrdinalIgnoreCase) ||
-            path.Contains("Map_Packs", StringComparison.OrdinalIgnoreCase))
+        if (ContainsAny(path, "/packs/", "Map_Packs"))
         {
             return AODMapsConstants.CategoryMapPacks;
         }
 
         return null;
     }
+
+    private static bool ContainsAny(string source, string text1, string text2) =>
+        source.Contains(text1, StringComparison.OrdinalIgnoreCase) ||
+        source.Contains(text2, StringComparison.OrdinalIgnoreCase);
 
     private static string? NormalizeCategory(string? category)
     {
@@ -411,6 +405,81 @@ public partial class AODMapsDiscoverer(
         return builder.ToString();
     }
 
+    private static void ExtractGalleryItems(IDocument document, string sourceUrl, List<ContentSearchResult> results)
+    {
+        var galleryItems = document.QuerySelectorAll(AODMapsConstants.GalleryItemSelector);
+        foreach (var item in galleryItems)
+        {
+            var result = ParseGalleryItem(item, sourceUrl);
+            if (result != null)
+            {
+                results.Add(result);
+            }
+        }
+    }
+
+    private static void ExtractMapMakerItems(IDocument document, string sourceUrl, List<ContentSearchResult> results)
+    {
+        var mmItems = document.QuerySelectorAll(AODMapsConstants.MapMakerContainerSelector);
+        foreach (var item in mmItems)
+        {
+            var contentDiv = item.QuerySelector(AODMapsConstants.MapMakerContentSelector);
+            if (contentDiv != null)
+            {
+                var result = ParseMapMakerItem(contentDiv, sourceUrl);
+                if (result != null)
+                {
+                    results.Add(result);
+                }
+            }
+        }
+    }
+
+    private static bool HasNextTextLink(IDocument document, out string? href)
+    {
+        href = null;
+        var nextLink = document.QuerySelectorAll("a").FirstOrDefault(a =>
+            a.TextContent != null &&
+            a.TextContent.Trim().Equals("Next", StringComparison.OrdinalIgnoreCase));
+
+        if (nextLink == null)
+        {
+            return false;
+        }
+
+        href = nextLink.GetAttribute("href");
+        return !string.IsNullOrWhiteSpace(href) &&
+               !href.Equals("#", StringComparison.Ordinal) &&
+               !href.StartsWith("javascript:", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsHigherPageLink(IElement a, int currentPage)
+    {
+        var href = a.GetAttribute("href");
+        var text = a.TextContent?.Trim();
+
+        if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(href))
+        {
+            return false;
+        }
+
+        if (href.Contains("new") || href.Contains("players") || href.Contains("compstomp") || href.Contains("Map_Packs"))
+        {
+            var match = HtmlPageNumberRegex().Match(href);
+            if (match.Success && int.TryParse(match.Groups[1].Value, out var pageNum) && pageNum > currentPage)
+            {
+                return true;
+            }
+
+            if (int.TryParse(text, out var textPageNum) && textPageNum > currentPage)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// <inheritdoc />
     public string SourceName => AODMapsConstants.DiscovererSourceName;
 
@@ -629,36 +698,6 @@ public partial class AODMapsDiscoverer(
         return (results, hasMoreItems);
     }
 
-    private void ExtractGalleryItems(IDocument document, string sourceUrl, List<ContentSearchResult> results)
-    {
-        var galleryItems = document.QuerySelectorAll(AODMapsConstants.GalleryItemSelector);
-        foreach (var item in galleryItems)
-        {
-            var result = ParseGalleryItem(item, sourceUrl);
-            if (result != null)
-            {
-                results.Add(result);
-            }
-        }
-    }
-
-    private void ExtractMapMakerItems(IDocument document, string sourceUrl, List<ContentSearchResult> results)
-    {
-        var mmItems = document.QuerySelectorAll(AODMapsConstants.MapMakerContainerSelector);
-        foreach (var item in mmItems)
-        {
-            var contentDiv = item.QuerySelector(AODMapsConstants.MapMakerContentSelector);
-            if (contentDiv != null)
-            {
-                var result = ParseMapMakerItem(contentDiv, sourceUrl);
-                if (result != null)
-                {
-                    results.Add(result);
-                }
-            }
-        }
-    }
-
     /// <summary>
     /// Checks if there is a next page available in the pagination.
     /// </summary>
@@ -694,51 +733,6 @@ public partial class AODMapsDiscoverer(
         }
 
         logger.LogInformation("[AODMaps] No next page link found on page {Page}", currentPage);
-        return false;
-    }
-
-    private bool HasNextTextLink(IDocument document, out string? href)
-    {
-        href = null;
-        var nextLink = document.QuerySelectorAll("a").FirstOrDefault(a =>
-            a.TextContent != null &&
-            a.TextContent.Trim().Equals("Next", StringComparison.OrdinalIgnoreCase));
-
-        if (nextLink == null)
-        {
-            return false;
-        }
-
-        href = nextLink.GetAttribute("href");
-        return !string.IsNullOrWhiteSpace(href) &&
-               !href.Equals("#", StringComparison.Ordinal) &&
-               !href.StartsWith("javascript:", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private bool IsHigherPageLink(IElement a, int currentPage)
-    {
-        var href = a.GetAttribute("href");
-        var text = a.TextContent?.Trim();
-
-        if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(href))
-        {
-            return false;
-        }
-
-        if (href.Contains("new") || href.Contains("players") || href.Contains("compstomp") || href.Contains("Map_Packs"))
-        {
-            var match = HtmlPageNumberRegex().Match(href);
-            if (match.Success && int.TryParse(match.Groups[1].Value, out var pageNum) && pageNum > currentPage)
-            {
-                return true;
-            }
-
-            if (int.TryParse(text, out var textPageNum) && textPageNum > currentPage)
-            {
-                return true;
-            }
-        }
-
         return false;
     }
 }

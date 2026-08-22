@@ -253,138 +253,7 @@ public abstract class WorkspaceStrategyBase<T>(
         workspaceInfo.TotalSizeBytes = totalSize;
         workspaceInfo.WorkingDirectory = workspaceInfo.WorkspacePath;
 
-        var gameClientManifest = configuration.Manifests
-            .FirstOrDefault(m => m.ContentType == ContentType.GameClient);
-
-        if (gameClientManifest != null)
-        {
-            // Resolution order and failure behaviour live in ManifestVariantResolver.
-            // The previous inline logic took the first file marked IsExecutable, which is
-            // enumeration-order dependent as soon as more than one file qualifies — and
-            // several do, once dynamic libraries and native extensionless binaries are in
-            // the same manifest.
-            var resolution = ManifestVariantResolver.ResolveEntryPoint(gameClientManifest);
-
-            if (resolution.Success)
-            {
-                var resolvedRelativePath = resolution.RelativePath!.Replace('/', Path.DirectorySeparatorChar);
-                var resolvedFullPath = Path.Combine(workspaceInfo.WorkspacePath, resolvedRelativePath);
-                var resolvedFileName = Path.GetFileName(resolvedRelativePath);
-
-                // Ensure workspace generals.exe is aliased to the selected GameClient if the GameClient binary is not named generals.exe.
-                // This allows 3rd-party mod launchers (e.g. Contra_Launcher.exe, ROTR Launcher) that hardcode Process.Start("generals.exe")
-                // to seamlessly execute the modern GameClient (generalszh.exe / GeneralsOnline 60Hz).
-                if (!resolvedFileName.Equals(GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase))
-                {
-                    var aliasPath = Path.Combine(workspaceInfo.WorkspacePath, GameClientConstants.GeneralsExecutable);
-                    if (File.Exists(resolvedFullPath) && !File.Exists(aliasPath))
-                    {
-                        try
-                        {
-                            File.Copy(resolvedFullPath, aliasPath, overwrite: true);
-                            logger.LogInformation("Created '{Alias}' alias for GameClient '{Target}' in workspace", GameClientConstants.GeneralsExecutable, resolvedFullPath);
-                            if (!resolvedFileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-                            {
-                                resolvedFullPath = aliasPath;
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            logger.LogWarning(ex, "Failed to create generals.exe alias for {Target}", resolvedFullPath);
-                        }
-                    }
-                }
-
-                workspaceInfo.ExecutablePath = resolvedFullPath;
-
-                logger.LogInformation(
-                    "Executable resolved from GameClient manifest: {ExecutablePath} ({Reason})",
-                    workspaceInfo.ExecutablePath,
-                    resolution.Reason);
-            }
-            else
-            {
-                // Left unset deliberately rather than guessed. Launching the wrong binary
-                // fails somewhere far less diagnosable than here.
-                logger.LogWarning(
-                    "Could not determine the executable for GameClient manifest '{ManifestId}': {Resolution}",
-                    gameClientManifest.Id,
-                    resolution);
-            }
-        }
-        else
-        {
-            var executableManifest = configuration.Manifests
-                .FirstOrDefault(m => m.ContentType == ContentType.Executable || !string.IsNullOrWhiteSpace(m.EntryPoint));
-
-            if (executableManifest != null)
-            {
-                var resolution = ManifestVariantResolver.ResolveEntryPoint(executableManifest);
-                if (resolution.Success && !string.IsNullOrEmpty(resolution.RelativePath))
-                {
-                    var resolvedRelativePath = resolution.RelativePath.Replace('/', Path.DirectorySeparatorChar);
-                    var resolvedFullPath = Path.Combine(workspaceInfo.WorkspacePath, resolvedRelativePath);
-                    var resolvedFileName = Path.GetFileName(resolvedRelativePath);
-
-                    if (!resolvedFileName.Equals(GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase) &&
-                        !resolvedFileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var aliasPath = Path.Combine(workspaceInfo.WorkspacePath, GameClientConstants.GeneralsExecutable);
-                        if (File.Exists(resolvedFullPath) && !File.Exists(aliasPath))
-                        {
-                            try
-                            {
-                                File.Copy(resolvedFullPath, aliasPath, overwrite: true);
-                                logger.LogInformation("Created '{Alias}' alias for custom entry point '{Target}' in workspace", GameClientConstants.GeneralsExecutable, resolvedFullPath);
-                                resolvedFullPath = aliasPath;
-                            }
-                            catch (Exception ex)
-                            {
-                                logger.LogWarning(ex, "Failed to create generals.exe alias for {Target}", resolvedFullPath);
-                            }
-                        }
-                    }
-
-                    workspaceInfo.ExecutablePath = resolvedFullPath;
-
-                    logger.LogInformation(
-                        "Executable resolved from {ContentType} manifest '{ManifestId}': {ExecutablePath} ({Reason})",
-                        executableManifest.ContentType,
-                        executableManifest.Id,
-                        workspaceInfo.ExecutablePath,
-                        resolution.Reason);
-                }
-            }
-        }
-
-        if (string.IsNullOrEmpty(workspaceInfo.ExecutablePath) && !string.IsNullOrEmpty(configuration.GameClient.ExecutablePath))
-        {
-            // Fallback: Search for executable by filename in any manifest
-            // This supports legacy scenarios and simple workspaces
-            var executableFileName = Path.GetFileName(configuration.GameClient.ExecutablePath);
-
-            var executableExistsInManifest = configuration.Manifests
-                .SelectMany(m => m.Files ?? Enumerable.Empty<ManifestFile>())
-                .Any(f => Path.GetFileName(f.RelativePath).Equals(executableFileName, StringComparison.OrdinalIgnoreCase));
-
-            if (executableExistsInManifest)
-            {
-                workspaceInfo.ExecutablePath = Path.Combine(workspaceInfo.WorkspacePath, executableFileName);
-                logger.LogDebug(
-                    "Executable path resolved by filename search: {ExecutablePath}",
-                    workspaceInfo.ExecutablePath);
-            }
-            else
-            {
-                logger.LogDebug(
-                    "No executable found in manifests for filename: {ExecutableFileName}",
-                    executableFileName);
-            }
-        }
-        else if (string.IsNullOrEmpty(workspaceInfo.ExecutablePath))
-        {
-            logger.LogDebug("No GameClient configuration or manifest available - executable path not set");
-        }
+        ResolveExecutablePath(workspaceInfo, configuration);
     }
 
     /// <summary>
@@ -755,5 +624,140 @@ public abstract class WorkspaceStrategyBase<T>(
         }
 
         return path;
+    }
+
+    private void ResolveExecutablePath(WorkspaceInfo workspaceInfo, WorkspaceConfiguration configuration)
+    {
+        var gameClientManifest = configuration.Manifests
+            .FirstOrDefault(m => m.ContentType == ContentType.GameClient);
+
+        if (gameClientManifest != null)
+        {
+            ResolveGameClientExecutable(workspaceInfo, gameClientManifest);
+        }
+        else
+        {
+            ResolveCustomOrFallbackExecutable(workspaceInfo, configuration);
+        }
+
+        if (string.IsNullOrEmpty(workspaceInfo.ExecutablePath) && !string.IsNullOrEmpty(configuration.GameClient.ExecutablePath))
+        {
+            ResolveExecutableByFilenameFallback(workspaceInfo, configuration);
+        }
+        else if (string.IsNullOrEmpty(workspaceInfo.ExecutablePath))
+        {
+            logger.LogDebug("No GameClient configuration or manifest available - executable path not set");
+        }
+    }
+
+    private void ResolveGameClientExecutable(WorkspaceInfo workspaceInfo, ContentManifest gameClientManifest)
+    {
+        var resolution = ManifestVariantResolver.ResolveEntryPoint(gameClientManifest);
+        if (resolution.Success && !string.IsNullOrEmpty(resolution.RelativePath))
+        {
+            var resolvedRelativePath = resolution.RelativePath.Replace('/', Path.DirectorySeparatorChar);
+            var resolvedFullPath = Path.Combine(workspaceInfo.WorkspacePath, resolvedRelativePath);
+            var resolvedFileName = Path.GetFileName(resolvedRelativePath);
+
+            resolvedFullPath = EnsureGeneralsAlias(workspaceInfo.WorkspacePath, resolvedFullPath, resolvedFileName, true);
+            workspaceInfo.ExecutablePath = resolvedFullPath;
+
+            logger.LogInformation(
+                "Executable resolved from GameClient manifest: {ExecutablePath} ({Reason})",
+                workspaceInfo.ExecutablePath,
+                resolution.Reason);
+        }
+        else
+        {
+            logger.LogWarning(
+                "Could not determine the executable for GameClient manifest '{ManifestId}': {Resolution}",
+                gameClientManifest.Id,
+                resolution);
+        }
+    }
+
+    private void ResolveCustomOrFallbackExecutable(WorkspaceInfo workspaceInfo, WorkspaceConfiguration configuration)
+    {
+        var executableManifest = configuration.Manifests
+            .FirstOrDefault(m => m.ContentType == ContentType.Executable || !string.IsNullOrWhiteSpace(m.EntryPoint));
+
+        if (executableManifest == null)
+        {
+            return;
+        }
+
+        var resolution = ManifestVariantResolver.ResolveEntryPoint(executableManifest);
+        if (!resolution.Success || string.IsNullOrEmpty(resolution.RelativePath))
+        {
+            return;
+        }
+
+        var resolvedRelativePath = resolution.RelativePath.Replace('/', Path.DirectorySeparatorChar);
+        var resolvedFullPath = Path.Combine(workspaceInfo.WorkspacePath, resolvedRelativePath);
+        var resolvedFileName = Path.GetFileName(resolvedRelativePath);
+
+        resolvedFullPath = EnsureGeneralsAlias(workspaceInfo.WorkspacePath, resolvedFullPath, resolvedFileName, false);
+        workspaceInfo.ExecutablePath = resolvedFullPath;
+
+        logger.LogInformation(
+            "Executable resolved from {ContentType} manifest '{ManifestId}': {ExecutablePath} ({Reason})",
+            executableManifest.ContentType,
+            executableManifest.Id,
+            workspaceInfo.ExecutablePath,
+            resolution.Reason);
+    }
+
+    private string EnsureGeneralsAlias(string workspacePath, string resolvedFullPath, string resolvedFileName, bool isGameClient)
+    {
+        var shouldAlias = isGameClient
+            ? !resolvedFileName.Equals(GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase)
+            : !resolvedFileName.Equals(GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase) && !resolvedFileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase);
+
+        if (!shouldAlias)
+        {
+            return resolvedFullPath;
+        }
+
+        var aliasPath = Path.Combine(workspacePath, GameClientConstants.GeneralsExecutable);
+        if (File.Exists(resolvedFullPath) && !File.Exists(aliasPath))
+        {
+            try
+            {
+                File.Copy(resolvedFullPath, aliasPath, overwrite: true);
+                logger.LogInformation("Created '{Alias}' alias for entry point '{Target}' in workspace", GameClientConstants.GeneralsExecutable, resolvedFullPath);
+                if (!resolvedFileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    return aliasPath;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to create generals.exe alias for {Target}", resolvedFullPath);
+            }
+        }
+
+        return resolvedFullPath;
+    }
+
+    private void ResolveExecutableByFilenameFallback(WorkspaceInfo workspaceInfo, WorkspaceConfiguration configuration)
+    {
+        var executableFileName = Path.GetFileName(configuration.GameClient.ExecutablePath);
+        var executableExistsInManifest = configuration.Manifests
+            .SelectMany(m => m.Files ?? Enumerable.Empty<ManifestFile>())
+            .Any(f => Path.GetFileName(f.RelativePath).Equals(executableFileName, StringComparison.OrdinalIgnoreCase));
+
+        if (executableExistsInManifest)
+        {
+            workspaceInfo.ExecutablePath = Path.Combine(workspaceInfo.WorkspacePath, executableFileName);
+            logger.LogDebug(
+                "Executable path resolved by filename search: {ExecutablePath}",
+                workspaceInfo.ExecutablePath);
+        }
+        else
+        {
+            logger.LogDebug(
+                "No executable found in manifests for filename: {ExecutableFileName}",
+                executableFileName);
+        }
     }
 }

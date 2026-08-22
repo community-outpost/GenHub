@@ -591,7 +591,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         {
             cancellationToken.ThrowIfCancellationRequested();
             var entry = entries[i];
-            var entryKey = entry.Key!;
+            var entryKey = entry.Key ?? string.Empty;
 
             entryCount++;
             if (entryCount > CatalogConstants.MaxZipEntryCount)
@@ -800,7 +800,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             throw new InvalidDataException($"Archive entry has an unsafe path: {entry.FullName}");
         }
 
-        var destinationPath = pathResult.Data!;
+        var destinationPath = pathResult.Data ?? string.Empty;
         var destinationDir = Path.GetDirectoryName(destinationPath);
         if (!string.IsNullOrEmpty(destinationDir))
         {
@@ -1218,7 +1218,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 throw new InvalidDataException($"Smart Install Maker modern entry has an unsafe path: {fileName}");
             }
 
-            var destinationPath = pathResult.Data!;
+            var destinationPath = pathResult.Data ?? string.Empty;
             var destinationDir = Path.GetDirectoryName(destinationPath);
             if (!string.IsNullOrEmpty(destinationDir))
             {
@@ -1399,7 +1399,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             throw new InvalidDataException($"Smart Install Maker entry has an unsafe path: {rec.Name}");
         }
 
-        var destinationPath = pathResult.Data!;
+        var destinationPath = pathResult.Data ?? string.Empty;
         var destinationDir = Path.GetDirectoryName(destinationPath);
         if (!string.IsNullOrEmpty(destinationDir))
         {
@@ -1752,18 +1752,18 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
     {
         var subDirs = Directory.GetDirectories(directory, "*", SearchOption.TopDirectoryOnly)
             .Select(Path.GetFileName)
-            .Where(name => !string.IsNullOrEmpty(name));
+            .OfType<string>();
 
-        if (subDirs.Any(name => GameContentConstants.RecognizedGameDirectories.Contains(name!, StringComparer.OrdinalIgnoreCase)))
+        if (subDirs.Any(name => GameContentConstants.RecognizedGameDirectories.Contains(name, StringComparer.OrdinalIgnoreCase)))
         {
             return true;
         }
 
         var files = Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly)
             .Select(Path.GetExtension)
-            .Where(ext => !string.IsNullOrEmpty(ext));
+            .OfType<string>();
 
-        return files.Any(ext => GameContentConstants.RecognizedGameFileExtensions.Contains(ext!, StringComparer.OrdinalIgnoreCase));
+        return files.Any(ext => GameContentConstants.RecognizedGameFileExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase));
     }
 
     private static bool DirectoryContainsMapFilesDirectly(string directory)
@@ -2138,7 +2138,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         }
     }
 
-    private sealed class SubStream(Stream baseStream, long offset, long length) : Stream
+    private sealed class SubStream(Stream baseStream, long startOffset, long length) : Stream
     {
         private long _position;
 
@@ -2163,7 +2163,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
         public override void Flush() => baseStream.Flush();
 
-        public override int Read(byte[] buffer, int offsetInBuffer, int count)
+        public override int Read(byte[] buffer, int offset, int count)
         {
             if (_position >= length)
             {
@@ -2171,19 +2171,19 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             }
 
             var toRead = (int)Math.Min(count, length - _position);
-            baseStream.Position = offset + _position;
-            var read = baseStream.Read(buffer, offsetInBuffer, toRead);
+            baseStream.Position = startOffset + _position;
+            var read = baseStream.Read(buffer, offset, toRead);
             _position += read;
             return read;
         }
 
-        public override long Seek(long offsetFromOrigin, SeekOrigin origin)
+        public override long Seek(long offset, SeekOrigin origin)
         {
             var target = origin switch
             {
-                SeekOrigin.Begin => offsetFromOrigin,
-                SeekOrigin.Current => _position + offsetFromOrigin,
-                SeekOrigin.End => length + offsetFromOrigin,
+                SeekOrigin.Begin => offset,
+                SeekOrigin.Current => _position + offset,
+                SeekOrigin.End => length + offset,
                 _ => throw new ArgumentOutOfRangeException(nameof(origin)),
             };
             Position = target;
@@ -2192,7 +2192,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
         public override void SetLength(long value) => throw new NotSupportedException();
 
-        public override void Write(byte[] buffer, int offsetInBuffer, int count) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
     private sealed class NonDisposingStream(Stream inner) : Stream
@@ -2223,6 +2223,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
         protected override void Dispose(bool disposing)
         {
+            // Do not dispose the inner stream.
         }
     }
 }

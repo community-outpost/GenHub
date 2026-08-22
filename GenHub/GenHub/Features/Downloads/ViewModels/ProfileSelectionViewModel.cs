@@ -411,38 +411,11 @@ public sealed partial class ProfileSelectionViewModel(
                 ManifestId.Create(ContentManifestId),
                 CancellationToken.None);
 
-            string selectedManifestId = ContentManifestId;
-            string selectedContentName = ContentName ?? "New Profile";
+            var (selectedManifestId, selectedContentName) = manifestResult.Success && manifestResult.Data != null
+                ? (manifestResult.Data.Id.Value, manifestResult.Data.Name)
+                : (ContentManifestId, ContentName ?? "New Profile");
 
-            if (manifestResult.Success && manifestResult.Data != null)
-            {
-                selectedManifestId = manifestResult.Data.Id.Value;
-                selectedContentName = manifestResult.Data.Name;
-            }
-
-            var selectedManifestResult = await manifestPool.GetManifestAsync(
-                ManifestId.Create(selectedManifestId),
-                CancellationToken.None);
-            var selectedManifest = selectedManifestResult.Success ? selectedManifestResult.Data : null;
-            string baseName;
-            if (selectedManifest?.ContentType == ContentType.GameClient &&
-                !string.IsNullOrWhiteSpace(selectedManifest.Name))
-            {
-                baseName = selectedManifest.Name;
-            }
-            else
-            {
-                baseName = string.IsNullOrEmpty(selectedContentName) ? "New Profile" : $"{selectedContentName} Profile";
-            }
-
-            var profileName = baseName;
-            var counter = 1;
-
-            // Ensure unique name
-            while (await ProfileExistsAsync(profileName))
-            {
-                profileName = $"{baseName} ({counter++})";
-            }
+            var profileName = await ResolveUniqueProfileNameAsync(selectedManifestId, selectedContentName);
 
             IReadOnlyList<string> idsToEnable;
             if (ContentManifestIds.Count > 0)
@@ -493,6 +466,35 @@ public sealed partial class ProfileSelectionViewModel(
                 $"An error occurred: {ex.Message}");
             WasSuccessful = false;
         }
+    }
+
+    private async Task<string> ResolveUniqueProfileNameAsync(string selectedManifestId, string selectedContentName)
+    {
+        var selectedManifestResult = await manifestPool.GetManifestAsync(
+            ManifestId.Create(selectedManifestId),
+            CancellationToken.None);
+        var selectedManifest = selectedManifestResult.Success ? selectedManifestResult.Data : null;
+        string baseName;
+        if (selectedManifest?.ContentType == ContentType.GameClient &&
+            !string.IsNullOrWhiteSpace(selectedManifest.Name))
+        {
+            baseName = selectedManifest.Name;
+        }
+        else
+        {
+            baseName = string.IsNullOrEmpty(selectedContentName) ? "New Profile" : $"{selectedContentName} Profile";
+        }
+
+        var profileName = baseName;
+        var counter = 1;
+
+        // Ensure unique name
+        while (await ProfileExistsAsync(profileName))
+        {
+            profileName = $"{baseName} ({counter++})";
+        }
+
+        return profileName;
     }
 
     /// <summary>

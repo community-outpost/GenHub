@@ -191,7 +191,7 @@ public partial class CommunityOutpostDiscoverer(
     {
         return category switch
         {
-            GenPatcherContentCategory.CommunityPatch => ["community-patch", "thesuperhackers", "weekly", "game-client"],
+            GenPatcherContentCategory.CommunityPatch => [CommunityOutpostConstants.CommunityPatchTag, "thesuperhackers", "weekly", "game-client"],
             GenPatcherContentCategory.OfficialPatch => CommunityOutpostConstants.OfficialPatchTags,
             GenPatcherContentCategory.BaseGame => ["base-game", "vanilla"],
             GenPatcherContentCategory.ControlBar => ["addon", "control-bar", "ui"],
@@ -376,7 +376,7 @@ public partial class CommunityOutpostDiscoverer(
                 Id = CatalogManifestIdentity.CreateContentId(
                     providerName,
                     ContentType.GameClient,
-                    "community-patch",
+                    CommunityOutpostConstants.CommunityPatchTag,
                     versionDate),
                 Name = "Community Patch (TheSuperHackers Build)",
                 Description = "The latest TheSuperHackers patch build for Zero Hour. Includes bug fixes, balance changes, and quality of life improvements.",
@@ -397,7 +397,7 @@ public partial class CommunityOutpostDiscoverer(
             }
 
             // Add tags
-            result.Tags.Add("community-patch");
+            result.Tags.Add(CommunityOutpostConstants.CommunityPatchTag);
             result.Tags.Add("thesuperhackers");
             result.Tags.Add("weekly");
             result.Tags.Add("game-client");
@@ -415,7 +415,7 @@ public partial class CommunityOutpostDiscoverer(
             }
 
             // Store metadata for resolver
-            result.ResolverMetadata["contentCode"] = "community-patch";
+            result.ResolverMetadata["contentCode"] = CommunityOutpostConstants.CommunityPatchTag;
             result.ResolverMetadata["downloadUrl"] = downloadUrl;
             result.ResolverMetadata["category"] = "CommunityPatch";
 

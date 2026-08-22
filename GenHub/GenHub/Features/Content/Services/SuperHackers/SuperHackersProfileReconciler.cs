@@ -76,7 +76,7 @@ public class SuperHackersProfileReconciler(
                 return OperationResult<bool>.CreateSuccess(false);
             }
 
-            var promptResult = await ResolveUpdateStrategyAsync(updateResult, settings, cancellationToken);
+            var promptResult = await ResolveUpdateStrategyAsync(updateResult, settings);
             if (!promptResult.ShouldProceed)
             {
                 return OperationResult<bool>.CreateSuccess(false);
@@ -204,8 +204,7 @@ public class SuperHackersProfileReconciler(
 
     private async Task<(bool ShouldProceed, UpdateStrategy Strategy, bool ShouldDeleteOldVersions)> ResolveUpdateStrategyAsync(
         ContentUpdateCheckResult updateResult,
-        GenHub.Core.Models.Common.UserSettings settings,
-        CancellationToken cancellationToken)
+        GenHub.Core.Models.Common.UserSettings settings)
     {
         var subscription = settings.GetSubscription(PublisherTypeConstants.TheSuperHackers);
         var strategy = subscription?.PreferredUpdateStrategy ?? settings.PreferredUpdateStrategy ?? UpdateStrategy.ReplaceCurrent;

@@ -91,7 +91,7 @@ public static class CatalogDocumentReader
                 throw new InvalidDataException($"Catalog exceeds maximum size of {maximumSizeBytes.Value} bytes.");
             }
 
-            memoryStream.Write(buffer, 0, bytesRead);
+            await memoryStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
         }
 
         memoryStream.Position = 0;

@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
@@ -114,10 +115,7 @@ public partial class App : Application
         var logger = _serviceProvider.GetService<ILogger<App>>();
         try
         {
-            if (string.IsNullOrWhiteSpace(url) ||
-                !Uri.TryCreate(url, UriKind.Absolute, out var parsedUri) ||
-                (parsedUri.Scheme != Uri.UriSchemeHttps &&
-                 !(parsedUri.Scheme == Uri.UriSchemeHttp && parsedUri.IsLoopback)))
+            if (!IsValidSubscriptionUrl(url, out _))
             {
                 logger?.LogWarning("Rejected invalid or non-HTTPS subscription URL: '{Url}'", url);
                 return;
@@ -128,33 +126,9 @@ public partial class App : Application
             // UI work (dialog + Downloads refresh) must run on the Avalonia UI thread.
             await Dispatcher.UIThread.InvokeAsync(async () =>
             {
-                if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop && desktop.MainWindow != null)
+                if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } window })
                 {
-                    logger?.LogInformation("Showing subscription confirmation dialog for: {Url}", url);
-
-                    var viewModel = ActivatorUtilities.CreateInstance<SubscriptionConfirmationViewModel>(_serviceProvider, url);
-                    var dialog = new SubscriptionConfirmationDialog
-                    {
-                        DataContext = viewModel,
-                    };
-
-                    var result = await dialog.ShowDialog<bool>(desktop.MainWindow);
-                    if (result)
-                    {
-                        logger?.LogInformation("User confirmed subscription for: {Url}", url);
-
-                        // Reload subscribed publishers into the Downloads sidebar without wiping
-                        // the user's current browse/filter state for built-in publishers.
-                        var mainVm = desktop.MainWindow.DataContext as MainViewModel;
-                        if (mainVm?.DownloadsBrowserViewModel is { } downloadsVm)
-                        {
-                            await downloadsVm.InitializeAsync();
-                        }
-                    }
-                    else
-                    {
-                        logger?.LogInformation("User cancelled subscription for: {Url}", url);
-                    }
+                    await ProcessSubscriptionDialogAsync(window, url, logger);
                 }
             });
         }
@@ -162,6 +136,18 @@ public partial class App : Application
         {
             logger?.LogError(ex, "Failed to handle subscription command for {Url}", url);
         }
+    }
+
+    private static bool IsValidSubscriptionUrl(string url, out Uri? parsedUri)
+    {
+        if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out parsedUri))
+        {
+            parsedUri = null;
+            return false;
+        }
+
+        return parsedUri.Scheme == Uri.UriSchemeHttps
+            || (parsedUri.Scheme == Uri.UriSchemeHttp && parsedUri.IsLoopback);
     }
 
     private static void UpdateViewModelAfterLaunch(MainWindow mainWindow, string profileId, int processId)
@@ -195,6 +181,35 @@ public partial class App : Application
 
         mainViewModel.GameProfilesViewModel.StatusMessage = $"Launch failed: {error}";
         mainViewModel.GameProfilesViewModel.ErrorMessage = error;
+    }
+
+    private async Task ProcessSubscriptionDialogAsync(Window mainWindow, string url, ILogger<App>? logger)
+    {
+        logger?.LogInformation("Showing subscription confirmation dialog for: {Url}", url);
+
+        var viewModel = ActivatorUtilities.CreateInstance<SubscriptionConfirmationViewModel>(_serviceProvider, url);
+        var dialog = new SubscriptionConfirmationDialog
+        {
+            DataContext = viewModel,
+        };
+
+        var result = await dialog.ShowDialog<bool>(mainWindow);
+        if (result)
+        {
+            logger?.LogInformation("User confirmed subscription for: {Url}", url);
+
+            // Reload subscribed publishers into the Downloads sidebar without wiping
+            // the user's current browse/filter state for built-in publishers.
+            var mainVm = mainWindow.DataContext as MainViewModel;
+            if (mainVm?.DownloadsBrowserViewModel is { } downloadsVm)
+            {
+                await downloadsVm.InitializeAsync();
+            }
+        }
+        else
+        {
+            logger?.LogInformation("User cancelled subscription for: {Url}", url);
+        }
     }
 
     private void ApplyWindowSettings(MainWindow mainWindow)

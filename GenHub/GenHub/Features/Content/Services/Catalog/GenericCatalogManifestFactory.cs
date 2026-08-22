@@ -129,10 +129,10 @@ public class GenericCatalogManifestFactory(
                     hash,
                     fileInfo.Length);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 logger.LogError(ex, "Failed to compute hash for file: {FilePath}", filePath);
-                throw;
+                throw new InvalidOperationException($"Failed to compute hash for file: {filePath}", ex);
             }
         }
 

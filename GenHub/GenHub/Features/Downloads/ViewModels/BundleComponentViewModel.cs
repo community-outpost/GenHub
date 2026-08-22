@@ -123,45 +123,11 @@ public sealed partial class BundleComponentViewModel : ObservableObject
         var components = new List<BundleComponentViewModel>();
         foreach (var descriptor in descriptors)
         {
-            if (descriptor.IsBaseGame)
+            var component = CreateComponentFromDescriptor(bundleResult, descriptor, publisherJson);
+            if (component != null)
             {
-                continue;
+                components.Add(component);
             }
-
-            var component = new BundleComponentViewModel
-            {
-                CatalogContentId = descriptor.ContentId,
-                Name = descriptor.Name,
-                ContentTypeDisplay = descriptor.ContentType,
-                IsOptional = descriptor.IsOptional,
-                IsBaseGame = false,
-            };
-
-            if (descriptor.Variants.Count == 0)
-            {
-                continue;
-            }
-
-            InstallableVariant? defaultVariant = null;
-            foreach (var variant in descriptor.Variants)
-            {
-                var searchResult = CreateComponentSearchResult(bundleResult, descriptor, variant, publisherJson);
-                var installable = new InstallableVariant
-                {
-                    Name = string.IsNullOrWhiteSpace(variant.Label) ? descriptor.Name : variant.Label,
-                    ManifestId = variant.CatalogId,
-                    VariantType = variant.Axis ?? string.Empty,
-                };
-
-                component.AddVariant(installable, searchResult);
-                if (variant.IsDefault)
-                {
-                    defaultVariant = installable;
-                }
-            }
-
-            component.SelectedVariant = defaultVariant ?? component.Variants.FirstOrDefault();
-            components.Add(component);
         }
 
         return components;
@@ -392,6 +358,47 @@ public sealed partial class BundleComponentViewModel : ObservableObject
         OnPropertyChanged(nameof(IsSelectedDownloaded));
         OnPropertyChanged(nameof(EffectiveState));
         OnPropertyChanged(nameof(RequiresDownload));
+    }
+
+    private static BundleComponentViewModel? CreateComponentFromDescriptor(
+        ContentSearchResult bundleResult,
+        CatalogBundleComponentDescriptor descriptor,
+        string? publisherJson)
+    {
+        if (descriptor.IsBaseGame || descriptor.Variants.Count == 0)
+        {
+            return null;
+        }
+
+        var component = new BundleComponentViewModel
+        {
+            CatalogContentId = descriptor.ContentId,
+            Name = descriptor.Name,
+            ContentTypeDisplay = descriptor.ContentType,
+            IsOptional = descriptor.IsOptional,
+            IsBaseGame = false,
+        };
+
+        InstallableVariant? defaultVariant = null;
+        foreach (var variant in descriptor.Variants)
+        {
+            var searchResult = CreateComponentSearchResult(bundleResult, descriptor, variant, publisherJson);
+            var installable = new InstallableVariant
+            {
+                Name = string.IsNullOrWhiteSpace(variant.Label) ? descriptor.Name : variant.Label,
+                ManifestId = variant.CatalogId,
+                VariantType = variant.Axis ?? string.Empty,
+            };
+
+            component.AddVariant(installable, searchResult);
+            if (variant.IsDefault)
+            {
+                defaultVariant = installable;
+            }
+        }
+
+        component.SelectedVariant = defaultVariant ?? component.Variants.FirstOrDefault();
+        return component;
     }
 
     private static ContentSearchResult CreateComponentSearchResult(

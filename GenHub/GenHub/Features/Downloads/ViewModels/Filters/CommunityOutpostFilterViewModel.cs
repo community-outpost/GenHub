@@ -27,7 +27,7 @@ public partial class CommunityOutpostFilterViewModel : FilterPanelViewModelBase
     /// </summary>
     public CommunityOutpostFilterViewModel()
     {
-        InitializeContentTypeFilters();
+        ContentTypeFilters = CreateDefaultContentTypeFilters();
     }
 
     /// <inheritdoc />
@@ -71,6 +71,22 @@ public partial class CommunityOutpostFilterViewModel : FilterPanelViewModelBase
         }
     }
 
+    private static ObservableCollection<ContentTypeFilterItem> CreateDefaultContentTypeFilters()
+    {
+        // Only include relevant types for Community Outpost
+        // Community Outpost is a curated catalog, so we only show what they have
+        // Note: Filter types must match ContentType values used in GenPatcherContentRegistry
+        // Tools (gent, gena) are ContentType.Addon in the registry, not Executable
+        // Executable is only used for prerequisites (vc05, vc08, vc10)
+        return
+        [
+            new ContentTypeFilterItem(ContentType.GameClient, CommunityOutpostConstants.ContentTypeGameClients),
+            new ContentTypeFilterItem(ContentType.Addon, CommunityOutpostConstants.ContentTypeAddons),
+            new ContentTypeFilterItem(ContentType.MapPack, CommunityOutpostConstants.ContentTypeMaps),
+            new ContentTypeFilterItem(ContentType.Executable, "Prerequisites"),
+        ];
+    }
+
     [RelayCommand]
     private void ToggleContentType(ContentTypeFilterItem item)
     {
@@ -93,20 +109,4 @@ public partial class CommunityOutpostFilterViewModel : FilterPanelViewModelBase
     }
 
     partial void OnSelectedContentTypeChanged(ContentType? value) => NotifyFiltersChanged();
-
-    private void InitializeContentTypeFilters()
-    {
-        // Only include relevant types for Community Outpost
-        // Community Outpost is a curated catalog, so we only show what they have
-        // Note: Filter types must match ContentType values used in GenPatcherContentRegistry
-        // Tools (gent, gena) are ContentType.Addon in the registry, not Executable
-        // Executable is only used for prerequisites (vc05, vc08, vc10)
-        ContentTypeFilters =
-        [
-            new ContentTypeFilterItem(ContentType.GameClient, CommunityOutpostConstants.ContentTypeGameClients),
-            new ContentTypeFilterItem(ContentType.Addon, CommunityOutpostConstants.ContentTypeAddons),
-            new ContentTypeFilterItem(ContentType.MapPack, CommunityOutpostConstants.ContentTypeMaps),
-            new ContentTypeFilterItem(ContentType.Executable, "Prerequisites"),
-        ];
-    }
 }

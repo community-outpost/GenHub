@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -32,6 +33,7 @@ namespace GenHub.Features.Content.Services.Publishers;
 /// Generates manifest IDs following the format: 1.YYYYMMDD.moddb.{contentType}.{contentName}.
 /// Uses ManifestIdGenerator with release date for unique versioning.
 /// </summary>
+[SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Injected dependencies for content resolution and manifest processing")]
 public partial class ModDBManifestFactory(
     Func<IContentManifestBuilder> manifestBuilderFactory,
     IProviderDefinitionLoader providerLoader,
@@ -624,12 +626,12 @@ public partial class ModDBManifestFactory(
         if (!string.IsNullOrEmpty(refererUrl))
         {
             downloadConfig.Headers.Add("Referer", refererUrl);
-            logger.LogInformation("Added Referer header: {Referer}", refererUrl);
+            logger.LogDebug("Added Referer header: {Referer}", refererUrl);
         }
 
         // ModDB is Cloudflare-protected. The persistent browser profile contains the user's
         // clearance cookie, so downloading through it is required; raw HTTP cannot reuse it.
-        logger.LogInformation("Initiating protected ModDB download to temp file: {TempPath}", tempFilePath);
+        logger.LogDebug("Initiating protected ModDB download to temp file: {TempPath}", tempFilePath);
         var downloadResult = await playwrightService.DownloadFileAsync(downloadConfig);
         if (!downloadResult.Success)
         {
@@ -638,7 +640,7 @@ public partial class ModDBManifestFactory(
             throw new InvalidOperationException(error);
         }
 
-        logger.LogInformation("Download completed, file size: {Size} bytes", new FileInfo(tempFilePath).Length);
+        logger.LogDebug("Download completed, file size: {Size} bytes", new FileInfo(tempFilePath).Length);
 
         // Store in CAS
         var storeResult = await casService.StoreContentAsync(tempFilePath, ContentType.Mod);
@@ -653,7 +655,7 @@ public partial class ModDBManifestFactory(
         var hash = storeResult.Data;
         var fileSize = new FileInfo(tempFilePath).Length;
 
-        logger.LogInformation("Content stored in CAS with hash: {Hash}, size: {Size}", hash, fileSize);
+        logger.LogDebug("Content stored in CAS with hash: {Hash}, size: {Size}", hash, fileSize);
 
         // Cleanup temp file after successful store
         if (File.Exists(tempFilePath)) File.Delete(tempFilePath);

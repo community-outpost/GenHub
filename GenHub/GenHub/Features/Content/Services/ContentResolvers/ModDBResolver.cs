@@ -30,40 +30,6 @@ public class ModDBResolver(
     ModDBPageParser webPageParser,
     ILogger<ModDBResolver> logger) : IContentResolver
 {
-    /// <summary>
-    /// Computes the format priority for automated workspace reconciliation.
-    /// Raw archive packages (.zip, .7z, .rar) are prioritized over executable installers (.exe, .msi).
-    /// </summary>
-    private static int GetFileFormatPriority(DownloadableFile file)
-    {
-        var name = file.Name ?? string.Empty;
-        var fileName = file.Filename ?? string.Empty;
-
-        // Archive releases are highest priority for automated extraction and hardlinking
-        if (name.Contains("(Archive)", StringComparison.OrdinalIgnoreCase) ||
-            name.Contains("[Archive]", StringComparison.OrdinalIgnoreCase) ||
-            fileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
-            fileName.EndsWith(".7z", StringComparison.OrdinalIgnoreCase) ||
-            fileName.EndsWith(".rar", StringComparison.OrdinalIgnoreCase) ||
-            fileName.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase) ||
-            fileName.EndsWith(".tar", StringComparison.OrdinalIgnoreCase))
-        {
-            return 2;
-        }
-
-        // Setup wizards / executable installers are lowest priority
-        if (name.Contains("(Setup)", StringComparison.OrdinalIgnoreCase) ||
-            name.Contains("[Setup]", StringComparison.OrdinalIgnoreCase) ||
-            name.Contains("Setup", StringComparison.OrdinalIgnoreCase) ||
-            fileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
-            fileName.EndsWith(".msi", StringComparison.OrdinalIgnoreCase))
-        {
-            return 0;
-        }
-
-        return 1;
-    }
-
     /// <inheritdoc />
     public string ResolverId => "ModDB";
 
@@ -130,31 +96,41 @@ public class ModDBResolver(
         }
     }
 
-    private async Task<ParsedWebPage> EnsureParsedPageAsync(
-        ContentSearchResult discoveredItem,
-        CancellationToken cancellationToken)
+    /// <summary>
+    /// Computes the format priority for automated workspace reconciliation.
+    /// Raw archive packages (.zip, .7z, .rar) are prioritized over executable installers (.exe, .msi).
+    /// </summary>
+    private static int GetFileFormatPriority(DownloadableFile file)
     {
-        var parsedPage = discoveredItem.ParsedPageData ?? discoveredItem.GetData<ParsedWebPage>();
-        if (parsedPage != null)
+        var name = file.Name ?? string.Empty;
+        var fileName = file.Filename ?? string.Empty;
+
+        // Archive releases are highest priority for automated extraction and hardlinking
+        if (name.Contains("(Archive)", StringComparison.OrdinalIgnoreCase) ||
+            name.Contains("[Archive]", StringComparison.OrdinalIgnoreCase) ||
+            fileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
+            fileName.EndsWith(".7z", StringComparison.OrdinalIgnoreCase) ||
+            fileName.EndsWith(".rar", StringComparison.OrdinalIgnoreCase) ||
+            fileName.EndsWith(".tar.gz", StringComparison.OrdinalIgnoreCase) ||
+            fileName.EndsWith(".tar", StringComparison.OrdinalIgnoreCase))
         {
-            return parsedPage;
+            return 2;
         }
 
-        var sourceUrl = discoveredItem.SourceUrl ?? string.Empty;
-        var isFileDetail = sourceUrl.Contains("/mods/", StringComparison.OrdinalIgnoreCase)
-            && (sourceUrl.Contains("/downloads/", StringComparison.OrdinalIgnoreCase)
-                || sourceUrl.Contains("/addons/", StringComparison.OrdinalIgnoreCase));
+        // Setup wizards / executable installers are lowest priority
+        if (name.Contains("(Setup)", StringComparison.OrdinalIgnoreCase) ||
+            name.Contains("[Setup]", StringComparison.OrdinalIgnoreCase) ||
+            name.Contains("Setup", StringComparison.OrdinalIgnoreCase) ||
+            fileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
+            fileName.EndsWith(".msi", StringComparison.OrdinalIgnoreCase))
+        {
+            return 0;
+        }
 
-        parsedPage = isFileDetail
-            ? await webPageParser.ParseFileDetailAsync(sourceUrl, cancellationToken)
-            : await webPageParser.ParseAsync(sourceUrl, cancellationToken);
-
-        discoveredItem.ParsedPageData = parsedPage;
-        discoveredItem.SetData(parsedPage);
-        return parsedPage;
+        return 1;
     }
 
-    private DownloadableFile? SelectPrimaryFile(
+    private static DownloadableFile? SelectPrimaryFile(
         List<DownloadableFile> allFiles,
         ContentSearchResult discoveredItem)
     {
@@ -196,36 +172,7 @@ public class ModDBResolver(
             .FirstOrDefault();
     }
 
-    private async Task<DownloadableFile> ResolveDetailedPrimaryFileAsync(
-        DownloadableFile primaryFile,
-        ContentSearchResult discoveredItem,
-        CancellationToken cancellationToken)
-    {
-        if (!string.IsNullOrWhiteSpace(discoveredItem.SelectedDownloadUrl) &&
-            ModDBPageParser.IsDirectDownloadUrl(discoveredItem.SelectedDownloadUrl))
-        {
-            primaryFile = primaryFile with { DownloadUrl = discoveredItem.SelectedDownloadUrl };
-        }
-
-        if (!ModDBPageParser.IsDirectDownloadUrl(primaryFile.DownloadUrl))
-        {
-            var detailUrl = primaryFile.DetailsUrl ?? primaryFile.DownloadUrl;
-            if (!string.IsNullOrWhiteSpace(detailUrl))
-            {
-                logger.LogInformation("Resolving ModDB file detail for {Name} from {Url}", primaryFile.Name, detailUrl);
-                var detailPage = await webPageParser.ParseFileDetailAsync(detailUrl, cancellationToken);
-                var detailedFile = detailPage?.Sections?.OfType<DownloadableFile>()?.FirstOrDefault();
-                if (detailedFile != null)
-                {
-                    primaryFile = detailedFile;
-                }
-            }
-        }
-
-        return primaryFile;
-    }
-
-    private void ApplyManifestTags(ContentManifest manifest, DownloadableFile primaryFile)
+    private static void ApplyManifestTags(ContentManifest manifest, DownloadableFile primaryFile)
     {
         if (manifest.Metadata == null || !primaryFile.ReleaseDate.HasValue)
         {
@@ -249,7 +196,7 @@ public class ModDBResolver(
     /// Converts a single file from the parsed page to MapDetails for the manifest factory.
     /// Uses the file's release date and FileSectionType to create unique manifest IDs.
     /// </summary>
-    private MapDetails ConvertFileToMapDetails(
+    private static MapDetails ConvertFileToMapDetails(
         DownloadableFile file,
         ParsedWebPage parsedPage,
         ContentSearchResult discoveredItem)
@@ -320,5 +267,58 @@ public class ModDBResolver(
             ContentType: contentType,
             FileType: fileExtension,
             AdditionalFiles: null);
+    }
+
+    private async Task<ParsedWebPage> EnsureParsedPageAsync(
+        ContentSearchResult discoveredItem,
+        CancellationToken cancellationToken)
+    {
+        var parsedPage = discoveredItem.ParsedPageData ?? discoveredItem.GetData<ParsedWebPage>();
+        if (parsedPage != null)
+        {
+            return parsedPage;
+        }
+
+        var sourceUrl = discoveredItem.SourceUrl ?? string.Empty;
+        var isFileDetail = sourceUrl.Contains("/mods/", StringComparison.OrdinalIgnoreCase)
+            && (sourceUrl.Contains("/downloads/", StringComparison.OrdinalIgnoreCase)
+                || sourceUrl.Contains("/addons/", StringComparison.OrdinalIgnoreCase));
+
+        parsedPage = isFileDetail
+            ? await webPageParser.ParseFileDetailAsync(sourceUrl, cancellationToken)
+            : await webPageParser.ParseAsync(sourceUrl, cancellationToken);
+
+        discoveredItem.ParsedPageData = parsedPage;
+        discoveredItem.SetData(parsedPage);
+        return parsedPage;
+    }
+
+    private async Task<DownloadableFile> ResolveDetailedPrimaryFileAsync(
+        DownloadableFile primaryFile,
+        ContentSearchResult discoveredItem,
+        CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(discoveredItem.SelectedDownloadUrl) &&
+            ModDBPageParser.IsDirectDownloadUrl(discoveredItem.SelectedDownloadUrl))
+        {
+            primaryFile = primaryFile with { DownloadUrl = discoveredItem.SelectedDownloadUrl };
+        }
+
+        if (!ModDBPageParser.IsDirectDownloadUrl(primaryFile.DownloadUrl))
+        {
+            var detailUrl = primaryFile.DetailsUrl ?? primaryFile.DownloadUrl;
+            if (!string.IsNullOrWhiteSpace(detailUrl))
+            {
+                logger.LogInformation("Resolving ModDB file detail for {Name} from {Url}", primaryFile.Name, detailUrl);
+                var detailPage = await webPageParser.ParseFileDetailAsync(detailUrl, cancellationToken);
+                var detailedFile = detailPage?.Sections?.OfType<DownloadableFile>().FirstOrDefault();
+                if (detailedFile != null)
+                {
+                    primaryFile = detailedFile;
+                }
+            }
+        }
+
+        return primaryFile;
     }
 }

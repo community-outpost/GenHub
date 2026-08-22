@@ -25,7 +25,7 @@ public partial class SuperHackersFilterViewModel : FilterPanelViewModelBase
     /// </summary>
     public SuperHackersFilterViewModel()
     {
-        InitializeContentTypeFilters();
+        ContentTypeFilters = CreateDefaultContentTypeFilters();
     }
 
     /// <inheritdoc />
@@ -68,6 +68,15 @@ public partial class SuperHackersFilterViewModel : FilterPanelViewModelBase
         }
     }
 
+    private static ObservableCollection<ContentTypeFilterItem> CreateDefaultContentTypeFilters()
+    {
+        // TheSuperHackers only releases Game Clients / Patches
+        return
+        [
+            new ContentTypeFilterItem(ContentType.GameClient, "Game Client"),
+        ];
+    }
+
     [RelayCommand]
     private void ToggleContentType(ContentTypeFilterItem item)
     {
@@ -87,14 +96,5 @@ public partial class SuperHackersFilterViewModel : FilterPanelViewModelBase
         }
 
         NotifyFiltersChanged();
-    }
-
-    private void InitializeContentTypeFilters()
-    {
-        // TheSuperHackers only releases Game Clients / Patches
-        ContentTypeFilters =
-        [
-            new ContentTypeFilterItem(ContentType.GameClient, "Game Client"),
-        ];
     }
 }

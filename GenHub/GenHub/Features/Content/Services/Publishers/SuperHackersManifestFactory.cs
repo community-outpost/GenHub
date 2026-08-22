@@ -242,11 +242,22 @@ public class SuperHackersManifestFactory(
 
         var allFiles = Directory.GetFiles(directory, "*.exe", SearchOption.AllDirectories);
 
+        DetectNamedExecutables(allFiles, result);
+
+        if (result.Count == 0)
+        {
+            DetectFallbackExecutables(allFiles, targetGame, result);
+        }
+
+        return result;
+    }
+
+    private void DetectNamedExecutables(IReadOnlyList<string> allFiles, Dictionary<GameType, string> result)
+    {
         foreach (var filePath in allFiles)
         {
-            var fileName = Path.GetFileName(filePath).ToLowerInvariant();
+            var fileName = Path.GetFileName(filePath);
 
-            // Check for SuperHackers executables
             if (string.Equals(fileName, GameClientConstants.SuperHackersGeneralsExecutable, StringComparison.OrdinalIgnoreCase))
             {
                 result[GameType.Generals] = filePath;
@@ -258,29 +269,26 @@ public class SuperHackersManifestFactory(
                 logger.LogInformation("Detected SuperHackers Zero Hour executable: {Path}", filePath);
             }
         }
+    }
 
-        // Fallback: If no specific SuperHackers executables were matched, check for standard executables (generals.exe / game.exe)
-        if (result.Count == 0)
+    private void DetectFallbackExecutables(IReadOnlyList<string> allFiles, GameType targetGame, Dictionary<GameType, string> result)
+    {
+        foreach (var filePath in allFiles)
         {
-            foreach (var filePath in allFiles)
+            var fileName = Path.GetFileName(filePath);
+
+            if (string.Equals(fileName, GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(fileName, GameClientConstants.GameExecutable, StringComparison.OrdinalIgnoreCase))
             {
-                var fileName = Path.GetFileName(filePath).ToLowerInvariant();
+                var fallbackGameType = (targetGame == GameType.Generals || targetGame == GameType.ZeroHour)
+                    ? targetGame
+                    : GameType.ZeroHour;
 
-                if (string.Equals(fileName, GameClientConstants.GeneralsExecutable, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(fileName, GameClientConstants.GameExecutable, StringComparison.OrdinalIgnoreCase))
-                {
-                    var fallbackGameType = (targetGame == GameType.Generals || targetGame == GameType.ZeroHour)
-                        ? targetGame
-                        : GameType.ZeroHour;
-
-                    result[fallbackGameType] = filePath;
-                    logger.LogInformation("Detected fallback game executable '{Executable}' for SuperHackers {GameType}: {Path}", fileName, fallbackGameType, filePath);
-                    break;
-                }
+                result[fallbackGameType] = filePath;
+                logger.LogInformation("Detected fallback game executable '{Executable}' for SuperHackers {GameType}: {Path}", fileName, fallbackGameType, filePath);
+                break;
             }
         }
-
-        return result;
     }
 
     /// <summary>

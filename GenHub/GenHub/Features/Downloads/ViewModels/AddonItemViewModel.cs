@@ -6,13 +6,4 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// </summary>
 public partial class AddonItemViewModel : DownloadableItemViewModel
 {
-    /// <summary>
-    /// Gets or sets the short summary or description of the addon.
-    /// Maps to <see cref="DownloadableItemViewModel.FullDescription"/>.
-    /// </summary>
-    public string? Description
-    {
-        get => FullDescription;
-        set => FullDescription = value;
-    }
 }

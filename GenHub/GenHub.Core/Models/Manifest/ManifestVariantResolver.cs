@@ -121,16 +121,7 @@ public static class ManifestVariantResolver
 
         if (!string.IsNullOrWhiteSpace(declared))
         {
-            // A declared entry point that is not in the file list is a manifest defect.
-            // Failing here is far more diagnosable than failing at Process.Start.
-            var matchedFile = files.FirstOrDefault(f => PathsMatch(f.RelativePath, declared));
-
-            return matchedFile is not null
-                ? EntryPointResolution.Resolved(matchedFile.RelativePath, "declared entry point")
-                : EntryPointResolution.Failed(
-                    $"Manifest '{manifest.Id}' declares entry point '{declared}', which is not among its "
-                    + $"{files.Count} file(s).",
-                    files);
+            return ResolveDeclaredEntryPoint(manifest, files, declared);
         }
 
         var executable = files
@@ -139,40 +130,80 @@ public static class ManifestVariantResolver
                 && (ExecutableFileClassifier.IsLegacyLaunchCandidateFromName(f.RelativePath)
                     || IsPrimaryGameExecutable(f.RelativePath)))
             .ToList();
+
         if (executable.Count == 1)
         {
             return EntryPointResolution.Resolved(executable[0].RelativePath, "only file requiring execute permission");
         }
 
-        if (executable.Count == 0)
-        {
-            var legacy = files
-                .Where(f =>
-                    ExecutableFileClassifier.IsLegacyLaunchCandidateFromName(f.RelativePath)
-                    || IsPrimaryGameExecutable(f.RelativePath))
-                .ToList();
+        return executable.Count == 0
+            ? ResolveLegacyCandidates(manifest, files)
+            : ResolvePrimaryExecutable(manifest, files, executable);
+    }
 
-            if (legacy.Count == 1)
-            {
-                return EntryPointResolution.Resolved(legacy[0].RelativePath, "only launch candidate by extension");
-            }
+    /// <summary>
+    /// Determines whether two relative file paths match, normalizing directory separators and leading slashes.
+    /// </summary>
+    /// <param name="left">The first relative path.</param>
+    /// <param name="right">The second relative path.</param>
+    /// <returns><c>true</c> if the paths match; otherwise, <c>false</c>.</returns>
+    public static bool PathsMatch(string left, string right) =>
+        string.Equals(
+            left.Replace('\\', '/').TrimStart('/'),
+            right.Replace('\\', '/').TrimStart('/'),
+            StringComparison.OrdinalIgnoreCase);
 
-            var primaryFromLegacy = legacy
-                .Where(f => IsPrimaryGameExecutable(f.RelativePath))
-                .ToList();
+    private static EntryPointResolution ResolveDeclaredEntryPoint(
+        ContentManifest manifest,
+        IReadOnlyList<ManifestFile> files,
+        string declared)
+    {
+        var matchedFile = files.FirstOrDefault(f => PathsMatch(f.RelativePath, declared));
 
-            if (primaryFromLegacy.Count == 1)
-            {
-                return EntryPointResolution.Resolved(primaryFromLegacy[0].RelativePath, "primary game executable candidate");
-            }
-
-            return EntryPointResolution.Failed(
-                legacy.Count == 0
-                    ? $"Manifest '{manifest.Id}' contains no launchable file."
-                    : $"Manifest '{manifest.Id}' contains {legacy.Count} possible launch targets and declares no entry point.",
+        return matchedFile is not null
+            ? EntryPointResolution.Resolved(matchedFile.RelativePath, "declared entry point")
+            : EntryPointResolution.Failed(
+                $"Manifest '{manifest.Id}' declares entry point '{declared}', which is not among its "
+                + $"{files.Count} file(s).",
                 files);
+    }
+
+    private static EntryPointResolution ResolveLegacyCandidates(
+        ContentManifest manifest,
+        IReadOnlyList<ManifestFile> files)
+    {
+        var legacy = files
+            .Where(f =>
+                ExecutableFileClassifier.IsLegacyLaunchCandidateFromName(f.RelativePath)
+                || IsPrimaryGameExecutable(f.RelativePath))
+            .ToList();
+
+        if (legacy.Count == 1)
+        {
+            return EntryPointResolution.Resolved(legacy[0].RelativePath, "only launch candidate by extension");
         }
 
+        var primaryFromLegacy = legacy
+            .Where(f => IsPrimaryGameExecutable(f.RelativePath))
+            .ToList();
+
+        if (primaryFromLegacy.Count == 1)
+        {
+            return EntryPointResolution.Resolved(primaryFromLegacy[0].RelativePath, "primary game executable candidate");
+        }
+
+        return EntryPointResolution.Failed(
+            legacy.Count == 0
+                ? $"Manifest '{manifest.Id}' contains no launchable file."
+                : $"Manifest '{manifest.Id}' contains {legacy.Count} possible launch targets and declares no entry point.",
+            files);
+    }
+
+    private static EntryPointResolution ResolvePrimaryExecutable(
+        ContentManifest manifest,
+        IReadOnlyList<ManifestFile> files,
+        IReadOnlyList<ManifestFile> executable)
+    {
         var primaryExecutables = executable
             .Where(f => IsPrimaryGameExecutable(f.RelativePath))
             .ToList();
@@ -187,18 +218,6 @@ public static class ManifestVariantResolver
             + "declares no entry point, so the launch target is ambiguous.",
             files);
     }
-
-    /// <summary>
-    /// Determines whether two relative file paths match, normalizing directory separators and leading slashes.
-    /// </summary>
-    /// <param name="left">The first relative path.</param>
-    /// <param name="right">The second relative path.</param>
-    /// <returns><c>true</c> if the paths match; otherwise, <c>false</c>.</returns>
-    public static bool PathsMatch(string left, string right) =>
-        string.Equals(
-            left.Replace('\\', '/').TrimStart('/'),
-            right.Replace('\\', '/').TrimStart('/'),
-            StringComparison.OrdinalIgnoreCase);
 
     private static bool IsPrimaryGameExecutable(string relativePath)
     {

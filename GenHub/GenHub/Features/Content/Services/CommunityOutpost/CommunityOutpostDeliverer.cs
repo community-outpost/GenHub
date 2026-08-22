@@ -75,65 +75,85 @@ public partial class CommunityOutpostDeliverer(
     /// </summary>
     private static string GetContentCodeFromManifest(ContentManifest manifest)
     {
-        // Look for contentCode tag in metadata
-        var contentCodeTag = manifest.Metadata?.Tags?
-            .FirstOrDefault(t => t.StartsWith("contentCode:", StringComparison.OrdinalIgnoreCase));
-
-        if (!string.IsNullOrEmpty(contentCodeTag))
+        var codeFromTag = TryExtractCodeFromTag(manifest);
+        if (codeFromTag != null)
         {
-            var tagValue = contentCodeTag["contentCode:".Length..];
-            var directMeta = GenPatcherContentRegistry.GetMetadata(tagValue);
-            if (directMeta.ContentType != ContentType.UnknownContentType)
-            {
-                return directMeta.ContentCode;
-            }
-
-            var dashIdx = tagValue.IndexOf('-');
-            if (dashIdx > 0)
-            {
-                var prefix = tagValue[..dashIdx];
-                var prefixMeta = GenPatcherContentRegistry.GetMetadata(prefix);
-                if (prefixMeta.ContentType != ContentType.UnknownContentType)
-                {
-                    return prefixMeta.ContentCode;
-                }
-            }
-
-            return tagValue;
+            return codeFromTag;
         }
 
-        // Try to extract from manifest ID
-        // Format: 1.version.communityoutpost.contentType.contentName
-        var idParts = manifest.Id.Value?.Split('.') ?? [];
-        if (idParts.Length >= 5)
+        var codeFromId = TryExtractCodeFromId(manifest);
+        if (codeFromId != null)
         {
-            var contentName = idParts[4];
-            var metadata = GenPatcherContentRegistry.GetMetadata(contentName);
-            if (metadata.ContentType != ContentType.UnknownContentType)
-            {
-                return metadata.ContentCode;
-            }
-
-            var dashIndex = contentName.IndexOf('-');
-            var codePrefix = dashIndex > 0 ? contentName[..dashIndex] : contentName;
-            var prefixMetadata = GenPatcherContentRegistry.GetMetadata(codePrefix);
-            if (prefixMetadata.ContentType != ContentType.UnknownContentType)
-            {
-                return prefixMetadata.ContentCode;
-            }
-
-            foreach (var code in GenPatcherContentRegistry.GetKnownContentCodes())
-            {
-                if (contentName.StartsWith(code, StringComparison.OrdinalIgnoreCase))
-                {
-                    return code;
-                }
-            }
-
-            return codePrefix;
+            return codeFromId;
         }
 
         return "unknown";
+    }
+
+    private static string? TryExtractCodeFromTag(ContentManifest manifest)
+    {
+        var contentCodeTag = manifest.Metadata?.Tags?
+            .FirstOrDefault(t => t.StartsWith("contentCode:", StringComparison.OrdinalIgnoreCase));
+
+        if (string.IsNullOrEmpty(contentCodeTag))
+        {
+            return null;
+        }
+
+        var tagValue = contentCodeTag["contentCode:".Length..];
+        var directMeta = GenPatcherContentRegistry.GetMetadata(tagValue);
+        if (directMeta.ContentType != ContentType.UnknownContentType)
+        {
+            return directMeta.ContentCode;
+        }
+
+        var dashIdx = tagValue.IndexOf('-');
+        if (dashIdx > 0)
+        {
+            var prefix = tagValue[..dashIdx];
+            var prefixMeta = GenPatcherContentRegistry.GetMetadata(prefix);
+            if (prefixMeta.ContentType != ContentType.UnknownContentType)
+            {
+                return prefixMeta.ContentCode;
+            }
+        }
+
+        return tagValue;
+    }
+
+    private static string? TryExtractCodeFromId(ContentManifest manifest)
+    {
+        // Format: 1.version.communityoutpost.contentType.contentName
+        var idParts = manifest.Id.Value?.Split('.') ?? [];
+        if (idParts.Length < 5)
+        {
+            return null;
+        }
+
+        var contentName = idParts[4];
+        var metadata = GenPatcherContentRegistry.GetMetadata(contentName);
+        if (metadata.ContentType != ContentType.UnknownContentType)
+        {
+            return metadata.ContentCode;
+        }
+
+        var dashIndex = contentName.IndexOf('-');
+        var codePrefix = dashIndex > 0 ? contentName[..dashIndex] : contentName;
+        var prefixMetadata = GenPatcherContentRegistry.GetMetadata(codePrefix);
+        if (prefixMetadata.ContentType != ContentType.UnknownContentType)
+        {
+            return prefixMetadata.ContentCode;
+        }
+
+        foreach (var code in GenPatcherContentRegistry.GetKnownContentCodes())
+        {
+            if (contentName.StartsWith(code, StringComparison.OrdinalIgnoreCase))
+            {
+                return code;
+            }
+        }
+
+        return codePrefix;
     }
 
     [GeneratedRegex(@"href=[""']([^""']*generals-?zh.*?(\d{4}-\d{2}-\d{2}|\d{2}-\d{2}-\d{4}|\d{8}|\d{6}).*?\.(?:zip|7z|rar|exe))[""']", RegexOptions.IgnoreCase)]
@@ -339,6 +359,59 @@ public partial class CommunityOutpostDeliverer(
         return await Task.FromResult(new List<ContentManifest> { manifest });
     }
 
+    private static void AddArchiveCandidateUrls(ManifestFile archiveFile, List<string> candidateUrls)
+    {
+        if (string.IsNullOrEmpty(archiveFile.DownloadUrl))
+        {
+            return;
+        }
+
+        if (archiveFile.DownloadUrl.Contains("/patch/", StringComparison.OrdinalIgnoreCase) &&
+            archiveFile.DownloadUrl.EndsWith(CommunityOutpostConstants.DatFileExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            candidateUrls.Add(archiveFile.DownloadUrl.Replace("/patch/", "/gp2/f/", StringComparison.OrdinalIgnoreCase));
+        }
+
+        candidateUrls.Add(archiveFile.DownloadUrl);
+    }
+
+    private static void TryCleanFailedExtraction(string extractPath, string archivePath)
+    {
+        if (Directory.Exists(extractPath))
+        {
+            try
+            {
+                Directory.Delete(extractPath, recursive: true);
+            }
+            catch (IOException)
+            {
+                // Ignore extraction cleanup failures
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Ignore extraction cleanup failures
+            }
+
+            Directory.CreateDirectory(extractPath);
+        }
+
+        if (File.Exists(archivePath))
+        {
+            try
+            {
+                File.Delete(archivePath);
+            }
+            catch (IOException)
+            {
+                // Ignore archive cleanup failures
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Ignore archive cleanup failures
+            }
+        }
+    }
+
     /// <inheritdoc />
     public string SourceName => CommunityOutpostConstants.PublisherId;
 
@@ -481,66 +554,72 @@ public partial class CommunityOutpostDeliverer(
         CancellationToken cancellationToken)
     {
         var candidateUrls = new List<string>();
-        if (!string.IsNullOrEmpty(archiveFile.DownloadUrl))
-        {
-            if (archiveFile.DownloadUrl.Contains("/patch/", StringComparison.OrdinalIgnoreCase) &&
-                archiveFile.DownloadUrl.EndsWith(CommunityOutpostConstants.DatFileExtension, StringComparison.OrdinalIgnoreCase))
-            {
-                candidateUrls.Add(archiveFile.DownloadUrl.Replace("/patch/", "/gp2/f/", StringComparison.OrdinalIgnoreCase));
-            }
-
-            candidateUrls.Add(archiveFile.DownloadUrl);
-        }
-
-        var contentCode = GetContentCodeFromManifest(packageManifest);
-        if (!string.IsNullOrEmpty(contentCode) && !string.Equals(contentCode, "unknown", StringComparison.OrdinalIgnoreCase))
-        {
-            var (normalizedCode, _) = NormalizeContentCode(contentCode);
-
-            if (string.Equals(normalizedCode, "community-patch", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(normalizedCode, "communitypatch", StringComparison.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    using var client = httpClientFactory?.CreateClient() ?? new HttpClient();
-                    var pageContent = await client.GetStringAsync(CommunityOutpostConstants.PatchPageUrl, cancellationToken);
-                    var match = CommunityPatchRegex().Match(pageContent);
-                    if (match.Success)
-                    {
-                        var liveUrl = match.Groups[1].Value;
-                        if (!liveUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
-                        {
-                            liveUrl = $"{CommunityOutpostConstants.PatchPageUrl.TrimEnd('/')}/{liveUrl.TrimStart('/')}";
-                        }
-
-                        if (!candidateUrls.Contains(liveUrl, StringComparer.OrdinalIgnoreCase))
-                        {
-                            candidateUrls.Insert(0, liveUrl);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogDebug(ex, "Could not scrape live community patch URL from {Url}", CommunityOutpostConstants.PatchPageUrl);
-                }
-
-                var githubFallbackUrl = $"https://github.com/{SuperHackersConstants.GeneralsGameCodeOwner}/{SuperHackersConstants.GeneralsGameCodeRepo}/releases/latest/download/generalszh-latest.zip";
-                if (!candidateUrls.Contains(githubFallbackUrl, StringComparer.OrdinalIgnoreCase))
-                {
-                    candidateUrls.Add(githubFallbackUrl);
-                }
-            }
-            else
-            {
-                var fallbackGp2Url = $"{CommunityOutpostCatalogConstants.DefaultFilesBaseUrl.TrimEnd('/')}/{normalizedCode}.dat";
-                if (!candidateUrls.Contains(fallbackGp2Url, StringComparer.OrdinalIgnoreCase))
-                {
-                    candidateUrls.Add(fallbackGp2Url);
-                }
-            }
-        }
-
+        AddArchiveCandidateUrls(archiveFile, candidateUrls);
+        await AddContentCodeCandidateUrlsAsync(packageManifest, candidateUrls, cancellationToken);
         return candidateUrls;
+    }
+
+    private async Task AddContentCodeCandidateUrlsAsync(
+        ContentManifest packageManifest,
+        List<string> candidateUrls,
+        CancellationToken cancellationToken)
+    {
+        var contentCode = GetContentCodeFromManifest(packageManifest);
+        if (string.IsNullOrEmpty(contentCode) || string.Equals(contentCode, "unknown", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var (normalizedCode, _) = NormalizeContentCode(contentCode);
+
+        if (string.Equals(normalizedCode, "community-patch", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(normalizedCode, "communitypatch", StringComparison.OrdinalIgnoreCase))
+        {
+            await AddCommunityPatchCandidateUrlsAsync(candidateUrls, cancellationToken);
+        }
+        else
+        {
+            var fallbackGp2Url = $"{CommunityOutpostCatalogConstants.DefaultFilesBaseUrl.TrimEnd('/')}/{normalizedCode}.dat";
+            if (!candidateUrls.Contains(fallbackGp2Url, StringComparer.OrdinalIgnoreCase))
+            {
+                candidateUrls.Add(fallbackGp2Url);
+            }
+        }
+    }
+
+    private async Task AddCommunityPatchCandidateUrlsAsync(
+        List<string> candidateUrls,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var client = httpClientFactory?.CreateClient() ?? new HttpClient();
+            var pageContent = await client.GetStringAsync(CommunityOutpostConstants.PatchPageUrl, cancellationToken);
+            var match = CommunityPatchRegex().Match(pageContent);
+            if (match.Success)
+            {
+                var liveUrl = match.Groups[1].Value;
+                if (!liveUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                {
+                    liveUrl = $"{CommunityOutpostConstants.PatchPageUrl.TrimEnd('/')}/{liveUrl.TrimStart('/')}";
+                }
+
+                if (!candidateUrls.Contains(liveUrl, StringComparer.OrdinalIgnoreCase))
+                {
+                    candidateUrls.Insert(0, liveUrl);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Could not scrape live community patch URL from {Url}", CommunityOutpostConstants.PatchPageUrl);
+        }
+
+        var githubFallbackUrl = $"https://github.com/{SuperHackersConstants.GeneralsGameCodeOwner}/{SuperHackersConstants.GeneralsGameCodeRepo}/releases/latest/download/generalszh-latest.zip";
+        if (!candidateUrls.Contains(githubFallbackUrl, StringComparer.OrdinalIgnoreCase))
+        {
+            candidateUrls.Add(githubFallbackUrl);
+        }
     }
 
     private async Task<OperationResult<bool>> DownloadAndExtractArchiveAsync(
@@ -594,33 +673,6 @@ public partial class CommunityOutpostDeliverer(
             logger.LogWarning(ex, "Failed to extract archive downloaded from {Url}, attempting fallback if available", downloadUrl);
             TryCleanFailedExtraction(extractPath, archivePath);
             return OperationResult<bool>.CreateFailure(ex.Message);
-        }
-    }
-
-    private void TryCleanFailedExtraction(string extractPath, string archivePath)
-    {
-        if (Directory.Exists(extractPath))
-        {
-            try
-            {
-                Directory.Delete(extractPath, recursive: true);
-            }
-            catch
-            {
-            }
-
-            Directory.CreateDirectory(extractPath);
-        }
-
-        if (File.Exists(archivePath))
-        {
-            try
-            {
-                File.Delete(archivePath);
-            }
-            catch
-            {
-            }
         }
     }
 
@@ -695,38 +747,48 @@ public partial class CommunityOutpostDeliverer(
 
             foreach (var file in Directory.GetFiles(extractPath, "*", SearchOption.AllDirectories))
             {
-                var relativePath = Path.GetRelativePath(extractPath, file);
-                var pathResult = ContentPathPolicy.ResolveContainedFile(stagingRoot, relativePath);
-                if (!pathResult.Success)
+                var moveResult = MoveSingleExtractedFile(file, extractPath, stagingRoot);
+                if (!moveResult.Success)
                 {
-                    return OperationResult<bool>.CreateFailure(pathResult);
-                }
-
-                var targetPath = pathResult.Data;
-                if (string.IsNullOrEmpty(targetPath))
-                {
-                    continue;
-                }
-
-                var targetDir = Path.GetDirectoryName(targetPath);
-                if (!string.IsNullOrEmpty(targetDir))
-                {
-                    Directory.CreateDirectory(targetDir);
-                }
-
-                try
-                {
-                    File.Move(file, targetPath, overwrite: true);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to move extracted file {File} to staging root", file);
-                    return OperationResult<bool>.CreateFailure($"Failed to move extracted file '{relativePath}': {ex.Message}");
+                    return moveResult;
                 }
             }
 
             return OperationResult<bool>.CreateSuccess(true);
         });
+    }
+
+    private OperationResult<bool> MoveSingleExtractedFile(string file, string extractPath, string stagingRoot)
+    {
+        var relativePath = Path.GetRelativePath(extractPath, file);
+        var pathResult = ContentPathPolicy.ResolveContainedFile(stagingRoot, relativePath);
+        if (!pathResult.Success)
+        {
+            return OperationResult<bool>.CreateFailure(pathResult);
+        }
+
+        var targetPath = pathResult.Data;
+        if (string.IsNullOrEmpty(targetPath))
+        {
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+
+        var targetDir = Path.GetDirectoryName(targetPath);
+        if (!string.IsNullOrEmpty(targetDir))
+        {
+            Directory.CreateDirectory(targetDir);
+        }
+
+        try
+        {
+            File.Move(file, targetPath, overwrite: true);
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to move extracted file {File} to staging root", file);
+            return OperationResult<bool>.CreateFailure($"Failed to move extracted file '{relativePath}': {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -775,7 +837,7 @@ public partial class CommunityOutpostDeliverer(
         CancellationToken cancellationToken)
     {
         var contentCode = GetContentCodeFromManifest(manifest);
-        var (actualCode, metadata) = NormalizeContentCode(contentCode);
+        var (_, metadata) = NormalizeContentCode(contentCode);
 
         if (metadata.RequiresRepacking && !string.IsNullOrEmpty(metadata.OutputFilename))
         {
@@ -903,7 +965,7 @@ public partial class CommunityOutpostDeliverer(
         CancellationToken cancellationToken)
     {
         var packageContentCode = GetContentCodeFromManifest(packageManifest);
-        var (actualPackageCode, packageMetadata) = NormalizeContentCode(packageContentCode);
+        var (_, packageMetadata) = NormalizeContentCode(packageContentCode);
         var hasControlBarProBigs = false;
 
         if (packageMetadata.Category == GenPatcherContentCategory.ControlBar && packageMetadata.SupportsVariants)

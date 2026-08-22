@@ -87,9 +87,8 @@ public sealed class ContentDownloadCoordinator(
 
             return OperationResult<ContentManifest>.CreateFailure(errorMsg);
         }
-        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            logger.LogInformation(ex, "Download cancelled for: {Name}", searchResult.Name);
             throw;
         }
         catch (OperationCanceledException ex)

@@ -1819,82 +1819,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             var lockedCount = 0;
             long freedBytes = 0;
 
-            await Task.Run(() =>
-            {
-                var files = Directory.GetFiles(logsPath, "*.log", SearchOption.TopDirectoryOnly);
-                var activeLogPath = LoggingModule.ActiveLogFilePath;
-                var activeLogFileName = Path.GetFileName(activeLogPath);
-                var todayUtcLogFileName = $"{AppConstants.AppName.ToLowerInvariant()}-{DateTime.UtcNow:yyyy-MM-dd}.log";
-
-                foreach (var file in files)
-                {
-                    try
-                    {
-                        var fileName = Path.GetFileName(file);
-                        var info = new FileInfo(file);
-                        var length = info.Length;
-
-                        var isActiveLog = string.Equals(fileName, activeLogFileName, StringComparison.OrdinalIgnoreCase) ||
-                                          string.Equals(fileName, todayUtcLogFileName, StringComparison.OrdinalIgnoreCase) ||
-                                          string.Equals(Path.GetFullPath(file), Path.GetFullPath(activeLogPath), StringComparison.OrdinalIgnoreCase);
-
-                        if (isActiveLog)
-                        {
-                            // Active log file: Do not delete, as deleting puts the handle in DeletePending state
-                            // on Windows and breaks Serilog's shared file sink. Truncate in-place instead.
-                            using (var stream = new FileStream(file, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite))
-                            {
-                                stream.SetLength(0);
-                                stream.Flush();
-                            }
-
-                            deletedCount++;
-                            freedBytes += length;
-                        }
-                        else
-                        {
-                            try
-                            {
-                                File.Delete(file);
-                                deletedCount++;
-                                freedBytes += length;
-                            }
-                            catch (IOException)
-                            {
-                                using (var stream = new FileStream(file, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite))
-                                {
-                                    stream.SetLength(0);
-                                    stream.Flush();
-                                }
-
-                                deletedCount++;
-                                freedBytes += length;
-                            }
-                            catch (UnauthorizedAccessException)
-                            {
-                                using (var stream = new FileStream(file, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite))
-                                {
-                                    stream.SetLength(0);
-                                    stream.Flush();
-                                }
-
-                                deletedCount++;
-                                freedBytes += length;
-                            }
-                        }
-                    }
-                    catch (IOException ex)
-                    {
-                        lockedCount++;
-                        _logger.LogWarning(ex, "Could not clear log file: {File}", file);
-                    }
-                    catch (UnauthorizedAccessException ex)
-                    {
-                        lockedCount++;
-                        _logger.LogWarning(ex, "Could not clear log file: {File}", file);
-                    }
-                }
-            });
+            await Task.Run(() => ClearLogFiles(logsPath, out deletedCount, out lockedCount, out freedBytes));
 
             if (deletedCount == 0 && lockedCount == 0)
             {
@@ -1917,6 +1842,87 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             _logger.LogError(ex, "Failed to clear logs");
             _notificationService.ShowError("Error", $"Failed to clear logs: {ex.Message}", 5000);
         }
+    }
+
+    private void ClearLogFiles(
+        string logsPath,
+        out int deletedCount,
+        out int lockedCount,
+        out long freedBytes)
+    {
+        var files = Directory.GetFiles(logsPath, "*.log", SearchOption.TopDirectoryOnly);
+        var activeLogPath = LoggingModule.ActiveLogFilePath;
+        var activeLogFileName = Path.GetFileName(activeLogPath);
+        var todayUtcLogFileName = $"{AppConstants.AppName.ToLowerInvariant()}-{DateTime.UtcNow:yyyy-MM-dd}.log";
+
+        var deleted = 0;
+        var locked = 0;
+        long freed = 0;
+
+        foreach (var file in files)
+        {
+            ProcessSingleLogFile(file, activeLogPath, activeLogFileName, todayUtcLogFileName, ref deleted, ref locked, ref freed);
+        }
+
+        deletedCount = deleted;
+        lockedCount = locked;
+        freedBytes = freed;
+    }
+
+    private void ProcessSingleLogFile(
+        string file,
+        string activeLogPath,
+        string activeLogFileName,
+        string todayUtcLogFileName,
+        ref int deletedCount,
+        ref int lockedCount,
+        ref long freedBytes)
+    {
+        try
+        {
+            var fileName = Path.GetFileName(file);
+            var length = new FileInfo(file).Length;
+
+            var isActiveLog = string.Equals(fileName, activeLogFileName, StringComparison.OrdinalIgnoreCase) ||
+                              string.Equals(fileName, todayUtcLogFileName, StringComparison.OrdinalIgnoreCase) ||
+                              string.Equals(Path.GetFullPath(file), Path.GetFullPath(activeLogPath), StringComparison.OrdinalIgnoreCase);
+
+            if (isActiveLog)
+            {
+                TruncateFileInPlace(file);
+            }
+            else
+            {
+                DeleteOrTruncateFile(file);
+            }
+
+            deletedCount++;
+            freedBytes += length;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            lockedCount++;
+            _logger.LogWarning(ex, "Could not clear log file: {File}", file);
+        }
+    }
+
+    private void DeleteOrTruncateFile(string file)
+    {
+        try
+        {
+            File.Delete(file);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            TruncateFileInPlace(file);
+        }
+    }
+
+    private void TruncateFileInPlace(string file)
+    {
+        using var stream = new FileStream(file, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite);
+        stream.SetLength(0);
+        stream.Flush();
     }
 
     [RelayCommand]

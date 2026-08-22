@@ -161,7 +161,7 @@ public class CNCLabsMapResolver(
     {
         var dt = document.QuerySelectorAll("dt")
             .FirstOrDefault(d => string.Equals(d.TextContent?.Trim(), label, StringComparison.OrdinalIgnoreCase));
-        return (dt?.NextElementSibling as IElement)?.TextContent?.Trim();
+        return dt?.NextElementSibling?.TextContent?.Trim();
     }
 
     /// <summary>
