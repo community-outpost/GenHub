@@ -608,11 +608,19 @@ public class UpdateNotificationViewModelTests
         mockVelopack.Setup(x => x.CheckForArtifactUpdatesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync((ArtifactUpdateInfo?)null);
         mockVelopack.SetupGet(x => x.IsPrMergedOrClosed).Returns(true);
+        mockVelopack.Setup(x => x.GetBranchesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<string>());
+        mockVelopack.Setup(x => x.GetOpenPullRequestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<PullRequestInfo>());
 
-        var vm = new UpdateNotificationViewModel(
+        var mockTokenStorage = new Mock<IGitHubTokenStorage>();
+        mockTokenStorage.Setup(x => x.HasToken()).Returns(true);
+
+        using var vm = new UpdateNotificationViewModel(
             mockVelopack.Object,
             Mock.Of<ILogger<UpdateNotificationViewModel>>(),
-            mockUserSettings.Object);
+            mockUserSettings.Object,
+            mockTokenStorage.Object);
 
         await ((CommunityToolkit.Mvvm.Input.IAsyncRelayCommand)vm.CheckForUpdatesCommand).ExecuteAsync(null);
 
@@ -635,11 +643,15 @@ public class UpdateNotificationViewModelTests
         mockVelopack.SetupProperty(x => x.SubscribedBranch, "feat/deleted-branch");
         mockVelopack.Setup(x => x.CheckForArtifactUpdatesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync((ArtifactUpdateInfo?)null);
+        mockVelopack.Setup(x => x.GetBranchesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<string>());
+        mockVelopack.Setup(x => x.GetOpenPullRequestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<PullRequestInfo>());
 
         var mockTokenStorage = new Mock<IGitHubTokenStorage>();
         mockTokenStorage.Setup(x => x.HasToken()).Returns(true);
 
-        var vm = new UpdateNotificationViewModel(
+        using var vm = new UpdateNotificationViewModel(
             mockVelopack.Object,
             Mock.Of<ILogger<UpdateNotificationViewModel>>(),
             mockUserSettings.Object,
@@ -664,7 +676,32 @@ public class UpdateNotificationViewModelTests
         var mockVelopack = new Mock<IVelopackUpdateManager>();
         mockVelopack.SetupProperty(x => x.SubscribedBranch, "feat/some-branch");
 
-        var vm = new UpdateNotificationViewModel(
+        using var vm = new UpdateNotificationViewModel(
+            mockVelopack.Object,
+            Mock.Of<ILogger<UpdateNotificationViewModel>>(),
+            mockUserSettings.Object,
+            gitHubTokenStorage: null);
+
+        await ((CommunityToolkit.Mvvm.Input.IAsyncRelayCommand)vm.CheckForUpdatesCommand).ExecuteAsync(null);
+
+        Assert.Equal(AppUpdateConstants.PatRequiredForArtifactsMessage, vm.StatusMessage);
+        Assert.False(vm.IsUpdateAvailable);
+    }
+
+    /// <summary>
+    /// Verifies that when subscribed to a PR but no PAT is configured, CheckForUpdates sets PAT required status message.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CheckForUpdatesCommand_WhenSubscribedPrAndNoPat_SetsPatRequiredStatusAsync()
+    {
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings { SubscribedPrNumber = 42 });
+
+        var mockVelopack = new Mock<IVelopackUpdateManager>();
+        mockVelopack.SetupProperty(x => x.SubscribedPrNumber, 42);
+
+        using var vm = new UpdateNotificationViewModel(
             mockVelopack.Object,
             Mock.Of<ILogger<UpdateNotificationViewModel>>(),
             mockUserSettings.Object,

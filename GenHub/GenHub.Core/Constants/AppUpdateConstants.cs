@@ -246,17 +246,17 @@ public static class AppUpdateConstants
     /// <summary>
     /// Update available notification title when a subscribed branch is stale or has no artifacts.
     /// </summary>
-    public const string BranchStaleUpdateAvailableNotificationTitle = "Branch Update Available";
+    public const string BranchStaleUpdateAvailableNotificationTitle = "Branch Fallback: Update Available";
 
     /// <summary>
-    /// PR merged fallback notification format string ({0}: version, {1}: PR number).
+    /// PR merged or closed fallback notification format string ({0}: version, {1}: PR number).
     /// </summary>
-    public const string PrMergedUpdateNotificationFormat = "PR #{1} was merged. A new build ({0}) is available on development.";
+    public const string PrMergedUpdateNotificationFormat = "PR #{1} was merged or closed. A new build ({0}) is available on development.";
 
     /// <summary>
-    /// PR merged release fallback notification format string ({0}: version, {1}: PR number).
+    /// PR merged or closed release fallback notification format string ({0}: version, {1}: PR number).
     /// </summary>
-    public const string PrMergedReleaseNotificationFormat = "PR #{1} was merged. A new release ({0}) is available.";
+    public const string PrMergedReleaseNotificationFormat = "PR #{1} was merged or closed. A new release ({0}) is available.";
 
     /// <summary>
     /// Branch stale fallback notification format string ({0}: version, {1}: branch name).
@@ -269,9 +269,9 @@ public static class AppUpdateConstants
     public const string BranchStaleReleaseNotificationFormat = "Branch '{1}' has no newer builds. A new release ({0}) is available.";
 
     /// <summary>
-    /// PR merged status message format ({0}: PR number).
+    /// PR merged or closed status message format ({0}: PR number).
     /// </summary>
-    public const string PrMergedStatusMessageFormat = "PR #{0} has been merged. Select a new PR or switch to MAIN.";
+    public const string PrMergedStatusMessageFormat = "PR #{0} has been merged or closed. Select a new PR or switch to MAIN.";
 
     /// <summary>
     /// Branch stale status message format ({0}: branch name).
@@ -282,6 +282,36 @@ public static class AppUpdateConstants
     /// Message displayed when checking branch/PR artifacts without a configured GitHub PAT.
     /// </summary>
     public const string PatRequiredForArtifactsMessage = "GitHub Personal Access Token (PAT) required to check branch/PR builds.";
+
+    /// <summary>
+    /// Identity prefix for PR update notification deduplication.
+    /// </summary>
+    public const string PrDedupePrefix = "pr:";
+
+    /// <summary>
+    /// Identity prefix for PR fallback update notification deduplication.
+    /// </summary>
+    public const string PrFallbackDedupePrefix = "pr-fallback:";
+
+    /// <summary>
+    /// Identity prefix for branch update notification deduplication.
+    /// </summary>
+    public const string BranchDedupePrefix = "branch:";
+
+    /// <summary>
+    /// Identity prefix for branch fallback update notification deduplication.
+    /// </summary>
+    public const string BranchFallbackDedupePrefix = "branch-fallback:";
+
+    /// <summary>
+    /// Identity prefix for release update notification deduplication.
+    /// </summary>
+    public const string ReleaseDedupePrefix = "release:";
+
+    /// <summary>
+    /// Identity prefix for GitHub API fallback update notification deduplication.
+    /// </summary>
+    public const string GitHubFallbackDedupePrefix = "github:";
 
     /// <summary>
     /// Sort option: sort by last updated date descending.

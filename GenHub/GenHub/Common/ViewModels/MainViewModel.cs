@@ -60,6 +60,7 @@ public partial class MainViewModel(
     ILogger<MainViewModel> logger) : ObservableObject, IDisposable, IRecipient<NavigationMessage>
 {
     private readonly CancellationTokenSource _initializationCts = new();
+    private bool _disposed;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MainViewModel"/> class for design-time support.
@@ -193,8 +194,6 @@ public partial class MainViewModel(
 
         CheckForQuickStart();
     }
-
-    private bool _disposed;
 
     /// <summary>
     /// Disposes of managed resources.

@@ -92,6 +92,12 @@ public class AppUpdateConstantsTests
         Assert.Contains("{0}", AppUpdateConstants.PrMergedStatusMessageFormat);
         Assert.Contains("{0}", AppUpdateConstants.BranchStaleStatusMessageFormat);
         Assert.False(string.IsNullOrWhiteSpace(AppUpdateConstants.PatRequiredForArtifactsMessage));
+        Assert.False(string.IsNullOrWhiteSpace(AppUpdateConstants.PrDedupePrefix));
+        Assert.False(string.IsNullOrWhiteSpace(AppUpdateConstants.PrFallbackDedupePrefix));
+        Assert.False(string.IsNullOrWhiteSpace(AppUpdateConstants.BranchDedupePrefix));
+        Assert.False(string.IsNullOrWhiteSpace(AppUpdateConstants.BranchFallbackDedupePrefix));
+        Assert.False(string.IsNullOrWhiteSpace(AppUpdateConstants.ReleaseDedupePrefix));
+        Assert.False(string.IsNullOrWhiteSpace(AppUpdateConstants.GitHubFallbackDedupePrefix));
         Assert.Contains("{0}", AppUpdateConstants.UpdateFailedNotificationFormat);
     }
 

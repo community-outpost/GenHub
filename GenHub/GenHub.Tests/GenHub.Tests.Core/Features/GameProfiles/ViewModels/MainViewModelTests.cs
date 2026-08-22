@@ -133,10 +133,11 @@ public class MainViewModelTests
     [Fact]
     public async Task InitializeAsync_MultipleCallsAreSafeAsync()
     {
-        var vm = CreateMainViewModel();
+        var mockBackgroundCoordinator = new Mock<IBackgroundUpdateCoordinator>();
+        var vm = CreateMainViewModel(mockBackgroundCoordinator: mockBackgroundCoordinator);
         await vm.InitializeAsync();
         await vm.InitializeAsync();
-        Assert.NotNull(vm);
+        mockBackgroundCoordinator.Verify(x => x.InitializeAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     /// <summary>
@@ -147,18 +148,23 @@ public class MainViewModelTests
     {
         var vm = CreateMainViewModel();
 
-        vm.Dispose();
-        vm.Dispose();
+        var exception = Record.Exception(() =>
+        {
+            vm.Dispose();
+            vm.Dispose();
+        });
+
+        Assert.Null(exception);
     }
 
     /// <summary>
-    /// Tests that receiving <see cref="NavigationMessage"/> selects the requested tab.
+    /// Tests that <see cref="MainViewModel.SelectTabCommand"/> selects the requested tab.
     /// </summary>
     [Fact]
-    public void Receive_NavigationMessage_SelectsRequestedTab()
+    public void SelectTabCommand_SelectsRequestedTab()
     {
         var vm = CreateMainViewModel();
-        vm.Receive(new NavigationMessage(NavigationTab.Settings));
+        vm.SelectTabCommand.Execute(NavigationTab.Settings);
         Assert.Equal(NavigationTab.Settings, vm.SelectedTab);
     }
 

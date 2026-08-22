@@ -34,8 +34,10 @@ public class BackgroundUpdateCoordinator(
     ILogger<BackgroundUpdateCoordinator> logger) : IBackgroundUpdateCoordinator, IRecipient<UpdateSettingsChangedMessage>
 {
     private readonly CancellationTokenSource _cts = new();
+    private readonly SemaphoreSlim _checkLock = new(1, 1);
     private Timer? _periodicUpdateTimer;
     private string? _lastNotifiedUpdateIdentity;
+    private bool _disposed;
 
     /// <inheritdoc/>
     public Task InitializeAsync(CancellationToken cancellationToken = default)
@@ -45,7 +47,8 @@ public class BackgroundUpdateCoordinator(
         var settings = userSettingsService.Get();
         if (settings.AutoCheckForUpdatesOnStartup)
         {
-            _ = CheckForUpdatesInBackgroundAsync(_cts.Token);
+            var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, cancellationToken);
+            _ = CheckForUpdatesInBackgroundAsync(linkedCts.Token);
         }
 
         RestartPeriodicUpdateTimer(settings.AutoCheckForUpdatesPeriodically, settings.PeriodicUpdateCheckIntervalMinutes);
@@ -56,6 +59,10 @@ public class BackgroundUpdateCoordinator(
     public async Task CheckForUpdatesAsync(CancellationToken cancellationToken = default)
     {
         logger?.LogDebug("Starting background update check");
+
+        await _checkLock.WaitAsync(cancellationToken);
+        var originalPrNumber = velopackUpdateManager.SubscribedPrNumber;
+        var originalBranch = velopackUpdateManager.SubscribedBranch;
 
         try
         {
@@ -78,9 +85,19 @@ public class BackgroundUpdateCoordinator(
             // 3. check for standard github releases
             await CheckStandardReleaseUpdateAsync(settings, cancellationToken);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger?.LogError(ex, "Exception in CheckForUpdatesAsync");
+        }
+        finally
+        {
+            velopackUpdateManager.SubscribedPrNumber = originalPrNumber;
+            velopackUpdateManager.SubscribedBranch = originalBranch;
+            _checkLock.Release();
         }
     }
 
@@ -89,8 +106,6 @@ public class BackgroundUpdateCoordinator(
     {
         RestartPeriodicUpdateTimer(message.AutoCheckForUpdatesPeriodically, message.PeriodicUpdateCheckIntervalMinutes);
     }
-
-    private bool _disposed;
 
     /// <inheritdoc/>
     public void Dispose()
@@ -101,6 +116,7 @@ public class BackgroundUpdateCoordinator(
         }
 
         _disposed = true;
+        WeakReferenceMessenger.Default.UnregisterAll(this);
 
         try
         {
@@ -112,8 +128,9 @@ public class BackgroundUpdateCoordinator(
         }
 
         _periodicUpdateTimer?.Dispose();
+        _periodicUpdateTimer = null;
         _cts.Dispose();
-        WeakReferenceMessenger.Default.UnregisterAll(this);
+        _checkLock.Dispose();
         GC.SuppressFinalize(this);
     }
 
@@ -140,7 +157,7 @@ public class BackgroundUpdateCoordinator(
             if (AppUpdateVersionHelper.IsArtifactVersionNewer(artifactVersionBase, currentVersionBase) &&
                 !string.Equals(artifactVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
             {
-                var updateIdentity = $"pr:{prNumber}:{artifactVersionBase}";
+                var updateIdentity = $"{AppUpdateConstants.PrDedupePrefix}{prNumber}:{artifactVersionBase}";
                 if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
                 {
                     logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
@@ -187,10 +204,10 @@ public class BackgroundUpdateCoordinator(
         if (devArtifact != null)
         {
             var devVersionBase = devArtifact.Version.Split('+')[0];
-            if (AppUpdateVersionHelper.IsArtifactVersionNewer(devVersionBase, currentVersionBase) &&
+            if (AppUpdateVersionHelper.IsArtifactVersionNewer(devVersionBase, currentVersionBase, allowCrossChannel: true) &&
                 !string.Equals(devVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
             {
-                var updateIdentity = $"pr-fallback:{prNumber}:dev:{devVersionBase}";
+                var updateIdentity = $"{AppUpdateConstants.PrFallbackDedupePrefix}{prNumber}:dev:{devVersionBase}";
                 if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
                 {
                     logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
@@ -198,7 +215,7 @@ public class BackgroundUpdateCoordinator(
                 }
 
                 _lastNotifiedUpdateIdentity = updateIdentity;
-                logger?.LogInformation("PR #{PrNumber} merged. Development fallback update available: {Version}", prNumber, devArtifact.DisplayVersion);
+                logger?.LogInformation("PR #{PrNumber} merged or closed. Development fallback update available: {Version}", prNumber, devArtifact.DisplayVersion);
                 notificationService.Show(new NotificationMessage(
                     NotificationType.Info,
                     AppUpdateConstants.PrMergedUpdateAvailableNotificationTitle,
@@ -226,7 +243,7 @@ public class BackgroundUpdateCoordinator(
             var version = releaseUpdate.TargetFullRelease.Version.ToString();
             if (!string.Equals(version, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
             {
-                var updateIdentity = $"pr-fallback:{prNumber}:release:{version}";
+                var updateIdentity = $"{AppUpdateConstants.PrFallbackDedupePrefix}{prNumber}:release:{version}";
                 if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
                 {
                     logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
@@ -234,7 +251,7 @@ public class BackgroundUpdateCoordinator(
                 }
 
                 _lastNotifiedUpdateIdentity = updateIdentity;
-                logger?.LogInformation("PR #{PrNumber} merged. Release fallback update available: {Version}", prNumber, version);
+                logger?.LogInformation("PR #{PrNumber} merged or closed. Release fallback update available: {Version}", prNumber, version);
                 notificationService.Show(new NotificationMessage(
                     NotificationType.Info,
                     AppUpdateConstants.PrMergedUpdateAvailableNotificationTitle,
@@ -258,7 +275,7 @@ public class BackgroundUpdateCoordinator(
             if (!string.IsNullOrWhiteSpace(githubVersion) &&
                 !string.Equals(githubVersion, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
             {
-                var updateIdentity = $"pr-fallback:{prNumber}:github:{githubVersion}";
+                var updateIdentity = $"{AppUpdateConstants.PrFallbackDedupePrefix}{prNumber}:github:{githubVersion}";
                 if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
                 {
                     logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
@@ -266,7 +283,7 @@ public class BackgroundUpdateCoordinator(
                 }
 
                 _lastNotifiedUpdateIdentity = updateIdentity;
-                logger?.LogInformation("PR #{PrNumber} merged. GitHub API release fallback available: {Version}", prNumber, githubVersion);
+                logger?.LogInformation("PR #{PrNumber} merged or closed. GitHub API release fallback available: {Version}", prNumber, githubVersion);
                 notificationService.Show(new NotificationMessage(
                     NotificationType.Info,
                     AppUpdateConstants.PrMergedUpdateAvailableNotificationTitle,
@@ -301,7 +318,7 @@ public class BackgroundUpdateCoordinator(
             if (AppUpdateVersionHelper.IsArtifactVersionNewer(artifactVersionBase, currentVersionBase) &&
                 !string.Equals(artifactVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
             {
-                var updateIdentity = $"branch:{branch}:{artifactVersionBase}";
+                var updateIdentity = $"{AppUpdateConstants.BranchDedupePrefix}{branch}:{artifactVersionBase}";
                 if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
                 {
                     logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
@@ -348,10 +365,10 @@ public class BackgroundUpdateCoordinator(
         if (devArtifact != null)
         {
             var devVersionBase = devArtifact.Version.Split('+')[0];
-            if (AppUpdateVersionHelper.IsArtifactVersionNewer(devVersionBase, currentVersionBase) &&
+            if (AppUpdateVersionHelper.IsArtifactVersionNewer(devVersionBase, currentVersionBase, allowCrossChannel: true) &&
                 !string.Equals(devVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
             {
-                var updateIdentity = $"branch-fallback:{branch}:dev:{devVersionBase}";
+                var updateIdentity = $"{AppUpdateConstants.BranchFallbackDedupePrefix}{branch}:dev:{devVersionBase}";
                 if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
                 {
                     logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
@@ -387,7 +404,7 @@ public class BackgroundUpdateCoordinator(
             var version = releaseUpdate.TargetFullRelease.Version.ToString();
             if (!string.Equals(version, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
             {
-                var updateIdentity = $"branch-fallback:{branch}:release:{version}";
+                var updateIdentity = $"{AppUpdateConstants.BranchFallbackDedupePrefix}{branch}:release:{version}";
                 if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
                 {
                     logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
@@ -419,7 +436,7 @@ public class BackgroundUpdateCoordinator(
             if (!string.IsNullOrWhiteSpace(githubVersion) &&
                 !string.Equals(githubVersion, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
             {
-                var updateIdentity = $"branch-fallback:{branch}:github:{githubVersion}";
+                var updateIdentity = $"{AppUpdateConstants.BranchFallbackDedupePrefix}{branch}:github:{githubVersion}";
                 if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
                 {
                     logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
@@ -458,7 +475,7 @@ public class BackgroundUpdateCoordinator(
             var version = updateInfo.TargetFullRelease.Version.ToString();
             if (!string.Equals(version, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
             {
-                var updateIdentity = $"release:{version}";
+                var updateIdentity = $"{AppUpdateConstants.ReleaseDedupePrefix}{version}";
                 if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
                 {
                     logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
@@ -493,7 +510,7 @@ public class BackgroundUpdateCoordinator(
             if (!string.IsNullOrWhiteSpace(githubVersion) &&
                 !string.Equals(githubVersion, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
             {
-                var updateIdentity = $"github:{githubVersion}";
+                var updateIdentity = $"{AppUpdateConstants.GitHubFallbackDedupePrefix}{githubVersion}";
                 if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
                 {
                     logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
@@ -528,6 +545,106 @@ public class BackgroundUpdateCoordinator(
         int? clearedPrNumber,
         string? clearedBranch)
     {
+        await PerformOneClickUpdateAsync(
+            artifactUpdate,
+            updateInfo,
+            githubVersion,
+            clearedPrNumber,
+            clearedBranch);
+    }
+
+    private async Task PerformOneClickUpdateAsync(
+        ArtifactUpdateInfo? artifactUpdate,
+        UpdateInfo? updateInfo,
+        string? githubVersion,
+        int? clearedPrNumber = null,
+        string? clearedBranch = null)
+    {
+        var progressNotificationId = Guid.NewGuid();
+
+        try
+        {
+            // show the progress notification immediately
+            notificationService.Show(new NotificationMessage(
+                NotificationType.Info,
+                AppUpdateConstants.UpdatingAppNotificationTitle,
+                AppUpdateConstants.UpdateStartingMessage,
+                autoDismissMilliseconds: null,
+                isPersistent: false,
+                showInBadge: false)
+            {
+                Id = progressNotificationId,
+            });
+
+            var progress = new Progress<UpdateProgress>(p =>
+            {
+                string statusText;
+                if (!string.IsNullOrWhiteSpace(p.Message))
+                {
+                    statusText = p.Message;
+                }
+                else if (!string.IsNullOrWhiteSpace(p.Status))
+                {
+                    statusText = p.Status;
+                }
+                else
+                {
+                    statusText = $"{p.PercentComplete}%";
+                }
+
+                notificationService.Update(
+                    progressNotificationId,
+                    statusText,
+                    AppUpdateConstants.UpdatingAppNotificationTitle);
+            });
+
+            if (artifactUpdate != null)
+            {
+                logger?.LogInformation("Starting one-click artifact install: {Version}", artifactUpdate.DisplayVersion);
+                await velopackUpdateManager.InstallArtifactAsync(artifactUpdate, progress, _cts.Token);
+                ClearStaleSubscription(clearedPrNumber, clearedBranch);
+                notificationService.Update(
+                    progressNotificationId,
+                    AppUpdateConstants.UpdateCompleteRestartingMessage,
+                    AppUpdateConstants.UpdatingAppNotificationTitle);
+            }
+            else if (updateInfo != null)
+            {
+                logger?.LogInformation("Starting one-click release update: {Version}", updateInfo.TargetFullRelease.Version);
+                await velopackUpdateManager.DownloadUpdatesAsync(updateInfo, progress, _cts.Token);
+                ClearStaleSubscription(clearedPrNumber, clearedBranch);
+                notificationService.Update(
+                    progressNotificationId,
+                    AppUpdateConstants.UpdateDownloadedRestartingMessage,
+                    AppUpdateConstants.UpdatingAppNotificationTitle);
+                velopackUpdateManager.ApplyUpdatesAndRestart(updateInfo);
+            }
+            else if (!string.IsNullOrWhiteSpace(githubVersion))
+            {
+                ClearStaleSubscription(clearedPrNumber, clearedBranch);
+                logger?.LogInformation("Opening update window for GitHub API update: {Version}", githubVersion);
+                notificationService.Dismiss(progressNotificationId);
+                OpenUpdateSettings();
+            }
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to install update");
+            notificationService.Dismiss(progressNotificationId);
+            notificationService.ShowError(
+                AppUpdateConstants.UpdateFailedNotificationTitle,
+                string.Format(AppUpdateConstants.UpdateFailedNotificationFormat, ex.Message),
+                autoDismissMs: NotificationConstants.DefaultAutoDismissMs);
+        }
+    }
+
+    private void ClearStaleSubscription(int? clearedPrNumber, string? clearedBranch)
+    {
+        if (!clearedPrNumber.HasValue && string.IsNullOrEmpty(clearedBranch))
+        {
+            return;
+        }
+
         try
         {
             userSettingsService.Update(settings =>
@@ -543,97 +660,15 @@ public class BackgroundUpdateCoordinator(
                     settings.SubscribedBranch = null;
                 }
             });
-            await userSettingsService.SaveAsync();
+            _ = userSettingsService.SaveAsync();
             logger?.LogInformation(
-                "Cleared stale subscription (PR: {PrNumber}, Branch: {Branch}) before applying fallback update",
+                "Cleared stale subscription (PR: {PrNumber}, Branch: {Branch}) after applying fallback update",
                 clearedPrNumber,
                 clearedBranch);
         }
         catch (Exception ex)
         {
-            logger?.LogWarning(ex, "Failed to clear stale subscription settings before applying fallback update");
-        }
-
-        await PerformOneClickUpdateAsync(artifactUpdate, updateInfo, githubVersion);
-    }
-
-    private async Task PerformOneClickUpdateAsync(
-        ArtifactUpdateInfo? artifactUpdate,
-        UpdateInfo? updateInfo,
-        string? githubVersion)
-    {
-        var progressNotificationId = Guid.NewGuid();
-
-        // show the progress notification immediately
-        notificationService.Show(new NotificationMessage(
-            NotificationType.Info,
-            AppUpdateConstants.UpdatingAppNotificationTitle,
-            AppUpdateConstants.UpdateStartingMessage,
-            autoDismissMilliseconds: null,
-            isPersistent: false,
-            showInBadge: false)
-        {
-            Id = progressNotificationId,
-        });
-
-        var progress = new Progress<UpdateProgress>(p =>
-        {
-            string statusText;
-            if (!string.IsNullOrWhiteSpace(p.Message))
-            {
-                statusText = p.Message;
-            }
-            else if (!string.IsNullOrWhiteSpace(p.Status))
-            {
-                statusText = p.Status;
-            }
-            else
-            {
-                statusText = $"{p.PercentComplete}%";
-            }
-
-            notificationService.Update(
-                progressNotificationId,
-                statusText,
-                AppUpdateConstants.UpdatingAppNotificationTitle);
-        });
-
-        try
-        {
-            if (artifactUpdate != null)
-            {
-                logger?.LogInformation("Starting one-click artifact install: {Version}", artifactUpdate.DisplayVersion);
-                await velopackUpdateManager.InstallArtifactAsync(artifactUpdate, progress, _cts.Token);
-                notificationService.Update(
-                    progressNotificationId,
-                    AppUpdateConstants.UpdateCompleteRestartingMessage,
-                    AppUpdateConstants.UpdatingAppNotificationTitle);
-            }
-            else if (updateInfo != null)
-            {
-                logger?.LogInformation("Starting one-click release update: {Version}", updateInfo.TargetFullRelease.Version);
-                await velopackUpdateManager.DownloadUpdatesAsync(updateInfo, progress, _cts.Token);
-                notificationService.Update(
-                    progressNotificationId,
-                    AppUpdateConstants.UpdateDownloadedRestartingMessage,
-                    AppUpdateConstants.UpdatingAppNotificationTitle);
-                velopackUpdateManager.ApplyUpdatesAndRestart(updateInfo);
-            }
-            else if (!string.IsNullOrWhiteSpace(githubVersion))
-            {
-                logger?.LogInformation("Opening update window for GitHub API update: {Version}", githubVersion);
-                notificationService.Dismiss(progressNotificationId);
-                OpenUpdateSettings();
-            }
-        }
-        catch (Exception ex)
-        {
-            logger?.LogError(ex, "Failed to install update");
-            notificationService.Dismiss(progressNotificationId);
-            notificationService.ShowError(
-                AppUpdateConstants.UpdateFailedNotificationTitle,
-                string.Format(AppUpdateConstants.UpdateFailedNotificationFormat, ex.Message),
-                autoDismissMs: NotificationConstants.DefaultAutoDismissMs);
+            logger?.LogWarning(ex, "Failed to clear stale subscription settings after fallback update");
         }
     }
 
@@ -697,7 +732,7 @@ public class BackgroundUpdateCoordinator(
 
     private void OnPeriodicUpdateTimerCallback(object? state)
     {
-        if (_cts.IsCancellationRequested)
+        if (_disposed || _cts.IsCancellationRequested)
         {
             return;
         }

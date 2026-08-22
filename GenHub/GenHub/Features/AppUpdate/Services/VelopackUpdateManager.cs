@@ -920,6 +920,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         _cachedBranchList = null;
         _hasUpdateFromGitHub = false;
         _latestVersionFromGitHub = null;
+        IsPrMergedOrClosed = false;
         _logger.LogInformation("Update manager cache cleared");
     }
 

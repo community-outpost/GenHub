@@ -700,12 +700,21 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             ErrorMessage = string.Empty;
             StatusMessage = "Checking for updates...";
             IsUpdateAvailable = false;
+            ShowPrMergedWarning = false;
 
             _logger.LogInformation("Starting Velopack update check");
 
             // check if subscribed to a pr
             if (SubscribedPr != null)
             {
+                if (!HasPat)
+                {
+                    _logger.LogInformation("Subscribed to PR #{PrNumber} but GitHub PAT is not configured", SubscribedPr.Number);
+                    StatusMessage = AppUpdateConstants.PatRequiredForArtifactsMessage;
+                    IsUpdateAvailable = false;
+                    return;
+                }
+
                 if (SubscribedPr.LatestArtifact != null)
                 {
                     ProcessPrArtifactUpdate(SubscribedPr.LatestArtifact, SubscribedPr.Number);
@@ -757,14 +766,20 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
                     return;
                 }
 
-                // if subscribed to branch but no artifact found, do not fall through to main release
-                _logger.LogInformation("Subscribed to branch '{Branch}' but no artifact available yet", SubscribedBranch);
-                StatusMessage = string.Equals(SubscribedBranch, AppUpdateConstants.DevelopmentBranch, StringComparison.OrdinalIgnoreCase) ||
-                                string.Equals(SubscribedBranch, AppUpdateConstants.MainBranch, StringComparison.OrdinalIgnoreCase)
-                    ? $"Waiting for {SubscribedBranch} build..."
-                    : string.Format(AppUpdateConstants.BranchStaleStatusMessageFormat, SubscribedBranch);
-                IsUpdateAvailable = false;
-                return;
+                // if subscribed to branch but no artifact found, do not fall through to main release unless on main branch
+                if (string.Equals(SubscribedBranch, AppUpdateConstants.MainBranch, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogInformation("Subscribed to main branch; proceeding to release check");
+                }
+                else
+                {
+                    _logger.LogInformation("Subscribed to branch '{Branch}' but no artifact available yet", SubscribedBranch);
+                    StatusMessage = string.Equals(SubscribedBranch, AppUpdateConstants.DevelopmentBranch, StringComparison.OrdinalIgnoreCase)
+                        ? $"Waiting for {SubscribedBranch} build..."
+                        : string.Format(AppUpdateConstants.BranchStaleStatusMessageFormat, SubscribedBranch);
+                    IsUpdateAvailable = false;
+                    return;
+                }
             }
 
             // check main branch releases
