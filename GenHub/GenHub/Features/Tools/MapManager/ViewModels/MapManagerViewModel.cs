@@ -140,8 +140,8 @@ public partial class MapManagerViewModel : ObservableObject
         var source = SelectedTab == GameType.Generals ? GeneralsMaps : ZeroHourMaps;
         var filtered = string.IsNullOrWhiteSpace(SearchText)
             ? (IEnumerable<MapFile>)source
-            : source.Where(m => m.DisplayName?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) == true ||
-                                m.DirectoryName?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) == true);
+            : source.Where(m => (m.DisplayName?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                                (m.DirectoryName?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ?? false));
 
         // Replace the collection to avoid multiple notifications
         CurrentMaps = new ObservableCollection<MapFile>(filtered);

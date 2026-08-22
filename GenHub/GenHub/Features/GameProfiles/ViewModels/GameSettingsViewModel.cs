@@ -943,8 +943,8 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
                 }
             }
 
-            var optionsSaved = result?.Success == true;
-            var generalsOnlineWritten = goResult?.Success == true;
+            var optionsSaved = result?.Success ?? false;
+            var generalsOnlineWritten = goResult?.Success ?? false;
             var generalsOnlineBlocked = writeGeneralsOnlineSettings && !generalsOnlineWritten;
 
             if (optionsSaved)
@@ -955,11 +955,11 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
 
             var optionsErrors = new List<string>();
             if (result == null) optionsErrors.Add("SaveOptions result was null");
-            if (result?.Success == false) optionsErrors.AddRange(result.Errors);
+            if (!(result?.Success ?? true)) optionsErrors.AddRange(result.Errors);
 
             var generalsOnlineErrors = new List<string>();
             if (goLoadError != null) generalsOnlineErrors.Add(goLoadError);
-            if (goResult?.Success == false) generalsOnlineErrors.AddRange(goResult.Errors);
+            if (!(goResult?.Success ?? true)) generalsOnlineErrors.AddRange(goResult.Errors);
             if (generalsOnlineBlocked && goLoadError == null && goResult == null) generalsOnlineErrors.Add("SaveGeneralsOnlineSettings result was null");
 
             if (optionsSaved && !generalsOnlineBlocked)

@@ -71,7 +71,7 @@ public class SteamLauncher : ISteamLauncher
     /// <summary>
     /// Configuration for the proxy launcher.
     /// </summary>
-    private class ProxyConfig
+    private sealed class ProxyConfig
     {
         public string? TargetExecutable { get; set; }
 
@@ -238,9 +238,12 @@ public class SteamLauncher : ISteamLauncher
                 config.WorkingDirectory,
                 config.Arguments.Length);
 
-            foreach (var directory in appIdDirectories)
+            if (!string.IsNullOrEmpty(steamAppId))
             {
-                await WriteSteamAppIdAsync(steamAppId!, directory, rollback, cancellationToken);
+                foreach (var directory in appIdDirectories)
+                {
+                    await WriteSteamAppIdAsync(steamAppId, directory, rollback, cancellationToken);
+                }
             }
 
             foreach (var (sourcePath, destinationPath) in dependencyCopies)

@@ -133,12 +133,9 @@ internal class CsvGenerator(Dictionary<string, string> arguments, ILogger logger
             LanguageDirectoryNames.DataChineseTraditional,
         };
 
-        foreach (var dir in languageDirectories)
+        if (languageDirectories.Any(dir => relativePath.StartsWith(dir, StringComparison.OrdinalIgnoreCase)))
         {
-            if (relativePath.StartsWith(dir, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
+            return true;
         }
 
         // Check for language-specific .big file patterns
@@ -167,12 +164,9 @@ internal class CsvGenerator(Dictionary<string, string> arguments, ILogger logger
             LanguageFilePatterns.ChineseTraditionalBig, LanguageFilePatterns.AudioChineseTraditionalBig,
         };
 
-        foreach (var pattern in languageFilePatterns)
+        if (languageFilePatterns.Any(pattern => relativePath.Contains(pattern, StringComparison.OrdinalIgnoreCase)))
         {
-            if (relativePath.Contains(pattern, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
+            return true;
         }
 
         return false;

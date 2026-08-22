@@ -67,11 +67,13 @@ public partial class MainViewModel(
     /// <summary>
     /// Initializes a new instance of the <see cref="MainViewModel"/> class for design-time support.
     /// </summary>
+#pragma warning disable CS8625
     [Obsolete("Use DI constructor for runtime. This is only for XAML tools.")]
     public MainViewModel()
-        : this(null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!)
+        : this(null, null, null, null, null, null, null, null, null, null, null, null, null)
     {
     }
+#pragma warning restore CS8625
 
     /// <summary>
     /// Gets the info view model.

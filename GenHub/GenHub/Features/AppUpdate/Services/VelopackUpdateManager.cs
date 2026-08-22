@@ -1401,7 +1401,6 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 catch (FormatException ex)
                 {
                     _logger.LogWarning(ex, "Failed to parse created_at date from workflow run");
-                    createdAt = DateTime.MinValue;
                 }
 
                 var headSha = run.GetProperty("head_sha").GetString() ?? string.Empty;
@@ -1558,7 +1557,7 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
         }
         catch (FormatException)
         {
-            createdAt = DateTime.MinValue;
+            // Fallback to DateTime.MinValue
         }
 
         _logger.LogDebug("Checking run {RunId} on branch {Branch} ({Hash}) for artifacts...", runId, actualBranch, shortHash);

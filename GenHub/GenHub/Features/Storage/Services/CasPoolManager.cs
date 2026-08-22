@@ -116,13 +116,7 @@ public class CasPoolManager : ICasPoolManager
     public IReadOnlyList<ICasStorage> GetAllStorages()
     {
         var storages = _storages.Values.ToList();
-        foreach (var legacyInstallationStorage in _legacyInstallationStorages)
-        {
-            if (!storages.Contains(legacyInstallationStorage))
-            {
-                storages.Add(legacyInstallationStorage);
-            }
-        }
+        storages.AddRange(_legacyInstallationStorages.Where(legacyInstallationStorage => !storages.Contains(legacyInstallationStorage)));
 
         return storages.AsReadOnly();
     }

@@ -394,14 +394,7 @@ public partial class PublisherCardViewModel : ObservableObject, IRecipient<Profi
         var itemId = item.Model.Id ?? string.Empty;
         var itemVersion = item.Version ?? string.Empty;
         var itemDatePart = ExtractDateFromVersion(itemVersion);
-
-        foreach (var manifest in allManifests)
-        {
-            if (IsManifestVariantMatch(item, manifest, publisherId, itemId, itemVersion, itemDatePart))
-            {
-                variants.Add(manifest);
-            }
-        }
+        variants.AddRange(allManifests.Where(manifest => IsManifestVariantMatch(item, manifest, publisherId, itemId, itemVersion, itemDatePart)));
 
         return [.. variants.OrderBy(v => v.Name)];
     }

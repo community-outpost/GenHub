@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using GenHub.Core.Models.Enums;
 
 namespace GenHub.Core.Constants;
@@ -6,6 +7,7 @@ namespace GenHub.Core.Constants;
 /// Constants for publisher information including display names, websites, and support URLs.
 /// These constants provide standardized publisher metadata for content attribution and user interface display.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized URI constants / mock demo paths")]
 public static class PublisherInfoConstants
 {
     /// <summary>

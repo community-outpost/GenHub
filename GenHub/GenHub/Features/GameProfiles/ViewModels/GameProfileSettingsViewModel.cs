@@ -416,15 +416,15 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
             return;
         }
 
-        ReplaceConflictingEnabledContent(contentItem!);
-        ActivateContentItem(contentItem!);
+        ReplaceConflictingEnabledContent(contentItem);
+        ActivateContentItem(contentItem);
 
         var autoResolved = autoEnabledNames ?? [];
-        await ResolveDependenciesAsync(contentItem!, autoResolved, cancellationToken);
+        await ResolveDependenciesAsync(contentItem, autoResolved, cancellationToken);
 
         if (isRootOperation)
         {
-            await HandleRootOperationCompletionAsync(contentItem!, autoResolved, cancellationToken);
+            await HandleRootOperationCompletionAsync(contentItem, autoResolved, cancellationToken);
         }
     }
 

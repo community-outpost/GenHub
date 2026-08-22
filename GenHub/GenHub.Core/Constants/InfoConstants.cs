@@ -1,10 +1,12 @@
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Core.Constants;
 
 /// <summary>
 /// Constants for the Info and FAQ features.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized URI constants / mock demo paths")]
 public static class InfoConstants
 {
     /// <summary>

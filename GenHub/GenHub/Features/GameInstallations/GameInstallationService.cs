@@ -109,7 +109,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
         try
         {
             _cachedInstallations = null;
-            logger!.LogInformation("Installation cache invalidated");
+            logger.LogInformation("Installation cache invalidated");
         }
         finally
         {
@@ -144,7 +144,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
 
                 if (existing != null)
                 {
-                    logger!.LogDebug(
+                    logger.LogDebug(
                         "Installation already exists in cache: {Path}",
                         installation.InstallationPath);
                     return OperationResult<bool>.CreateSuccess(true);
@@ -156,7 +156,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                 // Update cache with new ReadOnlyCollection
                 _cachedInstallations = installationsList.AsReadOnly();
 
-                logger!.LogInformation(
+                logger.LogInformation(
                     "Added installation to cache: {InstallationType} at {Path} (ID: {Id})",
                     installation.InstallationType,
                     installation.InstallationPath,
@@ -171,7 +171,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
         }
         catch (Exception ex)
         {
-            logger!.LogError(ex, "Error adding installation to cache");
+            logger.LogError(ex, "Error adding installation to cache");
             return OperationResult<bool>.CreateFailure($"Failed to add installation to cache: {ex.Message}");
         }
     }
@@ -179,7 +179,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
     /// <inheritdoc/>
     public async Task CreateAndRegisterInstallationManifestsAsync(GameInstallation installation, CancellationToken cancellationToken = default)
     {
-        logger!.LogInformation(
+        logger.LogInformation(
             "[MANIFEST-GEN] CreateAndRegisterInstallationManifestsAsync called for {InstallationType} at {Path}",
             installation.InstallationType,
             installation.InstallationPath);
@@ -187,13 +187,13 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
         var gameDir = installation.InstallationPath;
         if (!Directory.Exists(gameDir))
         {
-            logger!.LogWarning(
+            logger.LogWarning(
                 "[MANIFEST-GEN] Installation directory does not exist: {Path}",
                 gameDir);
             return;
         }
 
-        logger!.LogInformation(
+        logger.LogInformation(
             "[MANIFEST-GEN] Installation check: HasGenerals={HasGenerals}, GeneralsPath={GeneralsPath}, HasZeroHour={HasZeroHour}, ZeroHourPath={ZeroHourPath}",
             installation.HasGenerals,
             installation.GeneralsPath ?? "null",
@@ -202,7 +202,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
 
         if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath) && Directory.Exists(installation.GeneralsPath))
         {
-            logger!.LogInformation(
+            logger.LogInformation(
                 "[MANIFEST-GEN] Creating Generals manifest for {Path}",
                 installation.GeneralsPath);
 
@@ -225,7 +225,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
         }
         else
         {
-            logger!.LogWarning(
+            logger.LogWarning(
                 "[MANIFEST-GEN] Skipping Generals manifest: HasGenerals={HasGenerals}, PathEmpty={PathEmpty}, PathExists={PathExists}",
                 installation.HasGenerals,
                 string.IsNullOrEmpty(installation.GeneralsPath),
@@ -234,7 +234,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
 
         if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath) && Directory.Exists(installation.ZeroHourPath))
         {
-            logger!.LogInformation(
+            logger.LogInformation(
                 "[MANIFEST-GEN] Creating ZeroHour manifest for {Path}",
                 installation.ZeroHourPath);
 
@@ -255,14 +255,14 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
         }
         else
         {
-            logger!.LogWarning(
+            logger.LogWarning(
                 "[MANIFEST-GEN] Skipping ZeroHour manifest: HasZeroHour={HasZeroHour}, PathEmpty={PathEmpty}, PathExists={PathExists}",
                 installation.HasZeroHour,
                 string.IsNullOrEmpty(installation.ZeroHourPath),
                 installation.ZeroHourPath != null && Directory.Exists(installation.ZeroHourPath));
         }
 
-        logger!.LogInformation(
+        logger.LogInformation(
             "[MANIFEST-GEN] Completed manifest generation for {InstallationType}",
             installation.InstallationType);
     }
@@ -353,14 +353,14 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                 if (generalsClient != null)
                 {
                     clients.Add(generalsClient);
-                    logger!.LogDebug(
+                    logger.LogDebug(
                         "Loaded Generals client from manifest for installation {Id}",
                         installation.Id);
                 }
                 else
                 {
                     needsDetection = true;
-                    logger!.LogDebug(
+                    logger.LogDebug(
                         "No manifest found for Generals in installation {Id} - will trigger detection",
                         installation.Id);
                 }
@@ -378,14 +378,14 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                 if (zeroHourClient != null)
                 {
                     clients.Add(zeroHourClient);
-                    logger!.LogDebug(
+                    logger.LogDebug(
                         "Loaded ZeroHour client from manifest for installation {Id}",
                         installation.Id);
                 }
                 else
                 {
                     needsDetection = true;
-                    logger!.LogDebug(
+                    logger.LogDebug(
                         "No manifest found for ZeroHour in installation {Id} - will trigger detection",
                         installation.Id);
                 }
@@ -394,7 +394,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
             if (clients.Count > 0)
             {
                 installation.PopulateGameClients(clients);
-                logger!.LogInformation(
+                logger.LogInformation(
                     "Populated {Count} clients from manifests for installation {Id}",
                     clients.Count,
                     installation.Id);
@@ -409,14 +409,14 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
 
         if (installationsNeedingDetection.Count > 0)
         {
-            logger!.LogInformation(
+            logger.LogInformation(
                 "{NeedDetectionCount} of {TotalCount} installations need game client detection",
                 installationsNeedingDetection.Count,
                 installations.Count);
         }
         else
         {
-            logger!.LogInformation(
+            logger.LogInformation(
                 "All {TotalCount} installations loaded from existing manifests - no detection needed",
                 installations.Count);
         }
@@ -449,11 +449,11 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                 Take = 100, // Get all matching manifests
             };
 
-            var searchResult = await contentManifestPool!.SearchManifestsAsync(searchQuery, cancellationToken);
+            var searchResult = await contentManifestPool.SearchManifestsAsync(searchQuery, cancellationToken);
 
             if (!searchResult.Success || searchResult.Data == null)
             {
-                logger!.LogDebug(
+                logger.LogDebug(
                     "No manifests found when searching for {GameType} in installation {Id}",
                     gameType,
                     installation.Id);
@@ -498,7 +498,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                     Version = matchingManifest.Version,
                 };
 
-                logger!.LogInformation(
+                logger.LogInformation(
                     "Loaded {GameType} client from existing manifest {ManifestId} using ClientId {ClientId} (version {Version})",
                     gameType,
                     matchingManifest.Id,
@@ -508,7 +508,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                 return gameClient;
             }
 
-            logger!.LogDebug(
+            logger.LogDebug(
                 "No existing manifest found for {InstallType} {GameType} in installation {Id}",
                 installTypeString,
                 gameType,
@@ -518,7 +518,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
         }
         catch (Exception ex)
         {
-            logger!.LogWarning(
+            logger.LogWarning(
                 ex,
                 "Error loading game client from manifest for {GameType} in installation {Id}",
                 gameType,
@@ -566,12 +566,12 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
             installation, gameType, versionForId);
         var manifestId = ManifestId.Create(idResult);
 
-        var existingManifest = await contentManifestPool!.GetManifestAsync(
+        var existingManifest = await contentManifestPool.GetManifestAsync(
             manifestId, cancellationToken);
 
         if (existingManifest.Success && existingManifest.Data != null)
         {
-            logger!.LogDebug(
+            logger.LogDebug(
                 "Manifest {Id} already exists in pool, skipping generation",
                 manifestId);
             return;
@@ -591,7 +591,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
         // Store the installation path in metadata for persistence across sessions
         manifest.Metadata.SourcePath = installation.InstallationPath;
 
-        var addResult = await contentManifestPool!.AddManifestAsync(
+        var addResult = await contentManifestPool.AddManifestAsync(
             manifest, gamePath, null, cancellationToken);
 
         if (addResult.Success)
@@ -609,7 +609,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                     normalizedVersion);
             }
 
-            logger!.LogInformation(
+            logger.LogInformation(
                 "Pooled GameInstallation manifest {Id} for {InstallationId} ({GameType})",
                 manifestId,
                 installation.Id,
@@ -617,7 +617,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
         }
         else
         {
-            logger!.LogWarning(
+            logger.LogWarning(
                 "Failed to pool {GameType} GameInstallation manifest for {InstallationId}: {Errors}",
                 gameType,
                 installation.Id,
@@ -651,11 +651,11 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
             var searchResult = await contentManifestPool.SearchManifestsAsync(searchQuery, cancellationToken);
             if (!searchResult.Success || searchResult.Data == null || !searchResult.Data.Any())
             {
-                logger!.LogDebug("No GameInstallation manifests found in pool");
+                logger.LogDebug("No GameInstallation manifests found in pool");
                 return [];
             }
 
-            logger!.LogInformation(
+            logger.LogInformation(
                 "Found {Count} GameInstallation manifests, reconstructing installations",
                 searchResult.Data.Count());
 
@@ -666,7 +666,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                     var hasPath = !string.IsNullOrEmpty(m.Metadata.SourcePath);
                     if (!hasPath)
                     {
-                        logger!.LogDebug("Skipping manifest {Id} - no SourcePath in metadata", m.Id);
+                        logger.LogDebug("Skipping manifest {Id} - no SourcePath in metadata", m.Id);
                     }
 
                     return hasPath;
@@ -693,20 +693,20 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
 
                 installations.Add(installation);
 
-                logger!.LogInformation(
+                logger.LogInformation(
                     "Reconstructed {InstallationType} installation from manifests: {Path}",
                     installationType,
                     sourcePath);
             }
 
-            logger!.LogInformation(
+            logger.LogInformation(
                 "Loaded {Count} installations from {ManifestCount} manifests",
                 installations.Count,
                 searchResult.Data.Count());
         }
         catch (Exception ex)
         {
-            logger!.LogError(
+            logger.LogError(
                 ex,
                 "Error loading installations from manifests");
         }
@@ -723,14 +723,14 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
     {
         if (_cachedInstallations != null)
         {
-            logger!.LogInformation(
+            logger.LogInformation(
                 "[DIAGNOSTIC] TryInitializeCacheAsync: Cache already initialized with {Count} installations",
                 _cachedInstallations.Count);
 
             return OperationResult<bool>.CreateSuccess(true);
         }
 
-        logger!.LogInformation(
+        logger.LogInformation(
             "[DIAGNOSTIC] TryInitializeCacheAsync: Cache is null, initializing via auto-detection and manual installations");
 
         await _cacheLock.WaitAsync(cancellationToken);
@@ -883,7 +883,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
 
         if (manifestGenerationService == null || contentManifestPool == null)
         {
-            logger!.LogDebug("Manifest generation skipped: services not available");
+            logger.LogDebug("Manifest generation skipped: services not available");
             return;
         }
 
@@ -894,7 +894,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
         if (installationsNeedingDetection.Count > 0)
         {
             // Run game client detection ONLY for installations without manifests
-            logger!.LogInformation(
+            logger.LogInformation(
                 "Running game client detection for {Count} installations (out of {Total} total)",
                 installationsNeedingDetection.Count,
                 installations.Count);
@@ -905,7 +905,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
 
             if (!clientResult.Success)
             {
-                logger!.LogWarning("Client detection failed: {Errors}", string.Join(", ", clientResult.Errors));
+                logger.LogWarning("Client detection failed: {Errors}", string.Join(", ", clientResult.Errors));
                 return;
             }
 
@@ -914,7 +914,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
             {
                 var installationClients = clientsByInstallation.FirstOrDefault(g => g.Key == installation.Id)?.ToList() ?? Enumerable.Empty<GameClient>();
                 installation.PopulateGameClients(installationClients);
-                logger!.LogInformation(
+                logger.LogInformation(
                     "Populated {ClientCount} clients for installation {Id} via detection",
                     installationClients.Count(),
                     installation.Id);
@@ -951,7 +951,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
 
             if (baseGameClient == null)
             {
-                logger!.LogWarning(
+                logger.LogWarning(
                     "No base game client found for {GameType} in installation {InstallationId}, skipping GameInstallation manifest creation",
                     gameType,
                     installation.Id);
@@ -971,7 +971,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
             }
 
             // Create the GameInstallation manifest
-            var manifestBuilder = await manifestGenerationService!.CreateGameInstallationManifestAsync(
+            var manifestBuilder = await manifestGenerationService.CreateGameInstallationManifestAsync(
                 installationPath,
                 gameType,
                 installation.InstallationType,
@@ -980,11 +980,11 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
             var manifest = manifestBuilder.Build();
 
             // Register the manifest to the pool
-            var addResult = await contentManifestPool!.AddManifestAsync(manifest, installationPath, null, cancellationToken);
+            var addResult = await contentManifestPool.AddManifestAsync(manifest, installationPath, null, cancellationToken);
 
             if (addResult.Success)
             {
-                logger!.LogInformation(
+                logger.LogInformation(
                     "Registered GameInstallation manifest {ManifestId} for {GameType} in installation {InstallationId}",
                     manifest.Id,
                     gameType,
@@ -992,7 +992,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
             }
             else
             {
-                logger!.LogWarning(
+                logger.LogWarning(
                     "Failed to register GameInstallation manifest for {GameType} in installation {InstallationId}: {Errors}",
                     gameType,
                     installation.Id,
@@ -1001,7 +1001,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
         }
         catch (Exception ex)
         {
-            logger!.LogError(
+            logger.LogError(
                 ex,
                 "Error creating GameInstallation manifest for {GameType} in installation {InstallationId}",
                 gameType,

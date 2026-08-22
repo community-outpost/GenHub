@@ -627,7 +627,7 @@ public class ProfileLauncherFacade(
                 $"{ProfileValidationConstants.FailedToPrepareToolWorkspace}: {prepareResult.FirstError}");
         }
 
-        var toolWorkspacePath = prepareResult.Data!.WorkspacePath;
+        var toolWorkspacePath = prepareResult.Data.WorkspacePath;
         logger.LogInformation("[Launch] Tool workspace prepared at: {Path}", toolWorkspacePath);
         return ProfileOperationResult<(string, string?)>.CreateSuccess((toolWorkspacePath, actualWorkspaceId));
     }
@@ -1815,7 +1815,7 @@ public class ProfileLauncherFacade(
             return null;
         }
 
-        foreach (var idString in profile.EnabledContentIds!)
+        foreach (var idString in profile.EnabledContentIds)
         {
             if (!ManifestId.TryCreate(idString, out var id))
             {

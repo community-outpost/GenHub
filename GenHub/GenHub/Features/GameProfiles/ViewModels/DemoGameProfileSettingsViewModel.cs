@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Interfaces.Common;
@@ -20,6 +21,7 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// A specialized ViewModel for the Game Profile Settings Demo.
 /// This bypasses complex service logic and guarantees static mock data is loaded.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized URI constants / mock demo paths")]
 public partial class DemoGameProfileSettingsViewModel : GameProfileSettingsViewModel
 {
     /// <summary>
