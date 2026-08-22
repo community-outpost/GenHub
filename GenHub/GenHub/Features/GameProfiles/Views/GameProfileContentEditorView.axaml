@@ -51,7 +51,7 @@
             <Setter Property="Background" Value="#15FFFFFF" />
             <Setter Property="BorderBrush" Value="#40FFFFFF" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Foreground" Value="#9575CD" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentLightBrush}" />
             <Setter Property="CornerRadius" Value="6" />
             <Setter Property="Padding" Value="14,6" />
             <Setter Property="FontSize" Value="12" />
@@ -59,8 +59,8 @@
             <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Button.btn-add:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#9575CD" />
-            <Setter Property="BorderBrush" Value="#9575CD" />
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Foreground" Value="White" />
         </Style>
 
@@ -306,7 +306,7 @@
                                                 AutomationProperties.Name="Edit Content"
                                                 ToolTip.Tip="Edit Content">
                                             <PathIcon Data="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
-                                                      Width="14" Height="14" Foreground="#9575CD" />
+                                                      Width="14" Height="14" Foreground="{DynamicResource AccentLightBrush}" />
                                         </Button>
                                     </Grid>
                                 </DataTemplate>
@@ -412,7 +412,7 @@
                                                 AutomationProperties.Name="Edit Content"
                                                 ToolTip.Tip="Edit Content">
                                             <PathIcon Data="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
-                                                      Width="14" Height="14" Foreground="#9575CD" />
+                                                      Width="14" Height="14" Foreground="{DynamicResource AccentLightBrush}" />
                                         </Button>
                                     </Grid>
                                 </DataTemplate>

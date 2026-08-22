@@ -26,13 +26,13 @@
         </Style>
 
         <Style Selector="Border.item-container.unread">
-            <Setter Property="Background" Value="#1E1830" />
-            <Setter Property="BorderBrush" Value="#60A855F7" />
+            <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
         </Style>
 
         <Style Selector="Border.item-container:pointerover">
             <Setter Property="Background" Value="#242436" />
-            <Setter Property="BorderBrush" Value="#80A855F7" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}" />
         </Style>
 
         <Style Selector="TextBlock.item-title">

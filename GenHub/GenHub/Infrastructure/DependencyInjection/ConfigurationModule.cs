@@ -48,6 +48,8 @@ public static class ConfigurationModule
             bootstrapLoggerFactory.CreateLogger<ConfigurationProviderService>());
         services.AddSingleton<ILogger<StorageLocationService>>(provider =>
             bootstrapLoggerFactory.CreateLogger<StorageLocationService>());
+        services.AddSingleton<ILogger<ThemeService>>(provider =>
+            bootstrapLoggerFactory.CreateLogger<ThemeService>());
         services.AddSingleton<ISessionPreferenceService, SessionPreferenceService>();
         services.AddSingleton<IDialogService, DialogService>();
         services.AddSingleton<IAppConfiguration, AppConfiguration>();
@@ -55,6 +57,7 @@ public static class ConfigurationModule
         services.AddSingleton<IConfigurationProviderService, ConfigurationProviderService>();
         services.TryAddSingleton<IStorageWritabilityProbe, StorageWritabilityProbe>();
         services.AddSingleton<IStorageLocationService, StorageLocationService>();
+        services.AddSingleton<IThemeService, ThemeService>();
 
         return services;
     }

@@ -24,13 +24,13 @@
 
         <Panel>
              <!-- Accent Border -->
-             <Border BorderBrush="#40673AB7" BorderThickness="1" CornerRadius="8" IsHitTestVisible="False" />
+             <Border BorderBrush="{DynamicResource AccentBadgeBackgroundBrush}" BorderThickness="1" CornerRadius="8" IsHitTestVisible="False" />
 
              <!-- Top Gradient Glow -->
              <Border Height="200" VerticalAlignment="Top" IsHitTestVisible="False" Opacity="0.3">
                 <Border.Background>
                     <LinearGradientBrush StartPoint="50%,0%" EndPoint="50%,100%">
-                        <GradientStop Color="#40673AB7" Offset="0" />
+                        <GradientStop Color="{DynamicResource AccentGlowColor}" Offset="0" />
                         <GradientStop Color="Transparent" Offset="1" />
                     </LinearGradientBrush>
                 </Border.Background>
@@ -92,14 +92,8 @@
                                 ToolTip.Tip="Skip this update (you'll be notified again for newer versions)"/>
 
                         <Button Command="{Binding UpdateCommand}" Content="Update"
-                                FontWeight="SemiBold" Foreground="White" Padding="24,10" CornerRadius="4">
-                            <Button.Background>
-                                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                                    <GradientStop Color="#4527A0" Offset="0" />
-                                    <GradientStop Color="#7C4DFF" Offset="1" />
-                                </LinearGradientBrush>
-                            </Button.Background>
-                        </Button>
+                                Background="{DynamicResource PrimaryGradientBrush}"
+                                FontWeight="SemiBold" Foreground="White" Padding="24,10" CornerRadius="4" />
                     </StackPanel>
                 </Grid>
              </Grid>

@@ -642,7 +642,8 @@ public class MainViewModelTests
             mockStorageLocationService.Object,
             mockUserDataTracker.Object,
             mockDialogService.Object,
-            mockGitHubTokenStorage.Object);
+            themeService: null,
+            gitHubTokenStorage: mockGitHubTokenStorage.Object);
         return (settingsVm, mockUserSettings);
     }
 

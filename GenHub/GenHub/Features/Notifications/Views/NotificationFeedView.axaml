@@ -12,7 +12,7 @@
     <UserControl.Styles>
         <Style Selector="Border.feed-container">
             <Setter Property="Background" Value="#F214141E" />
-            <Setter Property="BorderBrush" Value="#40A855F7" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="12" />
             <Setter Property="BoxShadow" Value="0 16 36 0 #80000000" />
@@ -69,8 +69,8 @@
 
         <Style Selector="Button.clear-button">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="#A855F7" />
-            <Setter Property="BorderBrush" Value="#40A855F7" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="6" />
             <Setter Property="Padding" Value="10,4" />
@@ -89,9 +89,9 @@
         </Style>
 
         <Style Selector="Button.clear-button:pointerover">
-            <Setter Property="Background" Value="#25A855F7" />
-            <Setter Property="Foreground" Value="#C084FC" />
-            <Setter Property="BorderBrush" Value="#A855F7" />
+            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentLightBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
         </Style>
 
         <Style Selector="ScrollViewer.feed-scroll">
@@ -125,7 +125,7 @@
                     <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <PathIcon Data="M12,22A2,2 0 0,0 14,20H10A2,2 0 0,0 12,22M18,16V11C18,7.93 16.36,5.36 13.5,4.68V4A1.5,1.5 0 0,0 12,2.5A1.5,1.5 0 0,0 10.5,4V4.68C7.63,5.36 6,7.92 6,11V16L4,18V19H20V18L18,16Z"
-                                      Width="14" Height="14" Foreground="#A855F7" VerticalAlignment="Center" />
+                                      Width="14" Height="14" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
                             <TextBlock Classes="feed-title" Text="Notifications" VerticalAlignment="Center" />
                         </StackPanel>
                         <Button x:Name="OptionsButton"
@@ -211,7 +211,7 @@
             </Border>
 
             <!-- Content -->
-            <ScrollViewer Grid.Row="1" MaxHeight="380" Classes="feed-scroll" VerticalScrollBarVisibility="Auto"
+            <ScrollViewer Grid.Row="1" MaxHeight="380" Classes="feed-scroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                          IsVisible="{Binding HasNotifications}">
                 <ItemsControl ItemsSource="{Binding NotificationHistory}" Margin="12,8">
                     <ItemsControl.ItemsPanel>
@@ -235,7 +235,7 @@
                     MinHeight="220">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
                     <PathIcon Data="M12,22A2,2 0 0,0 14,20H10A2,2 0 0,0 12,22M18,16V11C18,7.93 16.36,5.36 13.5,4.68V4A1.5,1.5 0 0,0 12,2.5A1.5,1.5 0 0,0 10.5,4V4.68C7.63,5.36 6,7.92 6,11V16L4,18V19H20V18L18,16Z"
-                              Foreground="#30A855F7" Width="32" Height="32" />
+                              Foreground="{DynamicResource AccentBadgeBackgroundBrush}" Width="32" Height="32" />
                     <TextBlock Classes="empty-text" Text="All caught up!" />
                 </StackPanel>
             </Border>

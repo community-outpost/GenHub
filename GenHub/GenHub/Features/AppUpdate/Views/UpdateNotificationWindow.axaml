@@ -28,13 +28,8 @@
         <!-- Background with corner radius -->
         <Border CornerRadius="12"
                 BorderThickness="1"
+                BorderBrush="{DynamicResource PrimaryGradientBrush}"
                 BoxShadow="0 8 32 0 #60000000">
-            <Border.BorderBrush>
-                <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,100%">
-                    <GradientStop Color="#7C4DFF" Offset="0" />
-                    <GradientStop Color="#E040FB" Offset="1" />
-                </LinearGradientBrush>
-            </Border.BorderBrush>
             <Border.Background>
                 <SolidColorBrush Color="{StaticResource SurfaceBackgroundDark}" Opacity="0.95" />
             </Border.Background>

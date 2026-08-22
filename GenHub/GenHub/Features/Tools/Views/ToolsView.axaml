@@ -47,7 +47,7 @@
     </Style>
 
     <Style Selector="Button.tools-action-btn:pointerover">
-      <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+      <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
       <Setter Property="RenderTransform" Value="scale(1.01)" />
     </Style>
@@ -117,7 +117,7 @@
     </Style>
 
     <Style Selector="Button.dialog-close-btn:pointerover">
-      <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+      <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
     </Style>
   </UserControl.Styles>

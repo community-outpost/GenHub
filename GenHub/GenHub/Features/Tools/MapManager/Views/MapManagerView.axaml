@@ -20,7 +20,6 @@
     <converters:MapTypeDisplayConverter x:Key="MapTypeDisplayConverter" />
     <converters:EnumToBoolConverter x:Key="EnumToBoolConverter" />
     <converters:EqualityConverter x:Key="EqualsToConverter" />
-    <SolidColorBrush x:Key="AccentColor" Color="#8A2BE2" />
   </UserControl.Resources>
 
   <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" MinWidth="600"
@@ -157,7 +156,7 @@
         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
           <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
             <TextBlock Text="Selected:" Opacity="0.7"/>
-            <TextBlock Text="{Binding SelectedMaps.Count}" FontWeight="Bold" Foreground="{DynamicResource AccentColor}"/>
+            <TextBlock Text="{Binding SelectedMaps.Count}" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
           </StackPanel>
           <Button Command="{Binding DeleteSelectedCommand}"
                   Classes="Danger" IsEnabled="{Binding SelectedMaps.Count}"
@@ -215,7 +214,7 @@
                       Padding="12" MinWidth="300" MaxHeight="400" BoxShadow="0 4 12 0 #40000000">
                 <Grid RowDefinitions="Auto,*">
                   <Grid Grid.Row="1">
-                    <ScrollViewer IsVisible="{Binding UploadHistory.Count}">
+                    <ScrollViewer IsVisible="{Binding UploadHistory.Count}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                       <ItemsControl ItemsSource="{Binding UploadHistory}">
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm_tools:UploadHistoryItemViewModel">
@@ -311,7 +310,7 @@
                     Classes="Secondary" Padding="8" VerticalAlignment="Top"/>
           </Grid>
 
-          <ScrollViewer Grid.Row="1" Margin="0,0,0,16">
+          <ScrollViewer Grid.Row="1" Margin="0,0,0,16" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel Spacing="20">
               <!-- Create New Section -->
               <StackPanel Spacing="12">
@@ -358,7 +357,7 @@
                           <StackPanel Grid.Column="0" Spacing="4">
                               <Grid ColumnDefinitions="Auto,Auto" RowDefinitions="Auto,Auto">
                                   <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
-                                  <Border Grid.Column="1" Background="{DynamicResource AccentColor}" CornerRadius="4" Padding="6,2" Margin="8,0,0,0" IsVisible="{Binding IsLoaded}">
+                                  <Border Grid.Column="1" Background="{DynamicResource AccentBrush}" CornerRadius="4" Padding="6,2" Margin="8,0,0,0" IsVisible="{Binding IsLoaded}">
                                       <TextBlock Text="LOADED" FontSize="9" FontWeight="Bold" Foreground="White"/>
                                   </Border>
                               </Grid>
@@ -402,7 +401,7 @@
       <Setter Property="Background" Value="#10FFFFFF" />
     </Style>
     <Style Selector="RadioButton.TabButton:checked /template/ Border#Root">
-      <Setter Property="Background" Value="{DynamicResource AccentColor}" />
+      <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
     </Style>
     <Style Selector="RadioButton.TabButton:checked">
       <Setter Property="Foreground" Value="White" />

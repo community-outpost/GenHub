@@ -360,17 +360,15 @@ public class ContentOrchestrator(
         var lookupId = contentSearchResult.ResolverId;
         if (!_resolvers.TryGetValue(lookupId, out IContentResolver? resolver))
         {
-            var altId = lookupId.Contains('-') ? lookupId.Replace("-", string.Empty) : lookupId;
-            _resolvers.TryGetValue(altId, out resolver);
-        }
+            var normalized = lookupId.Replace("-", string.Empty).Replace("_", string.Empty);
+            if (!_resolvers.TryGetValue(normalized, out resolver))
+            {
+                var availableResolvers = string.Join(", ", _resolvers.Keys);
+                logger.LogError("No resolver found for ResolverId: {ResolverId}. Available resolvers: [{AvailableResolvers}]. Total count: {Count}", contentSearchResult.ResolverId, availableResolvers, _resolvers.Count);
 
-        if (resolver == null)
-        {
-            var availableResolvers = string.Join(", ", _resolvers.Keys);
-            logger.LogError("No resolver found for ResolverId: {ResolverId}. Available resolvers: [{AvailableResolvers}]. Total count: {Count}", contentSearchResult.ResolverId, availableResolvers, _resolvers.Count);
-
-            return OperationResult<ContentManifest>.CreateFailure(
-                $"No resolver found for ResolverId: {contentSearchResult.ResolverId}. Available: {availableResolvers}");
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"No resolver found for ResolverId: {contentSearchResult.ResolverId}. Available: {availableResolvers}");
+            }
         }
 
         var manifestResult = await resolver.ResolveAsync(contentSearchResult, cancellationToken);
@@ -626,7 +624,7 @@ public class ContentOrchestrator(
                 logger.LogWarning("Duplicate ResolverId found: {ResolverId}. Skipping resolver.", resolver.ResolverId);
             }
 
-            var normalized = resolver.ResolverId.Replace("-", string.Empty);
+            var normalized = resolver.ResolverId.Replace("-", string.Empty).Replace("_", string.Empty);
             if (!string.Equals(normalized, resolver.ResolverId, StringComparison.OrdinalIgnoreCase))
             {
                 dictionary.TryAdd(normalized, resolver);

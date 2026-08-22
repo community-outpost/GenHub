@@ -68,7 +68,7 @@
 
     <Style Selector="Button.info-card-btn:pointerover Border.info-card">
       <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-      <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+      <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}"/>
       <Setter Property="BoxShadow" Value="0 15 45 0 #80000000"/>
     </Style>
 
@@ -221,7 +221,7 @@
 
   </UserControl.Styles>
 
-  <ScrollViewer Padding="60,40,60,40" ClipToBounds="False">
+  <ScrollViewer Padding="60,40,60,40" ClipToBounds="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
       <StackPanel Spacing="10" MaxWidth="1000" HorizontalAlignment="Center" ClipToBounds="False">
 
         <!-- Main Section Header -->

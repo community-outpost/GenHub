@@ -47,7 +47,7 @@
             </Border>
 
             <!-- Items (Mock Data Hardcoded for Visual Demo) -->
-            <ScrollViewer Grid.Row="1" Padding="30,0">
+            <ScrollViewer Grid.Row="1" Padding="30,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Spacing="15">
                     <!-- Mock Item 1: Generals -->
                     <Grid ColumnDefinitions="48,*,40">

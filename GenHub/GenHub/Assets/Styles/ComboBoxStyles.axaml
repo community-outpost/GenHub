@@ -106,12 +106,12 @@
 
     <!-- Hover State -->
     <Style Selector="ComboBox:pointerover /template/ Border#Background">
-        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
+        <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
     </Style>
 
     <Style Selector="ComboBox:pointerover /template/ PathIcon#DropDownGlyph">
-        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="Foreground" Value="{DynamicResource AccentLightBrush}" />
     </Style>
 
     <!-- Focus State -->
@@ -126,7 +126,7 @@
     <!-- Open State -->
     <Style Selector="ComboBox[IsDropDownOpen=true] /template/ Border#Background">
         <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+        <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
     </Style>
 
     <Style Selector="ComboBox[IsDropDownOpen=true] /template/ PathIcon#DropDownGlyph">
@@ -148,27 +148,54 @@
         <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
         <Setter Property="Margin" Value="2,1" />
         <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Transitions">
             <Transitions>
-                <BrushTransition Property="Background" Duration="0:0:0.15" />
-                <BrushTransition Property="Foreground" Duration="0:0:0.15" />
+                <BrushTransition Property="Background" Duration="0:0:0.12" />
+                <BrushTransition Property="Foreground" Duration="0:0:0.12" />
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.12" />
             </Transitions>
+        </Setter>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <ContentPresenter x:Name="PART_ContentPresenter"
+                                  Background="{TemplateBinding Background}"
+                                  BorderBrush="{TemplateBinding BorderBrush}"
+                                  BorderThickness="{TemplateBinding BorderThickness}"
+                                  CornerRadius="{TemplateBinding CornerRadius}"
+                                  Content="{TemplateBinding Content}"
+                                  ContentTemplate="{TemplateBinding ContentTemplate}"
+                                  Padding="{TemplateBinding Padding}"
+                                  HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                  VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+            </ControlTemplate>
         </Setter>
     </Style>
 
-    <Style Selector="ComboBoxItem:pointerover /template/ ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+    <!-- Hover on Unselected Item -->
+    <Style Selector="ComboBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="Foreground" Value="#FFFFFF" />
     </Style>
 
-    <Style Selector="ComboBoxItem:selected /template/ ContentPresenter">
+    <!-- Selected State (Subtle accent badge tint + vibrant border, keeping readable contrast) -->
+    <Style Selector="ComboBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
         <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
         <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
         <Setter Property="BorderThickness" Value="1" />
     </Style>
 
-    <Style Selector="ComboBoxItem:selected:pointerover /template/ ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    <!-- Hover on Selected Item -->
+    <Style Selector="ComboBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
+        <Setter Property="Foreground" Value="#FFFFFF" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}" />
+    </Style>
+
+    <!-- Pressed State -->
+    <Style Selector="ComboBoxItem:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AccentDarkBrush}" />
+        <Setter Property="Foreground" Value="#FFFFFF" />
     </Style>
 </Styles>

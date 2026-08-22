@@ -32,7 +32,7 @@
 
             <!-- Operation List -->
             <Border Grid.Row="1" Background="#0F0F0F" CornerRadius="8" BorderBrush="#252525" BorderThickness="1">
-                <ScrollViewer x:Name="OperationsScroll">
+                <ScrollViewer x:Name="OperationsScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding Operations}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>

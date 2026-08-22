@@ -87,7 +87,7 @@
             <Setter Property="Background" Value="#15FFFFFF" />
             <Setter Property="BorderBrush" Value="#40FFFFFF" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Foreground" Value="#9575CD" />
+            <Setter Property="Foreground" Value="{DynamicResource AccentLightBrush}" />
             <Setter Property="CornerRadius" Value="6" />
             <Setter Property="Padding" Value="14,6" />
             <Setter Property="FontSize" Value="12" />
@@ -95,8 +95,8 @@
             <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Button.btn-add:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#9575CD" />
-            <Setter Property="BorderBrush" Value="#9575CD" />
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="Foreground" Value="White" />
         </Style>
 
@@ -255,29 +255,6 @@
             <Setter Property="Opacity" Value="1.0" />
         </Style>
 
-        <!-- Scrollbar theming -->
-        <Style Selector="ScrollBar">
-            <Setter Property="Background" Value="#0F0F0F" />
-        </Style>
-        <Style Selector="ScrollBar /template/ Thumb">
-            <Setter Property="Background" Value="#5E35B1" />
-            <Setter Property="Opacity" Value="0.7" />
-        </Style>
-        <Style Selector="ScrollBar /template/ Thumb:pointerover">
-            <Setter Property="Opacity" Value="0.9" />
-        </Style>
-        <Style Selector="ScrollBar /template/ Thumb:pressed">
-            <Setter Property="Opacity" Value="1" />
-        </Style>
-        <Style Selector="ScrollBar.vertical /template/ Thumb">
-            <Setter Property="MinWidth" Value="6" />
-            <Setter Property="CornerRadius" Value="3" />
-        </Style>
-        <Style Selector="ScrollBar.horizontal /template/ Thumb">
-            <Setter Property="MinHeight" Value="6" />
-            <Setter Property="CornerRadius" Value="3" />
-        </Style>
-
         <!-- New Content Card Styles -->
         <Style Selector="Button.content-card-btn">
             <Setter Property="Background" Value="#08FFFFFF" />
@@ -392,7 +369,7 @@
                     <Button Content="💾 Save"
                             Command="{Binding SaveCommand}"
                             Background="White"
-                            Foreground="#5E35B1"
+                            Foreground="{DynamicResource AccentBrush}"
                             Width="100" Height="38"
                             CornerRadius="19"
                             FontWeight="Bold"
@@ -545,15 +522,18 @@
                                                         Margin="0,0,8,8"
                                                         Padding="4"
                                                         CornerRadius="8"
-                                                        Background="#15FFFFFF"
-                                                        BorderBrush="#30FFFFFF"
-                                                        BorderThickness="1"
+                                                        Classes="selectable-tile"
                                                         ToolTip.Tip="{Binding DisplayName}"
                                                         Tag="{Binding Path, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).IconPath}}">
                                                     <Border.Styles>
-                                                        <Style Selector="Border[Tag=True]">
-                                                            <Setter Property="Background" Value="#405E35B1" />
-                                                            <Setter Property="BorderBrush" Value="#5E35B1" />
+                                                        <Style Selector="Border.selectable-tile">
+                                                            <Setter Property="Background" Value="#15FFFFFF" />
+                                                            <Setter Property="BorderBrush" Value="#30FFFFFF" />
+                                                            <Setter Property="BorderThickness" Value="1" />
+                                                        </Style>
+                                                        <Style Selector="Border.selectable-tile[Tag=True]">
+                                                            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                                                             <Setter Property="BorderThickness" Value="2" />
                                                         </Style>
                                                     </Border.Styles>
@@ -598,15 +578,18 @@
                                                         Margin="0,0,12,8"
                                                         Padding="4"
                                                         CornerRadius="8"
-                                                        Background="#15FFFFFF"
-                                                        BorderBrush="#30FFFFFF"
-                                                        BorderThickness="1"
+                                                        Classes="selectable-tile"
                                                         ToolTip.Tip="{Binding DisplayName}"
                                                         Tag="{Binding Path, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={Binding $parent[ItemsControl].((vm:GameProfileSettingsViewModel)DataContext).CoverPath}}">
                                                     <Border.Styles>
-                                                        <Style Selector="Border[Tag=True]">
-                                                            <Setter Property="Background" Value="#405E35B1" />
-                                                            <Setter Property="BorderBrush" Value="#5E35B1" />
+                                                        <Style Selector="Border.selectable-tile">
+                                                            <Setter Property="Background" Value="#15FFFFFF" />
+                                                            <Setter Property="BorderBrush" Value="#30FFFFFF" />
+                                                            <Setter Property="BorderThickness" Value="1" />
+                                                        </Style>
+                                                        <Style Selector="Border.selectable-tile[Tag=True]">
+                                                            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                                                             <Setter Property="BorderThickness" Value="2" />
                                                         </Style>
                                                     </Border.Styles>

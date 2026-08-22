@@ -16,6 +16,11 @@
         <Setter Property="Margin" Value="0,0,0,8" />
         <Setter Property="Padding" Value="0" />
         <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+            </Transitions>
+        </Setter>
     </Style>
 
     <Style Selector="Expander /template/ ToggleButton#ExpanderHeader">
@@ -35,33 +40,74 @@
         </Setter>
     </Style>
 
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader /template/ Border#ToggleButtonBackground">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.15" />
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+            </Transitions>
+        </Setter>
+    </Style>
+
     <Style Selector="Expander:expanded /template/ ToggleButton#ExpanderHeader">
         <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
         <Setter Property="BorderThickness" Value="0,0,0,1" />
         <Setter Property="CornerRadius" Value="8,8,0,0" />
     </Style>
 
+    <Style Selector="Expander:expanded /template/ ToggleButton#ExpanderHeader /template/ Border#ToggleButtonBackground">
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="CornerRadius" Value="8,8,0,0" />
+    </Style>
+
     <!-- PointerOver / Hover States -->
+    <Style Selector="Expander:pointerover">
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    </Style>
+
     <Style Selector="Expander:pointerover /template/ ToggleButton#ExpanderHeader">
-        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+        <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
     </Style>
 
     <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:pointerover">
-        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+        <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
     </Style>
 
-    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:pointerover /template/ Border#Root">
-        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+    <Style Selector="Expander:pointerover /template/ ToggleButton#ExpanderHeader /template/ Border#ToggleButtonBackground">
+        <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
         <Setter Property="BorderBrush" Value="Transparent" />
     </Style>
 
-    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:pointerover /template/ ContentPresenter">
-        <Setter Property="Background" Value="Transparent" />
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:pointerover /template/ Border#ToggleButtonBackground">
+        <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+    </Style>
+
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:checked:pointerover /template/ Border#ToggleButtonBackground">
+        <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+    </Style>
+
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+    </Style>
+
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
     </Style>
 
     <!-- Pressed State -->
-    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:pressed /template/ Border#Root">
-        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:pressed /template/ Border#ToggleButtonBackground">
+        <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
+    </Style>
+
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:checked:pressed /template/ Border#ToggleButtonBackground">
+        <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
     </Style>
 
     <!-- Clean Chevron Styling (Removes the default FluentTheme button box around the arrow) -->
@@ -83,12 +129,34 @@
         <Setter Property="BorderThickness" Value="0" />
     </Style>
 
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:checked:pointerover /template/ Border#ExpandCollapseChevronBorder">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:pressed /template/ Border#ExpandCollapseChevronBorder">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:checked:pressed /template/ Border#ExpandCollapseChevronBorder">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
     <Style Selector="Expander /template/ ToggleButton#ExpanderHeader /template/ Path#ExpandCollapseChevron">
         <Setter Property="Stroke" Value="{DynamicResource TextSecondary}" />
     </Style>
 
     <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:pointerover /template/ Path#ExpandCollapseChevron">
-        <Setter Property="Stroke" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="Stroke" Value="{DynamicResource AccentLightBrush}" />
+    </Style>
+
+    <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:checked:pointerover /template/ Path#ExpandCollapseChevron">
+        <Setter Property="Stroke" Value="{DynamicResource AccentLightBrush}" />
     </Style>
 
     <!-- Expander Content -->

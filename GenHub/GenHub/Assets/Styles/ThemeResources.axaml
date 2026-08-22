@@ -90,15 +90,24 @@
     <!-- Accent Tokens -->
     <Color x:Key="AccentColor">#A855F7</Color>
     <Color x:Key="SystemAccentColor">#A855F7</Color>
-    <Color x:Key="PrimaryButtonBackgroundDark">#A855F7</Color>
+    <Color x:Key="AccentLightColor">#C084FC</Color>
+    <Color x:Key="AccentDarkColor">#7C4DFF</Color>
+    <Color x:Key="AccentGlowColor">#80A855F7</Color>
     <Color x:Key="AccentBadgeBackgroundColor">#20A855F7</Color>
     <Color x:Key="AccentBadgeForegroundColor">#CCA855F7</Color>
+    <Color x:Key="AccentTintBackgroundColor">#231A36</Color>
+    <Color x:Key="PrimaryButtonBackgroundDark">#A855F7</Color>
+
     <SolidColorBrush x:Key="SystemAccentColorBrush" Color="{StaticResource SystemAccentColor}" />
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}" />
     <SolidColorBrush x:Key="AccentColorBrush" Color="{StaticResource AccentColor}" />
+    <SolidColorBrush x:Key="AccentLightBrush" Color="{StaticResource AccentLightColor}" />
+    <SolidColorBrush x:Key="AccentDarkBrush" Color="{StaticResource AccentDarkColor}" />
+    <SolidColorBrush x:Key="AccentGlowBrush" Color="{StaticResource AccentGlowColor}" />
     <SolidColorBrush x:Key="AccentBadgeBackgroundBrush" Color="{StaticResource AccentBadgeBackgroundColor}" />
     <SolidColorBrush x:Key="AccentBadgeForegroundBrush" Color="{StaticResource AccentBadgeForegroundColor}" />
-    <SolidColorBrush x:Key="PrimaryButtonBackground" Color="{DynamicResource PrimaryButtonBackgroundDark}" />
+    <SolidColorBrush x:Key="AccentTintBackgroundBrush" Color="{StaticResource AccentTintBackgroundColor}" />
+    <SolidColorBrush x:Key="PrimaryButtonBackground" Color="{DynamicResource AccentColor}" />
 
     <!-- Status Tokens: Success -->
     <Color x:Key="SuccessColor">#10B981</Color>
@@ -177,11 +186,12 @@
     <StreamGeometry x:Key="WrenchIcon">M22.7,19L13.6,9.9C14.5,7.6 14,4.9 12.1,3C10.1,1 7.1,0.6 4.7,1.7L9,6L6,9L1.7,4.7C0.6,7.1 1,10.1 3,12.1C4.9,14 7.6,14.5 9.9,13.6L19,22.7L22.7,19Z</StreamGeometry>
 
     <!-- ==================================================================== -->
-    <!-- 7. Glassmorphic Sidebar Definitions                                  -->
+    <!-- 7. Glassmorphic Sidebar & Accent Definitions                         -->
     <!-- ==================================================================== -->
     <Color x:Key="SidebarGlassBackground">#CC050510</Color> <!-- 80% opacity Dark Blue-Black (Solid Backdrop) -->
     <Color x:Key="SidebarGlassBorder">#334527A0</Color> <!-- 20% Opacity Dark Purple Border (Subtle) -->
     <Color x:Key="SidebarGlowColor">#664527A0</Color> <!-- Subtle Glow -->
+    <SolidColorBrush x:Key="SidebarGlassBorderBrush" Color="{StaticResource SidebarGlassBorder}" />
 
     <!-- Pure Blue-Purple Palette (NO PINK) -->
     <Color x:Key="PurpleAccentDark">#311B92</Color> <!-- Deep Dark Purple (Material Deep Purple 900) -->
@@ -195,7 +205,7 @@
         <GradientStop Color="#E60A0A1A" Offset="1" /> <!-- Almost solid at bottom -->
     </LinearGradientBrush>
 
-    <!-- "Blue to Purple" Gradient (No Pink) -->
+    <!-- Accent Gradient -->
     <LinearGradientBrush x:Key="PurpleAccentGradient" StartPoint="0%,0%" EndPoint="100%,100%">
         <GradientStop Color="#311B92" Offset="0" />   <!-- Deep Dark Purple -->
         <GradientStop Color="#673AB7" Offset="1" />   <!-- Medium Purple -->
@@ -204,7 +214,64 @@
     <!-- Hover and Selection States -->
     <SolidColorBrush x:Key="SidebarItemHoverBinding" Color="#1AFFFFFF" />
     <SolidColorBrush x:Key="SidebarItemHoverBackground" Color="#1AFFFFFF" />
-    <SolidColorBrush x:Key="SidebarItemSelectedBackground" Color="#4D4527A0" /> <!-- Dark Purple glass -->
+    <SolidColorBrush x:Key="SidebarItemSelectedBackground" Color="{DynamicResource AccentBadgeBackgroundColor}" />
     <SolidColorBrush x:Key="SidebarItemHoverBorder" Color="Transparent" />
-    <SolidColorBrush x:Key="SidebarItemSelectedBorder" Color="#673AB7" /> <!-- Medium Purple Border -->
+    <SolidColorBrush x:Key="SidebarItemSelectedBorder" Color="{DynamicResource AccentColor}" />
+
+    <!-- ==================================================================== -->
+    <!-- 8. Semantic Scrollbar Tokens                                         -->
+    <!-- ==================================================================== -->
+    <Color x:Key="ScrollbarTrackColor">#00000000</Color>
+    <Color x:Key="ScrollbarThumbColor">#38384D</Color>
+    <Color x:Key="ScrollbarThumbHoverColor">#585876</Color>
+
+    <SolidColorBrush x:Key="ScrollbarTrackBrush" Color="{StaticResource ScrollbarTrackColor}" />
+    <SolidColorBrush x:Key="ScrollbarThumbBrush" Color="{StaticResource ScrollbarThumbColor}" />
+    <SolidColorBrush x:Key="ScrollbarThumbHoverBrush" Color="{StaticResource ScrollbarThumbHoverColor}" />
+    <SolidColorBrush x:Key="ScrollbarThumbPressedBrush" Color="{DynamicResource AccentColor}" />
+
+    <!-- Fluent Theme ScrollBar brush key aliases -->
+    <SolidColorBrush x:Key="ScrollBarThumbFill" Color="{StaticResource ScrollbarThumbColor}" />
+    <SolidColorBrush x:Key="ScrollBarThumbFillPointerOver" Color="{StaticResource ScrollbarThumbHoverColor}" />
+    <SolidColorBrush x:Key="ScrollBarThumbFillPressed" Color="{DynamicResource AccentColor}" />
+    <SolidColorBrush x:Key="ScrollBarTrackFill" Color="{StaticResource ScrollbarTrackColor}" />
+    <SolidColorBrush x:Key="ScrollBarTrackFillPointerOver" Color="{StaticResource ScrollbarTrackColor}" />
+    <SolidColorBrush x:Key="ScrollBarTrackFillPressed" Color="{StaticResource ScrollbarTrackColor}" />
+
+    <!-- ==================================================================== -->
+    <!-- 9. Fluent Theme ComboBox Aliases                                     -->
+    <!-- ==================================================================== -->
+    <SolidColorBrush x:Key="ComboBoxItemBackground" Color="Transparent" />
+    <SolidColorBrush x:Key="ComboBoxItemBackgroundPointerOver" Color="{DynamicResource AccentColor}" />
+    <SolidColorBrush x:Key="ComboBoxItemBackgroundSelected" Color="{DynamicResource AccentBadgeBackgroundColor}" />
+    <SolidColorBrush x:Key="ComboBoxItemBackgroundSelectedPointerOver" Color="{DynamicResource AccentColor}" />
+    <SolidColorBrush x:Key="ComboBoxItemForeground" Color="{DynamicResource TextPrimaryColor}" />
+    <SolidColorBrush x:Key="ComboBoxItemForegroundPointerOver" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="ComboBoxItemForegroundSelected" Color="{DynamicResource TextPrimaryColor}" />
+    <SolidColorBrush x:Key="ComboBoxItemForegroundSelectedPointerOver" Color="#FFFFFF" />
+
+    <!-- ==================================================================== -->
+    <!-- 10. Fluent Theme Expander Aliases                                    -->
+    <!-- ==================================================================== -->
+    <SolidColorBrush x:Key="ExpanderHeaderBackground" Color="Transparent" />
+    <SolidColorBrush x:Key="ExpanderHeaderBackgroundPointerOver" Color="{DynamicResource AccentTintBackgroundColor}" />
+    <SolidColorBrush x:Key="ExpanderHeaderBackgroundPressed" Color="{DynamicResource AccentBadgeBackgroundColor}" />
+    <SolidColorBrush x:Key="ExpanderHeaderBackgroundDisabled" Color="Transparent" />
+    <SolidColorBrush x:Key="ExpanderHeaderBorderBrush" Color="Transparent" />
+    <SolidColorBrush x:Key="ExpanderHeaderBorderBrushPointerOver" Color="Transparent" />
+    <SolidColorBrush x:Key="ExpanderHeaderBorderBrushPressed" Color="Transparent" />
+    <SolidColorBrush x:Key="ExpanderHeaderBorderBrushDisabled" Color="Transparent" />
+    <SolidColorBrush x:Key="ExpanderHeaderForeground" Color="{DynamicResource TextPrimaryColor}" />
+    <SolidColorBrush x:Key="ExpanderHeaderForegroundPointerOver" Color="{DynamicResource TextPrimaryColor}" />
+    <SolidColorBrush x:Key="ExpanderHeaderForegroundPressed" Color="{DynamicResource TextPrimaryColor}" />
+    <SolidColorBrush x:Key="ExpanderHeaderForegroundDisabled" Color="{DynamicResource TextMutedColor}" />
+    <SolidColorBrush x:Key="ExpanderChevronForeground" Color="{DynamicResource TextSecondaryColor}" />
+    <SolidColorBrush x:Key="ExpanderChevronForegroundPointerOver" Color="{DynamicResource AccentLightColor}" />
+    <SolidColorBrush x:Key="ExpanderChevronForegroundPressed" Color="{DynamicResource AccentLightColor}" />
+    <SolidColorBrush x:Key="ExpanderChevronBackground" Color="Transparent" />
+    <SolidColorBrush x:Key="ExpanderChevronBackgroundPointerOver" Color="Transparent" />
+    <SolidColorBrush x:Key="ExpanderChevronBackgroundPressed" Color="Transparent" />
+    <SolidColorBrush x:Key="ExpanderChevronBorderBrush" Color="Transparent" />
+    <SolidColorBrush x:Key="ExpanderChevronBorderBrushPointerOver" Color="Transparent" />
+    <SolidColorBrush x:Key="ExpanderChevronBorderBrushPressed" Color="Transparent" />
 </ResourceDictionary>

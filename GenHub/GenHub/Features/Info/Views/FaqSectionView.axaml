@@ -40,8 +40,17 @@
        <Setter Property="BorderThickness" Value="0,0,0,1"/>
     </Style>
 
-    <Style Selector="Expander.faq-item:pointerover /template/ ToggleButton#ExpanderHeader">
-       <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+    <Style Selector="Expander.faq-item:expanded /template/ ToggleButton#ExpanderHeader /template/ Border#ToggleButtonBackground">
+       <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+       <Setter Property="BorderThickness" Value="0,0,0,1"/>
+    </Style>
+
+    <Style Selector="Expander.faq-item:pointerover /template/ ToggleButton#ExpanderHeader /template/ Border#ToggleButtonBackground">
+       <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}"/>
+    </Style>
+
+    <Style Selector="Expander.faq-item /template/ ToggleButton#ExpanderHeader:pointerover /template/ Border#ToggleButtonBackground">
+       <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}"/>
     </Style>
 
     <Style Selector="TextBlock.faq-question">
@@ -82,7 +91,7 @@
 
   <Grid>
      <!-- FAQ Content -->
-     <ScrollViewer Padding="0,0,15,0">
+     <ScrollViewer Padding="0,0,15,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
        <StackPanel>
          <!-- Controls (Language) -->
          <StackPanel Orientation="Horizontal" Margin="0,0,0,20" Spacing="15">

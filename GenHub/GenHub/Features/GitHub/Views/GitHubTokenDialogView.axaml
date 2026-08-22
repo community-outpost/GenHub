@@ -159,11 +159,11 @@
                             ToolTip.Tip="Click to open GitHub PAT creation page">
                         <Button.Styles>
                             <Style Selector="Button">
-                                <Setter Property="Foreground" Value="#7B1FA2"/>
+                                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
                                 <Setter Property="FontSize" Value="12"/>
                             </Style>
                             <Style Selector="Button:pointerover">
-                                <Setter Property="Foreground" Value="#9C27B0"/>
+                                <Setter Property="Foreground" Value="{DynamicResource AccentLightBrush}"/>
                             </Style>
                         </Button.Styles>
                     </Button>
