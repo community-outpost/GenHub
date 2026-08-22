@@ -2,6 +2,7 @@ namespace GenHub.Windows.Features.ActionSets.Fixes;
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
@@ -54,7 +55,7 @@ public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : 
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         try
         {
@@ -66,33 +67,26 @@ public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : 
                 return Task.FromResult(new ActionSetResult(true));
             }
 
-            // Check Windows version
             var osVersion = Environment.OSVersion.Version;
             var isWindows10OrLater = osVersion >= new Version(10, 0);
 
             if (!isWindows10OrLater)
             {
-                logger.LogInformation("Windows Media Feature Pack is only available for Windows 10 and later.");
-                logger.LogInformation("Your Windows version: {Version}", osVersion);
+                logger.LogInformation("Windows Media Feature Pack is only available for Windows 10 and later. Your Windows version: {Version}", osVersion);
                 return Task.FromResult(new ActionSetResult(true, null, ["Media Feature Pack not available for your Windows version."]));
             }
 
-            // Provide guidance for installing Media Feature Pack
-            logger.LogWarning("Windows Media Feature Pack is not installed.");
-            logger.LogInformation("To install Windows Media Feature Pack:");
-            logger.LogInformation("1. Open Windows Settings");
-            logger.LogInformation("2. Go to 'Apps' > 'Optional features'");
-            logger.LogInformation("3. Click 'Add a feature'");
-            logger.LogInformation("4. Search for 'Media Feature Pack'");
-            logger.LogInformation("5. Click 'Install'");
-            logger.LogInformation(string.Empty);
-            logger.LogInformation("Alternatively, you can download it from Microsoft website:");
-            logger.LogInformation("{Url}", ExternalUrls.WindowsMediaFeaturePackSupportUrl);
+            logger.LogWarning("Windows Media Feature Pack is not installed. Please install it from Windows Settings > Optional features > Add a feature, or visit {Url}", ExternalUrls.WindowsMediaFeaturePackSupportUrl);
 
             try
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(_markerPath)!);
-                File.WriteAllText(_markerPath, DateTime.UtcNow.ToString("O"));
+                var markerDir = Path.GetDirectoryName(_markerPath);
+                if (!string.IsNullOrEmpty(markerDir))
+                {
+                    Directory.CreateDirectory(markerDir);
+                }
+
+                File.WriteAllText(_markerPath, DateTime.UtcNow.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
             }
             catch (Exception ex)
             {
@@ -109,7 +103,7 @@ public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : 
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         try
         {
@@ -137,28 +131,25 @@ public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : 
 
             if (key != null)
             {
-                foreach (var subKeyName in key.GetSubKeyNames())
+                foreach (var subKeyName in key.GetSubKeyNames().Where(name => name.Contains("MediaFeaturePack", StringComparison.OrdinalIgnoreCase)))
                 {
-                    if (subKeyName.Contains("MediaFeaturePack", StringComparison.OrdinalIgnoreCase))
+                    using var subKey = key.OpenSubKey(subKeyName, false);
+                    if (subKey != null)
                     {
-                        using var subKey = key.OpenSubKey(subKeyName, false);
-                        if (subKey != null)
+                        var installStateVal = subKey.GetValue(RegistryConstants.InstallStateValueName);
+                        if (installStateVal is int stateInt &&
+                            (stateInt == RegistryConstants.CbsInstallStateStaged ||
+                             stateInt == RegistryConstants.CbsInstallStateInstalled ||
+                             stateInt == RegistryConstants.CbsInstallStateSuperseded))
                         {
-                            var installStateVal = subKey.GetValue(RegistryConstants.InstallStateValueName);
-                            if (installStateVal is int stateInt &&
-                                (stateInt == RegistryConstants.CbsInstallStateStaged ||
-                                 stateInt == RegistryConstants.CbsInstallStateInstalled ||
-                                 stateInt == RegistryConstants.CbsInstallStateSuperseded))
-                            {
-                                logger.LogInformation("Found Media Feature Pack: {Package}", subKeyName);
-                                return true;
-                            }
+                            logger.LogInformation("Found Media Feature Pack: {Package}", subKeyName);
+                            return true;
+                        }
 
-                            if (installStateVal is string installState && installState.Equals("Installed", StringComparison.OrdinalIgnoreCase))
-                            {
-                                logger.LogInformation("Found Media Feature Pack: {Package}", subKeyName);
-                                return true;
-                            }
+                        if (installStateVal is string installState && installState.Equals("Installed", StringComparison.OrdinalIgnoreCase))
+                        {
+                            logger.LogInformation("Found Media Feature Pack: {Package}", subKeyName);
+                            return true;
                         }
                     }
                 }

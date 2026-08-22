@@ -27,6 +27,8 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
     private const string ZeroHourRule = ActionSetConstants.FirewallRules.ZeroHourRule;
     private const string ZeroHourGameDatRule = ActionSetConstants.FirewallRules.ZeroHourGameDatRule;
 
+    private static readonly string NetshPath = Path.Combine(Environment.SystemDirectory, "netsh.exe");
+
     /// <inheritdoc/>
     public override string Id => "FirewallExceptionFix";
 
@@ -59,8 +61,6 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
     {
         try
         {
-            // Check for GenPatcher's primary rule - if this exists, fix is applied
-            // This matches GenPatcher's PerformIsApplied() which checks "GP Open UDP Port 16000"
             var hasPortRule = IsFirewallRuleExists(PortRuleUdp16000);
             logger.LogInformation("Firewall rule '{RuleName}' exists: {Exists}", PortRuleUdp16000, hasPortRule);
             return Task.FromResult(hasPortRule);
@@ -73,13 +73,12 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
     }
 
     /// <inheritdoc/>
-    protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         var details = new List<string>();
 
         try
         {
-            // Check if already applied
             if (IsFirewallRuleExists(PortRuleUdp16000))
             {
                 details.Add("✓ Firewall rules already applied (found GP Open UDP Port 16000)");
@@ -90,117 +89,13 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
             int rulesAdded = 0;
             int rulesFailed = 0;
 
-            // Run firewall commands asynchronously to avoid UI blocking
             await Task.Run(
                 () =>
-            {
-                // Add port rules (like GenPatcher does)
-                if (AddPortRule(PortRuleUdp16000, ActionSetConstants.FirewallRules.ProtocolUdp, 16000))
                 {
-                    rulesAdded++;
-                    details.Add($"✓ Added rule: {PortRuleUdp16000}");
-                }
-                else
-                {
-                    rulesFailed++;
-                    details.Add($"⚠ Failed: {PortRuleUdp16000}");
-                }
-
-                if (AddPortRule(PortRuleUdp16001, ActionSetConstants.FirewallRules.ProtocolUdp, 16001))
-                {
-                    rulesAdded++;
-                    details.Add($"✓ Added rule: {PortRuleUdp16001}");
-                }
-                else
-                {
-                    rulesFailed++;
-                    details.Add($"⚠ Failed: {PortRuleUdp16001}");
-                }
-
-                if (AddPortRule(
-                    PortRuleTcp16001,
-                    ActionSetConstants.FirewallRules.ProtocolTcp,
-                    16001))
-                {
-                    rulesAdded++;
-                    details.Add($"✓ Added rule: {PortRuleTcp16001}");
-                }
-                else
-                {
-                    rulesFailed++;
-                    details.Add($"⚠ Failed: {PortRuleTcp16001}");
-                }
-
-                // Add Generals executable rules
-                if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
-                {
-                    var generalsExe = Path.Combine(installation.GeneralsPath, ActionSetConstants.FileNames.GeneralsExe);
-                    var generalsGameDat = Path.Combine(installation.GeneralsPath, ActionSetConstants.FileNames.GameDat);
-
-                    if (File.Exists(generalsExe))
-                    {
-                        if (AddProgramRule(GeneralsRule, generalsExe))
-                        {
-                            rulesAdded++;
-                            details.Add($"✓ Added rule: {GeneralsRule}");
-                        }
-                        else
-                        {
-                            rulesFailed++;
-                            details.Add($"⚠ Failed: {GeneralsRule}");
-                        }
-                    }
-
-                    if (File.Exists(generalsGameDat))
-                    {
-                        if (AddProgramRule(GeneralsGameDatRule, generalsGameDat))
-                        {
-                            rulesAdded++;
-                            details.Add($"✓ Added rule: {GeneralsGameDatRule}");
-                        }
-                        else
-                        {
-                            rulesFailed++;
-                            details.Add($"⚠ Failed: {GeneralsGameDatRule}");
-                        }
-                    }
-                }
-
-                // Add Zero Hour executable rules
-                if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
-                {
-                    var zeroHourExe = Path.Combine(installation.ZeroHourPath, ActionSetConstants.FileNames.GeneralsExe);
-                    var zeroHourGameDat = Path.Combine(installation.ZeroHourPath, ActionSetConstants.FileNames.GameDat);
-                    if (File.Exists(zeroHourExe))
-                    {
-                        if (AddProgramRule(ZeroHourRule, zeroHourExe))
-                        {
-                            rulesAdded++;
-                            details.Add($"✓ Added rule: {ZeroHourRule}");
-                        }
-                        else
-                        {
-                            rulesFailed++;
-                            details.Add($"⚠ Failed: {ZeroHourRule}");
-                        }
-                    }
-
-                    if (File.Exists(zeroHourGameDat))
-                    {
-                        if (AddProgramRule(ZeroHourGameDatRule, zeroHourGameDat))
-                        {
-                            rulesAdded++;
-                            details.Add($"✓ Added rule: {ZeroHourGameDatRule}");
-                        }
-                        else
-                        {
-                            rulesFailed++;
-                            details.Add($"⚠ Failed: {ZeroHourGameDatRule}");
-                        }
-                    }
-                }
-            },
-                cancellationToken);
+                    ApplyPortRules(details, ref rulesAdded, ref rulesFailed);
+                    ApplyInstallationExecutableRules(installation, details, ref rulesAdded, ref rulesFailed);
+                },
+                ct);
 
             if (rulesAdded == 0 && rulesFailed > 0)
             {
@@ -226,81 +121,17 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
     }
 
     /// <inheritdoc/>
-    protected override async Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override async Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         var details = new List<string>();
 
         try
         {
             details.Add("Removing firewall rules...");
-            int rulesRemoved = 0;
-            int rulesFailed = 0;
 
-            // Run firewall commands asynchronously to avoid UI blocking
-            await Task.Run(
-                () =>
-            {
-                // Remove port rules
-                if (RemoveFirewallRule(PortRuleUdp16000))
-                {
-                    rulesRemoved++;
-                    details.Add($"✓ Removed rule: {PortRuleUdp16000}");
-                }
-                else
-                {
-                    rulesFailed++;
-                    details.Add($"⚠ Failed to remove rule: {PortRuleUdp16000}");
-                }
-
-                if (RemoveFirewallRule(PortRuleUdp16001))
-                {
-                    rulesRemoved++;
-                    details.Add($"✓ Removed rule: {PortRuleUdp16001}");
-                }
-                else
-                {
-                    rulesFailed++;
-                    details.Add($"⚠ Failed to remove rule: {PortRuleUdp16001}");
-                }
-
-                if (RemoveFirewallRule(PortRuleTcp16001))
-                {
-                    rulesRemoved++;
-                    details.Add($"✓ Removed rule: {PortRuleTcp16001}");
-                }
-                else
-                {
-                    rulesFailed++;
-                    details.Add($"⚠ Failed to remove rule: {PortRuleTcp16001}");
-                }
-
-                // Remove Generals executable rules
-                if (RemoveFirewallRule(GeneralsRule))
-                {
-                    rulesRemoved++;
-                    details.Add($"✓ Removed rule: {GeneralsRule}");
-                }
-
-                if (RemoveFirewallRule(GeneralsGameDatRule))
-                {
-                    rulesRemoved++;
-                    details.Add($"✓ Removed rule: {GeneralsGameDatRule}");
-                }
-
-                // Remove Zero Hour executable rules
-                if (RemoveFirewallRule(ZeroHourRule))
-                {
-                    rulesRemoved++;
-                    details.Add($"✓ Removed rule: {ZeroHourRule}");
-                }
-
-                if (RemoveFirewallRule(ZeroHourGameDatRule))
-                {
-                    rulesRemoved++;
-                    details.Add($"✓ Removed rule: {ZeroHourGameDatRule}");
-                }
-            },
-                cancellationToken);
+            var (rulesRemoved, rulesFailed) = await Task.Run(
+                () => RemoveAllRules(details),
+                ct);
 
             logger.LogInformation("Firewall rules removal finished: {RemovedCount} removed, {FailedCount} failed", rulesRemoved, rulesFailed);
             if (rulesFailed > 0)
@@ -318,13 +149,105 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
         }
     }
 
+    private void ApplyPortRules(List<string> details, ref int rulesAdded, ref int rulesFailed)
+    {
+        TryAddPortRule(PortRuleUdp16000, ActionSetConstants.FirewallRules.ProtocolUdp, 16000, details, ref rulesAdded, ref rulesFailed);
+        TryAddPortRule(PortRuleUdp16001, ActionSetConstants.FirewallRules.ProtocolUdp, 16001, details, ref rulesAdded, ref rulesFailed);
+        TryAddPortRule(PortRuleTcp16001, ActionSetConstants.FirewallRules.ProtocolTcp, 16001, details, ref rulesAdded, ref rulesFailed);
+    }
+
+    private void TryAddPortRule(string ruleName, string protocol, int port, List<string> details, ref int rulesAdded, ref int rulesFailed)
+    {
+        if (AddPortRule(ruleName, protocol, port))
+        {
+            rulesAdded++;
+            details.Add($"✓ Added rule: {ruleName}");
+        }
+        else
+        {
+            rulesFailed++;
+            details.Add($"⚠ Failed: {ruleName}");
+        }
+    }
+
+    private void ApplyInstallationExecutableRules(GameInstallation installation, List<string> details, ref int rulesAdded, ref int rulesFailed)
+    {
+        if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
+        {
+            var generalsExe = Path.Combine(installation.GeneralsPath, ActionSetConstants.FileNames.GeneralsExe);
+            var generalsGameDat = Path.Combine(installation.GeneralsPath, ActionSetConstants.FileNames.GameDat);
+            TryAddProgramRule(GeneralsRule, generalsExe, details, ref rulesAdded, ref rulesFailed);
+            TryAddProgramRule(GeneralsGameDatRule, generalsGameDat, details, ref rulesAdded, ref rulesFailed);
+        }
+
+        if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
+        {
+            var zeroHourExe = Path.Combine(installation.ZeroHourPath, ActionSetConstants.FileNames.GeneralsExe);
+            var zeroHourGameDat = Path.Combine(installation.ZeroHourPath, ActionSetConstants.FileNames.GameDat);
+            TryAddProgramRule(ZeroHourRule, zeroHourExe, details, ref rulesAdded, ref rulesFailed);
+            TryAddProgramRule(ZeroHourGameDatRule, zeroHourGameDat, details, ref rulesAdded, ref rulesFailed);
+        }
+    }
+
+    private void TryAddProgramRule(string ruleName, string path, List<string> details, ref int rulesAdded, ref int rulesFailed)
+    {
+        if (!File.Exists(path))
+        {
+            return;
+        }
+
+        if (AddProgramRule(ruleName, path))
+        {
+            rulesAdded++;
+            details.Add($"✓ Added rule: {ruleName}");
+        }
+        else
+        {
+            rulesFailed++;
+            details.Add($"⚠ Failed: {ruleName}");
+        }
+    }
+
+    private (int Removed, int Failed) RemoveAllRules(List<string> details)
+    {
+        int removed = 0;
+        int failed = 0;
+
+        string[] rules =
+        [
+            PortRuleUdp16000,
+            PortRuleUdp16001,
+            PortRuleTcp16001,
+            GeneralsRule,
+            GeneralsGameDatRule,
+            ZeroHourRule,
+            ZeroHourGameDatRule,
+        ];
+
+        foreach (var rule in rules)
+        {
+            if (RemoveFirewallRule(rule))
+            {
+                removed++;
+                details.Add($"✓ Removed rule: {rule}");
+            }
+            else
+            {
+                failed++;
+                details.Add($"⚠ Failed to remove rule: {rule}");
+            }
+        }
+
+        return (removed, failed);
+    }
+
     private bool IsFirewallRuleExists(string ruleName)
     {
         try
         {
             var psi = new ProcessStartInfo
             {
-                FileName = "netsh.exe",
+                FileName = NetshPath,
                 Arguments = $"advfirewall firewall show rule name=\"{ruleName}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -357,10 +280,9 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
     {
         try
         {
-            // GenPatcher command: netsh advfirewall firewall add rule name="GP Open UDP Port 16000" dir=in action=allow edge=yes protocol=UDP localport=16000
             var psi = new ProcessStartInfo
             {
-                FileName = "netsh.exe",
+                FileName = NetshPath,
                 Arguments = $"advfirewall firewall add rule name=\"{ruleName}\" dir=in action=allow edge=yes protocol={protocol} localport={port}",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -392,10 +314,9 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
     {
         try
         {
-            // GenPatcher command: netsh advfirewall firewall add rule name="GP Command & Conquer Generals" dir=in action=allow edge=yes program="..." enable=yes
             var psi = new ProcessStartInfo
             {
-                FileName = "netsh.exe",
+                FileName = NetshPath,
                 Arguments = $"advfirewall firewall add rule name=\"{ruleName}\" dir=in action=allow edge=yes program=\"{programPath}\" enable=yes",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -429,7 +350,7 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
         {
             var psi = new ProcessStartInfo
             {
-                FileName = "netsh.exe",
+                FileName = NetshPath,
                 Arguments = $"advfirewall firewall delete rule name=\"{ruleName}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,

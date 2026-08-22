@@ -56,13 +56,13 @@ public class ActionSetOrchestrator(
     /// <inheritdoc/>
     public async Task<OperationResult<int>> ApplyActionSetsAsync(
         GameInstallation installation,
-        IEnumerable<IActionSet> actionSetsToApply,
+        IEnumerable<IActionSet> actionSets,
         CancellationToken ct = default)
     {
         var stopwatch = Stopwatch.StartNew();
         int successCount = 0;
         var errors = new List<string>();
-        var actionSetsList = actionSetsToApply.ToList();
+        var actionSetsList = actionSets.ToList();
         int totalCount = actionSetsList.Count;
 
         logger.LogInformation("Starting to apply {TotalCount} action sets to {Installation}", totalCount, installation.InstallationPath);
@@ -106,8 +106,8 @@ public class ActionSetOrchestrator(
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                logger.LogError(ex, "Error checking applied status for {Title}", actionSet.Title);
-                errors.Add($"Error checking applied status for {actionSet.Title}: {ex.Message}");
+                logger.LogError(ex, "Error checking applied state for {Title}", actionSet.Title);
+                errors.Add($"Error checking applied state for {actionSet.Title}: {ex.Message}");
                 if (actionSet.IsCrucialFix)
                 {
                     logger.LogError("Critical fix {Title} applied check failed. Aborting sequence.", actionSet.Title);
@@ -115,7 +115,7 @@ public class ActionSetOrchestrator(
                     return OperationResult<int>.CreateFailure(errors, successCount, stopwatch.Elapsed);
                 }
 
-                isApplied = false;
+                continue;
             }
 
             if (isApplied)
@@ -124,57 +124,52 @@ public class ActionSetOrchestrator(
                 continue;
             }
 
-            logger.LogInformation("Applying fix {Current}/{Total}: {Title}", i + 1, totalCount, actionSet.Title);
-
-            ActionSetResult result = new(false);
             try
             {
-                result = await actionSet.ApplyAsync(installation, ct);
+                logger.LogInformation("Applying action set {Index}/{Total}: {Title}", i + 1, totalCount, actionSet.Title);
+                var result = await actionSet.ApplyAsync(installation, ct);
+
+                if (result.Success)
+                {
+                    successCount++;
+                    logger.LogInformation("Successfully applied {Title}", actionSet.Title);
+                }
+                else
+                {
+                    var errorMessage = result.ErrorMessage ?? "Unknown error";
+                    logger.LogWarning("Failed to apply {Title}: {Error}", actionSet.Title, errorMessage);
+                    errors.Add($"{actionSet.Title}: {errorMessage}");
+
+                    if (actionSet.IsCrucialFix)
+                    {
+                        logger.LogError("Critical fix {Title} failed. Aborting remaining action sets.", actionSet.Title);
+                        errors.Add($"Critical fix '{actionSet.Title}' failed. Remaining fixes were not applied.");
+                        return OperationResult<int>.CreateFailure(errors, successCount, stopwatch.Elapsed);
+                    }
+                }
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (OperationCanceledException)
+            {
+                logger.LogWarning("Action set execution cancelled during {Title}", actionSet.Title);
+                throw;
+            }
+            catch (Exception ex)
             {
                 logger.LogError(ex, "Unexpected error applying {Title}", actionSet.Title);
-                result = new ActionSetResult(false, ex.Message);
-            }
-
-            if (result.Success)
-            {
-                successCount++;
-                logger.LogInformation("✓ Successfully applied {Title} ({Current}/{Total})", actionSet.Title, i + 1, totalCount);
-
-                if (result.Details?.Count > 0)
-                {
-                    foreach (var detail in result.Details)
-                    {
-                        logger.LogDebug("  {Detail}", detail);
-                    }
-                }
-            }
-            else
-            {
-                var errorMsg = $"Failed to apply {actionSet.Title}: {result.ErrorMessage}";
-                errors.Add(errorMsg);
-                logger.LogWarning("✗ {ErrorMsg}", errorMsg);
-
-                if (result.Details?.Count > 0)
-                {
-                    foreach (var detail in result.Details)
-                    {
-                        logger.LogDebug("  {Detail}", detail);
-                    }
-                }
+                errors.Add($"{actionSet.Title}: {ex.Message}");
 
                 if (actionSet.IsCrucialFix)
                 {
-                    logger.LogError("Critical fix {Title} failed for {Installation}. Aborting sequence.", actionSet.Title, installation.InstallationPath);
-                    errors.Add($"Critical fix '{actionSet.Title}' failed. Remaining fixes were not applied.");
+                    logger.LogError(ex, "Critical fix {Title} threw unexpected exception. Aborting remaining action sets.", actionSet.Title);
+                    errors.Add($"Critical fix '{actionSet.Title}' encountered an unexpected error. Remaining fixes were not applied.");
                     return OperationResult<int>.CreateFailure(errors, successCount, stopwatch.Elapsed);
                 }
             }
         }
 
+        stopwatch.Stop();
         logger.LogInformation(
-            "Action set application completed: {SuccessCount}/{TotalCount} successful, {ErrorCount} errors",
+            "Finished applying action sets. Success: {SuccessCount}/{TotalCount}, Errors: {ErrorCount}",
             successCount,
             totalCount,
             errors.Count);
@@ -196,36 +191,52 @@ public class ActionSetOrchestrator(
 
         if (actionSets != null)
         {
-            foreach (var set in actionSets)
-            {
-                if (!setMap.TryAdd(set.Id, set))
-                {
-                    logger.LogWarning("Duplicate action set ID {Id} ignored from direct registration", set.Id);
-                }
-            }
+            RegisterDirectActionSets(actionSets, setMap, logger);
         }
 
         if (providers != null)
         {
-            foreach (var provider in providers)
-            {
-                try
-                {
-                    foreach (var set in provider.GetActionSets())
-                    {
-                        if (!setMap.TryAdd(set.Id, set))
-                        {
-                            logger.LogWarning("Duplicate action set ID {Id} ignored from provider {Provider}", set.Id, provider.GetType().Name);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to load action sets from provider {Provider}", provider.GetType().Name);
-                }
-            }
+            RegisterProviderActionSets(providers, setMap, logger);
         }
 
         return setMap.Values.ToList();
+    }
+
+    private static void RegisterDirectActionSets(
+        IEnumerable<IActionSet> actionSets,
+        Dictionary<string, IActionSet> setMap,
+        ILogger<ActionSetOrchestrator> logger)
+    {
+        foreach (var set in actionSets)
+        {
+            if (!setMap.TryAdd(set.Id, set))
+            {
+                logger.LogWarning("Duplicate action set ID {Id} ignored from direct registration", set.Id);
+            }
+        }
+    }
+
+    private static void RegisterProviderActionSets(
+        IEnumerable<IActionSetProvider> providers,
+        Dictionary<string, IActionSet> setMap,
+        ILogger<ActionSetOrchestrator> logger)
+    {
+        foreach (var provider in providers)
+        {
+            try
+            {
+                foreach (var set in provider.GetActionSets())
+                {
+                    if (!setMap.TryAdd(set.Id, set))
+                    {
+                        logger.LogWarning("Duplicate action set ID {Id} ignored from provider {Provider}", set.Id, provider.GetType().Name);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to load action sets from provider {Provider}", provider.GetType().Name);
+            }
+        }
     }
 }

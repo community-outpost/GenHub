@@ -23,7 +23,7 @@ public interface IToolRegistry
     /// </summary>
     /// <param name="plugin">The tool plugin to register.</param>
     /// <param name="assemblyPath">The path to the tool assembly. Null for built-in tools.</param>
-    void RegisterTool(IToolPlugin plugin, string? assemblyPath = null);
+    void RegisterTool(IToolPlugin plugin, string? assemblyPath);
 
     /// <summary>
     /// Registers a new built-in tool plugin.

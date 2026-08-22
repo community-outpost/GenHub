@@ -62,9 +62,9 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
                 dirsProcessed += d;
             }
         }
-        catch (UnauthorizedAccessException)
+        catch (UnauthorizedAccessException ex)
         {
-            logger.LogWarning("Access denied to {Path}", directory.FullName);
+            logger.LogWarning(ex, "Access denied to {Path}", directory.FullName);
         }
 
         return (filesProcessed, dirsProcessed);
@@ -100,42 +100,14 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
     /// <inheritdoc/>
     public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
-        // We check if any of the root folders or key files are read-only.
-        // Full deep check is too slow for UI responsiveness, so we check a subset.
-        if (installation.HasGenerals)
+        if (installation.HasGenerals && !IsGameApplied(GameType.Generals, installation.GeneralsPath))
         {
-            if (IsReadOnly(installation.GeneralsPath)) return Task.FromResult(false);
-
-            var userPath = GetUserDataPath(GameType.Generals);
-            if (Directory.Exists(userPath))
-            {
-                // check for marker file
-                var markerPath = Path.Combine(userPath, MarkerFileName);
-                if (!File.Exists(markerPath)) return Task.FromResult(false);
-
-                if (IsReadOnly(userPath)) return Task.FromResult(false);
-                if (IsReadOnly(Path.Combine(userPath, "Options.ini"))) return Task.FromResult(false);
-                if (IsReadOnly(Path.Combine(userPath, "Maps"))) return Task.FromResult(false);
-                if (IsReadOnly(Path.Combine(userPath, "Replays"))) return Task.FromResult(false);
-            }
+            return Task.FromResult(false);
         }
 
-        if (installation.HasZeroHour)
+        if (installation.HasZeroHour && !IsGameApplied(GameType.ZeroHour, installation.ZeroHourPath))
         {
-            if (IsReadOnly(installation.ZeroHourPath)) return Task.FromResult(false);
-
-            var userPath = GetUserDataPath(GameType.ZeroHour);
-            if (Directory.Exists(userPath))
-            {
-                // check for marker file
-                var markerPath = Path.Combine(userPath, MarkerFileName);
-                if (!File.Exists(markerPath)) return Task.FromResult(false);
-
-                if (IsReadOnly(userPath)) return Task.FromResult(false);
-                if (IsReadOnly(Path.Combine(userPath, "Options.ini"))) return Task.FromResult(false);
-                if (IsReadOnly(Path.Combine(userPath, "Maps"))) return Task.FromResult(false);
-                if (IsReadOnly(Path.Combine(userPath, "Replays"))) return Task.FromResult(false);
-            }
+            return Task.FromResult(false);
         }
 
         return Task.FromResult(true);
@@ -225,7 +197,7 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         logger.LogInformation("Re-applying read-only attributes is not supported to ensure game and patch accessibility.");
         return Task.FromResult(new ActionSetResult(false, "Re-applying read-only attributes is not supported as write access is required for game saves, settings, and mod updates.", ["Read-only attributes remain cleared."]));
@@ -296,7 +268,7 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
             // Attrib +P -U
             var psi = new ProcessStartInfo
             {
-                FileName = ProcessConstants.PowerShellExecutable,
+                FileName = Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe"),
                 Arguments = $"-WindowStyle Hidden -NoProfile -NonInteractive -Command \"Get-ChildItem -Path '{path.Replace("'", "''")}' -Recurse | ForEach-Object {{ attrib +P -U $_.FullName }}\"",
                 CreateNoWindow = true,
                 UseShellExecute = false,
@@ -316,5 +288,28 @@ public class RemoveReadOnlyFix(ILogger<RemoveReadOnlyFix> logger) : BaseActionSe
         {
             logger.LogWarning(ex, "Failed to apply pin attributes to {Path}", path);
         }
+    }
+
+    private bool IsGameApplied(GameType gameType, string gamePath)
+    {
+        if (IsReadOnly(gamePath))
+        {
+            return false;
+        }
+
+        var userPath = GetUserDataPath(gameType);
+        if (!Directory.Exists(userPath))
+        {
+            return true;
+        }
+
+        var markerPath = Path.Combine(userPath, MarkerFileName);
+        if (!File.Exists(markerPath) || IsReadOnly(userPath))
+        {
+            return false;
+        }
+
+        string[] keyPaths = ["Options.ini", "Maps", "Replays"];
+        return !keyPaths.Any(p => IsReadOnly(Path.Combine(userPath, p)));
     }
 }

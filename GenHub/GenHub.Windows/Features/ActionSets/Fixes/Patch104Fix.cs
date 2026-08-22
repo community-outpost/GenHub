@@ -1,3 +1,5 @@
+namespace GenHub.Windows.Features.ActionSets.Fixes;
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -12,26 +14,23 @@ using GenHub.Core.Helpers;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
 
-namespace GenHub.Windows.Features.ActionSets.Fixes;
-
 /// <summary>
-/// Installs the Zero Hour 1.04 official patch.
+/// Downloads and installs the official Command &amp; Conquer: Generals Zero Hour 1.04 Patch.
+/// Matches GenPatcher's 'Patch104' action set.
 /// </summary>
-/// <param name="httpClientFactory">The HTTP client factory.</param>
-/// <param name="logger">The logger instance.</param>
-public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104Fix> logger) : BaseActionSet(logger)
+public class Patch104Fix(ILogger<Patch104Fix> logger, IHttpClientFactory httpClientFactory) : BaseActionSet(logger)
 {
     /// <inheritdoc/>
     public override string Id => "Patch104";
 
     /// <inheritdoc/>
-    public override string Title => "Zero Hour 1.04 Patch (Game Client)";
+    public override string Title => "Zero Hour 1.04 Patch";
 
     /// <inheritdoc/>
-    public override string Description => "Official game client patch updating Zero Hour to version 1.04 (also managed in Downloads).";
+    public override string Description => "Downloads and installs the official Command & Conquer: Generals Zero Hour 1.04 update patch.";
 
     /// <inheritdoc/>
-    public override string DetailedDescription => "Zero Hour 1.04 is the official game client patch required for multiplayer balance, anti-cheat, and mod compatibility. This patch installs the 1.04 game binaries directly into your Zero Hour directory. You can also download and manage this game patch from the Downloads section.";
+    public override string DetailedDescription => "Upgrades Zero Hour to the official final 1.04 release. Fixes numerous multiplayer synchronization bugs, unit balance discrepancies, and exploit vulnerabilities. Required for compatibility with all modern mods, GenTool, and online multiplayer matches.";
 
     /// <inheritdoc/>
     public override string Category => ActionSetConstants.Categories.CoreAndStability;
@@ -40,13 +39,12 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
     public override bool IsCoreFix => true;
 
     /// <inheritdoc/>
-    public override bool IsCrucialFix => false; // Download failures shouldn't abort entire sequence
+    public override bool IsCrucialFix => true;
 
     /// <inheritdoc/>
     public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
-        // Disabled per user request - redundant with GenHub Downloads section
-        return Task.FromResult(false);
+        return Task.FromResult(installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath));
     }
 
     /// <inheritdoc/>
@@ -54,17 +52,15 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
     {
         try
         {
-            // Check if game.exe version is 1.04
             var gameExePath = Path.Combine(installation.ZeroHourPath, ActionSetConstants.FileNames.GameExe);
             if (!File.Exists(gameExePath))
             {
                 return Task.FromResult(false);
             }
 
-            var versionInfo = System.Diagnostics.FileVersionInfo.GetVersionInfo(gameExePath);
+            var versionInfo = FileVersionInfo.GetVersionInfo(gameExePath);
             var version = versionInfo.FileVersion;
 
-            // 1.04 version should be 1.4.0.0 or similar
             if (version?.StartsWith("1.4") == true)
             {
                 return Task.FromResult(true);
@@ -80,7 +76,7 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
     }
 
     /// <inheritdoc/>
-    protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         var details = new List<string>();
         var downloadPath = string.Empty;
@@ -91,12 +87,12 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
             details.Add("Starting Zero Hour 1.04 patch installation...");
             details.Add($"Target directory: {installation.ZeroHourPath}");
 
-            var (path, isExe) = await DownloadPatchAsync(details, cancellationToken);
+            var (path, isExe) = await DownloadPatchAsync(details, ct);
             downloadPath = path;
 
             if (isExe)
             {
-                var installerResult = await RunPatchInstallerAsync(downloadPath, details, cancellationToken);
+                var installerResult = await RunPatchInstallerAsync(downloadPath, details, ct);
                 if (installerResult != null)
                 {
                     return installerResult;
@@ -108,7 +104,6 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
             }
 
             details.Add("✓ Zero Hour 1.04 patch installed successfully");
-
             return new ActionSetResult(true, null, details);
         }
         catch (Exception ex)
@@ -124,24 +119,26 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
-        return Task.FromResult(new ActionSetResult(false, "Zero Hour 1.04 official patch executable cannot be automatically rolled back without base game archives. Please repair/re-verify files through your game launcher.", ["Official game patch binaries remain in place."]));
+        return Task.FromResult(new ActionSetResult(
+            false,
+            "Zero Hour 1.04 official patch executable cannot be automatically rolled back without base game archives. Please repair/re-verify files through your game launcher.",
+            ["Official game patch binaries remain in place."]));
     }
 
-    private async Task<(string DownloadPath, bool IsExe)> DownloadPatchAsync(List<string> details, CancellationToken cancellationToken)
+    private async Task<(string DownloadPath, bool IsExe)> DownloadPatchAsync(
+        List<string> details,
+        CancellationToken ct)
     {
-        details.Add("Downloading patch...");
-
         using var client = httpClientFactory.CreateClient("Downloader");
         client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-        client.Timeout = TimeSpan.FromMinutes(5);
 
         var urls = new[] { ExternalUrls.ZeroHour104PatchUrlPrimary, ExternalUrls.ZeroHour104PatchUrlMirror1 };
 
         foreach (var url in urls)
         {
-            var result = await TryDownloadMirrorAsync(client, url, details, cancellationToken);
+            var result = await TryDownloadMirrorAsync(client, url, details, ct);
             if (result.Success)
             {
                 return (result.DownloadPath, result.IsExe);
@@ -155,7 +152,7 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
         HttpClient client,
         string url,
         List<string> details,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var uri = new Uri(url);
         var isExe = uri.AbsolutePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase);
@@ -167,13 +164,13 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
         {
             logger.LogInformation("Attempting download from {Url}", url);
 
-            using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
             response.EnsureSuccessStatusCode();
 
             logger.LogInformation("Streaming response content to disk at {Path}...", downloadPath);
             await using (var fileStream = new FileStream(downloadPath, FileMode.Create, FileAccess.Write, FileShare.None))
             {
-                await response.Content.CopyToAsync(fileStream, cancellationToken);
+                await response.Content.CopyToAsync(fileStream, ct);
             }
 
             var downloadedFileInfo = new FileInfo(downloadPath);
@@ -194,31 +191,16 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
             }
             else
             {
-                // Authenticode signature verification with graceful legacy expired cert handling
                 var securityValidation = await DownloadSecurityValidator.ValidateAndLockFileAsync(
                     downloadPath,
                     expectedAuthenticodePublisher: ActionSetConstants.Security.ElectronicArtsPublisher,
                     allowExpiredCertificates: true,
-                    ct: cancellationToken);
+                    ct: ct);
 
                 if (!securityValidation.Success || securityValidation.Data == null)
                 {
                     logger.LogWarning("Authenticode verification failed for patch executable from {Url}: {Error}", url, securityValidation.FirstError);
-                    if (File.Exists(downloadPath))
-                    {
-                        try
-                        {
-                            File.SetAttributes(downloadPath, FileAttributes.Normal);
-                            File.Delete(downloadPath);
-                        }
-                        catch (IOException)
-                        {
-                        }
-                        catch (UnauthorizedAccessException)
-                        {
-                        }
-                    }
-
+                    DeleteFileSafely(downloadPath);
                     return (false, downloadPath, isExe);
                 }
 
@@ -229,7 +211,7 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
         }
         catch (Exception ex)
         {
-            logger.LogWarning("Failed to download from {Url}: {Error}", url, ex.Message);
+            logger.LogWarning(ex, "Failed to download from {Url}", url);
             return (false, downloadPath, isExe);
         }
     }
@@ -245,7 +227,7 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
         }
         catch (Exception ex)
         {
-            logger.LogWarning("Downloaded file from {Url} is corrupt: {Error}. Trying next mirror.", url, ex.Message);
+            logger.LogWarning(ex, "Downloaded file from {Url} is corrupt. Trying next mirror.", url);
             return false;
         }
     }
@@ -253,69 +235,56 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
     private async Task<ActionSetResult?> RunPatchInstallerAsync(
         string downloadPath,
         List<string> details,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         details.Add("Running Zero Hour 1.04 Patch Installer...");
         logger.LogInformation("Executing installer {Path}...", downloadPath);
 
-        var process = Process.Start(new ProcessStartInfo
+        var processInfo = new ProcessStartInfo
         {
             FileName = downloadPath,
-            Arguments = string.Empty,
             UseShellExecute = true,
-            Verb = "runas",
-        });
+        };
 
+        using var process = Process.Start(processInfo);
         if (process == null)
         {
-            details.Add("✗ Failed to start patch installer");
-            return new ActionSetResult(false, "Failed to start patch installer", details);
+            return new ActionSetResult(false, "Failed to start patch installer process.", details);
         }
 
-        await process.WaitForExitAsync(cancellationToken);
+        details.Add("⚠ Please complete the installation wizard on screen.");
+        await process.WaitForExitAsync(ct);
 
-        if (process.ExitCode != ProcessConstants.ExitCodeSuccess)
+        if (process.ExitCode != ProcessConstants.ExitCodeSuccess && process.ExitCode != ProcessConstants.ExitCodeRebootRequired)
         {
-            details.Add($"✗ Patch installer exited with code {process.ExitCode}");
-            return new ActionSetResult(false, $"Patch installer exited with code {process.ExitCode}", details);
+            return new ActionSetResult(false, $"Installer exited with non-zero code {process.ExitCode}.", details);
         }
 
-        details.Add("✓ Patch installer completed successfully");
         return null;
     }
 
     private void ExtractAndCopyPatchFiles(
         string downloadPath,
         string extractPath,
-        string zeroHourPath,
+        string targetDirectory,
         List<string> details)
     {
-        details.Add("Extracting patch files...");
-        logger.LogInformation("Extracting Zero Hour 1.04 patch...");
-
-        if (Directory.Exists(extractPath))
-        {
-            Directory.Delete(extractPath, true);
-        }
-
+        details.Add("Extracting patch archive...");
         Directory.CreateDirectory(extractPath);
-        ZipFile.ExtractToDirectory(downloadPath, extractPath);
+        ZipFile.ExtractToDirectory(downloadPath, extractPath, overwriteFiles: true);
 
-        var extractedFiles = Directory.GetFiles(extractPath, "*.*", SearchOption.AllDirectories);
-        details.Add($"✓ Extracted {extractedFiles.Length} files");
-
-        details.Add($"Installing to: {zeroHourPath}");
-        logger.LogInformation("Copying patch files to {Path}", zeroHourPath);
-
-        var zeroHourFullPath = Path.GetFullPath(zeroHourPath);
+        details.Add("Copying patch files to game directory...");
+        var files = Directory.GetFiles(extractPath, "*.*", SearchOption.AllDirectories);
         int copiedCount = 0;
-        foreach (var file in extractedFiles)
-        {
-            var relativePath = file[extractPath.Length..].TrimStart(Path.DirectorySeparatorChar);
-            var destPath = Path.GetFullPath(Path.Combine(zeroHourPath, relativePath));
 
-            if (!destPath.StartsWith(zeroHourFullPath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) &&
-                !destPath.Equals(zeroHourFullPath, StringComparison.OrdinalIgnoreCase))
+        foreach (var file in files)
+        {
+            var relativePath = Path.GetRelativePath(extractPath, file);
+            var destPath = Path.Combine(targetDirectory, relativePath);
+
+            var fullTarget = Path.GetFullPath(targetDirectory);
+            var fullDest = Path.GetFullPath(destPath);
+            if (!fullDest.StartsWith(fullTarget, StringComparison.OrdinalIgnoreCase))
             {
                 logger.LogWarning("Skipping file {File} due to path traversal detected.", relativePath);
                 continue;
@@ -337,20 +306,7 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
 
     private void CleanupTemp(string downloadPath, string extractPath)
     {
-        if (File.Exists(downloadPath))
-        {
-            try
-            {
-                File.SetAttributes(downloadPath, FileAttributes.Normal);
-                File.Delete(downloadPath);
-            }
-            catch (IOException)
-            {
-            }
-            catch (UnauthorizedAccessException)
-            {
-            }
-        }
+        DeleteFileSafely(downloadPath);
 
         if (Directory.Exists(extractPath))
         {
@@ -358,26 +314,33 @@ public class Patch104Fix(IHttpClientFactory httpClientFactory, ILogger<Patch104F
             {
                 foreach (var file in Directory.GetFiles(extractPath, "*", SearchOption.AllDirectories))
                 {
-                    try
-                    {
-                        File.SetAttributes(file, FileAttributes.Normal);
-                    }
-                    catch (IOException)
-                    {
-                    }
-                    catch (UnauthorizedAccessException)
-                    {
-                    }
+                    DeleteFileSafely(file);
                 }
 
                 Directory.Delete(extractPath, true);
             }
-            catch (IOException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
+                logger.LogDebug(ex, "Failed to clean up extract directory {Path}", extractPath);
             }
-            catch (UnauthorizedAccessException)
-            {
-            }
+        }
+    }
+
+    private void DeleteFileSafely(string path)
+    {
+        if (!File.Exists(path))
+        {
+            return;
+        }
+
+        try
+        {
+            File.SetAttributes(path, FileAttributes.Normal);
+            File.Delete(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(ex, "Failed to safely delete temporary file {Path}", path);
         }
     }
 }

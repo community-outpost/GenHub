@@ -231,12 +231,12 @@ public partial class ActionSetViewModel(
     /// Cancels the ongoing individual fix application if running.
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanExecuteCancelApply))]
-    private void CancelApply()
+    private async Task CancelApplyAsync()
     {
         if (_applyCts != null && !_applyCts.IsCancellationRequested)
         {
             logger.LogInformation("User cancelled application of {Title} (ID={Id})", ActionSet.Title, ActionSet.Id);
-            _applyCts.Cancel();
+            await _applyCts.CancelAsync();
             notificationService.ShowWarning("Cancelling", $"Cancelling application of {ActionSet.Title}...");
         }
     }

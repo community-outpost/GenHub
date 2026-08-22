@@ -80,7 +80,7 @@ public class VanillaExecutableFix(ILogger<VanillaExecutableFix> logger) : BaseAc
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         var details = new List<string>();
 
@@ -131,7 +131,7 @@ public class VanillaExecutableFix(ILogger<VanillaExecutableFix> logger) : BaseAc
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         logger.LogWarning("Undoing Generals Executable Fix is not supported via GenHub.");
         return Task.FromResult(new ActionSetResult(true));

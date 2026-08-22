@@ -32,6 +32,11 @@ public abstract class BaseActionSet(ILogger logger) : IActionSet
     /// <inheritdoc/>
     public abstract bool IsCrucialFix { get; }
 
+    /// <summary>
+    /// Gets the logger instance.
+    /// </summary>
+    protected ILogger Logger => logger;
+
     /// <inheritdoc/>
     public virtual Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
         => Task.FromResult(true);
@@ -58,9 +63,9 @@ public abstract class BaseActionSet(ILogger logger) : IActionSet
 
             return result;
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogWarning("ActionSet {Title} ({Id}) application was cancelled", Title, Id);
+            logger.LogWarning(ex, "ActionSet {Title} ({Id}) application was cancelled", Title, Id);
             throw;
         }
         catch (Exception ex)
@@ -88,9 +93,9 @@ public abstract class BaseActionSet(ILogger logger) : IActionSet
 
             return result;
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogWarning("ActionSet {Title} ({Id}) undo was cancelled", Title, Id);
+            logger.LogWarning(ex, "ActionSet {Title} ({Id}) undo was cancelled", Title, Id);
             throw;
         }
         catch (Exception ex)
@@ -99,6 +104,19 @@ public abstract class BaseActionSet(ILogger logger) : IActionSet
             return new ActionSetResult(false, ex.Message);
         }
     }
+
+    /// <summary>
+    /// Helper to return a successful result.
+    /// </summary>
+    /// <returns>A successful ActionSetResult.</returns>
+    protected static ActionSetResult Success() => new(true);
+
+    /// <summary>
+    /// Helper to return a failed result.
+    /// </summary>
+    /// <param name="message">The error message.</param>
+    /// <returns>A failed ActionSetResult.</returns>
+    protected static ActionSetResult Failure(string message) => new(false, message);
 
     /// <summary>
     /// Implements the specific application logic.
@@ -115,17 +133,4 @@ public abstract class BaseActionSet(ILogger logger) : IActionSet
     /// <param name="ct">The cancellation token.</param>
     /// <returns>The result of the operation.</returns>
     protected abstract Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct);
-
-    /// <summary>
-    /// Helper to return a successful result.
-    /// </summary>
-    /// <returns>A successful ActionSetResult.</returns>
-    protected ActionSetResult Success() => new(true);
-
-    /// <summary>
-    /// Helper to return a failed result.
-    /// </summary>
-    /// <param name="message">The error message.</param>
-    /// <returns>A failed ActionSetResult.</returns>
-    protected ActionSetResult Failure(string message) => new(false, message);
 }

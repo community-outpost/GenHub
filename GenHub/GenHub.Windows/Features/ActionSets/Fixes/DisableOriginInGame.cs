@@ -54,7 +54,7 @@ public class DisableOriginInGame(ILogger<DisableOriginInGame> logger) : BaseActi
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         try
         {
@@ -66,7 +66,6 @@ public class DisableOriginInGame(ILogger<DisableOriginInGame> logger) : BaseActi
                 return Task.FromResult(new ActionSetResult(true, null, ["Origin is not installed. No action needed."]));
             }
 
-            // Check if overlay is already disabled
             if (IsOriginOverlayDisabled())
             {
                 logger.LogInformation("Origin in-game overlay is already disabled.");
@@ -74,14 +73,7 @@ public class DisableOriginInGame(ILogger<DisableOriginInGame> logger) : BaseActi
                 return Task.FromResult(new ActionSetResult(true, null, ["Origin in-game overlay is already disabled."]));
             }
 
-            // Provide guidance for disabling Origin overlay
-            logger.LogWarning("Origin in-game overlay is enabled. This may cause performance issues.");
-            logger.LogInformation("To disable Origin in-game overlay:");
-            logger.LogInformation("1. Open Origin client");
-            logger.LogInformation("2. Go to 'Application Settings' (gear icon)");
-            logger.LogInformation("3. Select 'Origin In-Game'");
-            logger.LogInformation("4. Uncheck 'Enable Origin In-Game'");
-            logger.LogInformation("5. Click 'Save'");
+            logger.LogWarning("Origin in-game overlay is enabled. Please disable it in Origin Application Settings > Origin In-Game.");
 
             WriteMarker();
 
@@ -97,7 +89,7 @@ public class DisableOriginInGame(ILogger<DisableOriginInGame> logger) : BaseActi
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         try
         {

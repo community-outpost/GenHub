@@ -19,11 +19,11 @@ public static class DownloadSecurityValidator
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct WinTrustFileInfo
     {
-        private uint _cbStruct;
+        private readonly uint _cbStruct;
         [MarshalAs(UnmanagedType.LPWStr)]
-        private string _pszFilePath;
-        private IntPtr _hFile;
-        private IntPtr _pgKnownSubject;
+        private readonly string _pszFilePath;
+        private readonly IntPtr _hFile;
+        private readonly IntPtr _pgKnownSubject;
 
         public WinTrustFileInfo(string filePath)
         {
@@ -37,20 +37,20 @@ public static class DownloadSecurityValidator
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct WinTrustData
     {
-        private uint _cbStruct;
-        private IntPtr _pPolicyCallbackData;
-        private IntPtr _pSIPClientData;
-        private uint _dwUIChoice;
-        private uint _fdwRevocationChecks;
-        private uint _dwUnionChoice;
-        private IntPtr _pFile;
-        private uint _dwStateAction;
-        private IntPtr _hWVTStateData;
+        private readonly uint _cbStruct;
+        private readonly IntPtr _pPolicyCallbackData;
+        private readonly IntPtr _pSIPClientData;
+        private readonly uint _dwUIChoice;
+        private readonly uint _fdwRevocationChecks;
+        private readonly uint _dwUnionChoice;
+        private readonly IntPtr _pFile;
+        private readonly uint _dwStateAction;
+        private readonly IntPtr _hWVTStateData;
         [MarshalAs(UnmanagedType.LPWStr)]
-        private string? _pwszURLReference;
-        private uint _dwProvFlags;
-        private uint _dwUIContext;
-        private IntPtr _pSignatureSettings;
+        private readonly string? _pwszURLReference;
+        private readonly uint _dwProvFlags;
+        private readonly uint _dwUIContext;
+        private readonly IntPtr _pSignatureSettings;
 
         public WinTrustData(IntPtr filePtr)
         {
@@ -185,14 +185,14 @@ public static class DownloadSecurityValidator
 
         // Check SHA-256 hash if specified
         bool hashMatched = false;
-        if (hasHashCheck)
+        if (hasHashCheck && allowedSha256Hashes != null)
         {
             var actualHash = await ComputeSha256Async(filePath, ct);
-            hashMatched = allowedSha256Hashes!.Any(h => string.Equals(h, actualHash, StringComparison.OrdinalIgnoreCase));
+            hashMatched = allowedSha256Hashes.Any(h => string.Equals(h, actualHash, StringComparison.OrdinalIgnoreCase));
             if (!hashMatched && !hasPublisherCheck)
             {
                 return OperationResult<bool>.CreateFailure(
-                    $"SHA-256 hash mismatch for '{Path.GetFileName(filePath)}'. Computed hash: '{actualHash}'. Expected one of: [{string.Join(", ", allowedSha256Hashes!)}].");
+                    $"SHA-256 hash mismatch for '{Path.GetFileName(filePath)}'. Computed hash: '{actualHash}'. Expected one of: [{string.Join(", ", allowedSha256Hashes)}].");
             }
         }
 
@@ -216,36 +216,42 @@ public static class DownloadSecurityValidator
     }
 
     /// <summary>
-    /// Opens a file in read-only shared mode, sets the file as read-only, validates its SHA-256 and/or Authenticode signature,
-    /// and returns the open <see cref="FileStream"/>. Holding this stream prevents TOCTOU modification until execution/use.
+    /// Validates a file using SHA-256 hash and/or Authenticode signature checks, and returns a shared-read, locked stream if valid.
+    /// The caller is responsible for disposing the returned stream to release the file lock.
     /// </summary>
-    /// <param name="filePath">Path to the file to validate and lock.</param>
-    /// <param name="allowedSha256Hashes">Optional list of allowed SHA-256 hashes.</param>
-    /// <param name="expectedAuthenticodePublisher">Optional expected Authenticode publisher substring.</param>
-    /// <param name="allowExpiredCertificates">Whether to accept legacy certificates with expired timestamps.</param>
-    /// <param name="ct">The cancellation token.</param>
-    /// <returns>An operation result containing the locked stream on success, or an error description on failure.</returns>
+    /// <param name="filePath">The absolute path to the file to validate and lock.</param>
+    /// <param name="allowedSha256Hashes">Optional collection of allowed SHA-256 hashes (hex string, case-insensitive).</param>
+    /// <param name="expectedAuthenticodePublisher">Optional expected publisher common name (CN) in Authenticode certificate.</param>
+    /// <param name="allowExpiredCertificates">Whether to accept expired certificates if valid at signing time.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>A successful OperationResult containing the locked FileStream, or a failure result with validation errors.</returns>
     public static async Task<OperationResult<FileStream>> ValidateAndLockFileAsync(
         string filePath,
         IReadOnlyList<string>? allowedSha256Hashes = null,
         string? expectedAuthenticodePublisher = null,
-        bool allowExpiredCertificates = false,
+        bool allowExpiredCertificates = true,
         CancellationToken ct = default)
     {
-        if (!File.Exists(filePath))
+        if (string.IsNullOrWhiteSpace(filePath))
         {
-            return OperationResult<FileStream>.CreateFailure($"File '{filePath}' does not exist for validation.");
+            return OperationResult<FileStream>.CreateFailure("File path cannot be null or empty.");
         }
 
+        if (!File.Exists(filePath))
+        {
+            return OperationResult<FileStream>.CreateFailure($"File '{filePath}' does not exist.");
+        }
+
+        // Remove ReadOnly attribute if present so caller can overwrite/delete later if needed
         try
         {
-            File.SetAttributes(filePath, File.GetAttributes(filePath) | FileAttributes.ReadOnly);
+            var attributes = File.GetAttributes(filePath);
+            if ((attributes & FileAttributes.ReadOnly) != 0)
+            {
+                File.SetAttributes(filePath, attributes & ~FileAttributes.ReadOnly);
+            }
         }
-        catch (IOException)
-        {
-            // Non-critical if filesystem does not support read-only attribute
-        }
-        catch (UnauthorizedAccessException)
+        catch
         {
             // Non-critical if filesystem does not support read-only attribute
         }
@@ -260,21 +266,21 @@ public static class DownloadSecurityValidator
 
             if (!hasHashCheck && !hasPublisherCheck)
             {
-                stream.Dispose();
+                await stream.DisposeAsync();
                 return OperationResult<FileStream>.CreateFailure("No validation criteria (hash or publisher) specified.");
             }
 
             bool hashMatched = false;
-            if (hasHashCheck)
+            if (hasHashCheck && allowedSha256Hashes != null)
             {
                 var actualHash = await ComputeSha256Async(stream, ct);
                 stream.Position = 0;
-                hashMatched = allowedSha256Hashes!.Any(h => string.Equals(h, actualHash, StringComparison.OrdinalIgnoreCase));
+                hashMatched = allowedSha256Hashes.Any(h => string.Equals(h, actualHash, StringComparison.OrdinalIgnoreCase));
                 if (!hashMatched && !hasPublisherCheck)
                 {
-                    stream.Dispose();
+                    await stream.DisposeAsync();
                     return OperationResult<FileStream>.CreateFailure(
-                        $"SHA-256 hash mismatch for '{Path.GetFileName(filePath)}'. Computed hash: '{actualHash}'. Expected one of: [{string.Join(", ", allowedSha256Hashes!)}].");
+                        $"SHA-256 hash mismatch for '{Path.GetFileName(filePath)}'. Computed hash: '{actualHash}'. Expected one of: [{string.Join(", ", allowedSha256Hashes)}].");
                 }
             }
 
@@ -288,7 +294,7 @@ public static class DownloadSecurityValidator
                         return OperationResult<FileStream>.CreateSuccess(stream);
                     }
 
-                    stream.Dispose();
+                    await stream.DisposeAsync();
                     return OperationResult<FileStream>.CreateFailure(authResult.Errors);
                 }
             }

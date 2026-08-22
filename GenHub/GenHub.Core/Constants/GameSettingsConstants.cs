@@ -250,7 +250,7 @@ public static class GameSettingsConstants
         /// <summary>
         /// Gets the optimal gamma correction value (50 = neutral).
         /// </summary>
-        public const int Gamma = 50;
+        public const int OptimalGamma = 50;
 
         /// <summary>
         /// Gets a value indicating whether shadow decals are enabled.

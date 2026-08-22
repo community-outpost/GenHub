@@ -66,7 +66,7 @@ public class GenArial(ILogger<GenArial> logger) : BaseActionSet(logger)
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         try
         {
@@ -79,23 +79,16 @@ public class GenArial(ILogger<GenArial> logger) : BaseActionSet(logger)
             }
 
             // Provide guidance for installing Arial font
-            logger.LogWarning("Arial font is not installed. This may cause text rendering issues.");
-            logger.LogInformation("Arial font is typically included with Windows.");
-            logger.LogInformation("To install Arial font:");
-            logger.LogInformation("1. Open Windows Settings");
-            logger.LogInformation("2. Go to 'Apps' > 'Optional features'");
-            logger.LogInformation("3. Click 'View features' next to 'Add a font'");
-            logger.LogInformation("4. Click 'Get more fonts in Microsoft Store'");
-            logger.LogInformation("5. Search for 'Arial' and install");
-            logger.LogInformation(string.Empty);
-            logger.LogInformation("Alternatively, you can:");
-            logger.LogInformation("- Copy Arial font files from another Windows computer");
-            logger.LogInformation("- Download Arial font from a trusted source");
-            logger.LogInformation("- Install the font by right-clicking and selecting 'Install for all users'");
+            logger.LogWarning("Arial font is not installed. This may cause text rendering issues. Please install Arial from Windows Settings > Optional features > Add a font.");
 
             try
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(_markerPath)!);
+                var markerDir = Path.GetDirectoryName(_markerPath);
+                if (!string.IsNullOrEmpty(markerDir))
+                {
+                    Directory.CreateDirectory(markerDir);
+                }
+
                 File.WriteAllText(_markerPath, DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture));
             }
             catch (Exception ex)
@@ -113,7 +106,7 @@ public class GenArial(ILogger<GenArial> logger) : BaseActionSet(logger)
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         try
         {

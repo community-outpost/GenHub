@@ -89,7 +89,7 @@ public class CncOnlineLauncherFix(
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         var details = new List<string>();
 
@@ -98,106 +98,30 @@ public class CncOnlineLauncherFix(
             details.Add("Starting C&C Online registry configuration...");
             bool allSucceeded = true;
 
-            // Create C&C Online registry entries for Generals
             if (installation.HasGenerals)
             {
-                details.Add($"Configuring C&C Online for Generals at: {installation.GeneralsPath}");
-
-                bool ok1 = registryService.SetStringValue(
+                allSucceeded &= ConfigureGameEntry(
+                    "Generals",
                     RegistryConstants.CncOnlineGeneralsKeyPath,
-                    RegistryConstants.InstallPathValueName,
                     installation.GeneralsPath,
-                    useWow6432Node: true,
-                    hive: RegistryHive.CurrentUser);
-
-                bool ok2 = registryService.SetStringValue(
-                    RegistryConstants.CncOnlineGeneralsKeyPath,
-                    RegistryConstants.VersionValueName,
                     RegistryConstants.CncOnlineGeneralsVersion,
-                    useWow6432Node: true,
-                    hive: RegistryHive.CurrentUser);
-
-                if (ok1 && ok2)
-                {
-                    details.Add($"✓ Created: HKCU\\{RegistryConstants.CncOnlineGeneralsKeyPath}");
-                    details.Add($"  • InstallPath = {installation.GeneralsPath}");
-                    details.Add($"  • Version = {RegistryConstants.CncOnlineGeneralsVersion}");
-                    logger.LogInformation("Created C&C Online registry entries for Generals");
-                }
-                else
-                {
-                    allSucceeded = false;
-                    details.Add("✗ Failed to write C&C Online registry entries for Generals");
-                }
+                    details);
             }
 
-            // Create C&C Online registry entries for Zero Hour
             if (installation.HasZeroHour)
             {
-                details.Add($"Configuring C&C Online for Zero Hour at: {installation.ZeroHourPath}");
-
-                bool ok1 = registryService.SetStringValue(
+                allSucceeded &= ConfigureGameEntry(
+                    "Zero Hour",
                     RegistryConstants.CncOnlineZeroHourKeyPath,
-                    RegistryConstants.InstallPathValueName,
                     installation.ZeroHourPath,
-                    useWow6432Node: true,
-                    hive: RegistryHive.CurrentUser);
-
-                bool ok2 = registryService.SetStringValue(
-                    RegistryConstants.CncOnlineZeroHourKeyPath,
-                    RegistryConstants.VersionValueName,
                     RegistryConstants.CncOnlineZeroHourVersion,
-                    useWow6432Node: true,
-                    hive: RegistryHive.CurrentUser);
-
-                if (ok1 && ok2)
-                {
-                    details.Add($"✓ Created: HKCU\\{RegistryConstants.CncOnlineZeroHourKeyPath}");
-                    details.Add($"  • InstallPath = {installation.ZeroHourPath}");
-                    details.Add($"  • Version = {RegistryConstants.CncOnlineZeroHourVersion}");
-                    logger.LogInformation("Created C&C Online registry entries for Zero Hour");
-                }
-                else
-                {
-                    allSucceeded = false;
-                    details.Add("✗ Failed to write C&C Online registry entries for Zero Hour");
-                }
+                    details);
             }
 
-            // Create main C&C Online entry if a valid base path exists
-            var basePath = installation.HasGenerals
-                ? installation.GeneralsPath
-                : installation.ZeroHourPath;
-
+            var basePath = installation.HasGenerals ? installation.GeneralsPath : installation.ZeroHourPath;
             if (!string.IsNullOrEmpty(basePath))
             {
-                details.Add("Creating main C&C Online registry entry...");
-
-                bool mainOk1 = registryService.SetStringValue(
-                    RegistryConstants.CncOnlineKeyPath,
-                    RegistryConstants.InstallPathValueName,
-                    basePath,
-                    useWow6432Node: true,
-                    hive: RegistryHive.CurrentUser);
-
-                bool mainOk2 = registryService.SetStringValue(
-                    RegistryConstants.CncOnlineKeyPath,
-                    RegistryConstants.VersionValueName,
-                    RegistryConstants.CncOnlineVersion,
-                    useWow6432Node: true,
-                    hive: RegistryHive.CurrentUser);
-
-                if (mainOk1 && mainOk2)
-                {
-                    details.Add($"✓ Created: HKCU\\{RegistryConstants.CncOnlineKeyPath}");
-                    details.Add($"  • InstallPath = {basePath}");
-                    details.Add($"  • Version = {RegistryConstants.CncOnlineVersion}");
-                }
-                else
-                {
-                    allSucceeded = false;
-                    details.Add("✗ Failed to write main C&C Online registry entries");
-                }
+                allSucceeded &= ConfigureMainEntry(basePath, details);
             }
 
             if (!allSucceeded)
@@ -218,7 +142,7 @@ public class CncOnlineLauncherFix(
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         var details = new List<string>();
 
@@ -251,5 +175,71 @@ public class CncOnlineLauncherFix(
             logger.LogError(ex, "Error undoing C&C Online registry fix");
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
+    }
+
+    private bool ConfigureGameEntry(
+        string gameName,
+        string keyPath,
+        string installPath,
+        string version,
+        List<string> details)
+    {
+        details.Add($"Configuring C&C Online for {gameName} at: {installPath}");
+
+        bool ok1 = registryService.SetStringValue(
+            keyPath,
+            RegistryConstants.InstallPathValueName,
+            installPath,
+            useWow6432Node: true,
+            hive: RegistryHive.CurrentUser);
+
+        bool ok2 = registryService.SetStringValue(
+            keyPath,
+            RegistryConstants.VersionValueName,
+            version,
+            useWow6432Node: true,
+            hive: RegistryHive.CurrentUser);
+
+        if (ok1 && ok2)
+        {
+            details.Add($"✓ Created: HKCU\\{keyPath}");
+            details.Add($"  • InstallPath = {installPath}");
+            details.Add($"  • Version = {version}");
+            logger.LogInformation("Created C&C Online registry entries for {GameName}", gameName);
+            return true;
+        }
+
+        details.Add($"✗ Failed to write C&C Online registry entries for {gameName}");
+        return false;
+    }
+
+    private bool ConfigureMainEntry(string basePath, List<string> details)
+    {
+        details.Add("Creating main C&C Online registry entry...");
+
+        bool ok1 = registryService.SetStringValue(
+            RegistryConstants.CncOnlineKeyPath,
+            RegistryConstants.InstallPathValueName,
+            basePath,
+            useWow6432Node: true,
+            hive: RegistryHive.CurrentUser);
+
+        bool ok2 = registryService.SetStringValue(
+            RegistryConstants.CncOnlineKeyPath,
+            RegistryConstants.VersionValueName,
+            RegistryConstants.CncOnlineVersion,
+            useWow6432Node: true,
+            hive: RegistryHive.CurrentUser);
+
+        if (ok1 && ok2)
+        {
+            details.Add($"✓ Created: HKCU\\{RegistryConstants.CncOnlineKeyPath}");
+            details.Add($"  • InstallPath = {basePath}");
+            details.Add($"  • Version = {RegistryConstants.CncOnlineVersion}");
+            return true;
+        }
+
+        details.Add("✗ Failed to write main C&C Online registry entries");
+        return false;
     }
 }

@@ -58,7 +58,7 @@ public class NahimicFix(ILogger<NahimicFix> logger) : BaseActionSet(logger)
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         var details = new List<string>();
 
@@ -77,7 +77,6 @@ public class NahimicFix(ILogger<NahimicFix> logger) : BaseActionSet(logger)
                 return Task.FromResult(new ActionSetResult(true, null, details));
             }
 
-            // Provide guidance for disabling Nahimic
             details.Add("⚠ Nahimic audio driver detected");
             details.Add("  This may cause audio issues with Generals/Zero Hour");
             details.Add(string.Empty);
@@ -92,17 +91,7 @@ public class NahimicFix(ILogger<NahimicFix> logger) : BaseActionSet(logger)
             details.Add(string.Empty);
             details.Add("Alternative: Uninstall Nahimic if you don't need it");
 
-            logger.LogWarning("Nahimic audio driver is installed. This may cause audio issues with Generals/Zero Hour.");
-            logger.LogInformation("To disable Nahimic audio effects:");
-            logger.LogInformation("1. Open Task Manager (Ctrl+Shift+Esc)");
-            logger.LogInformation("2. Go to the 'Services' tab");
-            logger.LogInformation("3. Find 'Nahimic Service' or 'Nahimic Service UI'");
-            logger.LogInformation("4. Right-click and select 'Stop'");
-            logger.LogInformation("5. Right-click again and select 'Properties'");
-            logger.LogInformation("6. Change 'Startup type' to 'Disabled'");
-            logger.LogInformation("7. Click 'Apply' and 'OK'");
-            logger.LogInformation(string.Empty);
-            logger.LogInformation("Alternatively, you can uninstall Nahimic audio software if you don't need it.");
+            logger.LogWarning("Nahimic audio driver is installed. This may cause audio issues with Generals/Zero Hour. Please disable Nahimic Service in Windows Services or Task Manager.");
 
             return Task.FromResult(new ActionSetResult(true, null, details));
         }
@@ -115,7 +104,7 @@ public class NahimicFix(ILogger<NahimicFix> logger) : BaseActionSet(logger)
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         logger.LogWarning("Nahimic Fix is informational only. No undo action needed.");
         return Task.FromResult(new ActionSetResult(true));

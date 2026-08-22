@@ -3,6 +3,7 @@ namespace GenHub.Windows.Features.ActionSets.Fixes;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,6 +17,12 @@ using Microsoft.Extensions.Logging;
 /// </summary>
 public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) : BaseActionSet(logger)
 {
+    private static readonly string PowerShellPath = Path.Combine(
+        Environment.SystemDirectory,
+        "WindowsPowerShell",
+        "v1.0",
+        "powershell.exe");
+
     /// <inheritdoc/>
     public override string Id => "NetworkPrivateProfileFix";
 
@@ -48,10 +55,8 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
     {
         try
         {
-            // Check if all active network adapters are set to Private
-            var profiles = await Task.Run(GetNetworkProfiles);
-            var isAllPrivate = profiles.Count > 0 && profiles.All(p => p.Equals("Private", StringComparison.OrdinalIgnoreCase));
-            return isAllPrivate;
+            var profiles = await Task.Run(() => GetNetworkProfiles(ct), ct);
+            return profiles.Count > 0 && profiles.All(p => p.Equals("Private", StringComparison.OrdinalIgnoreCase));
         }
         catch (Exception ex)
         {
@@ -61,13 +66,13 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
     }
 
     /// <inheritdoc/>
-    protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         var details = new List<string>();
 
         try
         {
-            var profiles = await Task.Run(GetNetworkProfiles, cancellationToken);
+            var profiles = await Task.Run(() => GetNetworkProfiles(ct), ct);
             details.Add($"Found {profiles.Count} network adapter(s)");
 
             foreach (var profile in profiles)
@@ -85,32 +90,7 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
             logger.LogInformation("Setting network profile to Private (Home)...");
             details.Add("Setting network profile to Private...");
 
-            // Use PowerShell to set network profile - run asynchronously to avoid blocking UI
-            var success = await Task.Run(
-                () =>
-            {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = ProcessConstants.PowerShellExecutable,
-                    Arguments = "-WindowStyle Hidden -NonInteractive -Command \"Set-NetConnectionProfile -NetworkCategory Private\"",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                };
-
-                using var process = Process.Start(psi);
-                if (process != null)
-                {
-                    _ = process.StandardOutput.ReadToEnd();
-                    _ = process.StandardError.ReadToEnd();
-                    process.WaitForExit();
-                    return process.ExitCode == ProcessConstants.ExitCodeSuccess;
-                }
-
-                return false;
-            },
-                cancellationToken);
+            var success = await RunPowerShellScriptAsync("Set-NetConnectionProfile -NetworkCategory Private", ct);
 
             if (success)
             {
@@ -132,7 +112,7 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
     }
 
     /// <inheritdoc/>
-    protected override async Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override async Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         var details = new List<string>();
 
@@ -140,31 +120,7 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
         {
             details.Add("Reverting network profile to Public...");
 
-            var success = await Task.Run(
-                () =>
-            {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = ProcessConstants.PowerShellExecutable,
-                    Arguments = "-WindowStyle Hidden -NonInteractive -Command \"Set-NetConnectionProfile -NetworkCategory Public\"",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                };
-
-                using var process = Process.Start(psi);
-                if (process != null)
-                {
-                    _ = process.StandardOutput.ReadToEnd();
-                    _ = process.StandardError.ReadToEnd();
-                    process.WaitForExit();
-                    return process.ExitCode == ProcessConstants.ExitCodeSuccess;
-                }
-
-                return false;
-            },
-                cancellationToken);
+            var success = await RunPowerShellScriptAsync("Set-NetConnectionProfile -NetworkCategory Public", ct);
 
             if (success)
             {
@@ -182,16 +138,37 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
         }
     }
 
-    private List<string> GetNetworkProfiles()
+    private static async Task<bool> RunPowerShellScriptAsync(string script, CancellationToken ct)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = PowerShellPath,
+            Arguments = $"-WindowStyle Hidden -NonInteractive -Command \"{script}\"",
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        using var process = Process.Start(psi);
+        if (process == null)
+        {
+            return false;
+        }
+
+        await process.WaitForExitAsync(ct);
+        return process.ExitCode == ProcessConstants.ExitCodeSuccess;
+    }
+
+    private List<string> GetNetworkProfiles(CancellationToken ct)
     {
         var profiles = new List<string>();
 
         try
         {
-            // Use PowerShell to get network profiles
             var psi = new ProcessStartInfo
             {
-                FileName = ProcessConstants.PowerShellExecutable,
+                FileName = PowerShellPath,
                 Arguments = "-WindowStyle Hidden -NonInteractive -Command \"Get-NetConnectionProfile | Select-Object -ExpandProperty NetworkCategory\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -206,10 +183,10 @@ public class NetworkPrivateProfileFix(ILogger<NetworkPrivateProfileFix> logger) 
                 _ = process.StandardError.ReadToEnd();
                 process.WaitForExit();
 
-                // Split by newlines and trim each line
                 var lines = output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
                 foreach (var line in lines)
                 {
+                    ct.ThrowIfCancellationRequested();
                     var trimmed = line.Trim();
                     if (!string.IsNullOrWhiteSpace(trimmed))
                     {

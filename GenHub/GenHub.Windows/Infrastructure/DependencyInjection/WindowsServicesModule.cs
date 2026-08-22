@@ -79,7 +79,7 @@ public static class WindowsServicesModule
         services.AddSingleton<IActionSet, TheFirstDecadeRegistryFix>();
         services.AddSingleton<IActionSet, CncOnlineLauncherFix>();
         services.AddSingleton<IActionSet, MalwarebytesFix>();
-        services.AddSingleton<IActionSet, D3D8XDLLCheck>();
+        services.AddSingleton<IActionSet, D3D8XdllCheck>();
         services.AddSingleton<IActionSet, NahimicFix>();
         services.AddSingleton<IActionSet, DisableOriginInGame>();
         services.AddSingleton<IActionSet, GenArial>();

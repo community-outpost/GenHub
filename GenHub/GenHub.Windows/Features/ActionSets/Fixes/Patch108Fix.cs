@@ -2,6 +2,7 @@ namespace GenHub.Windows.Features.ActionSets.Fixes;
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -17,8 +18,6 @@ using Microsoft.Extensions.Logging;
 /// <summary>
 /// Installs the Generals 1.08 official patch.
 /// </summary>
-/// <param name="httpClientFactory">The HTTP client factory.</param>
-/// <param name="logger">The logger instance.</param>
 public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108Fix> logger) : BaseActionSet(logger)
 {
     private const string BackupDirectoryName = "_GenHub_Patch108_Backups";
@@ -55,17 +54,15 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
     {
         try
         {
-            // Check if generals.exe version is 1.08
             var gameExePath = Path.Combine(installation.GeneralsPath, ActionSetConstants.FileNames.GeneralsExe);
             if (!File.Exists(gameExePath))
             {
                 return Task.FromResult(false);
             }
 
-            var versionInfo = System.Diagnostics.FileVersionInfo.GetVersionInfo(gameExePath);
+            var versionInfo = FileVersionInfo.GetVersionInfo(gameExePath);
             var version = versionInfo.FileVersion;
 
-            // 1.08 version should be 1.8.0.0 or similar
             if (version?.StartsWith("1.8") == true)
             {
                 return Task.FromResult(true);
@@ -81,10 +78,9 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
     }
 
     /// <inheritdoc/>
-    protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         var details = new List<string>();
-
         var tempPath = Path.Combine(Path.GetTempPath(), $"gn108_patch_{Guid.NewGuid():N}.zip");
         var extractPath = Path.Combine(Path.GetTempPath(), $"gn108_extract_{Guid.NewGuid():N}");
         string? currentBackupDir = null;
@@ -95,141 +91,32 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
             details.Add("Starting Generals 1.08 patch installation...");
             details.Add($"Target directory: {installation.GeneralsPath}");
 
-            details.Add($"Download URL: {ExternalUrls.Generals108PatchUrl}");
-            details.Add("Downloading patch archive...");
-
-            logger.LogInformation("Downloading Generals 1.08 patch from {Url}", ExternalUrls.Generals108PatchUrl);
-
-            using var client = httpClientFactory.CreateClient("Downloader");
-            if (!client.DefaultRequestHeaders.Contains("User-Agent"))
+            var downloadResult = await DownloadAndValidatePatchAsync(tempPath, details, ct);
+            if (!downloadResult.Success)
             {
-                client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+                return downloadResult;
             }
-
-            using var response = await client.GetAsync(ExternalUrls.Generals108PatchUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-            response.EnsureSuccessStatusCode();
-
-            await using (var fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
-            {
-                await response.Content.CopyToAsync(fs, cancellationToken);
-            }
-
-            var fileInfo = new FileInfo(tempPath);
-            var fileSize = fileInfo.Length;
-            if (fileSize < ActionSetConstants.Validation.PatchMinSize)
-            {
-                logger.LogWarning("Downloaded Generals 1.08 patch file too small ({Size} bytes), likely corrupt.", fileSize);
-                if (File.Exists(tempPath)) File.Delete(tempPath);
-                return new ActionSetResult(false, "Downloaded Generals 1.08 patch is corrupted or incomplete.", details);
-            }
-
-            // Authenticate package hash against pinned SHA-256 and lock file immutable
-            var securityValidation = await DownloadSecurityValidator.ValidateAndLockFileAsync(
-                tempPath,
-                allowedSha256Hashes: [ActionSetConstants.Security.Generals108PatchSha256],
-                ct: cancellationToken);
-
-            if (!securityValidation.Success || securityValidation.Data == null)
-            {
-                var errorSummary = string.Join("; ", securityValidation.Errors);
-                logger.LogWarning("Security validation failed for Generals 1.08 patch archive: {Error}", errorSummary);
-                if (File.Exists(tempPath))
-                {
-                    try
-                    {
-                        File.SetAttributes(tempPath, FileAttributes.Normal);
-                        File.Delete(tempPath);
-                    }
-                    catch (IOException)
-                    {
-                    }
-                    catch (UnauthorizedAccessException)
-                    {
-                    }
-                }
-
-                return new ActionSetResult(false, $"Security validation failed for Generals 1.08 patch: {errorSummary}", details);
-            }
-
-            await securityValidation.Data.DisposeAsync();
-
-            // Validate zip integrity before extracting
-            try
-            {
-                using var archive = ZipFile.OpenRead(tempPath);
-                if (archive.Entries.Count == 0)
-                {
-                    if (File.Exists(tempPath)) File.Delete(tempPath);
-                    return new ActionSetResult(false, "Downloaded Generals 1.08 patch archive contains no files.", details);
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Downloaded Generals 1.08 patch archive is corrupted");
-                if (File.Exists(tempPath)) File.Delete(tempPath);
-                return new ActionSetResult(false, $"Downloaded Generals 1.08 patch archive is corrupted: {ex.Message}", details);
-            }
-
-            details.Add($"✓ Downloaded and verified SHA-256 ({fileSize / 1024.0 / 1024.0:F2} MB)");
 
             details.Add("Extracting patch files...");
-            logger.LogInformation("Extracting Generals 1.08 patch...");
-
             Directory.CreateDirectory(extractPath);
             ZipFile.ExtractToDirectory(tempPath, extractPath);
 
             var extractedFiles = Directory.GetFiles(extractPath, "*.*", SearchOption.AllDirectories);
             details.Add($"✓ Extracted {extractedFiles.Length} files");
 
-            // Setup safety backup directory before modifying game files
             var backupBase = Path.Combine(installation.GeneralsPath, BackupDirectoryName);
             currentBackupDir = Path.Combine(backupBase, $"Backup_{DateTime.UtcNow:yyyyMMdd_HHmmss}");
             Directory.CreateDirectory(currentBackupDir);
             details.Add($"Created backup directory: {currentBackupDir}");
 
-            // Copy files to game directory with backup tracking
             details.Add($"Installing to: {installation.GeneralsPath}");
-            logger.LogInformation("Copying patch files to {Path}", installation.GeneralsPath);
-
-            int copiedCount = 0;
-            var canonicalGamePath = Path.GetFullPath(installation.GeneralsPath);
-            foreach (var file in extractedFiles)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var relativePath = file[extractPath.Length..].TrimStart(Path.DirectorySeparatorChar);
-                var destPath = Path.GetFullPath(Path.Combine(canonicalGamePath, relativePath));
-
-                if (!destPath.StartsWith(canonicalGamePath, StringComparison.OrdinalIgnoreCase))
-                {
-                    logger.LogWarning("Potential path traversal detected in patch archive: {Path}", relativePath);
-                    continue;
-                }
-
-                var existedBefore = File.Exists(destPath);
-                if (existedBefore)
-                {
-                    var backupFilePath = Path.Combine(currentBackupDir, relativePath);
-                    var backupFileDir = Path.GetDirectoryName(backupFilePath);
-                    if (!string.IsNullOrEmpty(backupFileDir) && !Directory.Exists(backupFileDir))
-                    {
-                        Directory.CreateDirectory(backupFileDir);
-                    }
-
-                    File.Copy(destPath, backupFilePath, true);
-                }
-
-                var destDir = Path.GetDirectoryName(destPath);
-                if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
-                {
-                    Directory.CreateDirectory(destDir);
-                }
-
-                File.Copy(file, destPath, true);
-                copiedFiles.Add((destPath, existedBefore));
-                logger.LogDebug("Copied {File}", relativePath);
-                copiedCount++;
-            }
+            var copiedCount = DeployExtractedFiles(
+                extractedFiles,
+                extractPath,
+                installation.GeneralsPath,
+                currentBackupDir,
+                copiedFiles,
+                ct);
 
             details.Add($"✓ Installed {copiedCount} files with backup");
             details.Add("✓ Generals 1.08 patch installed successfully");
@@ -241,10 +128,7 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
         {
             logger.LogError(ex, "Failed to install Generals 1.08 patch. Rolling back modifications.");
             details.Add($"✗ Error: {ex.Message}");
-
-            // Rollback on failure
-            RollbackFiles(currentBackupDir, canonicalGamePath: Path.GetFullPath(installation.GeneralsPath), copiedFiles, details);
-
+            RollbackFiles(currentBackupDir, Path.GetFullPath(installation.GeneralsPath), copiedFiles, details);
             return new ActionSetResult(false, ex.Message, details);
         }
         finally
@@ -254,7 +138,7 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         var details = new List<string>();
         try
@@ -281,6 +165,7 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
             int restoredCount = 0;
             foreach (var file in backupFiles)
             {
+                ct.ThrowIfCancellationRequested();
                 var relativePath = file[latestBackup.Length..].TrimStart(Path.DirectorySeparatorChar);
                 var destPath = Path.Combine(installation.GeneralsPath, relativePath);
                 var destDir = Path.GetDirectoryName(destPath);
@@ -301,6 +186,122 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
             logger.LogError(ex, "Failed to undo Generals 1.08 patch");
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
+    }
+
+    private async Task<ActionSetResult> DownloadAndValidatePatchAsync(
+        string tempPath,
+        List<string> details,
+        CancellationToken ct)
+    {
+        details.Add($"Download URL: {ExternalUrls.Generals108PatchUrl}");
+        details.Add("Downloading patch archive...");
+        logger.LogInformation("Downloading Generals 1.08 patch from {Url}", ExternalUrls.Generals108PatchUrl);
+
+        using var client = httpClientFactory.CreateClient("Downloader");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+
+        using var response = await client.GetAsync(ExternalUrls.Generals108PatchUrl, HttpCompletionOption.ResponseHeadersRead, ct);
+        response.EnsureSuccessStatusCode();
+
+        await using (var fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
+        {
+            await response.Content.CopyToAsync(fs, ct);
+        }
+
+        var fileInfo = new FileInfo(tempPath);
+        var fileSize = fileInfo.Length;
+        if (fileSize < ActionSetConstants.Validation.PatchMinSize)
+        {
+            logger.LogWarning("Downloaded Generals 1.08 patch file too small ({Size} bytes), likely corrupt.", fileSize);
+            DeleteFileSafely(tempPath);
+            return new ActionSetResult(false, "Downloaded Generals 1.08 patch is corrupted or incomplete.", details);
+        }
+
+        var securityValidation = await DownloadSecurityValidator.ValidateAndLockFileAsync(
+            tempPath,
+            allowedSha256Hashes: [ActionSetConstants.Security.Generals108PatchSha256],
+            ct: ct);
+
+        if (!securityValidation.Success || securityValidation.Data == null)
+        {
+            var errorSummary = string.Join("; ", securityValidation.Errors);
+            logger.LogWarning("Security validation failed for Generals 1.08 patch archive: {Error}", errorSummary);
+            DeleteFileSafely(tempPath);
+            return new ActionSetResult(false, $"Security validation failed for Generals 1.08 patch: {errorSummary}", details);
+        }
+
+        await securityValidation.Data.DisposeAsync();
+
+        try
+        {
+            using var archive = ZipFile.OpenRead(tempPath);
+            if (archive.Entries.Count == 0)
+            {
+                DeleteFileSafely(tempPath);
+                return new ActionSetResult(false, "Downloaded Generals 1.08 patch archive contains no files.", details);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Downloaded Generals 1.08 patch archive is corrupted");
+            DeleteFileSafely(tempPath);
+            return new ActionSetResult(false, $"Downloaded Generals 1.08 patch archive is corrupted: {ex.Message}", details);
+        }
+
+        details.Add($"✓ Downloaded and verified SHA-256 ({fileSize / 1024.0 / 1024.0:F2} MB)");
+        return new ActionSetResult(true, null, details);
+    }
+
+    private int DeployExtractedFiles(
+        string[] extractedFiles,
+        string extractPath,
+        string targetGamePath,
+        string currentBackupDir,
+        List<(string DestPath, bool ExistedBefore)> copiedFiles,
+        CancellationToken ct)
+    {
+        int copiedCount = 0;
+        var canonicalGamePath = Path.GetFullPath(targetGamePath);
+
+        foreach (var file in extractedFiles)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var relativePath = file[extractPath.Length..].TrimStart(Path.DirectorySeparatorChar);
+            var destPath = Path.GetFullPath(Path.Combine(canonicalGamePath, relativePath));
+
+            if (!destPath.StartsWith(canonicalGamePath, StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogWarning("Potential path traversal detected in patch archive: {Path}", relativePath);
+                continue;
+            }
+
+            var existedBefore = File.Exists(destPath);
+            if (existedBefore)
+            {
+                var backupFilePath = Path.Combine(currentBackupDir, relativePath);
+                var backupFileDir = Path.GetDirectoryName(backupFilePath);
+                if (!string.IsNullOrEmpty(backupFileDir) && !Directory.Exists(backupFileDir))
+                {
+                    Directory.CreateDirectory(backupFileDir);
+                }
+
+                File.Copy(destPath, backupFilePath, true);
+            }
+
+            var destDir = Path.GetDirectoryName(destPath);
+            if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
+            {
+                Directory.CreateDirectory(destDir);
+            }
+
+            File.Copy(file, destPath, true);
+            copiedFiles.Add((destPath, existedBefore));
+            logger.LogDebug("Copied {File}", relativePath);
+            copiedCount++;
+        }
+
+        return copiedCount;
     }
 
     private void RollbackFiles(
@@ -340,51 +341,41 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
 
     private void CleanupTemp(string tempPath, string extractPath)
     {
-        try
-        {
-            if (File.Exists(tempPath))
-            {
-                File.SetAttributes(tempPath, FileAttributes.Normal);
-                File.Delete(tempPath);
-            }
-        }
-        catch (IOException ex)
-        {
-            logger.LogDebug(ex, "Failed to delete temp file {TempFile}", tempPath);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            logger.LogDebug(ex, "Access denied deleting temp file {TempFile}", tempPath);
-        }
+        DeleteFileSafely(tempPath);
 
-        try
+        if (Directory.Exists(extractPath))
         {
-            if (Directory.Exists(extractPath))
+            try
             {
                 foreach (var file in Directory.GetFiles(extractPath, "*", SearchOption.AllDirectories))
                 {
-                    try
-                    {
-                        File.SetAttributes(file, FileAttributes.Normal);
-                    }
-                    catch (IOException)
-                    {
-                    }
-                    catch (UnauthorizedAccessException)
-                    {
-                    }
+                    DeleteFileSafely(file);
                 }
 
                 Directory.Delete(extractPath, true);
             }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogDebug(ex, "Failed to clean up extract directory {Path}", extractPath);
+            }
         }
-        catch (IOException ex)
+    }
+
+    private void DeleteFileSafely(string path)
+    {
+        if (!File.Exists(path))
         {
-            logger.LogDebug(ex, "Failed to delete extract folder {ExtractPath}", extractPath);
+            return;
         }
-        catch (UnauthorizedAccessException ex)
+
+        try
         {
-            logger.LogDebug(ex, "Access denied deleting extract folder {ExtractPath}", extractPath);
+            File.SetAttributes(path, FileAttributes.Normal);
+            File.Delete(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogDebug(ex, "Failed to safely delete temporary file {Path}", path);
         }
     }
 }

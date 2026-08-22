@@ -72,7 +72,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
     }
 
     /// <inheritdoc/>
-    protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         var details = new List<string>();
 
@@ -94,13 +94,13 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
                 details.Add($"Created local Documents folder: {localDocs}");
             }
 
-            var backupBaseDir = Path.Combine(localDocs, "_GenHub_OneDrive_Backups", $"Backup_{DateTime.UtcNow:yyyyMMdd_HHmmss}");
+            var backupBaseDir = Path.Combine(localDocs, "_GenHub_OneDrive_Backups", $"Backup_{DateTime.UtcNow.ToString("yyyyMMdd_HHmmss", System.Globalization.CultureInfo.InvariantCulture)}");
             int foldersProcessed = 0;
 
             foreach (var folderName in CommonFolderNames)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var processed = await ProcessFolderAsync(folderName, cloudDocs, localDocs, backupBaseDir, details, cancellationToken);
+                ct.ThrowIfCancellationRequested();
+                var processed = await ProcessFolderAsync(folderName, cloudDocs, localDocs, backupBaseDir, details, ct);
                 if (processed)
                 {
                     foldersProcessed++;
@@ -126,7 +126,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         var details = new List<string>();
 
@@ -432,7 +432,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
             {
                 var psi = new ProcessStartInfo
                 {
-                    FileName = "cmd.exe",
+                    FileName = Path.Combine(Environment.SystemDirectory, "cmd.exe"),
                     Arguments = $"/c mklink /J \"{linkPath}\" \"{targetPath}\"",
                     CreateNoWindow = true,
                     UseShellExecute = false,
@@ -463,7 +463,7 @@ public class OneDriveFix(ILogger<OneDriveFix> logger) : BaseActionSet(logger)
 
             var psi = new ProcessStartInfo
             {
-                FileName = ProcessConstants.PowerShellExecutable,
+                FileName = Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe"),
                 Arguments = $"-WindowStyle Hidden -NoProfile -NonInteractive -Command \"attrib +P -U '{path.Replace("'", "''")}' /S /D\"",
                 CreateNoWindow = true,
                 UseShellExecute = false,

@@ -1,26 +1,20 @@
+namespace GenHub.Windows.Features.ActionSets.Fixes;
+
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
-using GenHub.Core.Features.ActionSets;
-using GenHub.Core.Helpers;
 using GenHub.Core.Models.GameInstallations;
-using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
-
-namespace GenHub.Windows.Features.ActionSets.Fixes;
 
 /// <summary>
 /// Installs the Visual C++ 2010 Redistributable (x86) which is required for Generals/Zero Hour.
 /// </summary>
-/// <param name="httpClientFactory">The HTTP client factory.</param>
-/// <param name="logger">The logger instance.</param>
-public class VCRedist2010Fix(IHttpClientFactory httpClientFactory, ILogger<VCRedist2010Fix> logger) : BaseActionSet(logger)
+public class VCRedist2010Fix(IHttpClientFactory httpClientFactory, ILogger<VCRedist2010Fix> logger)
+    : BaseVCRedistFix(httpClientFactory, logger)
 {
     /// <inheritdoc/>
     public override string Id => "VCRedist2010";
@@ -35,13 +29,22 @@ public class VCRedist2010Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
     public override string DetailedDescription => "GenTool, widescreen hooks, and community tools depend on the 32-bit Visual C++ 2010 runtime libraries (msvcr100.dll). This package downloads and installs the official Microsoft runtime to prevent missing DLL errors. You can also download and manage this package from the Downloads section.";
 
     /// <inheritdoc/>
-    public override string Category => ActionSetConstants.Categories.CoreAndStability;
+    public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
-    public override bool IsCoreFix => true;
+    protected override IReadOnlyList<string> DownloadUrls => [ExternalUrls.VCRedist2010DownloadUrl];
 
     /// <inheritdoc/>
-    public override bool IsCrucialFix => false; // Network failures shouldn't abort entire sequence
+    protected override string InstallerArguments => "/quiet /norestart";
+
+    /// <inheritdoc/>
+    protected override string RedistDisplayName => "Visual C++ 2010 Redistributable";
+
+    /// <inheritdoc/>
+    protected override string TempFilePrefix => "vcredist_x86_2010";
+
+    /// <inheritdoc/>
+    protected override long MinimumFileSizeBytes => 1024 * 1024; // ~4.8 MB
 
     /// <inheritdoc/>
     public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
@@ -54,7 +57,6 @@ public class VCRedist2010Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
     {
         try
         {
-            // Check specific registry key for VC++ 2010 x86
             using var key = Registry.LocalMachine.OpenSubKey(RegistryConstants.VCRedist2010x86Key);
             if (key != null)
             {
@@ -65,7 +67,6 @@ public class VCRedist2010Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
                 }
             }
 
-            // Fallback check: try WOW6432Node
             using var key64 = Registry.LocalMachine.OpenSubKey(RegistryConstants.VCRedist2010x86KeyWow64);
             if (key64 != null)
             {
@@ -80,150 +81,8 @@ public class VCRedist2010Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to check VCRedist registry status");
+            logger.LogDebug(ex, "Failed to check VCRedist 2010 registry status");
             return Task.FromResult(false);
         }
-    }
-
-    /// <inheritdoc/>
-    protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
-    {
-        var details = new List<string>();
-        var tempPath = Path.Combine(Path.GetTempPath(), $"vcredist_x86_2010_{Guid.NewGuid():N}.exe");
-
-        try
-        {
-            details.Add("Starting Visual C++ 2010 Runtime installation...");
-            details.Add($"Download URL: {ExternalUrls.VCRedist2010DownloadUrl}");
-            details.Add($"Temp file: {tempPath}");
-
-            details.Add("Downloading VCRedist 2010...");
-            logger.LogInformation("Downloading VCRedist 2010 from {Url}", ExternalUrls.VCRedist2010DownloadUrl);
-
-            using var client = httpClientFactory.CreateClient("Downloader");
-            using var response = await client.GetAsync(ExternalUrls.VCRedist2010DownloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-            response.EnsureSuccessStatusCode();
-
-            await using (var fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
-            {
-                await response.Content.CopyToAsync(fs, cancellationToken);
-            }
-
-            var fileInfo = new FileInfo(tempPath);
-            var fileSize = fileInfo.Length;
-            if (fileSize < ActionSetConstants.Validation.VCRedistMinSize)
-            {
-                logger.LogWarning("Downloaded VCRedist 2010 file too small ({Size} bytes), likely corrupt.", fileSize);
-                if (File.Exists(tempPath)) File.Delete(tempPath);
-                return new ActionSetResult(false, "Downloaded VCRedist 2010 is corrupted or incomplete.", details);
-            }
-
-            // Security signature validation (Authenticode publisher verification) and lock file immutable
-            var securityValidation = await DownloadSecurityValidator.ValidateAndLockFileAsync(
-                tempPath,
-                expectedAuthenticodePublisher: ActionSetConstants.Security.MicrosoftPublisher,
-                ct: cancellationToken);
-
-            if (!securityValidation.Success || securityValidation.Data == null)
-            {
-                var errorSummary = string.Join("; ", securityValidation.Errors);
-                logger.LogWarning("Security validation failed for VCRedist 2010: {Error}", errorSummary);
-                if (File.Exists(tempPath))
-                {
-                    try
-                    {
-                        File.SetAttributes(tempPath, FileAttributes.Normal);
-                        File.Delete(tempPath);
-                    }
-                    catch (IOException)
-                    {
-                    }
-                    catch (UnauthorizedAccessException)
-                    {
-                    }
-                }
-
-                return new ActionSetResult(false, $"Security validation failed: {errorSummary}", details);
-            }
-
-            await securityValidation.Data.DisposeAsync();
-
-            details.Add($"✓ Downloaded and verified {fileSize / 1024.0 / 1024.0:F2} MB");
-
-            details.Add("Installing VCRedist 2010 (silent mode)...");
-            details.Add("  ⚠ This may require administrator privileges");
-            logger.LogInformation("Installing VCRedist 2010...");
-
-            var psi = new ProcessStartInfo
-            {
-                FileName = tempPath,
-                Arguments = "/q /norestart", // Silent install
-                UseShellExecute = true,
-                Verb = "runas", // Request elevation just in case
-            };
-
-            using var process = Process.Start(psi);
-            if (process == null)
-            {
-                details.Add("✗ Failed to start VCRedist installer process");
-                return new ActionSetResult(false, "Failed to start VCRedist installer process", details);
-            }
-
-            await process.WaitForExitAsync(cancellationToken);
-
-            if (process.ExitCode != ProcessConstants.ExitCodeSuccess && process.ExitCode != ProcessConstants.ExitCodeRebootRequired)
-            {
-                logger.LogWarning("VCRedist install exited with code {Code}", process.ExitCode);
-                details.Add($"⚠ VCRedist install exited with code {process.ExitCode}");
-                details.Add("✗ Installation may have failed");
-                return new ActionSetResult(false, $"VCRedist install failed with code {process.ExitCode}", details);
-            }
-
-            if (process.ExitCode == ProcessConstants.ExitCodeRebootRequired)
-            {
-                details.Add("✓ VCRedist 2010 installed successfully");
-                details.Add("  ⚠ System restart may be required");
-            }
-            else
-            {
-                details.Add("✓ VCRedist 2010 installed successfully");
-            }
-
-            logger.LogInformation("VCRedist 2010 installed successfully");
-
-            details.Add("✓ VCRedist 2010 installation completed");
-            return new ActionSetResult(true, null, details);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to install VCRedist 2010");
-            details.Add($"✗ Error: {ex.Message}");
-            return new ActionSetResult(false, ex.Message, details);
-        }
-        finally
-        {
-            try
-            {
-                if (File.Exists(tempPath))
-                {
-                    File.SetAttributes(tempPath, FileAttributes.Normal);
-                    File.Delete(tempPath);
-                }
-            }
-            catch (IOException ex)
-            {
-                logger.LogDebug(ex, "Failed to delete temp file {TempFile}", tempPath);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                logger.LogDebug(ex, "Access denied deleting temp file {TempFile}", tempPath);
-            }
-        }
-    }
-
-    /// <inheritdoc/>
-    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
-    {
-        return Task.FromResult(new ActionSetResult(false, "Visual C++ 2010 Redistributable is a system runtime package and cannot be uninstalled automatically.", ["To uninstall, use Windows Settings > Installed Apps / Programs and Features."]));
     }
 }

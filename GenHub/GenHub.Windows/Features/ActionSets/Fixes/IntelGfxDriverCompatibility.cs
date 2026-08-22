@@ -77,7 +77,7 @@ public class IntelGfxDriverCompatibility(ILogger<IntelGfxDriverCompatibility> lo
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         try
         {
@@ -89,39 +89,28 @@ public class IntelGfxDriverCompatibility(ILogger<IntelGfxDriverCompatibility> lo
                 return Task.FromResult(new ActionSetResult(true));
             }
 
-            // Check if driver is up to date
             if (IsIntelDriverUpToDate())
             {
                 logger.LogInformation("Intel graphics driver is up to date. No action needed.");
                 return Task.FromResult(new ActionSetResult(true));
             }
 
-            // Provide guidance for Intel graphics driver
-            logger.LogWarning("Intel graphics driver detected. May need update for best compatibility.");
-            logger.LogInformation("To update Intel graphics driver:");
-            logger.LogInformation("1. Open Intel Driver & Support Assistant");
-            logger.LogInformation("2. Go to 'Drivers' tab");
-            logger.LogInformation("3. Click 'Check for updates'");
-            logger.LogInformation("4. Follow prompts to install latest driver");
-            logger.LogInformation(string.Empty);
-            logger.LogInformation("Alternatively, download from Intel website:");
-            logger.LogInformation("{Url}", ExternalUrls.IntelDriverDownloadUrl);
-            logger.LogInformation(string.Empty);
-            logger.LogInformation("Note: After updating driver, you may need to:");
-            logger.LogInformation("- Restart your computer");
-            logger.LogInformation("- Run GenHub fixes again");
+            logger.LogWarning("Intel graphics driver detected. May need update from Intel website: {Url}", ExternalUrls.IntelDriverDownloadUrl);
 
             try
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(_markerPath)!);
-                File.WriteAllText(_markerPath, DateTime.UtcNow.ToString());
+                var markerDir = Path.GetDirectoryName(_markerPath);
+                if (!string.IsNullOrEmpty(markerDir))
+                {
+                    Directory.CreateDirectory(markerDir);
+                }
+
+                File.WriteAllText(_markerPath, DateTime.UtcNow.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
             }
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Failed to create marker file for IntelGfxDriverCompatibility");
             }
-
-            logger.LogInformation("- Test game performance");
 
             return Task.FromResult(new ActionSetResult(true, null, ["Please update Intel graphics driver. See logs for details."]));
         }
@@ -133,7 +122,7 @@ public class IntelGfxDriverCompatibility(ILogger<IntelGfxDriverCompatibility> lo
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         try
         {

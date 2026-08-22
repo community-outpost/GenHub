@@ -76,7 +76,7 @@ public class GameRangerRunAsAdmin(ILogger<GameRangerRunAsAdmin> logger) : BaseAc
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         try
         {
@@ -88,28 +88,13 @@ public class GameRangerRunAsAdmin(ILogger<GameRangerRunAsAdmin> logger) : BaseAc
                 return Task.FromResult(new ActionSetResult(true));
             }
 
-            // Check if admin compatibility is already set
             if (HasAdminCompatibility(installation))
             {
                 logger.LogInformation("Game executables already have run as administrator compatibility.");
                 return Task.FromResult(new ActionSetResult(true));
             }
 
-            // Provide guidance for GameRanger
-            logger.LogWarning("GameRanger is installed. Games should run as administrator for GameRanger compatibility.");
-            logger.LogInformation("To configure GameRanger:");
-            logger.LogInformation("1. Open GameRanger");
-            logger.LogInformation("2. Go to 'Edit' > 'Game Settings'");
-            logger.LogInformation("3. Select Generals or Zero Hour");
-            logger.LogInformation("4. Check 'Run this program as an administrator' option");
-            logger.LogInformation("5. Ensure it is enabled");
-            logger.LogInformation(string.Empty);
-            logger.LogInformation("Alternatively, you can:");
-            logger.LogInformation("- Right-click on game executable");
-            logger.LogInformation("- Select 'Properties'");
-            logger.LogInformation("- Go to 'Compatibility' tab");
-            logger.LogInformation("- Check 'Run this program as an administrator'");
-            logger.LogInformation("- Click 'Apply' and 'OK'");
+            logger.LogWarning("GameRanger is installed. Games should run as administrator for GameRanger compatibility. Please configure GameRanger or game shortcut compatibility.");
 
             return Task.FromResult(new ActionSetResult(true, null, ["Please configure GameRanger to run games as administrator. See logs for details."]));
         }
@@ -121,7 +106,7 @@ public class GameRangerRunAsAdmin(ILogger<GameRangerRunAsAdmin> logger) : BaseAc
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         logger.LogWarning("GameRanger Run as Administrator Fix is informational only. No undo action needed.");
         return Task.FromResult(new ActionSetResult(true));

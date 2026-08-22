@@ -82,7 +82,7 @@ public class OptionsINIFix(IGameSettingsService gameSettingsService, ILogger<Opt
     }
 
     /// <inheritdoc/>
-    protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         var details = new List<string>();
 
@@ -102,7 +102,7 @@ public class OptionsINIFix(IGameSettingsService gameSettingsService, ILogger<Opt
 
             foreach (var gameType in gamesToProcess)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                ct.ThrowIfCancellationRequested();
 
                 var gameName = gameType == GameType.ZeroHour ? "Command & Conquer: Generals Zero Hour" : "Command & Conquer: Generals";
                 details.Add($"Target game: {gameName}");
@@ -166,7 +166,7 @@ public class OptionsINIFix(IGameSettingsService gameSettingsService, ILogger<Opt
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         var details = new List<string>();
         var gamesToProcess = new List<GameType>();

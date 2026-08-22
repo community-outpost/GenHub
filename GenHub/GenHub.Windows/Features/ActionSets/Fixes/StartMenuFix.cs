@@ -60,7 +60,7 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
     }
 
     /// <inheritdoc/>
-    protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         var details = new List<string>();
         bool hasFailures = false;
@@ -177,7 +177,7 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         var details = new List<string>();
         var commonPrograms = Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms);

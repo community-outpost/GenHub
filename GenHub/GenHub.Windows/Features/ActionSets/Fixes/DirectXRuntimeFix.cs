@@ -67,7 +67,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
     }
 
     /// <inheritdoc/>
-    protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         var details = new List<string>();
         var tempFolder = Path.Combine(Path.GetTempPath(), $"GenHub_DirectX_{Guid.NewGuid():N}");
@@ -81,7 +81,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
             details.Add($"Temp directory: {tempFolder}");
             details.Add("Downloading DirectX Runtime package...");
 
-            var downloadResult = await DownloadAndValidateAsync(tempFolder, zipFile, details, cancellationToken);
+            var downloadResult = await DownloadAndValidateAsync(tempFolder, zipFile, details, ct);
             if (!downloadResult.Success || downloadResult.Data == default)
             {
                 return new ActionSetResult(false, string.Join("; ", downloadResult.Errors), details);
@@ -111,7 +111,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
                 var exeValidation = await DownloadSecurityValidator.ValidateFileAsync(
                     setupExe,
                     expectedAuthenticodePublisher: ActionSetConstants.Security.MicrosoftPublisher,
-                    ct: cancellationToken);
+                    ct: ct);
 
                 if (!exeValidation.Success)
                 {
@@ -121,7 +121,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
                 }
             }
 
-            return await RunSetupProcessAsync(setupExe, arguments, details, cancellationToken);
+            return await RunSetupProcessAsync(setupExe, arguments, details, ct);
         }
         catch (Exception ex)
         {
@@ -136,7 +136,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
     }
 
     /// <inheritdoc/>
-    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken cancellationToken)
+    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         logger.LogInformation("DirectX Runtime is a core Windows component and cannot be uninstalled automatically.");
         return Task.FromResult(new ActionSetResult(false, "DirectX Runtime is a system component that cannot be automatically uninstalled.", ["DirectX runtime components remain installed on the system."]));
@@ -146,7 +146,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
         string tempFolder,
         string zipFile,
         List<string> details,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         using var client = httpClientFactory.CreateClient("Downloader");
         client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
@@ -160,95 +160,86 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
 
         foreach (var url in urls)
         {
-            var result = await TryDownloadFromUrlAsync(client, url, tempFolder, zipFile, details, cancellationToken);
-            if (result.Success && result.Data != default)
+            var result = await TryDownloadMirrorAsync(client, url, tempFolder, zipFile, details, ct);
+            if (result.Success)
             {
                 return result;
             }
         }
 
-        return OperationResult<(bool IsExe, string DownloadPath)>.CreateFailure("Failed to download or validate DirectX Runtime from all mirrors.");
+        return OperationResult<(bool IsExe, string DownloadPath)>.CreateFailure("Failed to download DirectX Runtime from all mirrors.");
     }
 
-    private async Task<OperationResult<(bool IsExe, string DownloadPath)>> TryDownloadFromUrlAsync(
+    private async Task<OperationResult<(bool IsExe, string DownloadPath)>> TryDownloadMirrorAsync(
         HttpClient client,
         string url,
         string tempFolder,
         string zipFile,
         List<string> details,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         var uri = new Uri(url);
-        bool isExe = uri.AbsolutePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase);
-        string downloadPath = isExe ? Path.Combine(tempFolder, "dxsetup.exe") : zipFile;
+        var isExe = uri.AbsolutePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase);
+        var downloadPath = isExe
+            ? Path.Combine(tempFolder, $"dxwebsetup_{Guid.NewGuid():N}.exe")
+            : zipFile;
 
         try
         {
             logger.LogInformation("Attempting download from {Url}", url);
 
-            using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
             response.EnsureSuccessStatusCode();
 
-            await using (var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken))
-            await using (var fileStream = new FileStream(downloadPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
+            var totalBytes = response.Content.Headers.ContentLength;
+            logger.LogInformation("Streaming response content to disk at {Path} (Total size: {TotalBytes} bytes)...", downloadPath, totalBytes);
+
+            await using (var fileStream = new FileStream(downloadPath, FileMode.Create, FileAccess.Write, FileShare.None))
             {
-                await contentStream.CopyToAsync(fileStream, cancellationToken);
+                await response.Content.CopyToAsync(fileStream, ct);
             }
 
-            var fileInfo = new FileInfo(downloadPath);
-            var fileSize = fileInfo.Length;
-            var minSize = isExe ? ActionSetConstants.Validation.DirectXWebSetupMinSize : ActionSetConstants.Validation.DirectXPackageMinSize;
-
-            if (fileSize < minSize)
+            var downloadedFileInfo = new FileInfo(downloadPath);
+            if (downloadedFileInfo.Length < ActionSetConstants.Validation.MinimumAddonPackageSizeBytes)
             {
-                logger.LogWarning("Downloaded file from {Url} is too small ({Size} bytes). Likely blocked.", url, fileSize);
+                logger.LogWarning("Downloaded file from {Url} is too small ({Size} bytes). Likely blocked by proxy.", url, downloadedFileInfo.Length);
                 DeleteFileIfExists(downloadPath);
-                return OperationResult<(bool IsExe, string DownloadPath)>.CreateFailure($"File from {url} is too small.");
+                return OperationResult<(bool IsExe, string DownloadPath)>.CreateFailure($"Downloaded file from {uri.Host} was incomplete or corrupted.");
             }
 
-            if (isExe)
-            {
-                var securityValidation = await DownloadSecurityValidator.ValidateFileAsync(
-                    downloadPath,
-                    expectedAuthenticodePublisher: ActionSetConstants.Security.MicrosoftPublisher,
-                    ct: cancellationToken);
+            details.Add($"✓ Downloaded {downloadedFileInfo.Length / 1024.0 / 1024.0:F2} MB from {uri.Host}");
 
-                if (!securityValidation.Success)
+            if (!isExe)
+            {
+                if (!ValidateZipArchive(downloadPath, url))
                 {
-                    var errorSummary = string.Join("; ", securityValidation.Errors);
-                    logger.LogWarning("Security validation failed for DirectX setup from {Url}: {Error}", url, errorSummary);
                     DeleteFileIfExists(downloadPath);
-                    return OperationResult<(bool IsExe, string DownloadPath)>.CreateFailure(securityValidation.Errors);
+                    return OperationResult<(bool IsExe, string DownloadPath)>.CreateFailure($"Corrupted ZIP archive downloaded from {uri.Host}.");
                 }
             }
             else
             {
-                var securityValidation = await DownloadSecurityValidator.ValidateFileAsync(
+                var securityValidation = await DownloadSecurityValidator.ValidateAndLockFileAsync(
                     downloadPath,
-                    allowedSha256Hashes: [ActionSetConstants.Security.DirectXRuntimeZipSha256],
-                    ct: cancellationToken);
+                    expectedAuthenticodePublisher: ActionSetConstants.Security.MicrosoftPublisher,
+                    ct: ct);
 
-                if (!securityValidation.Success)
+                if (!securityValidation.Success || securityValidation.Data == null)
                 {
                     var errorSummary = string.Join("; ", securityValidation.Errors);
-                    logger.LogWarning("Security validation failed for DirectX zip archive from {Url}: {Error}", url, errorSummary);
+                    logger.LogWarning("Authenticode verification failed for DirectX web setup from {Url}: {Error}", url, errorSummary);
                     DeleteFileIfExists(downloadPath);
-                    return OperationResult<(bool IsExe, string DownloadPath)>.CreateFailure(securityValidation.Errors);
+                    return OperationResult<(bool IsExe, string DownloadPath)>.CreateFailure($"Security validation failed for installer from {uri.Host}: {errorSummary}");
                 }
 
-                if (!ValidateZipArchive(downloadPath, url))
-                {
-                    DeleteFileIfExists(downloadPath);
-                    return OperationResult<(bool IsExe, string DownloadPath)>.CreateFailure($"Corrupted zip archive from {url}.");
-                }
+                await securityValidation.Data.DisposeAsync();
             }
 
-            details.Add($"✓ Downloaded and verified {fileSize / 1024.0 / 1024.0:F2} MB from {uri.Host}");
             return OperationResult<(bool IsExe, string DownloadPath)>.CreateSuccess((isExe, downloadPath));
         }
         catch (Exception ex)
         {
-            logger.LogWarning("Failed to download from {Url}: {Error}", url, ex.Message);
+            logger.LogWarning(ex, "Failed to download from {Url}: {Error}", url, ex.Message);
             DeleteFileIfExists(downloadPath);
             return OperationResult<(bool IsExe, string DownloadPath)>.CreateFailure(ex.Message);
         }
@@ -265,7 +256,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
         }
         catch (Exception ex)
         {
-            logger.LogWarning("Downloaded file from {Url} is corrupt: {Error}", url, ex.Message);
+            logger.LogWarning(ex, "Downloaded file from {Url} is corrupt", url);
             return false;
         }
     }
@@ -293,7 +284,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
         string setupExe,
         string arguments,
         List<string> details,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         details.Add("Running DirectX Setup (silent mode)...");
         details.Add("  ⚠ This may require administrator privileges");
@@ -313,7 +304,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
             return new ActionSetResult(false, "Failed to start DirectX setup process.", details);
         }
 
-        await process.WaitForExitAsync(cancellationToken);
+        await process.WaitForExitAsync(ct);
 
         if (process.ExitCode != ProcessConstants.ExitCodeSuccess && process.ExitCode != ProcessConstants.ExitCodeRebootRequired)
         {
