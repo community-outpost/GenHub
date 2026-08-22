@@ -98,7 +98,7 @@ public sealed class ReplayExportService(
                     foreach (var replay in replayList)
                     {
                         count++;
-                        progress?.Report((double)count / total * 0.4);
+                        progress?.Report((double)count / total);
 
                         if (!File.Exists(replay.FullPath)) continue;
                         archive.CreateEntryFromFile(replay.FullPath, replay.FileName);
@@ -133,8 +133,8 @@ public sealed class ReplayExportService(
         }
 
         var tempZip = Path.Combine(Path.GetTempPath(), $"{ReplayManagerConstants.TempShareFilePrefix}{Guid.NewGuid()}.zip");
-        var zipProgress = progress != null ? new Progress<double>(p => progress.Report(p * 0.3)) : null;
-        var uploadProgress = progress != null ? new Progress<double>(p => progress.Report(0.3 + (p * 0.7))) : null;
+        var zipProgress = progress != null ? new Progress<double>(p => progress.Report(p * 0.25)) : null;
+        var uploadProgress = progress != null ? new Progress<double>(p => progress.Report(0.25 + (p * 0.75))) : null;
 
         var createdZip = await ExportToZipAsync(replayList, tempZip, zipProgress, ct);
         return (createdZip, true, uploadProgress);

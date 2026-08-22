@@ -114,12 +114,24 @@
       </Border>
 
       <!-- Loading Overlay -->
-      <Border Background="#66000000" IsVisible="{Binding IsBusy}" CornerRadius="12">
-        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="16">
-          <ProgressBar Value="{Binding Progress, Mode=OneWay}" Minimum="0" Maximum="1" Width="240" Height="4"
-                       IsIndeterminate="{Binding Progress, Converter={StaticResource EqualityConverter}, ConverterParameter=0}"/>
-          <TextBlock Text="{Binding StatusMessage}" HorizontalAlignment="Center" FontWeight="SemiBold"/>
-        </StackPanel>
+      <Border Background="#80000000" IsVisible="{Binding IsBusy}" CornerRadius="12">
+        <Border Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="24,20"
+                BorderBrush="{DynamicResource DividerColor}" BorderThickness="1"
+                BoxShadow="0 8 24 0 #40000000" MinWidth="300" MaxWidth="400"
+                HorizontalAlignment="Center" VerticalAlignment="Center">
+          <StackPanel Spacing="12">
+            <TextBlock Text="{Binding StatusMessage}" HorizontalAlignment="Center" FontWeight="SemiBold"
+                       FontSize="13" TextTrimming="CharacterEllipsis" Foreground="White"/>
+            <ProgressBar Value="{Binding ProgressPercentage, Mode=OneWay}" Minimum="0" Maximum="100"
+                         Height="6" CornerRadius="3"
+                         IsIndeterminate="{Binding IsIndeterminate}"
+                         Foreground="{DynamicResource AccentColor}"
+                         Background="#252530" />
+            <TextBlock Text="{Binding ProgressPercentage, StringFormat={}{0}%}"
+                       HorizontalAlignment="Right" FontSize="11" Opacity="0.7"
+                       IsVisible="{Binding !IsIndeterminate}"/>
+          </StackPanel>
+        </Border>
       </Border>
     </Panel>
 

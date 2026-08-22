@@ -36,8 +36,9 @@ public sealed class UploadThingService(
             var fileName = Path.GetFileName(filePath);
 
             var fileLength = new FileInfo(filePath).Length;
+            var streamProgress = progress != null ? new Progress<double>(p => progress.Report(p * 0.85)) : null;
             await using var fileStream = File.OpenRead(filePath);
-            using var fileContent = new ProgressableStreamContent(fileStream, fileLength, progress);
+            using var fileContent = new ProgressableStreamContent(fileStream, fileLength, streamProgress);
             fileContent.Headers.ContentType = new MediaTypeHeaderValue(ApiConstants.MediaTypeZip);
             fileContent.Headers.ContentDisposition = new ContentDispositionHeaderValue("form-data")
             {
@@ -48,6 +49,7 @@ public sealed class UploadThingService(
             using var formContent = new MultipartFormDataContent();
             formContent.Add(fileContent);
 
+            progress?.Report(0.88);
             using var response = await httpClient.PostAsync(ApiConstants.DefaultUploadUrl, formContent, ct);
             if (!response.IsSuccessStatusCode)
             {

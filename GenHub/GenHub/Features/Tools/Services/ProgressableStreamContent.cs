@@ -14,7 +14,7 @@ public sealed class ProgressableStreamContent(
     Stream content,
     long totalBytes,
     IProgress<double>? progress = null,
-    int bufferSize = 64 * 1024) : HttpContent
+    int bufferSize = 8 * 1024) : HttpContent
 {
     private const double MinProgressFraction = 0.01;
     private const double MaxProgressFraction = 0.99;

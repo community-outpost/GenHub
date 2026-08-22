@@ -63,7 +63,16 @@ public partial class ReplayManagerViewModel(
     private bool isBusy;
 
     [ObservableProperty]
+    private bool isIndeterminate;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProgressPercentage))]
     private double progress;
+
+    /// <summary>
+    /// Gets the current progress as a whole integer percentage between 0 and 100.
+    /// </summary>
+    public int ProgressPercentage => (int)Math.Round(Progress * 100);
 
     [ObservableProperty]
     private string statusMessage = "Ready";
@@ -316,6 +325,7 @@ public partial class ReplayManagerViewModel(
     public async Task LoadReplaysAsync()
     {
         IsBusy = true;
+        IsIndeterminate = true;
         StatusMessage = "Loading replays...";
         try
         {
@@ -383,6 +393,7 @@ public partial class ReplayManagerViewModel(
         }
 
         IsBusy = true;
+        IsIndeterminate = true;
         StatusMessage = "Importing files...";
         try
         {
@@ -433,12 +444,19 @@ public partial class ReplayManagerViewModel(
         }
 
         IsBusy = true;
-        StatusMessage = "Importing from URL...";
+        IsIndeterminate = false;
         Progress = 0;
+        StatusMessage = "Downloading from URL... 0%";
 
         try
         {
-            var result = await importService.ImportFromUrlAsync(ImportUrl, SelectedTab, new Progress<double>(p => Progress = p));
+            var progressHandler = new Progress<double>(p =>
+            {
+                Progress = p;
+                StatusMessage = $"Downloading from URL... {(int)Math.Round(p * 100)}%";
+            });
+
+            var result = await importService.ImportFromUrlAsync(ImportUrl, SelectedTab, progressHandler);
             if (result.Success)
             {
                 notificationService.ShowSuccess("Import Complete", $"Imported {result.FilesImported} file(s) from URL.");
@@ -523,6 +541,7 @@ public partial class ReplayManagerViewModel(
         }
 
         IsBusy = true;
+        IsIndeterminate = true;
         StatusMessage = "Deleting replays...";
         int count = SelectedReplays.Count;
         var result = await directoryService.DeleteReplaysAsync([.. SelectedReplays], CancellationToken.None);
@@ -562,8 +581,9 @@ public partial class ReplayManagerViewModel(
         }
 
         IsBusy = true;
-        StatusMessage = "Creating ZIP...";
+        IsIndeterminate = false;
         Progress = 0;
+        StatusMessage = "Creating ZIP... 0%";
 
         try
         {
@@ -588,7 +608,13 @@ public partial class ReplayManagerViewModel(
                 }
             }
 
-            var result = await exportService.ExportToZipAsync([.. SelectedReplays], destinationPath, new Progress<double>(p => Progress = p));
+            var progressHandler = new Progress<double>(p =>
+            {
+                Progress = p;
+                StatusMessage = $"Creating ZIP... {(int)Math.Round(p * 100)}%";
+            });
+
+            var result = await exportService.ExportToZipAsync([.. SelectedReplays], destinationPath, progressHandler);
             if (result != null)
             {
                 notificationService.ShowSuccess("Zip Created", $"Created {Path.GetFileName(result)} in replay folder.");
@@ -663,12 +689,36 @@ public partial class ReplayManagerViewModel(
         }
 
         IsBusy = true;
-        StatusMessage = "Uploading to cloud (UploadThing)...";
+        IsIndeterminate = false;
         Progress = 0;
+        StatusMessage = "Preparing upload... 0%";
 
         try
         {
-            var uploadResult = await exportService.UploadToUploadThingAsync([.. SelectedReplays], new Progress<double>(p => Progress = p));
+            var isZip = SelectedReplays.Count == 1 && SelectedReplays[0].FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
+            var progressHandler = new Progress<double>(p =>
+            {
+                Progress = p;
+                int percent = (int)Math.Round(p * 100);
+                if (!isZip && percent < 25)
+                {
+                    StatusMessage = $"Compressing replays... {percent}%";
+                }
+                else if (percent < 88)
+                {
+                    StatusMessage = $"Uploading to cloud... {percent}%";
+                }
+                else if (percent < 100)
+                {
+                    StatusMessage = $"Finalizing cloud upload... {percent}%";
+                }
+                else
+                {
+                    StatusMessage = "Upload complete! 100%";
+                }
+            });
+
+            var uploadResult = await exportService.UploadToUploadThingAsync([.. SelectedReplays], progressHandler);
             if (uploadResult != null)
             {
                 await HandleSuccessfulUploadAsync(uploadResult, totalSizeBytes, fileHash);

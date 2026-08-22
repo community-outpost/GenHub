@@ -94,7 +94,16 @@ public partial class MapManagerViewModel : ObservableObject
     private bool isBusy;
 
     [ObservableProperty]
+    private bool isIndeterminate;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProgressPercentage))]
     private double progress;
+
+    /// <summary>
+    /// Gets the current progress as a whole integer percentage between 0 and 100.
+    /// </summary>
+    public int ProgressPercentage => (int)Math.Round(Progress * 100);
 
     [ObservableProperty]
     private string statusMessage = "Ready";
@@ -236,6 +245,7 @@ public partial class MapManagerViewModel : ObservableObject
     public async Task LoadMapsAsync()
     {
         IsBusy = true;
+        IsIndeterminate = true;
         StatusMessage = "Loading maps...";
         try
         {
@@ -323,6 +333,7 @@ public partial class MapManagerViewModel : ObservableObject
         }
 
         IsBusy = true;
+        IsIndeterminate = true;
         StatusMessage = "Importing files...";
         try
         {
@@ -374,12 +385,19 @@ public partial class MapManagerViewModel : ObservableObject
         }
 
         IsBusy = true;
-        StatusMessage = "Importing from URL...";
+        IsIndeterminate = false;
         Progress = 0;
+        StatusMessage = "Downloading from URL... 0%";
 
         try
         {
-            var result = await _importService.ImportFromUrlAsync(ImportUrl, SelectedTab, new Progress<double>(p => Progress = p));
+            var progressHandler = new Progress<double>(p =>
+            {
+                Progress = p;
+                StatusMessage = $"Downloading from URL... {(int)Math.Round(p * 100)}%";
+            });
+
+            var result = await _importService.ImportFromUrlAsync(ImportUrl, SelectedTab, progressHandler);
             if (result.Success)
             {
                 _notificationService.ShowSuccess("Import Complete", $"Imported {result.FilesImported} file(s) from URL.");
@@ -455,7 +473,7 @@ public partial class MapManagerViewModel : ObservableObject
 
         // Check if any selected maps are demo items (have mock paths)
         var demoMaps = SelectedMaps.Where(m => m.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-                                                   m.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase)).ToList();
+                                                    m.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase)).ToList();
         if (demoMaps.Count > 0)
         {
             // Show notification toast explaining what the button does
@@ -466,6 +484,7 @@ public partial class MapManagerViewModel : ObservableObject
         }
 
         IsBusy = true;
+        IsIndeterminate = true;
         StatusMessage = "Deleting maps...";
 
         // Capture selected maps before clearing
@@ -507,7 +526,7 @@ public partial class MapManagerViewModel : ObservableObject
 
         // Check if any selected maps are demo items (have mock paths)
         var demoMaps = SelectedMaps.Where(m => m.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-                                                   m.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase)).ToList();
+                                                    m.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase)).ToList();
         if (demoMaps.Count > 0)
         {
             // Show notification toast explaining what the button does
@@ -518,8 +537,9 @@ public partial class MapManagerViewModel : ObservableObject
         }
 
         IsBusy = true;
-        StatusMessage = "Creating ZIP...";
+        IsIndeterminate = false;
         Progress = 0;
+        StatusMessage = "Creating ZIP... 0%";
 
         try
         {
@@ -543,7 +563,13 @@ public partial class MapManagerViewModel : ObservableObject
                 }
             }
 
-            var result = await _exportService.ExportToZipAsync([.. SelectedMaps], destinationPath, new Progress<double>(p => Progress = p));
+            var progressHandler = new Progress<double>(p =>
+            {
+                Progress = p;
+                StatusMessage = $"Creating ZIP... {(int)Math.Round(p * 100)}%";
+            });
+
+            var result = await _exportService.ExportToZipAsync([.. SelectedMaps], destinationPath, progressHandler);
             if (result != null)
             {
                 _notificationService.ShowSuccess("Zip Created", $"Created {Path.GetFileName(result)} in map folder.");
@@ -618,12 +644,36 @@ public partial class MapManagerViewModel : ObservableObject
         }
 
         IsBusy = true;
-        StatusMessage = "Uploading to cloud (UploadThing)...";
+        IsIndeterminate = false;
         Progress = 0;
+        StatusMessage = "Preparing upload... 0%";
 
         try
         {
-            var uploadResult = await _exportService.UploadToUploadThingAsync([.. SelectedMaps], new Progress<double>(p => Progress = p));
+            var isZip = SelectedMaps.Count == 1 && SelectedMaps[0].FileName.EndsWith(Path.GetExtension(MapManagerConstants.ZipFilePattern), StringComparison.OrdinalIgnoreCase);
+            var progressHandler = new Progress<double>(p =>
+            {
+                Progress = p;
+                int percent = (int)Math.Round(p * 100);
+                if (!isZip && percent < 25)
+                {
+                    StatusMessage = $"Compressing maps... {percent}%";
+                }
+                else if (percent < 88)
+                {
+                    StatusMessage = $"Uploading to cloud... {percent}%";
+                }
+                else if (percent < 100)
+                {
+                    StatusMessage = $"Finalizing cloud upload... {percent}%";
+                }
+                else
+                {
+                    StatusMessage = "Upload complete! 100%";
+                }
+            });
+
+            var uploadResult = await _exportService.UploadToUploadThingAsync([.. SelectedMaps], progressHandler);
             if (uploadResult != null)
             {
                 await HandleSuccessfulUploadAsync(uploadResult, totalSizeBytes, fileHash);

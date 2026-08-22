@@ -103,7 +103,7 @@ public sealed class MapExportService(
                     foreach (var map in mapList)
                     {
                         count++;
-                        progress?.Report((double)count / total * 0.4);
+                        progress?.Report((double)count / total);
 
                         if (map.IsDirectory)
                         {
@@ -172,8 +172,8 @@ public sealed class MapExportService(
         }
 
         var tempZip = Path.Combine(Path.GetTempPath(), $"genhub_maps_{Guid.NewGuid()}.zip");
-        var zipProgress = progress != null ? new Progress<double>(p => progress.Report(p * 0.3)) : null;
-        var uploadProgress = progress != null ? new Progress<double>(p => progress.Report(0.3 + (p * 0.7))) : null;
+        var zipProgress = progress != null ? new Progress<double>(p => progress.Report(p * 0.25)) : null;
+        var uploadProgress = progress != null ? new Progress<double>(p => progress.Report(0.25 + (p * 0.75))) : null;
 
         var createdZip = await ExportToZipAsync(mapList, tempZip, zipProgress, ct);
         return (createdZip, true, uploadProgress);
