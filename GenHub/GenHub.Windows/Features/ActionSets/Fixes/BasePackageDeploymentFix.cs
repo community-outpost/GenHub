@@ -261,15 +261,11 @@ public abstract class BasePackageDeploymentFix(
                 return Task.FromResult(new ActionSetResult(true, null, ["No deployment record found to undo."]));
             }
 
-            string[] lines = [];
-            try
+            var lines = ReadMarkerLinesSafely(_markerPath);
+            if (lines == null)
             {
-                lines = File.ReadAllLines(_markerPath);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                Logger.LogWarning(ex, "Failed to read installed file paths from marker {MarkerPath}", _markerPath);
-                return Task.FromResult(new ActionSetResult(false, $"Failed to read deployment marker: {ex.Message}", ["✗ Could not read deployment marker."]));
+                Logger.LogWarning("Failed to read installed file paths from marker {MarkerPath}", _markerPath);
+                return Task.FromResult(new ActionSetResult(false, "Failed to read deployment marker", ["✗ Could not read deployment marker."]));
             }
 
             var hasRootedPaths = lines.Any(l => !string.IsNullOrWhiteSpace(l) && Path.IsPathRooted(l.Trim()));

@@ -148,6 +148,23 @@ public abstract class BaseActionSet(ILogger logger) : IActionSet
     }
 
     /// <summary>
+    /// Safely reads all lines from a marker file.
+    /// </summary>
+    /// <param name="markerPath">The marker file path.</param>
+    /// <returns>The array of lines, or null if reading failed.</returns>
+    protected static string[]? ReadMarkerLinesSafely(string markerPath)
+    {
+        try
+        {
+            return File.Exists(markerPath) ? File.ReadAllLines(markerPath) : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Deletes a marker file if it exists on disk.
     /// </summary>
     /// <param name="markerPath">The marker file path.</param>
