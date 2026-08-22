@@ -73,7 +73,7 @@ const validateDeletePayload = (payload: DeletePayload): string | null => {
 
 const trimTrailingEquals = (str: string): string => {
   let end = str.length;
-  while (end > 0 && str.charCodeAt(end - 1) === 61) {
+  while (end > 0 && str.codePointAt(end - 1) === 61) {
     end--;
   }
   return str.substring(0, end);

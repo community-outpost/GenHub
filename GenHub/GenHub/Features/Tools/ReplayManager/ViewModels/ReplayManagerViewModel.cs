@@ -638,73 +638,27 @@ public partial class ReplayManagerViewModel(
             return;
         }
 
-        // Check if any selected replays are demo items (have mock paths)
-        var demoReplays = SelectedReplays.Where(r => IsDemoPath(r.FullPath)).ToList();
-        if (demoReplays.Count > 0)
+        if (ValidateDemoReplaysSelected())
         {
-            // Show notification toast explaining what the button does
-            notificationService.ShowInfo(
-                "Upload and Share",
-                "Uploads selected replays to UploadThing cloud service (max 10MB) and copies the share link to your clipboard. You can then share the link with others to download replays.");
             return;
         }
 
-        // Calculate total size of selected replays
         long totalSizeBytes = SelectedReplays.Sum(r => new FileInfo(r.FullPath).Length);
-
-        // Check file size limit
-        const long MaxReplayUploadSize = 10 * 1024 * 1024; // 10MB
-        if (totalSizeBytes > MaxReplayUploadSize)
+        if (!await ValidateUploadLimitsAsync(totalSizeBytes))
         {
-            notificationService.ShowError(
-               "File Too Large",
-               "File too large. Maximum upload size is 10MB.");
-            StatusMessage = "Upload too large (Max 10MB).";
             return;
         }
 
-        // Check rate limit
-        var isAllowed = await uploadHistoryService.CanUploadAsync(totalSizeBytes);
-        if (!isAllowed)
-        {
-            var usage = await uploadHistoryService.GetUsageInfoAsync();
-            var resetDateLocal = usage.ResetDate.ToLocalTime();
-            notificationService.ShowError(
-                "Rate Limit Exceeded",
-                "Upload limit exceeded for the current 3-day period. Please remove items from your Upload History to free up quota immediately.");
-            StatusMessage = $"Limited reached. Resets {resetDateLocal:g}.";
-            return;
-        }
-
-        // Check deduplication if a single file is selected
         string? fileHash = null;
         if (SelectedReplays.Count == 1 && File.Exists(SelectedReplays[0].FullPath))
         {
-            try
+            var (reused, computedHash) = await TryReuseExistingUploadAsync(SelectedReplays[0].FullPath);
+            if (reused)
             {
-                await using var stream = File.OpenRead(SelectedReplays[0].FullPath);
-                var hashBytes = await System.Security.Cryptography.SHA256.HashDataAsync(stream);
-                fileHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
-
-                var existingUpload = await uploadHistoryService.FindExistingUploadAsync(fileHash);
-                if (existingUpload != null && !string.IsNullOrEmpty(existingUpload.Url))
-                {
-                    var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
-                    var clipboard = lifetime?.MainWindow?.Clipboard;
-                    if (clipboard != null)
-                    {
-                        await clipboard.SetTextAsync(existingUpload.Url);
-                    }
-
-                    StatusMessage = "Reused existing upload! Link copied to clipboard.";
-                    notificationService.ShowSuccess("Upload Complete", "Existing link copied to clipboard!");
-                    return;
-                }
+                return;
             }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to compute file hash for deduplication check");
-            }
+
+            fileHash = computedHash;
         }
 
         IsBusy = true;
@@ -716,25 +670,7 @@ public partial class ReplayManagerViewModel(
             var uploadResult = await exportService.UploadToUploadThingAsync([.. SelectedReplays], new Progress<double>(p => Progress = p));
             if (uploadResult != null)
             {
-                var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
-                var clipboard = lifetime?.MainWindow?.Clipboard;
-                if (clipboard != null)
-                {
-                    await clipboard.SetTextAsync(uploadResult.PublicUrl);
-                }
-
-                // Record successful upload
-                var fileName = SelectedReplays.Count == 1 ? SelectedReplays[0].FileName : "replays.zip";
-                uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash);
-
-                // Refresh history if open
-                if (IsHistoryOpen)
-                {
-                    await LoadHistoryAsync();
-                }
-
-                StatusMessage = "Uploaded! Link copied to clipboard.";
-                notificationService.ShowSuccess("Upload Complete", "Link copied to clipboard!");
+                await HandleSuccessfulUploadAsync(uploadResult, totalSizeBytes, fileHash);
             }
             else
             {
@@ -753,6 +689,100 @@ public partial class ReplayManagerViewModel(
             IsBusy = false;
             Progress = 0;
         }
+    }
+
+    private bool ValidateDemoReplaysSelected()
+    {
+        var demoReplays = SelectedReplays.Where(r => IsDemoPath(r.FullPath)).ToList();
+        if (demoReplays.Count > 0)
+        {
+            notificationService.ShowInfo(
+                "Upload and Share",
+                "Uploads selected replays to UploadThing cloud service (max 10MB) and copies the share link to your clipboard. You can then share the link with others to download replays.");
+            return true;
+        }
+
+        return false;
+    }
+
+    private async Task<bool> ValidateUploadLimitsAsync(long totalSizeBytes)
+    {
+        const long MaxReplayUploadSize = 10 * 1024 * 1024; // 10MB
+        if (totalSizeBytes > MaxReplayUploadSize)
+        {
+            notificationService.ShowError(
+               "File Too Large",
+               "File too large. Maximum upload size is 10MB.");
+            StatusMessage = "Upload too large (Max 10MB).";
+            return false;
+        }
+
+        var isAllowed = await uploadHistoryService.CanUploadAsync(totalSizeBytes);
+        if (!isAllowed)
+        {
+            var usage = await uploadHistoryService.GetUsageInfoAsync();
+            var resetDateLocal = usage.ResetDate.ToLocalTime();
+            notificationService.ShowError(
+                "Rate Limit Exceeded",
+                "Upload limit exceeded for the current 3-day period. Please remove items from your Upload History to free up quota immediately.");
+            StatusMessage = $"Limited reached. Resets {resetDateLocal:g}.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private async Task<(bool Reused, string? FileHash)> TryReuseExistingUploadAsync(string filePath)
+    {
+        try
+        {
+            await using var stream = File.OpenRead(filePath);
+            var hashBytes = await System.Security.Cryptography.SHA256.HashDataAsync(stream);
+            var fileHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+
+            var existingUpload = await uploadHistoryService.FindExistingUploadAsync(fileHash);
+            if (existingUpload != null && !string.IsNullOrEmpty(existingUpload.Url))
+            {
+                var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+                var clipboard = lifetime?.MainWindow?.Clipboard;
+                if (clipboard != null)
+                {
+                    await clipboard.SetTextAsync(existingUpload.Url);
+                }
+
+                StatusMessage = "Reused existing upload! Link copied to clipboard.";
+                notificationService.ShowSuccess("Upload Complete", "Existing link copied to clipboard!");
+                return (true, fileHash);
+            }
+
+            return (false, fileHash);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to compute file hash for deduplication check");
+            return (false, null);
+        }
+    }
+
+    private async Task HandleSuccessfulUploadAsync(UploadResult uploadResult, long totalSizeBytes, string? fileHash)
+    {
+        var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+        var clipboard = lifetime?.MainWindow?.Clipboard;
+        if (clipboard != null)
+        {
+            await clipboard.SetTextAsync(uploadResult.PublicUrl);
+        }
+
+        var fileName = SelectedReplays.Count == 1 ? SelectedReplays[0].FileName : "replays.zip";
+        uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash);
+
+        if (IsHistoryOpen)
+        {
+            await LoadHistoryAsync();
+        }
+
+        StatusMessage = "Uploaded! Link copied to clipboard.";
+        notificationService.ShowSuccess("Upload Complete", "Link copied to clipboard!");
     }
 
     [RelayCommand]

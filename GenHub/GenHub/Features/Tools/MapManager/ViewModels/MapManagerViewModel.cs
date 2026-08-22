@@ -593,77 +593,27 @@ public partial class MapManagerViewModel : ObservableObject
             return;
         }
 
-        // Check if any selected maps are demo items (have mock paths)
-        var demoMaps = SelectedMaps.Where(m => m.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-                                                   m.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase)).ToList();
-        if (demoMaps.Count > 0)
+        if (ValidateDemoMapsSelected())
         {
-            // Show notification toast explaining what the button does
-            _notificationService.ShowInfo(
-                "Upload and Share",
-                "Uploads selected maps to UploadThing cloud service (max 10MB) and copies the share link to your clipboard. You can then share the link with others to download maps.");
             return;
         }
 
-        // Calculate total size of selected maps
         long totalSizeBytes = SelectedMaps.Sum(r => new FileInfo(r.FullPath).Length);
-
-        // Check file size limit (10MB max per file/batch typically, but user said "File too large. Maximum upload size is 10MB")
-        // Note: The UI says "max 10MB per file". But usually there is a total limit too if zipped.
-        // Let's enforce the 10MB limit based on total size if it's a ZIP, or per file?
-        // If multiple files are selected, they are zipped. The ZIP must be < 10MB?
-        // Start simple: If total > 10MB, warn.
-        if (totalSizeBytes > MapManagerConstants.MaxMapSizeBytes)
+        if (!await ValidateUploadLimitsAsync(totalSizeBytes))
         {
-            _notificationService.ShowError(
-               "File Too Large",
-               "File too large. Maximum upload size is 10MB.");
-            StatusMessage = "Upload too large (Max 10MB).";
             return;
         }
 
-        // Check rate limit
-        var isAllowed = await _uploadHistoryService.CanUploadAsync(totalSizeBytes);
-        if (!isAllowed)
-        {
-            var usage = await _uploadHistoryService.GetUsageInfoAsync();
-            var resetDateLocal = usage.ResetDate.ToLocalTime();
-            _notificationService.ShowError(
-                "Rate Limit Exceeded",
-                "Upload limit exceeded for the current 3-day period. Please remove items from your Upload History to free up quota immediately.");
-            StatusMessage = $"Limited reached. Resets {resetDateLocal:g}.";
-            return;
-        }
-
-        // Check deduplication if a single file is selected
         string? fileHash = null;
         if (SelectedMaps.Count == 1 && File.Exists(SelectedMaps[0].FullPath))
         {
-            try
+            var (reused, computedHash) = await TryReuseExistingUploadAsync(SelectedMaps[0].FullPath);
+            if (reused)
             {
-                await using var stream = File.OpenRead(SelectedMaps[0].FullPath);
-                var hashBytes = await System.Security.Cryptography.SHA256.HashDataAsync(stream);
-                fileHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
-
-                var existingUpload = await _uploadHistoryService.FindExistingUploadAsync(fileHash);
-                if (existingUpload != null && !string.IsNullOrEmpty(existingUpload.Url))
-                {
-                    var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
-                    var clipboard = lifetime?.MainWindow?.Clipboard;
-                    if (clipboard != null)
-                    {
-                        await clipboard.SetTextAsync(existingUpload.Url);
-                    }
-
-                    StatusMessage = "Reused existing upload! Link copied to clipboard.";
-                    _notificationService.ShowSuccess("Upload Complete", "Existing link copied to clipboard!");
-                    return;
-                }
+                return;
             }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to compute file hash for deduplication check");
-            }
+
+            fileHash = computedHash;
         }
 
         IsBusy = true;
@@ -675,25 +625,7 @@ public partial class MapManagerViewModel : ObservableObject
             var uploadResult = await _exportService.UploadToUploadThingAsync([.. SelectedMaps], new Progress<double>(p => Progress = p));
             if (uploadResult != null)
             {
-                var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
-                var clipboard = lifetime?.MainWindow?.Clipboard;
-                if (clipboard != null)
-                {
-                    await clipboard.SetTextAsync(uploadResult.PublicUrl);
-                }
-
-                // Record successful upload
-                var fileName = SelectedMaps.Count == 1 ? SelectedMaps[0].FileName : "maps.zip";
-                _uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash);
-
-                // Refresh history if open
-                if (IsHistoryOpen)
-                {
-                    await LoadHistoryAsync();
-                }
-
-                StatusMessage = "Uploaded! Link copied to clipboard.";
-                _notificationService.ShowSuccess("Upload Complete", "Link copied to clipboard!");
+                await HandleSuccessfulUploadAsync(uploadResult, totalSizeBytes, fileHash);
             }
             else
             {
@@ -712,6 +644,100 @@ public partial class MapManagerViewModel : ObservableObject
             IsBusy = false;
             Progress = 0;
         }
+    }
+
+    private bool ValidateDemoMapsSelected()
+    {
+        var demoMaps = SelectedMaps.Where(m => m.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
+                                               m.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase)).ToList();
+        if (demoMaps.Count > 0)
+        {
+            _notificationService.ShowInfo(
+                "Upload and Share",
+                "Uploads selected maps to UploadThing cloud service (max 10MB) and copies the share link to your clipboard. You can then share the link with others to download maps.");
+            return true;
+        }
+
+        return false;
+    }
+
+    private async Task<bool> ValidateUploadLimitsAsync(long totalSizeBytes)
+    {
+        if (totalSizeBytes > MapManagerConstants.MaxMapSizeBytes)
+        {
+            _notificationService.ShowError(
+               "File Too Large",
+               "File too large. Maximum upload size is 10MB.");
+            StatusMessage = "Upload too large (Max 10MB).";
+            return false;
+        }
+
+        var isAllowed = await _uploadHistoryService.CanUploadAsync(totalSizeBytes);
+        if (!isAllowed)
+        {
+            var usage = await _uploadHistoryService.GetUsageInfoAsync();
+            var resetDateLocal = usage.ResetDate.ToLocalTime();
+            _notificationService.ShowError(
+                "Rate Limit Exceeded",
+                "Upload limit exceeded for the current 3-day period. Please remove items from your Upload History to free up quota immediately.");
+            StatusMessage = $"Limited reached. Resets {resetDateLocal:g}.";
+            return false;
+        }
+
+        return true;
+    }
+
+    private async Task<(bool Reused, string? FileHash)> TryReuseExistingUploadAsync(string filePath)
+    {
+        try
+        {
+            await using var stream = File.OpenRead(filePath);
+            var hashBytes = await System.Security.Cryptography.SHA256.HashDataAsync(stream);
+            var fileHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+
+            var existingUpload = await _uploadHistoryService.FindExistingUploadAsync(fileHash);
+            if (existingUpload != null && !string.IsNullOrEmpty(existingUpload.Url))
+            {
+                var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+                var clipboard = lifetime?.MainWindow?.Clipboard;
+                if (clipboard != null)
+                {
+                    await clipboard.SetTextAsync(existingUpload.Url);
+                }
+
+                StatusMessage = "Reused existing upload! Link copied to clipboard.";
+                _notificationService.ShowSuccess("Upload Complete", "Existing link copied to clipboard!");
+                return (true, fileHash);
+            }
+
+            return (false, fileHash);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to compute file hash for deduplication check");
+            return (false, null);
+        }
+    }
+
+    private async Task HandleSuccessfulUploadAsync(UploadResult uploadResult, long totalSizeBytes, string? fileHash)
+    {
+        var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+        var clipboard = lifetime?.MainWindow?.Clipboard;
+        if (clipboard != null)
+        {
+            await clipboard.SetTextAsync(uploadResult.PublicUrl);
+        }
+
+        var fileName = SelectedMaps.Count == 1 ? SelectedMaps[0].FileName : "maps.zip";
+        _uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash);
+
+        if (IsHistoryOpen)
+        {
+            await LoadHistoryAsync();
+        }
+
+        StatusMessage = "Uploaded! Link copied to clipboard.";
+        _notificationService.ShowSuccess("Upload Complete", "Link copied to clipboard!");
     }
 
     [RelayCommand]

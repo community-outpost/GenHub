@@ -28,37 +28,24 @@ public sealed class ReplayExportService(
         IProgress<double>? progress = null,
         CancellationToken ct = default)
     {
+        var replayList = replays.ToList();
+        if (replayList.Count == 0)
+        {
+            return null;
+        }
+
         string? zipToUpload = null;
         bool isTemporaryZip = false;
 
         try
         {
-            var replayList = replays.ToList();
-            if (replayList.Count == 0) return null;
+            var (path, isTemp, uploadProgress) = await ResolveZipToUploadAsync(replayList, progress, ct);
+            zipToUpload = path;
+            isTemporaryZip = isTemp;
 
-            IProgress<double>? uploadProgress = progress;
-            if (replayList.Count == 1 && replayList[0].FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrEmpty(zipToUpload))
             {
-                var (isValid, errorMessage) = zipValidationService.ValidateZip(replayList[0].FullPath);
-                if (!isValid)
-                {
-                    logger.LogError("ZIP validation failed for upload: {Error}", errorMessage);
-                    throw new ArgumentException(errorMessage ?? "Invalid ZIP archive for upload.");
-                }
-
-                zipToUpload = replayList[0].FullPath;
-            }
-            else
-            {
-                var tempZip = Path.Combine(Path.GetTempPath(), $"{ReplayManagerConstants.TempShareFilePrefix}{Guid.NewGuid()}.zip");
-                var zipProgress = progress != null ? new Progress<double>(p => progress.Report(p * 0.3)) : null;
-                uploadProgress = progress != null ? new Progress<double>(p => progress.Report(0.3 + (p * 0.7))) : null;
-
-                var createdZip = await ExportToZipAsync(replayList, tempZip, zipProgress, ct);
-                if (createdZip == null) return null;
-
-                zipToUpload = createdZip;
-                isTemporaryZip = true;
+                return null;
             }
 
             if (new FileInfo(zipToUpload).Length > ReplayManagerConstants.MaxUploadBytesPerPeriod)
@@ -85,6 +72,31 @@ public sealed class ReplayExportService(
                 File.Delete(zipToUpload);
             }
         }
+    }
+
+    private async Task<(string? Path, bool IsTemporary, IProgress<double>? UploadProgress)> ResolveZipToUploadAsync(
+        IReadOnlyList<ReplayFile> replayList,
+        IProgress<double>? progress,
+        CancellationToken ct)
+    {
+        if (replayList.Count == 1 && replayList[0].FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+        {
+            var (isValid, errorMessage) = zipValidationService.ValidateZip(replayList[0].FullPath);
+            if (!isValid)
+            {
+                logger.LogError("ZIP validation failed for upload: {Error}", errorMessage);
+                throw new ArgumentException(errorMessage ?? "Invalid ZIP archive for upload.");
+            }
+
+            return (replayList[0].FullPath, false, progress);
+        }
+
+        var tempZip = Path.Combine(Path.GetTempPath(), $"{ReplayManagerConstants.TempShareFilePrefix}{Guid.NewGuid()}.zip");
+        var zipProgress = progress != null ? new Progress<double>(p => progress.Report(p * 0.3)) : null;
+        var uploadProgress = progress != null ? new Progress<double>(p => progress.Report(0.3 + (p * 0.7))) : null;
+
+        var createdZip = await ExportToZipAsync(replayList, tempZip, zipProgress, ct);
+        return (createdZip, true, uploadProgress);
     }
 
     /// <inheritdoc />

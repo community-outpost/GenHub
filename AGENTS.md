@@ -107,6 +107,8 @@ This repository uses **GitNexus** to maintain an AST-parsed structural knowledge
 - **Variables & Declarations:** Always initialize local variables upon declaration. Never leave uninitialized variables (`CS-W1022`) or unused variables (`CS-W1100`). Use discards (`_`) for unused `using` scopes or out parameters.
 - **Switch Statements:** Always include a `default` case (`CS-W1009`) in `switch` statements and expressions.
 - **Exception Handling:** Never catch generic `Exception` (`CS-R1008`) unless explicitly required for top-level process/worker boundaries. Always catch specific exception types (`IOException`, `UnauthorizedAccessException`, etc.) or re-throw.
+- **Cognitive Complexity:** Keep method cognitive complexity strictly below 15 (SonarCloud S3776). Break up complex orchestration into cohesive, single-responsibility private helper methods.
+- **Constants & URIs:** Fallback and default gateway/API endpoints must be centralized in `GenHub.Core.Constants.ApiConstants` with environment variable override support (e.g., `GENHUB_UPLOAD_GATEWAY_URL`). Do not scatter URI literals across features.
 - **Formatting:** 4 spaces indentation, Allman bracing style (opening brace on its own line), nullable reference types enabled.
 - **Member Ordering (StyleCop):**
   1. Nested types

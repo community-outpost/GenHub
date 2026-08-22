@@ -33,37 +33,24 @@ public sealed class MapExportService(
         IProgress<double>? progress = null,
         CancellationToken ct = default)
     {
+        var mapList = maps.ToList();
+        if (mapList.Count == 0)
+        {
+            return null;
+        }
+
         string? zipToUpload = null;
         bool isTemporaryZip = false;
 
         try
         {
-            var mapList = maps.ToList();
-            if (mapList.Count == 0) return null;
+            var (path, isTemp, uploadProgress) = await ResolveZipToUploadAsync(mapList, progress, ct);
+            zipToUpload = path;
+            isTemporaryZip = isTemp;
 
-            IProgress<double>? uploadProgress = progress;
-            if (mapList.Count == 1 && mapList[0].FileName.EndsWith(Path.GetExtension(MapManagerConstants.ZipFilePattern), StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrEmpty(zipToUpload))
             {
-                var (isValid, errorMessage) = importService.ValidateZip(mapList[0].FullPath);
-                if (!isValid)
-                {
-                    logger.LogError("ZIP validation failed for upload: {Error}", errorMessage);
-                    throw new ArgumentException(errorMessage ?? "Invalid ZIP archive for upload.");
-                }
-
-                zipToUpload = mapList[0].FullPath;
-            }
-            else
-            {
-                var tempZip = Path.Combine(Path.GetTempPath(), $"genhub_maps_{Guid.NewGuid()}.zip");
-                var zipProgress = progress != null ? new Progress<double>(p => progress.Report(p * 0.3)) : null;
-                uploadProgress = progress != null ? new Progress<double>(p => progress.Report(0.3 + (p * 0.7))) : null;
-
-                var createdZip = await ExportToZipAsync(mapList, tempZip, zipProgress, ct);
-                if (createdZip == null) return null;
-
-                zipToUpload = createdZip;
-                isTemporaryZip = true;
+                return null;
             }
 
             if (new FileInfo(zipToUpload).Length > MaxTotalUploadBytes)
@@ -90,6 +77,31 @@ public sealed class MapExportService(
                 File.Delete(zipToUpload);
             }
         }
+    }
+
+    private async Task<(string? Path, bool IsTemporary, IProgress<double>? UploadProgress)> ResolveZipToUploadAsync(
+        IReadOnlyList<MapFile> mapList,
+        IProgress<double>? progress,
+        CancellationToken ct)
+    {
+        if (mapList.Count == 1 && mapList[0].FileName.EndsWith(Path.GetExtension(MapManagerConstants.ZipFilePattern), StringComparison.OrdinalIgnoreCase))
+        {
+            var (isValid, errorMessage) = importService.ValidateZip(mapList[0].FullPath);
+            if (!isValid)
+            {
+                logger.LogError("ZIP validation failed for upload: {Error}", errorMessage);
+                throw new ArgumentException(errorMessage ?? "Invalid ZIP archive for upload.");
+            }
+
+            return (mapList[0].FullPath, false, progress);
+        }
+
+        var tempZip = Path.Combine(Path.GetTempPath(), $"genhub_maps_{Guid.NewGuid()}.zip");
+        var zipProgress = progress != null ? new Progress<double>(p => progress.Report(p * 0.3)) : null;
+        var uploadProgress = progress != null ? new Progress<double>(p => progress.Report(0.3 + (p * 0.7))) : null;
+
+        var createdZip = await ExportToZipAsync(mapList, tempZip, zipProgress, ct);
+        return (createdZip, true, uploadProgress);
     }
 
     /// <inheritdoc />

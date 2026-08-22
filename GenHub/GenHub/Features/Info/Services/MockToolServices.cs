@@ -271,10 +271,12 @@ public class MockReplayExportService : IReplayExportService
         return Task.FromResult<string?>(destinationPath);
     }
 
+    private const string MockUploadUrl = "https://example.com/share/1234";
+
     /// <inheritdoc/>
     public Task<GenHub.Core.Models.Tools.UploadThing.UploadResult?> UploadToUploadThingAsync(IEnumerable<ReplayFile> replays, IProgress<double>? progress = null, CancellationToken ct = default)
     {
-        return Task.FromResult<GenHub.Core.Models.Tools.UploadThing.UploadResult?>(new GenHub.Core.Models.Tools.UploadThing.UploadResult("https://example.com/share/1234", "mock_key_1", "mock_delete_token_1"));
+        return Task.FromResult<GenHub.Core.Models.Tools.UploadThing.UploadResult?>(new GenHub.Core.Models.Tools.UploadThing.UploadResult(MockUploadUrl, "mock_key_1", "mock_delete_token_1"));
     }
 }
 
@@ -420,10 +422,12 @@ public class MockMapExportService : IMapExportService
         return Task.FromResult<string?>(destinationPath);
     }
 
+    private const string MockMapUploadUrl = "https://example.com/maps/123";
+
     /// <inheritdoc/>
     public Task<GenHub.Core.Models.Tools.UploadThing.UploadResult?> UploadToUploadThingAsync(IEnumerable<MapFile> maps, IProgress<double>? progress = null, CancellationToken ct = default)
     {
-        return Task.FromResult<GenHub.Core.Models.Tools.UploadThing.UploadResult?>(new GenHub.Core.Models.Tools.UploadThing.UploadResult("https://example.com/maps/123", "mock_key_2", "mock_delete_token_2"));
+        return Task.FromResult<GenHub.Core.Models.Tools.UploadThing.UploadResult?>(new GenHub.Core.Models.Tools.UploadThing.UploadResult(MockMapUploadUrl, "mock_key_2", "mock_delete_token_2"));
     }
 }
 
