@@ -28,6 +28,9 @@ public static class AppUpdateModule
         // Register Velopack update manager (only update system needed)
         services.AddSingleton<IVelopackUpdateManager, VelopackUpdateManager>();
 
+        // Register background update coordinator
+        services.AddSingleton<IBackgroundUpdateCoordinator, BackgroundUpdateCoordinator>();
+
         // Register ViewModel
         services.AddTransient<UpdateNotificationViewModel>();
 

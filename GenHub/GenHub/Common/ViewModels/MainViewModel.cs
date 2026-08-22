@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
@@ -13,16 +13,12 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using GenHub.Common.ViewModels.Dialogs;
 using GenHub.Core.Constants;
-using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Messages;
-using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Dialogs;
 using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Notifications;
 using GenHub.Features.AppUpdate.Interfaces;
-using GenHub.Features.AppUpdate.ViewModels;
 using GenHub.Features.Downloads.ViewModels;
 using GenHub.Features.GameProfiles.ViewModels;
 using GenHub.Features.Info.ViewModels;
@@ -30,7 +26,6 @@ using GenHub.Features.Notifications.ViewModels;
 using GenHub.Features.Settings.ViewModels;
 using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.Logging;
-using Velopack;
 
 namespace GenHub.Common.ViewModels;
 
@@ -44,12 +39,13 @@ namespace GenHub.Common.ViewModels;
 /// <param name="notificationManager">Notification manager view model.</param>
 /// <param name="configurationProvider">Configuration provider service.</param>
 /// <param name="userSettingsService">User settings service for persistence operations.</param>
-/// <param name="velopackUpdateManager">The Velopack update manager for checking updates.</param>
+/// <param name="backgroundUpdateCoordinator">Coordinator for background update checking and scheduling.</param>
 /// <param name="notificationService">Service for showing notifications.</param>
 /// <param name="dialogService">Dialog service for showing message boxes.</param>
 /// <param name="notificationFeedViewModel">Notification feed view model.</param>
 /// <param name="infoViewModel">Info view model.</param>
 /// <param name="logger">Logger instance.</param>
+[SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "MainViewModel is the top-level composition ViewModel for tabs and services injected via dependency injection.")]
 public partial class MainViewModel(
     GameProfileLauncherViewModel gameProfilesViewModel,
     DownloadsBrowserViewModel downloadsBrowserViewModel,
@@ -58,16 +54,15 @@ public partial class MainViewModel(
     NotificationManagerViewModel notificationManager,
     IConfigurationProviderService configurationProvider,
     IUserSettingsService userSettingsService,
-    IVelopackUpdateManager velopackUpdateManager,
+    IBackgroundUpdateCoordinator backgroundUpdateCoordinator,
     INotificationService notificationService,
     IDialogService dialogService,
     NotificationFeedViewModel notificationFeedViewModel,
     InfoViewModel infoViewModel,
-    ILogger<MainViewModel> logger) : ObservableObject, IDisposable, IRecipient<NavigationMessage>, IRecipient<UpdateSettingsChangedMessage>
+    ILogger<MainViewModel> logger) : ObservableObject, IDisposable, IRecipient<NavigationMessage>
 {
     private readonly CancellationTokenSource _initializationCts = new();
-    private Timer? _periodicUpdateTimer;
-    private string? _lastNotifiedUpdateIdentity;
+    private bool _disposed;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MainViewModel"/> class for design-time support.
@@ -164,13 +159,14 @@ public partial class MainViewModel(
     /// <inheritdoc/>
     public void Receive(NavigationMessage message)
     {
-        Dispatcher.UIThread.Post(() => SelectTab(message.Tab));
-    }
-
-    /// <inheritdoc/>
-    public void Receive(UpdateSettingsChangedMessage message)
-    {
-        RestartPeriodicUpdateTimer(message.AutoCheckForUpdatesPeriodically, message.PeriodicUpdateCheckIntervalMinutes);
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            SelectTab(message.Tab);
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(() => SelectTab(message.Tab));
+        }
     }
 
     /// <summary>
@@ -199,15 +195,7 @@ public partial class MainViewModel(
         // Ensure the initial tab's activation logic runs (triggers lazy loading)
         OnSelectedTabChanged(SelectedTab);
 
-        var settings = userSettingsService.Get();
-        if (settings.AutoCheckForUpdatesOnStartup)
-        {
-            // Start background check with cancellation support
-            _ = CheckForUpdatesInBackgroundAsync(_initializationCts.Token);
-        }
-
-        // Initialize periodic update timer
-        RestartPeriodicUpdateTimer(settings.AutoCheckForUpdatesPeriodically, settings.PeriodicUpdateCheckIntervalMinutes);
+        await backgroundUpdateCoordinator.InitializeAsync(_initializationCts.Token);
 
         CheckForQuickStart();
     }
@@ -217,9 +205,23 @@ public partial class MainViewModel(
     /// </summary>
     public void Dispose()
     {
-        _periodicUpdateTimer?.Dispose();
-        _initializationCts?.Cancel();
-        _initializationCts?.Dispose();
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
+        try
+        {
+            _initializationCts.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Ignore if already disposed
+        }
+
+        _initializationCts.Dispose();
         WeakReferenceMessenger.Default.UnregisterAll(this);
         GC.SuppressFinalize(this);
     }
@@ -244,339 +246,12 @@ public partial class MainViewModel(
         }
     }
 
-    // Register for messages
     private void RegisterMessages()
     {
         if (!WeakReferenceMessenger.Default.IsRegistered<NavigationMessage>(this))
         {
             WeakReferenceMessenger.Default.RegisterAll(this);
         }
-    }
-
-    /// <summary>
-    /// Checks for available updates using Velopack.
-    /// </summary>
-    private async Task CheckForUpdatesAsync(CancellationToken cancellationToken = default)
-    {
-        logger?.LogDebug("Starting background update check");
-
-        try
-        {
-            var settings = userSettingsService.Get();
-
-            // 1. check for subscribed pr artifacts
-            if (settings.SubscribedPrNumber.HasValue)
-            {
-                var prNumber = settings.SubscribedPrNumber.Value;
-                logger?.LogDebug("User subscribed to PR #{PrNumber}, checking for artifact updates", prNumber);
-                velopackUpdateManager.SubscribedPrNumber = prNumber;
-                velopackUpdateManager.SubscribedBranch = null;
-
-                var artifactUpdate = await velopackUpdateManager.CheckForArtifactUpdatesAsync(cancellationToken);
-                if (artifactUpdate != null)
-                {
-                    var currentVersionBase = UpdateNotificationViewModel.CurrentAppVersion.Split('+')[0];
-                    var artifactVersionBase = artifactUpdate.Version.Split('+')[0];
-
-                    if (AppUpdateVersionHelper.IsArtifactVersionNewer(artifactVersionBase, currentVersionBase) &&
-                        !string.Equals(artifactVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
-                    {
-                        var updateIdentity = $"pr:{prNumber}:{artifactVersionBase}";
-                        if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
-                        {
-                            logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
-                            return;
-                        }
-
-                        _lastNotifiedUpdateIdentity = updateIdentity;
-                        logger?.LogInformation("PR #{PrNumber} update available: {Version}", prNumber, artifactUpdate.DisplayVersion);
-                        notificationService.Show(new NotificationMessage(
-                            NotificationType.Info,
-                            AppUpdateConstants.PrUpdateAvailableNotificationTitle,
-                            string.Format(AppUpdateConstants.PrUpdateNotificationFormat, artifactUpdate.DisplayVersion, prNumber),
-                            autoDismissMilliseconds: null,
-                            actions:
-                            [
-                                new NotificationAction(
-                                    AppUpdateConstants.UpdateAction,
-                                    () => _ = PerformOneClickUpdateAsync(artifactUpdate, null, null),
-                                    NotificationActionStyle.Primary,
-                                    dismissOnExecute: true),
-                            ],
-                            isPersistent: true,
-                            showInBadge: true));
-                    }
-                }
-
-                return;
-            }
-
-            // 2. check for subscribed branch artifacts
-            if (!string.IsNullOrWhiteSpace(settings.SubscribedBranch))
-            {
-                var branch = settings.SubscribedBranch;
-                logger?.LogDebug("User subscribed to branch '{Branch}', checking for artifact updates", branch);
-                velopackUpdateManager.SubscribedBranch = branch;
-                velopackUpdateManager.SubscribedPrNumber = null;
-
-                var artifactUpdate = await velopackUpdateManager.CheckForArtifactUpdatesAsync(cancellationToken);
-                if (artifactUpdate != null)
-                {
-                    var currentVersionBase = UpdateNotificationViewModel.CurrentAppVersion.Split('+')[0];
-                    var artifactVersionBase = artifactUpdate.Version.Split('+')[0];
-
-                    if (AppUpdateVersionHelper.IsArtifactVersionNewer(artifactVersionBase, currentVersionBase) &&
-                        !string.Equals(artifactVersionBase, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
-                    {
-                        var updateIdentity = $"branch:{branch}:{artifactVersionBase}";
-                        if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
-                        {
-                            logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
-                            return;
-                        }
-
-                        _lastNotifiedUpdateIdentity = updateIdentity;
-                        logger?.LogInformation("Branch '{Branch}' update available: {Version}", branch, artifactUpdate.DisplayVersion);
-                        notificationService.Show(new NotificationMessage(
-                            NotificationType.Info,
-                            AppUpdateConstants.BranchUpdateAvailableNotificationTitle,
-                            string.Format(AppUpdateConstants.BranchUpdateNotificationFormat, artifactUpdate.DisplayVersion, branch),
-                            autoDismissMilliseconds: null,
-                            actions:
-                            [
-                                new NotificationAction(
-                                    AppUpdateConstants.UpdateAction,
-                                    () => _ = PerformOneClickUpdateAsync(artifactUpdate, null, null),
-                                    NotificationActionStyle.Primary,
-                                    dismissOnExecute: true),
-                            ],
-                            isPersistent: true,
-                            showInBadge: true));
-                    }
-                }
-
-                return;
-            }
-
-            // 3. check for standard github releases
-            velopackUpdateManager.SubscribedPrNumber = null;
-            velopackUpdateManager.SubscribedBranch = null;
-
-            var updateInfo = await velopackUpdateManager.CheckForUpdatesAsync(cancellationToken);
-            if (updateInfo != null)
-            {
-                var version = updateInfo.TargetFullRelease.Version.ToString();
-                if (!string.Equals(version, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
-                {
-                    var updateIdentity = $"release:{version}";
-                    if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
-                    {
-                        logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
-                        return;
-                    }
-
-                    _lastNotifiedUpdateIdentity = updateIdentity;
-                    logger?.LogInformation("GitHub release update available: {Version}", version);
-                    notificationService.Show(new NotificationMessage(
-                        NotificationType.Info,
-                        AppUpdateConstants.UpdateAvailableNotificationTitle,
-                        string.Format(AppUpdateConstants.ReleaseUpdateNotificationFormat, version),
-                        autoDismissMilliseconds: null,
-                        actions:
-                        [
-                            new NotificationAction(
-                                AppUpdateConstants.UpdateAction,
-                                () => _ = PerformOneClickUpdateAsync(null, updateInfo, null),
-                                NotificationActionStyle.Primary,
-                                dismissOnExecute: true),
-                        ],
-                        isPersistent: true,
-                        showInBadge: true));
-                    return;
-                }
-            }
-            else if (velopackUpdateManager.HasUpdateAvailableFromGitHub)
-            {
-                var githubVersion = velopackUpdateManager.LatestVersionFromGitHub;
-                if (!string.IsNullOrWhiteSpace(githubVersion) &&
-                    !string.Equals(githubVersion, settings.DismissedUpdateVersion, StringComparison.OrdinalIgnoreCase))
-                {
-                    var updateIdentity = $"github:{githubVersion}";
-                    if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
-                    {
-                        logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
-                        return;
-                    }
-
-                    _lastNotifiedUpdateIdentity = updateIdentity;
-                    logger?.LogInformation("GitHub API release update available: {Version}", githubVersion);
-                    notificationService.Show(new NotificationMessage(
-                        NotificationType.Info,
-                        AppUpdateConstants.UpdateAvailableNotificationTitle,
-                        string.Format(AppUpdateConstants.ReleaseUpdateNotificationFormat, githubVersion),
-                        autoDismissMilliseconds: null,
-                        actions:
-                        [
-                            new NotificationAction(
-                                AppUpdateConstants.UpdateAction,
-                                () => _ = PerformOneClickUpdateAsync(null, null, githubVersion),
-                                NotificationActionStyle.Primary,
-                                dismissOnExecute: true),
-                        ],
-                        isPersistent: true,
-                        showInBadge: true));
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            logger?.LogError(ex, "Exception in CheckForUpdatesAsync");
-        }
-    }
-
-    private async Task PerformOneClickUpdateAsync(
-        ArtifactUpdateInfo? artifactUpdate,
-        UpdateInfo? updateInfo,
-        string? githubVersion)
-    {
-        var progressNotificationId = Guid.NewGuid();
-
-        // show the progress notification immediately
-        notificationService.Show(new NotificationMessage(
-            NotificationType.Info,
-            AppUpdateConstants.UpdatingAppNotificationTitle,
-            AppUpdateConstants.UpdateStartingMessage,
-            autoDismissMilliseconds: null,
-            isPersistent: false,
-            showInBadge: false)
-        {
-            Id = progressNotificationId,
-        });
-
-        var progress = new Progress<UpdateProgress>(p =>
-        {
-            string statusText;
-            if (!string.IsNullOrWhiteSpace(p.Message))
-            {
-                statusText = p.Message;
-            }
-            else if (!string.IsNullOrWhiteSpace(p.Status))
-            {
-                statusText = p.Status;
-            }
-            else
-            {
-                statusText = $"{p.PercentComplete}%";
-            }
-
-            notificationService.Update(
-                progressNotificationId,
-                statusText,
-                AppUpdateConstants.UpdatingAppNotificationTitle);
-        });
-
-        try
-        {
-            if (artifactUpdate != null)
-            {
-                logger?.LogInformation("Starting one-click artifact install: {Version}", artifactUpdate.DisplayVersion);
-                await velopackUpdateManager.InstallArtifactAsync(artifactUpdate, progress, _initializationCts.Token);
-                notificationService.Update(
-                    progressNotificationId,
-                    AppUpdateConstants.UpdateCompleteRestartingMessage,
-                    AppUpdateConstants.UpdatingAppNotificationTitle);
-            }
-            else if (updateInfo != null)
-            {
-                logger?.LogInformation("Starting one-click release update: {Version}", updateInfo.TargetFullRelease.Version);
-                await velopackUpdateManager.DownloadUpdatesAsync(updateInfo, progress, _initializationCts.Token);
-                notificationService.Update(
-                    progressNotificationId,
-                    AppUpdateConstants.UpdateDownloadedRestartingMessage,
-                    AppUpdateConstants.UpdatingAppNotificationTitle);
-                velopackUpdateManager.ApplyUpdatesAndRestart(updateInfo);
-            }
-            else if (!string.IsNullOrWhiteSpace(githubVersion))
-            {
-                logger?.LogInformation("Opening update window for GitHub API update: {Version}", githubVersion);
-                notificationService.Dismiss(progressNotificationId);
-                OpenUpdateSettings();
-            }
-        }
-        catch (Exception ex)
-        {
-            logger?.LogError(ex, "Failed to install update");
-            notificationService.Dismiss(progressNotificationId);
-            notificationService.ShowError(
-                AppUpdateConstants.UpdateFailedNotificationTitle,
-                string.Format(AppUpdateConstants.UpdateFailedNotificationFormat, ex.Message),
-                autoDismissMs: NotificationConstants.DefaultAutoDismissMs);
-        }
-    }
-
-    private void OpenUpdateSettings()
-    {
-        SelectTab(NavigationTab.Settings);
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            SettingsViewModel.OpenUpdateWindowCommand.Execute(null);
-        }
-        else
-        {
-            Dispatcher.UIThread.Post(() => SettingsViewModel.OpenUpdateWindowCommand.Execute(null));
-        }
-    }
-
-    private async Task CheckForUpdatesInBackgroundAsync(CancellationToken ct)
-    {
-        try
-        {
-            await CheckForUpdatesAsync(ct);
-        }
-        catch (OperationCanceledException)
-        {
-            // Expected on cancellation
-        }
-        catch (Exception ex)
-        {
-            logger?.LogError(ex, "Unhandled exception in background update check");
-        }
-    }
-
-    private void RestartPeriodicUpdateTimer(bool enabled, int intervalMinutes)
-    {
-        _periodicUpdateTimer?.Dispose();
-        _periodicUpdateTimer = null;
-
-        if (!enabled || intervalMinutes <= 0)
-        {
-            return;
-        }
-
-        var clampedInterval = Math.Clamp(
-            intervalMinutes,
-            AppUpdateConstants.MinPeriodicUpdateCheckIntervalMinutes,
-            AppUpdateConstants.MaxPeriodicUpdateCheckIntervalMinutes);
-
-        var interval = TimeSpan.FromMinutes(clampedInterval);
-        logger?.LogDebug("Starting periodic update check timer with interval: {Interval}", interval);
-
-        _periodicUpdateTimer = new Timer(
-            OnPeriodicUpdateTimerCallback,
-            null,
-            interval,
-            interval);
-    }
-
-    private void OnPeriodicUpdateTimerCallback(object? state)
-    {
-        if (_initializationCts.IsCancellationRequested)
-        {
-            return;
-        }
-
-        logger?.LogDebug("Periodic update check timer triggered");
-        _ = CheckForUpdatesInBackgroundAsync(_initializationCts.Token);
     }
 
     private void CheckForQuickStart()
@@ -591,13 +266,13 @@ public partial class MainViewModel(
                     new DialogAction
                     {
                         Text = "Open Quickstart",
-                        Style = NotificationActionStyle.Primary, // Switched to Primary (Purple)
+                        Style = NotificationActionStyle.Primary,
                         Action = () =>
                         {
-                             SelectTab(NavigationTab.Info);
+                            SelectTab(NavigationTab.Info);
 
-                             // Programmatic navigation to the quickstart section
-                             InfoViewModel.OpenSection(InfoConstants.QuickstartSectionId);
+                            // Programmatic navigation to the quickstart section
+                            InfoViewModel.OpenSection(InfoConstants.QuickstartSectionId);
                         },
                     },
                     new DialogAction
@@ -654,10 +329,8 @@ public partial class MainViewModel(
     {
         OnPropertyChanged(nameof(CurrentTabViewModel));
 
-        // Notify SettingsViewModel when it becomes visible/invisible
         SettingsViewModel.IsViewVisible = value == NavigationTab.Settings;
 
-        // Refresh Tabs when they become visible
         if (value == NavigationTab.GameProfiles)
         {
             GameProfilesViewModel.OnTabActivated();

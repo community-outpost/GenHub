@@ -362,7 +362,15 @@
                     Background="{DynamicResource SystemAccentColor}" Foreground="White"
                     Padding="24,10" CornerRadius="20" FontWeight="Bold" FontSize="14">
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                    <PathIcon Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" Width="16" Height="16" Foreground="White"/>
+                    <ProgressBar IsIndeterminate="True"
+                                 IsVisible="{Binding IsLoadingOrInstalling}"
+                                 Width="16" Height="16"
+                                 Foreground="White"
+                                 Background="Transparent"/>
+                    <PathIcon Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"
+                              Width="16" Height="16"
+                              Foreground="White"
+                              IsVisible="{Binding !IsLoadingOrInstalling}"/>
                     <TextBlock Text="{Binding InstallButtonText}"/>
                 </StackPanel>
              </Button>

@@ -81,6 +81,11 @@ public static class AppUpdateConstants
     public const string InstallingMessage = "Installing...";
 
     /// <summary>
+    /// Loading message.
+    /// </summary>
+    public const string LoadingMessage = "Loading...";
+
+    /// <summary>
     /// Install update action text.
     /// </summary>
     public const string InstallUpdateAction = "Install Update";
@@ -249,6 +254,96 @@ public static class AppUpdateConstants
     /// PR update notification body format string ({0}: version, {1}: PR number).
     /// </summary>
     public const string PrUpdateNotificationFormat = "A new build ({0}) is available for PR #{1}.";
+
+    /// <summary>
+    /// Default development branch name for CI artifact fallback.
+    /// </summary>
+    public const string DevelopmentBranch = "development";
+
+    /// <summary>
+    /// Default main branch name for release updates.
+    /// </summary>
+    public const string MainBranch = "main";
+
+    /// <summary>
+    /// Update available notification title when a subscribed PR has been merged or closed.
+    /// </summary>
+    public const string PrMergedUpdateAvailableNotificationTitle = "PR Merged — Update Available";
+
+    /// <summary>
+    /// Update available notification title when a subscribed branch is stale or has no artifacts.
+    /// </summary>
+    public const string BranchStaleUpdateAvailableNotificationTitle = "Branch Fallback: Update Available";
+
+    /// <summary>
+    /// PR merged or closed fallback notification format string ({0}: version, {1}: PR number).
+    /// </summary>
+    public const string PrMergedUpdateNotificationFormat = "PR #{1} was merged or closed. A new build ({0}) is available on development.";
+
+    /// <summary>
+    /// PR merged or closed release fallback notification format string ({0}: version, {1}: PR number).
+    /// </summary>
+    public const string PrMergedReleaseNotificationFormat = "PR #{1} was merged or closed. A new release ({0}) is available.";
+
+    /// <summary>
+    /// Branch stale fallback notification format string ({0}: version, {1}: branch name).
+    /// </summary>
+    public const string BranchStaleUpdateNotificationFormat = "Branch '{1}' has no newer builds. A new build ({0}) is available on development.";
+
+    /// <summary>
+    /// Branch stale release fallback notification format string ({0}: version, {1}: branch name).
+    /// </summary>
+    public const string BranchStaleReleaseNotificationFormat = "Branch '{1}' has no newer builds. A new release ({0}) is available.";
+
+    /// <summary>
+    /// PR merged or closed status message format ({0}: PR number).
+    /// </summary>
+    public const string PrMergedStatusMessageFormat = "PR #{0} has been merged or closed. Select a new PR or switch to MAIN.";
+
+    /// <summary>
+    /// Branch stale status message format ({0}: branch name).
+    /// </summary>
+    public const string BranchStaleStatusMessageFormat = "Branch '{0}' has no available builds. Select a new branch or switch to MAIN.";
+
+    /// <summary>
+    /// Message displayed when checking branch/PR artifacts without a configured GitHub PAT.
+    /// </summary>
+    public const string PatRequiredForArtifactsMessage = "GitHub Personal Access Token (PAT) required to check branch/PR builds.";
+
+    /// <summary>
+    /// Identity prefix for PR update notification deduplication.
+    /// </summary>
+    public const string PrDedupePrefix = "pr:";
+
+    /// <summary>
+    /// Identity prefix for PR fallback update notification deduplication.
+    /// </summary>
+    public const string PrFallbackDedupePrefix = "pr-fallback:";
+
+    /// <summary>
+    /// Identity prefix for branch update notification deduplication.
+    /// </summary>
+    public const string BranchDedupePrefix = "branch:";
+
+    /// <summary>
+    /// Identity prefix for branch fallback update notification deduplication.
+    /// </summary>
+    public const string BranchFallbackDedupePrefix = "branch-fallback:";
+
+    /// <summary>
+    /// Identity prefix for release update notification deduplication.
+    /// </summary>
+    public const string ReleaseDedupePrefix = "release:";
+
+    /// <summary>
+    /// Identity prefix for GitHub API fallback update notification deduplication.
+    /// </summary>
+    public const string GitHubFallbackDedupePrefix = "github:";
+
+    /// <summary>
+    /// Log format string when skipping duplicate update notifications.
+    /// </summary>
+    public const string NotificationAlreadyShownLogFormat = "Update notification already shown for {Identity}, skipping duplicate notification";
 
     /// <summary>
     /// Sort option: sort by last updated date descending.

@@ -43,6 +43,7 @@ public static class CompositionRootAssertions
     /// </summary>
     private static readonly Type[] RequiredSingleServices =
     [
+        typeof(IBackgroundUpdateCoordinator),
         typeof(IConfigurationProviderService),
         typeof(IFileOperationsService),
         typeof(IGamePathProvider),

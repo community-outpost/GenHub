@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.GitHub;
 using GenHub.Core.Models.AppUpdate;
 using GenHub.Core.Models.Common;
 using GenHub.Features.AppUpdate.Interfaces;
@@ -589,5 +591,169 @@ public class UpdateNotificationViewModelTests
         Assert.Equal(242, mockVelopack.Object.SubscribedPrNumber);
         Assert.NotNull(vm.SubscribedPr);
         Assert.Equal(242, vm.SubscribedPr.Number);
+    }
+
+    /// <summary>
+    /// Verifies that when a subscribed PR is merged or closed, CheckForUpdates sets ShowPrMergedWarning and formats the status message.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CheckForUpdatesCommand_WhenSubscribedPrIsMerged_ShowsMergedWarningAndStatusAsync()
+    {
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings { SubscribedPrNumber = 265 });
+
+        var mockVelopack = new Mock<IVelopackUpdateManager>();
+        mockVelopack.SetupProperty(x => x.SubscribedPrNumber, 265);
+        mockVelopack.Setup(x => x.CheckForArtifactUpdatesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ArtifactUpdateInfo?)null);
+        mockVelopack.SetupGet(x => x.IsPrMergedOrClosed).Returns(true);
+        mockVelopack.Setup(x => x.GetBranchesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<string>());
+        mockVelopack.Setup(x => x.GetOpenPullRequestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<PullRequestInfo>());
+
+        var mockTokenStorage = new Mock<IGitHubTokenStorage>();
+        mockTokenStorage.Setup(x => x.HasToken()).Returns(true);
+
+        using var vm = new UpdateNotificationViewModel(
+            mockVelopack.Object,
+            Mock.Of<ILogger<UpdateNotificationViewModel>>(),
+            mockUserSettings.Object,
+            mockTokenStorage.Object);
+
+        await ((CommunityToolkit.Mvvm.Input.IAsyncRelayCommand)vm.CheckForUpdatesCommand).ExecuteAsync(null);
+
+        Assert.True(vm.ShowPrMergedWarning);
+        Assert.Contains("merged", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.False(vm.IsUpdateAvailable);
+    }
+
+    /// <summary>
+    /// Verifies that when a subscribed custom branch has no artifacts and PAT is configured, CheckForUpdates sets stale branch status message.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CheckForUpdatesCommand_WhenCustomBranchHasNoArtifactsAndPatPresent_SetsStaleStatusAsync()
+    {
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings { SubscribedBranch = "feat/deleted-branch" });
+
+        var mockVelopack = new Mock<IVelopackUpdateManager>();
+        mockVelopack.SetupProperty(x => x.SubscribedBranch, "feat/deleted-branch");
+        mockVelopack.Setup(x => x.CheckForArtifactUpdatesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ArtifactUpdateInfo?)null);
+        mockVelopack.Setup(x => x.GetBranchesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<string>());
+        mockVelopack.Setup(x => x.GetOpenPullRequestsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<PullRequestInfo>());
+
+        var mockTokenStorage = new Mock<IGitHubTokenStorage>();
+        mockTokenStorage.Setup(x => x.HasToken()).Returns(true);
+
+        using var vm = new UpdateNotificationViewModel(
+            mockVelopack.Object,
+            Mock.Of<ILogger<UpdateNotificationViewModel>>(),
+            mockUserSettings.Object,
+            mockTokenStorage.Object);
+
+        await ((CommunityToolkit.Mvvm.Input.IAsyncRelayCommand)vm.CheckForUpdatesCommand).ExecuteAsync(null);
+
+        Assert.Contains("no available builds", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.False(vm.IsUpdateAvailable);
+    }
+
+    /// <summary>
+    /// Verifies that when subscribed to a branch but no PAT is configured, CheckForUpdates sets PAT required status message.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CheckForUpdatesCommand_WhenSubscribedBranchAndNoPat_SetsPatRequiredStatusAsync()
+    {
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings { SubscribedBranch = "feat/some-branch" });
+
+        var mockVelopack = new Mock<IVelopackUpdateManager>();
+        mockVelopack.SetupProperty(x => x.SubscribedBranch, "feat/some-branch");
+
+        using var vm = new UpdateNotificationViewModel(
+            mockVelopack.Object,
+            Mock.Of<ILogger<UpdateNotificationViewModel>>(),
+            mockUserSettings.Object,
+            gitHubTokenStorage: null);
+
+        await ((CommunityToolkit.Mvvm.Input.IAsyncRelayCommand)vm.CheckForUpdatesCommand).ExecuteAsync(null);
+
+        Assert.Equal(AppUpdateConstants.PatRequiredForArtifactsMessage, vm.StatusMessage);
+        Assert.False(vm.IsUpdateAvailable);
+    }
+
+    /// <summary>
+    /// Verifies that when subscribed to a PR but no PAT is configured, CheckForUpdates sets PAT required status message.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task CheckForUpdatesCommand_WhenSubscribedPrAndNoPat_SetsPatRequiredStatusAsync()
+    {
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings { SubscribedPrNumber = 42 });
+
+        var mockVelopack = new Mock<IVelopackUpdateManager>();
+        mockVelopack.SetupProperty(x => x.SubscribedPrNumber, 42);
+
+        using var vm = new UpdateNotificationViewModel(
+            mockVelopack.Object,
+            Mock.Of<ILogger<UpdateNotificationViewModel>>(),
+            mockUserSettings.Object,
+            gitHubTokenStorage: null);
+
+        await ((CommunityToolkit.Mvvm.Input.IAsyncRelayCommand)vm.CheckForUpdatesCommand).ExecuteAsync(null);
+
+        Assert.Equal(AppUpdateConstants.PatRequiredForArtifactsMessage, vm.StatusMessage);
+        Assert.False(vm.IsUpdateAvailable);
+    }
+
+    /// <summary>
+    /// Verifies that when subscribing to a branch, the install button text changes to loading and download is disabled until artifacts finish loading.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SubscribeToBranch_WhileLoading_DisablesDownloadAndShowsLoadingTextAsync()
+    {
+        var mockVelopack = new Mock<IVelopackUpdateManager>();
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings());
+
+        var tcs = new TaskCompletionSource<IReadOnlyList<ArtifactUpdateInfo>>();
+        mockVelopack.Setup(x => x.GetArtifactsForBranchAsync("feat/test", It.IsAny<CancellationToken>()))
+            .Returns(tcs.Task);
+
+        using var vm = new UpdateNotificationViewModel(
+            mockVelopack.Object,
+            Mock.Of<ILogger<UpdateNotificationViewModel>>(),
+            mockUserSettings.Object);
+
+        vm.SubscribeToBranchCommand.Execute("feat/test");
+
+        Assert.True(vm.IsLoadingVersions);
+        Assert.True(vm.IsLoadingOrInstalling);
+        Assert.Equal("Loading...", vm.InstallButtonText);
+        Assert.False(vm.CanDownloadUpdate);
+
+        tcs.SetResult([
+            new ArtifactUpdateInfo("0.0.100-feat-test", "abcdef1", null, 100, "https://github.com/run/1", 10, "genhub.zip", DateTime.UtcNow, "https://github.com/art/1", 1024),
+        ]);
+
+        var timeout = DateTime.UtcNow.AddSeconds(2);
+        while (vm.IsLoadingVersions && DateTime.UtcNow < timeout)
+        {
+            await Task.Delay(10);
+        }
+
+        Assert.False(vm.IsLoadingVersions);
+        Assert.False(vm.IsLoadingOrInstalling);
+        Assert.NotNull(vm.SelectedVersion);
+        Assert.True(vm.CanDownloadUpdate);
+        Assert.Equal("Install Update", vm.InstallButtonText);
     }
 }

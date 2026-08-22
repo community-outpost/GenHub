@@ -116,6 +116,24 @@ Constants related to application updates and Velopack.
 | `ReleaseUpdateNotificationFormat`             | `"A new version ({0}) is available."` | Release update notification body format string                            |
 | `BranchUpdateNotificationFormat`              | `"A new build ({0}) is available on branch '{1}'."` | Branch update notification body format string        |
 | `PrUpdateNotificationFormat`                  | `"A new build ({0}) is available for PR #{1}."` | PR update notification body format string                |
+| `DevelopmentBranch`                           | `"development"`             | Default development branch name for CI artifact fallback                          |
+| `MainBranch`                                  | `"main"`                    | Default main branch name for release updates                                      |
+| `PrMergedUpdateAvailableNotificationTitle`    | `"PR Merged — Update Available"` | Update available notification title when subscribed PR is merged or closed    |
+| `BranchStaleUpdateAvailableNotificationTitle` | `"Branch Fallback: Update Available"` | Update available notification title when subscribed branch is stale       |
+| `PrMergedUpdateNotificationFormat`            | Format string               | PR merged/closed fallback notification format string                              |
+| `PrMergedReleaseNotificationFormat`           | Format string               | PR merged/closed release fallback notification format string                      |
+| `BranchStaleUpdateNotificationFormat`         | Format string               | Branch stale fallback notification format string                                  |
+| `BranchStaleReleaseNotificationFormat`        | Format string               | Branch stale release fallback notification format string                          |
+| `PrMergedStatusMessageFormat`                 | Format string               | PR merged/closed status message format string                                     |
+| `BranchStaleStatusMessageFormat`              | Format string               | Branch stale status message format string                                         |
+| `PatRequiredForArtifactsMessage`              | Message string              | Message displayed when checking branch/PR artifacts without GitHub PAT            |
+| `PrDedupePrefix`                              | `"pr:"`                     | Deduplication key prefix for PR update notifications                              |
+| `PrFallbackDedupePrefix`                      | `"pr-fallback:"`            | Deduplication key prefix for PR fallback update notifications                     |
+| `BranchDedupePrefix`                          | `"branch:"`                 | Deduplication key prefix for branch update notifications                          |
+| `BranchFallbackDedupePrefix`                  | `"branch-fallback:"`        | Deduplication key prefix for branch fallback update notifications                 |
+| `ReleaseDedupePrefix`                         | `"release:"`                | Deduplication key prefix for release update notifications                         |
+| `GitHubFallbackDedupePrefix`                  | `"github:"`                 | Deduplication key prefix for GitHub API fallback update notifications             |
+| `NotificationAlreadyShownLogFormat`           | `"Update notification..."`  | Log format string when skipping duplicate update notifications                    |
 | `SortOptionLastUpdated`                       | `"Last Updated"`            | Sort option: sort by last updated date descending                                 |
 | `SortOptionPrNumberDesc`                      | `"PR Number (Highest)"`     | Sort option: sort by pull request number descending                               |
 | `SortOptionPrNumberAsc`                       | `"PR Number (Lowest)"`      | Sort option: sort by pull request number ascending                                |
