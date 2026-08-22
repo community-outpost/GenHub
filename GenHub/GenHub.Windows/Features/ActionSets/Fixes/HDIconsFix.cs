@@ -124,26 +124,10 @@ public class HDIconsFix(
             return (0, null);
         }
 
-        int extractedCount = 0;
+        var extractedFiles = await ExtractArchiveEntriesAsync(archive, context.TempExtractDir, ct);
 
-        foreach (var entry in archive.Entries.Where(e => !e.IsDirectory && e.Key != null))
+        foreach (var (fileName, extractedFilePath) in extractedFiles)
         {
-            ct.ThrowIfCancellationRequested();
-            var fileName = Path.GetFileName(entry.Key);
-            if (string.IsNullOrEmpty(fileName))
-            {
-                continue;
-            }
-
-            var extractedFilePath = Path.Combine(context.TempExtractDir, fileName);
-            using (var entryStream = entry.OpenEntryStream())
-            await using (var fs = new FileStream(extractedFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
-            {
-                await entryStream.CopyToAsync(fs, ct);
-            }
-
-            extractedCount++;
-
             if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath) &&
                 RecognizedGeneralsIconFiles.Contains(fileName, StringComparer.OrdinalIgnoreCase))
             {
@@ -159,7 +143,7 @@ public class HDIconsFix(
             }
         }
 
-        return (extractedCount, context.DeployedFiles);
+        return (extractedFiles.Count, context.DeployedFiles);
     }
 
     /// <inheritdoc/>

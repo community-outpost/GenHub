@@ -12,6 +12,7 @@ using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Helpers;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
+using SharpCompress.Archives;
 
 /// <summary>
 /// Abstract base class for downloadable package deployment fixes (e.g., HD Icons, Expanded LAN Lobby).
@@ -130,6 +131,42 @@ public abstract class BasePackageDeploymentFix(
             .Except(output, StringComparer.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// Extracts all non-directory archive entries to the destination directory.
+    /// </summary>
+    /// <param name="archive">The archive to extract.</param>
+    /// <param name="extractDir">The destination extraction directory.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>A dictionary mapping file name to extracted file path.</returns>
+    protected static async Task<Dictionary<string, string>> ExtractArchiveEntriesAsync(
+        IArchive archive,
+        string extractDir,
+        CancellationToken ct)
+    {
+        var extractedFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var entry in archive.Entries.Where(e => !e.IsDirectory && e.Key != null))
+        {
+            ct.ThrowIfCancellationRequested();
+            var fileName = Path.GetFileName(entry.Key);
+            if (string.IsNullOrEmpty(fileName))
+            {
+                continue;
+            }
+
+            var extractedFilePath = Path.Combine(extractDir, fileName);
+            using (var entryStream = entry.OpenEntryStream())
+            await using (var fs = new FileStream(extractedFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
+            {
+                await entryStream.CopyToAsync(fs, ct);
+            }
+
+            extractedFiles[fileName] = extractedFilePath;
+        }
+
+        return extractedFiles;
+    }
+
     /// <inheritdoc/>
     protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
     {
@@ -204,7 +241,9 @@ public abstract class BasePackageDeploymentFix(
         }
         finally
         {
-            CleanupTempFiles(tempFile, tempExtractDir, tempBackupDir);
+            DeleteFileSafely(tempFile);
+            DeleteDirectorySafely(tempExtractDir);
+            DeleteDirectorySafely(tempBackupDir);
         }
     }
 
@@ -486,12 +525,5 @@ public abstract class BasePackageDeploymentFix(
             DeleteFileSafely(tempMarker);
             return false;
         }
-    }
-
-    private void CleanupTempFiles(string tempFile, string tempExtractDir, string tempBackupDir)
-    {
-        DeleteFileSafely(tempFile);
-        DeleteDirectorySafely(tempExtractDir);
-        DeleteDirectorySafely(tempBackupDir);
     }
 }

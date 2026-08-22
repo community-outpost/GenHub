@@ -74,30 +74,14 @@ public class ExpandedLanLobbyMenu(
         CancellationToken ct)
     {
         using var archive = ArchiveFactory.OpenArchive(new FileInfo(archivePath));
-        int extractedCount = 0;
+        var extractedFiles = await ExtractArchiveEntriesAsync(archive, context.TempExtractDir, ct);
 
-        foreach (var entry in archive.Entries.Where(e => !e.IsDirectory && e.Key != null))
+        foreach (var (fileName, extractedFilePath) in extractedFiles)
         {
-            ct.ThrowIfCancellationRequested();
-            var fileName = Path.GetFileName(entry.Key);
-            if (string.IsNullOrEmpty(fileName))
-            {
-                continue;
-            }
-
-            var extractedFilePath = Path.Combine(context.TempExtractDir, fileName);
-            using (var entryStream = entry.OpenEntryStream())
-            await using (var fs = new FileStream(extractedFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
-            {
-                await entryStream.CopyToAsync(fs, ct);
-            }
-
-            extractedCount++;
-
             DeployEntryToInstallations(installation, fileName, extractedFilePath, context);
         }
 
-        return (extractedCount, context.DeployedFiles);
+        return (extractedFiles.Count, context.DeployedFiles);
     }
 
     /// <inheritdoc/>
