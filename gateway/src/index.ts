@@ -5,12 +5,12 @@ export interface Env {
   TOKEN_MAX_AGE_SECONDS?: string;
 }
 
-const CORS_HEADERS = {
+const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Content-Type": "application/json",
 };
 
-async function signDeleteToken(fileKey: string, timestamp: number, secret: string): Promise<string> {
+const signDeleteToken = async (fileKey: string, timestamp: number, secret: string): Promise<string> => {
   const hmacKey = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret),
@@ -27,14 +27,13 @@ async function signDeleteToken(fileKey: string, timestamp: number, secret: strin
     .replace(/[=]+$/, "");
 
   return `${payloadToSign}.${sigBase64Url}`;
-}
+};
 
-async function verifyDeleteToken(
+const parseAndValidateTokenFormat = (
   deleteToken: string,
   fileKey: string,
-  secret: string,
   maxAgeSeconds: number
-): Promise<{ valid: boolean; error?: string }> {
+): { valid: boolean; payload?: string; signature?: string; error?: string } => {
   const dotIdx = deleteToken.lastIndexOf(".");
   if (dotIdx === -1) {
     return { valid: false, error: "Malformed delete token" };
@@ -55,13 +54,14 @@ async function verifyDeleteToken(
 
   const now = Math.floor(Date.now() / 1000);
   const age = now - tokenTime;
-  if (age > maxAgeSeconds) {
-    return { valid: false, error: "Delete token has expired" };
-  }
-  if (age < -300) {
-    return { valid: false, error: "Delete token timestamp is in the future" };
+  if (age > maxAgeSeconds || age < -300) {
+    return { valid: false, error: "Delete token expired or invalid timestamp" };
   }
 
+  return { valid: true, payload, signature };
+};
+
+const verifyHmacSignature = async (payload: string, signature: string, secret: string): Promise<boolean> => {
   const hmacKey = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret),
@@ -75,15 +75,57 @@ async function verifyDeleteToken(
     (c) => c.charCodeAt(0)
   );
 
-  const isValid = await crypto.subtle.verify("HMAC", hmacKey, rawSig, new TextEncoder().encode(payload));
-  if (!isValid) {
-    return { valid: false, error: "Invalid or forged delete token signature" };
+  return crypto.subtle.verify("HMAC", hmacKey, rawSig, new TextEncoder().encode(payload));
+};
+
+const validatePrepareRequest = (
+  fileName: string,
+  fileSize: number,
+  maxSizeBytes: number
+): string | null => {
+  if (!fileName || fileSize <= 0) {
+    return "Invalid file metadata";
+  }
+  if (fileSize > maxSizeBytes) {
+    return `File exceeds max limit of ${maxSizeBytes} bytes`;
+  }
+  const lowerName = fileName.toLowerCase();
+  if (!lowerName.endsWith(".zip") && !lowerName.endsWith(".rep")) {
+    return "Only .zip and .rep archives permitted";
+  }
+  return null;
+};
+
+const requestPresignedSlot = async (
+  fileName: string,
+  fileSize: number,
+  contentType: string,
+  token: string
+): Promise<{ url: string; key: string } | null> => {
+  const res = await fetch("https://api.uploadthing.com/v6/uploadFiles", {
+    method: "POST",
+    headers: {
+      "x-uploadthing-api-key": token,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      files: [{ name: fileName, size: fileSize, type: contentType }],
+    }),
+  });
+
+  if (!res.ok) {
+    return null;
   }
 
-  return { valid: true };
-}
+  const data = (await res.json()) as { data?: Array<{ url: string; key: string }> };
+  if (!data.data || data.data.length === 0) {
+    return null;
+  }
 
-async function handlePrepareUpload(request: Request, env: Env): Promise<Response> {
+  return data.data[0];
+};
+
+const handlePrepareUpload = async (request: Request, env: Env): Promise<Response> => {
   const body = (await request.json()) as {
     fileName?: string;
     fileSize?: number;
@@ -94,72 +136,37 @@ async function handlePrepareUpload(request: Request, env: Env): Promise<Response
   const fileName = body.fileName || "";
   const fileSize = body.fileSize || 0;
 
-  if (!fileName || fileSize <= 0) {
-    return new Response(JSON.stringify({ error: "Invalid file metadata" }), {
+  const validationError = validatePrepareRequest(fileName, fileSize, maxSizeBytes);
+  if (validationError) {
+    return new Response(JSON.stringify({ error: validationError }), {
       status: 400,
       headers: CORS_HEADERS,
     });
   }
 
-  if (fileSize > maxSizeBytes) {
-    return new Response(JSON.stringify({ error: `File exceeds max limit of ${maxSizeBytes} bytes` }), {
-      status: 400,
-      headers: CORS_HEADERS,
-    });
-  }
-
-  const lowerName = fileName.toLowerCase();
-  if (!lowerName.endsWith(".zip") && !lowerName.endsWith(".rep")) {
-    return new Response(JSON.stringify({ error: "Only .zip and .rep archives permitted" }), {
-      status: 400,
-      headers: CORS_HEADERS,
-    });
-  }
-
-  const utRes = await fetch("https://api.uploadthing.com/v6/uploadFiles", {
-    method: "POST",
-    headers: {
-      "x-uploadthing-api-key": env.UPLOADTHING_TOKEN,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      files: [{ name: fileName, size: fileSize, type: body.contentType || "application/zip" }],
-    }),
-  });
-
-  if (!utRes.ok) {
-    const errText = await utRes.text();
-    return new Response(JSON.stringify({ error: "Storage provider rejected upload", details: errText }), {
+  const slot = await requestPresignedSlot(fileName, fileSize, body.contentType || "application/zip", env.UPLOADTHING_TOKEN);
+  if (!slot) {
+    return new Response(JSON.stringify({ error: "Storage provider rejected upload" }), {
       status: 502,
       headers: CORS_HEADERS,
     });
   }
 
-  const utResult = (await utRes.json()) as { data: Array<{ url: string; key: string }> };
-  if (!utResult.data || utResult.data.length === 0) {
-    return new Response(JSON.stringify({ error: "Invalid response from storage provider" }), {
-      status: 502,
-      headers: CORS_HEADERS,
-    });
-  }
-
-  const item = utResult.data[0];
-  const fileKey = item.key;
   const timestamp = Math.floor(Date.now() / 1000);
-  const deleteToken = await signDeleteToken(fileKey, timestamp, env.GATEWAY_HMAC_SECRET);
+  const deleteToken = await signDeleteToken(slot.key, timestamp, env.GATEWAY_HMAC_SECRET);
 
   return new Response(
     JSON.stringify({
-      uploadUrl: item.url,
-      fileKey,
+      uploadUrl: slot.url,
+      fileKey: slot.key,
       deleteToken,
-      publicUrl: `https://utfs.io/f/${fileKey}`,
+      publicUrl: `https://utfs.io/f/${slot.key}`,
     }),
     { status: 200, headers: CORS_HEADERS }
   );
-}
+};
 
-async function handleDeleteUpload(request: Request, env: Env): Promise<Response> {
+const handleDeleteUpload = async (request: Request, env: Env): Promise<Response> => {
   const body = (await request.json()) as { fileKey?: string; deleteToken?: string };
   const fileKey = body.fileKey;
   const deleteToken = body.deleteToken;
@@ -172,9 +179,17 @@ async function handleDeleteUpload(request: Request, env: Env): Promise<Response>
   }
 
   const maxAgeSeconds = parseInt(env.TOKEN_MAX_AGE_SECONDS || "31536000", 10);
-  const verification = await verifyDeleteToken(deleteToken, fileKey, env.GATEWAY_HMAC_SECRET, maxAgeSeconds);
-  if (!verification.valid) {
-    return new Response(JSON.stringify({ error: verification.error }), {
+  const tokenData = parseAndValidateTokenFormat(deleteToken, fileKey, maxAgeSeconds);
+  if (!tokenData.valid || !tokenData.payload || !tokenData.signature) {
+    return new Response(JSON.stringify({ error: tokenData.error || "Invalid delete token" }), {
+      status: 403,
+      headers: CORS_HEADERS,
+    });
+  }
+
+  const isValidSig = await verifyHmacSignature(tokenData.payload, tokenData.signature, env.GATEWAY_HMAC_SECRET);
+  if (!isValidSig) {
+    return new Response(JSON.stringify({ error: "Invalid or forged delete token signature" }), {
       status: 403,
       headers: CORS_HEADERS,
     });
@@ -193,12 +208,10 @@ async function handleDeleteUpload(request: Request, env: Env): Promise<Response>
     status: 200,
     headers: CORS_HEADERS,
   });
-}
+};
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const url = new URL(request.url);
-
     if (request.method === "OPTIONS") {
       return new Response(null, {
         headers: {
@@ -209,7 +222,9 @@ export default {
       });
     }
 
-    if (url.pathname === "/api/v1/health" && request.method === "GET") {
+    const { pathname } = new URL(request.url);
+
+    if (pathname === "/api/v1/health" && request.method === "GET") {
       return new Response(JSON.stringify({ status: "healthy", service: "genhub-gateway" }), {
         status: 200,
         headers: CORS_HEADERS,
@@ -217,11 +232,11 @@ export default {
     }
 
     try {
-      if (url.pathname === "/api/v1/uploads/prepare" && request.method === "POST") {
+      if (pathname === "/api/v1/uploads/prepare" && request.method === "POST") {
         return await handlePrepareUpload(request, env);
       }
 
-      if (url.pathname === "/api/v1/uploads/delete" && request.method === "POST") {
+      if (pathname === "/api/v1/uploads/delete" && request.method === "POST") {
         return await handleDeleteUpload(request, env);
       }
     } catch (err: unknown) {
