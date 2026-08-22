@@ -276,19 +276,24 @@ public sealed class UploadHistoryService(
         var eligibleRecords = records.Where(r => !string.IsNullOrEmpty(r.FileKey) && !string.IsNullOrEmpty(r.DeleteToken));
         foreach (var record in eligibleRecords)
         {
+            if (record.FileKey is not { Length: > 0 } fileKey || record.DeleteToken is not { Length: > 0 } deleteToken)
+            {
+                continue;
+            }
+
             try
             {
-                var deleted = await uploadThingService.DeleteFileAsync(record.FileKey, record.DeleteToken);
+                var deleted = await uploadThingService.DeleteFileAsync(fileKey, deleteToken);
                 if (!deleted)
                 {
                     logger.LogWarning(
                         "Failed to delete file {Key} from cloud storage during clear history.",
-                        record.FileKey);
+                        fileKey);
                 }
             }
             catch (OperationCanceledException ex)
             {
-                logger.LogWarning(ex, "Timeout or cancellation occurred while deleting file {Key} from cloud during clear history", record.FileKey);
+                logger.LogWarning(ex, "Timeout or cancellation occurred while deleting file {Key} from cloud during clear history", fileKey);
             }
         }
     }
