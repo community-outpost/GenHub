@@ -95,12 +95,14 @@ public class ThemeService(
             resources[ThemeResourceKeys.PrimaryButtonBackgroundDark] = primaryColor;
             resources[ThemeResourceKeys.AccentBadgeBackgroundColor] = badgeBgColor;
             resources[ThemeResourceKeys.AccentBadgeForegroundColor] = badgeFgColor;
+            resources[ThemeResourceKeys.AccentGlowColor] = glowColor;
             resources[ThemeResourceKeys.PrimaryGradientStart] = lightColor;
             resources[ThemeResourceKeys.PrimaryGradientEnd] = darkColor;
 
             // Update Brushes
             resources[ThemeResourceKeys.AccentBrush] = new SolidColorBrush(primaryColor);
             resources[ThemeResourceKeys.AccentColorBrush] = new SolidColorBrush(primaryColor);
+            resources[ThemeResourceKeys.AccentGlowBrush] = new SolidColorBrush(glowColor);
             resources[ThemeResourceKeys.SystemAccentColorBrush] = new SolidColorBrush(primaryColor);
             resources[ThemeResourceKeys.PrimaryButtonBackground] = new SolidColorBrush(primaryColor);
             resources[ThemeResourceKeys.SidebarSelectedIndicator] = new SolidColorBrush(primaryColor);

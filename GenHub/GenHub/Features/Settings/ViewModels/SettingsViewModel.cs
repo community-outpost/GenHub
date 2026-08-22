@@ -1441,15 +1441,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
         if (matchingTheme != null)
         {
-            if (SelectedTheme != matchingTheme)
-            {
-                SelectedTheme = matchingTheme;
-            }
-
-            if (!string.Equals(Theme, matchingTheme.Id, StringComparison.OrdinalIgnoreCase))
-            {
-                Theme = matchingTheme.Id;
-            }
+            SelectedTheme = matchingTheme;
+            Theme = matchingTheme.Id;
         }
     }
 

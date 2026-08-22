@@ -31,6 +31,11 @@ public static class ThemeResourceKeys
     public const string AccentBadgeForegroundColor = "AccentBadgeForegroundColor";
 
     /// <summary>
+    /// Accent glow color resource key.
+    /// </summary>
+    public const string AccentGlowColor = "AccentGlowColor";
+
+    /// <summary>
     /// Primary gradient start color resource key.
     /// </summary>
     public const string PrimaryGradientStart = "PrimaryGradientStart";
@@ -49,6 +54,11 @@ public static class ThemeResourceKeys
     /// Accent color brush resource key.
     /// </summary>
     public const string AccentColorBrush = "AccentColorBrush";
+
+    /// <summary>
+    /// Accent glow brush resource key.
+    /// </summary>
+    public const string AccentGlowBrush = "AccentGlowBrush";
 
     /// <summary>
     /// System accent color brush resource key.
