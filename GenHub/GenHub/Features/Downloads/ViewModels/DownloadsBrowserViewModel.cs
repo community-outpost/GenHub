@@ -838,8 +838,8 @@ public sealed partial class DownloadsBrowserViewModel(
                         {
                             var authors = result.Data.Items
                                 .Select(i => i.AuthorName)
+                                .OfType<string>()
                                 .Where(a => !string.IsNullOrWhiteSpace(a))
-                                .Select(a => a!)
                                 .Distinct(StringComparer.OrdinalIgnoreCase);
                             ghFilter.UpdateAvailableAuthors(authors);
                         }

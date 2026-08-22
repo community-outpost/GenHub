@@ -79,6 +79,23 @@ public partial class GitHubTopicsDiscoverer(
         };
 
         /// <summary>
+        /// Common language patterns and their display names.
+        /// </summary>
+        public static readonly Dictionary<string, string> LanguageDisplayNames = new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "english", "English" },
+            { "russian", "Russian" },
+            { "spanish", "Spanish" },
+            { "french", "French" },
+            { "german", "German" },
+            { "chinese", "Chinese" },
+            { "japanese", "Japanese" },
+            { "korean", "Korean" },
+            { "italian", "Italian" },
+            { "portuguese", "Portuguese" },
+        };
+
+        /// <summary>
         /// File extensions that are archives and should be checked for variants.
         /// </summary>
         public static readonly string[] ArchiveExtensions =
@@ -375,91 +392,97 @@ public partial class GitHubTopicsDiscoverer(
     {
         var nameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(assetName);
 
-        // Handle double extensions like .tar.gz
         if (nameWithoutExt.EndsWith(".tar", StringComparison.OrdinalIgnoreCase))
+        {
             nameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(nameWithoutExt);
-
-        // Check for resolution pattern first (most specific)
-        var resolutionMatch = VariantPatterns.ResolutionPattern().Match(nameWithoutExt);
-        if (resolutionMatch.Success)
-        {
-            var resolution = resolutionMatch.Value;
-
-            // Return friendly name if available, otherwise raw resolution
-            return VariantPatterns.ResolutionDisplayNames.TryGetValue(resolution, out var displayName)
-                ? displayName
-                : resolution;
         }
 
-        // Check for language patterns
-        var languagePatterns = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        if (TryExtractResolutionVariant(nameWithoutExt, out var resolution))
         {
-            { "english", "English" },
-            { "russian", "Russian" },
-            { "spanish", "Spanish" },
-            { "french", "French" },
-            { "german", "German" },
-            { "chinese", "Chinese" },
-            { "japanese", "Japanese" },
-            { "korean", "Korean" },
-            { "italian", "Italian" },
-            { "portuguese", "Portuguese" },
-        };
-
-        foreach (var (pattern, displayName) in languagePatterns)
-        {
-            if (nameWithoutExt.Contains(pattern, StringComparison.OrdinalIgnoreCase))
-                return displayName;
+            return resolution;
         }
 
-        // Fallback: split on common separators and reconstruct a meaningful version label.
-        // For filenames like "BossGeneralsR3-RM_v1.03", the parts are
-        // ["BossGeneralsR3", "RM", "v1", "03"]. Rather than returning the bare last
-        // token ("03"), we walk backwards to find the version segment (starts with 'v'
-        // or is all digits preceded by a 'v'-prefixed part) and reassemble it.
+        if (TryExtractLanguageVariant(nameWithoutExt, out var language))
+        {
+            return language;
+        }
+
         var parts = nameWithoutExt.Split(['_', '-', '.'], StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length > 1)
         {
-            // Look for a version segment pattern: a part starting with 'v' followed by
-            // digits/dots, optionally continued by trailing numeric parts.
-            for (var i = parts.Length - 1; i >= 0; i--)
-            {
-                var part = parts[i];
-
-                // A part that starts with 'v' and is followed by a digit is a version prefix
-                // (e.g. "v1" in "v1.03"). Reassemble with the next part if it is numeric.
-                if (part.Length >= 2 &&
-                    (part[0] == 'v' || part[0] == 'V') &&
-                    char.IsDigit(part[1]))
-                {
-                    // Collect any immediately following purely-numeric parts as the patch segment
-                    if (i + 1 < parts.Length && !VariantPatterns.NonDigitPattern().IsMatch(parts[i + 1]))
-                        return $"{part}.{parts[i + 1]}";
-
-                    return part;
-                }
-
-                // A purely-numeric part preceded by a 'v'-prefixed part builds "vX.YZ"
-                if (i > 0 &&
-                    !VariantPatterns.NonDigitPattern().IsMatch(part) &&
-                    parts[i - 1].Length >= 2 &&
-                    (parts[i - 1][0] == 'v' || parts[i - 1][0] == 'V') &&
-                    char.IsDigit(parts[i - 1][1]))
-                {
-                    return $"{parts[i - 1]}.{part}";
-                }
-            }
-
-            // No version pattern found — return the last non-numeric token so we never
-            // display a contextless bare number as the variant label.
-            for (var i = parts.Length - 1; i >= 0; i--)
-            {
-                if (VariantPatterns.NonDigitPattern().IsMatch(parts[i]))
-                    return parts[i];
-            }
+            return ExtractVersionOrTokenVariant(parts, nameWithoutExt);
         }
 
         return nameWithoutExt;
+    }
+
+    private static bool TryExtractResolutionVariant(string nameWithoutExt, out string resolution)
+    {
+        var resolutionMatch = VariantPatterns.ResolutionPattern().Match(nameWithoutExt);
+        if (resolutionMatch.Success)
+        {
+            var raw = resolutionMatch.Value;
+            resolution = VariantPatterns.ResolutionDisplayNames.TryGetValue(raw, out var displayName)
+                ? displayName
+                : raw;
+            return true;
+        }
+
+        resolution = string.Empty;
+        return false;
+    }
+
+    private static bool TryExtractLanguageVariant(string nameWithoutExt, out string language)
+    {
+        foreach (var (pattern, displayName) in VariantPatterns.LanguageDisplayNames)
+        {
+            if (nameWithoutExt.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+            {
+                language = displayName;
+                return true;
+            }
+        }
+
+        language = string.Empty;
+        return false;
+    }
+
+    private static string ExtractVersionOrTokenVariant(string[] parts, string fallback)
+    {
+        for (var i = parts.Length - 1; i >= 0; i--)
+        {
+            var part = parts[i];
+            if (part.Length >= 2 &&
+                (part[0] == 'v' || part[0] == 'V') &&
+                char.IsDigit(part[1]))
+            {
+                if (i + 1 < parts.Length && !VariantPatterns.NonDigitPattern().IsMatch(parts[i + 1]))
+                {
+                    return $"{part}.{parts[i + 1]}";
+                }
+
+                return part;
+            }
+
+            if (i > 0 &&
+                !VariantPatterns.NonDigitPattern().IsMatch(part) &&
+                parts[i - 1].Length >= 2 &&
+                (parts[i - 1][0] == 'v' || parts[i - 1][0] == 'V') &&
+                char.IsDigit(parts[i - 1][1]))
+            {
+                return $"{parts[i - 1]}.{part}";
+            }
+        }
+
+        for (var i = parts.Length - 1; i >= 0; i--)
+        {
+            if (VariantPatterns.NonDigitPattern().IsMatch(parts[i]))
+            {
+                return parts[i];
+            }
+        }
+
+        return fallback;
     }
 
     /// <summary>

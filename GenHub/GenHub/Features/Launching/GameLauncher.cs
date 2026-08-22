@@ -1508,10 +1508,10 @@ public class GameLauncher(
     {
         var possiblePaths = new[]
         {
-            Path.Combine(workspacePath, "Data", "Movies", "EA_LOGO.BIK"),
-            Path.Combine(workspacePath, "Data", "English", "Movies", "EA_LOGO.BIK"),
-            Path.Combine(workspacePath, "Movies", "EA_LOGO.BIK"),
-            Path.Combine(workspacePath, "data", "movies", "EA_LOGO.BIK"),
+            Path.Combine(workspacePath, "Data", "Movies", GameContentConstants.EaLogoBikFileName),
+            Path.Combine(workspacePath, "Data", "English", "Movies", GameContentConstants.EaLogoBikFileName),
+            Path.Combine(workspacePath, "Movies", GameContentConstants.EaLogoBikFileName),
+            Path.Combine(workspacePath, "data", "movies", GameContentConstants.EaLogoBikFileName),
         };
 
         logger.LogInformation("[GameLauncher] Skip EA Logo enabled - checking workspace: {WorkspacePath}", workspacePath);
@@ -1530,14 +1530,14 @@ public class GameLauncher(
                 }
                 catch (Exception ex)
                 {
-                    logger.LogWarning(ex, "[GameLauncher] Failed to delete EA_LOGO.BIK at {LogoPath}", logoPath);
+                    logger.LogWarning(ex, "[GameLauncher] Failed to delete {LogoFileName} at {LogoPath}", GameContentConstants.EaLogoBikFileName, logoPath);
                 }
             }
         }
 
         if (!deleted)
         {
-            logger.LogWarning("[GameLauncher] Skip EA Logo enabled but EA_LOGO.BIK not found in workspace. Checked paths: {Paths}", string.Join(", ", possiblePaths));
+            logger.LogWarning("[GameLauncher] Skip EA Logo enabled but {LogoFileName} not found in workspace. Checked paths: {Paths}", GameContentConstants.EaLogoBikFileName, string.Join(", ", possiblePaths));
         }
     }
 

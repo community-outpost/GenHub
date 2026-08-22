@@ -30,11 +30,12 @@ public sealed partial class ContentStateService(
     IContentManifestPool manifestPool,
     ILogger<ContentStateService> logger) : IContentStateService
 {
+    private const string FileSchemePrefix = "file:";
+    private const int MaxSessionDownloadsEntries = 1000;
+
     /// <summary>Matches any non-alphanumeric character, mirroring ManifestIdGenerator.Normalize.</summary>
     [GeneratedRegex("[^a-zA-Z0-9]")]
     private static partial Regex SegmentNormalizer();
-
-    private const int MaxSessionDownloadsEntries = 1000;
 
     /// <summary>
     /// Maps catalog/content IDs to the manifest IDs stored for them during this session.
@@ -111,7 +112,7 @@ public sealed partial class ContentStateService(
             return ContentState.Downloaded;
         }
 
-        var isFileRow = (!string.IsNullOrEmpty(item.Id) && item.Id.StartsWith("file:", StringComparison.OrdinalIgnoreCase)) ||
+        var isFileRow = (!string.IsNullOrEmpty(item.Id) && item.Id.StartsWith(FileSchemePrefix, StringComparison.OrdinalIgnoreCase)) ||
                         !string.IsNullOrWhiteSpace(item.SelectedDownloadUrl);
         if (isFileRow)
         {
@@ -198,7 +199,7 @@ public sealed partial class ContentStateService(
             return prospectiveId;
         }
 
-        var isFileRow = (!string.IsNullOrEmpty(item.Id) && item.Id.StartsWith("file:", StringComparison.OrdinalIgnoreCase)) ||
+        var isFileRow = (!string.IsNullOrEmpty(item.Id) && item.Id.StartsWith(FileSchemePrefix, StringComparison.OrdinalIgnoreCase)) ||
                         !string.IsNullOrWhiteSpace(item.SelectedDownloadUrl);
         if (isFileRow)
         {
@@ -609,7 +610,7 @@ public sealed partial class ContentStateService(
             }
             else
             {
-                var rawId = item.Id.StartsWith("file:", StringComparison.OrdinalIgnoreCase)
+                var rawId = item.Id.StartsWith(FileSchemePrefix, StringComparison.OrdinalIgnoreCase)
                     ? string.Empty
                     : NormalizeSegment(item.Id);
                 if (!string.IsNullOrEmpty(rawId) && !candidateNames.Contains(rawId, StringComparer.OrdinalIgnoreCase))
@@ -1066,7 +1067,7 @@ public sealed partial class ContentStateService(
         }
 
         var manifests = allManifestsResult.Data.ToList();
-        var isFileRow = (!string.IsNullOrEmpty(item.Id) && item.Id.StartsWith("file:", StringComparison.OrdinalIgnoreCase)) ||
+        var isFileRow = (!string.IsNullOrEmpty(item.Id) && item.Id.StartsWith(FileSchemePrefix, StringComparison.OrdinalIgnoreCase)) ||
                         !string.IsNullOrWhiteSpace(item.SelectedDownloadUrl);
 
         if (isFileRow)

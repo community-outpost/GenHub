@@ -21,6 +21,7 @@ public class ControlBarPackageProcessor(
     ILogger<ControlBarPackageProcessor> logger) : IControlBarPackageProcessor
 {
     private const string ControlBarMetadataBigBase64 = "QklHRngBAAAAAAACAAAAUwAAAFMAAAEkQ29udHJvbEJhclByby50eHQAAAABdwAAAAFHZW5Ub29sXGZ1bGx2aWV3cG9ydC5kYXQAAAAAAAAAAABDb250cm9sIEJhciBQcm8gZm9yIENPTU1BTkQgQU5EIENPTlFVRVIgR0VORVJBTFM6IFpFUk8gSE9VUg0KDQpBVVRIT1I6DQpFQSBHYW1lcywgRkFTLCB4ZXpvbg0KDQpPUklHSU5BTCBET1dOTE9BRCBVUkw6DQpodHRwOi8vZ2VudG9vbC5uZXQvZG93bmxvYWQvY29udHJvbGJhcnBybw0KDQpTT1VSQ0UgQ09ERSAmIEFTU0VUUzoNCmh0dHBzOi8vZ2l0aHViLmNvbS9UaGVTdXBlckhhY2tlcnMvR2VuZXJhbHNDb250cm9sQmFyDQoNCkRPTkFUSU9OIExJTks6DQpodHRwczovL3d3dy5wYXlwYWwubWUvZ2VudG9vbA0KMQ==";
+    private const string BigEnDirectoryName = "BIG EN";
 
     private static readonly string[] KnownResolutionVariants = ["720p", "900p", "1080p", "1440p", "4k", "2160p"];
 
@@ -254,9 +255,9 @@ public class ControlBarPackageProcessor(
                     Path.Combine(extractedDirectory, "CCG", metadataFileName),
                     Path.Combine(extractedDirectory, "ZH", variantId, metadataFileName),
                     Path.Combine(extractedDirectory, "CCG", variantId, metadataFileName),
-                    Path.Combine(extractedDirectory, "ZH", variantId, "BIG EN", metadataFileName),
+                    Path.Combine(extractedDirectory, "ZH", variantId, BigEnDirectoryName, metadataFileName),
                     Path.Combine(extractedDirectory, "ZH", variantId, "BIG", metadataFileName),
-                    Path.Combine(extractedDirectory, "CCG", variantId, "BIG EN", metadataFileName),
+                    Path.Combine(extractedDirectory, "CCG", variantId, BigEnDirectoryName, metadataFileName),
                     Path.Combine(extractedDirectory, "CCG", variantId, "BIG", metadataFileName),
                 };
 
@@ -305,22 +306,22 @@ public class ControlBarPackageProcessor(
         var rawSuffix = GetControlBarVariantSuffix(variantId);
         var candidates = new[]
         {
-            Path.Combine(extractedDirectory, "ZH", variantId, "BIG EN"),
+            Path.Combine(extractedDirectory, "ZH", variantId, BigEnDirectoryName),
             Path.Combine(extractedDirectory, "ZH", variantId, "BIG"),
             Path.Combine(extractedDirectory, "ZH", variantId),
-            Path.Combine(extractedDirectory, "ZH", rawSuffix, "BIG EN"),
+            Path.Combine(extractedDirectory, "ZH", rawSuffix, BigEnDirectoryName),
             Path.Combine(extractedDirectory, "ZH", rawSuffix, "BIG"),
             Path.Combine(extractedDirectory, "ZH", rawSuffix),
-            Path.Combine(extractedDirectory, "CCG", variantId, "BIG EN"),
+            Path.Combine(extractedDirectory, "CCG", variantId, BigEnDirectoryName),
             Path.Combine(extractedDirectory, "CCG", variantId, "BIG"),
             Path.Combine(extractedDirectory, "CCG", variantId),
-            Path.Combine(extractedDirectory, "CCG", rawSuffix, "BIG EN"),
+            Path.Combine(extractedDirectory, "CCG", rawSuffix, BigEnDirectoryName),
             Path.Combine(extractedDirectory, "CCG", rawSuffix, "BIG"),
             Path.Combine(extractedDirectory, "CCG", rawSuffix),
-            Path.Combine(extractedDirectory, variantId, "BIG EN"),
+            Path.Combine(extractedDirectory, variantId, BigEnDirectoryName),
             Path.Combine(extractedDirectory, variantId, "BIG"),
             Path.Combine(extractedDirectory, variantId),
-            Path.Combine(extractedDirectory, rawSuffix, "BIG EN"),
+            Path.Combine(extractedDirectory, rawSuffix, BigEnDirectoryName),
             Path.Combine(extractedDirectory, rawSuffix, "BIG"),
             Path.Combine(extractedDirectory, rawSuffix),
         };

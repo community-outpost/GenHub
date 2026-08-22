@@ -21,9 +21,8 @@ public class GeneralsOnlineDependencyBuilder : BaseDependencyBuilder
     /// <returns>A content dependency for Zero Hour 1.04 installation.</returns>
     public static ContentDependency CreateZeroHourDependencyForGeneralsOnline()
     {
-        // Use the shared type-only constraint (publisher segment "any"). A concrete
-        // installation such as steam/eaapp is injected by ProfileContentService;
-        // DependencyResolver must not look up a non-existent "genhub" installation ID.
+        // Use the shared type-only constraint with publisher segment any.
+        // Concrete installations are injected by the profile content service.
         return CreateZeroHour104Dependency();
     }
 

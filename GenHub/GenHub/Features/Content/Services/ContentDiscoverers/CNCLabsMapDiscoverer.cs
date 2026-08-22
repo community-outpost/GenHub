@@ -39,6 +39,31 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
     [GeneratedRegex(@"/downloads/details/(\d+)", RegexOptions.IgnoreCase)]
     private static partial Regex DetailsIdRegex();
 
+    private static DateTime ExtractLastUpdatedDate(IDocument document, string docText)
+    {
+        var dateLabels = new[] { "Updated:", "Added:", "Submitted:", "reviewed:", "Date:" };
+        foreach (var label in dateLabels)
+        {
+            var dateEl = document.QuerySelectorAll("strong").FirstOrDefault(e => e.TextContent.Contains(label, StringComparison.OrdinalIgnoreCase));
+            if (dateEl != null)
+            {
+                var dateText = CNCLabsHelper.GetNextNonEmptyTextSibling(dateEl);
+                if (!string.IsNullOrWhiteSpace(dateText) && DateTime.TryParse(dateText, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
+                {
+                    return parsedDate;
+                }
+            }
+        }
+
+        var dateMatch = DateRegex().Match(docText);
+        if (dateMatch.Success && DateTime.TryParse(dateMatch.Groups[1].Value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+        {
+            return date;
+        }
+
+        return DateTime.MinValue;
+    }
+
     /// <summary>
     /// Gets the source name for this discoverer.
     /// </summary>
@@ -427,31 +452,6 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
                                        StringComparison.OrdinalIgnoreCase));
 
         return CNCLabsHelper.GetNextNonEmptyTextSibling(authorStrong) ?? string.Empty;
-    }
-
-    private DateTime ExtractLastUpdatedDate(IDocument document, string docText)
-    {
-        var dateLabels = new[] { "Updated:", "Added:", "Submitted:", "reviewed:", "Date:" };
-        foreach (var label in dateLabels)
-        {
-            var dateEl = document.QuerySelectorAll("strong").FirstOrDefault(e => e.TextContent.Contains(label, StringComparison.OrdinalIgnoreCase));
-            if (dateEl != null)
-            {
-                var dateText = CNCLabsHelper.GetNextNonEmptyTextSibling(dateEl);
-                if (!string.IsNullOrWhiteSpace(dateText) && DateTime.TryParse(dateText, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
-                {
-                    return parsedDate;
-                }
-            }
-        }
-
-        var dateMatch = DateRegex().Match(docText);
-        if (dateMatch.Success && DateTime.TryParse(dateMatch.Groups[1].Value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
-        {
-            return date;
-        }
-
-        return DateTime.MinValue;
     }
 
     private string? ExtractFileSize(IDocument document, string docText)

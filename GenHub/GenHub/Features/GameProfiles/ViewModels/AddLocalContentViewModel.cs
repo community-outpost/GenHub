@@ -190,6 +190,98 @@ public partial class AddLocalContentViewModel(
         }
     }
 
+    private static List<FileTreeItem> BuildDirectoryTree(DirectoryInfo dir)
+        => BuildDirectoryTree(dir, CollectExecutableDirectories(dir));
+
+    private static HashSet<string> CollectExecutableDirectories(DirectoryInfo root)
+    {
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            foreach (var file in root.EnumerateFiles("*", SearchOption.AllDirectories))
+            {
+                if (!ExecutableFileClassifier.IsLegacyLaunchCandidate(file.Name, file.FullName)
+                    && !file.Extension.Equals(".exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                for (var d = file.Directory; d != null; d = d.Parent)
+                {
+                    if (!result.Add(d.FullName))
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // ignore inaccessible directories
+        }
+
+        return result;
+    }
+
+    private static List<FileTreeItem> BuildDirectoryTree(DirectoryInfo dir, HashSet<string> executableDirs)
+    {
+        var items = new List<FileTreeItem>();
+
+        if (!dir.Exists)
+        {
+            return items;
+        }
+
+        var subDirs = dir.GetDirectories();
+        var prioritizedDirs = subDirs
+            .OrderByDescending(d => executableDirs.Contains(d.FullName))
+            .ThenBy(d => d.Name)
+            .Take(20);
+
+        foreach (var d in prioritizedDirs)
+        {
+            items.Add(new FileTreeItem
+            {
+                Name = d.Name,
+                IsFile = false,
+                FullPath = d.FullName,
+                Children = new ObservableCollection<FileTreeItem>(BuildDirectoryTree(d, executableDirs)),
+            });
+        }
+
+        var files = dir.GetFiles();
+        var prioritizedFiles = files
+            .OrderByDescending(f => ExecutableFileClassifier.IsLegacyLaunchCandidate(f.Name, f.FullName) || f.Extension.Equals(".exe", StringComparison.OrdinalIgnoreCase))
+            .ThenBy(f => f.Name)
+            .Take(50);
+
+        foreach (var f in prioritizedFiles)
+        {
+            items.Add(new FileTreeItem { Name = f.Name, IsFile = true, FullPath = f.FullName });
+        }
+
+        return items;
+    }
+
+    private static void CopyDirectory(DirectoryInfo source, DirectoryInfo target)
+    {
+        if (!target.Exists)
+        {
+            Directory.CreateDirectory(target.FullName);
+        }
+
+        foreach (var file in source.GetFiles())
+        {
+            file.CopyTo(Path.Combine(target.FullName, file.Name), true);
+        }
+
+        foreach (var subDirectory in source.GetDirectories())
+        {
+            var nextTargetSubDir = target.CreateSubdirectory(subDirectory.Name);
+            CopyDirectory(subDirectory, nextTargetSubDir);
+        }
+    }
+
     private readonly string _stagingPath = Path.Combine(Path.GetTempPath(), "GenHub_Staging_" + Guid.NewGuid());
 
     private string? _originalManifestId;
@@ -442,22 +534,12 @@ public partial class AddLocalContentViewModel(
             return;
         }
 
-        // Only set SourcePath if not already set or empty (support multiple imports)
         if (string.IsNullOrEmpty(SourcePath))
         {
             SourcePath = path;
         }
 
-        if (string.IsNullOrWhiteSpace(ContentName) && string.IsNullOrEmpty(SourcePath))
-        {
-            // Use the folder name or first file name as default content name if not set
-            ContentName = Path.GetFileNameWithoutExtension(path);
-        }
-        else if (string.IsNullOrWhiteSpace(ContentName))
-        {
-            // If adding more files, don't overwrite name unless empty
-            ContentName = Path.GetFileNameWithoutExtension(path);
-        }
+        SetDefaultContentName(path);
 
         _cts ??= new CancellationTokenSource();
         if (_cts.IsCancellationRequested)
@@ -479,145 +561,19 @@ public partial class AddLocalContentViewModel(
                 Directory.CreateDirectory(_stagingPath);
             }
 
-            if (File.Exists(path))
-            {
-                var extension = Path.GetExtension(path);
-                var destFile = Path.Combine(_stagingPath, Path.GetFileName(path));
-                File.Copy(path, destFile, true);
+            await StageContentFromPathAsync(path, cancellationToken);
 
-                if (archivePayloadProcessor != null)
-                {
-                    await archivePayloadProcessor.ProcessPayloadAsync(
-                        _stagingPath,
-                        SelectedContentType,
-                        SelectedGameType,
-                        normalizeInactiveArchives: false,
-                        cancellationToken: cancellationToken);
-                }
-                else if (extension.Equals(".zip", StringComparison.OrdinalIgnoreCase))
-                {
-                    await Task.Run(() =>
-                    {
-                        ZipFile.ExtractToDirectory(destFile, _stagingPath, true);
-                        try
-                        {
-                            File.Delete(destFile);
-                        }
-                        catch
-                        {
-                            // Best effort cleanup of source zip in staging
-                        }
-                    });
-                }
-            }
-            else if (Directory.Exists(path))
-            {
-                var dirInfo = new DirectoryInfo(path);
-                logger?.LogDebug("ImportContentAsync: Copying folder contents from source {Source} to staging root {Staging}", path, _stagingPath);
-
-                await Task.Run(() => CopyDirectory(dirInfo, new DirectoryInfo(_stagingPath)));
-
-                if (archivePayloadProcessor != null)
-                {
-                    await archivePayloadProcessor.ProcessPayloadAsync(
-                        _stagingPath,
-                        SelectedContentType,
-                        SelectedGameType,
-                        normalizeInactiveArchives: false,
-                        cancellationToken: cancellationToken);
-                }
-            }
-
-            // Auto-organization: If we have .map files at the root level, move them into subdirectories
             CreateMapFoldersIfNeeded();
 
-            // Detect and normalize GenLauncher files
-            var normalizationSetStatus = false;
-            try
+            var normalizationSetStatus = await HandleGenLauncherNormalizationAsync(cancellationToken);
+            if (normalizationSetStatus == null)
             {
-                if (genLauncherNormalizationService != null && dialogService != null)
-                {
-                    var detectionResult = await genLauncherNormalizationService.DetectGenLauncherFilesAsync(_stagingPath, cancellationToken);
-
-                    if (detectionResult.HasGenLauncherFiles)
-                    {
-                        logger?.LogInformation("GenLauncher files detected: {Summary}", detectionResult.GetSummary());
-
-                        var normalizationPrompt =
-                            $"This content contains GenLauncher-modified files:\n\n{detectionResult.GetSummary()}\n\nWould you like to normalize these files to standard format?\n\n" +
-                            "This will:\n" +
-                            $"• Convert {GenLauncherConstants.GibExtension} files to {GenLauncherConstants.BigExtension}\n" +
-                            $"• Remove {string.Join(", ", GenLauncherConstants.AllSuffixes)} suffixes\n" +
-                            "• Remove symbolic links";
-
-                        var shouldNormalize = await dialogService.ShowConfirmationAsync(
-                            "GenLauncher Files Detected",
-                            normalizationPrompt,
-                            "Normalize",
-                            "Skip",
-                            sessionKey: GenLauncherConstants.NormalizationDialogSessionKey);
-
-                        if (shouldNormalize)
-                        {
-                            StatusMessage = "Normalizing GenLauncher files...";
-                            logger?.LogInformation("User confirmed normalization");
-
-                            var normalizationResult = await genLauncherNormalizationService.NormalizeFilesAsync(
-                                _stagingPath,
-                                cancellationToken);
-
-                            if (normalizationResult.Success)
-                            {
-                                var result = normalizationResult.Data;
-                                StatusMessage = result.IsFullySuccessful
-                                    ? $"Normalized {result.NormalizedCount} file(s). Import successful."
-                                    : $"Normalized {result.NormalizedCount} file(s); {result.FailedFiles.Count} failed. Import successful.";
-                                normalizationSetStatus = true;
-                                logger?.LogInformation(
-                                    "Normalization completed: {NormalizedCount} files, {SymlinksRemoved} symlinks removed",
-                                    result.NormalizedCount,
-                                    result.SymbolicLinksRemoved);
-
-                                if (!result.IsFullySuccessful)
-                                {
-                                    logger?.LogWarning(
-                                        "Some files failed to normalize: {FailedFiles}",
-                                        string.Join(", ", result.FailedFiles));
-                                }
-                            }
-                            else
-                            {
-                                StatusMessage = $"Normalization warning: {normalizationResult.FirstError}. Import will continue.";
-                                normalizationSetStatus = true;
-                                logger?.LogWarning("Normalization failed: {Error}", normalizationResult.FirstError);
-                            }
-                        }
-                        else
-                        {
-                            logger?.LogInformation("User skipped normalization");
-                            StatusMessage = "Import successful (GenLauncher files not normalized).";
-                            normalizationSetStatus = true;
-                        }
-                    }
-                }
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                logger?.LogInformation("GenLauncher detection/normalization was cancelled");
-                StatusMessage = "Import cancelled.";
                 return;
-            }
-            catch (Exception ex)
-            {
-                logger?.LogError(ex, "Error during GenLauncher detection/normalization");
-                StatusMessage = "Import successful (normalization check failed).";
-                normalizationSetStatus = true;
             }
 
             await RefreshStagingTreeAsync();
 
-            // Only set generic message if normalization didn't set a specific one
-            if (!normalizationSetStatus)
+            if (!normalizationSetStatus.Value)
             {
                 StatusMessage = "Import successful.";
             }
@@ -644,96 +600,154 @@ public partial class AddLocalContentViewModel(
         GC.SuppressFinalize(this);
     }
 
-    private static List<FileTreeItem> BuildDirectoryTree(DirectoryInfo dir)
-        => BuildDirectoryTree(dir, CollectExecutableDirectories(dir));
-
-    private static HashSet<string> CollectExecutableDirectories(DirectoryInfo root)
+    private void SetDefaultContentName(string path)
     {
-        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        try
+        if (string.IsNullOrWhiteSpace(ContentName))
         {
-            foreach (var file in root.EnumerateFiles("*", SearchOption.AllDirectories))
-            {
-                if (!ExecutableFileClassifier.IsLegacyLaunchCandidate(file.Name, file.FullName)
-                    && !file.Extension.Equals(".exe", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
+            ContentName = Path.GetFileNameWithoutExtension(path);
+        }
+    }
 
-                for (var d = file.Directory; d != null; d = d.Parent)
+    private async Task StageContentFromPathAsync(string path, CancellationToken cancellationToken)
+    {
+        if (File.Exists(path))
+        {
+            var extension = Path.GetExtension(path);
+            var destFile = Path.Combine(_stagingPath, Path.GetFileName(path));
+            File.Copy(path, destFile, true);
+
+            if (archivePayloadProcessor != null)
+            {
+                await archivePayloadProcessor.ProcessPayloadAsync(
+                    _stagingPath,
+                    SelectedContentType,
+                    SelectedGameType,
+                    normalizeInactiveArchives: false,
+                    cancellationToken: cancellationToken);
+            }
+            else if (extension.Equals(".zip", StringComparison.OrdinalIgnoreCase))
+            {
+                await Task.Run(() =>
                 {
-                    if (!result.Add(d.FullName))
+                    ZipFile.ExtractToDirectory(destFile, _stagingPath, true);
+                    try
                     {
-                        break;
+                        File.Delete(destFile);
                     }
-                }
+                    catch
+                    {
+                        // Best effort cleanup of source zip in staging
+                    }
+                });
             }
         }
-        catch
+        else if (Directory.Exists(path))
         {
-            // ignore inaccessible directories
-        }
+            var dirInfo = new DirectoryInfo(path);
+            logger?.LogDebug("ImportContentAsync: Copying folder contents from source {Source} to staging root {Staging}", path, _stagingPath);
 
-        return result;
-    }
+            await Task.Run(() => CopyDirectory(dirInfo, new DirectoryInfo(_stagingPath)));
 
-    private static List<FileTreeItem> BuildDirectoryTree(DirectoryInfo dir, HashSet<string> executableDirs)
-    {
-        var items = new List<FileTreeItem>();
-
-        if (!dir.Exists)
-        {
-            return items;
-        }
-
-        var subDirs = dir.GetDirectories();
-        var prioritizedDirs = subDirs
-            .OrderByDescending(d => executableDirs.Contains(d.FullName))
-            .ThenBy(d => d.Name)
-            .Take(20);
-
-        foreach (var d in prioritizedDirs)
-        {
-            items.Add(new FileTreeItem
+            if (archivePayloadProcessor != null)
             {
-                Name = d.Name,
-                IsFile = false,
-                FullPath = d.FullName,
-                Children = new ObservableCollection<FileTreeItem>(BuildDirectoryTree(d, executableDirs)),
-            });
+                await archivePayloadProcessor.ProcessPayloadAsync(
+                    _stagingPath,
+                    SelectedContentType,
+                    SelectedGameType,
+                    normalizeInactiveArchives: false,
+                    cancellationToken: cancellationToken);
+            }
         }
-
-        var files = dir.GetFiles();
-        var prioritizedFiles = files
-            .OrderByDescending(f => ExecutableFileClassifier.IsLegacyLaunchCandidate(f.Name, f.FullName) || f.Extension.Equals(".exe", StringComparison.OrdinalIgnoreCase))
-            .ThenBy(f => f.Name)
-            .Take(50);
-
-        foreach (var f in prioritizedFiles)
-        {
-            items.Add(new FileTreeItem { Name = f.Name, IsFile = true, FullPath = f.FullName });
-        }
-
-        return items;
     }
 
-    private static void CopyDirectory(DirectoryInfo source, DirectoryInfo target)
+    private async Task<bool?> HandleGenLauncherNormalizationAsync(CancellationToken cancellationToken)
     {
-        if (!target.Exists)
+        try
         {
-            Directory.CreateDirectory(target.FullName);
+            if (genLauncherNormalizationService == null || dialogService == null)
+            {
+                return false;
+            }
+
+            var detectionResult = await genLauncherNormalizationService.DetectGenLauncherFilesAsync(_stagingPath, cancellationToken);
+            if (!detectionResult.HasGenLauncherFiles)
+            {
+                return false;
+            }
+
+            logger?.LogInformation("GenLauncher files detected: {Summary}", detectionResult.GetSummary());
+
+            var normalizationPrompt =
+                $"This content contains GenLauncher-modified files:\n\n{detectionResult.GetSummary()}\n\nWould you like to normalize these files to standard format?\n\n" +
+                "This will:\n" +
+                $"• Convert {GenLauncherConstants.GibExtension} files to {GenLauncherConstants.BigExtension}\n" +
+                $"• Remove {string.Join(", ", GenLauncherConstants.AllSuffixes)} suffixes\n" +
+                "• Remove symbolic links";
+
+            var shouldNormalize = await dialogService.ShowConfirmationAsync(
+                "GenLauncher Files Detected",
+                normalizationPrompt,
+                "Normalize",
+                "Skip",
+                sessionKey: GenLauncherConstants.NormalizationDialogSessionKey);
+
+            if (shouldNormalize)
+            {
+                return await ExecuteGenLauncherNormalizationAsync(cancellationToken);
+            }
+
+            logger?.LogInformation("User skipped normalization");
+            StatusMessage = "Import successful (GenLauncher files not normalized).";
+            return true;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            logger?.LogInformation("GenLauncher detection/normalization was cancelled");
+            StatusMessage = "Import cancelled.";
+            return null;
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Error during GenLauncher detection/normalization");
+            StatusMessage = "Import successful (normalization check failed).";
+            return true;
+        }
+    }
+
+    private async Task<bool> ExecuteGenLauncherNormalizationAsync(CancellationToken cancellationToken)
+    {
+        StatusMessage = "Normalizing GenLauncher files...";
+        logger?.LogInformation("User confirmed normalization");
+
+        var normalizationResult = await genLauncherNormalizationService!.NormalizeFilesAsync(
+            _stagingPath,
+            cancellationToken);
+
+        if (normalizationResult.Success)
+        {
+            var result = normalizationResult.Data;
+            StatusMessage = result.IsFullySuccessful
+                ? $"Normalized {result.NormalizedCount} file(s). Import successful."
+                : $"Normalized {result.NormalizedCount} file(s); {result.FailedFiles.Count} failed. Import successful.";
+            logger?.LogInformation(
+                "Normalization completed: {NormalizedCount} files, {SymlinksRemoved} symlinks removed",
+                result.NormalizedCount,
+                result.SymbolicLinksRemoved);
+
+            if (!result.IsFullySuccessful)
+            {
+                logger?.LogWarning(
+                    "Some files failed to normalize: {FailedFiles}",
+                    string.Join(", ", result.FailedFiles));
+            }
+        }
+        else
+        {
+            StatusMessage = $"Normalization warning: {normalizationResult.FirstError}. Import will continue.";
+            logger?.LogWarning("Normalization failed: {Error}", normalizationResult.FirstError);
         }
 
-        foreach (var file in source.GetFiles())
-        {
-            file.CopyTo(Path.Combine(target.FullName, file.Name), true);
-        }
-
-        foreach (var subDirectory in source.GetDirectories())
-        {
-            var nextTargetSubDir = target.CreateSubdirectory(subDirectory.Name);
-            CopyDirectory(subDirectory, nextTargetSubDir);
-        }
+        return true;
     }
 
     [RelayCommand]

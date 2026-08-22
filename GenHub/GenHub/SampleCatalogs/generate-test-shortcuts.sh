@@ -38,7 +38,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 CATALOG_PATH="$SCRIPT_DIR/genhub-test-catalog.catalog.json"
 ICON_PATH="$REPO_ROOT/GenHub/GenHub/Assets/Icons/generalshub-icon.png"
 
-if [ -z "${PLATFORM:-}" ]; then
+if [[ -z "${PLATFORM:-}" ]]; then
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*) PLATFORM="windows" ;;
         Linux)                PLATFORM="linux"   ;;
@@ -78,7 +78,7 @@ to_windows_path() {
 # file:///z/foo instead of file:///Z:/foo.
 to_file_uri() {
     local p="$1"
-    if [ "$PLATFORM" = "windows" ]; then
+    if [[ "$PLATFORM" = "windows" ]]; then
         local win
         win="$(to_windows_path "$p")"
         win="${win//\\//}"
@@ -99,7 +99,7 @@ to_file_uri() {
 
 confirm_write() {
     local path="$1"
-    if [ -e "$path" ] && [ "$FORCE" != "1" ]; then
+    if [[ -e "$path" && "$FORCE" != "1" ]]; then
         local base
         base="$(basename "$path")"
         printf '%s exists. Overwrite? [y/N] ' "$base"
@@ -162,6 +162,10 @@ resolve_targets() {
             PROJECT_DIR="$REPO_ROOT/GenHub/GenHub.MacOS"
             PROJECT="$PROJECT_DIR/GenHub.MacOS.csproj"
             EXE_PATH="$PROJECT_DIR/bin/$CONFIG/net8.0/GenHub.MacOS"
+            ;;
+        *)
+            echo "Unknown platform: $PLATFORM" >&2
+            return 1
             ;;
     esac
 }
@@ -241,14 +245,14 @@ EOF
 
 emit_linux() {
     local icon_line=""
-    if [ -f "$ICON_PATH" ]; then
+    if [[ -f "$ICON_PATH" ]]; then
         icon_line="Icon=$ICON_PATH"
     fi
 
     local exe_exec subscribe_exec try_exec_line=""
     exe_exec="$(quote_if_needed "$EXE_PATH")"
     subscribe_exec="$(escape_desktop_exec "$SUBSCRIBE_URI")"
-    if [ -f "$EXE_PATH" ]; then
+    if [[ -f "$EXE_PATH" ]]; then
         try_exec_line="TryExec=$EXE_PATH"
     fi
 
@@ -296,7 +300,7 @@ EOF
     local installed_name="genhub-scheme.desktop"
 
     install_linux_handler() {
-        if [ ! -f "$reg_path" ]; then
+        if [[ ! -f "$reg_path" ]]; then
             echo "ERROR: $reg_path is missing; cannot install the handler." >&2
             return 1
         fi
@@ -315,7 +319,7 @@ EOF
     }
 
     echo ""
-    if [ "$INSTALL" = "1" ]; then
+    if [[ "$INSTALL" = "1" ]]; then
         install_linux_handler
     elif command -v xdg-mime >/dev/null 2>&1; then
         printf 'Install genhub:// handler for this user now? [y/N] '
@@ -395,7 +399,7 @@ EOF
             rm -f "$tmp_script"
 
             local plist="$app_path/Contents/Info.plist"
-            if [ -f "$plist" ] && command -v /usr/libexec/PlistBuddy >/dev/null 2>&1; then
+            if [[ -f "$plist" ]] && command -v /usr/libexec/PlistBuddy >/dev/null 2>&1; then
                 /usr/libexec/PlistBuddy -c 'Delete :CFBundleURLTypes' "$plist" >/dev/null 2>&1 || true
                 /usr/libexec/PlistBuddy -c 'Add :CFBundleURLTypes array' "$plist"
                 /usr/libexec/PlistBuddy -c 'Add :CFBundleURLTypes:0 dict' "$plist"
@@ -409,7 +413,7 @@ EOF
             fi
 
             local lsregister="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
-            if [ -x "$lsregister" ]; then
+            if [[ -x "$lsregister" ]]; then
                 "$lsregister" -f "$app_path" >/dev/null 2>&1 || true
             fi
             echo "Wrote $app_path"

@@ -65,6 +65,8 @@ public partial class ContentDetailViewModel(
     Action? closeAction = null,
     IReadOnlyDictionary<string, ContentSearchResult>? variantSearchResults = null) : ObservableObject, IDisposable
 {
+    private const string UnknownValue = "Unknown";
+
     [ObservableProperty]
     private ObservableCollection<InstallableVariant> _variants = [];
 
@@ -221,6 +223,8 @@ public partial class ContentDetailViewModel(
     [NotifyPropertyChangedFor(nameof(ShowDownloadButton))]
     [NotifyPropertyChangedFor(nameof(ShowAddToProfileButton))]
     [NotifyPropertyChangedFor(nameof(ShowUpdateButton))]
+    [NotifyPropertyChangedFor(nameof(HasSelectedDownloadableItem))]
+    [NotifyPropertyChangedFor(nameof(ShowSelectedTargetBanner))]
     private DownloadableItemViewModel? _selectedDownloadableItem;
 
     /// <summary>
@@ -664,7 +668,7 @@ public partial class ContentDetailViewModel(
             return null;
         }
 
-        return releases.OrderByDescending(GetReleasePriority).FirstOrDefault() ?? releases[0];
+        return releases.OrderByDescending(GetReleasePriority).First();
     }
 
     private static bool IsFileDetailsAlreadyLoaded(DownloadableFile file) =>
@@ -703,7 +707,7 @@ public partial class ContentDetailViewModel(
         return variantInfo ?? new ContentVariantInfo
         {
             Id = !string.IsNullOrEmpty(key) ? key : (sibling.Id ?? string.Empty),
-            Name = sibling.Name ?? sibling.Id ?? "Unknown",
+            Name = sibling.Name ?? sibling.Id ?? UnknownValue,
             ManifestId = !string.IsNullOrEmpty(key) ? key : (sibling.Id ?? string.Empty),
         };
     }
@@ -926,101 +930,124 @@ public partial class ContentDetailViewModel(
 
         if (Variants.Count > 0)
         {
-            var variantIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { e.ContentId };
-            if (!string.IsNullOrEmpty(e.ManifestId))
+            SyncVariantsOnContentStateChanged(e);
+        }
+
+        UpdateMainContentState(e);
+    }
+
+    private void SyncVariantsOnContentStateChanged(ContentStateChangedEventArgs e)
+    {
+        var variantIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { e.ContentId };
+        if (!string.IsNullOrEmpty(e.ManifestId))
+        {
+            variantIds.Add(e.ManifestId);
+        }
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            var selectedMatched = false;
+            foreach (var variant in Variants)
             {
-                variantIds.Add(e.ManifestId);
+                if (UpdateSingleVariantState(variant, variantIds, e))
+                {
+                    selectedMatched = true;
+                }
             }
 
-            Dispatcher.UIThread.Post(() =>
+            if (selectedMatched)
             {
-                var selectedMatched = false;
-                foreach (var variant in Variants)
-                {
-                    var matched = !string.IsNullOrEmpty(variant.ManifestId) && variantIds.Contains(variant.ManifestId);
-                    if (!matched &&
-                        variantSearchResults != null &&
-                        !string.IsNullOrEmpty(variant.ManifestId) &&
-                        variantSearchResults.TryGetValue(variant.ManifestId, out var sibling) &&
-                        !string.IsNullOrEmpty(sibling.Id) &&
-                        variantIds.Contains(sibling.Id))
-                    {
-                        matched = true;
-                    }
+                IsDownloaded = e.NewState is ContentState.Downloaded;
+                IsUpdateAvailable = e.NewState == ContentState.UpdateAvailable;
+                OnPropertyChanged(nameof(ShowDownloadButton));
+                OnPropertyChanged(nameof(ShowAddToProfileButton));
+                OnPropertyChanged(nameof(ShowUpdateButton));
+            }
 
-                    if (matched)
-                    {
-                        variant.CurrentState = e.NewState;
-                        if (ReferenceEquals(variant, SelectedVariant))
-                        {
-                            selectedMatched = true;
-                        }
+            SyncReleasesOnVariantStateChanged(variantIds, e);
+        });
+    }
 
-                        if (e.NewState == ContentState.Downloaded &&
-                            !string.IsNullOrEmpty(e.ManifestId) &&
-                            variantSearchResults != null &&
-                            !string.IsNullOrEmpty(variant.ManifestId) &&
-                            variantSearchResults.TryGetValue(variant.ManifestId, out var stored))
-                        {
-                            stored.UpdateId(e.ManifestId);
-                        }
-                    }
-                }
-
-                if (selectedMatched)
-                {
-                    IsDownloaded = e.NewState is ContentState.Downloaded;
-                    IsUpdateAvailable = e.NewState == ContentState.UpdateAvailable;
-                    OnPropertyChanged(nameof(ShowDownloadButton));
-                    OnPropertyChanged(nameof(ShowAddToProfileButton));
-                    OnPropertyChanged(nameof(ShowUpdateButton));
-                }
-
-                // Keep Releases rows derived from variants in sync.
-                foreach (var release in Releases)
-                {
-                    if (!string.IsNullOrEmpty(release.DownloadedManifestId) &&
-                        variantIds.Contains(release.DownloadedManifestId))
-                    {
-                        release.IsDownloaded = e.NewState == ContentState.Downloaded;
-                        if (!string.IsNullOrEmpty(e.ManifestId))
-                        {
-                            release.DownloadedManifestId = e.ManifestId;
-                        }
-                    }
-                }
-            });
+    private bool UpdateSingleVariantState(InstallableVariant variant, HashSet<string> variantIds, ContentStateChangedEventArgs e)
+    {
+        var matched = !string.IsNullOrEmpty(variant.ManifestId) && variantIds.Contains(variant.ManifestId);
+        if (!matched &&
+            variantSearchResults != null &&
+            !string.IsNullOrEmpty(variant.ManifestId) &&
+            variantSearchResults.TryGetValue(variant.ManifestId, out var sibling) &&
+            !string.IsNullOrEmpty(sibling.Id) &&
+            variantIds.Contains(sibling.Id))
+        {
+            matched = true;
         }
 
-        // Match on either the catalog ID or the manifest ID (the ID is rewritten after download).
+        if (!matched)
+        {
+            return false;
+        }
+
+        variant.CurrentState = e.NewState;
+
+        if (e.NewState == ContentState.Downloaded &&
+            !string.IsNullOrEmpty(e.ManifestId) &&
+            variantSearchResults != null &&
+            !string.IsNullOrEmpty(variant.ManifestId) &&
+            variantSearchResults.TryGetValue(variant.ManifestId, out var stored))
+        {
+            stored.UpdateId(e.ManifestId);
+        }
+
+        return ReferenceEquals(variant, SelectedVariant);
+    }
+
+    private void SyncReleasesOnVariantStateChanged(HashSet<string> variantIds, ContentStateChangedEventArgs e)
+    {
+        foreach (var release in Releases)
+        {
+            if (!string.IsNullOrEmpty(release.DownloadedManifestId) &&
+                variantIds.Contains(release.DownloadedManifestId))
+            {
+                release.IsDownloaded = e.NewState == ContentState.Downloaded;
+                if (!string.IsNullOrEmpty(e.ManifestId))
+                {
+                    release.DownloadedManifestId = e.ManifestId;
+                }
+            }
+        }
+    }
+
+    private void UpdateMainContentState(ContentStateChangedEventArgs e)
+    {
         var isForThisContent = e.ContentId == searchResult.Id ||
                                (!string.IsNullOrEmpty(e.ManifestId) && e.ManifestId == searchResult.Id);
-        if (isForThisContent)
+        if (!isForThisContent)
         {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-            {
-                switch (e.NewState)
-                {
-                    case ContentState.Downloaded:
-                        IsDownloaded = true;
-                        IsUpdateAvailable = false;
-                        break;
-                    case ContentState.UpdateAvailable:
-                        IsUpdateAvailable = true;
-                        IsDownloaded = false;
-                        break;
-                    case ContentState.NotDownloaded:
-                        IsDownloaded = false;
-                        IsUpdateAvailable = false;
-                        break;
-                    default:
-                        // State unchanged
-                        break;
-                }
-
-                logger.LogDebug("Content state updated for {ContentId}: {State}", e.ContentId, e.NewState);
-            });
+            return;
         }
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            switch (e.NewState)
+            {
+                case ContentState.Downloaded:
+                    IsDownloaded = true;
+                    IsUpdateAvailable = false;
+                    break;
+                case ContentState.UpdateAvailable:
+                    IsUpdateAvailable = true;
+                    IsDownloaded = false;
+                    break;
+                case ContentState.NotDownloaded:
+                    IsDownloaded = false;
+                    IsUpdateAvailable = false;
+                    break;
+                default:
+                    // State unchanged
+                    break;
+            }
+
+            logger.LogDebug("Content state updated for {ContentId}: {State}", e.ContentId, e.NewState);
+        });
     }
 
     /// <summary>
@@ -1244,7 +1271,10 @@ public partial class ContentDetailViewModel(
         try
         {
             IsLoadingDetails = true;
-            if (string.IsNullOrEmpty(searchResult.SourceUrl)) return;
+            if (string.IsNullOrEmpty(searchResult.SourceUrl))
+            {
+                return;
+            }
 
             var parser = parsers.FirstOrDefault(p => p.CanParse(searchResult.SourceUrl));
             if (parser == null)
@@ -1256,58 +1286,15 @@ public partial class ContentDetailViewModel(
 
             logger.LogInformation("Parsing web page: {Url}", searchResult.SourceUrl);
 
-            ParsedWebPage? parsedPage = null;
-            var isModDb = string.Equals(parser.ParserId, ModDBConstants.ResolverId, StringComparison.OrdinalIgnoreCase);
-            if (isModDb)
-            {
-                notificationService.ShowInfo(
-                    "Loading ModDB details",
-                    "A browser window is opening to read this ModDB page. If it asks for verification, complete it there. Otherwise wait and do not click anything in that window — details will fill in automatically.",
-                    autoDismissMs: NotificationDurations.VeryLong);
-
-                // PlaywrightService actively waits for a real ModDB document (or reports an
-                // actionable verification timeout). Use cancellable view token.
-                parsedPage = await parser.ParseAsync(searchResult.SourceUrl, _cts.Token);
-            }
-            else
-            {
-                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
-                timeoutCts.CancelAfter(TimeSpan.FromSeconds(15));
-                try
-                {
-                    parsedPage = await parser.ParseAsync(searchResult.SourceUrl, timeoutCts.Token)
-                        .WaitAsync(timeoutCts.Token);
-                }
-                catch (OperationCanceledException)
-                {
-                    if (_cts.IsCancellationRequested)
-                    {
-                        throw;
-                    }
-
-                    logger.LogWarning("Timed out parsing {Url}; showing catalog data only", searchResult.SourceUrl);
-                    return;
-                }
-            }
-
+            var parsedPage = await FetchParsedPageAsync(parser);
             if (parsedPage == null)
             {
                 logger.LogWarning("No parsed page data returned for {Url}; showing catalog data only", searchResult.SourceUrl);
                 return;
             }
 
-            // A bot-protection interstitial parses "successfully" but carries no real content.
-            // Discard it so it cannot overwrite the name/description from the catalog.
-            var parsedTitle = parsedPage.Context?.Title ?? string.Empty;
-            if (parsedPage.Sections.Count == 0 &&
-                (string.IsNullOrWhiteSpace(parsedTitle) ||
-                 parsedTitle.Contains("Just a moment", StringComparison.OrdinalIgnoreCase) ||
-                 parsedTitle.Contains("Attention Required", StringComparison.OrdinalIgnoreCase)))
+            if (IsBotProtectionPage(parsedPage))
             {
-                logger.LogWarning(
-                    "Parsed page for {Url} looks like a bot-protection challenge (title: '{Title}'); ignoring it",
-                    searchResult.SourceUrl,
-                    parsedTitle);
                 return;
             }
 
@@ -1353,6 +1340,60 @@ public partial class ContentDetailViewModel(
                 }
             }
         }
+    }
+
+    private async Task<ParsedWebPage?> FetchParsedPageAsync(IWebPageParser parser)
+    {
+        var isModDb = string.Equals(parser.ParserId, ModDBConstants.ResolverId, StringComparison.OrdinalIgnoreCase);
+        if (isModDb)
+        {
+            notificationService.ShowInfo(
+                "Loading ModDB details",
+                "A browser window is opening to read this ModDB page. If it asks for verification, complete it there. Otherwise wait and do not click anything in that window — details will fill in automatically.",
+                autoDismissMs: NotificationDurations.VeryLong);
+
+            // PlaywrightService actively waits for a real ModDB document (or reports an
+            // actionable verification timeout). Use cancellable view token.
+            return await parser.ParseAsync(searchResult.SourceUrl!, _cts.Token);
+        }
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(15));
+        try
+        {
+            return await parser.ParseAsync(searchResult.SourceUrl!, timeoutCts.Token)
+                .WaitAsync(timeoutCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            if (_cts.IsCancellationRequested)
+            {
+                throw;
+            }
+
+            logger.LogWarning("Timed out parsing {Url}; showing catalog data only", searchResult.SourceUrl);
+            return null;
+        }
+    }
+
+    private bool IsBotProtectionPage(ParsedWebPage parsedPage)
+    {
+        // A bot-protection interstitial parses "successfully" but carries no real content.
+        // Discard it so it cannot overwrite the name/description from the catalog.
+        var parsedTitle = parsedPage.Context?.Title ?? string.Empty;
+        if (parsedPage.Sections.Count == 0 &&
+            (string.IsNullOrWhiteSpace(parsedTitle) ||
+             parsedTitle.Contains("Just a moment", StringComparison.OrdinalIgnoreCase) ||
+             parsedTitle.Contains("Attention Required", StringComparison.OrdinalIgnoreCase)))
+        {
+            logger.LogWarning(
+                "Parsed page for {Url} looks like a bot-protection challenge (title: '{Title}'); ignoring it",
+                searchResult.SourceUrl,
+                parsedTitle);
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -1967,12 +2008,12 @@ public partial class ContentDetailViewModel(
     public string Name => SelectedVariant?.Name
         ?? (SelectedDownloadableItem != null &&
             !string.IsNullOrWhiteSpace(SelectedDownloadableItem.Name) &&
-            !SelectedDownloadableItem.Name.StartsWith("Unknown", StringComparison.OrdinalIgnoreCase)
+            !SelectedDownloadableItem.Name.StartsWith(UnknownValue, StringComparison.OrdinalIgnoreCase)
                 ? SelectedDownloadableItem.Name
                 : null)
         ?? (!string.IsNullOrWhiteSpace(searchResult.Name) ? searchResult.Name : null)
         ?? ParsedPage?.Context.Title
-        ?? "Unknown";
+        ?? UnknownValue;
 
     /// <summary>
     /// Gets the content description (full) - prefers parsed page context description.
@@ -1984,7 +2025,7 @@ public partial class ContentDetailViewModel(
     /// Gets the author name - prefers parsed page context developer.
     /// </summary>
     public string AuthorName =>
-        ParsedPage?.Context.Developer ?? searchResult.AuthorName ?? "Unknown";
+        ParsedPage?.Context.Developer ?? searchResult.AuthorName ?? UnknownValue;
 
     /// <summary>
     /// Gets the version.
@@ -2044,7 +2085,7 @@ public partial class ContentDetailViewModel(
     /// Gets a value indicating whether an author is available and not "Unknown".
     /// </summary>
     public bool HasAuthor => !string.IsNullOrEmpty(AuthorName) &&
-                             !string.Equals(AuthorName, "Unknown", StringComparison.OrdinalIgnoreCase);
+                             !string.Equals(AuthorName, UnknownValue, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Gets the content type.

@@ -893,19 +893,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         try
         {
             using var stream = File.OpenRead(archivePath);
-            var overlayOffset = GetPeOverlayOffset(stream);
-            long sigOffset = -1;
-
-            if (overlayOffset > 0 && overlayOffset < stream.Length)
-            {
-                sigOffset = FindSignatureOffset(stream, SmartInstallMakerSignature, overlayOffset, maxScanBytes: 1024);
-            }
-
-            if (sigOffset < 0)
-            {
-                sigOffset = FindSignatureOffset(stream, SmartInstallMakerSignature);
-            }
-
+            var sigOffset = LocateSmartInstallMakerSignature(stream);
             if (sigOffset < 0)
             {
                 return false;
@@ -921,35 +909,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             Directory.CreateDirectory(stagingDir);
             var stagingRoot = Path.GetFullPath(stagingDir);
 
-            // 1. Check if legacy 32-bit records exist
-            var legacyRecords = ParseSmartInstallMakerFileTable(fileTableData, stream, payloadOffset);
-            if (legacyRecords.Count > 0)
-            {
-                var extractedCount = ExtractSmartInstallMakerPayload(stream, payloadOffset, legacyRecords, stagingRoot, progress, logger, cancellationToken);
-                if (extractedCount == 0)
-                {
-                    throw new InvalidDataException("Smart Install Maker extraction produced no valid files.");
-                }
-
-                PromoteDirectoryContents(stagingDir, extractPath);
-                return true;
-            }
-
-            // 2. Check if modern 64-bit SIM records exist
-            var modernFileNames = ParseModernSmartInstallMakerFileTable(fileTableData);
-            if (modernFileNames.Count > 0)
-            {
-                var extractedCount = ExtractModernSmartInstallMakerPayload(stream, payloadOffset, modernFileNames, stagingRoot, progress, logger, cancellationToken);
-                if (extractedCount == 0)
-                {
-                    throw new InvalidDataException("Smart Install Maker modern extraction yielded 0 files.");
-                }
-
-                PromoteDirectoryContents(stagingDir, extractPath);
-                return true;
-            }
-
-            return false;
+            return TryExtractSimPayload(stream, payloadOffset, fileTableData, stagingRoot, stagingDir, extractPath, progress, logger, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -977,6 +937,64 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 // Best effort cleanup
             }
         }
+    }
+
+    private static long LocateSmartInstallMakerSignature(Stream stream)
+    {
+        var overlayOffset = GetPeOverlayOffset(stream);
+        long sigOffset = -1;
+
+        if (overlayOffset > 0 && overlayOffset < stream.Length)
+        {
+            sigOffset = FindSignatureOffset(stream, SmartInstallMakerSignature, overlayOffset, maxScanBytes: 1024);
+        }
+
+        if (sigOffset < 0)
+        {
+            sigOffset = FindSignatureOffset(stream, SmartInstallMakerSignature);
+        }
+
+        return sigOffset;
+    }
+
+    private static bool TryExtractSimPayload(
+        Stream stream,
+        long payloadOffset,
+        byte[] fileTableData,
+        string stagingRoot,
+        string stagingDir,
+        string extractPath,
+        IProgress<ContentAcquisitionProgress>? progress,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        var legacyRecords = ParseSmartInstallMakerFileTable(fileTableData, stream, payloadOffset);
+        if (legacyRecords.Count > 0)
+        {
+            var extractedCount = ExtractSmartInstallMakerPayload(stream, payloadOffset, legacyRecords, stagingRoot, progress, logger, cancellationToken);
+            if (extractedCount == 0)
+            {
+                throw new InvalidDataException("Smart Install Maker extraction produced no valid files.");
+            }
+
+            PromoteDirectoryContents(stagingDir, extractPath);
+            return true;
+        }
+
+        var modernFileNames = ParseModernSmartInstallMakerFileTable(fileTableData);
+        if (modernFileNames.Count > 0)
+        {
+            var extractedCount = ExtractModernSmartInstallMakerPayload(stream, payloadOffset, modernFileNames, stagingRoot, progress, logger, cancellationToken);
+            if (extractedCount == 0)
+            {
+                throw new InvalidDataException("Smart Install Maker modern extraction yielded 0 files.");
+            }
+
+            PromoteDirectoryContents(stagingDir, extractPath);
+            return true;
+        }
+
+        return false;
     }
 
     private static (byte[]? TableData, long PayloadOffset) ReadSmartInstallMakerMetadata(Stream stream)

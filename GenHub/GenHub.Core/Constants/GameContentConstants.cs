@@ -16,6 +16,11 @@ public static class GameContentConstants
     public const int MaxWrapperNormalizationDepth = 10;
 
     /// <summary>
+    /// File name for the Electronic Arts intro logo movie.
+    /// </summary>
+    public const string EaLogoBikFileName = "EA_LOGO.BIK";
+
+    /// <summary>
     /// Supported archive file extensions.
     /// </summary>
     public static readonly IReadOnlyList<string> ArchiveExtensions =

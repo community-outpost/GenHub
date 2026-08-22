@@ -36,12 +36,20 @@ public sealed partial class ProfileSelectionViewModel(
     INotificationService notificationService) : ObservableObject
 {
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCompatibleProfiles))]
+    [NotifyPropertyChangedFor(nameof(HasAnyProfiles))]
+    [NotifyPropertyChangedFor(nameof(HasOnlyIncompatibleProfiles))]
+    [NotifyPropertyChangedFor(nameof(ProfileSummary))]
     private ObservableCollection<ProfileOptionViewModel> _compatibleProfiles = [];
 
     [ObservableProperty]
     private ObservableCollection<ProfilePickerItemViewModel> _compatibleProfileCards = [];
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasOtherProfiles))]
+    [NotifyPropertyChangedFor(nameof(HasAnyProfiles))]
+    [NotifyPropertyChangedFor(nameof(HasOnlyIncompatibleProfiles))]
+    [NotifyPropertyChangedFor(nameof(ProfileSummary))]
     private ObservableCollection<ProfileOptionViewModel> _otherProfiles = [];
 
     /// <summary>
@@ -447,7 +455,7 @@ public sealed partial class ProfileSelectionViewModel(
             }
             else
             {
-                idsToEnable = string.IsNullOrEmpty(selectedManifestId) ? [] : [selectedManifestId!];
+                idsToEnable = string.IsNullOrEmpty(selectedManifestId) ? [] : [selectedManifestId];
             }
 
             var result = idsToEnable.Count > 1

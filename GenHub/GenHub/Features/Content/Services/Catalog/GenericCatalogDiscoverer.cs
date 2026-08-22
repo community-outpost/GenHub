@@ -467,12 +467,17 @@ public class GenericCatalogDiscoverer(
 
     private async Task<OperationResult<PublisherCatalog>> FetchCatalogAsync(CancellationToken cancellationToken)
     {
+        if (_subscription == null)
+        {
+            return OperationResult<PublisherCatalog>.CreateFailure("Subscription is not configured");
+        }
+
         try
         {
             var httpClient = httpClientFactory.CreateClient();
             httpClient.Timeout = TimeSpan.FromSeconds(30);
 
-            if (!string.IsNullOrWhiteSpace(_subscription!.DefinitionUrl))
+            if (!string.IsNullOrWhiteSpace(_subscription.DefinitionUrl))
             {
                 throw new NotSupportedException("Definition-resolved catalogs (Publisher Studio) are not yet supported. Only direct CatalogUrl subscriptions are supported.");
             }

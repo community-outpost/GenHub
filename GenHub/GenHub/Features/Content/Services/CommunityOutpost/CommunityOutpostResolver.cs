@@ -175,6 +175,58 @@ public class CommunityOutpostResolver(
         return $"{contentCode}{CommunityOutpostConstants.DatFileExtension}";
     }
 
+    /// <summary>
+    /// Extracts a numeric version suitable for manifest ID.
+    /// </summary>
+    private static string ExtractManifestVersion(string version)
+    {
+        if (string.IsNullOrEmpty(version))
+        {
+            return "0";
+        }
+
+        var trimmed = version.Trim();
+        if (trimmed == "1.0" || trimmed == "1.0.0" || trimmed == "0")
+        {
+            return "0";
+        }
+
+        // Handle date versions like "2025-11-07" (YYYY-MM-DD)
+        if (trimmed.Length == 10 && trimmed[4] == '-' && trimmed[7] == '-')
+        {
+            var dateDigits = trimmed.Replace("-", string.Empty);
+            if (dateDigits.Length == 8 && int.TryParse(dateDigits, out var dateValue))
+            {
+                return dateValue.ToString();
+            }
+        }
+
+        // Handle date versions like "13-02-2025" (DD-MM-YYYY)
+        if (trimmed.Length == 10 && trimmed[2] == '-' && trimmed[5] == '-')
+        {
+            // Reorder to YYYYMMDD
+            var parts = trimmed.Split('-');
+            if (parts.Length == 3)
+            {
+                var dateDigits = $"{parts[2]}{parts[1]}{parts[0]}";
+                if (dateDigits.Length == 8 && int.TryParse(dateDigits, out var dateValue))
+                {
+                    return dateValue.ToString();
+                }
+            }
+        }
+
+        // Remove dots and leading zeros to get numeric version
+        var digits = trimmed.Replace(".", string.Empty);
+
+        if (int.TryParse(digits, out var numericVersion))
+        {
+            return numericVersion.ToString();
+        }
+
+        return "0";
+    }
+
     private string DetermineManifestVersion(
         ContentSearchResult discoveredItem,
         GenPatcherContentMetadata contentMetadata)
@@ -353,58 +405,6 @@ public class CommunityOutpostResolver(
     }
 
     /// <summary>
-    /// Extracts a numeric version suitable for manifest ID.
-    /// </summary>
-    private string ExtractManifestVersion(string version)
-    {
-        if (string.IsNullOrEmpty(version))
-        {
-            return "0";
-        }
-
-        var trimmed = version.Trim();
-        if (trimmed == "1.0" || trimmed == "1.0.0" || trimmed == "0")
-        {
-            return "0";
-        }
-
-        // Handle date versions like "2025-11-07" (YYYY-MM-DD)
-        if (trimmed.Length == 10 && trimmed[4] == '-' && trimmed[7] == '-')
-        {
-            var dateDigits = trimmed.Replace("-", string.Empty);
-            if (dateDigits.Length == 8 && int.TryParse(dateDigits, out var dateValue))
-            {
-                return dateValue.ToString();
-            }
-        }
-
-        // Handle date versions like "13-02-2025" (DD-MM-YYYY)
-        if (trimmed.Length == 10 && trimmed[2] == '-' && trimmed[5] == '-')
-        {
-            // Reorder to YYYYMMDD
-            var parts = trimmed.Split('-');
-            if (parts.Length == 3)
-            {
-                var dateDigits = $"{parts[2]}{parts[1]}{parts[0]}";
-                if (dateDigits.Length == 8 && int.TryParse(dateDigits, out var dateValue))
-                {
-                    return dateValue.ToString();
-                }
-            }
-        }
-
-        // Remove dots and leading zeros to get numeric version
-        var digits = trimmed.Replace(".", string.Empty);
-
-        if (int.TryParse(digits, out var numericVersion))
-        {
-            return numericVersion.ToString();
-        }
-
-        return "0";
-    }
-
-    /// <summary>
     /// Extracts a variant suffix from a search result ID, metadata, or name (e.g. cbpr-1080p -> 1080p).
     /// </summary>
     private string? TryExtractVariantSuffix(ContentSearchResult item, GenPatcherContentMetadata metadata)
@@ -441,13 +441,12 @@ public class CommunityOutpostResolver(
 
             if (metadata.Variants is { Count: > 0 })
             {
-                foreach (var v in metadata.Variants)
+                var matchingVariant = metadata.Variants.FirstOrDefault(v =>
+                    contentName.EndsWith(v.Id, StringComparison.OrdinalIgnoreCase) ||
+                    contentName.EndsWith(v.Id.Replace("-", string.Empty), StringComparison.OrdinalIgnoreCase));
+                if (matchingVariant != null)
                 {
-                    if (contentName.EndsWith(v.Id, StringComparison.OrdinalIgnoreCase) ||
-                        contentName.EndsWith(v.Id.Replace("-", string.Empty), StringComparison.OrdinalIgnoreCase))
-                    {
-                        return v.Id;
-                    }
+                    return matchingVariant.Id;
                 }
             }
         }
@@ -455,14 +454,13 @@ public class CommunityOutpostResolver(
         // 3. Check Name against known variants
         if (!string.IsNullOrEmpty(item.Name) && metadata.Variants is { Count: > 0 })
         {
-            foreach (var v in metadata.Variants)
+            var matchingVariant = metadata.Variants.FirstOrDefault(v =>
+                item.Name.EndsWith(v.Name, StringComparison.OrdinalIgnoreCase) ||
+                item.Name.Contains(v.Name, StringComparison.OrdinalIgnoreCase) ||
+                item.Name.EndsWith(v.Id, StringComparison.OrdinalIgnoreCase));
+            if (matchingVariant != null)
             {
-                if (item.Name.EndsWith(v.Name, StringComparison.OrdinalIgnoreCase) ||
-                    item.Name.Contains(v.Name, StringComparison.OrdinalIgnoreCase) ||
-                    item.Name.EndsWith(v.Id, StringComparison.OrdinalIgnoreCase))
-                {
-                    return v.Id;
-                }
+                return matchingVariant.Id;
             }
         }
 

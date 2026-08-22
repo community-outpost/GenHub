@@ -854,7 +854,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
             cleanHref.EndsWith("/downloads", StringComparison.OrdinalIgnoreCase) ||
             cleanHref.EndsWith("/addons", StringComparison.OrdinalIgnoreCase) ||
             cleanHref.EndsWith("/reviews", StringComparison.OrdinalIgnoreCase) ||
-            cleanHref.EndsWith("/articles", StringComparison.OrdinalIgnoreCase))
+            cleanHref.EndsWith(ModDBConstants.ArticlesSegment, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
@@ -2530,7 +2530,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
                 baseUrl + "/videos",
                 baseUrl + "/images",
                 baseUrl + "/reviews",
-                baseUrl + "/articles",
+                baseUrl + ModDBConstants.ArticlesSegment,
             ];
         }
 
@@ -2550,7 +2550,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
                 baseUrl + "/videos",
                 baseUrl + "/images",
                 baseUrl + "/reviews",
-                baseUrl + "/articles",
+                baseUrl + ModDBConstants.ArticlesSegment,
             ];
         }
 
@@ -2624,15 +2624,16 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
             var parts = new List<string>();
             var summaryText = ReadDescriptionFrom(summary);
             var fullText = extra != null && extra != summary ? ReadDescriptionFrom(extra) : null;
-            if (!IsBreadcrumbOrLocationText(summaryText))
+            if (!string.IsNullOrEmpty(summaryText) && !IsBreadcrumbOrLocationText(summaryText))
             {
-                parts.Add(summaryText!);
+                parts.Add(summaryText);
             }
 
-            if (!IsBreadcrumbOrLocationText(fullText) &&
-                (summaryText == null || fullText!.IndexOf(summaryText, StringComparison.OrdinalIgnoreCase) < 0))
+            if (!string.IsNullOrEmpty(fullText) &&
+                !IsBreadcrumbOrLocationText(fullText) &&
+                (summaryText == null || fullText.IndexOf(summaryText, StringComparison.OrdinalIgnoreCase) < 0))
             {
-                parts.Add(fullText!);
+                parts.Add(fullText);
             }
 
             if (parts.Count > 0)
@@ -2976,7 +2977,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
         TryAppendSection(sections, fetched, baseUrl + "/videos", "videos", ExtractVideos);
         TryAppendSection(sections, fetched, baseUrl + "/images", "images", ExtractImages);
         TryAppendSection(sections, fetched, baseUrl + "/reviews", "reviews", ExtractReviews);
-        TryAppendSection(sections, fetched, baseUrl + "/articles", "articles", ExtractArticles);
+        TryAppendSection(sections, fetched, baseUrl + ModDBConstants.ArticlesSegment, "articles", ExtractArticles);
     }
 
     private void TryAppendSection(

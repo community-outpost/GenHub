@@ -571,8 +571,9 @@ public class PlaywrightService(
             {
                 await _persistentContext.CloseAsync();
             }
-            catch
+            catch (Exception ex)
             {
+                logger.LogDebug(ex, "Failed to close persistent context cleanly during teardown");
             }
             finally
             {

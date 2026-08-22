@@ -683,7 +683,12 @@ public partial class CommunityOutpostDeliverer(
                     return OperationResult<bool>.CreateFailure(pathResult);
                 }
 
-                var targetPath = pathResult.Data!;
+                var targetPath = pathResult.Data;
+                if (string.IsNullOrEmpty(targetPath))
+                {
+                    continue;
+                }
+
                 var targetDir = Path.GetDirectoryName(targetPath);
                 if (!string.IsNullOrEmpty(targetDir))
                 {
