@@ -12,6 +12,11 @@ interface DeletePayload {
   deleteToken: string;
 }
 
+interface UploadedFileDetails {
+  key: string;
+  ufsUrl: string;
+}
+
 type TokenValidationResult =
   | { valid: true; payload: string; signature: string }
   | { valid: false; error: string };
@@ -179,6 +184,55 @@ const extractFileFromForm = (formData: FormData): File | null => {
   return fileEntry;
 };
 
+const isMultipartRequest = (request: Request): boolean => {
+  const contentType = request.headers.get("content-type");
+  if (typeof contentType !== "string") {
+    return false;
+  }
+  return contentType.includes("multipart/form-data");
+};
+
+const resolveUfsUrl = (data: { key: string; ufsUrl?: string; url?: string }): string => {
+  if (typeof data.ufsUrl === "string") {
+    return data.ufsUrl;
+  }
+  if (typeof data.url === "string") {
+    return data.url;
+  }
+  return `https://utfs.io/f/${data.key}`;
+};
+
+const extractFileResult = (uploadRes: unknown): UploadedFileDetails | null => {
+  let item = uploadRes;
+  if (Array.isArray(uploadRes)) {
+    item = uploadRes[0];
+  }
+
+  if (item === null) {
+    return null;
+  }
+  if (typeof item !== "object") {
+    return null;
+  }
+
+  const rec = item as { data?: { key?: string; ufsUrl?: string; url?: string } | null };
+  const data = rec.data;
+  if (!data) {
+    return null;
+  }
+  if (typeof data.key !== "string") {
+    return null;
+  }
+
+  return { key: data.key, ufsUrl: resolveUfsUrl({ key: data.key, ufsUrl: data.ufsUrl, url: data.url }) };
+};
+
+const executeUpload = async (file: File, token: string): Promise<UploadedFileDetails | null> => {
+  const utapi = new UTApi({ token });
+  const uploadRes = await utapi.uploadFiles([file]);
+  return extractFileResult(uploadRes);
+};
+
 const createUploadSuccessResponse = async (
   key: string,
   ufsUrl: string,
@@ -197,8 +251,7 @@ const createUploadSuccessResponse = async (
 };
 
 const handleDirectUpload = async (request: Request, env: Env): Promise<Response> => {
-  const contentType = request.headers.get("content-type") ?? "";
-  if (!contentType.includes("multipart/form-data")) {
+  if (!isMultipartRequest(request)) {
     return new Response(JSON.stringify({ error: "Expected multipart/form-data" }), { status: 400, headers: CORS_HEADERS });
   }
 
@@ -214,15 +267,12 @@ const handleDirectUpload = async (request: Request, env: Env): Promise<Response>
     return new Response(JSON.stringify({ error: validationError }), { status: 400, headers: CORS_HEADERS });
   }
 
-  const utapi = new UTApi({ token: env.UPLOADTHING_TOKEN });
-  const uploadRes = await utapi.uploadFiles([file]);
-  const first = Array.isArray(uploadRes) ? uploadRes[0] : uploadRes;
-  if (!first || first.error || !first.data) {
-    const errorMsg = first?.error?.message ?? "Storage provider upload failed";
-    return new Response(JSON.stringify({ error: errorMsg }), { status: 502, headers: CORS_HEADERS });
+  const uploaded = await executeUpload(file, env.UPLOADTHING_TOKEN);
+  if (uploaded === null) {
+    return new Response(JSON.stringify({ error: "Storage provider upload failed" }), { status: 502, headers: CORS_HEADERS });
   }
 
-  return createUploadSuccessResponse(first.data.key, first.data.ufsUrl ?? first.data.url, env.GATEWAY_HMAC_SECRET);
+  return createUploadSuccessResponse(uploaded.key, uploaded.ufsUrl, env.GATEWAY_HMAC_SECRET);
 };
 
 const verifyDeleteRequest = async (
@@ -291,9 +341,9 @@ const handleApiRoute = async (routeKey: string, request: Request, env: Env): Pro
     case "GET /api/v1/health":
       return handleHealth();
     case "POST /api/v1/uploads":
-      return handleDirectUpload(request, env);
+      return await handleDirectUpload(request, env);
     case "POST /api/v1/uploads/delete":
-      return handleDeleteUpload(request, env);
+      return await handleDeleteUpload(request, env);
     default:
       return null;
   }
