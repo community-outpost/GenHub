@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Security;
 
@@ -153,6 +154,30 @@ public static class PathHelper
         }
 
         return current;
+    }
+
+    /// <summary>
+    /// Opens the Windows File Explorer and selects the specified file, or ignores if not supported.
+    /// </summary>
+    /// <param name="filePath">The absolute path to the file to reveal.</param>
+    public static void RevealInExplorer(string filePath)
+    {
+        try
+        {
+            var windowsDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            var explorerPath = string.IsNullOrEmpty(windowsDir) ? "explorer.exe" : Path.Combine(windowsDir, "explorer.exe");
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = explorerPath,
+                Arguments = $"/select,\"{filePath}\"",
+                UseShellExecute = false,
+            };
+            Process.Start(startInfo);
+        }
+        catch
+        {
+            /* Ignore explorer errors */
+        }
     }
 
     private static bool IsContained(string normalizedRoot, string normalizedTarget)

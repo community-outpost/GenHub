@@ -379,46 +379,6 @@ public partial class MapManagerViewModel : ObservableObject
         return PathHelper.GetUniqueNumberedPath(Path.Combine(directory, safeZipName));
     }
 
-    private static string FormatUploadStageMessage(bool isZip, int percent)
-    {
-        if (!isZip && percent < 25)
-        {
-            return $"Compressing maps... {percent}%";
-        }
-
-        if (percent < 88)
-        {
-            return $"Uploading to cloud... {percent}%";
-        }
-
-        if (percent < 100)
-        {
-            return $"Finalizing cloud upload... {percent}%";
-        }
-
-        return "Upload complete! 100%";
-    }
-
-    private static void RevealInExplorer(string filePath)
-    {
-        try
-        {
-            var windowsDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
-            var explorerPath = string.IsNullOrEmpty(windowsDir) ? "explorer.exe" : Path.Combine(windowsDir, "explorer.exe");
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = explorerPath,
-                Arguments = $"/select,\"{filePath}\"",
-                UseShellExecute = false,
-            };
-            Process.Start(startInfo);
-        }
-        catch
-        {
-            /* Ignore explorer errors */
-        }
-    }
-
     [RelayCommand]
     private async Task ImportFromUrlAsync()
     {
@@ -611,7 +571,7 @@ public partial class MapManagerViewModel : ObservableObject
 
                 // Reload maps to show the new ZIP
                 await LoadMapsAsync();
-                RevealInExplorer(result);
+                PathHelper.RevealInExplorer(result);
             }
             else
             {
@@ -675,7 +635,7 @@ public partial class MapManagerViewModel : ObservableObject
             {
                 Progress = p;
                 int percent = (int)Math.Round(p * 100);
-                StatusMessage = FormatUploadStageMessage(isZip, percent);
+                StatusMessage = ToolUploadHelper.FormatUploadStageMessage("maps", isZip, percent);
             });
 
             var uploadResult = await _exportService.UploadToUploadThingAsync([.. SelectedMaps], progressHandler);

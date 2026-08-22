@@ -268,46 +268,6 @@ public partial class ReplayManagerViewModel(
         return PathHelper.GetUniqueNumberedPath(Path.Combine(directory, safeZipName));
     }
 
-    private static string FormatUploadStageMessage(bool isZip, int percent)
-    {
-        if (!isZip && percent < 25)
-        {
-            return $"Compressing replays... {percent}%";
-        }
-
-        if (percent < 88)
-        {
-            return $"Uploading to cloud... {percent}%";
-        }
-
-        if (percent < 100)
-        {
-            return $"Finalizing cloud upload... {percent}%";
-        }
-
-        return "Upload complete! 100%";
-    }
-
-    private static void RevealInExplorer(string filePath)
-    {
-        try
-        {
-            var windowsDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
-            var explorerPath = string.IsNullOrEmpty(windowsDir) ? "explorer.exe" : Path.Combine(windowsDir, "explorer.exe");
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = explorerPath,
-                Arguments = $"/select,\"{filePath}\"",
-                UseShellExecute = false,
-            };
-            Process.Start(startInfo);
-        }
-        catch
-        {
-            /* Ignore explorer errors */
-        }
-    }
-
     /// <summary>
     /// Toggles the upload history flyout.
     /// </summary>
@@ -667,7 +627,7 @@ public partial class ReplayManagerViewModel(
                 await LoadReplaysAsync();
 
                 // Reveal in Explorer
-                RevealInExplorer(result);
+                PathHelper.RevealInExplorer(result);
             }
             else
             {
@@ -731,7 +691,7 @@ public partial class ReplayManagerViewModel(
             {
                 Progress = p;
                 int percent = (int)Math.Round(p * 100);
-                StatusMessage = FormatUploadStageMessage(isZip, percent);
+                StatusMessage = ToolUploadHelper.FormatUploadStageMessage("replays", isZip, percent);
             });
 
             var uploadResult = await exportService.UploadToUploadThingAsync([.. SelectedReplays], progressHandler);
