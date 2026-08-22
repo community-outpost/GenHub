@@ -320,6 +320,11 @@ public static class ActionSetConstants
         /// Minimum file size for addon packages like custom windows and high-definition icons (1 KB).
         /// </summary>
         public const long MinimumAddonPackageSizeBytes = 1024;
+
+        /// <summary>
+        /// Maximum file size for addon packages like custom windows and high-definition icons (200 MB).
+        /// </summary>
+        public const long MaximumAddonPackageSizeBytes = 200 * 1024 * 1024;
     }
 
     /// <summary>
