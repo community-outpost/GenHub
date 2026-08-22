@@ -14,9 +14,9 @@
             <Setter Property="Background" Value="#337B2CBF"/>
             <Setter Property="BorderBrush" Value="#669D4EDD"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="16,6"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -44,9 +44,9 @@
         <!-- Fix Card Glassmorphic Style -->
         <Style Selector="Border.FixCard">
             <Setter Property="Background" Value="#1C182A"/>
-            <Setter Property="BorderBrush" Value="#22FFFFFF"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="16,14"/>
             <Setter Property="Width" Value="460"/>
             <Setter Property="Margin" Value="7,0,7,14"/>
@@ -60,18 +60,18 @@
         </Style>
         <Style Selector="Border.FixCard:pointerover">
             <Setter Property="Background" Value="#28223C"/>
-            <Setter Property="BorderBrush" Value="#558B5CF6"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="RenderTransform" Value="translateY(-2px)"/>
         </Style>
 
         <!-- Category Chip Buttons -->
         <Style Selector="Button.CategoryChip">
-            <Setter Property="Background" Value="#18FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#25FFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="16"/>
             <Setter Property="Padding" Value="12,5"/>
-            <Setter Property="Foreground" Value="#CCCCCC"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
             <Setter Property="FontSize" Value="11.5"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -84,9 +84,9 @@
             </Setter>
         </Style>
         <Style Selector="Button.CategoryChip:pointerover">
-            <Setter Property="Background" Value="#30FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#40FFFFFF"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
         </Style>
 
         <!-- Details Toggle Button -->
@@ -94,7 +94,7 @@
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="4,2"/>
-            <Setter Property="Foreground" Value="#9D4EDD"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -199,23 +199,19 @@
 
                         <StackPanel VerticalAlignment="Center" Spacing="3">
                             <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                                <TextBlock Text="GenPatcher" FontSize="26" FontWeight="Bold" Foreground="White">
-                                     <TextBlock.Effect>
-                                        <DropShadowEffect Color="#C62828" BlurRadius="14" Opacity="0.85"/>
-                                     </TextBlock.Effect>
-                                </TextBlock>
+                                <TextBlock Text="GenPatcher" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" />
                                 <!-- Progress Pill -->
                                 <Border Background="#3328A745" BorderBrush="#5528A745" BorderThickness="1" CornerRadius="12" Padding="8,2" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding ProgressSummaryText}" FontSize="11" FontWeight="Bold" Foreground="#4ADE80"/>
                                 </Border>
                             </StackPanel>
-                            <TextBlock Text="Essential fixes and enhancements for Command &amp; Conquer" FontSize="13" Foreground="#E0D0D0"/>
+                            <TextBlock Text="Essential fixes and enhancements for Command &amp; Conquer" FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
                         </StackPanel>
                     </StackPanel>
 
                     <!-- Target Installation Selector -->
                     <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,16,0" Spacing="3">
-                        <TextBlock Text="Target Installation:" FontSize="11" Foreground="#CCCCCC" FontWeight="SemiBold"/>
+                        <TextBlock Text="Target Installation:" FontSize="11" Foreground="{DynamicResource TextSecondary}" FontWeight="SemiBold"/>
                         <ComboBox ItemsSource="{Binding AvailableInstallations}"
                                   SelectedItem="{Binding SelectedInstallation}"
                                   IsEnabled="{Binding CanChangeInstallation}"
@@ -224,8 +220,8 @@
                             <ComboBox.ItemTemplate>
                                 <DataTemplate x:DataType="models:GameInstallation">
                                     <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <TextBlock Text="{Binding InstallationType}" FontWeight="Bold" Foreground="White"/>
-                                        <TextBlock Text="{Binding InstallationPath}" FontSize="11" Foreground="#AAAAAA" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding InstallationType}" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                                        <TextBlock Text="{Binding InstallationPath}" FontSize="11" Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
@@ -278,10 +274,10 @@
                              Width="240"
                              Padding="10,6"
                              CornerRadius="8"
-                             Background="#1C182A"
-                             BorderBrush="#33FFFFFF"
+                             Background="{DynamicResource SurfaceElevatedBrush}"
+                             BorderBrush="{DynamicResource BorderBrush}"
                              BorderThickness="1"
-                             Foreground="White"
+                             Foreground="{DynamicResource TextPrimary}"
                              FontSize="12"/>
                 </Grid>
             </Grid>
@@ -299,7 +295,7 @@
                             <Border Classes="FixCard">
                                 <Border.ContextMenu>
                                     <ContextMenu>
-                                        <MenuItem Header="Force Re-Apply (Testing)" Command="{Binding ForceApplyCommand}" Foreground="White"/>
+                                        <MenuItem Header="Force Re-Apply (Testing)" Command="{Binding ForceApplyCommand}" Foreground="{DynamicResource TextPrimary}"/>
                                     </ContextMenu>
                                 </Border.ContextMenu>
 
@@ -307,7 +303,7 @@
                                     <!-- Card Header: Title + Badges + Status -->
                                     <Grid Grid.Row="0" ColumnDefinitions="*, Auto">
                                         <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding Title}" FontWeight="Bold" FontSize="14.5" Foreground="White" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Title}" FontWeight="Bold" FontSize="14.5" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis"/>
                                             <!-- Badges Row -->
                                             <StackPanel Orientation="Horizontal" Spacing="6">
                                                 <Border IsVisible="{Binding IsCore}" Background="#B71C1C" BorderBrush="#EF5350" BorderThickness="1" CornerRadius="4" Padding="5,1">
@@ -316,8 +312,8 @@
                                                 <Border IsVisible="{Binding IsCrucial}" Background="#8E0000" BorderBrush="#E53935" BorderThickness="1" CornerRadius="4" Padding="5,1">
                                                     <TextBlock Text="CRUCIAL" FontSize="9" FontWeight="Bold" Foreground="#FFCDD2"/>
                                                 </Border>
-                                                <Border Background="#15FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="4" Padding="6,1">
-                                                    <TextBlock Text="{Binding Category}" FontSize="9.5" Foreground="#AAAAAA"/>
+                                                <Border Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="6,1">
+                                                    <TextBlock Text="{Binding Category}" FontSize="9.5" Foreground="{DynamicResource TextSecondary}"/>
                                                 </Border>
                                             </StackPanel>
                                         </StackPanel>
@@ -332,19 +328,19 @@
                                     </Grid>
 
                                     <!-- Card Body: Concise Description -->
-                                    <TextBlock Grid.Row="1" Text="{Binding Description}" FontSize="12" Foreground="#C4C4D4" TextWrapping="Wrap" Margin="0,8,0,8"/>
+                                    <TextBlock Grid.Row="1" Text="{Binding Description}" FontSize="12" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap" Margin="0,8,0,8"/>
 
                                     <!-- Expandable In-Depth Details Drawer -->
                                     <Border Grid.Row="2" IsVisible="{Binding IsExpanded}"
-                                            Background="#14000000" BorderBrush="#20FFFFFF" BorderThickness="1"
+                                            Background="{DynamicResource SurfaceElevatedBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                                             CornerRadius="6" Padding="10,8" Margin="0,0,0,10">
                                         <StackPanel Spacing="6">
-                                            <TextBlock Text="Why this fix is needed &amp; what it does:" FontSize="10.5" FontWeight="Bold" Foreground="#B0A0D0"/>
-                                            <TextBlock Text="{Binding DetailedDescription}" FontSize="11" Foreground="#9999AA" TextWrapping="Wrap"/>
+                                            <TextBlock Text="Why this fix is needed &amp; what it does:" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                            <TextBlock Text="{Binding DetailedDescription}" FontSize="11" Foreground="{DynamicResource TextSecondary}" TextWrapping="Wrap"/>
                                             <!-- Last result log if executed -->
                                             <StackPanel IsVisible="{Binding HasActionResultDetails}" Spacing="2" Margin="0,4,0,0">
-                                                <TextBlock Text="Last Execution Result:" FontSize="10" FontWeight="Bold" Foreground="#88DD88"/>
-                                                <TextBlock Text="{Binding LastActionResultDetails}" FontSize="10.5" Foreground="#A0E0A0" TextWrapping="Wrap"/>
+                                                <TextBlock Text="Last Execution Result:" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}"/>
+                                                <TextBlock Text="{Binding LastActionResultDetails}" FontSize="10.5" Foreground="{DynamicResource TextPrimary}" TextWrapping="Wrap"/>
                                             </StackPanel>
                                         </StackPanel>
                                     </Border>

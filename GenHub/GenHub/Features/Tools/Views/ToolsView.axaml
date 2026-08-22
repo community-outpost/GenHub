@@ -213,7 +213,7 @@
 
     <!-- Details Dialog -->
     <Panel IsVisible="{Binding IsDetailsDialogOpen}" Background="#CC000000" ZIndex="100">
-        <Border Background="#181824"
+        <Border Background="{DynamicResource SurfaceElevatedBrush}"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="1"
                 CornerRadius="12"
@@ -223,23 +223,23 @@
                 MinWidth="420"
                 BoxShadow="0 16 36 0 #80000000">
             <StackPanel Spacing="16">
-                <TextBlock Text="Tool Details" FontSize="18" FontWeight="Bold" Foreground="White" />
+                <TextBlock Text="Tool Details" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" />
                 <StackPanel Spacing="12" DataContext="{Binding ToolForDetails}" x:DataType="interfaces:IToolPlugin">
                     <StackPanel Spacing="2">
-                        <TextBlock Text="Name" FontWeight="SemiBold" FontSize="12" Foreground="#9E9EA8"/>
-                        <TextBlock Text="{Binding Metadata.Name}" FontSize="15" Foreground="White"/>
+                        <TextBlock Text="Name" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+                        <TextBlock Text="{Binding Metadata.Name}" FontSize="15" Foreground="{DynamicResource TextPrimary}"/>
                     </StackPanel>
                     <StackPanel Spacing="2" IsVisible="{Binding Metadata.Version, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                        <TextBlock Text="Version" FontWeight="SemiBold" FontSize="12" Foreground="#9E9EA8"/>
-                        <TextBlock Text="{Binding Metadata.Version}" FontSize="14" Foreground="#E0E0E8"/>
+                        <TextBlock Text="Version" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+                        <TextBlock Text="{Binding Metadata.Version}" FontSize="14" Foreground="{DynamicResource TextPrimary}"/>
                     </StackPanel>
                     <StackPanel Spacing="2">
-                        <TextBlock Text="Author" FontWeight="SemiBold" FontSize="12" Foreground="#9E9EA8"/>
-                        <TextBlock Text="{Binding Metadata.Author}" FontSize="14" Foreground="#E0E0E8"/>
+                        <TextBlock Text="Author" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+                        <TextBlock Text="{Binding Metadata.Author}" FontSize="14" Foreground="{DynamicResource TextPrimary}"/>
                     </StackPanel>
                     <StackPanel Spacing="2" IsVisible="{Binding Metadata.Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                        <TextBlock Text="Description" FontWeight="SemiBold" FontSize="12" Foreground="#9E9EA8"/>
-                        <TextBlock Text="{Binding Metadata.Description}" TextWrapping="Wrap" FontSize="13" Foreground="#B0B0B8"/>
+                        <TextBlock Text="Description" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+                        <TextBlock Text="{Binding Metadata.Description}" TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
                     </StackPanel>
                 </StackPanel>
                 <Button Command="{Binding CloseDetailsDialogCommand}"
