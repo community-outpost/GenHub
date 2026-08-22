@@ -323,9 +323,28 @@ public abstract class BasePackageDeploymentFix(
             }
 
             var records = ParseMarkerRecords(lines, installation);
-            var (removedCount, restoredCount, remainingRecords) = RestoreOrDeleteRecordedFiles(records, ct);
+            var (removedCount, restoredCount, restoredBackupPaths, remainingRecords) = RestoreOrDeleteRecordedFiles(records, ct);
 
-            UpdateMarkerAfterUndo(targetMarkerPath, remainingRecords);
+            var markerUpdated = UpdateMarkerAfterUndo(targetMarkerPath, remainingRecords);
+            if (!markerUpdated)
+            {
+                details.Add("✗ Failed to update deployment marker after undo. Backups have been retained.");
+                return Task.FromResult(new ActionSetResult(false, "Failed to update deployment marker after undo.", details));
+            }
+
+            // Clean up restored backup files only after the marker update succeeded
+            var remainingBackups = remainingRecords
+                .Where(r => !string.IsNullOrEmpty(r.BackupPath))
+                .Select(r => r.BackupPath!)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var backupPath in restoredBackupPaths)
+            {
+                if (!remainingBackups.Contains(backupPath))
+                {
+                    DeleteFileSafely(backupPath);
+                }
+            }
 
             if (remainingRecords.Count == 0)
             {
@@ -476,12 +495,13 @@ public abstract class BasePackageDeploymentFix(
         return records;
     }
 
-    private (int RemovedCount, int RestoredCount, List<(string DestPath, string? BackupPath)> RemainingRecords) RestoreOrDeleteRecordedFiles(
+    private (int RemovedCount, int RestoredCount, List<string> RestoredBackupPaths, List<(string DestPath, string? BackupPath)> RemainingRecords) RestoreOrDeleteRecordedFiles(
         IEnumerable<(string DestPath, string? BackupPath)> records,
         CancellationToken ct)
     {
         var removedCount = 0;
         var restoredCount = 0;
+        var restoredBackupPaths = new List<string>();
         var remainingRecords = new List<(string DestPath, string? BackupPath)>();
 
         foreach (var (destPath, backupPath) in records)
@@ -495,22 +515,37 @@ public abstract class BasePackageDeploymentFix(
 
             try
             {
-                if (!string.IsNullOrEmpty(backupPath) && File.Exists(backupPath))
+                if (!string.IsNullOrEmpty(backupPath))
                 {
-                    var destDir = Path.GetDirectoryName(trimmedDest);
-                    if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
+                    if (File.Exists(backupPath))
                     {
-                        Directory.CreateDirectory(destDir);
-                    }
+                        var destDir = Path.GetDirectoryName(trimmedDest);
+                        if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
+                        {
+                            Directory.CreateDirectory(destDir);
+                        }
 
-                    File.Copy(backupPath, trimmedDest, overwrite: true);
-                    DeleteFileSafely(backupPath);
-                    restoredCount++;
+                        File.Copy(backupPath, trimmedDest, overwrite: true);
+                        restoredBackupPaths.Add(backupPath);
+                        restoredCount++;
+                    }
+                    else
+                    {
+                        Logger.LogWarning("Recorded backup missing for {FilePath} during undo; retaining destination to prevent data loss.", trimmedDest);
+                        remainingRecords.Add((trimmedDest, backupPath));
+                    }
                 }
                 else if (File.Exists(trimmedDest))
                 {
                     DeleteFileSafely(trimmedDest);
-                    removedCount++;
+                    if (File.Exists(trimmedDest))
+                    {
+                        remainingRecords.Add((trimmedDest, backupPath));
+                    }
+                    else
+                    {
+                        removedCount++;
+                    }
                 }
             }
             catch (IOException ex)
@@ -525,36 +560,43 @@ public abstract class BasePackageDeploymentFix(
             }
         }
 
-        return (removedCount, restoredCount, remainingRecords);
+        return (removedCount, restoredCount, restoredBackupPaths, remainingRecords);
     }
 
-    private void UpdateMarkerAfterUndo(string targetMarkerPath, IReadOnlyList<(string DestPath, string? BackupPath)> remainingRecords)
+    private bool UpdateMarkerAfterUndo(string targetMarkerPath, IReadOnlyList<(string DestPath, string? BackupPath)> remainingRecords)
     {
         if (remainingRecords.Count == 0)
         {
             DeleteFileSafely(targetMarkerPath);
-            return;
+            return !File.Exists(targetMarkerPath);
         }
 
+        string? tempMarker = null;
         try
         {
             var markerDir = Path.GetDirectoryName(targetMarkerPath);
             if (!string.IsNullOrEmpty(markerDir))
             {
                 Directory.CreateDirectory(markerDir);
-                var tempMarker = Path.Combine(markerDir, $"{Guid.NewGuid():N}.tmp");
-                var lines = remainingRecords.Select(r => $"{r.DestPath}|{r.BackupPath ?? string.Empty}");
-                File.WriteAllLines(tempMarker, lines);
-                File.Move(tempMarker, targetMarkerPath, overwrite: true);
             }
+
+            tempMarker = Path.Combine(markerDir ?? Path.GetTempPath(), $"{Guid.NewGuid():N}.tmp");
+            var lines = remainingRecords.Select(r => $"{r.DestPath}|{r.BackupPath ?? string.Empty}");
+            File.WriteAllLines(tempMarker, lines);
+            File.Move(tempMarker, targetMarkerPath, overwrite: true);
+            return true;
         }
         catch (IOException ex)
         {
             Logger.LogWarning(ex, "Failed to rewrite marker file {MarkerPath} with remaining files", targetMarkerPath);
+            DeleteFileSafely(tempMarker);
+            return false;
         }
         catch (UnauthorizedAccessException ex)
         {
             Logger.LogWarning(ex, "Permission denied rewriting marker file {MarkerPath} with remaining files", targetMarkerPath);
+            DeleteFileSafely(tempMarker);
+            return false;
         }
     }
 
@@ -584,6 +626,10 @@ public abstract class BasePackageDeploymentFix(
                 else if (File.Exists(destPath))
                 {
                     DeleteFileSafely(destPath);
+                    if (File.Exists(destPath))
+                    {
+                        hasRollbackError = true;
+                    }
                 }
             }
             catch (IOException ex)
@@ -598,15 +644,14 @@ public abstract class BasePackageDeploymentFix(
             }
         }
 
-        DeleteDirectorySafely(backupDir);
-
-        if (hasRollbackError)
+        if (!hasRollbackError)
         {
-            details.Add("⚠ Rollback completed with some file warnings.");
+            DeleteDirectorySafely(backupDir);
+            details.Add("✓ Rollback completed.");
         }
         else
         {
-            details.Add("✓ Rollback completed.");
+            details.Add("⚠ Rollback completed with some file warnings. Backups have been retained for recovery.");
         }
     }
 
