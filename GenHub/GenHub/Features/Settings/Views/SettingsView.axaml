@@ -377,6 +377,31 @@
         </Border>
       </Expander>
 
+      <!-- Diagnostics & Privacy Settings -->
+      <Expander IsExpanded="False" HorizontalAlignment="Stretch">
+        <Expander.Header>
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <PathIcon Data="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,5A3,3 0 0,1 15,8A3,3 0 0,1 12,11A3,3 0 0,1 9,8A3,3 0 0,1 12,5M12,14C14.67,14 20,15.34 20,18V20H4V18C4,15.34 9.33,14 12,14Z"
+                          Width="16" Height="16" Foreground="#E0E0E0"/>
+                <TextBlock Text="Diagnostics &amp; Privacy" Classes="section-header" Margin="0"/>
+            </StackPanel>
+        </Expander.Header>
+        <Border Classes="settings-card">
+          <StackPanel Spacing="20">
+            <!-- Telemetry Consent Level -->
+            <StackPanel Spacing="8">
+              <TextBlock Text="Telemetry &amp; Crash Reporting Level" Classes="setting-label" />
+              <ComboBox ItemsSource="{Binding AvailableTelemetryLevels}"
+                        SelectedItem="{Binding TelemetryPreference}"
+                        HorizontalAlignment="Left"
+                        MinWidth="220" />
+              <TextBlock Text="Choose what anonymous usage metrics and crash diagnostics to share to help improve GenHub. All paths and personal identifiers are sanitized before transmission."
+                         Classes="setting-description" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </Expander>
+
       <!-- Logs Settings -->
       <Expander IsExpanded="False" HorizontalAlignment="Stretch">
         <Expander.Header>

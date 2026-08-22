@@ -1,10 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Telemetry;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Results;
 using Microsoft.Extensions.Logging;
@@ -17,7 +20,8 @@ namespace GenHub.Common.Services;
 public class DownloadService(
     ILogger<DownloadService> logger,
     HttpClient httpClient,
-    IFileHashProvider hashProvider) : IDownloadService
+    IFileHashProvider hashProvider,
+    ITelemetryService? telemetryService = null) : IDownloadService
 {
     /// <inheritdoc/>
     public async Task<DownloadResult> DownloadFileAsync(
@@ -179,6 +183,40 @@ public class DownloadService(
                 return DownloadResult.CreateFailure($"Hash verification failed. Expected: {configuration.ExpectedHash}, Actual: {actualHash}", downloadedBytes, stopwatch.Elapsed);
             }
         }
+
+        var totalElapsedSeconds = stopwatch.Elapsed.TotalSeconds;
+        var sizeMb = downloadedBytes / (1024.0 * 1024.0);
+        var speedMbps = totalElapsedSeconds > 0 ? (sizeMb * 8.0) / totalElapsedSeconds : 0.0;
+
+        var downloadProperties = new Dictionary<string, object?>
+        {
+            [TelemetryConstants.Properties.SizeMb] = Math.Round(sizeMb, 2),
+            [TelemetryConstants.Properties.DurationSeconds] = Math.Round(totalElapsedSeconds, 2),
+            [TelemetryConstants.Properties.SpeedMbps] = Math.Round(speedMbps, 2),
+            [TelemetryConstants.Properties.SourceProvider] = configuration.Url.Host,
+        };
+
+        if (!string.IsNullOrWhiteSpace(configuration.ContentName))
+        {
+            downloadProperties[TelemetryConstants.Properties.ContentName] = configuration.ContentName;
+        }
+
+        if (!string.IsNullOrWhiteSpace(configuration.ContentId))
+        {
+            downloadProperties[TelemetryConstants.Properties.ContentId] = configuration.ContentId;
+        }
+
+        if (!string.IsNullOrWhiteSpace(configuration.PublisherId))
+        {
+            downloadProperties[TelemetryConstants.Properties.PublisherId] = configuration.PublisherId;
+        }
+
+        if (!string.IsNullOrWhiteSpace(configuration.ContentType))
+        {
+            downloadProperties[TelemetryConstants.Properties.ContentType] = configuration.ContentType;
+        }
+
+        telemetryService?.TrackEvent(TelemetryConstants.Events.ContentDownloadCompleted, downloadProperties);
 
         return DownloadResult.CreateSuccess(configuration.DestinationPath, downloadedBytes, stopwatch.Elapsed, hashVerified);
     }

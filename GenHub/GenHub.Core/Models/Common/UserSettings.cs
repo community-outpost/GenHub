@@ -169,6 +169,21 @@ public class UserSettings
     /// </summary>
     public bool IsNotificationMuted { get; set; }
 
+    /// <summary>
+    /// Gets or sets the telemetry collection preference level.
+    /// </summary>
+    public TelemetryLevel TelemetryPreference { get; set; } = TelemetryLevel.AnonymousMetrics;
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the telemetry onboarding prompt has been shown.
+    /// </summary>
+    public bool EnableTelemetryPromptShown { get; set; }
+
+    /// <summary>
+    /// Gets or sets the anonymous installation GUID used for aggregate metrics.
+    /// </summary>
+    public string? AnonymousInstallationId { get; set; }
+
     /// <summary>Creates a deep copy of the current UserSettings instance.</summary>
     /// <returns>A new UserSettings instance with all properties deeply copied.</returns>
     public UserSettings Clone()
@@ -198,6 +213,9 @@ public class UserSettings
             ApplicationDataPath = ApplicationDataPath,
             HasSeenQuickStart = HasSeenQuickStart,
             IsNotificationMuted = IsNotificationMuted,
+            TelemetryPreference = TelemetryPreference,
+            EnableTelemetryPromptShown = EnableTelemetryPromptShown,
+            AnonymousInstallationId = AnonymousInstallationId,
 
             SubscribedPrNumber = SubscribedPrNumber,
             SubscribedBranch = SubscribedBranch,
