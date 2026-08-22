@@ -1,3 +1,5 @@
+using System;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
@@ -62,9 +64,22 @@ public static class ApiConstants
     // Upload Gateway & Cloud Storage
 
     /// <summary>
+    /// Environment variable name for overriding the upload gateway base URL during local development/staging.
+    /// </summary>
+    public const string UploadGatewayBaseUrlEnvVar = "GENHUB_UPLOAD_GATEWAY_URL";
+
+    /// <summary>
     /// Base URL for the GenHub community upload gateway.
     /// </summary>
     public const string DefaultUploadGatewayBaseUrl = "https://api.genhub.community-outpost.org";
+
+    /// <summary>
+    /// Gets the active base URL for the upload gateway, checking environment variable overrides first.
+    /// </summary>
+    public static string UploadGatewayBaseUrl =>
+        Environment.GetEnvironmentVariable(UploadGatewayBaseUrlEnvVar) is { Length: > 0 } customUrl
+            ? customUrl.TrimEnd('/')
+            : DefaultUploadGatewayBaseUrl;
 
     /// <summary>
     /// Endpoint path for cloud uploads.
@@ -79,12 +94,12 @@ public static class ApiConstants
     /// <summary>
     /// Full default URL for cloud uploads.
     /// </summary>
-    public const string DefaultUploadUrl = DefaultUploadGatewayBaseUrl + UploadEndpoint;
+    public static string DefaultUploadUrl => UploadGatewayBaseUrl + UploadEndpoint;
 
     /// <summary>
     /// Full default URL for deleting cloud uploads.
     /// </summary>
-    public const string DefaultUploadDeleteUrl = DefaultUploadGatewayBaseUrl + UploadDeleteEndpoint;
+    public static string DefaultUploadDeleteUrl => UploadGatewayBaseUrl + UploadDeleteEndpoint;
 
     /// <summary>
     /// Format string for constructing UploadThing public file URLs.
