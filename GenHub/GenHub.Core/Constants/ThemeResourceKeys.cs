@@ -179,4 +179,24 @@ public static class ThemeResourceKeys
     /// Fluent ComboBox item foreground pointer over brush resource key.
     /// </summary>
     public const string ComboBoxItemForegroundPointerOver = "ComboBoxItemForegroundPointerOver";
+
+    /// <summary>
+    /// Fluent Expander header background pointer over brush resource key.
+    /// </summary>
+    public const string ExpanderHeaderBackgroundPointerOver = "ExpanderHeaderBackgroundPointerOver";
+
+    /// <summary>
+    /// Fluent Expander header background pressed brush resource key.
+    /// </summary>
+    public const string ExpanderHeaderBackgroundPressed = "ExpanderHeaderBackgroundPressed";
+
+    /// <summary>
+    /// Fluent Expander chevron foreground pointer over brush resource key.
+    /// </summary>
+    public const string ExpanderChevronForegroundPointerOver = "ExpanderChevronForegroundPointerOver";
+
+    /// <summary>
+    /// Fluent Expander chevron foreground pressed brush resource key.
+    /// </summary>
+    public const string ExpanderChevronForegroundPressed = "ExpanderChevronForegroundPressed";
 }

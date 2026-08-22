@@ -132,6 +132,10 @@ public class ThemeService(
             resources[ThemeResourceKeys.ComboBoxItemBackgroundSelectedPointerOver] = new SolidColorBrush(primaryColor);
             resources[ThemeResourceKeys.ComboBoxItemBackgroundPointerOver] = new SolidColorBrush(primaryColor);
             resources[ThemeResourceKeys.ComboBoxItemForegroundPointerOver] = new SolidColorBrush(Colors.White);
+            resources[ThemeResourceKeys.ExpanderHeaderBackgroundPointerOver] = new SolidColorBrush(tintBgColor);
+            resources[ThemeResourceKeys.ExpanderHeaderBackgroundPressed] = new SolidColorBrush(badgeBgColor);
+            resources[ThemeResourceKeys.ExpanderChevronForegroundPointerOver] = new SolidColorBrush(lightColor);
+            resources[ThemeResourceKeys.ExpanderChevronForegroundPressed] = new SolidColorBrush(lightColor);
 
             // Update Linear Gradient Brushes
             var gradientBrush = new LinearGradientBrush
