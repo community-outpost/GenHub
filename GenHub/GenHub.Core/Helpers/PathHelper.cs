@@ -207,4 +207,30 @@ public static class PathHelper
             return fullPath;
         }
     }
+
+    /// <summary>
+    /// Generates a unique destination path in the directory, appending (1), (2), etc. if the file exists.
+    /// </summary>
+    /// <param name="destinationPath">The candidate destination path.</param>
+    /// <returns>A unique non-colliding file path.</returns>
+    public static string GetUniqueNumberedPath(string destinationPath)
+    {
+        if (!File.Exists(destinationPath))
+        {
+            return destinationPath;
+        }
+
+        var dir = Path.GetDirectoryName(destinationPath) ?? string.Empty;
+        var nameOnly = Path.GetFileNameWithoutExtension(destinationPath);
+        var ext = Path.GetExtension(destinationPath);
+        int count = 1;
+        var current = destinationPath;
+        while (File.Exists(current))
+        {
+            current = Path.Combine(dir, $"{nameOnly} ({count}){ext}");
+            count++;
+        }
+
+        return current;
+    }
 }

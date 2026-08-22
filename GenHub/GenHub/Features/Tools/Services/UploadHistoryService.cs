@@ -100,9 +100,13 @@ public sealed class UploadHistoryService(
             try
             {
                 var history = LoadHistoryInternal();
-                var resolvedCategory = !string.IsNullOrEmpty(category)
-                    ? category
-                    : (fileName.EndsWith(".rep", StringComparison.OrdinalIgnoreCase) || fileName.Equals("replays.zip", StringComparison.OrdinalIgnoreCase) ? "replays" : "maps");
+                var resolvedCategory = category;
+                if (string.IsNullOrEmpty(resolvedCategory))
+                {
+                    resolvedCategory = fileName.EndsWith(".rep", StringComparison.OrdinalIgnoreCase) || fileName.Equals("replays.zip", StringComparison.OrdinalIgnoreCase)
+                        ? "replays"
+                        : "maps";
+                }
 
                 history.Add(new UploadRecord
                 {
@@ -268,7 +272,7 @@ public sealed class UploadHistoryService(
         {
             try
             {
-                var deleted = await uploadThingService.DeleteFileAsync(record.FileKey!, record.DeleteToken!);
+                var deleted = await uploadThingService.DeleteFileAsync(record.FileKey, record.DeleteToken);
                 if (!deleted)
                 {
                     logger.LogWarning(

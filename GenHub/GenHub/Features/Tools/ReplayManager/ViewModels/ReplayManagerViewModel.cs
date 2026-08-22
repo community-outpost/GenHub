@@ -62,23 +62,7 @@ public partial class ReplayManagerViewModel(
             safeZipName += ".zip";
         }
 
-        var destinationPath = Path.Combine(directory, safeZipName);
-
-        // Handle filename conflict by appending (1), (2), etc.
-        if (File.Exists(destinationPath))
-        {
-            var dir = Path.GetDirectoryName(destinationPath) ?? string.Empty;
-            var nameOnly = Path.GetFileNameWithoutExtension(destinationPath);
-            var ext = Path.GetExtension(destinationPath);
-            int count = 1;
-            while (File.Exists(destinationPath))
-            {
-                destinationPath = Path.Combine(dir, $"{nameOnly} ({count}){ext}");
-                count++;
-            }
-        }
-
-        return destinationPath;
+        return PathHelper.GetUniqueNumberedPath(Path.Combine(directory, safeZipName));
     }
 
     private static string FormatUploadStageMessage(bool isZip, int percent)
@@ -105,7 +89,15 @@ public partial class ReplayManagerViewModel(
     {
         try
         {
-            System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{filePath}\"");
+            var windowsDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            var explorerPath = string.IsNullOrEmpty(windowsDir) ? "explorer.exe" : Path.Combine(windowsDir, "explorer.exe");
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = explorerPath,
+                Arguments = $"/select,\"{filePath}\"",
+                UseShellExecute = false,
+            };
+            Process.Start(startInfo);
         }
         catch
         {
@@ -674,19 +666,7 @@ public partial class ReplayManagerViewModel(
                 await LoadReplaysAsync();
 
                 // Reveal in Explorer
-                try
-                {
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = PlatformConstants.WindowsExplorerPath,
-                        Arguments = string.Format(PlatformConstants.WindowsExplorerSelectArgument, result),
-                        UseShellExecute = true,
-                    });
-                }
-                catch
-                {
-                    /* Ignore explorer errors */
-                }
+                RevealInExplorer(result);
             }
             else
             {

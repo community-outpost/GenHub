@@ -222,23 +222,7 @@ public partial class MapManagerViewModel : ObservableObject
             ? rawZipName
             : rawZipName + Path.GetExtension(MapManagerConstants.ZipFilePattern);
 
-        var destinationPath = Path.Combine(directory, safeZipName);
-        if (!File.Exists(destinationPath))
-        {
-            return destinationPath;
-        }
-
-        var dir = Path.GetDirectoryName(destinationPath) ?? string.Empty;
-        var nameOnly = Path.GetFileNameWithoutExtension(destinationPath);
-        var ext = Path.GetExtension(destinationPath);
-        int count = 1;
-        while (File.Exists(destinationPath))
-        {
-            destinationPath = Path.Combine(dir, $"{nameOnly} ({count}){ext}");
-            count++;
-        }
-
-        return destinationPath;
+        return PathHelper.GetUniqueNumberedPath(Path.Combine(directory, safeZipName));
     }
 
     private static string FormatUploadStageMessage(bool isZip, int percent)
@@ -265,7 +249,15 @@ public partial class MapManagerViewModel : ObservableObject
     {
         try
         {
-            System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{filePath}\"");
+            var windowsDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            var explorerPath = string.IsNullOrEmpty(windowsDir) ? "explorer.exe" : Path.Combine(windowsDir, "explorer.exe");
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = explorerPath,
+                Arguments = $"/select,\"{filePath}\"",
+                UseShellExecute = false,
+            };
+            Process.Start(startInfo);
         }
         catch
         {
