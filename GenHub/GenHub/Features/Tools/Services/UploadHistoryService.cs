@@ -44,6 +44,40 @@ public sealed class UploadHistoryService(
     /// <inheritdoc />
     public long MaxUploadBytesPerPeriod => MapManagerConstants.MaxUploadBytesPerPeriod;
 
+    private static string InferCategory(UploadRecord record)
+    {
+        if (!string.IsNullOrEmpty(record.Category))
+        {
+            return record.Category;
+        }
+
+        var fileName = record.FileName ?? string.Empty;
+        if (fileName.EndsWith(".rep", StringComparison.OrdinalIgnoreCase) ||
+            fileName.Equals("replays.zip", StringComparison.OrdinalIgnoreCase))
+        {
+            return "replays";
+        }
+
+        if (fileName.EndsWith(".map", StringComparison.OrdinalIgnoreCase) ||
+            fileName.Equals("maps.zip", StringComparison.OrdinalIgnoreCase))
+        {
+            return "maps";
+        }
+
+        return string.Empty;
+    }
+
+    private static bool MatchesCategory(UploadRecord record, string? category)
+    {
+        if (string.IsNullOrEmpty(category))
+        {
+            return true;
+        }
+
+        var inferred = InferCategory(record);
+        return string.Equals(inferred, category, StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <inheritdoc />
     public async Task<bool> CanUploadAsync(long fileSizeBytes)
     {
@@ -52,13 +86,24 @@ public sealed class UploadHistoryService(
     }
 
     /// <inheritdoc />
-    public void RecordUpload(long fileSizeBytes, string url, string fileName, string? fileKey = null, string? deleteToken = null, string? fileHash = null)
+    public void RecordUpload(
+        long fileSizeBytes,
+        string url,
+        string fileName,
+        string? fileKey = null,
+        string? deleteToken = null,
+        string? fileHash = null,
+        string? category = null)
     {
         lock (FileLock)
         {
             try
             {
                 var history = LoadHistoryInternal();
+                var resolvedCategory = !string.IsNullOrEmpty(category)
+                    ? category
+                    : (fileName.EndsWith(".rep", StringComparison.OrdinalIgnoreCase) || fileName.Equals("replays.zip", StringComparison.OrdinalIgnoreCase) ? "replays" : "maps");
+
                 history.Add(new UploadRecord
                 {
                     Timestamp = DateTime.UtcNow,
@@ -68,11 +113,12 @@ public sealed class UploadHistoryService(
                     FileKey = fileKey,
                     DeleteToken = deleteToken,
                     FileHash = fileHash,
+                    Category = resolvedCategory,
                 });
 
                 SaveHistoryInternal(history);
                 _cache = history; // Update cache
-                logger.LogInformation("Recorded upload of {Size} bytes. Total history: {Count} items.", fileSizeBytes, history.Count);
+                logger.LogInformation("Recorded upload of {Size} bytes for category '{Category}'. Total history: {Count} items.", fileSizeBytes, resolvedCategory, history.Count);
             }
             catch (Exception ex)
             {
@@ -117,17 +163,20 @@ public sealed class UploadHistoryService(
     }
 
     /// <inheritdoc />
-    public Task<IEnumerable<UploadHistoryItem>> GetUploadHistoryAsync()
+    public Task<IEnumerable<UploadHistoryItem>> GetUploadHistoryAsync(string? category = null)
     {
         var history = LoadHistoryInternal();
 
-        var items = history.Select(r => new UploadHistoryItem(
+        var filtered = history.Where(r => MatchesCategory(r, category));
+
+        var items = filtered.Select(r => new UploadHistoryItem(
             r.Timestamp,
             r.SizeBytes,
             r.Url ?? string.Empty,
-            r.FileName ?? "Unknown File"));
+            r.FileName ?? "Unknown File",
+            r.Category ?? InferCategory(r)));
 
-        return Task.FromResult(items);
+        return Task.FromResult<IEnumerable<UploadHistoryItem>>(items.ToList());
     }
 
     /// <inheritdoc />
@@ -185,12 +234,13 @@ public sealed class UploadHistoryService(
     }
 
     /// <inheritdoc />
-    public async Task ClearHistoryAsync(bool deleteFromCloud = true)
+    public async Task ClearHistoryAsync(bool deleteFromCloud = true, string? category = null)
     {
-        List<UploadRecord> recordsToDelete;
+        List<UploadRecord> recordsToDelete = [];
         lock (FileLock)
         {
-            recordsToDelete = LoadHistoryInternal();
+            var history = LoadHistoryInternal();
+            recordsToDelete = history.Where(r => MatchesCategory(r, category)).ToList();
         }
 
         if (deleteFromCloud)
@@ -201,12 +251,12 @@ public sealed class UploadHistoryService(
         lock (FileLock)
         {
             var history = LoadHistoryInternal();
-            if (history.Count > 0)
+            var removed = history.RemoveAll(r => MatchesCategory(r, category));
+            if (removed > 0)
             {
-                history.Clear();
                 SaveHistoryInternal(history);
                 _cache = history;
-                logger.LogInformation("Cleared upload history.");
+                logger.LogInformation("Cleared {Count} upload history items for category '{Category}'.", removed, category ?? "all");
             }
         }
     }

@@ -36,7 +36,8 @@ public interface IUploadHistoryService
     /// <param name="fileKey">Optional file key in cloud storage.</param>
     /// <param name="deleteToken">Optional cryptographic deletion token.</param>
     /// <param name="fileHash">Optional SHA-256 hash of the uploaded file for deduplication.</param>
-    void RecordUpload(long fileSizeBytes, string url, string fileName, string? fileKey = null, string? deleteToken = null, string? fileHash = null);
+    /// <param name="category">Optional tool or content category (e.g. "replays", "maps").</param>
+    void RecordUpload(long fileSizeBytes, string url, string fileName, string? fileKey = null, string? deleteToken = null, string? fileHash = null, string? category = null);
 
     /// <summary>
     /// Finds an existing active upload record matching the specified file hash.
@@ -46,10 +47,11 @@ public interface IUploadHistoryService
     Task<UploadRecord?> FindExistingUploadAsync(string fileHash);
 
     /// <summary>
-    /// Gets the upload history.
+    /// Gets the upload history, optionally filtered by category.
     /// </summary>
+    /// <param name="category">Optional category filter (e.g. "replays", "maps"). If null, returns all history.</param>
     /// <returns>A task representing the asynchronous operation, with the history items.</returns>
-    Task<IEnumerable<UploadHistoryItem>> GetUploadHistoryAsync();
+    Task<IEnumerable<UploadHistoryItem>> GetUploadHistoryAsync(string? category = null);
 
     /// <summary>
     /// Removes an item from upload history and deletes the hosted file from cloud storage if a delete token is present.
@@ -63,6 +65,7 @@ public interface IUploadHistoryService
     /// Clears upload history and deletes all hosted files from cloud storage if delete tokens are present.
     /// </summary>
     /// <param name="deleteFromCloud">Whether to delete all files from cloud storage. Defaults to true.</param>
+    /// <param name="category">Optional category filter (e.g. "replays", "maps"). If null, clears all history.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task ClearHistoryAsync(bool deleteFromCloud = true);
+    Task ClearHistoryAsync(bool deleteFromCloud = true, string? category = null);
 }

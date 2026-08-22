@@ -41,6 +41,11 @@ public static class ReplayManagerConstants
     public const string TempShareFilePrefix = "genhub_share_";
 
     /// <summary>
+    /// Default file name for imported replays.
+    /// </summary>
+    public const string DefaultImportedReplayFileName = "imported_replay.rep";
+
+    /// <summary>
     /// Notification title for delete failure.
     /// </summary>
     public const string DeleteFailedTitle = "Delete Failed";

@@ -305,6 +305,49 @@ public sealed class UploadHistoryServiceTests : IDisposable
         Assert.Null(record);
     }
 
+    /// <summary>
+    /// Verifies that GetUploadHistoryAsync with category filter returns only matching items.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task GetUploadHistoryAsync_WithCategoryFilter_ReturnsOnlyMatchingItemsAsync()
+    {
+        var service = CreateService();
+        service.RecordUpload(1024, "https://utfs.io/f/replay1", "game.rep", "key_rep", "token_rep", null, "replays");
+        service.RecordUpload(2048, "https://utfs.io/f/map1", "custom_map.zip", "key_map", "token_map", null, "maps");
+
+        var replayHistory = (await service.GetUploadHistoryAsync("replays")).ToList();
+        var mapHistory = (await service.GetUploadHistoryAsync("maps")).ToList();
+        var allHistory = (await service.GetUploadHistoryAsync()).ToList();
+
+        Assert.Single(replayHistory);
+        Assert.Equal("game.rep", replayHistory[0].FileName);
+        Assert.Single(mapHistory);
+        Assert.Equal("custom_map.zip", mapHistory[0].FileName);
+        Assert.Equal(2, allHistory.Count);
+    }
+
+    /// <summary>
+    /// Verifies that ClearHistoryAsync with category filter clears only items of that category.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ClearHistoryAsync_WithCategoryFilter_ClearsOnlySpecifiedCategoryAsync()
+    {
+        var service = CreateService();
+        service.RecordUpload(1024, "https://utfs.io/f/replay1", "game.rep", "key_rep", "token_rep", null, "replays");
+        service.RecordUpload(2048, "https://utfs.io/f/map1", "custom_map.zip", "key_map", "token_map", null, "maps");
+
+        await service.ClearHistoryAsync(deleteFromCloud: false, category: "replays");
+
+        var replayHistory = (await service.GetUploadHistoryAsync("replays")).ToList();
+        var mapHistory = (await service.GetUploadHistoryAsync("maps")).ToList();
+
+        Assert.Empty(replayHistory);
+        Assert.Single(mapHistory);
+        Assert.Equal("custom_map.zip", mapHistory[0].FileName);
+    }
+
     private UploadHistoryService CreateService()
     {
         var appConfig = new Mock<IAppConfiguration>();

@@ -105,7 +105,7 @@ public partial class MapManagerViewModel : ObservableObject
     /// Gets the current progress as a whole integer percentage between 0 and 100.
     /// </summary>
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding")]
-    public int ProgressPercentage => (int)Math.Round(progress * 100);
+    public int ProgressPercentage => (int)Math.Round(Progress * 100);
 
     [ObservableProperty]
     private string statusMessage = "Ready";
@@ -211,6 +211,67 @@ public partial class MapManagerViewModel : ObservableObject
     /// </summary>
     public bool HasSelectedZips => SelectedMaps.Any(m =>
         m.FileName.EndsWith(Path.GetExtension(MapManagerConstants.ZipFilePattern), StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsDemoPath(string path) =>
+        path.Contains(MapManagerConstants.WindowsMockPathSegment, StringComparison.OrdinalIgnoreCase) ||
+        path.Contains(MapManagerConstants.UnixMockPathSegment, StringComparison.OrdinalIgnoreCase);
+
+    private static string GetUniqueZipDestinationPath(string directory, string rawZipName)
+    {
+        var safeZipName = rawZipName.EndsWith(Path.GetExtension(MapManagerConstants.ZipFilePattern), StringComparison.OrdinalIgnoreCase)
+            ? rawZipName
+            : rawZipName + Path.GetExtension(MapManagerConstants.ZipFilePattern);
+
+        var destinationPath = Path.Combine(directory, safeZipName);
+        if (!File.Exists(destinationPath))
+        {
+            return destinationPath;
+        }
+
+        var dir = Path.GetDirectoryName(destinationPath) ?? string.Empty;
+        var nameOnly = Path.GetFileNameWithoutExtension(destinationPath);
+        var ext = Path.GetExtension(destinationPath);
+        int count = 1;
+        while (File.Exists(destinationPath))
+        {
+            destinationPath = Path.Combine(dir, $"{nameOnly} ({count}){ext}");
+            count++;
+        }
+
+        return destinationPath;
+    }
+
+    private static string FormatUploadStageMessage(bool isZip, int percent)
+    {
+        if (!isZip && percent < 25)
+        {
+            return $"Compressing maps... {percent}%";
+        }
+
+        if (percent < 88)
+        {
+            return $"Uploading to cloud... {percent}%";
+        }
+
+        if (percent < 100)
+        {
+            return $"Finalizing cloud upload... {percent}%";
+        }
+
+        return "Upload complete! 100%";
+    }
+
+    private static void RevealInExplorer(string filePath)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{filePath}\"");
+        }
+        catch
+        {
+            /* Ignore explorer errors */
+        }
+    }
 
     /// <summary>
     /// Updates the collection of selected maps.
@@ -514,67 +575,6 @@ public partial class MapManagerViewModel : ObservableObject
         IsBusy = false;
     }
 
-    private static bool IsDemoPath(string path) =>
-        path.Contains(MapManagerConstants.WindowsMockPathSegment, StringComparison.OrdinalIgnoreCase) ||
-        path.Contains(MapManagerConstants.UnixMockPathSegment, StringComparison.OrdinalIgnoreCase);
-
-    private static string GetUniqueZipDestinationPath(string directory, string rawZipName)
-    {
-        var safeZipName = rawZipName.EndsWith(Path.GetExtension(MapManagerConstants.ZipFilePattern), StringComparison.OrdinalIgnoreCase)
-            ? rawZipName
-            : rawZipName + Path.GetExtension(MapManagerConstants.ZipFilePattern);
-
-        var destinationPath = Path.Combine(directory, safeZipName);
-        if (!File.Exists(destinationPath))
-        {
-            return destinationPath;
-        }
-
-        var dir = Path.GetDirectoryName(destinationPath) ?? string.Empty;
-        var nameOnly = Path.GetFileNameWithoutExtension(destinationPath);
-        var ext = Path.GetExtension(destinationPath);
-        int count = 1;
-        while (File.Exists(destinationPath))
-        {
-            destinationPath = Path.Combine(dir, $"{nameOnly} ({count}){ext}");
-            count++;
-        }
-
-        return destinationPath;
-    }
-
-    private static string FormatUploadStageMessage(bool isZip, int percent)
-    {
-        if (!isZip && percent < 25)
-        {
-            return $"Compressing maps... {percent}%";
-        }
-
-        if (percent < 88)
-        {
-            return $"Uploading to cloud... {percent}%";
-        }
-
-        if (percent < 100)
-        {
-            return $"Finalizing cloud upload... {percent}%";
-        }
-
-        return "Upload complete! 100%";
-    }
-
-    private static void RevealInExplorer(string filePath)
-    {
-        try
-        {
-            System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{filePath}\"");
-        }
-        catch
-        {
-            /* Ignore explorer errors */
-        }
-    }
-
     [RelayCommand]
     private async Task ExportToZipAsync()
     {
@@ -791,7 +791,7 @@ public partial class MapManagerViewModel : ObservableObject
         }
 
         var fileName = SelectedMaps.Count == 1 ? SelectedMaps[0].FileName : "maps.zip";
-        _uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash);
+        _uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash, "maps");
 
         if (IsHistoryOpen)
         {
@@ -1113,7 +1113,7 @@ public partial class MapManagerViewModel : ObservableObject
     {
         try
         {
-            var history = await _uploadHistoryService.GetUploadHistoryAsync();
+            var history = await _uploadHistoryService.GetUploadHistoryAsync("maps");
             UploadHistory.Clear();
 
             foreach (var item in history)
@@ -1241,7 +1241,7 @@ public partial class MapManagerViewModel : ObservableObject
 
         try
         {
-            await _uploadHistoryService.ClearHistoryAsync(deleteFromCloud: true);
+            await _uploadHistoryService.ClearHistoryAsync(deleteFromCloud: true, category: "maps");
             await LoadHistoryAsync();
             _notificationService.ShowSuccess(
                 "Cleared",

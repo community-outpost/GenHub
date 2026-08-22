@@ -54,6 +54,65 @@ public partial class ReplayManagerViewModel(
         path.Contains(ReplayManagerConstants.WindowsMockPathSegment, StringComparison.OrdinalIgnoreCase) ||
         path.Contains(ReplayManagerConstants.UnixMockPathSegment, StringComparison.OrdinalIgnoreCase);
 
+    private static string GetUniqueZipDestinationPath(string directory, string rawZipName)
+    {
+        var safeZipName = SanitizeFileName(rawZipName);
+        if (!safeZipName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+        {
+            safeZipName += ".zip";
+        }
+
+        var destinationPath = Path.Combine(directory, safeZipName);
+
+        // Handle filename conflict by appending (1), (2), etc.
+        if (File.Exists(destinationPath))
+        {
+            var dir = Path.GetDirectoryName(destinationPath) ?? string.Empty;
+            var nameOnly = Path.GetFileNameWithoutExtension(destinationPath);
+            var ext = Path.GetExtension(destinationPath);
+            int count = 1;
+            while (File.Exists(destinationPath))
+            {
+                destinationPath = Path.Combine(dir, $"{nameOnly} ({count}){ext}");
+                count++;
+            }
+        }
+
+        return destinationPath;
+    }
+
+    private static string FormatUploadStageMessage(bool isZip, int percent)
+    {
+        if (!isZip && percent < 25)
+        {
+            return $"Compressing replays... {percent}%";
+        }
+
+        if (percent < 88)
+        {
+            return $"Uploading to cloud... {percent}%";
+        }
+
+        if (percent < 100)
+        {
+            return $"Finalizing cloud upload... {percent}%";
+        }
+
+        return "Upload complete! 100%";
+    }
+
+    private static void RevealInExplorer(string filePath)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{filePath}\"");
+        }
+        catch
+        {
+            /* Ignore explorer errors */
+        }
+    }
+
     [ObservableProperty]
     private GameType selectedTab = GameType.ZeroHour;
 
@@ -74,7 +133,7 @@ public partial class ReplayManagerViewModel(
     /// Gets the current progress as a whole integer percentage between 0 and 100.
     /// </summary>
     [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding")]
-    public int ProgressPercentage => (int)Math.Round(progress * 100);
+    public int ProgressPercentage => (int)Math.Round(Progress * 100);
 
     [ObservableProperty]
     private string statusMessage = "Ready";
@@ -126,7 +185,7 @@ public partial class ReplayManagerViewModel(
     {
         try
         {
-            var history = await uploadHistoryService.GetUploadHistoryAsync();
+            var history = await uploadHistoryService.GetUploadHistoryAsync("replays");
             UploadHistory.Clear();
 
             // Add items to collection
@@ -260,7 +319,7 @@ public partial class ReplayManagerViewModel(
 
         try
         {
-            await uploadHistoryService.ClearHistoryAsync(deleteFromCloud: true);
+            await uploadHistoryService.ClearHistoryAsync(deleteFromCloud: true, category: "replays");
             await LoadHistoryAsync();
             notificationService.ShowSuccess(
                 "Cleared",
@@ -570,38 +629,6 @@ public partial class ReplayManagerViewModel(
         IsBusy = false;
     }
 
-    private static string GetUniqueZipDestinationPath(string directory, string rawZipName)
-    {
-        var safeZipName = SanitizeFileName(rawZipName);
-        if (!safeZipName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-            safeZipName += ".zip";
-
-        var destinationPath = Path.Combine(directory, safeZipName);
-
-        // Handle filename conflict by appending (1), (2), etc.
-        if (File.Exists(destinationPath))
-        {
-            var dir = Path.GetDirectoryName(destinationPath) ?? string.Empty;
-            var nameOnly = Path.GetFileNameWithoutExtension(destinationPath);
-            var ext = Path.GetExtension(destinationPath);
-            int count = 1;
-            while (File.Exists(destinationPath))
-            {
-                destinationPath = Path.Combine(dir, $"{nameOnly} ({count}){ext}");
-                count++;
-            }
-        }
-        return destinationPath;
-    }
-
-    private static string FormatUploadStageMessage(bool isZip, int percent)
-    {
-        if (!isZip && percent < 25) return $"Compressing replays... {percent}%";
-        if (percent < 88) return $"Uploading to cloud... {percent}%";
-        if (percent < 100) return $"Finalizing cloud upload... {percent}%";
-        return "Upload complete! 100%";
-    }
-
     [RelayCommand]
     private async Task ExportToZipAsync()
     {
@@ -833,7 +860,7 @@ public partial class ReplayManagerViewModel(
         }
 
         var fileName = SelectedReplays.Count == 1 ? SelectedReplays[0].FileName : "replays.zip";
-        uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash);
+        uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash, "replays");
 
         if (IsHistoryOpen)
         {

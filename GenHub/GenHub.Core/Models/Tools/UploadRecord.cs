@@ -46,6 +46,12 @@ public sealed class UploadRecord
     public string? DeleteToken { get; set; }
 
     /// <summary>
+    /// Gets or sets the category or tool identifier of the upload (e.g. "replays", "maps").
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Category { get; set; }
+
+    /// <summary>
     /// Gets or sets a value indicating whether a legacy record was pending deletion.
     /// </summary>
     /// <remarks>

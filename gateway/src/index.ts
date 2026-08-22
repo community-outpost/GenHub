@@ -30,6 +30,13 @@ const CORS_HEADERS: Record<string, string> = {
   "Content-Type": "application/json",
 };
 
+const getErrorMessage = (err: unknown): string => {
+  if (err instanceof Error) {
+    return err.message;
+  }
+  return String(err);
+};
+
 const FILENAME_REGEX = /filename[*]?=(?:utf-8''[^'\r\n]*'|"?)([^";\r\n]+)"?/i;
 const BOUNDARY_REGEX = /boundary=(?:"([^"]+)"|([^;]+))/i;
 
@@ -462,13 +469,6 @@ const handleHealth = (): Response =>
     status: 200,
     headers: CORS_HEADERS,
   });
-
-const getErrorMessage = (err: unknown): string => {
-  if (err instanceof Error) {
-    return err.message;
-  }
-  return String(err);
-};
 
 const handleApiRoute = async (routeKey: string, request: Request, env: Env): Promise<Response | null> => {
   switch (routeKey) {
