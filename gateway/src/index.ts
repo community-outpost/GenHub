@@ -11,6 +11,11 @@ interface PreparePayload {
   contentType: string;
 }
 
+interface DeletePayload {
+  fileKey: string;
+  deleteToken: string;
+}
+
 type TokenValidationResult =
   | { valid: true; payload: string; signature: string }
   | { valid: false; error: string };
@@ -55,6 +60,20 @@ const parsePrepareBody = (body: { fileName?: unknown; fileSize?: unknown; conten
   }
 
   return { fileName, fileSize, contentType };
+};
+
+const parseDeleteBody = (body: { fileKey?: unknown; deleteToken?: unknown }): DeletePayload => {
+  let fileKey = "";
+  if (typeof body.fileKey === "string") {
+    fileKey = body.fileKey;
+  }
+
+  let deleteToken = "";
+  if (typeof body.deleteToken === "string") {
+    deleteToken = body.deleteToken;
+  }
+
+  return { fileKey, deleteToken };
 };
 
 const signDeleteToken = async (fileKey: string, timestamp: number, secret: string): Promise<string> => {
@@ -271,23 +290,21 @@ const verifyDeleteRequest = async (
 };
 
 const handleDeleteUpload = async (request: Request, env: Env): Promise<Response> => {
-  const body = (await request.json()) as { fileKey?: string; deleteToken?: string };
-  const fileKey = typeof body.fileKey === "string" ? body.fileKey : "";
-  const deleteToken = typeof body.deleteToken === "string" ? body.deleteToken : "";
+  const payload = parseDeleteBody((await request.json()) as Record<string, unknown>);
 
-  if (fileKey.length === 0) {
+  if (payload.fileKey.length === 0) {
     return new Response(JSON.stringify({ error: "Missing fileKey" }), { status: 400, headers: CORS_HEADERS });
   }
-  if (deleteToken.length === 0) {
+  if (payload.deleteToken.length === 0) {
     return new Response(JSON.stringify({ error: "Missing deleteToken" }), { status: 400, headers: CORS_HEADERS });
   }
 
-  const verification = await verifyDeleteRequest(fileKey, deleteToken, env);
+  const verification = await verifyDeleteRequest(payload.fileKey, payload.deleteToken, env);
   if (!verification.valid) {
     return new Response(JSON.stringify({ error: verification.error }), { status: 403, headers: CORS_HEADERS });
   }
 
-  const success = await executeCloudDelete(fileKey, env.UPLOADTHING_TOKEN);
+  const success = await executeCloudDelete(payload.fileKey, env.UPLOADTHING_TOKEN);
   return new Response(JSON.stringify({ success }), { status: 200, headers: CORS_HEADERS });
 };
 
