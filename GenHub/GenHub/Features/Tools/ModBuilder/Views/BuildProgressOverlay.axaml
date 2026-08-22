@@ -11,8 +11,8 @@
   <UserControl.Resources>
     <ResourceDictionary>
       <ResourceDictionary.MergedDictionaries>
-        <ResourceInclude Source="/Features/Tools/ModBuilder/Styles/ModBuilderStyles.axaml"/>
-        <ResourceInclude Source="/Features/Tools/ModBuilder/Styles/ModBuilderIcons.axaml"/>
+        <ResourceInclude Source="../Styles/ModBuilderStyles.axaml"/>
+        <ResourceInclude Source="../Styles/ModBuilderIcons.axaml"/>
       </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
   </UserControl.Resources>
@@ -20,7 +20,7 @@
   <!-- Full-screen modal overlay -->
   <Panel>
     <!-- Semi-transparent backdrop -->
-    <Border Background="{StaticResource OverlayBrush}"
+    <Border Background="#CC000000"
             IsVisible="{Binding IsVisible}">
       <Border.Transitions>
         <Transitions>
@@ -30,14 +30,14 @@
     </Border>
 
     <!-- Main content card -->
-    <Border Background="{StaticResource BackgroundElevatedBrush}"
-            BorderBrush="{StaticResource BorderBrush}"
-            BorderThickness="{StaticResource BorderThicknessNormal}"
-            CornerRadius="{StaticResource CornerRadiusLarge}"
-            BoxShadow="{StaticResource ShadowXLarge}"
-            MaxWidth="900"
-            MaxHeight="700"
-            Padding="{StaticResource PaddingXLarge}"
+    <Border Background="{DynamicResource CardBackground}"
+            BorderBrush="{DynamicResource BorderBrush}"
+            BorderThickness="1"
+            CornerRadius="14"
+            BoxShadow="0 16 48 0 #80000000"
+            MaxWidth="850"
+            MaxHeight="680"
+            Padding="28"
             HorizontalAlignment="Center"
             VerticalAlignment="Center"
             IsVisible="{Binding IsVisible}">
@@ -51,33 +51,35 @@
 
       <Grid RowDefinitions="Auto,*,Auto">
         <!-- Header -->
-        <StackPanel Grid.Row="0" Spacing="{StaticResource SpacingNormal}">
+        <StackPanel Grid.Row="0" Spacing="12">
           <TextBlock Text="Building Project"
-                     FontSize="{StaticResource FontSizeHeading2}"
-                     FontWeight="{StaticResource FontWeightSemiBold}"
-                     Foreground="{StaticResource TextPrimaryBrush}"/>
+                     FontSize="20"
+                     FontWeight="Bold"
+                     Foreground="{DynamicResource TextPrimary}"/>
 
           <TextBlock Text="{Binding ProjectName}"
-                     FontSize="{StaticResource FontSizeMedium}"
-                     Foreground="{StaticResource TextSecondaryBrush}"/>
+                     FontSize="13.5"
+                     Foreground="{DynamicResource TextSecondary}"/>
 
           <!-- Overall progress bar -->
           <ProgressBar Value="{Binding OverallProgress}"
                        Maximum="100"
                        Height="8"
                        CornerRadius="4"
-                       Foreground="{StaticResource AccentGradientBrush}"
-                       Background="{StaticResource SurfaceBrush}"/>
+                       Foreground="{DynamicResource AccentBrush}"
+                       Background="{DynamicResource SurfaceHoverBrush}"/>
 
           <Grid ColumnDefinitions="*,Auto">
             <TextBlock Grid.Column="0"
                        Text="{Binding CurrentStage}"
-                       FontSize="{StaticResource FontSizeNormal}"
-                       Foreground="{StaticResource AccentPrimaryBrush}"/>
+                       FontSize="12.5"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource AccentBrush}"/>
 
             <TextBlock Grid.Column="1"
-                       FontSize="{StaticResource FontSizeNormal}"
-                       Foreground="{StaticResource TextSecondaryBrush}">
+                       FontSize="12.5"
+                       FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextPrimary}">
               <Run Text="{Binding OverallProgress, StringFormat='{}{0:F1}'}"/>
               <Run Text="%"/>
             </TextBlock>
@@ -86,12 +88,12 @@
 
         <!-- Stage cards -->
         <ScrollViewer Grid.Row="1"
-                      Margin="0,24,0,0"
+                      Margin="0,20,0,0"
                       VerticalScrollBarVisibility="Auto">
           <ItemsControl ItemsSource="{Binding Stages}">
             <ItemsControl.ItemsPanel>
               <ItemsPanelTemplate>
-                <StackPanel Spacing="{StaticResource SpacingMedium}"/>
+                <StackPanel Spacing="10"/>
               </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
 
@@ -105,70 +107,92 @@
 
         <!-- Metrics and actions -->
         <Grid Grid.Row="2"
-              Margin="0,24,0,0"
+              Margin="0,20,0,0"
               RowDefinitions="Auto,Auto"
               ColumnDefinitions="*,*,*,*">
 
           <!-- Real-time metrics -->
-          <StackPanel Grid.Row="0" Grid.Column="0"
-                      Spacing="{StaticResource SpacingXSmall}">
-            <TextBlock Text="Files/sec"
-                       FontSize="{StaticResource FontSizeSmall}"
-                       Foreground="{StaticResource TextTertiaryBrush}"/>
-            <TextBlock Text="{Binding FilesPerSecond, StringFormat='{}{0:F1}'}"
-                       FontSize="{StaticResource FontSizeLarge}"
-                       FontWeight="{StaticResource FontWeightSemiBold}"
-                       Foreground="{StaticResource TextPrimaryBrush}"/>
-          </StackPanel>
+          <Border Grid.Row="0" Grid.Column="0"
+                  Background="{DynamicResource SurfaceElevatedBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                  CornerRadius="8" Padding="12" Margin="0,0,6,0">
+            <StackPanel Spacing="4">
+              <TextBlock Text="Files/sec"
+                         FontSize="11"
+                         Foreground="{DynamicResource TextSecondary}"/>
+              <TextBlock Text="{Binding FilesPerSecond, StringFormat='{}{0:F1}'}"
+                         FontSize="16"
+                         FontWeight="Bold"
+                         Foreground="{DynamicResource TextPrimary}"/>
+            </StackPanel>
+          </Border>
 
-          <StackPanel Grid.Row="0" Grid.Column="1"
-                      Spacing="{StaticResource SpacingXSmall}">
-            <TextBlock Text="Cache Hits"
-                       FontSize="{StaticResource FontSizeSmall}"
-                       Foreground="{StaticResource TextTertiaryBrush}"/>
-            <TextBlock FontSize="{StaticResource FontSizeLarge}"
-                       FontWeight="{StaticResource FontWeightSemiBold}"
-                       Foreground="{StaticResource SuccessBrush}">
-              <Run Text="{Binding CacheHits}"/>
-              <Run Text="/" FontSize="{StaticResource FontSizeNormal}"/>
-              <Run Text="{Binding TotalFiles}" FontSize="{StaticResource FontSizeNormal}"/>
-            </TextBlock>
-          </StackPanel>
+          <Border Grid.Row="0" Grid.Column="1"
+                  Background="{DynamicResource SurfaceElevatedBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                  CornerRadius="8" Padding="12" Margin="4,0,4,0">
+            <StackPanel Spacing="4">
+              <TextBlock Text="Cache Hits"
+                         FontSize="11"
+                         Foreground="{DynamicResource TextSecondary}"/>
+              <TextBlock FontSize="16"
+                         FontWeight="Bold"
+                         Foreground="{DynamicResource SuccessBrush}">
+                <Run Text="{Binding CacheHits}"/>
+                <Run Text="/" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+                <Run Text="{Binding TotalFiles}" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+              </TextBlock>
+            </StackPanel>
+          </Border>
 
-          <StackPanel Grid.Row="0" Grid.Column="2"
-                      Spacing="{StaticResource SpacingXSmall}">
-            <TextBlock Text="Elapsed"
-                       FontSize="{StaticResource FontSizeSmall}"
-                       Foreground="{StaticResource TextTertiaryBrush}"/>
-            <TextBlock Text="{Binding ElapsedTime}"
-                       FontSize="{StaticResource FontSizeLarge}"
-                       FontWeight="{StaticResource FontWeightSemiBold}"
-                       Foreground="{StaticResource TextPrimaryBrush}"/>
-          </StackPanel>
+          <Border Grid.Row="0" Grid.Column="2"
+                  Background="{DynamicResource SurfaceElevatedBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                  CornerRadius="8" Padding="12" Margin="4,0,4,0">
+            <StackPanel Spacing="4">
+              <TextBlock Text="Elapsed"
+                         FontSize="11"
+                         Foreground="{DynamicResource TextSecondary}"/>
+              <TextBlock Text="{Binding ElapsedTime}"
+                         FontSize="16"
+                         FontWeight="Bold"
+                         Foreground="{DynamicResource TextPrimary}"/>
+            </StackPanel>
+          </Border>
 
-          <StackPanel Grid.Row="0" Grid.Column="3"
-                      Spacing="{StaticResource SpacingXSmall}">
-            <TextBlock Text="ETA"
-                       FontSize="{StaticResource FontSizeSmall}"
-                       Foreground="{StaticResource TextTertiaryBrush}"/>
-            <TextBlock Text="{Binding EstimatedTimeRemaining}"
-                       FontSize="{StaticResource FontSizeLarge}"
-                       FontWeight="{StaticResource FontWeightSemiBold}"
-                       Foreground="{StaticResource InfoBrush}"/>
-          </StackPanel>
+          <Border Grid.Row="0" Grid.Column="3"
+                  Background="{DynamicResource SurfaceElevatedBrush}"
+                  BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                  CornerRadius="8" Padding="12" Margin="6,0,0,0">
+            <StackPanel Spacing="4">
+              <TextBlock Text="ETA"
+                         FontSize="11"
+                         Foreground="{DynamicResource TextSecondary}"/>
+              <TextBlock Text="{Binding EstimatedTimeRemaining}"
+                         FontSize="16"
+                         FontWeight="Bold"
+                         Foreground="{DynamicResource AccentBrush}"/>
+            </StackPanel>
+          </Border>
 
           <!-- Cancel button -->
           <Button Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="4"
-                  Margin="0,16,0,0"
+                  Margin="0,18,0,0"
                   HorizontalAlignment="Center"
                   Command="{Binding CancelCommand}"
-                  Classes="Danger">
+                  Background="#25EF4444"
+                  Foreground="{DynamicResource ErrorBrush}"
+                  BorderBrush="{DynamicResource ErrorBrush}"
+                  BorderThickness="1"
+                  CornerRadius="8"
+                  Padding="20,10"
+                  Cursor="Hand">
             <StackPanel Orientation="Horizontal" Spacing="8">
               <Path Data="{StaticResource IconStop}"
-                    Fill="{Binding $parent[Button].Foreground}"
-                    Width="16" Height="16"
+                    Fill="{DynamicResource ErrorBrush}"
+                    Width="14" Height="14"
                     Stretch="Uniform"/>
-              <TextBlock Text="Cancel Build"/>
+              <TextBlock Text="Cancel Build" FontWeight="SemiBold"/>
             </StackPanel>
           </Button>
         </Grid>

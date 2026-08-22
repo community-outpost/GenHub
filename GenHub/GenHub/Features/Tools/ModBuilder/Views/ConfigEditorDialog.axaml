@@ -16,44 +16,44 @@
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="-1"
-        Background="{StaticResource BackgroundPrimaryBrush}">
+        Background="{DynamicResource WindowBackground}">
 
   <Window.Resources>
     <ResourceDictionary>
       <ResourceDictionary.MergedDictionaries>
-        <ResourceInclude Source="avares://GenHub/Features/Tools/ModBuilder/Styles/ModBuilderStyles.axaml"/>
-        <ResourceInclude Source="avares://GenHub/Features/Tools/ModBuilder/Styles/ModBuilderIcons.axaml"/>
+        <ResourceInclude Source="../Styles/ModBuilderStyles.axaml"/>
+        <ResourceInclude Source="../Styles/ModBuilderIcons.axaml"/>
       </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
   </Window.Resources>
 
-  <Grid RowDefinitions="Auto,*,Auto" Margin="{StaticResource PaddingLarge}">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="20">
     <!-- Header -->
     <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,16"
           Background="Transparent" PointerPressed="OnTitleBarPointerPressed">
-      <StackPanel Grid.Column="0" Spacing="{StaticResource SpacingSmall}">
+      <StackPanel Grid.Column="0" Spacing="4">
         <TextBlock Text="Configuration Editor"
-                   FontSize="{StaticResource FontSizeHeading2}"
-                   FontWeight="{StaticResource FontWeightSemiBold}"
-                   Foreground="{StaticResource TextPrimaryBrush}"/>
+                   FontSize="20"
+                   FontWeight="Bold"
+                   Foreground="{DynamicResource TextPrimary}"/>
 
         <TextBlock Text="Manage bundle items and packs for your mod"
-                   FontSize="{StaticResource FontSizeNormal}"
-                   Foreground="{StaticResource TextSecondaryBrush}"/>
+                   FontSize="13"
+                   Foreground="{DynamicResource TextSecondary}"/>
       </StackPanel>
 
-      <StackPanel Grid.Column="1" Spacing="{StaticResource SpacingXSmall}">
+      <StackPanel Grid.Column="1" Spacing="4">
         <TextBlock Text="Total Items"
-                   FontSize="{StaticResource FontSizeSmall}"
-                   Foreground="{StaticResource TextTertiaryBrush}"
+                   FontSize="11"
+                   Foreground="{DynamicResource TextSecondary}"
                    HorizontalAlignment="Right"/>
         <TextBlock Text="{Binding BundleItems.Count}"
-                   FontSize="{StaticResource FontSizeXLarge}"
-                   FontWeight="{StaticResource FontWeightBold}"
-                   Foreground="{StaticResource TextPrimaryBrush}"
+                   FontSize="20"
+                   FontWeight="Bold"
+                   Foreground="{DynamicResource TextPrimary}"
                    HorizontalAlignment="Right"/>
-        <TextBlock FontSize="{StaticResource FontSizeSmall}"
-                   Foreground="{StaticResource TextSecondaryBrush}"
+        <TextBlock FontSize="11"
+                   Foreground="{DynamicResource TextSecondary}"
                    HorizontalAlignment="Right">
           <Run Text="{Binding BundlePacks.Count}"/>
           <Run Text="packs"/>
@@ -65,28 +65,34 @@
     <TabControl Grid.Row="1" SelectedIndex="{Binding ActiveTabIndex}">
       <!-- Bundle Items Tab -->
       <TabItem Header="Bundle Items">
-        <Grid RowDefinitions="Auto,*">
+        <Grid RowDefinitions="Auto,*" Margin="0,12,0,0">
           <!-- Toolbar -->
           <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
             <Button Command="{Binding AddBundleItemCommand}"
-                    Classes="Primary"
+                    Background="{DynamicResource AccentBrush}"
+                    Foreground="White" BorderThickness="0"
+                    Padding="14,8" CornerRadius="8" Cursor="Hand"
                     ToolTip.Tip="Add a new bundle item">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <Path Data="{StaticResource IconAdd}"
-                      Fill="{Binding $parent[Button].Foreground}"
-                      Width="14" Height="14"
+                      Fill="White"
+                      Width="13" Height="13"
                       Stretch="Uniform"/>
-                <TextBlock Text="Add Item"/>
+                <TextBlock Text="Add Item" FontWeight="SemiBold"/>
               </StackPanel>
             </Button>
 
             <Button Command="{Binding RemoveBundleItemCommand}"
                     IsEnabled="{Binding SelectedBundleItem, Converter={x:Static ObjectConverters.IsNotNull}}"
+                    Background="{DynamicResource SurfaceElevatedBrush}"
+                    Foreground="{DynamicResource TextPrimary}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    Padding="14,8" CornerRadius="8" Cursor="Hand"
                     ToolTip.Tip="Remove selected bundle item">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <Path Data="{StaticResource IconRemove}"
-                      Fill="{Binding $parent[Button].Foreground}"
-                      Width="14" Height="14"
+                      Fill="{DynamicResource TextSecondary}"
+                      Width="13" Height="13"
                       Stretch="Uniform"/>
                 <TextBlock Text="Remove"/>
               </StackPanel>
@@ -95,11 +101,11 @@
 
           <!-- Bundle Items List -->
           <Border Grid.Row="1"
-                  Background="{StaticResource BackgroundSecondaryBrush}"
-                  BorderBrush="{StaticResource BorderBrush}"
-                  BorderThickness="{StaticResource BorderThicknessNormal}"
-                  CornerRadius="{StaticResource CornerRadiusNormal}"
-                  Padding="{StaticResource PaddingNormal}">
+                  Background="{DynamicResource CardBackground}"
+                  BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="1"
+                  CornerRadius="10"
+                  Padding="12">
 
             <DataGrid ItemsSource="{Binding BundleItems}"
                       SelectedItem="{Binding SelectedBundleItem}"
@@ -147,28 +153,34 @@
 
       <!-- Bundle Packs Tab -->
       <TabItem Header="Bundle Packs">
-        <Grid RowDefinitions="Auto,*">
+        <Grid RowDefinitions="Auto,*" Margin="0,12,0,0">
           <!-- Toolbar -->
           <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
             <Button Command="{Binding AddBundlePackCommand}"
-                    Classes="Primary"
+                    Background="{DynamicResource AccentBrush}"
+                    Foreground="White" BorderThickness="0"
+                    Padding="14,8" CornerRadius="8" Cursor="Hand"
                     ToolTip.Tip="Add a new bundle pack">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <Path Data="{StaticResource IconAdd}"
-                      Fill="{Binding $parent[Button].Foreground}"
-                      Width="14" Height="14"
+                      Fill="White"
+                      Width="13" Height="13"
                       Stretch="Uniform"/>
-                <TextBlock Text="Add Pack"/>
+                <TextBlock Text="Add Pack" FontWeight="SemiBold"/>
               </StackPanel>
             </Button>
 
             <Button Command="{Binding RemoveBundlePackCommand}"
                     IsEnabled="{Binding SelectedBundlePack, Converter={x:Static ObjectConverters.IsNotNull}}"
+                    Background="{DynamicResource SurfaceElevatedBrush}"
+                    Foreground="{DynamicResource TextPrimary}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                    Padding="14,8" CornerRadius="8" Cursor="Hand"
                     ToolTip.Tip="Remove selected bundle pack">
               <StackPanel Orientation="Horizontal" Spacing="6">
                 <Path Data="{StaticResource IconRemove}"
-                      Fill="{Binding $parent[Button].Foreground}"
-                      Width="14" Height="14"
+                      Fill="{DynamicResource TextSecondary}"
+                      Width="13" Height="13"
                       Stretch="Uniform"/>
                 <TextBlock Text="Remove"/>
               </StackPanel>
@@ -177,11 +189,11 @@
 
           <!-- Bundle Packs List -->
           <Border Grid.Row="1"
-                  Background="{StaticResource BackgroundSecondaryBrush}"
-                  BorderBrush="{StaticResource BorderBrush}"
-                  BorderThickness="{StaticResource BorderThicknessNormal}"
-                  CornerRadius="{StaticResource CornerRadiusNormal}"
-                  Padding="{StaticResource PaddingNormal}">
+                  Background="{DynamicResource CardBackground}"
+                  BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="1"
+                  CornerRadius="10"
+                  Padding="12">
 
             <DataGrid ItemsSource="{Binding BundlePacks}"
                       SelectedItem="{Binding SelectedBundlePack}"
@@ -236,40 +248,48 @@
     <!-- Footer actions -->
     <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" Margin="0,16,0,0">
       <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-        <Border Background="{StaticResource WarningBrush}"
-                CornerRadius="3"
-                Padding="8,4"
+        <Border Background="#1AFFD740"
+                BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1"
+                CornerRadius="4"
+                Padding="8,3"
                 IsVisible="{Binding HasChanges}">
           <TextBlock Text="Unsaved Changes"
-                     FontSize="{StaticResource FontSizeSmall}"
-                     Foreground="{StaticResource BackgroundPrimaryBrush}"/>
+                     FontSize="11"
+                     FontWeight="SemiBold"
+                     Foreground="{DynamicResource WarningBrush}"/>
         </Border>
 
         <TextBlock Text="Changes will be saved to configuration files"
-                   FontSize="{StaticResource FontSizeSmall}"
-                   Foreground="{StaticResource TextTertiaryBrush}"
+                   FontSize="11.5"
+                   Foreground="{DynamicResource TextSecondary}"
                    VerticalAlignment="Center"
                    IsVisible="{Binding HasChanges}"/>
       </StackPanel>
 
       <Button Grid.Column="1"
               Command="{Binding SaveCommand}"
-              Classes="Primary"
+              Background="{DynamicResource AccentBrush}"
+              Foreground="White" BorderThickness="0"
+              Padding="18,8" CornerRadius="8"
               Margin="0,0,8,0"
-              MinWidth="100">
-        <StackPanel Orientation="Horizontal" Spacing="6">
+              MinWidth="100" Cursor="Hand">
+        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
           <Path Data="{StaticResource IconSave}"
-                Fill="{Binding $parent[Button].Foreground}"
-                Width="14" Height="14"
+                Fill="White"
+                Width="13" Height="13"
                 Stretch="Uniform"/>
-          <TextBlock Text="Save"/>
+          <TextBlock Text="Save" FontWeight="SemiBold"/>
         </StackPanel>
       </Button>
 
       <Button Grid.Column="2"
               Command="{Binding CancelCommand}"
-              MinWidth="100">
-        <TextBlock Text="Close"/>
+              Background="{DynamicResource SurfaceElevatedBrush}"
+              Foreground="{DynamicResource TextPrimary}"
+              BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+              Padding="18,8" CornerRadius="8"
+              MinWidth="100" Cursor="Hand">
+        <TextBlock Text="Close" HorizontalAlignment="Center"/>
       </Button>
     </Grid>
   </Grid>
