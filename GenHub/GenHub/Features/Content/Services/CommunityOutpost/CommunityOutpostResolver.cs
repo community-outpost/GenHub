@@ -227,6 +227,45 @@ public class CommunityOutpostResolver(
         return "0";
     }
 
+    /// <summary>
+    /// Builds the tags list for the manifest.
+    /// </summary>
+    private static List<string> BuildTags(ContentSearchResult item, GenPatcherContentMetadata metadata)
+    {
+        var tags = new List<string>(item.Tags);
+
+        if (!string.IsNullOrEmpty(metadata.LanguageCode))
+        {
+            tags.Add(metadata.LanguageCode);
+        }
+
+        tags.Add(metadata.Category.ToString().ToLowerInvariant());
+
+        return tags;
+    }
+
+    /// <summary>
+    /// Gets a metadata value from the search result.
+    /// </summary>
+    private static string GetMetadataValue(ContentSearchResult item, string key, string defaultValue)
+    {
+        if (item.ResolverMetadata?.TryGetValue(key, out var value) == true)
+        {
+            return value;
+        }
+
+        return defaultValue;
+    }
+
+    /// <summary>
+    /// Gets a long metadata value from the search result.
+    /// </summary>
+    private static long GetMetadataValueLong(ContentSearchResult item, string key, long defaultValue)
+    {
+        var stringValue = GetMetadataValue(item, key, string.Empty);
+        return long.TryParse(stringValue, out var result) ? result : defaultValue;
+    }
+
     private string DetermineManifestVersion(
         ContentSearchResult discoveredItem,
         GenPatcherContentMetadata contentMetadata)
@@ -465,45 +504,6 @@ public class CommunityOutpostResolver(
         }
 
         return null;
-    }
-
-    /// <summary>
-    /// Builds the tags list for the manifest.
-    /// </summary>
-    private List<string> BuildTags(ContentSearchResult item, GenPatcherContentMetadata metadata)
-    {
-        var tags = new List<string>(item.Tags);
-
-        if (!string.IsNullOrEmpty(metadata.LanguageCode))
-        {
-            tags.Add(metadata.LanguageCode);
-        }
-
-        tags.Add(metadata.Category.ToString().ToLowerInvariant());
-
-        return tags;
-    }
-
-    /// <summary>
-    /// Gets a metadata value from the search result.
-    /// </summary>
-    private string GetMetadataValue(ContentSearchResult item, string key, string defaultValue)
-    {
-        if (item.ResolverMetadata?.TryGetValue(key, out var value) == true)
-        {
-            return value;
-        }
-
-        return defaultValue;
-    }
-
-    /// <summary>
-    /// Gets a long metadata value from the search result.
-    /// </summary>
-    private long GetMetadataValueLong(ContentSearchResult item, string key, long defaultValue)
-    {
-        var stringValue = GetMetadataValue(item, key, string.Empty);
-        return long.TryParse(stringValue, out var result) ? result : defaultValue;
     }
 
     /// <summary>

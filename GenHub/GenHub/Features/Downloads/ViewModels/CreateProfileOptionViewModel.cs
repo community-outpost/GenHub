@@ -6,12 +6,22 @@ namespace GenHub.Features.Downloads.ViewModels;
 public sealed class CreateProfileOptionViewModel : ProfilePickerItemViewModel
 {
     /// <summary>
+    /// Title text for the create-profile card.
+    /// </summary>
+    public const string DefaultTitle = "Create new profile";
+
+    /// <summary>
+    /// Subtitle description for the create-profile card.
+    /// </summary>
+    public const string DefaultSubtitle = "Add this content to a fresh profile";
+
+    /// <summary>
     /// Gets the title for the create-profile card.
     /// </summary>
-    public string Title => "Create new profile";
+    public static string Title => DefaultTitle;
 
     /// <summary>
     /// Gets the description for the create-profile card.
     /// </summary>
-    public string Subtitle => "Add this content to a fresh profile";
+    public static string Subtitle => DefaultSubtitle;
 }

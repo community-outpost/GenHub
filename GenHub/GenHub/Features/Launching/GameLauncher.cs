@@ -1163,6 +1163,31 @@ public class GameLauncher(
         return OperationResult<WorkspaceInfo>.CreateSuccess(workspaceInfo);
     }
 
+    private async Task<OperationResult<WorkspaceInfo>> PrepareWorkspaceForLaunchAsync(
+        WorkspaceConfiguration workspaceConfig,
+        bool isSteamLaunch,
+        IProgress<LaunchProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        logger.LogInformation("[GameLauncher] Preparing workspace at: {WorkspacePath}", workspaceConfig.WorkspaceRootPath);
+        var workspaceProgress = new Progress<WorkspacePreparationProgress>(
+            wp =>
+            {
+                var percentComplete = 20 + (int)(wp.FilesProcessed / (double)Math.Max(1, wp.TotalFiles) * 60);
+                progress?.Report(new LaunchProgress
+                {
+                    Phase = LaunchPhase.PreparingWorkspace,
+                    PercentComplete = Math.Min(percentComplete, 80),
+                    IsInitializingWorkspace = true,
+                    TotalFiles = wp.TotalFiles,
+                    FilesProcessed = wp.FilesProcessed,
+                    CurrentFile = wp.CurrentFile,
+                });
+            });
+
+        return await workspaceManager.PrepareWorkspaceAsync(workspaceConfig, workspaceProgress, skipCleanup: false, cancellationToken);
+    }
+
     private void TriggerBackgroundUserDataSwitch(
         GameProfile profile,
         List<ContentManifest> manifests,
@@ -1751,31 +1776,6 @@ public class GameLauncher(
             BaseInstallationPath = actualInstallationPath,
             ManifestSourcePaths = manifestSourcePaths,
         };
-    }
-
-    private async Task<OperationResult<WorkspaceInfo>> PrepareWorkspaceForLaunchAsync(
-        WorkspaceConfiguration workspaceConfig,
-        bool isSteamLaunch,
-        IProgress<LaunchProgress>? progress,
-        CancellationToken cancellationToken)
-    {
-        logger.LogInformation("[GameLauncher] Preparing workspace at: {WorkspacePath}", workspaceConfig.WorkspaceRootPath);
-        var workspaceProgress = new Progress<WorkspacePreparationProgress>(
-            wp =>
-            {
-                var percentComplete = 20 + (int)(wp.FilesProcessed / (double)Math.Max(1, wp.TotalFiles) * 60);
-                progress?.Report(new LaunchProgress
-                {
-                    Phase = LaunchPhase.PreparingWorkspace,
-                    PercentComplete = Math.Min(percentComplete, 80),
-                    IsInitializingWorkspace = true,
-                    TotalFiles = wp.TotalFiles,
-                    FilesProcessed = wp.FilesProcessed,
-                    CurrentFile = wp.CurrentFile,
-                });
-            });
-
-        return await workspaceManager.PrepareWorkspaceAsync(workspaceConfig, workspaceProgress, skipCleanup: false, cancellationToken);
     }
 
     private void HandlePostWorkspacePreparation(

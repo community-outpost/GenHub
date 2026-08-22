@@ -160,7 +160,7 @@ public class HttpContentDeliverer(
         }
     }
 
-    private IContentManifestBuilder InitializeDeliveredManifest(
+    private static IContentManifestBuilder InitializeDeliveredManifest(
         IContentManifestBuilder builder,
         ContentManifest packageManifest)
     {

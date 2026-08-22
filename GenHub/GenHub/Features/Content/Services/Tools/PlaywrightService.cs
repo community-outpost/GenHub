@@ -1138,7 +1138,7 @@ public class PlaywrightService(
     /// </summary>
     private async Task<IPage> CreatePersistentPageWithRecoveryAsync(string profileDir, CancellationToken cancellationToken)
     {
-        IPage page = null!;
+        IPage page;
         try
         {
             await _persistentLock.WaitAsync(cancellationToken);
@@ -1153,7 +1153,7 @@ public class PlaywrightService(
         }
         catch (PlaywrightException ex) when (IsContextClosedError(ex))
         {
-            logger.LogInformation("Persistent browser context was closed; recreating profile {ProfileName}", Path.GetFileName(profileDir));
+            logger.LogInformation(ex, "Persistent browser context was closed; recreating profile {ProfileName}", Path.GetFileName(profileDir));
             await InvalidatePersistentContextAsync();
             await EnsurePersistentContextAsync(profileDir, cancellationToken);
 

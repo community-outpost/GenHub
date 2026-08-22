@@ -41,6 +41,9 @@ public static class ModDBConstants
     /// <summary>Articles URL path segment.</summary>
     public const string ArticlesSegment = "/articles";
 
+    /// <summary>Placeholder blank gif image filename.</summary>
+    public const string BlankGifFileName = "blank.gif";
+
     /// <summary>Addons section for Generals.</summary>
     public const string GeneralsAddonsUrl = GeneralsBaseUrl + "/addons";
 

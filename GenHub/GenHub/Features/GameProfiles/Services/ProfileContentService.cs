@@ -846,14 +846,16 @@ public sealed class ProfileContentService(
 
         if (newlyAdded.Count > 0)
         {
-            Task.Run(async () =>
-            {
-                var dependencyNames = await GetDependencyNamesAsync(newlyAdded, cancellationToken);
-                logger.LogInformation("Resolved {Count} dependencies for {ManifestId}", newlyAdded.Count, primaryManifestId);
-                notificationService.ShowInfo(
-                    "Dependencies Added",
-                    $"Added required dependencies for '{contentName}': {string.Join(", ", dependencyNames)}");
-            });
+            Task.Run(
+                async () =>
+                {
+                    var dependencyNames = await GetDependencyNamesAsync(newlyAdded, cancellationToken);
+                    logger.LogInformation("Resolved {Count} dependencies for {ManifestId}", newlyAdded.Count, primaryManifestId);
+                    notificationService.ShowInfo(
+                        "Dependencies Added",
+                        $"Added required dependencies for '{contentName}': {string.Join(", ", dependencyNames)}");
+                },
+                cancellationToken);
         }
     }
 

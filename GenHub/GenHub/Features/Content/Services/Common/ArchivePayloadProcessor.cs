@@ -1781,66 +1781,12 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
 
             foreach (var subFile in Directory.GetFiles(tempStaging, "*", SearchOption.AllDirectories))
             {
-                var relativePath = Path.GetRelativePath(tempStaging, subFile);
-                var destinationPath = Path.Combine(targetDirectory, relativePath);
-                var destinationDir = Path.GetDirectoryName(destinationPath);
-                if (!string.IsNullOrEmpty(destinationDir))
-                {
-                    Directory.CreateDirectory(destinationDir);
-                }
-
-                if (File.Exists(destinationPath))
-                {
-                    var destInfo = new FileInfo(destinationPath);
-                    var srcInfo = new FileInfo(subFile);
-
-                    if (destInfo.Length == srcInfo.Length && FilesHaveIdenticalContent(subFile, destinationPath))
-                    {
-                        File.Delete(subFile);
-                        continue;
-                    }
-
-                    var newDestPath = GetNonCollidingDestinationPath(destinationPath);
-                    File.Move(subFile, newDestPath);
-                }
-                else
-                {
-                    File.Move(subFile, destinationPath);
-                }
+                MoveFileToPromotedDestination(subFile, tempStaging, targetDirectory);
             }
         }
         catch
         {
-            try
-            {
-                if (Directory.Exists(tempStaging))
-                {
-                    if (!Directory.Exists(sourceDirectory))
-                    {
-                        Directory.Move(tempStaging, sourceDirectory);
-                    }
-                    else
-                    {
-                        foreach (var remainingFile in Directory.GetFiles(tempStaging, "*", SearchOption.AllDirectories))
-                        {
-                            var rel = Path.GetRelativePath(tempStaging, remainingFile);
-                            var backPath = Path.Combine(sourceDirectory, rel);
-                            var dir = Path.GetDirectoryName(backPath);
-                            if (!string.IsNullOrEmpty(dir))
-                            {
-                                Directory.CreateDirectory(dir);
-                            }
-
-                            File.Move(remainingFile, backPath, overwrite: true);
-                        }
-                    }
-                }
-            }
-            catch
-            {
-                // Best effort rollback
-            }
-
+            RollbackPromoteStaging(tempStaging, sourceDirectory);
             throw;
         }
         finally
@@ -1853,9 +1799,73 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                 }
                 catch
                 {
-                    // Best effort cleanup
+                    // Ignore temp staging cleanup failures
                 }
             }
+        }
+    }
+
+    private static void MoveFileToPromotedDestination(string subFile, string tempStaging, string targetDirectory)
+    {
+        var relativePath = Path.GetRelativePath(tempStaging, subFile);
+        var destinationPath = Path.Combine(targetDirectory, relativePath);
+        var destinationDir = Path.GetDirectoryName(destinationPath);
+        if (!string.IsNullOrEmpty(destinationDir))
+        {
+            Directory.CreateDirectory(destinationDir);
+        }
+
+        if (File.Exists(destinationPath))
+        {
+            var destInfo = new FileInfo(destinationPath);
+            var srcInfo = new FileInfo(subFile);
+
+            if (destInfo.Length == srcInfo.Length && FilesHaveIdenticalContent(subFile, destinationPath))
+            {
+                File.Delete(subFile);
+                return;
+            }
+
+            var newDestPath = GetNonCollidingDestinationPath(destinationPath);
+            File.Move(subFile, newDestPath);
+        }
+        else
+        {
+            File.Move(subFile, destinationPath);
+        }
+    }
+
+    private static void RollbackPromoteStaging(string tempStaging, string sourceDirectory)
+    {
+        try
+        {
+            if (!Directory.Exists(tempStaging))
+            {
+                return;
+            }
+
+            if (!Directory.Exists(sourceDirectory))
+            {
+                Directory.Move(tempStaging, sourceDirectory);
+                return;
+            }
+
+            foreach (var remainingFile in Directory.GetFiles(tempStaging, "*", SearchOption.AllDirectories))
+            {
+                var rel = Path.GetRelativePath(tempStaging, remainingFile);
+                var backPath = Path.Combine(sourceDirectory, rel);
+                var dir = Path.GetDirectoryName(backPath);
+                if (!string.IsNullOrEmpty(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                File.Move(remainingFile, backPath, overwrite: true);
+            }
+        }
+        catch
+        {
+            // Best effort rollback
         }
     }
 

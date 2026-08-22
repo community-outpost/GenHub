@@ -285,7 +285,7 @@ public partial class ModDBDiscoverer(
         var category = categoryEl?.TextContent?.Trim();
 
         var lastUpdated = ExtractLastUpdatedDate(item);
-        var contentType = DetermineContentType(section, category, detailUrl);
+        var contentType = DetermineContentType(section, category, detailUrl, title);
         var moddbId = ExtractModDBIdFromUrl(detailUrl);
         var prospectiveId = lastUpdated.HasValue && lastUpdated.Value > DateTime.MinValue
             ? ManifestIdGenerator.GeneratePublisherContentId(ModDBConstants.PublisherPrefix, contentType, title, lastUpdated.Value)
@@ -404,7 +404,7 @@ public partial class ModDBDiscoverer(
         }
     }
 
-    private static ContentType DetermineContentType(string section, string? category, string url)
+    private static ContentType DetermineContentType(string section, string? category, string url, string? title = null)
     {
         if (!string.IsNullOrEmpty(category))
         {
@@ -415,13 +415,34 @@ public partial class ModDBDiscoverer(
             }
         }
 
+        if (!string.IsNullOrWhiteSpace(title))
+        {
+            if (title.Contains("patch", StringComparison.OrdinalIgnoreCase) || title.Contains("hotfix", StringComparison.OrdinalIgnoreCase))
+            {
+                return ContentType.Patch;
+            }
+
+            if (title.Contains("tool", StringComparison.OrdinalIgnoreCase) || title.Contains("editor", StringComparison.OrdinalIgnoreCase) || title.Contains("genpatcher", StringComparison.OrdinalIgnoreCase))
+            {
+                return ContentType.ModdingTool;
+            }
+
+            if (title.Contains("multiplayer map", StringComparison.OrdinalIgnoreCase) || title.Contains("singleplayer map", StringComparison.OrdinalIgnoreCase) || title.Contains("map pack", StringComparison.OrdinalIgnoreCase))
+            {
+                return ContentType.Map;
+            }
+        }
+
         var isModUrl = url.Contains("/mods/", StringComparison.OrdinalIgnoreCase);
         var isAddonUrl = url.Contains(ModDBConstants.AddonsSegment, StringComparison.OrdinalIgnoreCase);
+        var isDownloadUrl = url.Contains("/downloads/", StringComparison.OrdinalIgnoreCase);
 
         return section switch
         {
-            "mods" => ContentType.Mod,
+            "mods" when !isDownloadUrl => ContentType.Mod,
             "downloads" when url.Contains("/maps/", StringComparison.OrdinalIgnoreCase) => ContentType.Map,
+            "downloads" when url.Contains("/tools/", StringComparison.OrdinalIgnoreCase) => ContentType.ModdingTool,
+            "downloads" when url.Contains("/patches/", StringComparison.OrdinalIgnoreCase) => ContentType.Patch,
             "downloads" when isModUrl && !isAddonUrl => ContentType.Mod,
             "downloads" => ContentType.Addon,
             "addons" => url.Contains("/maps/", StringComparison.OrdinalIgnoreCase) ? ContentType.Map : ContentType.Addon,
@@ -643,8 +664,9 @@ public partial class ModDBDiscoverer(
                         {
                             await page.BringToFrontAsync();
                         }
-                        catch (PlaywrightException)
+                        catch (PlaywrightException ex)
                         {
+                            logger.LogDebug(ex, "Failed to bring browser page to front");
                         }
                     }
 
@@ -778,7 +800,7 @@ public partial class ModDBDiscoverer(
                     ?? string.Empty;
 
                 var moddbId = ExtractModDBIdFromUrl(link);
-                var contentType = DetermineContentType(section, null, link);
+                var contentType = DetermineContentType(section, null, link, title);
                 var prospectiveId = published.HasValue && published.Value > DateTime.MinValue
                     ? ManifestIdGenerator.GeneratePublisherContentId(ModDBConstants.PublisherPrefix, contentType, title, published.Value)
                     : ManifestIdGenerator.GeneratePublisherContentId(ModDBConstants.PublisherPrefix, contentType, title, 0);

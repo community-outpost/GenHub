@@ -394,24 +394,23 @@ public class ControlBarPackageProcessor(
 
         if (manifest.Metadata?.Tags != null)
         {
-            foreach (var tag in manifest.Metadata.Tags)
+            var tagMatch = manifest.Metadata.Tags
+                .Select(ExtractVariantToken)
+                .FirstOrDefault(t => !string.IsNullOrEmpty(t));
+            if (!string.IsNullOrEmpty(tagMatch))
             {
-                var tagMatch = ExtractVariantToken(tag);
-                if (!string.IsNullOrEmpty(tagMatch))
-                {
-                    return tagMatch;
-                }
+                return tagMatch;
             }
         }
 
         // Check if resolution subfolders exist in extracted content
-        foreach (var candidate in KnownResolutionVariants)
+        var existingVariant = KnownResolutionVariants.FirstOrDefault(candidate =>
+            Directory.Exists(Path.Combine(extractedDirectory, "ZH", candidate)) ||
+            Directory.Exists(Path.Combine(extractedDirectory, candidate)));
+
+        if (!string.IsNullOrEmpty(existingVariant))
         {
-            if (Directory.Exists(Path.Combine(extractedDirectory, "ZH", candidate)) ||
-                Directory.Exists(Path.Combine(extractedDirectory, candidate)))
-            {
-                return candidate;
-            }
+            return existingVariant;
         }
 
         return "1080p";

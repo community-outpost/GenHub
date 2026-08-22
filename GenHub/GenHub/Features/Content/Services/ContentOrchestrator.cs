@@ -53,6 +53,8 @@ public class ContentOrchestrator(
     PublisherManifestFactoryResolver? factoryResolver = null,
     IEnumerable<IContentDeliverer>? deliverers = null) : IContentOrchestrator
 {
+    private const string StoringPhase = "Storing";
+
     private readonly ConcurrentBag<IContentProvider> _providers = [.. providers];
     private readonly ConcurrentBag<IContentDiscoverer> _discoverers = [.. discoverers];
     private readonly ConcurrentBag<IContentDeliverer> _deliverers = [.. deliverers ?? []];
@@ -996,7 +998,7 @@ public class ContentOrchestrator(
         Action<int, string, double, string?, bool, string?, long, long, int, int, string?, TimeSpan> reportProgress,
         CancellationToken cancellationToken)
     {
-        reportProgress(5, "Storing", 0, "Adding to content library...", false, null, 0, 0, 0, 0, null, default);
+        reportProgress(5, StoringPhase, 0, "Adding to content library...", false, null, 0, 0, 0, 0, null, default);
 
         var alreadyStoredResult = await manifestPool.IsManifestAcquiredAsync(manifest.Id, cancellationToken);
         if (!alreadyStoredResult.Success || !alreadyStoredResult.Data)
@@ -1013,12 +1015,12 @@ public class ContentOrchestrator(
                 }
             }
 
-            reportProgress(5, "Storing", 30, "Copying files to content store...", true, "Storing files in content-addressable storage...", 0, 0, 0, 0, null, default);
+            reportProgress(5, StoringPhase, 30, "Copying files to content store...", true, "Storing files in content-addressable storage...", 0, 0, 0, 0, null, default);
 
             var storageProgress = new Progress<ContentStorageProgress>(storage =>
             {
                 var storagePercent = 30 + (Math.Clamp(storage.Percentage, 0, 100) * 0.6);
-                reportProgress(5, "Storing", storagePercent, $"Storing: {storage.CurrentFileName} ({storage.ProcessedCount}/{storage.TotalCount})", true, "Storing files in content-addressable storage...", 0, 0, storage.ProcessedCount, storage.TotalCount, storage.CurrentFileName, default);
+                reportProgress(5, StoringPhase, storagePercent, $"Storing: {storage.CurrentFileName} ({storage.ProcessedCount}/{storage.TotalCount})", true, "Storing files in content-addressable storage...", 0, 0, storage.ProcessedCount, storage.TotalCount, storage.CurrentFileName, default);
             });
 
             var addResult = await manifestPool.AddManifestAsync(
@@ -1032,12 +1034,12 @@ public class ContentOrchestrator(
                     $"Failed to store content: {addResult.FirstError}");
             }
 
-            reportProgress(5, "Storing", 90, "Registering manifest...", false, null, 0, 0, 0, 0, null, default);
+            reportProgress(5, StoringPhase, 90, "Registering manifest...", false, null, 0, 0, 0, 0, null, default);
         }
         else
         {
             logger.LogInformation("Manifest {ManifestId} is already present in the content store", manifest.Id);
-            reportProgress(5, "Storing", 90, "Content already stored", false, null, 0, 0, 0, 0, null, default);
+            reportProgress(5, StoringPhase, 90, "Content already stored", false, null, 0, 0, 0, 0, null, default);
         }
 
         return OperationResult<bool>.CreateSuccess(true);

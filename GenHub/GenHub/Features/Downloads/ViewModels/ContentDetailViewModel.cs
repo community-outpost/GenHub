@@ -736,6 +736,74 @@ public partial class ContentDetailViewModel(
         return snapshot;
     }
 
+    private static void UpdateItemFileProperties(DownloadableItemViewModel item, DownloadableFile detailedFile)
+    {
+        if (!string.IsNullOrEmpty(detailedFile.Filename))
+        {
+            item.Filename = detailedFile.Filename;
+        }
+
+        if (!string.IsNullOrEmpty(detailedFile.Category))
+        {
+            item.Category = detailedFile.Category;
+            item.ContentType = ModDBCategoryMapper.MapCategoryByName(detailedFile.Category);
+        }
+
+        if (!string.IsNullOrEmpty(detailedFile.Uploader))
+        {
+            item.Uploader = detailedFile.Uploader;
+        }
+
+        if (!string.IsNullOrEmpty(detailedFile.Md5Hash))
+        {
+            item.Md5Hash = detailedFile.Md5Hash;
+        }
+
+        if (detailedFile.DownloadCount.HasValue)
+        {
+            item.DownloadCount = detailedFile.DownloadCount;
+        }
+
+        if (!string.IsNullOrEmpty(detailedFile.Description))
+        {
+            item.FullDescription = detailedFile.Description;
+        }
+
+        if (!string.IsNullOrEmpty(detailedFile.SizeDisplay))
+        {
+            item.SizeDisplay = detailedFile.SizeDisplay;
+        }
+
+        if (detailedFile.SizeBytes.HasValue && detailedFile.SizeBytes.Value > 0)
+        {
+            item.FileSize = detailedFile.SizeBytes.Value;
+        }
+
+        if (!string.IsNullOrEmpty(detailedFile.DownloadUrl))
+        {
+            item.DownloadUrl = detailedFile.DownloadUrl;
+        }
+
+        if (!string.IsNullOrEmpty(detailedFile.ThumbnailUrl))
+        {
+            item.ThumbnailUrl = detailedFile.ThumbnailUrl;
+        }
+    }
+
+    private static void UpdateItemPreviewImages(DownloadableItemViewModel item, DownloadableFile detailedFile)
+    {
+        if (detailedFile.PreviewImages == null)
+        {
+            return;
+        }
+
+        item.PreviewImages.Clear();
+        foreach (var img in detailedFile.PreviewImages)
+        {
+            item.PreviewImages.Add(img);
+        }
+    }
+
     private async Task InitializeVariantsAsync()
     {
         EnsureSynthesizedVariantSearchResults();
@@ -3802,66 +3870,8 @@ public partial class ContentDetailViewModel(
         RunOnUiThread(() =>
         {
             item.File = detailedFile;
-
-            if (!string.IsNullOrEmpty(detailedFile.Filename))
-            {
-                item.Filename = detailedFile.Filename;
-            }
-
-            if (!string.IsNullOrEmpty(detailedFile.Category))
-            {
-                item.Category = detailedFile.Category;
-                item.ContentType = ModDBCategoryMapper.MapCategoryByName(detailedFile.Category);
-            }
-
-            if (!string.IsNullOrEmpty(detailedFile.Uploader))
-            {
-                item.Uploader = detailedFile.Uploader;
-            }
-
-            if (!string.IsNullOrEmpty(detailedFile.Md5Hash))
-            {
-                item.Md5Hash = detailedFile.Md5Hash;
-            }
-
-            if (detailedFile.DownloadCount.HasValue)
-            {
-                item.DownloadCount = detailedFile.DownloadCount;
-            }
-
-            if (!string.IsNullOrEmpty(detailedFile.Description))
-            {
-                item.FullDescription = detailedFile.Description;
-            }
-
-            if (!string.IsNullOrEmpty(detailedFile.SizeDisplay))
-            {
-                item.SizeDisplay = detailedFile.SizeDisplay;
-            }
-
-            if (detailedFile.SizeBytes.HasValue && detailedFile.SizeBytes.Value > 0)
-            {
-                item.FileSize = detailedFile.SizeBytes.Value;
-            }
-
-            if (!string.IsNullOrEmpty(detailedFile.DownloadUrl))
-            {
-                item.DownloadUrl = detailedFile.DownloadUrl;
-            }
-
-            if (!string.IsNullOrEmpty(detailedFile.ThumbnailUrl))
-            {
-                item.ThumbnailUrl = detailedFile.ThumbnailUrl;
-            }
-
-            if (detailedFile.PreviewImages != null)
-            {
-                item.PreviewImages.Clear();
-                foreach (var img in detailedFile.PreviewImages)
-                {
-                    item.PreviewImages.Add(img);
-                }
-            }
+            UpdateItemFileProperties(item, detailedFile);
+            UpdateItemPreviewImages(item, detailedFile);
 
             item.IsDetailsLoaded = true;
 

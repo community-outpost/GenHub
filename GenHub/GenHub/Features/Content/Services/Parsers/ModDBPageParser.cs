@@ -316,7 +316,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
         var thumbnailUrl = imgEl?.GetAttribute("src") ?? imgEl?.GetAttribute("data-src");
         if (!string.IsNullOrEmpty(thumbnailUrl))
         {
-            return (thumbnailUrl.Contains("blank.gif", StringComparison.OrdinalIgnoreCase) ||
+            return (thumbnailUrl.Contains(ModDBConstants.BlankGifFileName, StringComparison.OrdinalIgnoreCase) ||
                     thumbnailUrl.Contains("clear.gif", StringComparison.OrdinalIgnoreCase))
                 ? null
                 : ToAbsoluteUrl(thumbnailUrl);
@@ -988,7 +988,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
 
         var disallowedTokens = new[]
         {
-            "data:", "clear.gif", "blank.gif", "/avatar/", "/button",
+            "data:", "clear.gif", ModDBConstants.BlankGifFileName, "/avatar/", "/button",
             "/guest/", "/default/error", "error_50x50", "/images/games/",
             "/images/groups/", "/images/members/", "/cache/images/games/",
             "/cache/images/groups/", "/cache/images/members/", "icon.gif",
@@ -2271,6 +2271,50 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
         return null;
     }
 
+    private static Dictionary<string, string> CollectDetailedFileMetadata(IDocument document)
+    {
+        var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var containers = document.QuerySelectorAll("#downloadsinfo, .table, table.table, #downloadsfiles, .sidecolumn, #modsinfo, #profile");
+        foreach (var container in containers)
+        {
+            var rows = container.QuerySelectorAll("tr");
+            foreach (var row in rows)
+            {
+                var cells = row.QuerySelectorAll("td, th");
+                if (cells.Length >= 2)
+                {
+                    var key = cells[0].TextContent?.Trim().ToLowerInvariant().Replace(":", string.Empty);
+                    var value = cells[1].TextContent?.Trim();
+                    if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(value))
+                    {
+                        metadata[key] = value;
+                    }
+                }
+            }
+
+            var flexRows = container.QuerySelectorAll(".row.clear, .row, div.heading, dl");
+            foreach (var row in flexRows)
+            {
+                var labelEl = row.QuerySelector("h5, h4, dt, strong, .label, .rowlabel");
+                var label = labelEl?.TextContent?.Trim().ToLowerInvariant().Replace(":", string.Empty);
+                if (string.IsNullOrWhiteSpace(label))
+                {
+                    continue;
+                }
+
+                var valueElement = labelEl?.NextElementSibling
+                    ?? row.QuerySelector("span.summary, dd, time, a, .content, span");
+                var value = valueElement?.TextContent?.Trim();
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    metadata[label] = value;
+                }
+            }
+        }
+
+        return metadata;
+    }
+
     /// <inheritdoc />
     public string ParserId => "ModDB";
 
@@ -2899,7 +2943,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
 
             if (iconUrl.Contains("error_50x50", StringComparison.OrdinalIgnoreCase) ||
                 iconUrl.Contains("default/error", StringComparison.OrdinalIgnoreCase) ||
-                iconUrl.Contains("blank.gif", StringComparison.OrdinalIgnoreCase) ||
+                iconUrl.Contains(ModDBConstants.BlankGifFileName, StringComparison.OrdinalIgnoreCase) ||
                 iconUrl.Contains("clear.gif", StringComparison.OrdinalIgnoreCase))
             {
                 iconUrl = null;
@@ -3069,50 +3113,6 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
             Filename: filename);
     }
 
-    private Dictionary<string, string> CollectDetailedFileMetadata(IDocument document)
-    {
-        var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var containers = document.QuerySelectorAll("#downloadsinfo, .table, table.table, #downloadsfiles, .sidecolumn, #modsinfo, #profile");
-        foreach (var container in containers)
-        {
-            var rows = container.QuerySelectorAll("tr");
-            foreach (var row in rows)
-            {
-                var cells = row.QuerySelectorAll("td, th");
-                if (cells.Length >= 2)
-                {
-                    var key = cells[0].TextContent?.Trim().ToLowerInvariant().Replace(":", string.Empty);
-                    var value = cells[1].TextContent?.Trim();
-                    if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(value))
-                    {
-                        metadata[key] = value;
-                    }
-                }
-            }
-
-            var flexRows = container.QuerySelectorAll(".row.clear, .row, div.heading, dl");
-            foreach (var row in flexRows)
-            {
-                var labelEl = row.QuerySelector("h5, h4, dt, strong, .label, .rowlabel");
-                var label = labelEl?.TextContent?.Trim().ToLowerInvariant().Replace(":", string.Empty);
-                if (string.IsNullOrWhiteSpace(label))
-                {
-                    continue;
-                }
-
-                var valueElement = labelEl?.NextElementSibling
-                    ?? row.QuerySelector("span.summary, dd, time, a, .content, span");
-                var value = valueElement?.TextContent?.Trim();
-                if (!string.IsNullOrWhiteSpace(value))
-                {
-                    metadata[label] = value;
-                }
-            }
-        }
-
-        return metadata;
-    }
-
     private string ResolveDetailedFileName(IDocument document, string? filename)
     {
         string? fileHeading = null;
@@ -3218,7 +3218,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
             var src = img.GetAttribute("src") ?? img.GetAttribute("data-src");
             if (string.IsNullOrWhiteSpace(src) ||
                 src.StartsWith("data:", StringComparison.OrdinalIgnoreCase) ||
-                src.Contains("blank.gif", StringComparison.OrdinalIgnoreCase) ||
+                src.Contains(ModDBConstants.BlankGifFileName, StringComparison.OrdinalIgnoreCase) ||
                 src.Contains("clear.gif", StringComparison.OrdinalIgnoreCase) ||
                 src.Contains("guest", StringComparison.OrdinalIgnoreCase) ||
                 src.Contains("/avatar/", StringComparison.OrdinalIgnoreCase) ||

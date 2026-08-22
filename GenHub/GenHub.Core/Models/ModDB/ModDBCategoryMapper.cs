@@ -19,7 +19,7 @@ public static class ModDBCategoryMapper
             // Releases (Mods)
             "2" => ContentType.Mod,  // Full Version
             "3" => ContentType.Mod,  // Demo
-            "4" => ContentType.Mod,  // Patch (mod release/update)
+            "4" => ContentType.Patch, // Patch
             "28" => ContentType.Mod, // Script (mod script/release)
             "29" => ContentType.Addon, // Trainer
 
@@ -103,7 +103,7 @@ public static class ModDBCategoryMapper
         {
             var s when s.Contains("full version") => ContentType.Mod,
             var s when s.Contains("demo") => ContentType.Mod,
-            var s when s.Contains("patch") => ContentType.Mod,
+            var s when s.Contains("patch") || s.Contains("hotfix") => ContentType.Patch,
             var s when s.Contains("script") => ContentType.Mod,
             var s when s.Contains("trainer") => ContentType.Addon,
 
