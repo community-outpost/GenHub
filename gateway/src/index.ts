@@ -30,16 +30,19 @@ const CORS_HEADERS: Record<string, string> = {
   "Content-Type": "application/json",
 };
 
+const FILENAME_REGEX = /filename[*]?=(?:utf-8''[^'\r\n]*'|"?)([^";\r\n]+)"?/i;
+const BOUNDARY_REGEX = /boundary=(?:"([^"]+)"|([^;]+))/i;
+
 const parseMaxSizeBytes = (rawLimit: string | undefined): number => {
   if (typeof rawLimit === "string") {
-    return parseInt(rawLimit, 10);
+    return Number.parseInt(rawLimit, 10);
   }
   return 10485760;
 };
 
 const parseMaxAgeSeconds = (rawAge: string | undefined): number => {
   if (typeof rawAge === "string") {
-    return parseInt(rawAge, 10);
+    return Number.parseInt(rawAge, 10);
   }
   return 31536000;
 };
@@ -79,16 +82,16 @@ const signDeleteToken = async (fileKey: string, timestamp: number, secret: strin
 
   const payloadToSign = `${fileKey}:${timestamp}`;
   const sigBuf = await crypto.subtle.sign("HMAC", hmacKey, new TextEncoder().encode(payloadToSign));
-  const sigBase64Url = btoa(String.fromCharCode(...new Uint8Array(sigBuf)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/[=]+$/, "");
+  const sigBase64Url = btoa(String.fromCodePoint(...new Uint8Array(sigBuf)))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/, "");
 
   return `${payloadToSign}.${sigBase64Url}`;
 };
 
 const isTimestampExpired = (tokenTime: number, maxAgeSeconds: number): boolean => {
-  if (isNaN(tokenTime)) {
+  if (Number.isNaN(tokenTime)) {
     return true;
   }
   const age = Math.floor(Date.now() / 1000) - tokenTime;
@@ -127,7 +130,7 @@ const validateTokenParts = (
   if (parts.key !== fileKey) {
     return { valid: false, error: "Delete token does not match fileKey" };
   }
-  if (isTimestampExpired(parseInt(parts.timeStr, 10), maxAgeSeconds)) {
+  if (isTimestampExpired(Number.parseInt(parts.timeStr, 10), maxAgeSeconds)) {
     return { valid: false, error: "Delete token expired or invalid timestamp" };
   }
   return { valid: true, payload: parts.payload, signature: parts.signature };
@@ -148,10 +151,8 @@ const verifyHmacSignature = async (payload: string, signature: string, secret: s
     ["verify"]
   );
 
-  const rawSig = Uint8Array.from(
-    atob(signature.replace(/-/g, "+").replace(/_/g, "/")),
-    (c) => c.charCodeAt(0)
-  );
+  const normalizedSig = signature.replaceAll("-", "+").replaceAll("_", "/");
+  const rawSig = Uint8Array.from(atob(normalizedSig), (c) => c.codePointAt(0) ?? 0);
 
   return crypto.subtle.verify("HMAC", hmacKey, rawSig, new TextEncoder().encode(payload));
 };
@@ -192,9 +193,9 @@ const extractFileFromForm = (formData: FormData): File | null => {
 };
 
 const parseMultipartFilename = (headerText: string): string => {
-  const match = headerText.match(/filename[*]?=(?:utf-8''[^'\r\n]*'|"?)([^";\r\n]+)"?/i);
-  if (match && match[1]) {
-    return match[1].trim().replace(/^"|"$/g, "");
+  const match = FILENAME_REGEX.exec(headerText);
+  if (match?.[1]) {
+    return match[1].trim().replaceAll('"', "");
   }
   return "upload.zip";
 };
@@ -208,13 +209,13 @@ const parsePartBytes = (part: string, headerEnd: number): Uint8Array => {
   const binaryChunk = part.substring(bodyStart, bodyEnd);
   const bytes = new Uint8Array(binaryChunk.length);
   for (let i = 0; i < binaryChunk.length; i++) {
-    bytes[i] = binaryChunk.charCodeAt(i);
+    bytes[i] = binaryChunk.codePointAt(i) ?? 0;
   }
   return bytes;
 };
 
 const getBoundaryString = (contentType: string): string | null => {
-  const match = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/i);
+  const match = BOUNDARY_REGEX.exec(contentType);
   if (!match) {
     return null;
   }
