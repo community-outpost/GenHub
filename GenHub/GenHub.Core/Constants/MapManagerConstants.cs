@@ -126,6 +126,11 @@ public static class MapManagerConstants
     public const string DeleteFailedTitle = "Delete Failed";
 
     /// <summary>
+    /// Category identifier for map uploads.
+    /// </summary>
+    public const string UploadCategory = "maps";
+
+    /// <summary>
     /// Allowed file extensions for map packages.
     /// </summary>
     public static readonly string[] AllowedExtensions = [".map", ".tga", ".ini", ".str", ".txt"];

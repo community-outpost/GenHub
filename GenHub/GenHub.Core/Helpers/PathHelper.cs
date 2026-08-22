@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Security;
@@ -106,7 +107,7 @@ public static class PathHelper
             return IsContained(normalizedRoot, normalizedTarget) &&
                    IsContained(FollowLinks(normalizedRoot), FollowLinks(normalizedTarget));
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
         {
             return false;
         }
@@ -174,7 +175,7 @@ public static class PathHelper
             };
             Process.Start(startInfo);
         }
-        catch
+        catch (Exception ex) when (ex is Win32Exception or IOException or UnauthorizedAccessException or InvalidOperationException)
         {
             /* Ignore explorer errors */
         }

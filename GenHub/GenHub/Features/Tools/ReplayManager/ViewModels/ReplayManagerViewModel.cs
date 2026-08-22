@@ -298,7 +298,7 @@ public partial class ReplayManagerViewModel(
     {
         try
         {
-            var history = await uploadHistoryService.GetUploadHistoryAsync("replays");
+            var history = await uploadHistoryService.GetUploadHistoryAsync(ReplayManagerConstants.UploadCategory);
             UploadHistory.Clear();
 
             // Add items to collection
@@ -432,7 +432,7 @@ public partial class ReplayManagerViewModel(
 
         try
         {
-            await uploadHistoryService.ClearHistoryAsync(deleteFromCloud: true, category: "replays");
+            await uploadHistoryService.ClearHistoryAsync(deleteFromCloud: true, category: ReplayManagerConstants.UploadCategory);
             await LoadHistoryAsync();
             notificationService.ShowSuccess(
                 "Cleared",
@@ -691,7 +691,7 @@ public partial class ReplayManagerViewModel(
             {
                 Progress = p;
                 int percent = (int)Math.Round(p * 100);
-                StatusMessage = ToolUploadHelper.FormatUploadStageMessage("replays", isZip, percent);
+                StatusMessage = ToolUploadHelper.FormatUploadStageMessage(ReplayManagerConstants.UploadCategory, isZip, percent);
             });
 
             var uploadResult = await exportService.UploadToUploadThingAsync([.. SelectedReplays], progressHandler);
@@ -801,7 +801,7 @@ public partial class ReplayManagerViewModel(
         }
 
         var fileName = SelectedReplays.Count == 1 ? SelectedReplays[0].FileName : "replays.zip";
-        uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash, "replays");
+        uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash, ReplayManagerConstants.UploadCategory);
 
         if (IsHistoryOpen)
         {

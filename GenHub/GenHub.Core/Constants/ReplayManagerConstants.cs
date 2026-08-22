@@ -51,6 +51,11 @@ public static class ReplayManagerConstants
     public const string DeleteFailedTitle = "Delete Failed";
 
     /// <summary>
+    /// Category identifier for replay uploads.
+    /// </summary>
+    public const string UploadCategory = "replays";
+
+    /// <summary>
     /// Mock path separator indicator for demo environments on Windows.
     /// </summary>
     public const string WindowsMockPathSegment = "\\Mock\\";

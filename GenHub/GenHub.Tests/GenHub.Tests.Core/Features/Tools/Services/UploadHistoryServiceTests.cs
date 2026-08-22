@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Services;
 using GenHub.Features.Tools.Services;
@@ -313,11 +314,11 @@ public sealed class UploadHistoryServiceTests : IDisposable
     public async Task GetUploadHistoryAsync_WithCategoryFilter_ReturnsOnlyMatchingItemsAsync()
     {
         var service = CreateService();
-        service.RecordUpload(1024, "https://utfs.io/f/replay1", "game.rep", "key_rep", "token_rep", null, "replays");
-        service.RecordUpload(2048, "https://utfs.io/f/map1", "custom_map.zip", "key_map", "token_map", null, "maps");
+        service.RecordUpload(1024, "https://utfs.io/f/replay1", "game.rep", "key_rep", "token_rep", null, ReplayManagerConstants.UploadCategory);
+        service.RecordUpload(2048, "https://utfs.io/f/map1", "custom_map.zip", "key_map", "token_map", null, MapManagerConstants.UploadCategory);
 
-        var replayHistory = (await service.GetUploadHistoryAsync("replays")).ToList();
-        var mapHistory = (await service.GetUploadHistoryAsync("maps")).ToList();
+        var replayHistory = (await service.GetUploadHistoryAsync(ReplayManagerConstants.UploadCategory)).ToList();
+        var mapHistory = (await service.GetUploadHistoryAsync(MapManagerConstants.UploadCategory)).ToList();
         var allHistory = (await service.GetUploadHistoryAsync()).ToList();
 
         Assert.Single(replayHistory);
@@ -335,13 +336,13 @@ public sealed class UploadHistoryServiceTests : IDisposable
     public async Task ClearHistoryAsync_WithCategoryFilter_ClearsOnlySpecifiedCategoryAsync()
     {
         var service = CreateService();
-        service.RecordUpload(1024, "https://utfs.io/f/replay1", "game.rep", "key_rep", "token_rep", null, "replays");
-        service.RecordUpload(2048, "https://utfs.io/f/map1", "custom_map.zip", "key_map", "token_map", null, "maps");
+        service.RecordUpload(1024, "https://utfs.io/f/replay1", "game.rep", "key_rep", "token_rep", null, ReplayManagerConstants.UploadCategory);
+        service.RecordUpload(2048, "https://utfs.io/f/map1", "custom_map.zip", "key_map", "token_map", null, MapManagerConstants.UploadCategory);
 
-        await service.ClearHistoryAsync(deleteFromCloud: false, category: "replays");
+        await service.ClearHistoryAsync(deleteFromCloud: false, category: ReplayManagerConstants.UploadCategory);
 
-        var replayHistory = (await service.GetUploadHistoryAsync("replays")).ToList();
-        var mapHistory = (await service.GetUploadHistoryAsync("maps")).ToList();
+        var replayHistory = (await service.GetUploadHistoryAsync(ReplayManagerConstants.UploadCategory)).ToList();
+        var mapHistory = (await service.GetUploadHistoryAsync(MapManagerConstants.UploadCategory)).ToList();
 
         Assert.Empty(replayHistory);
         Assert.Single(mapHistory);

@@ -635,7 +635,7 @@ public partial class MapManagerViewModel : ObservableObject
             {
                 Progress = p;
                 int percent = (int)Math.Round(p * 100);
-                StatusMessage = ToolUploadHelper.FormatUploadStageMessage("maps", isZip, percent);
+                StatusMessage = ToolUploadHelper.FormatUploadStageMessage(MapManagerConstants.UploadCategory, isZip, percent);
             });
 
             var uploadResult = await _exportService.UploadToUploadThingAsync([.. SelectedMaps], progressHandler);
@@ -744,7 +744,7 @@ public partial class MapManagerViewModel : ObservableObject
         }
 
         var fileName = SelectedMaps.Count == 1 ? SelectedMaps[0].FileName : "maps.zip";
-        _uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash, "maps");
+        _uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash, MapManagerConstants.UploadCategory);
 
         if (IsHistoryOpen)
         {
@@ -1066,7 +1066,7 @@ public partial class MapManagerViewModel : ObservableObject
     {
         try
         {
-            var history = await _uploadHistoryService.GetUploadHistoryAsync("maps");
+            var history = await _uploadHistoryService.GetUploadHistoryAsync(MapManagerConstants.UploadCategory);
             UploadHistory.Clear();
 
             foreach (var item in history)
@@ -1194,7 +1194,7 @@ public partial class MapManagerViewModel : ObservableObject
 
         try
         {
-            await _uploadHistoryService.ClearHistoryAsync(deleteFromCloud: true, category: "maps");
+            await _uploadHistoryService.ClearHistoryAsync(deleteFromCloud: true, category: MapManagerConstants.UploadCategory);
             await LoadHistoryAsync();
             _notificationService.ShowSuccess(
                 "Cleared",
