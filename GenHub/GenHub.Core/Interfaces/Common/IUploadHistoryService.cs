@@ -52,16 +52,17 @@ public interface IUploadHistoryService
     Task<IEnumerable<UploadHistoryItem>> GetUploadHistoryAsync();
 
     /// <summary>
-    /// Removes an item from upload history and optionally deletes the hosted file from cloud storage.
+    /// Removes an item from upload history and deletes the hosted file from cloud storage if a delete token is present.
     /// </summary>
     /// <param name="url">The URL.</param>
-    /// <param name="deleteFromCloud">Whether to attempt deleting the file from cloud storage. Defaults to false.</param>
+    /// <param name="deleteFromCloud">Whether to delete the file from cloud storage. Defaults to true.</param>
     /// <returns>A task representing the asynchronous operation, returning true if removal succeeded.</returns>
-    Task<bool> RemoveHistoryItemAsync(string url, bool deleteFromCloud = false);
+    Task<bool> RemoveHistoryItemAsync(string url, bool deleteFromCloud = true);
 
     /// <summary>
-    /// Clears local history without deleting hosted files.
+    /// Clears upload history and deletes all hosted files from cloud storage if delete tokens are present.
     /// </summary>
+    /// <param name="deleteFromCloud">Whether to delete all files from cloud storage. Defaults to true.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task ClearHistoryAsync();
+    Task ClearHistoryAsync(bool deleteFromCloud = true);
 }

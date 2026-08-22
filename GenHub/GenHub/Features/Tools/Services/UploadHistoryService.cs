@@ -131,7 +131,7 @@ public sealed class UploadHistoryService(
     }
 
     /// <inheritdoc />
-    public async Task<bool> RemoveHistoryItemAsync(string url, bool deleteFromCloud = false)
+    public async Task<bool> RemoveHistoryItemAsync(string url, bool deleteFromCloud = true)
     {
         UploadRecord? matchingRecord = null;
         lock (FileLock)
@@ -175,7 +175,7 @@ public sealed class UploadHistoryService(
                 SaveHistoryInternal(history);
                 _cache = history;
                 logger.LogInformation(
-                    "Removed {Count} item(s) for {Url} from local upload history.",
+                    "Removed {Count} item(s) for {Url} from upload history.",
                     removed,
                     url);
             }
@@ -185,8 +185,38 @@ public sealed class UploadHistoryService(
     }
 
     /// <inheritdoc />
-    public Task ClearHistoryAsync()
+    public async Task ClearHistoryAsync(bool deleteFromCloud = true)
     {
+        List<UploadRecord> recordsToDelete;
+        lock (FileLock)
+        {
+            recordsToDelete = LoadHistoryInternal();
+        }
+
+        if (deleteFromCloud)
+        {
+            foreach (var record in recordsToDelete)
+            {
+                if (!string.IsNullOrEmpty(record.FileKey) && !string.IsNullOrEmpty(record.DeleteToken))
+                {
+                    try
+                    {
+                        var deleted = await uploadThingService.DeleteFileAsync(record.FileKey, record.DeleteToken);
+                        if (!deleted)
+                        {
+                            logger.LogWarning(
+                                "Failed to delete file {Key} from cloud storage during clear history.",
+                                record.FileKey);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Exception occurred while deleting file {Key} from cloud during clear history", record.FileKey);
+                    }
+                }
+            }
+        }
+
         lock (FileLock)
         {
             var history = LoadHistoryInternal();
@@ -195,11 +225,9 @@ public sealed class UploadHistoryService(
                 history.Clear();
                 SaveHistoryInternal(history);
                 _cache = history;
-                logger.LogInformation("Cleared local upload history without deleting hosted files.");
+                logger.LogInformation("Cleared upload history.");
             }
         }
-
-        return Task.CompletedTask;
     }
 
     private List<UploadRecord> LoadHistoryInternal()

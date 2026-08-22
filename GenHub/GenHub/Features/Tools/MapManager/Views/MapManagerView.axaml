@@ -256,7 +256,7 @@
                                         Command="{Binding #Root.((vm:MapManagerViewModel)DataContext).RemoveHistoryItemCommand}"
                                         CommandParameter="{Binding}"
                                         Padding="6,4" Margin="4,0,0,0" VerticalAlignment="Center"
-                                        ToolTip.Tip="Remove this item from your local history check.">
+                                        ToolTip.Tip="Delete this file from cloud storage and remove from history.">
                                   <TextBlock Text="🗑️"/>
                                 </Button>
                               </Grid>
@@ -276,7 +276,7 @@
                         HorizontalAlignment="Stretch"
                         Margin="0,8,0,0"
                         IsVisible="{Binding UploadHistory.Count}"
-                        ToolTip.Tip="Clear all items from your upload history.">
+                        ToolTip.Tip="Delete all uploaded files from cloud storage and clear history.">
                   <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                     <TextBlock Text="🗑️"/>
                     <TextBlock Text="Clear All History"/>

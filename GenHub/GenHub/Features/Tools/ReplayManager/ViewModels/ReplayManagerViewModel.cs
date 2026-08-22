@@ -213,28 +213,35 @@ public partial class ReplayManagerViewModel(
         if (IsDemoPath(demoPath))
         {
             notificationService.ShowInfo(
-                "Remove From History",
-                "Removes the item from local history without deleting the hosted file.");
+                "Delete Upload",
+                "Permanently deletes the uploaded file from cloud storage and removes it from history.");
             return;
         }
 
         try
         {
-            await uploadHistoryService.RemoveHistoryItemAsync(item.Url);
+            var success = await uploadHistoryService.RemoveHistoryItemAsync(item.Url, deleteFromCloud: true);
             await LoadHistoryAsync();
-            notificationService.ShowSuccess(
-                "Removed",
-                "Removed from local history. The hosted file was not deleted.");
+            if (success)
+            {
+                notificationService.ShowSuccess(
+                    "Deleted",
+                    "File deleted from cloud storage and upload history.");
+            }
+            else
+            {
+                notificationService.ShowError("Delete Failed", "Failed to delete file from cloud storage.");
+            }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to remove history item");
-            notificationService.ShowError("Remove Failed", "Failed to remove history item.");
+            notificationService.ShowError("Delete Failed", "Failed to delete history item.");
         }
     }
 
     /// <summary>
-    /// Clears all upload history.
+    /// Clears all upload history and deletes hosted files from cloud storage.
     /// </summary>
     [RelayCommand]
     private async Task ClearHistoryAsync()
@@ -245,17 +252,17 @@ public partial class ReplayManagerViewModel(
         {
             notificationService.ShowInfo(
                 "Clear History",
-                "Clears local upload history without deleting hosted files.");
+                "Permanently deletes all uploaded files from cloud storage and clears upload history.");
             return;
         }
 
         try
         {
-            await uploadHistoryService.ClearHistoryAsync();
+            await uploadHistoryService.ClearHistoryAsync(deleteFromCloud: true);
             await LoadHistoryAsync();
             notificationService.ShowSuccess(
                 "Cleared",
-                "Local history cleared. Hosted files were not deleted.");
+                "All uploaded files deleted from cloud storage and history cleared.");
         }
         catch (Exception ex)
         {

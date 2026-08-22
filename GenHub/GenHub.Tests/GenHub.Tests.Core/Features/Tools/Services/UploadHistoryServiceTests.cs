@@ -141,6 +141,62 @@ public sealed class UploadHistoryServiceTests : IDisposable
     }
 
     /// <summary>
+    /// Verifies that removing an item by default invokes IUploadThingService.DeleteFileAsync when token exists.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task RemoveHistoryItemAsync_Default_InvokesCloudDeletionAsync()
+    {
+        _uploadThingServiceMock
+            .Setup(u => u.DeleteFileAsync("key_default", "token_default", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var service = CreateService();
+        service.RecordUpload(1024, "https://utfs.io/f/key_default", "default.zip", "key_default", "token_default");
+
+        var success = await service.RemoveHistoryItemAsync("https://utfs.io/f/key_default");
+
+        Assert.True(success);
+        _uploadThingServiceMock.Verify(
+            u => u.DeleteFileAsync("key_default", "token_default", It.IsAny<CancellationToken>()),
+            Times.Once);
+
+        var reloadedService = CreateService();
+        Assert.Empty(await reloadedService.GetUploadHistoryAsync());
+    }
+
+    /// <summary>
+    /// Verifies that clearing history by default invokes IUploadThingService.DeleteFileAsync for all items with tokens.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task ClearHistoryAsync_WhenItemsHaveTokens_InvokesCloudDeletionForAllAsync()
+    {
+        _uploadThingServiceMock
+            .Setup(u => u.DeleteFileAsync("key_1", "token_1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _uploadThingServiceMock
+            .Setup(u => u.DeleteFileAsync("key_2", "token_2", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var service = CreateService();
+        service.RecordUpload(1024, "https://utfs.io/f/key_1", "first.zip", "key_1", "token_1");
+        service.RecordUpload(2048, "https://utfs.io/f/key_2", "second.zip", "key_2", "token_2");
+
+        await service.ClearHistoryAsync();
+
+        _uploadThingServiceMock.Verify(
+            u => u.DeleteFileAsync("key_1", "token_1", It.IsAny<CancellationToken>()),
+            Times.Once);
+        _uploadThingServiceMock.Verify(
+            u => u.DeleteFileAsync("key_2", "token_2", It.IsAny<CancellationToken>()),
+            Times.Once);
+
+        var reloadedService = CreateService();
+        Assert.Empty(await reloadedService.GetUploadHistoryAsync());
+    }
+
+    /// <summary>
     /// Verifies that clearing history deletes every local record immediately.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
@@ -151,7 +207,7 @@ public sealed class UploadHistoryServiceTests : IDisposable
         service.RecordUpload(1024, "https://utfs.io/f/first", "first.zip");
         service.RecordUpload(2048, "https://utfs.io/f/second", "second.zip");
 
-        await service.ClearHistoryAsync();
+        await service.ClearHistoryAsync(deleteFromCloud: false);
 
         var reloadedService = CreateService();
         Assert.Empty(await reloadedService.GetUploadHistoryAsync());

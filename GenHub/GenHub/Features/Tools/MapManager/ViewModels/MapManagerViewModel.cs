@@ -1196,25 +1196,36 @@ public partial class MapManagerViewModel : ObservableObject
             demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
         {
             _notificationService.ShowInfo(
-                "Remove From History",
-                "Removes the item from local history without deleting the hosted file.");
+                "Delete Upload",
+                "Permanently deletes the uploaded file from cloud storage and removes it from history.");
             return;
         }
 
         try
         {
-            await _uploadHistoryService.RemoveHistoryItemAsync(item.Url);
+            var success = await _uploadHistoryService.RemoveHistoryItemAsync(item.Url, deleteFromCloud: true);
             await LoadHistoryAsync();
-            _notificationService.ShowSuccess(
-                "Removed",
-                "Removed from local history. The hosted file was not deleted.");
+            if (success)
+            {
+                _notificationService.ShowSuccess(
+                    "Deleted",
+                    "File deleted from cloud storage and upload history.");
+            }
+            else
+            {
+                _notificationService.ShowError("Delete Failed", "Failed to delete file from cloud storage.");
+            }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to remove history item");
+            _notificationService.ShowError("Delete Failed", "Failed to delete history item.");
         }
     }
 
+    /// <summary>
+    /// Clears all upload history and deletes hosted files from cloud storage.
+    /// </summary>
     [RelayCommand]
     private async Task ClearHistoryAsync()
     {
@@ -1225,21 +1236,22 @@ public partial class MapManagerViewModel : ObservableObject
         {
             _notificationService.ShowInfo(
                 "Clear History",
-                "Clears local upload history without deleting hosted files.");
+                "Permanently deletes all uploaded files from cloud storage and clears upload history.");
             return;
         }
 
         try
         {
-            await _uploadHistoryService.ClearHistoryAsync();
+            await _uploadHistoryService.ClearHistoryAsync(deleteFromCloud: true);
             await LoadHistoryAsync();
             _notificationService.ShowSuccess(
                 "Cleared",
-                "Local history cleared. Hosted files were not deleted.");
+                "All uploaded files deleted from cloud storage and history cleared.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to clear history");
+            _notificationService.ShowError("Clear Failed", "Failed to clear history.");
         }
     }
 

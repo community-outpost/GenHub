@@ -408,26 +408,44 @@ const verifyDeleteRequest = async (
 };
 
 const executeDelete = async (fileKey: string, token: string): Promise<boolean> => {
-  const utapi = new UTApi({ token });
-  const result = await utapi.deleteFiles([fileKey]);
-  return result.success;
+  try {
+    const utapi = new UTApi({ token });
+    const result = await utapi.deleteFiles([fileKey]);
+    return result.success;
+  } catch {
+    return false;
+  }
 };
 
 const handleDeleteUpload = async (request: Request, env: Env): Promise<Response> => {
-  const rawBody = (await request.json()) as Record<string, unknown>;
-  const payload = parseDeleteBody(rawBody);
-  const payloadError = validateDeletePayload(payload);
-  if (payloadError !== null) {
-    return new Response(JSON.stringify({ error: payloadError }), { status: 400, headers: CORS_HEADERS });
-  }
+  try {
+    const rawBody = (await request.json()) as Record<string, unknown>;
+    const payload = parseDeleteBody(rawBody);
+    const payloadError = validateDeletePayload(payload);
+    if (payloadError !== null) {
+      return new Response(JSON.stringify({ error: payloadError }), { status: 400, headers: CORS_HEADERS });
+    }
 
-  const verification = await verifyDeleteRequest(payload.fileKey, payload.deleteToken, env);
-  if (!verification.valid) {
-    return new Response(JSON.stringify({ error: verification.error }), { status: 403, headers: CORS_HEADERS });
-  }
+    const verification = await verifyDeleteRequest(payload.fileKey, payload.deleteToken, env);
+    if (!verification.valid) {
+      return new Response(JSON.stringify({ error: verification.error }), { status: 403, headers: CORS_HEADERS });
+    }
 
-  const isSuccess = await executeDelete(payload.fileKey, env.UPLOADTHING_TOKEN);
-  return new Response(JSON.stringify({ success: isSuccess }), { status: 200, headers: CORS_HEADERS });
+    const isSuccess = await executeDelete(payload.fileKey, env.UPLOADTHING_TOKEN);
+    if (!isSuccess) {
+      return new Response(JSON.stringify({ success: false, error: "Storage provider deletion failed" }), {
+        status: 502,
+        headers: CORS_HEADERS,
+      });
+    }
+
+    return new Response(JSON.stringify({ success: true }), { status: 200, headers: CORS_HEADERS });
+  } catch (err: unknown) {
+    return new Response(JSON.stringify({ error: "Delete failed", message: getErrorMessage(err) }), {
+      status: 500,
+      headers: CORS_HEADERS,
+    });
+  }
 };
 
 const handleCorsPreflight = (): Response =>
