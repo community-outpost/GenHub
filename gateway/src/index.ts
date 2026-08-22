@@ -191,12 +191,76 @@ const extractFileFromForm = (formData: FormData): File | null => {
   return fileEntry;
 };
 
-const isMultipartRequest = (request: Request): boolean => {
-  const contentType = request.headers.get("content-type");
-  if (typeof contentType !== "string") {
-    return false;
+const parseMultipartFilename = (headerText: string): string => {
+  const match = headerText.match(/filename[*]?=(?:utf-8''[^'\r\n]*'|"?)([^";\r\n]+)"?/i);
+  if (match && match[1]) {
+    return match[1].trim().replace(/^"|"$/g, "");
   }
-  return contentType.includes("multipart/form-data");
+  return "upload.zip";
+};
+
+const parsePartBytes = (part: string, headerEnd: number): Uint8Array => {
+  const bodyStart = headerEnd + 4;
+  let bodyEnd = part.lastIndexOf("\r\n");
+  if (bodyEnd < bodyStart) {
+    bodyEnd = part.length;
+  }
+  const binaryChunk = part.substring(bodyStart, bodyEnd);
+  const bytes = new Uint8Array(binaryChunk.length);
+  for (let i = 0; i < binaryChunk.length; i++) {
+    bytes[i] = binaryChunk.charCodeAt(i);
+  }
+  return bytes;
+};
+
+const extractFileFromMultipartBuffer = (buffer: ArrayBuffer, contentType: string): File | null => {
+  const match = contentType.match(/boundary=(?:"([^"]+)"|([^;]+))/i);
+  if (!match) {
+    return null;
+  }
+  const boundaryStr = "--" + (match[1] || match[2]).trim();
+  const rawText = new TextDecoder("latin1").decode(buffer);
+  const parts = rawText.split(boundaryStr);
+
+  for (const part of parts) {
+    if (!part.includes("Content-Disposition")) {
+      continue;
+    }
+    const headerEnd = part.indexOf("\r\n\r\n");
+    if (headerEnd === -1) {
+      continue;
+    }
+    const headerText = part.substring(0, headerEnd);
+    const fileName = parseMultipartFilename(headerText);
+    const bytes = parsePartBytes(part, headerEnd);
+    return new File([bytes], fileName, { type: "application/zip" });
+  }
+  return null;
+};
+
+const extractFileFromRequest = async (request: Request): Promise<File | null> => {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (contentType.includes("multipart/form-data")) {
+    try {
+      const cloned = request.clone();
+      const formData = await cloned.formData();
+      const formFile = extractFileFromForm(formData);
+      if (formFile !== null) {
+        return formFile;
+      }
+    } catch {
+      // Fall through to manual multipart extraction
+    }
+    return extractFileFromMultipartBuffer(await request.arrayBuffer(), contentType);
+  }
+
+  const rawFileName = request.headers.get("x-filename") ?? new URL(request.url).searchParams.get("filename");
+  if (rawFileName) {
+    const buffer = await request.arrayBuffer();
+    return new File([buffer], rawFileName, { type: contentType || "application/zip" });
+  }
+
+  return null;
 };
 
 const resolveUfsUrl = (data: { key: string; ufsUrl?: string; url?: string }): string => {
@@ -263,14 +327,9 @@ const createUploadSuccessResponse = async (
 };
 
 const handleDirectUpload = async (request: Request, env: Env): Promise<Response> => {
-  if (!isMultipartRequest(request)) {
-    return new Response(JSON.stringify({ error: "Expected multipart/form-data" }), { status: 400, headers: CORS_HEADERS });
-  }
-
-  const formData = await request.formData();
-  const file = extractFileFromForm(formData);
+  const file = await extractFileFromRequest(request);
   if (file === null) {
-    return new Response(JSON.stringify({ error: "Missing 'file' in form-data" }), { status: 400, headers: CORS_HEADERS });
+    return new Response(JSON.stringify({ error: "Missing file payload in request" }), { status: 400, headers: CORS_HEADERS });
   }
 
   const maxSizeBytes = parseMaxSizeBytes(env.MAX_FILE_SIZE_BYTES);
@@ -334,7 +393,7 @@ const handleCorsPreflight = (): Response =>
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, X-GenHub-Client",
+      "Access-Control-Allow-Headers": "Content-Type, X-GenHub-Client, X-Filename",
     },
   });
 

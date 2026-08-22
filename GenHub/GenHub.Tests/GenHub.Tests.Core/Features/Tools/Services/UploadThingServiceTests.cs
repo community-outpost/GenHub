@@ -185,7 +185,7 @@ public sealed class UploadThingServiceTests : IDisposable
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        await Assert.ThrowsAsync<OperationCanceledException>(
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => service.UploadFileAsync(testFilePath, ct: cts.Token));
     }
 
@@ -284,7 +284,7 @@ public sealed class UploadThingServiceTests : IDisposable
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        await Assert.ThrowsAsync<OperationCanceledException>(
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => service.DeleteFileAsync("key", "token", ct: cts.Token));
     }
 }

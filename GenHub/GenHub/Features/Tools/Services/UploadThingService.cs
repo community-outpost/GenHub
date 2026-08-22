@@ -40,9 +40,14 @@ public sealed class UploadThingService(
             await using var fileStream = File.OpenRead(filePath);
             using var fileContent = new StreamContent(fileStream);
             fileContent.Headers.ContentType = new MediaTypeHeaderValue(ApiConstants.MediaTypeZip);
+            fileContent.Headers.ContentDisposition = new ContentDispositionHeaderValue("form-data")
+            {
+                Name = "\"file\"",
+                FileName = $"\"{fileName}\"",
+            };
 
             using var formContent = new MultipartFormDataContent();
-            formContent.Add(fileContent, "file", fileName);
+            formContent.Add(fileContent);
 
             using var response = await httpClient.PostAsync(ApiConstants.DefaultUploadUrl, formContent, ct);
             if (!response.IsSuccessStatusCode)
