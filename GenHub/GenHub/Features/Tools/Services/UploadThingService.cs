@@ -35,10 +35,9 @@ public sealed class UploadThingService(
         {
             var fileName = Path.GetFileName(filePath);
 
-            progress?.Report(0.1);
-
+            var fileLength = new FileInfo(filePath).Length;
             await using var fileStream = File.OpenRead(filePath);
-            using var fileContent = new StreamContent(fileStream);
+            using var fileContent = new ProgressableStreamContent(fileStream, fileLength, progress);
             fileContent.Headers.ContentType = new MediaTypeHeaderValue(ApiConstants.MediaTypeZip);
             fileContent.Headers.ContentDisposition = new ContentDispositionHeaderValue("form-data")
             {

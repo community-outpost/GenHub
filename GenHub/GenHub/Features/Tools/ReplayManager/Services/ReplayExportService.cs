@@ -36,6 +36,7 @@ public sealed class ReplayExportService(
             var replayList = replays.ToList();
             if (replayList.Count == 0) return null;
 
+            IProgress<double>? uploadProgress = progress;
             if (replayList.Count == 1 && replayList[0].FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
             {
                 var (isValid, errorMessage) = zipValidationService.ValidateZip(replayList[0].FullPath);
@@ -50,20 +51,23 @@ public sealed class ReplayExportService(
             else
             {
                 var tempZip = Path.Combine(Path.GetTempPath(), $"{ReplayManagerConstants.TempShareFilePrefix}{Guid.NewGuid()}.zip");
-                var createdZip = await ExportToZipAsync(replayList, tempZip, progress, ct);
+                var zipProgress = progress != null ? new Progress<double>(p => progress.Report(p * 0.3)) : null;
+                uploadProgress = progress != null ? new Progress<double>(p => progress.Report(0.3 + (p * 0.7))) : null;
+
+                var createdZip = await ExportToZipAsync(replayList, tempZip, zipProgress, ct);
                 if (createdZip == null) return null;
 
                 zipToUpload = createdZip;
                 isTemporaryZip = true;
             }
 
-            if (new FileInfo(zipToUpload).Length > ReplayManagerConstants.MaxReplaySizeBytes)
+            if (new FileInfo(zipToUpload).Length > ReplayManagerConstants.MaxUploadBytesPerPeriod)
             {
                 logger.LogError("File exceeds size limit: {Path}", zipToUpload);
                 return null;
             }
 
-            return await uploadThingService.UploadFileAsync(zipToUpload, progress, ct);
+            return await uploadThingService.UploadFileAsync(zipToUpload, uploadProgress, ct);
         }
         catch (ArgumentException)
         {

@@ -279,7 +279,7 @@
     </Border>
 
     <!-- Footer Storage Notice -->
-    <TextBlock Grid.Row="4" Text="Files are maintained for up to 14 days or until storage is full. Maximum 1MB per file."
+    <TextBlock Grid.Row="4" Text="Files are maintained for up to 14 days or until storage is full. Maximum 10MB quota per user (3-day rolling limit). Duplicate files are automatically deduplicated."
                FontSize="11" Opacity="0.4" HorizontalAlignment="Left" Margin="0,8,0,0" TextWrapping="Wrap" MaxWidth="600"/>
 
     <!-- MapPack Modal Overlay -->

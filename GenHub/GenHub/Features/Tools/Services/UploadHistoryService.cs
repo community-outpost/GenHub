@@ -51,7 +51,7 @@ public sealed class UploadHistoryService(
     }
 
     /// <inheritdoc />
-    public void RecordUpload(long fileSizeBytes, string url, string fileName, string? fileKey = null, string? deleteToken = null)
+    public void RecordUpload(long fileSizeBytes, string url, string fileName, string? fileKey = null, string? deleteToken = null, string? fileHash = null)
     {
         lock (FileLock)
         {
@@ -66,6 +66,7 @@ public sealed class UploadHistoryService(
                     FileName = fileName,
                     FileKey = fileKey,
                     DeleteToken = deleteToken,
+                    FileHash = fileHash,
                 });
 
                 SaveHistoryInternal(history);
@@ -77,6 +78,23 @@ public sealed class UploadHistoryService(
                 logger.LogError(ex, "Failed to record upload");
             }
         }
+    }
+
+    /// <inheritdoc />
+    public Task<UploadRecord?> FindExistingUploadAsync(string fileHash)
+    {
+        if (string.IsNullOrWhiteSpace(fileHash))
+        {
+            return Task.FromResult<UploadRecord?>(null);
+        }
+
+        var history = LoadHistoryInternal();
+        var existing = history.FirstOrDefault(r =>
+            !string.IsNullOrEmpty(r.FileHash) &&
+            string.Equals(r.FileHash, fileHash, StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrEmpty(r.Url));
+
+        return Task.FromResult(existing);
     }
 
     /// <inheritdoc />

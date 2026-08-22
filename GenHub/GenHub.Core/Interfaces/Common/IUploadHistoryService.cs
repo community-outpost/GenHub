@@ -35,7 +35,15 @@ public interface IUploadHistoryService
     /// <param name="fileName">The file name.</param>
     /// <param name="fileKey">Optional file key in cloud storage.</param>
     /// <param name="deleteToken">Optional cryptographic deletion token.</param>
-    void RecordUpload(long fileSizeBytes, string url, string fileName, string? fileKey = null, string? deleteToken = null);
+    /// <param name="fileHash">Optional SHA-256 hash of the uploaded file for deduplication.</param>
+    void RecordUpload(long fileSizeBytes, string url, string fileName, string? fileKey = null, string? deleteToken = null, string? fileHash = null);
+
+    /// <summary>
+    /// Finds an existing active upload record matching the specified file hash.
+    /// </summary>
+    /// <param name="fileHash">The SHA-256 hex string of the file.</param>
+    /// <returns>A task representing the asynchronous operation, returning the matching <see cref="UploadRecord"/> if found.</returns>
+    Task<UploadRecord?> FindExistingUploadAsync(string fileHash);
 
     /// <summary>
     /// Gets the upload history.

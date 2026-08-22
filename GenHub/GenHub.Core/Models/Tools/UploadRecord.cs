@@ -28,6 +28,12 @@ public sealed class UploadRecord
     public string? FileName { get; set; }
 
     /// <summary>
+    /// Gets or sets the SHA-256 hash of the uploaded file for deduplication.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? FileHash { get; set; }
+
+    /// <summary>
     /// Gets or sets the file key assigned by the cloud storage provider.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

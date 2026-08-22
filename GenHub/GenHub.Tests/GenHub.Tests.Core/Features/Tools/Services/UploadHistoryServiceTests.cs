@@ -214,6 +214,41 @@ public sealed class UploadHistoryServiceTests : IDisposable
         Assert.Single(await reloadedService.GetUploadHistoryAsync());
     }
 
+    /// <summary>
+    /// Verifies that FindExistingUploadAsync returns the matching record when the hash matches.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task FindExistingUploadAsync_WhenHashMatches_ReturnsExistingRecordAsync()
+    {
+        var service = CreateService();
+        var fileHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        service.RecordUpload(1024, "https://utfs.io/f/existing", "map.zip", "key_1", "token_1", fileHash);
+
+        var record = await service.FindExistingUploadAsync(fileHash);
+
+        Assert.NotNull(record);
+        Assert.Equal("https://utfs.io/f/existing", record.Url);
+        Assert.Equal(fileHash, record.FileHash);
+        Assert.Equal("key_1", record.FileKey);
+        Assert.Equal("token_1", record.DeleteToken);
+    }
+
+    /// <summary>
+    /// Verifies that FindExistingUploadAsync returns null when no matching hash exists.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task FindExistingUploadAsync_WhenHashNotFound_ReturnsNullAsync()
+    {
+        var service = CreateService();
+        service.RecordUpload(1024, "https://utfs.io/f/existing", "map.zip", "key_1", "token_1", "hash_abc");
+
+        var record = await service.FindExistingUploadAsync("hash_nonexistent");
+
+        Assert.Null(record);
+    }
+
     private UploadHistoryService CreateService()
     {
         var appConfig = new Mock<IAppConfiguration>();

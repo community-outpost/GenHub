@@ -676,6 +676,37 @@ public partial class ReplayManagerViewModel(
             return;
         }
 
+        // Check deduplication if a single file is selected
+        string? fileHash = null;
+        if (SelectedReplays.Count == 1 && File.Exists(SelectedReplays[0].FullPath))
+        {
+            try
+            {
+                await using var stream = File.OpenRead(SelectedReplays[0].FullPath);
+                var hashBytes = await System.Security.Cryptography.SHA256.HashDataAsync(stream);
+                fileHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+
+                var existingUpload = await uploadHistoryService.FindExistingUploadAsync(fileHash);
+                if (existingUpload != null && !string.IsNullOrEmpty(existingUpload.Url))
+                {
+                    var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+                    var clipboard = lifetime?.MainWindow?.Clipboard;
+                    if (clipboard != null)
+                    {
+                        await clipboard.SetTextAsync(existingUpload.Url);
+                    }
+
+                    StatusMessage = "Reused existing upload! Link copied to clipboard.";
+                    notificationService.ShowSuccess("Upload Complete", "Existing link copied to clipboard!");
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to compute file hash for deduplication check");
+            }
+        }
+
         IsBusy = true;
         StatusMessage = "Uploading to cloud (UploadThing)...";
         Progress = 0;
@@ -694,7 +725,7 @@ public partial class ReplayManagerViewModel(
 
                 // Record successful upload
                 var fileName = SelectedReplays.Count == 1 ? SelectedReplays[0].FileName : "replays.zip";
-                uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken);
+                uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash);
 
                 // Refresh history if open
                 if (IsHistoryOpen)

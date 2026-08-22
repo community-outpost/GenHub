@@ -41,6 +41,7 @@ public sealed class MapExportService(
             var mapList = maps.ToList();
             if (mapList.Count == 0) return null;
 
+            IProgress<double>? uploadProgress = progress;
             if (mapList.Count == 1 && mapList[0].FileName.EndsWith(Path.GetExtension(MapManagerConstants.ZipFilePattern), StringComparison.OrdinalIgnoreCase))
             {
                 var (isValid, errorMessage) = importService.ValidateZip(mapList[0].FullPath);
@@ -55,7 +56,10 @@ public sealed class MapExportService(
             else
             {
                 var tempZip = Path.Combine(Path.GetTempPath(), $"genhub_maps_{Guid.NewGuid()}.zip");
-                var createdZip = await ExportToZipAsync(mapList, tempZip, progress, ct);
+                var zipProgress = progress != null ? new Progress<double>(p => progress.Report(p * 0.3)) : null;
+                uploadProgress = progress != null ? new Progress<double>(p => progress.Report(0.3 + (p * 0.7))) : null;
+
+                var createdZip = await ExportToZipAsync(mapList, tempZip, zipProgress, ct);
                 if (createdZip == null) return null;
 
                 zipToUpload = createdZip;
@@ -68,7 +72,7 @@ public sealed class MapExportService(
                 return null;
             }
 
-            return await uploadThingService.UploadFileAsync(zipToUpload, progress, ct);
+            return await uploadThingService.UploadFileAsync(zipToUpload, uploadProgress, ct);
         }
         catch (ArgumentException)
         {
