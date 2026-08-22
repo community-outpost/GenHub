@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -14,6 +15,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
@@ -23,7 +25,6 @@ using GenHub.Core.Models.Tools.ReplayManager;
 using GenHub.Core.Models.Tools.UploadThing;
 using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.Logging;
-
 
 namespace GenHub.Features.Tools.ReplayManager.ViewModels;
 
@@ -43,7 +44,208 @@ public partial class ReplayManagerViewModel(
     IUploadHistoryService uploadHistoryService,
     INotificationService notificationService,
     ILogger<ReplayManagerViewModel> logger) : ObservableObject
-{
+    [ObservableProperty]
+    private GameType selectedTab = GameType.ZeroHour;
+
+    [ObservableProperty]
+    private string importUrl = string.Empty;
+
+    [ObservableProperty]
+    private bool isBusy;
+
+    [ObservableProperty]
+    private bool isIndeterminate;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProgressPercentage))]
+    private double progress;
+
+    /// <summary>
+    /// Gets the current progress as a whole integer percentage between 0 and 100.
+    /// </summary>
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding")]
+    public int ProgressPercentage => (int)Math.Round(Progress * 100);
+
+    [ObservableProperty]
+    private string statusMessage = "Ready";
+
+    /// <summary>
+    /// The name of the ZIP file to export or upload.
+    /// </summary>
+    [ObservableProperty]
+    private string zipName = "replays.zip";
+
+    /// <summary>
+    /// Whether the upload history flyout is open.
+    /// </summary>
+    [ObservableProperty]
+    private bool isHistoryOpen;
+
+    /// <summary>
+    /// Gets the list of upload history items.
+    /// </summary>
+    public ObservableCollection<UploadHistoryItemViewModel> UploadHistory { get; } = [];
+
+    /// <summary>
+    /// Gets the list of replays for Generals.
+    /// </summary>
+    public ObservableCollection<ReplayFile> GeneralsReplays { get; } = [];
+
+    /// <summary>
+    /// Gets the list of replays for Zero Hour.
+    /// </summary>
+    public ObservableCollection<ReplayFile> ZeroHourReplays { get; } = [];
+
+    /// <summary>
+    /// Gets the list of currently selected replays.
+    /// </summary>
+    public ObservableCollection<ReplayFile> SelectedReplays { get; } = [];
+
+    /// <summary>
+    /// Gets a value indicating whether any of the selected replays are ZIP archives.
+    /// </summary>
+    public bool HasSelectedZips => SelectedReplays.Any(r => r.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Gets the collection of all replays for the current tab.
+    /// </summary>
+    public ObservableCollection<ReplayFile> CurrentReplays { get; } = [];
+
+    /// <summary>
+    /// Updates the collection of selected replays.
+    /// </summary>
+    /// <param name="selected">The list of selected replays.</param>
+    public void UpdateSelectedReplays(IEnumerable<ReplayFile> selected)
+    {
+        SelectedReplays.Clear();
+        foreach (var r in selected)
+        {
+            SelectedReplays.Add(r);
+        }
+
+        OnPropertyChanged(nameof(HasSelectedZips));
+        DeleteSelectedCommand.NotifyCanExecuteChanged();
+        ExportToZipCommand.NotifyCanExecuteChanged();
+        UploadAndShareCommand.NotifyCanExecuteChanged();
+        UncompressSelectedCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>
+    /// Initializes the ViewModel by loading replays for the current tab.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public async Task InitializeAsync()
+    {
+        await LoadReplaysAsync();
+    }
+
+    /// <summary>
+    /// Loads replays for the selected game version.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [RelayCommand]
+    public async Task LoadReplaysAsync()
+    {
+        IsBusy = true;
+        IsIndeterminate = true;
+        StatusMessage = "Loading replays...";
+        try
+        {
+            var replays = await directoryService.GetReplaysAsync(SelectedTab);
+
+            // Marshall to UI thread for collection updates
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                // Update the appropriate collection
+                if (SelectedTab == GameType.Generals)
+                {
+                    GeneralsReplays.Clear();
+                    foreach (var r in replays)
+                    {
+                        GeneralsReplays.Add(r);
+                    }
+                }
+                else
+                {
+                    ZeroHourReplays.Clear();
+                    foreach (var r in replays)
+                    {
+                        ZeroHourReplays.Add(r);
+                    }
+                }
+
+                // Update CurrentReplays by clearing and adding items (don't replace the reference!)
+                CurrentReplays.Clear();
+                foreach (var r in replays)
+                {
+                    CurrentReplays.Add(r);
+                }
+            });
+
+            StatusMessage = $"Loaded {replays.Count} replays.";
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to load replays");
+            notificationService.ShowError("Load Error", "Failed to load replays.");
+            StatusMessage = "Error loading replays.";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// Imports files from the specified paths.
+    /// </summary>
+    /// <param name="filePaths">The paths of the files to import.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public async Task ImportFilesAsync(System.Collections.Generic.IEnumerable<string> filePaths)
+    {
+        // Check if current tab is using demo paths
+        var demoPath = directoryService.GetReplayDirectory(SelectedTab);
+        if (IsDemoPath(demoPath))
+        {
+            // Show notification toast explaining what the button does
+            notificationService.ShowInfo(
+                "Import Replays",
+                "Imports replay files from URLs or by dragging and dropping files into your game's replay directory.");
+            return;
+        }
+
+        IsBusy = true;
+        IsIndeterminate = true;
+        StatusMessage = "Importing files...";
+        try
+        {
+            var result = await importService.ImportFromFilesAsync(filePaths, SelectedTab);
+            if (result.Success)
+            {
+                notificationService.ShowSuccess("Import Complete", $"Imported {result.FilesImported} file(s).");
+                StatusMessage = $"Imported {result.FilesImported} file(s).";
+            }
+            else
+            {
+                var errorMsg = result.Errors.Any() ? string.Join("\n", result.Errors) : "No files were imported.";
+                notificationService.ShowError("Import Failed", errorMsg);
+                StatusMessage = "Import failed.";
+            }
+
+            await LoadReplaysAsync();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Import from files failed");
+            notificationService.ShowError("Import Error", ex.Message);
+            StatusMessage = "Import error.";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
     private static string SanitizeFileName(string fileName)
     {
         var invalidChars = Path.GetInvalidFileNameChars();
@@ -104,48 +306,6 @@ public partial class ReplayManagerViewModel(
             /* Ignore explorer errors */
         }
     }
-
-    [ObservableProperty]
-    private GameType selectedTab = GameType.ZeroHour;
-
-    [ObservableProperty]
-    private string importUrl = string.Empty;
-
-    [ObservableProperty]
-    private bool isBusy;
-
-    [ObservableProperty]
-    private bool isIndeterminate;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ProgressPercentage))]
-    private double progress;
-
-    /// <summary>
-    /// Gets the current progress as a whole integer percentage between 0 and 100.
-    /// </summary>
-    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding")]
-    public int ProgressPercentage => (int)Math.Round(Progress * 100);
-
-    [ObservableProperty]
-    private string statusMessage = "Ready";
-
-    /// <summary>
-    /// The name of the ZIP file to export or upload.
-    /// </summary>
-    [ObservableProperty]
-    private string zipName = "replays.zip";
-
-    /// <summary>
-    /// Whether the upload history flyout is open.
-    /// </summary>
-    [ObservableProperty]
-    private bool isHistoryOpen;
-
-    /// <summary>
-    /// Gets the list of upload history items.
-    /// </summary>
-    public ObservableCollection<UploadHistoryItemViewModel> UploadHistory { get; } = [];
 
     /// <summary>
     /// Toggles the upload history flyout.
@@ -321,166 +481,6 @@ public partial class ReplayManagerViewModel(
         {
             logger.LogError(ex, "Failed to clear history");
             notificationService.ShowError("Clear Failed", "Failed to clear history.");
-        }
-    }
-
-    /// <summary>
-    /// Gets the list of replays for Generals.
-    /// </summary>
-    public ObservableCollection<ReplayFile> GeneralsReplays { get; } = [];
-
-    /// <summary>
-    /// Gets the list of replays for Zero Hour.
-    /// </summary>
-    public ObservableCollection<ReplayFile> ZeroHourReplays { get; } = [];
-
-    /// <summary>
-    /// Gets the list of currently selected replays.
-    /// </summary>
-    public ObservableCollection<ReplayFile> SelectedReplays { get; } = [];
-
-    /// <summary>
-    /// Gets a value indicating whether any of the selected replays are ZIP archives.
-    /// </summary>
-    public bool HasSelectedZips => SelectedReplays.Any(r => r.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase));
-
-    /// <summary>
-    /// Updates the collection of selected replays.
-    /// </summary>
-    /// <param name="selected">The list of selected replays.</param>
-    public void UpdateSelectedReplays(IEnumerable<ReplayFile> selected)
-    {
-        SelectedReplays.Clear();
-        foreach (var r in selected)
-        {
-            SelectedReplays.Add(r);
-        }
-
-        OnPropertyChanged(nameof(HasSelectedZips));
-        DeleteSelectedCommand.NotifyCanExecuteChanged();
-        ExportToZipCommand.NotifyCanExecuteChanged();
-        UploadAndShareCommand.NotifyCanExecuteChanged();
-        UncompressSelectedCommand.NotifyCanExecuteChanged();
-    }
-
-    /// <summary>
-    /// Gets the collection of all replays for the current tab.
-    /// </summary>
-    public ObservableCollection<ReplayFile> CurrentReplays { get; } = [];
-
-    /// <summary>
-    /// Initializes the ViewModel by loading replays for the current tab.
-    /// </summary>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task InitializeAsync()
-    {
-        await LoadReplaysAsync();
-    }
-
-    /// <summary>
-    /// Loads replays for the selected game version.
-    /// </summary>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    [RelayCommand]
-    public async Task LoadReplaysAsync()
-    {
-        IsBusy = true;
-        IsIndeterminate = true;
-        StatusMessage = "Loading replays...";
-        try
-        {
-            var replays = await directoryService.GetReplaysAsync(SelectedTab);
-
-            // Marshall to UI thread for collection updates
-            await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                // Update the appropriate collection
-                if (SelectedTab == GameType.Generals)
-                {
-                    GeneralsReplays.Clear();
-                    foreach (var r in replays)
-                    {
-                        GeneralsReplays.Add(r);
-                    }
-                }
-                else
-                {
-                    ZeroHourReplays.Clear();
-                    foreach (var r in replays)
-                    {
-                        ZeroHourReplays.Add(r);
-                    }
-                }
-
-                // Update CurrentReplays by clearing and adding items (don't replace the reference!)
-                CurrentReplays.Clear();
-                foreach (var r in replays)
-                {
-                    CurrentReplays.Add(r);
-                }
-            });
-
-            StatusMessage = $"Loaded {replays.Count} replays.";
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to load replays");
-            notificationService.ShowError("Load Error", "Failed to load replays.");
-            StatusMessage = "Error loading replays.";
-        }
-        finally
-        {
-            IsBusy = false;
-        }
-    }
-
-    /// <summary>
-    /// Imports files from the specified paths.
-    /// </summary>
-    /// <param name="filePaths">The paths of the files to import.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task ImportFilesAsync(System.Collections.Generic.IEnumerable<string> filePaths)
-    {
-        // Check if current tab is using demo paths
-        var demoPath = directoryService.GetReplayDirectory(SelectedTab);
-        if (IsDemoPath(demoPath))
-        {
-            // Show notification toast explaining what the button does
-            notificationService.ShowInfo(
-                "Import Replays",
-                "Imports replay files from URLs or by dragging and dropping files into your game's replay directory.");
-            return;
-        }
-
-        IsBusy = true;
-        IsIndeterminate = true;
-        StatusMessage = "Importing files...";
-        try
-        {
-            var result = await importService.ImportFromFilesAsync(filePaths, SelectedTab);
-            if (result.Success)
-            {
-                notificationService.ShowSuccess("Import Complete", $"Imported {result.FilesImported} file(s).");
-                StatusMessage = $"Imported {result.FilesImported} file(s).";
-            }
-            else
-            {
-                var errorMsg = result.Errors.Any() ? string.Join("\n", result.Errors) : "No files were imported.";
-                notificationService.ShowError("Import Failed", errorMsg);
-                StatusMessage = "Import failed.";
-            }
-
-            await LoadReplaysAsync();
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Import from files failed");
-            notificationService.ShowError("Import Error", ex.Message);
-            StatusMessage = "Import error.";
-        }
-        finally
-        {
-            IsBusy = false;
         }
     }
 

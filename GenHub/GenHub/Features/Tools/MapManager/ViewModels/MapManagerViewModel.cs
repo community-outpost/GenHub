@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -13,6 +14,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Notifications;
@@ -25,7 +27,6 @@ using GenHub.Core.Models.Tools.UploadThing;
 using GenHub.Features.Tools.ViewModels;
 using GenHub.Infrastructure.Imaging;
 using Microsoft.Extensions.Logging;
-
 
 namespace GenHub.Features.Tools.MapManager.ViewModels;
 
@@ -212,59 +213,6 @@ public partial class MapManagerViewModel : ObservableObject
     public bool HasSelectedZips => SelectedMaps.Any(m =>
         m.FileName.EndsWith(Path.GetExtension(MapManagerConstants.ZipFilePattern), StringComparison.OrdinalIgnoreCase));
 
-    private static bool IsDemoPath(string path) =>
-        path.Contains(MapManagerConstants.WindowsMockPathSegment, StringComparison.OrdinalIgnoreCase) ||
-        path.Contains(MapManagerConstants.UnixMockPathSegment, StringComparison.OrdinalIgnoreCase);
-
-    private static string GetUniqueZipDestinationPath(string directory, string rawZipName)
-    {
-        var safeZipName = rawZipName.EndsWith(Path.GetExtension(MapManagerConstants.ZipFilePattern), StringComparison.OrdinalIgnoreCase)
-            ? rawZipName
-            : rawZipName + Path.GetExtension(MapManagerConstants.ZipFilePattern);
-
-        return PathHelper.GetUniqueNumberedPath(Path.Combine(directory, safeZipName));
-    }
-
-    private static string FormatUploadStageMessage(bool isZip, int percent)
-    {
-        if (!isZip && percent < 25)
-        {
-            return $"Compressing maps... {percent}%";
-        }
-
-        if (percent < 88)
-        {
-            return $"Uploading to cloud... {percent}%";
-        }
-
-        if (percent < 100)
-        {
-            return $"Finalizing cloud upload... {percent}%";
-        }
-
-        return "Upload complete! 100%";
-    }
-
-    private static void RevealInExplorer(string filePath)
-    {
-        try
-        {
-            var windowsDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
-            var explorerPath = string.IsNullOrEmpty(windowsDir) ? "explorer.exe" : Path.Combine(windowsDir, "explorer.exe");
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = explorerPath,
-                Arguments = $"/select,\"{filePath}\"",
-                UseShellExecute = false,
-            };
-            Process.Start(startInfo);
-        }
-        catch
-        {
-            /* Ignore explorer errors */
-        }
-    }
-
     /// <summary>
     /// Updates the collection of selected maps.
     /// </summary>
@@ -415,6 +363,59 @@ public partial class MapManagerViewModel : ObservableObject
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    private static bool IsDemoPath(string path) =>
+        path.Contains(MapManagerConstants.WindowsMockPathSegment, StringComparison.OrdinalIgnoreCase) ||
+        path.Contains(MapManagerConstants.UnixMockPathSegment, StringComparison.OrdinalIgnoreCase);
+
+    private static string GetUniqueZipDestinationPath(string directory, string rawZipName)
+    {
+        var safeZipName = rawZipName.EndsWith(Path.GetExtension(MapManagerConstants.ZipFilePattern), StringComparison.OrdinalIgnoreCase)
+            ? rawZipName
+            : rawZipName + Path.GetExtension(MapManagerConstants.ZipFilePattern);
+
+        return PathHelper.GetUniqueNumberedPath(Path.Combine(directory, safeZipName));
+    }
+
+    private static string FormatUploadStageMessage(bool isZip, int percent)
+    {
+        if (!isZip && percent < 25)
+        {
+            return $"Compressing maps... {percent}%";
+        }
+
+        if (percent < 88)
+        {
+            return $"Uploading to cloud... {percent}%";
+        }
+
+        if (percent < 100)
+        {
+            return $"Finalizing cloud upload... {percent}%";
+        }
+
+        return "Upload complete! 100%";
+    }
+
+    private static void RevealInExplorer(string filePath)
+    {
+        try
+        {
+            var windowsDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            var explorerPath = string.IsNullOrEmpty(windowsDir) ? "explorer.exe" : Path.Combine(windowsDir, "explorer.exe");
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = explorerPath,
+                Arguments = $"/select,\"{filePath}\"",
+                UseShellExecute = false,
+            };
+            Process.Start(startInfo);
+        }
+        catch
+        {
+            /* Ignore explorer errors */
         }
     }
 

@@ -44,40 +44,6 @@ public sealed class UploadHistoryService(
     /// <inheritdoc />
     public long MaxUploadBytesPerPeriod => MapManagerConstants.MaxUploadBytesPerPeriod;
 
-    private static string InferCategory(UploadRecord record)
-    {
-        if (!string.IsNullOrEmpty(record.Category))
-        {
-            return record.Category;
-        }
-
-        var fileName = record.FileName ?? string.Empty;
-        if (fileName.EndsWith(".rep", StringComparison.OrdinalIgnoreCase) ||
-            fileName.Equals("replays.zip", StringComparison.OrdinalIgnoreCase))
-        {
-            return "replays";
-        }
-
-        if (fileName.EndsWith(".map", StringComparison.OrdinalIgnoreCase) ||
-            fileName.Equals("maps.zip", StringComparison.OrdinalIgnoreCase))
-        {
-            return "maps";
-        }
-
-        return string.Empty;
-    }
-
-    private static bool MatchesCategory(UploadRecord record, string? category)
-    {
-        if (string.IsNullOrEmpty(category))
-        {
-            return true;
-        }
-
-        var inferred = InferCategory(record);
-        return string.Equals(inferred, category, StringComparison.OrdinalIgnoreCase);
-    }
-
     /// <inheritdoc />
     public async Task<bool> CanUploadAsync(long fileSizeBytes)
     {
@@ -265,11 +231,50 @@ public sealed class UploadHistoryService(
         }
     }
 
+    private static string InferCategory(UploadRecord record)
+    {
+        if (!string.IsNullOrEmpty(record.Category))
+        {
+            return record.Category;
+        }
+
+        var fileName = record.FileName ?? string.Empty;
+        if (fileName.EndsWith(".rep", StringComparison.OrdinalIgnoreCase) ||
+            fileName.Equals("replays.zip", StringComparison.OrdinalIgnoreCase))
+        {
+            return "replays";
+        }
+
+        if (fileName.EndsWith(".map", StringComparison.OrdinalIgnoreCase) ||
+            fileName.Equals("maps.zip", StringComparison.OrdinalIgnoreCase))
+        {
+            return "maps";
+        }
+
+        return string.Empty;
+    }
+
+    private static bool MatchesCategory(UploadRecord record, string? category)
+    {
+        if (string.IsNullOrEmpty(category))
+        {
+            return true;
+        }
+
+        var inferred = InferCategory(record);
+        return string.Equals(inferred, category, StringComparison.OrdinalIgnoreCase);
+    }
+
     private async Task DeleteRecordsFromCloudAsync(IEnumerable<UploadRecord> records)
     {
         var eligibleRecords = records.Where(r => !string.IsNullOrEmpty(r.FileKey) && !string.IsNullOrEmpty(r.DeleteToken));
         foreach (var record in eligibleRecords)
         {
+            if (string.IsNullOrEmpty(record.FileKey) || string.IsNullOrEmpty(record.DeleteToken))
+            {
+                continue;
+            }
+
             try
             {
                 var deleted = await uploadThingService.DeleteFileAsync(record.FileKey, record.DeleteToken);
