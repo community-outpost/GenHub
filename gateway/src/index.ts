@@ -29,6 +29,14 @@ const signDeleteToken = async (fileKey: string, timestamp: number, secret: strin
   return `${payloadToSign}.${sigBase64Url}`;
 };
 
+const isTokenTimestampValid = (tokenTime: number, maxAgeSeconds: number): boolean => {
+  if (isNaN(tokenTime)) {
+    return false;
+  }
+  const age = Math.floor(Date.now() / 1000) - tokenTime;
+  return age >= -300 && age <= maxAgeSeconds;
+};
+
 const parseAndValidateTokenFormat = (
   deleteToken: string,
   fileKey: string,
@@ -47,14 +55,7 @@ const parseAndValidateTokenFormat = (
     return { valid: false, error: "Delete token does not match fileKey" };
   }
 
-  const tokenTime = parseInt(tokenTimeStr, 10);
-  if (isNaN(tokenTime)) {
-    return { valid: false, error: "Invalid timestamp in delete token" };
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-  const age = now - tokenTime;
-  if (age > maxAgeSeconds || age < -300) {
+  if (!isTokenTimestampValid(parseInt(tokenTimeStr, 10), maxAgeSeconds)) {
     return { valid: false, error: "Delete token expired or invalid timestamp" };
   }
 
@@ -78,19 +79,19 @@ const verifyHmacSignature = async (payload: string, signature: string, secret: s
   return crypto.subtle.verify("HMAC", hmacKey, rawSig, new TextEncoder().encode(payload));
 };
 
-const validatePrepareRequest = (
-  fileName: string,
-  fileSize: number,
-  maxSizeBytes: number
-): string | null => {
+const isValidExtension = (name: string): boolean => {
+  const lower = name.toLowerCase();
+  return lower.endsWith(".zip") || lower.endsWith(".rep");
+};
+
+const validatePrepareRequest = (fileName: string, fileSize: number, maxSizeBytes: number): string | null => {
   if (!fileName || fileSize <= 0) {
     return "Invalid file metadata";
   }
   if (fileSize > maxSizeBytes) {
     return `File exceeds max limit of ${maxSizeBytes} bytes`;
   }
-  const lowerName = fileName.toLowerCase();
-  if (!lowerName.endsWith(".zip") && !lowerName.endsWith(".rep")) {
+  if (!isValidExtension(fileName)) {
     return "Only .zip and .rep archives permitted";
   }
   return null;
@@ -125,89 +126,64 @@ const requestPresignedSlot = async (
   return data.data[0];
 };
 
-const handlePrepareUpload = async (request: Request, env: Env): Promise<Response> => {
-  const body = (await request.json()) as {
-    fileName?: string;
-    fileSize?: number;
-    contentType?: string;
-  };
+const executeCloudDelete = async (fileKey: string, token: string): Promise<boolean> => {
+  const res = await fetch("https://api.uploadthing.com/v6/deleteFiles", {
+    method: "POST",
+    headers: {
+      "x-uploadthing-api-key": token,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ fileKeys: [fileKey] }),
+  });
+  return res.ok;
+};
 
+const handlePrepareUpload = async (request: Request, env: Env): Promise<Response> => {
+  const body = (await request.json()) as { fileName?: string; fileSize?: number; contentType?: string };
   const maxSizeBytes = parseInt(env.MAX_FILE_SIZE_BYTES || "10485760", 10);
   const fileName = body.fileName || "";
   const fileSize = body.fileSize || 0;
 
   const validationError = validatePrepareRequest(fileName, fileSize, maxSizeBytes);
   if (validationError) {
-    return new Response(JSON.stringify({ error: validationError }), {
-      status: 400,
-      headers: CORS_HEADERS,
-    });
+    return new Response(JSON.stringify({ error: validationError }), { status: 400, headers: CORS_HEADERS });
   }
 
   const slot = await requestPresignedSlot(fileName, fileSize, body.contentType || "application/zip", env.UPLOADTHING_TOKEN);
   if (!slot) {
-    return new Response(JSON.stringify({ error: "Storage provider rejected upload" }), {
-      status: 502,
-      headers: CORS_HEADERS,
-    });
+    return new Response(JSON.stringify({ error: "Storage provider rejected upload" }), { status: 502, headers: CORS_HEADERS });
   }
 
   const timestamp = Math.floor(Date.now() / 1000);
   const deleteToken = await signDeleteToken(slot.key, timestamp, env.GATEWAY_HMAC_SECRET);
-
   return new Response(
-    JSON.stringify({
-      uploadUrl: slot.url,
-      fileKey: slot.key,
-      deleteToken,
-      publicUrl: `https://utfs.io/f/${slot.key}`,
-    }),
+    JSON.stringify({ uploadUrl: slot.url, fileKey: slot.key, deleteToken, publicUrl: `https://utfs.io/f/${slot.key}` }),
     { status: 200, headers: CORS_HEADERS }
   );
 };
 
 const handleDeleteUpload = async (request: Request, env: Env): Promise<Response> => {
   const body = (await request.json()) as { fileKey?: string; deleteToken?: string };
-  const fileKey = body.fileKey;
-  const deleteToken = body.deleteToken;
+  const fileKey = body.fileKey || "";
+  const deleteToken = body.deleteToken || "";
 
   if (!fileKey || !deleteToken) {
-    return new Response(JSON.stringify({ error: "Missing fileKey or deleteToken" }), {
-      status: 400,
-      headers: CORS_HEADERS,
-    });
+    return new Response(JSON.stringify({ error: "Missing fileKey or deleteToken" }), { status: 400, headers: CORS_HEADERS });
   }
 
   const maxAgeSeconds = parseInt(env.TOKEN_MAX_AGE_SECONDS || "31536000", 10);
   const tokenData = parseAndValidateTokenFormat(deleteToken, fileKey, maxAgeSeconds);
   if (!tokenData.valid || !tokenData.payload || !tokenData.signature) {
-    return new Response(JSON.stringify({ error: tokenData.error || "Invalid delete token" }), {
-      status: 403,
-      headers: CORS_HEADERS,
-    });
+    return new Response(JSON.stringify({ error: tokenData.error || "Invalid delete token" }), { status: 403, headers: CORS_HEADERS });
   }
 
   const isValidSig = await verifyHmacSignature(tokenData.payload, tokenData.signature, env.GATEWAY_HMAC_SECRET);
   if (!isValidSig) {
-    return new Response(JSON.stringify({ error: "Invalid or forged delete token signature" }), {
-      status: 403,
-      headers: CORS_HEADERS,
-    });
+    return new Response(JSON.stringify({ error: "Invalid or forged delete token signature" }), { status: 403, headers: CORS_HEADERS });
   }
 
-  const delRes = await fetch("https://api.uploadthing.com/v6/deleteFiles", {
-    method: "POST",
-    headers: {
-      "x-uploadthing-api-key": env.UPLOADTHING_TOKEN,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ fileKeys: [fileKey] }),
-  });
-
-  return new Response(JSON.stringify({ success: delRes.ok }), {
-    status: 200,
-    headers: CORS_HEADERS,
-  });
+  const success = await executeCloudDelete(fileKey, env.UPLOADTHING_TOKEN);
+  return new Response(JSON.stringify({ success }), { status: 200, headers: CORS_HEADERS });
 };
 
 export default {
