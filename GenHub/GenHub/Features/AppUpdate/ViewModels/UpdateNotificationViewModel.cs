@@ -931,7 +931,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         if (!string.IsNullOrEmpty(settings.DismissedUpdateVersion))
         {
             _userSettingsService.Update(s => s.DismissedUpdateVersion = string.Empty);
-            await _userSettingsService.SaveAsync(_cancellationTokenSource.Token);
+            await _userSettingsService.SaveAsync(CancellationToken.None);
         }
 
         // clear manager cache

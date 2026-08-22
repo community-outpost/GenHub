@@ -82,6 +82,7 @@ public sealed partial class FaqSectionViewModel(IFaqService faqService, ILogger<
             }
 
             _disposed = true;
+            _loadGeneration++;
             ctsToDispose = _loadCts;
             _loadCts = null;
         }
@@ -129,6 +130,11 @@ public sealed partial class FaqSectionViewModel(IFaqService faqService, ILogger<
         }
 
         await CancelAndDisposeAsync(oldCts);
+
+        if (!IsCurrentGeneration(currentGeneration))
+        {
+            return;
+        }
 
         IsLoading = true;
         StatusMessage = string.Empty;
@@ -220,7 +226,7 @@ public sealed partial class FaqSectionViewModel(IFaqService faqService, ILogger<
     {
         lock (_gate)
         {
-            if (_loadGeneration == generation)
+            if (!_disposed && _loadGeneration == generation)
             {
                 IsLoading = false;
             }
