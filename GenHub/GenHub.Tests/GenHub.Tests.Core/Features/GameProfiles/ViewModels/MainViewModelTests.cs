@@ -106,6 +106,7 @@ public class MainViewModelTests
                 Assert.IsType<InfoViewModel>(currentViewModel);
                 break;
             default:
+                // No additional assertions needed for default case
                 break;
         }
     }

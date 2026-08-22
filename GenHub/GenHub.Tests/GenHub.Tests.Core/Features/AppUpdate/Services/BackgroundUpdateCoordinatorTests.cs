@@ -28,7 +28,7 @@ public class BackgroundUpdateCoordinatorTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task InitializeAsync_WhenStartupCheckDisabled_DoesNotCheckUpdates()
+    public async Task InitializeAsync_WhenStartupCheckDisabled_DoesNotCheckUpdatesAsync()
     {
         var mockVelopack = new Mock<IVelopackUpdateManager>();
         var mockUserSettings = new Mock<IUserSettingsService>();
@@ -53,7 +53,7 @@ public class BackgroundUpdateCoordinatorTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckForUpdatesAsync_WhenPrIsMerged_FallsBackToDevelopmentArtifact()
+    public async Task CheckForUpdatesAsync_WhenPrIsMerged_FallsBackToDevelopmentArtifactAsync()
     {
         var notificationShownTcs = new TaskCompletionSource<NotificationMessage>();
 
@@ -134,7 +134,7 @@ public class BackgroundUpdateCoordinatorTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckForUpdatesAsync_WhenCustomBranchIsStale_FallsBackToDevelopmentArtifact()
+    public async Task CheckForUpdatesAsync_WhenCustomBranchIsStale_FallsBackToDevelopmentArtifactAsync()
     {
         var notificationShownTcs = new TaskCompletionSource<NotificationMessage>();
 
@@ -209,7 +209,7 @@ public class BackgroundUpdateCoordinatorTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckForUpdatesAsync_WhenCustomBranchIsStaleAndNoArtifact_FallsBackToGitHubApiRelease()
+    public async Task CheckForUpdatesAsync_WhenCustomBranchIsStaleAndNoArtifact_FallsBackToGitHubApiReleaseAsync()
     {
         var notificationShownTcs = new TaskCompletionSource<NotificationMessage>();
 
