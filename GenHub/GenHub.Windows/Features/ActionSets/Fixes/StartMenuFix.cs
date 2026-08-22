@@ -40,17 +40,6 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
     public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
-    {
-        if (!installation.HasGenerals && !installation.HasZeroHour)
-        {
-            return Task.FromResult(false);
-        }
-
-        return Task.FromResult(true);
-    }
-
-    /// <inheritdoc/>
     public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         try

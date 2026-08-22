@@ -41,7 +41,7 @@ public abstract class BaseActionSet(ILogger logger) : IActionSet
 
     /// <inheritdoc/>
     public virtual Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
-        => Task.FromResult(true);
+        => Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
 
     /// <inheritdoc/>
     public virtual Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
@@ -175,6 +175,27 @@ public abstract class BaseActionSet(ILogger logger) : IActionSet
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Ignored - cleanup failure non-fatal
+        }
+    }
+
+    /// <summary>
+    /// Safely deletes a directory and its contents if it exists.
+    /// </summary>
+    /// <param name="path">The directory path to delete.</param>
+    protected static void DeleteDirectorySafely(string? path)
+    {
+        if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
+        {
+            return;
+        }
+
+        try
+        {
+            Directory.Delete(path, true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Ignored - directory cleanup failure non-fatal
         }
     }
 

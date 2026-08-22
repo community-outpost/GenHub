@@ -81,12 +81,6 @@ public abstract class BaseVCRedistFix : BaseActionSet
     /// </summary>
     protected virtual string ExpectedPublisher => ActionSetConstants.Security.MicrosoftPublisher;
 
-    /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
-    {
-        return Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
-    }
-
     /// <summary>
     /// Checks whether an MSI product code is installed in either 32-bit or 64-bit registry views.
     /// </summary>

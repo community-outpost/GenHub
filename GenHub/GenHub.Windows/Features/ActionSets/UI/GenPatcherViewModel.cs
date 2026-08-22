@@ -286,7 +286,7 @@ public partial class GenPatcherViewModel(
         var version = Interlocked.Increment(ref _refreshVersion);
         await ResetRefreshCancellationTokenAsync();
 
-        var ct = _refreshCts!.Token;
+        var ct = _refreshCts?.Token ?? CancellationToken.None;
 
         try
         {

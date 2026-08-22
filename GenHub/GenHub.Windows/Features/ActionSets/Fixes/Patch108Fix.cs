@@ -343,22 +343,6 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
     private void CleanupTemp(string tempPath, string extractPath)
     {
         DeleteFileSafely(tempPath);
-
-        if (Directory.Exists(extractPath))
-        {
-            try
-            {
-                foreach (var file in Directory.GetFiles(extractPath, "*", SearchOption.AllDirectories))
-                {
-                    DeleteFileSafely(file);
-                }
-
-                Directory.Delete(extractPath, true);
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                logger.LogDebug(ex, "Failed to clean up extract directory {Path}", extractPath);
-            }
-        }
+        DeleteDirectorySafely(extractPath);
     }
 }
