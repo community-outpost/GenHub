@@ -75,4 +75,108 @@ public class GameInstallationTests
             Directory.Delete(tempDir, true);
         }
     }
+
+    /// <summary>
+    /// Verifies that Fetch correctly identifies a standalone Zero Hour installation by its INIZH.big archive.
+    /// </summary>
+    [Fact]
+    public void GameInstallation_Fetch_DetectsStandaloneZeroHour_WhenZeroHourBigsPresent()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHubZHTest_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "generals.exe"), string.Empty);
+            File.WriteAllText(Path.Combine(tempDir, "INIZH.big"), string.Empty);
+
+            var installation = new GameInstallation(tempDir, GameInstallationType.Retail, NullLogger<GameInstallation>.Instance);
+            installation.Fetch();
+
+            Assert.True(installation.HasZeroHour);
+            Assert.Equal(tempDir, installation.ZeroHourPath);
+            Assert.False(installation.HasGenerals);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that Fetch correctly identifies a standalone Generals installation by its INI.big archive.
+    /// </summary>
+    [Fact]
+    public void GameInstallation_Fetch_DetectsStandaloneGenerals_WhenGeneralsBigsPresent()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHubGenTest_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "generals.exe"), string.Empty);
+            File.WriteAllText(Path.Combine(tempDir, "INI.big"), string.Empty);
+
+            var installation = new GameInstallation(tempDir, GameInstallationType.Retail, NullLogger<GameInstallation>.Instance);
+            installation.Fetch();
+
+            Assert.True(installation.HasGenerals);
+            Assert.Equal(tempDir, installation.GeneralsPath);
+            Assert.False(installation.HasZeroHour);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that Fetch correctly identifies a merged installation containing both Generals and Zero Hour archives.
+    /// </summary>
+    [Fact]
+    public void GameInstallation_Fetch_DetectsMergedInstall_WhenBothBigsPresent()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHubMergedTest_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "generals.exe"), string.Empty);
+            File.WriteAllText(Path.Combine(tempDir, "INI.big"), string.Empty);
+            File.WriteAllText(Path.Combine(tempDir, "INIZH.big"), string.Empty);
+
+            var installation = new GameInstallation(tempDir, GameInstallationType.Retail, NullLogger<GameInstallation>.Instance);
+            installation.Fetch();
+
+            Assert.True(installation.HasGenerals);
+            Assert.Equal(tempDir, installation.GeneralsPath);
+            Assert.True(installation.HasZeroHour);
+            Assert.Equal(tempDir, installation.ZeroHourPath);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that Fetch correctly identifies Zero Hour based on folder name when specific archives are absent.
+    /// </summary>
+    [Fact]
+    public void GameInstallation_Fetch_DetectsZeroHour_WhenDirectoryNamedZeroHour()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "Command and Conquer Generals Zero Hour_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "generals.exe"), string.Empty);
+
+            var installation = new GameInstallation(tempDir, GameInstallationType.Retail, NullLogger<GameInstallation>.Instance);
+            installation.Fetch();
+
+            Assert.True(installation.HasZeroHour);
+            Assert.Equal(tempDir, installation.ZeroHourPath);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
 }

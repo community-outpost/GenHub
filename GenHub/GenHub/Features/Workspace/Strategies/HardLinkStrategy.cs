@@ -27,7 +27,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
     public override string Name => "Hard Link";
 
     /// <inheritdoc/>
-    public override string Description => "Creates hard links where possible, copies otherwise. Space-efficient with good performance, works best on same volume.";
+    public override string Description => "Creates hard links or symbolic links to game files. Space-efficient zero-copy workspace.";
 
     /// <inheritdoc/>
     public override bool RequiresAdminRights => false;
@@ -47,21 +47,8 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         // Deduplicate files for accurate estimation - only include workspace-targeted files
         var allFiles = configuration.GetWorkspaceUniqueFiles().ToList();
 
-        // Check if source and destination are on the same volume
-        var sourceRoot = Path.GetPathRoot(configuration.BaseInstallationPath);
-        var destRoot = Path.GetPathRoot(configuration.WorkspaceRootPath);
-
-        if (string.Equals(sourceRoot, destRoot, StringComparison.OrdinalIgnoreCase))
-        {
-            // Same volume: hard links use minimal space
-            // Even empty workspaces need some directory overhead
-            return Math.Max(LinkOverheadBytes, allFiles.Count * LinkOverheadBytes);
-        }
-        else
-        {
-            // Different volumes: will fall back to copying
-            return allFiles.Sum(f => f.Size);
-        }
+        // HardLink strategy enforces zero-copy (hard links or symlinks)
+        return Math.Max(LinkOverheadBytes, allFiles.Count * LinkOverheadBytes);
     }
 
     /// <inheritdoc/>
@@ -217,10 +204,10 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
     }
 
     /// <summary>
-    /// Attempts to create a hard link for the specified CAS file hash at the target path; falls back to copying if hard link creation fails.
+    /// Attempts to create a hard link for the specified CAS file hash at the target path; falls back to symlinking if hard link creation fails.
     /// </summary>
-    /// <param name="hash">The content-addressable storage (CAS) hash of the file to link or copy.</param>
-    /// <param name="targetPath">The destination path where the hard link or copy should be created.</param>
+    /// <param name="hash">The content-addressable storage (CAS) hash of the file to link.</param>
+    /// <param name="targetPath">The destination path where the link should be created.</param>
     /// <param name="contentType">The content type for pool-specific CAS lookup.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
@@ -229,11 +216,13 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         var success = await FileOperations.LinkFromCasAsync(hash, targetPath, useHardLink: true, contentType: contentType, cancellationToken: cancellationToken);
         if (!success)
         {
-            Logger.LogWarning("Hard link creation failed for hash {Hash}, attempting copy fallback", hash);
-            success = await FileOperations.CopyFromCasAsync(hash, targetPath, contentType: contentType, cancellationToken: cancellationToken);
+            Logger.LogWarning("Hard link creation failed for hash {Hash}, attempting symlink fallback", hash);
+            success = await FileOperations.LinkFromCasAsync(hash, targetPath, useHardLink: false, contentType: contentType, cancellationToken: cancellationToken);
             if (!success)
             {
-                throw new InvalidOperationException($"Failed to create hard link or copy from CAS for hash {hash} to {targetPath}");
+                throw new UnauthorizedAccessException(
+                    $"Failed to create hard link or symbolic link from CAS for hash {hash} to {targetPath}. " +
+                    "To use zero-copy workspaces without copying game files, please run GenHub as Administrator or enable Windows Developer Mode.");
             }
         }
     }
@@ -255,7 +244,6 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         var destRoot = Path.GetPathRoot(targetPath);
         var sameVolume = string.Equals(sourceRoot, destRoot, StringComparison.OrdinalIgnoreCase);
 
-        var verifyHash = !sameVolume;
         if (sameVolume)
         {
             try
@@ -264,27 +252,44 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             }
             catch (Exception hardLinkEx)
             {
-                Logger.LogDebug(hardLinkEx, "Hard link creation failed for {RelativePath}, falling back to copy", file.RelativePath);
+                Logger.LogWarning(hardLinkEx, "Hard link creation failed for {RelativePath}, attempting symlink fallback", file.RelativePath);
 
-                // Fall back to copy
-                await FileOperations.CopyFileAsync(sourcePath, targetPath, cancellationToken);
-                verifyHash = true;
+                try
+                {
+                    await FileOperations.CreateSymlinkAsync(targetPath, sourcePath, allowFallback: false, cancellationToken);
+                }
+                catch (Exception symlinkEx)
+                {
+                    Logger.LogError(
+                        symlinkEx,
+                        "Both hard link and symlink creation failed for {RelativePath}. Refusing to copy to prevent disk overhead.",
+                        file.RelativePath);
+
+                    throw new UnauthorizedAccessException(
+                        $"Failed to create hard link or symbolic link for '{file.RelativePath}'. " +
+                        "To use zero-copy workspaces without copying game files, please run GenHub as Administrator or enable Windows Developer Mode.",
+                        symlinkEx);
+                }
             }
         }
         else
         {
-            // Different volumes, must copy
-            await FileOperations.CopyFileAsync(sourcePath, targetPath, cancellationToken);
-            verifyHash = true;
-        }
-
-        // Verify file integrity if hash is provided and small file was copied
-        if (verifyHash && !string.IsNullOrEmpty(file.Hash) && file.Size < 5 * 1024 * 1024)
-        {
-            var hashValid = await FileOperations.VerifyFileHashAsync(targetPath, file.Hash, cancellationToken);
-            if (!hashValid)
+            // Different volumes: create symlink to maintain zero-copy invariant
+            try
             {
-                Logger.LogWarning("Hash verification failed for file: {RelativePath}", file.RelativePath);
+                await FileOperations.CreateSymlinkAsync(targetPath, sourcePath, allowFallback: false, cancellationToken);
+            }
+            catch (Exception symlinkEx)
+            {
+                Logger.LogError(
+                    symlinkEx,
+                    "Cross-volume symlink creation failed for {RelativePath}. Refusing to copy to prevent disk overhead.",
+                    file.RelativePath);
+
+                throw new UnauthorizedAccessException(
+                    $"Failed to create symbolic link across volumes for '{file.RelativePath}'. " +
+                    "To use zero-copy workspaces without copying game files, please run GenHub as Administrator or enable Windows Developer Mode.",
+                    symlinkEx);
             }
         }
     }
@@ -306,12 +311,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         CancellationToken cancellationToken)
     {
         await CreateCasLinkAsync(file.Hash!, destinationPath, manifest.ContentType, cancellationToken);
-        if (sameVolume)
-        {
-            return (true, LinkOverheadBytes);
-        }
-
-        return (false, file.Size);
+        return (true, LinkOverheadBytes);
     }
 
     private async Task<(bool Skipped, bool HardLinked, long BytesProcessed)> ProcessStandardFileAsync(
@@ -335,9 +335,8 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             return (true, false, 0);
         }
 
-        bool verifyHash = false;
-        bool hardLinked = false;
-        long bytesProcessed = 0;
+        bool hardLinked;
+        long bytesProcessed;
 
         if (sameVolume)
         {
@@ -347,7 +346,6 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                 return (true, false, 0);
             }
 
-            verifyHash = result.VerifyHash;
             hardLinked = result.HardLinked;
             bytesProcessed = result.BytesProcessed;
         }
@@ -359,18 +357,8 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                 return (true, false, 0);
             }
 
-            verifyHash = result.VerifyHash;
             hardLinked = result.HardLinked;
             bytesProcessed = result.BytesProcessed;
-        }
-
-        if (verifyHash && !string.IsNullOrEmpty(file.Hash) && file.Size < 5 * 1024 * 1024)
-        {
-            var hashValid = await FileOperations.VerifyFileHashAsync(destinationPath, file.Hash, cancellationToken);
-            if (!hashValid)
-            {
-                Logger.LogWarning("Hash verification failed for file: {RelativePath}", file.RelativePath);
-            }
         }
 
         return (false, hardLinked, bytesProcessed);
@@ -396,29 +384,25 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                 return (true, false, 0, false);
             }
 
-            Logger.LogDebug(ioEx, "Hard link creation failed for {RelativePath}, falling back to copy", file.RelativePath);
-
-            if (!File.Exists(sourcePath))
-            {
-                Logger.LogWarning("Skipping missing file during fallback: {RelativePath}", file.RelativePath);
-                return (true, false, 0, false);
-            }
+            Logger.LogWarning(ioEx, "Hard link creation failed for {RelativePath}, attempting symlink fallback", file.RelativePath);
 
             try
             {
-                await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
-                return (false, false, file.Size, true);
+                await FileOperations.CreateSymlinkAsync(destinationPath, sourcePath, allowFallback: false, cancellationToken);
+                return (false, true, LinkOverheadBytes, false);
             }
-            catch (IOException copyEx)
+            catch (Exception symlinkEx)
             {
-                Logger.LogWarning(copyEx, "Failed to copy file, skipping: {RelativePath}", file.RelativePath);
-                return (true, false, 0, false);
+                Logger.LogError(
+                    symlinkEx,
+                    "Both hard link and symlink creation failed for {RelativePath}. Refusing to copy to prevent disk overhead.",
+                    file.RelativePath);
+
+                throw new UnauthorizedAccessException(
+                    $"Failed to create hard link or symbolic link for '{file.RelativePath}'. " +
+                    "To use zero-copy workspaces without copying game files, please run GenHub as Administrator or enable Windows Developer Mode.",
+                    symlinkEx);
             }
-        }
-        catch (Exception hardLinkEx)
-        {
-            Logger.LogWarning(hardLinkEx, "Unexpected error processing file, skipping: {RelativePath}", file.RelativePath);
-            return (true, false, 0, false);
         }
     }
 
@@ -430,11 +414,26 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
     {
         if (!File.Exists(sourcePath))
         {
-            Logger.LogWarning("Skipping missing file for copy: {RelativePath}", file.RelativePath);
+            Logger.LogWarning("Skipping missing file: {RelativePath} (source: {SourcePath})", file.RelativePath, sourcePath);
             return (true, false, 0, false);
         }
 
-        await FileOperations.CopyFileAsync(sourcePath, destinationPath, cancellationToken);
-        return (false, false, file.Size, true);
+        try
+        {
+            await FileOperations.CreateSymlinkAsync(destinationPath, sourcePath, allowFallback: false, cancellationToken);
+            return (false, true, LinkOverheadBytes, false);
+        }
+        catch (Exception symlinkEx)
+        {
+            Logger.LogError(
+                symlinkEx,
+                "Cross-volume symlink creation failed for {RelativePath}. Refusing to copy to prevent disk overhead.",
+                file.RelativePath);
+
+            throw new UnauthorizedAccessException(
+                $"Failed to create symbolic link across volumes for '{file.RelativePath}'. " +
+                "To use zero-copy workspaces without copying game files, please run GenHub as Administrator or enable Windows Developer Mode.",
+                symlinkEx);
+        }
     }
 }

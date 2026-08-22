@@ -64,6 +64,20 @@ public static class GameClientConstants
     /// <summary>Standard retail Zero Hour directory name.</summary>
     public const string ZeroHourRetailDirectoryName = "Command & Conquer Generals Zero Hour";
 
+    // ===== Core Game Archives =====
+
+    /// <summary>Primary Zero Hour INI archive filename.</summary>
+    public const string ZeroHourIniBig = "INIZH.big";
+
+    /// <summary>Primary Zero Hour Patch archive filename.</summary>
+    public const string ZeroHourPatchBig = "PatchZH.big";
+
+    /// <summary>Primary Generals Vanilla INI archive filename.</summary>
+    public const string GeneralsIniBig = "INI.big";
+
+    /// <summary>Primary Generals Vanilla Patch archive filename.</summary>
+    public const string GeneralsPatchBig = "Patch.big";
+
     // ===== GeneralsOnline Client Detection =====
 
     /// <summary>GeneralsOnline 60Hz client executable name.</summary>

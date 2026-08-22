@@ -253,11 +253,11 @@ public class StrategyTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that hard-link preparation copies CAS content instead of rejecting a cross-volume workspace.
+    /// Verifies that hard-link preparation falls back to symlinks instead of copying when hard linking fails.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task HardLinkStrategy_WhenVolumesDiffer_FallsBackToCopyAsync()
+    public async Task HardLinkStrategy_WhenHardLinkFails_FallsBackToSymlinkAsync()
     {
         const string Hash = "test-hash";
         var strategy = new HardLinkStrategy(_fileOps.Object, new Mock<ILogger<HardLinkStrategy>>().Object);
@@ -296,9 +296,10 @@ public class StrategyTests : IDisposable
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
         _fileOps
-            .Setup(service => service.CopyFromCasAsync(
+            .Setup(service => service.LinkFromCasAsync(
                 Hash,
                 It.IsAny<string>(),
+                false,
                 ManifestContentType.GameClient,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
@@ -307,12 +308,20 @@ public class StrategyTests : IDisposable
 
         Assert.True(result.IsPrepared);
         _fileOps.Verify(
-            service => service.CopyFromCasAsync(
+            service => service.LinkFromCasAsync(
                 Hash,
                 It.IsAny<string>(),
+                false,
                 ManifestContentType.GameClient,
                 It.IsAny<CancellationToken>()),
             Times.Once);
+        _fileOps.Verify(
+            service => service.CopyFromCasAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<ManifestContentType?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     /// <summary>
