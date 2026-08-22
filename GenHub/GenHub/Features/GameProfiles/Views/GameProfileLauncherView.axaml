@@ -264,8 +264,8 @@
                                                  Width="120"
                                                  Height="2"
                                                  VerticalAlignment="Center"
-                                                 Background="#30FFFFFF"
-                                                 Foreground="White" />
+                                                 Background="{DynamicResource SurfaceHoverBrush}"
+                                                 Foreground="{DynamicResource AccentBrush}" />
                                 </StackPanel>
                             </Panel>
                         </StackPanel>
