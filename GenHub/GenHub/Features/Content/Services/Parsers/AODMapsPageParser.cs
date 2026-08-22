@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,6 +12,7 @@ using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Models.Parsers;
 using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
+
 using IDocument = AngleSharp.Dom.IDocument;
 
 namespace GenHub.Features.Content.Services.Parsers;
@@ -18,6 +20,7 @@ namespace GenHub.Features.Content.Services.Parsers;
 /// <summary>
 /// Parser for AODMaps pages that extracts map items from gallery pages.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S101:Types should be named in PascalCase", Justification = "Domain acronym")]
 public partial class AODMapsPageParser(
     IPlaywrightService playwrightService,
     ILogger<AODMapsPageParser> logger) : IWebPageParser

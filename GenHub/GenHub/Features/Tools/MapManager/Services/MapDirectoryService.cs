@@ -1,3 +1,10 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools.MapManager;
@@ -5,12 +12,6 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.MapManager;
 using GenHub.Infrastructure.Imaging;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.MapManager.Services;
 
@@ -238,7 +239,12 @@ public sealed class MapDirectoryService(
 
         try
         {
-            System.Diagnostics.Process.Start("explorer.exe", directory);
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = PlatformConstants.WindowsExplorerPath,
+                Arguments = directory,
+                UseShellExecute = true,
+            });
         }
         catch (Exception ex)
         {
@@ -251,7 +257,12 @@ public sealed class MapDirectoryService(
     {
         try
         {
-            System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{map.FullPath}\"");
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = PlatformConstants.WindowsExplorerPath,
+                Arguments = string.Format(PlatformConstants.WindowsExplorerSelectArgument, map.FullPath),
+                UseShellExecute = true,
+            });
         }
         catch (Exception ex)
         {

@@ -192,9 +192,9 @@ public class OctokitGitHubApiClient(
         CancellationToken cancellationToken = default)
     {
         var cacheKey = $"GitHub_LatestRelease_{owner}_{repositoryName}";
-        if (cache.TryGetValue(cacheKey, out GitHubRelease? cachedRelease))
+        if (cache.TryGetValue(cacheKey, out GitHubRelease? cachedRelease) && cachedRelease != null)
         {
-            return cachedRelease!;
+            return cachedRelease;
         }
 
         try
@@ -237,9 +237,9 @@ public class OctokitGitHubApiClient(
         CancellationToken cancellationToken = default)
     {
         var cacheKey = $"GitHub_ReleaseByTag_{owner}_{repositoryName}_{tag}";
-        if (cache.TryGetValue(cacheKey, out GitHubRelease? cachedRelease))
+        if (cache.TryGetValue(cacheKey, out GitHubRelease? cachedRelease) && cachedRelease != null)
         {
-            return cachedRelease!;
+            return cachedRelease;
         }
 
         try
@@ -281,9 +281,9 @@ public class OctokitGitHubApiClient(
         CancellationToken cancellationToken = default)
     {
         var cacheKey = $"GitHub_Releases_{owner}_{repo}";
-        if (cache.TryGetValue(cacheKey, out IEnumerable<GitHubRelease>? cachedReleases))
+        if (cache.TryGetValue(cacheKey, out IEnumerable<GitHubRelease>? cachedReleases) && cachedReleases != null)
         {
-            return cachedReleases!;
+            return cachedReleases;
         }
 
         try

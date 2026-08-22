@@ -309,12 +309,9 @@ public partial class GenPatcherDatCatalogParser(ILogger<GenPatcherDatCatalogPars
             };
 
             // Add default tags from provider
-            foreach (var tag in provider.DefaultTags)
+            foreach (var tag in provider.DefaultTags.Where(tag => !result.Tags.Contains(tag)))
             {
-                if (!result.Tags.Contains(tag))
-                {
-                    result.Tags.Add(tag);
-                }
+                result.Tags.Add(tag);
             }
 
             // Add category as a tag

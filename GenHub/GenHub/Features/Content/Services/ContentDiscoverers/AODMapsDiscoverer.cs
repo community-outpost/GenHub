@@ -1,3 +1,13 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
+using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 using AngleSharp;
 using AngleSharp.Dom;
 using GenHub.Core.Constants;
@@ -8,21 +18,13 @@ using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Helpers;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace GenHub.Features.Content.Services.ContentDiscoverers;
 
 /// <summary>
 /// Discovers maps from AODMaps (Art of Defense Maps) website.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S101:Types should be named in PascalCase", Justification = "Domain acronym")]
 public partial class AODMapsDiscoverer(
     IHttpClientFactory httpClientFactory,
     ILogger<AODMapsDiscoverer> logger) : IContentDiscoverer

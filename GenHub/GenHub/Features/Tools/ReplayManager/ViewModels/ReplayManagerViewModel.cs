@@ -1,3 +1,11 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -5,6 +13,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
@@ -13,13 +22,6 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Tools.ReplayManager;
 using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace GenHub.Features.Tools.ReplayManager.ViewModels;
 
@@ -597,7 +599,12 @@ public partial class ReplayManagerViewModel(
                 // Reveal in Explorer
                 try
                 {
-                    System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{result}\"");
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = PlatformConstants.WindowsExplorerPath,
+                        Arguments = string.Format(PlatformConstants.WindowsExplorerSelectArgument, result),
+                        UseShellExecute = true,
+                    });
                 }
                 catch
                 {

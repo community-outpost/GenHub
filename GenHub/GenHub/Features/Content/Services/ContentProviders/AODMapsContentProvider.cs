@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,6 +18,7 @@ namespace GenHub.Features.Content.Services.ContentProviders;
 /// AODMaps content provider that orchestrates discovery→resolution→delivery pipeline
 /// for AODMaps-hosted content.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S101:Types should be named in PascalCase", Justification = "Domain acronym")]
 public class AODMapsContentProvider(
     IEnumerable<IContentDiscoverer> discoverers,
     IEnumerable<IContentResolver> resolvers,

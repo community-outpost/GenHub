@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -16,8 +17,18 @@ namespace GenHub.Features.Info.ViewModels;
 /// <summary>
 /// ViewModel for the Info tab, managing multiple info sections.
 /// </summary>
-public partial class InfoViewModel : ViewModelBase, IDisposable, IRecipient<OpenInfoSectionMessage>
+[SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Observable property access on view model")]
+public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipient<OpenInfoSectionMessage>
 {
+    /// <summary>Gets the GenHub Guide module name.</summary>
+    public const string ModuleGuide = "GenHub Guide";
+
+    /// <summary>Gets the Zero Hour module name.</summary>
+    public const string ModuleZeroHour = "Zero Hour";
+
+    /// <summary>Gets the GeneralsOnline module name.</summary>
+    public const string ModuleGeneralsOnline = "GeneralsOnline";
+
     private readonly IEnumerable<IInfoSectionViewModel> _sectionViewModels;
 
     [ObservableProperty]
@@ -29,7 +40,7 @@ public partial class InfoViewModel : ViewModelBase, IDisposable, IRecipient<Open
     /// <summary>
     /// Gets the list of available modules.
     /// </summary>
-    public ObservableCollection<string> Modules { get; } = ["GenHub Guide", "Zero Hour", "GeneralsOnline"];
+    public ObservableCollection<string> Modules { get; } = [ModuleGuide, ModuleZeroHour, ModuleGeneralsOnline];
 
     /// <summary>
     /// Gets the available info sections.
@@ -44,96 +55,61 @@ public partial class InfoViewModel : ViewModelBase, IDisposable, IRecipient<Open
     {
         SelectedModule = (sectionId.Equals("faq", StringComparison.OrdinalIgnoreCase) ||
                           sectionId.Equals("go-changelog", StringComparison.OrdinalIgnoreCase))
-            ? "GeneralsOnline"
-            : "GenHub Guide";
+            ? ModuleGeneralsOnline
+            : ModuleGuide;
 
-        // 2. Force update sections context to ensure the list is populated for the target module
-        // (SelectedModule setter calls UpdateSidebarItems, but we need to be sure before searching)
-
-        // 3. Find the section in the current (filtered) Sections list
+        // Find the section in the current (filtered) Sections list
         var targetSection = Sections.FirstOrDefault(s => s.Id.Equals(sectionId, StringComparison.OrdinalIgnoreCase));
 
         if (targetSection != null)
         {
             SelectedSection = targetSection;
-
-            // Also ensure it's selected in the sidebar
-            if (SelectedSection is GenHubInfoSectionViewModel genHubSection)
-            {
-                 // GenHubInfoSectionViewModel is a container, so we usually select a sub-section inside it?
-                 // No, GenHubInfoSection IS the "Guide" container in the Main Tabs basically?
-                 // Wait, InfoViewModel structure is:
-                 // Sections = [GenHubInfoSectionViewModel (Guide), FaqSectionViewModel (FAQ), etc?]
-
-                 // Let's re-read UpdateSidebarItems logic.
-                 // If Guide is selected:
-                 // GenHubInfoSectionViewModel is found.
-                 // SelectedSection = genHubSection;
-                 // SidebarItems = genHubSection.Sections;
-                 // SelectedSidebarItem = genHubSection.SelectedSection;
-
-                 // So "Quickstart" is actually a SUB-section of GenHubInfoSectionViewModel.
-
-                 // CORRECTION: OpenSection logic needs to handle this hierarchy.
-                 // Ideally, we find the GenHubInfoSectionViewModel, and tell IT to select "quickstart".
-
-                 // Determine if the ID belongs to GenHubSection or is a top level section.
-                 // The "Sections" property of InfoViewModel contains the TOP LEVEL providers (GuideContainer, FAQ, Changelogs).
-
-                 // Users pass "quickstart". This is inside "GenHub Guide".
-
-                 // Let's try to find it in the GenHubInfoSectionViewModel.
-            }
         }
         else
         {
-             // It might be a sub-section of the GenHubInfoSectionViewModel
-             var genHubSection = Sections.OfType<GenHubInfoSectionViewModel>().FirstOrDefault();
-             if (genHubSection != null)
-             {
-                 // We need to check all potential sub-sections.
-                 // The GenHubInfoSectionViewModel might only show filtered sections in its public 'Sections' property based on context.
-                 // However, we can try to switch context to find it.
-
-                 // Heuristic search:
-                 // 1. Try Guide Context
-                 genHubSection.SetModuleContext(GeneralsHubModule.Guide);
-                 if (genHubSection.Sections.Any(s => s.Id.Equals(sectionId, StringComparison.OrdinalIgnoreCase)))
-                 {
-                     SelectedModule = "GenHub Guide";
-                     OpenSubSection(genHubSection, sectionId);
-                     return;
-                 }
-
-                 // 2. Try GeneralsOnline Context
-                 genHubSection.SetModuleContext(GeneralsHubModule.GeneralsOnline);
-                 if (genHubSection.Sections.Any(s => s.Id.Equals(sectionId, StringComparison.OrdinalIgnoreCase)))
-                 {
-                     SelectedModule = "GeneralsOnline";
-                     OpenSubSection(genHubSection, sectionId);
-                     return;
-                 }
-             }
+            // It might be a sub-section of the GenHubInfoSectionViewModel
+            var genHubSection = Sections.OfType<GenHubInfoSectionViewModel>().FirstOrDefault();
+            if (genHubSection != null)
+            {
+                // Heuristic search:
+                // 1. Try Guide Context
+                genHubSection.SetModuleContext(GeneralsHubModule.Guide);
+                if (genHubSection.Sections.Any(s => s.Id.Equals(sectionId, StringComparison.OrdinalIgnoreCase)))
+                {
+                    SelectedModule = ModuleGuide;
+                    OpenSubSection(genHubSection, sectionId);
+                }
+                else
+                {
+                    // 2. Try GeneralsOnline Context
+                    genHubSection.SetModuleContext(GeneralsHubModule.GeneralsOnline);
+                    if (genHubSection.Sections.Any(s => s.Id.Equals(sectionId, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        SelectedModule = ModuleGeneralsOnline;
+                        OpenSubSection(genHubSection, sectionId);
+                    }
+                }
+            }
         }
     }
 
     [ObservableProperty]
-    private string _selectedModule = "GenHub Guide";
+    private string _selectedModule = ModuleGuide;
 
     /// <summary>
     /// Gets a value indicating whether the "GenHub Guide" module is selected.
     /// </summary>
-    public bool IsGuideSelected => SelectedModule == "GenHub Guide";
+    public bool IsGuideSelected => SelectedModule == ModuleGuide;
 
     /// <summary>
     /// Gets a value indicating whether the "Zero Hour" module is selected.
     /// </summary>
-    public bool IsZeroHourSelected => SelectedModule == "Zero Hour";
+    public bool IsZeroHourSelected => SelectedModule == ModuleZeroHour;
 
     /// <summary>
     /// Gets a value indicating whether the "GeneralsOnline" module is selected.
     /// </summary>
-    public bool IsGeneralsOnlineSelected => SelectedModule == "GeneralsOnline";
+    public bool IsGeneralsOnlineSelected => SelectedModule == ModuleGeneralsOnline;
 
     /// <summary>
     /// Gets the items to display in the sidebar for the current module.

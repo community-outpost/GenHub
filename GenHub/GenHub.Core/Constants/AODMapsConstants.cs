@@ -1,8 +1,12 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
 /// Constants for AODMaps (Art of Defense Maps) provider.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized URI constants / mock demo paths")]
+[SuppressMessage("Minor Code Smell", "S101:Types should be named in PascalCase", Justification = "Domain acronym")]
 public static class AODMapsConstants
 {
     /// <summary>Gets the publisher type identifier for AODMaps.</summary>

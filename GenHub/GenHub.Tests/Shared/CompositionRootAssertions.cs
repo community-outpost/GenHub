@@ -106,7 +106,8 @@ public static class CompositionRootAssertions
 
     private static readonly Regex CaptiveDependencyMessage = new(
         "Cannot consume scoped service '(?<scoped>[^']+)' from singleton '(?<singleton>[^']+)'",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled,
+        TimeSpan.FromSeconds(1));
 
     /// <summary>
     /// Builds a host's real container and asserts it is complete.

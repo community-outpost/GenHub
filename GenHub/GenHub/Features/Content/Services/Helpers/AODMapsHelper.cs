@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -13,6 +14,7 @@ namespace GenHub.Features.Content.Services.Helpers;
 /// <summary>
 /// Provides helper methods for AODMaps content processing.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S101:Types should be named in PascalCase", Justification = "Domain acronym")]
 public static partial class AODMapsHelper
 {
     /// <summary>

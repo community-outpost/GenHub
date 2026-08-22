@@ -924,12 +924,15 @@ public class UserDataTrackerService(
     /// <param name="logger">The logger used to record a backup file that could not be deleted.</param>
     private static void RestoreAndConsumeBackup(UserDataFileEntry file, ILogger logger)
     {
-        var backupPath = file.BackupPath!;
-        RestoreBackupCopy(backupPath, file.AbsolutePath);
-        file.BackupPath = null;
-        file.WasOverwritten = false;
+        if (file.BackupPath is not null)
+        {
+            var backupPath = file.BackupPath;
+            RestoreBackupCopy(backupPath, file.AbsolutePath);
+            file.BackupPath = null;
+            file.WasOverwritten = false;
 
-        DeleteConsumedBackup(backupPath, logger);
+            DeleteConsumedBackup(backupPath, logger);
+        }
     }
 
     /// <summary>
@@ -1517,11 +1520,14 @@ public class UserDataTrackerService(
                     // Delete-then-copy rather than File.Move: backups live under the application data
                     // tree while the deployed path is under Documents, which is routinely redirected
                     // to another drive or to OneDrive, and File.Move cannot cross a volume boundary.
-                    RestoreBackupCopy(file.BackupPath!, file.AbsolutePath);
-                    backupRestored = true;
-                    logger.LogInformation("[UserData] Restored backup: {Backup} -> {Path}", file.BackupPath, file.AbsolutePath);
+                    if (file.BackupPath is not null)
+                    {
+                        RestoreBackupCopy(file.BackupPath, file.AbsolutePath);
+                        backupRestored = true;
+                        logger.LogInformation("[UserData] Restored backup: {Backup} -> {Path}", file.BackupPath, file.AbsolutePath);
 
-                    DeleteConsumedBackup(file.BackupPath!, logger);
+                        DeleteConsumedBackup(file.BackupPath, logger);
+                    }
                 }
             }
             catch (OperationCanceledException)

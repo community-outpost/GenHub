@@ -412,20 +412,20 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         List<string>? autoEnabledNames = null,
         CancellationToken cancellationToken = default)
     {
-        if (!CanEnableContent(contentItem, bypassLoadingGuard))
+        if (contentItem is null || !CanEnableContent(contentItem, bypassLoadingGuard))
         {
             return;
         }
 
-        ReplaceConflictingEnabledContent(contentItem!);
-        ActivateContentItem(contentItem!);
+        ReplaceConflictingEnabledContent(contentItem);
+        ActivateContentItem(contentItem);
 
         var autoResolved = autoEnabledNames ?? [];
-        await ResolveDependenciesAsync(contentItem!, autoResolved, cancellationToken);
+        await ResolveDependenciesAsync(contentItem, autoResolved, cancellationToken);
 
         if (isRootOperation)
         {
-            await HandleRootOperationCompletionAsync(contentItem!, autoResolved, cancellationToken);
+            await HandleRootOperationCompletionAsync(contentItem, autoResolved, cancellationToken);
         }
     }
 

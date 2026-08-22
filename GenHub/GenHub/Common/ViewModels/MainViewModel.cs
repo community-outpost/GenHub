@@ -67,11 +67,13 @@ public partial class MainViewModel(
     /// <summary>
     /// Initializes a new instance of the <see cref="MainViewModel"/> class for design-time support.
     /// </summary>
+#pragma warning disable CS8625
     [Obsolete("Use DI constructor for runtime. This is only for XAML tools.")]
     public MainViewModel()
-        : this(null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!, null!)
+        : this(null, null, null, null, null, null, null, null, null, null, null, null, null)
     {
     }
+#pragma warning restore CS8625
 
     /// <summary>
     /// Gets the info view model.
@@ -301,7 +303,7 @@ public partial class MainViewModel(
                 if (result.DoNotAskAgain)
                 {
                     userSettingsService.Update(s => s.HasSeenQuickStart = true);
-                    _ = userSettingsService.SaveAsync();
+                    _ = userSettingsService.SaveAsync(_initializationCts.Token);
                 }
             });
         }
@@ -316,7 +318,7 @@ public partial class MainViewModel(
                 settings.LastSelectedTab = selectedTab;
             });
 
-            _ = userSettingsService.SaveAsync();
+            _ = userSettingsService.SaveAsync(CancellationToken.None);
             logger?.LogDebug("Updated last selected tab to: {Tab}", selectedTab);
         }
         catch (Exception ex)

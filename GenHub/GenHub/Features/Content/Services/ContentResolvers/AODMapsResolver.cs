@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -21,6 +22,7 @@ namespace GenHub.Features.Content.Services.ContentResolvers;
 /// Resolves AODMaps content details from discovered content items.
 /// Uses AODMapsPageParser to parse the page and extracts specific map details.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S101:Types should be named in PascalCase", Justification = "Domain acronym")]
 public class AODMapsResolver(
     AODMapsPageParser pageParser,
     AODMapsManifestFactory manifestFactory,

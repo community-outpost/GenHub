@@ -1,8 +1,11 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
 /// Constants for the Community Outpost catalog parsing and metadata keys.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized URI constants / mock demo paths")]
 public static class CommunityOutpostCatalogConstants
 {
     /// <summary>The catalog format identifier for GenPatcher .dat files.</summary>

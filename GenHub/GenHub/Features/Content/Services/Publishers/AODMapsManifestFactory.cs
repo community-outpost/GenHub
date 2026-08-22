@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -21,6 +22,7 @@ namespace GenHub.Features.Content.Services.Publishers;
 /// <summary>
 /// Factory for creating AODMaps content manifests from parsed content details.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S101:Types should be named in PascalCase", Justification = "Domain acronym")]
 public partial class AODMapsManifestFactory(
     Func<IContentManifestBuilder> manifestBuilderFactory,
     IManifestIdService manifestIdService,

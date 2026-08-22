@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.Notifications;
@@ -13,6 +14,7 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// A specialized ViewModel for the Add Local Content Demo.
 /// This bypasses complex service logic and guarantees static mock data is loaded.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized URI constants / mock demo paths")]
 public partial class DemoAddLocalContentViewModel : AddLocalContentViewModel
 {
     private readonly INotificationService? _notificationService;

@@ -496,7 +496,8 @@ public partial class AddLocalContentViewModel(
             // Retrieve content from CAS to staging
             var result = await contentStorageService.RetrieveContentAsync(
                 Core.Models.Manifest.ManifestId.Create(_originalManifestId),
-                _stagingPath);
+                _stagingPath,
+                _cts?.Token ?? CancellationToken.None);
 
             if (result.Success)
             {
@@ -556,13 +557,7 @@ public partial class AddLocalContentViewModel(
             StatusMessage = $"Importing {Path.GetFileName(path)}...";
             logger?.LogInformation("Importing content from {Path} to staging {Staging}", path, _stagingPath);
 
-            if (!Directory.Exists(_stagingPath))
-            {
-                Directory.CreateDirectory(_stagingPath);
-            }
-
             await StageContentFromPathAsync(path, cancellationToken);
-
             CreateMapFoldersIfNeeded();
 
             var normalizationSetStatus = await HandleGenLauncherNormalizationAsync(cancellationToken);
@@ -1156,7 +1151,7 @@ public partial class AddLocalContentViewModel(
             if (Directory.Exists(_stagingPath))
             {
                 var dirInfo = new DirectoryInfo(_stagingPath);
-                var items = await Task.Run(() => BuildDirectoryTree(dirInfo));
+                var items = await Task.Run(() => BuildDirectoryTree(dirInfo), _cts?.Token ?? CancellationToken.None);
                 foreach (var item in items)
                 {
                     FileTree.Add(item);

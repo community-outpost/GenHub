@@ -33,7 +33,8 @@ public class CommunityOutpostManifestFactory(
         var normalized = pattern.ToLowerInvariant();
         return RegexCache.GetOrAdd(normalized, p => new Regex(
             "^" + Regex.Escape(p).Replace("\\*", ".*") + "$",
-            RegexOptions.IgnoreCase | RegexOptions.Compiled));
+            RegexOptions.IgnoreCase | RegexOptions.Compiled,
+            TimeSpan.FromSeconds(1)));
     }
 
     /// <inheritdoc />
@@ -480,7 +481,6 @@ public class CommunityOutpostManifestFactory(
 
         return dependencyBigFiles;
     }
-
     private bool HasVariantBigFiles(
         string[] allFiles,
         ContentVariant variant,

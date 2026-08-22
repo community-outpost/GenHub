@@ -215,7 +215,7 @@ public class GameProcessManager(
             catch (InvalidOperationException ex)
             {
                 // Process already exited
-                logger.LogInformation("[Terminate] Process {ProcessId} already exited: {Message}", processId, ex.Message);
+                logger.LogInformation(ex, "[Terminate] Process {ProcessId} already exited", processId);
             }
             catch (System.ComponentModel.Win32Exception ex)
             {
@@ -932,7 +932,7 @@ public class GameProcessManager(
         BoundedErrorBuffer capturedErrors,
         CancellationToken cancellationToken)
     {
-        var expectedName = configuration.ExpectedChildProcessName!;
+        var expectedName = configuration.ExpectedChildProcessName;
         var timeout = configuration.ExpectedChildDiscoveryTimeout
             ?? TimeSpan.FromMilliseconds(ProcessConstants.SpawnedChildDiscoveryTimeoutMs);
         var deadline = DateTime.UtcNow + timeout;
