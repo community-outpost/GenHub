@@ -314,6 +314,11 @@ public static class AppUpdateConstants
     public const string GitHubFallbackDedupePrefix = "github:";
 
     /// <summary>
+    /// Log format string when skipping duplicate update notifications.
+    /// </summary>
+    public const string NotificationAlreadyShownLogFormat = "Update notification already shown for {Identity}, skipping duplicate notification";
+
+    /// <summary>
     /// Sort option: sort by last updated date descending.
     /// </summary>
     public const string SortOptionLastUpdated = "Last Updated";

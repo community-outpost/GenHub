@@ -173,7 +173,7 @@ public class BackgroundUpdateCoordinator(
                 var updateIdentity = $"{AppUpdateConstants.PrDedupePrefix}{prNumber}:{artifactVersionBase}";
                 if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
                 {
-                    logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
+                    logger?.LogDebug(AppUpdateConstants.NotificationAlreadyShownLogFormat, updateIdentity);
                     return;
                 }
 
@@ -223,7 +223,7 @@ public class BackgroundUpdateCoordinator(
                 var updateIdentity = $"{AppUpdateConstants.PrFallbackDedupePrefix}{prNumber}:dev:{devVersionBase}";
                 if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
                 {
-                    logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
+                    logger?.LogDebug(AppUpdateConstants.NotificationAlreadyShownLogFormat, updateIdentity);
                     return;
                 }
 
@@ -259,7 +259,7 @@ public class BackgroundUpdateCoordinator(
                 var updateIdentity = $"{AppUpdateConstants.PrFallbackDedupePrefix}{prNumber}:release:{version}";
                 if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
                 {
-                    logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
+                    logger?.LogDebug(AppUpdateConstants.NotificationAlreadyShownLogFormat, updateIdentity);
                     return;
                 }
 
@@ -291,7 +291,7 @@ public class BackgroundUpdateCoordinator(
                 var updateIdentity = $"{AppUpdateConstants.PrFallbackDedupePrefix}{prNumber}:github:{githubVersion}";
                 if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
                 {
-                    logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
+                    logger?.LogDebug(AppUpdateConstants.NotificationAlreadyShownLogFormat, updateIdentity);
                     return;
                 }
 
@@ -334,7 +334,7 @@ public class BackgroundUpdateCoordinator(
                 var updateIdentity = $"{AppUpdateConstants.BranchDedupePrefix}{branch}:{artifactVersionBase}";
                 if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
                 {
-                    logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
+                    logger?.LogDebug(AppUpdateConstants.NotificationAlreadyShownLogFormat, updateIdentity);
                     return;
                 }
 
@@ -384,7 +384,7 @@ public class BackgroundUpdateCoordinator(
                 var updateIdentity = $"{AppUpdateConstants.BranchFallbackDedupePrefix}{branch}:dev:{devVersionBase}";
                 if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
                 {
-                    logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
+                    logger?.LogDebug(AppUpdateConstants.NotificationAlreadyShownLogFormat, updateIdentity);
                     return;
                 }
 
@@ -420,7 +420,7 @@ public class BackgroundUpdateCoordinator(
                 var updateIdentity = $"{AppUpdateConstants.BranchFallbackDedupePrefix}{branch}:release:{version}";
                 if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
                 {
-                    logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
+                    logger?.LogDebug(AppUpdateConstants.NotificationAlreadyShownLogFormat, updateIdentity);
                     return;
                 }
 
@@ -452,7 +452,7 @@ public class BackgroundUpdateCoordinator(
                 var updateIdentity = $"{AppUpdateConstants.BranchFallbackDedupePrefix}{branch}:github:{githubVersion}";
                 if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
                 {
-                    logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
+                    logger?.LogDebug(AppUpdateConstants.NotificationAlreadyShownLogFormat, updateIdentity);
                     return;
                 }
 
@@ -491,7 +491,7 @@ public class BackgroundUpdateCoordinator(
                 var updateIdentity = $"{AppUpdateConstants.ReleaseDedupePrefix}{version}";
                 if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
                 {
-                    logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
+                    logger?.LogDebug(AppUpdateConstants.NotificationAlreadyShownLogFormat, updateIdentity);
                     return;
                 }
 
@@ -526,7 +526,7 @@ public class BackgroundUpdateCoordinator(
                 var updateIdentity = $"{AppUpdateConstants.GitHubFallbackDedupePrefix}{githubVersion}";
                 if (string.Equals(_lastNotifiedUpdateIdentity, updateIdentity, StringComparison.Ordinal))
                 {
-                    logger?.LogDebug("Update notification already shown for {Identity}, skipping duplicate notification", updateIdentity);
+                    logger?.LogDebug(AppUpdateConstants.NotificationAlreadyShownLogFormat, updateIdentity);
                     return;
                 }
 
@@ -672,7 +672,7 @@ public class BackgroundUpdateCoordinator(
                     settings.SubscribedBranch = null;
                 }
             });
-            await userSettingsService.SaveAsync();
+            await userSettingsService.SaveAsync(_cts.Token);
             logger?.LogInformation(
                 "Cleared stale subscription (PR: {PrNumber}, Branch: {Branch}) after applying fallback update",
                 clearedPrNumber,

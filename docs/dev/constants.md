@@ -133,6 +133,7 @@ Constants related to application updates and Velopack.
 | `BranchFallbackDedupePrefix`                  | `"branch-fallback:"`        | Deduplication key prefix for branch fallback update notifications                 |
 | `ReleaseDedupePrefix`                         | `"release:"`                | Deduplication key prefix for release update notifications                         |
 | `GitHubFallbackDedupePrefix`                  | `"github:"`                 | Deduplication key prefix for GitHub API fallback update notifications             |
+| `NotificationAlreadyShownLogFormat`           | `"Update notification..."`  | Log format string when skipping duplicate update notifications                    |
 | `SortOptionLastUpdated`                       | `"Last Updated"`            | Sort option: sort by last updated date descending                                 |
 | `SortOptionPrNumberDesc`                      | `"PR Number (Highest)"`     | Sort option: sort by pull request number descending                               |
 | `SortOptionPrNumberAsc`                       | `"PR Number (Lowest)"`      | Sort option: sort by pull request number ascending                                |
