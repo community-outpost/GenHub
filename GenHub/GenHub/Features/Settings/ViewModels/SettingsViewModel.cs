@@ -494,12 +494,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         try
         {
             var settings = _userSettingsService.Get();
-            var currentThemeId = settings.Theme ?? AppConstants.DefaultThemeName;
+            var currentThemeId = settings.Theme ?? ThemeConstants.DefaultTheme.Id;
             SelectedTheme = AvailableThemes.FirstOrDefault(t =>
                 string.Equals(t.Id, currentThemeId, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(t.DisplayName, currentThemeId, StringComparison.OrdinalIgnoreCase))
                 ?? ThemeConstants.DefaultTheme;
-            Theme = settings.Theme ?? AppConstants.DefaultThemeName;
+            Theme = SelectedTheme.Id;
             WorkspacePath = settings.WorkspacePath;
             MaxConcurrentDownloads = settings.MaxConcurrentDownloads;
             AutoCheckForUpdatesOnStartup = settings.AutoCheckForUpdatesOnStartup;
@@ -629,7 +629,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         try
         {
-            Theme = AppConstants.DefaultThemeName;
+            Theme = ThemeConstants.DefaultTheme.Id;
             WorkspacePath = string.Empty;
             MaxConcurrentDownloads = DownloadDefaults.MaxConcurrentDownloads;
             AutoCheckForUpdatesOnStartup = true;
@@ -1399,9 +1399,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         var matchingTheme = AvailableThemes.FirstOrDefault(t =>
             string.Equals(t.Id, value, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(t.DisplayName, value, StringComparison.OrdinalIgnoreCase));
+            string.Equals(t.DisplayName, value, StringComparison.OrdinalIgnoreCase)) ?? ThemeConstants.DefaultTheme;
 
-        if (matchingTheme != null && SelectedTheme != matchingTheme)
+        if (SelectedTheme != matchingTheme)
         {
             SelectedTheme = matchingTheme;
             _themeService?.ApplyTheme(matchingTheme);
