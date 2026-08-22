@@ -204,7 +204,8 @@
                                             </DataTemplate>
                                         </ComboBox.ItemTemplate>
                                     </ComboBox>
-                                    <ProgressBar Grid.Column="1" IsIndeterminate="True" IsVisible="{Binding IsLoadingVersions}" Width="20" Height="20" Margin="8,0,0,0"/>
+                                    <ProgressBar Grid.Column="1" IsIndeterminate="True" IsVisible="{Binding IsLoadingVersions}" Width="20" Height="20" Margin="8,0,0,0"
+                                                 Foreground="{DynamicResource AccentBrush}" Background="{DynamicResource SurfaceHoverBrush}"/>
                                 </Grid>
                             </StackPanel>
                         </StackPanel>
@@ -246,7 +247,7 @@
                                                                 ToolTip.Tip="Open pull request on GitHub">
                                                             <TextBlock Text="{Binding Number, StringFormat='#{0}'}"
                                                                        FontWeight="Bold"
-                                                                       Foreground="{DynamicResource SystemAccentColor}"
+                                                                       Foreground="{DynamicResource AccentBrush}"
                                                                        TextDecorations="Underline"/>
                                                         </Button>
                                                         <TextBlock Grid.Column="1"
@@ -354,12 +355,12 @@
 
             <!-- Detailed Progress Display -->
             <StackPanel Grid.Column="1" IsVisible="{Binding IsInstalling}" VerticalAlignment="Center" Margin="16,0">
-                <ProgressBar Value="{Binding DownloadProgress}" Height="4" Background="#33FFFFFF" Foreground="{DynamicResource SystemAccentColor}"/>
-                <TextBlock Text="{Binding StatusMessage}" FontSize="12" Foreground="#AAAAAA" Margin="0,4,0,0" TextAlignment="Center"/>
+                <ProgressBar Value="{Binding DownloadProgress}" Height="4" Background="{DynamicResource SurfaceHoverBrush}" Foreground="{DynamicResource AccentBrush}" CornerRadius="2"/>
+                <TextBlock Text="{Binding StatusMessage}" FontSize="12" Foreground="{DynamicResource TextSecondary}" Margin="0,4,0,0" TextAlignment="Center"/>
             </StackPanel>
 
             <Button Grid.Column="2" Command="{Binding InstallUpdateCommand}" IsEnabled="{Binding CanDownloadUpdate}"
-                    Background="{DynamicResource SystemAccentColor}" Foreground="White"
+                    Background="{DynamicResource AccentBrush}" Foreground="White"
                     Padding="24,10" CornerRadius="20" FontWeight="Bold" FontSize="14">
                 <StackPanel Orientation="Horizontal" Spacing="8">
                     <ProgressBar IsIndeterminate="True"

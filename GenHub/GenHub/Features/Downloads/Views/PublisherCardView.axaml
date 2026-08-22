@@ -320,14 +320,14 @@
                                                                         TextWrapping="Wrap" />
                                                          </Border>
 
-                                                         <!-- Progress Bar - visible during installation -->
-                                                         <ProgressBar Value="{Binding DownloadProgress}"
-                                                                      Maximum="100"
-                                                                      Height="6"
-                                                                      CornerRadius="3"
-                                                                      IsVisible="{Binding IsDownloading}"
-                                                                      Foreground="{DynamicResource AccentBrush}"
-                                                                      Background="#252530" />
+                                                        <!-- Progress Bar - visible during installation -->
+                                                        <ProgressBar Value="{Binding DownloadProgress}"
+                                                                     Maximum="100"
+                                                                     Height="6"
+                                                                     CornerRadius="3"
+                                                                     IsVisible="{Binding IsDownloading}"
+                                                                     Foreground="{DynamicResource AccentBrush}"
+                                                                     Background="{DynamicResource SurfaceHoverBrush}" />
                                                         <!-- Status Text - visible during install or when there's a status message -->
                                                         <TextBlock Text="{Binding DownloadStatus}"
                                                                    FontSize="11"

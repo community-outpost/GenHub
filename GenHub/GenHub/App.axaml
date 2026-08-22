@@ -26,5 +26,10 @@
         <StyleInclude Source="avares://GenHub/Assets/Styles/SidebarStyles.axaml" />
         <StyleInclude Source="avares://GenHub/Assets/Styles/ScrollbarStyles.axaml" />
         <StyleInclude Source="avares://GenHub/Common/Controls/SidebarLayoutStyles.axaml" />
+
+        <Style Selector="ProgressBar">
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+        </Style>
     </Application.Styles>
 </Application>
