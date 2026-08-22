@@ -92,13 +92,7 @@ const isTimestampExpired = (tokenTime: number, maxAgeSeconds: number): boolean =
     return true;
   }
   const age = Math.floor(Date.now() / 1000) - tokenTime;
-  if (age < -300) {
-    return true;
-  }
-  if (age > maxAgeSeconds) {
-    return true;
-  }
-  return false;
+  return age < -300 || age > maxAgeSeconds;
 };
 
 const extractTokenParts = (
@@ -215,29 +209,34 @@ const resolveUfsUrl = (data: { key: string; ufsUrl?: string; url?: string }): st
   return `https://utfs.io/f/${data.key}`;
 };
 
-const extractFileResult = (uploadRes: unknown): UploadedFileDetails | null => {
-  let item = uploadRes;
+const extractFirstElement = (uploadRes: unknown): unknown => {
   if (Array.isArray(uploadRes)) {
-    item = uploadRes[0];
+    return uploadRes[0];
   }
+  return uploadRes;
+};
 
-  if (item === null) {
-    return null;
+const extractFileData = (item: unknown): { key: string; ufsUrl?: string; url?: string } | null => {
+  if (item && typeof item === "object") {
+    const rec = item as { data?: { key?: string; ufsUrl?: string; url?: string } | null };
+    if (rec.data && typeof rec.data.key === "string") {
+      return {
+        key: rec.data.key,
+        ufsUrl: rec.data.ufsUrl,
+        url: rec.data.url,
+      };
+    }
   }
-  if (typeof item !== "object") {
-    return null;
-  }
+  return null;
+};
 
-  const rec = item as { data?: { key?: string; ufsUrl?: string; url?: string } | null };
-  const data = rec.data;
-  if (!data) {
+const extractFileResult = (uploadRes: unknown): UploadedFileDetails | null => {
+  const item = extractFirstElement(uploadRes);
+  const data = extractFileData(item);
+  if (data === null) {
     return null;
   }
-  if (typeof data.key !== "string") {
-    return null;
-  }
-
-  return { key: data.key, ufsUrl: resolveUfsUrl({ key: data.key, ufsUrl: data.ufsUrl, url: data.url }) };
+  return { key: data.key, ufsUrl: resolveUfsUrl(data) };
 };
 
 const executeUpload = async (file: File, token: string): Promise<UploadedFileDetails | null> => {
