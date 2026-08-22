@@ -78,6 +78,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     private readonly List<PullRequestInfo> _allPullRequests = [];
     private CancellationTokenSource? _loadArtifactsCts;
     private UpdateInfo? _currentUpdateInfo;
+    private bool _disposed;
 
     /// <summary>
     /// Gets or sets the status message.
@@ -361,13 +362,20 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     {
         await CancelPreviousArtifactLoadAsync();
 
+        if (_disposed || _cancellationTokenSource.IsCancellationRequested)
+        {
+            return;
+        }
+
         var targetPr = SubscribedPr;
         var targetPrNumber = targetPr?.Number ?? _velopackUpdateManager.SubscribedPrNumber;
         var targetBranch = SubscribedBranch;
 
         if (targetPrNumber == null && string.IsNullOrEmpty(targetBranch))
         {
-            ResetAvailableVersions();
+            IsLoadingVersions = false;
+            AvailableVersions.Clear();
+            SelectedVersion = null;
             return;
         }
 
@@ -411,19 +419,12 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
 
     private async Task CancelPreviousArtifactLoadAsync()
     {
-        if (_loadArtifactsCts != null)
+        var oldCts = Interlocked.Exchange(ref _loadArtifactsCts, null);
+        if (oldCts != null)
         {
-            await _loadArtifactsCts.CancelAsync();
-            _loadArtifactsCts.Dispose();
-            _loadArtifactsCts = null;
+            await oldCts.CancelAsync();
+            oldCts.Dispose();
         }
-    }
-
-    private void ResetAvailableVersions()
-    {
-        IsLoadingVersions = false;
-        AvailableVersions.Clear();
-        SelectedVersion = null;
     }
 
     private async Task<IReadOnlyList<ArtifactUpdateInfo>> FetchSubscribedArtifactsAsync(
@@ -610,6 +611,12 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
     /// </summary>
     public void Dispose()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
         _loadArtifactsCts?.Cancel();
         _loadArtifactsCts?.Dispose();
         _loadArtifactsCts = null;
@@ -1317,7 +1324,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
         if (!string.IsNullOrEmpty(LatestVersion))
         {
             _userSettingsService.Update(s => s.DismissedUpdateVersion = LatestVersion);
-            _ = _userSettingsService.SaveAsync(_cancellationTokenSource.Token);
+            _ = _userSettingsService.SaveAsync(CancellationToken.None);
             _logger.LogInformation("Dismissed update version {Version}", LatestVersion);
         }
 
@@ -1527,7 +1534,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             settings.SubscribedPrNumber = prNumber;
             settings.SubscribedBranch = null;
         });
-        _ = _userSettingsService.SaveAsync(_cancellationTokenSource.Token);
+        _ = _userSettingsService.SaveAsync(CancellationToken.None);
 
         StatusMessage = $"Subscribed to PR #{prNumber}: {SubscribedPr.Title}";
         _logger.LogInformation("Subscribed to PR #{PrNumber}", prNumber);
@@ -1558,7 +1565,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             settings.SubscribedBranch = branchName;
             settings.SubscribedPrNumber = null;
         });
-        _ = _userSettingsService.SaveAsync(_cancellationTokenSource.Token);
+        _ = _userSettingsService.SaveAsync(CancellationToken.None);
 
         StatusMessage = $"Subscribed to branch: {branchName}";
         _logger.LogInformation("Subscribed to branch '{Branch}'", branchName);
@@ -1602,7 +1609,7 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             settings.SubscribedPrNumber = null;
             settings.SubscribedBranch = null;
         });
-        _ = _userSettingsService.SaveAsync(_cancellationTokenSource.Token);
+        _ = _userSettingsService.SaveAsync(CancellationToken.None);
 
         _logger.LogInformation("Unsubscribed from dev builds, switched to MAIN");
         _ = CheckForUpdatesAsync();
