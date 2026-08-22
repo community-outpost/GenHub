@@ -68,8 +68,8 @@
                               ToolTip.Tip="Close Sidebar">
                         <Button.Styles>
                           <Style Selector="Button:pointerover /template/ ContentPresenter">
-                            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
-                            <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}"/>
+                            <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}"/>
+                            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
                           </Style>
                         </Button.Styles>
                         <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
@@ -103,7 +103,7 @@
                           </Style>
 
                           <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-                            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+                            <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}"/>
                             <Setter Property="CornerRadius" Value="8"/>
                           </Style>
 

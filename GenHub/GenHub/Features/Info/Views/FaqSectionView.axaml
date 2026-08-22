@@ -41,7 +41,7 @@
     </Style>
 
     <Style Selector="Expander.faq-item:pointerover /template/ ToggleButton#ExpanderHeader">
-       <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+       <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}"/>
     </Style>
 
     <Style Selector="TextBlock.faq-question">

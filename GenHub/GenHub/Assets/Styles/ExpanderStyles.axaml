@@ -16,6 +16,11 @@
         <Setter Property="Margin" Value="0,0,0,8" />
         <Setter Property="Padding" Value="0" />
         <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+            </Transitions>
+        </Setter>
     </Style>
 
     <Style Selector="Expander /template/ ToggleButton#ExpanderHeader">
@@ -42,16 +47,20 @@
     </Style>
 
     <!-- PointerOver / Hover States -->
+    <Style Selector="Expander:pointerover">
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    </Style>
+
     <Style Selector="Expander:pointerover /template/ ToggleButton#ExpanderHeader">
-        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+        <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
     </Style>
 
     <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:pointerover">
-        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+        <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
     </Style>
 
     <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:pointerover /template/ Border#Root">
-        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+        <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
         <Setter Property="BorderBrush" Value="Transparent" />
     </Style>
 
@@ -61,7 +70,7 @@
 
     <!-- Pressed State -->
     <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:pressed /template/ Border#Root">
-        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+        <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
     </Style>
 
     <!-- Clean Chevron Styling (Removes the default FluentTheme button box around the arrow) -->
@@ -88,7 +97,7 @@
     </Style>
 
     <Style Selector="Expander /template/ ToggleButton#ExpanderHeader:pointerover /template/ Path#ExpandCollapseChevron">
-        <Setter Property="Stroke" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="Stroke" Value="{DynamicResource AccentLightBrush}" />
     </Style>
 
     <!-- Expander Content -->

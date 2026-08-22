@@ -106,12 +106,12 @@
 
     <!-- Hover State -->
     <Style Selector="ComboBox:pointerover /template/ Border#Background">
-        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
+        <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
     </Style>
 
     <Style Selector="ComboBox:pointerover /template/ PathIcon#DropDownGlyph">
-        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="Foreground" Value="{DynamicResource AccentLightBrush}" />
     </Style>
 
     <!-- Focus State -->
@@ -126,7 +126,7 @@
     <!-- Open State -->
     <Style Selector="ComboBox[IsDropDownOpen=true] /template/ Border#Background">
         <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
-        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
+        <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}" />
     </Style>
 
     <Style Selector="ComboBox[IsDropDownOpen=true] /template/ PathIcon#DropDownGlyph">
@@ -173,8 +173,8 @@
 
     <!-- Hover on Unselected Item -->
     <Style Selector="ComboBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="Foreground" Value="#FFFFFF" />
     </Style>
 
     <!-- Selected State (Subtle accent badge tint + vibrant border, keeping readable contrast) -->
@@ -187,9 +187,9 @@
 
     <!-- Hover on Selected Item -->
     <Style Selector="ComboBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
         <Setter Property="Foreground" Value="#FFFFFF" />
-        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}" />
     </Style>
 
     <!-- Pressed State -->

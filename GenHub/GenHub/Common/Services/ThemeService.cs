@@ -130,6 +130,8 @@ public class ThemeService(
             resources[ThemeResourceKeys.SidebarGlassBorderBrush] = new SolidColorBrush(glassBorderColor);
             resources[ThemeResourceKeys.ComboBoxItemBackgroundSelected] = new SolidColorBrush(badgeBgColor);
             resources[ThemeResourceKeys.ComboBoxItemBackgroundSelectedPointerOver] = new SolidColorBrush(primaryColor);
+            resources[ThemeResourceKeys.ComboBoxItemBackgroundPointerOver] = new SolidColorBrush(primaryColor);
+            resources[ThemeResourceKeys.ComboBoxItemForegroundPointerOver] = new SolidColorBrush(Colors.White);
 
             // Update Linear Gradient Brushes
             var gradientBrush = new LinearGradientBrush

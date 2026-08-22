@@ -169,4 +169,14 @@ public static class ThemeResourceKeys
     /// Fluent ComboBox item background selected pointer over brush resource key.
     /// </summary>
     public const string ComboBoxItemBackgroundSelectedPointerOver = "ComboBoxItemBackgroundSelectedPointerOver";
+
+    /// <summary>
+    /// Fluent ComboBox item background pointer over brush resource key.
+    /// </summary>
+    public const string ComboBoxItemBackgroundPointerOver = "ComboBoxItemBackgroundPointerOver";
+
+    /// <summary>
+    /// Fluent ComboBox item foreground pointer over brush resource key.
+    /// </summary>
+    public const string ComboBoxItemForegroundPointerOver = "ComboBoxItemForegroundPointerOver";
 }

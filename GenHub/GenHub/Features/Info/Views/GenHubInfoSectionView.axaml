@@ -68,7 +68,7 @@
 
     <Style Selector="Button.info-card-btn:pointerover Border.info-card">
       <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-      <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+      <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}"/>
       <Setter Property="BoxShadow" Value="0 15 45 0 #80000000"/>
     </Style>
 

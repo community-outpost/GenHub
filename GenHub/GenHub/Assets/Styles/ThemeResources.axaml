@@ -242,11 +242,11 @@
     <!-- 9. Fluent Theme ComboBox Aliases                                     -->
     <!-- ==================================================================== -->
     <SolidColorBrush x:Key="ComboBoxItemBackground" Color="Transparent" />
-    <SolidColorBrush x:Key="ComboBoxItemBackgroundPointerOver" Color="{DynamicResource SurfaceHoverDark}" />
+    <SolidColorBrush x:Key="ComboBoxItemBackgroundPointerOver" Color="{DynamicResource AccentColor}" />
     <SolidColorBrush x:Key="ComboBoxItemBackgroundSelected" Color="{DynamicResource AccentBadgeBackgroundColor}" />
     <SolidColorBrush x:Key="ComboBoxItemBackgroundSelectedPointerOver" Color="{DynamicResource AccentColor}" />
     <SolidColorBrush x:Key="ComboBoxItemForeground" Color="{DynamicResource TextPrimaryColor}" />
-    <SolidColorBrush x:Key="ComboBoxItemForegroundPointerOver" Color="{DynamicResource TextPrimaryColor}" />
+    <SolidColorBrush x:Key="ComboBoxItemForegroundPointerOver" Color="#FFFFFF" />
     <SolidColorBrush x:Key="ComboBoxItemForegroundSelected" Color="{DynamicResource TextPrimaryColor}" />
     <SolidColorBrush x:Key="ComboBoxItemForegroundSelectedPointerOver" Color="#FFFFFF" />
 </ResourceDictionary>
