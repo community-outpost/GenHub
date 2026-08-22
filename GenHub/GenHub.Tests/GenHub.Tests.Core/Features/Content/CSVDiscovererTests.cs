@@ -122,7 +122,7 @@ public class CSVDiscovererTests
 
         result.Data!.Items.Should().ContainSingle();
         result.Data.Items.First().ResolverMetadata[CsvConstants.LanguageMetadataKey].Should().Be(CsvConstants.AllLanguagesFilter);
-        result.Data.Items.First().Name.Should().Contain("(All)");
+        result.Data.Items.First().Name.Should().Contain("(ALL)");
     }
 
     /// <summary>

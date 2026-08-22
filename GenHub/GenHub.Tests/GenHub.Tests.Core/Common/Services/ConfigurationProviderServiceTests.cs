@@ -1207,58 +1207,6 @@ public class ConfigurationProviderServiceTests
     }
 
     /// <summary>
-    /// Creates a fresh legacy and current data root pair under the temp directory.
-    /// </summary>
-    /// <returns>The legacy and current root paths.</returns>
-    private static (string LegacyRoot, string NewRoot) CreateMigrationRoots()
-    {
-        var testRoot = Path.Combine(Path.GetTempPath(), $"genhub-migration-{Guid.NewGuid():N}");
-        var legacyRoot = Path.Combine(testRoot, "roaming");
-        var newRoot = Path.Combine(testRoot, "local");
-        Directory.CreateDirectory(legacyRoot);
-        Directory.CreateDirectory(newRoot);
-        return (legacyRoot, newRoot);
-    }
-
-    /// <summary>
-    /// Populates a legacy data root with the entries an alpha-3 install would contain.
-    /// </summary>
-    /// <param name="legacyRoot">The legacy data root to populate.</param>
-    private static void SeedLegacyRoot(string legacyRoot)
-    {
-        WriteFile(Path.Combine(legacyRoot, DirectoryNames.Profiles, "profile.json"), "profile");
-        WriteFile(Path.Combine(legacyRoot, FileTypes.ManifestsDirectory, "content.manifest.json"), "manifest");
-        WriteFile(Path.Combine(legacyRoot, DirectoryNames.UserData, FileTypes.UserDataIndexFileName), "index");
-        WriteFile(Path.Combine(legacyRoot, DirectoryNames.UserData, DirectoryNames.UserDataBackups, "save.bak"), "backup");
-        WriteFile(Path.Combine(legacyRoot, FileTypes.SettingsFileName), "settings");
-        WriteFile(Path.Combine(legacyRoot, FileTypes.WorkspaceMetadataFileName), "workspaces");
-        WriteFile(Path.Combine(legacyRoot, DirectoryNames.CasPool, "objects", "blob.bin"), "cas");
-    }
-
-    private static void WriteFile(string path, string content)
-    {
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, content);
-    }
-
-    private static void DeleteDirectories(params string[] paths)
-    {
-        foreach (var path in paths.Select(Path.GetDirectoryName).Where(path => !string.IsNullOrEmpty(path)).Distinct())
-        {
-            try
-            {
-                if (Directory.Exists(path))
-                {
-                    Directory.Delete(path!, true);
-                }
-            }
-            catch (IOException)
-            {
-            }
-        }
-    }
-
-    /// <summary>
     /// Verifies that GetCsvCatalogConfiguration returns explicitly configured user settings over app settings.
     /// </summary>
     [Fact]
@@ -1333,6 +1281,58 @@ public class ConfigurationProviderServiceTests
         Assert.Equal("https://app.example/index.json", result.IndexFilePath);
         Assert.Single(result.CsvValidationCatalogs);
         Assert.Equal("https://app.example/catalog.csv", result.CsvValidationCatalogs[0].Url);
+    }
+
+    /// <summary>
+    /// Creates a fresh legacy and current data root pair under the temp directory.
+    /// </summary>
+    /// <returns>The legacy and current root paths.</returns>
+    private static (string LegacyRoot, string NewRoot) CreateMigrationRoots()
+    {
+        var testRoot = Path.Combine(Path.GetTempPath(), $"genhub-migration-{Guid.NewGuid():N}");
+        var legacyRoot = Path.Combine(testRoot, "roaming");
+        var newRoot = Path.Combine(testRoot, "local");
+        Directory.CreateDirectory(legacyRoot);
+        Directory.CreateDirectory(newRoot);
+        return (legacyRoot, newRoot);
+    }
+
+    /// <summary>
+    /// Populates a legacy data root with the entries an alpha-3 install would contain.
+    /// </summary>
+    /// <param name="legacyRoot">The legacy data root to populate.</param>
+    private static void SeedLegacyRoot(string legacyRoot)
+    {
+        WriteFile(Path.Combine(legacyRoot, DirectoryNames.Profiles, "profile.json"), "profile");
+        WriteFile(Path.Combine(legacyRoot, FileTypes.ManifestsDirectory, "content.manifest.json"), "manifest");
+        WriteFile(Path.Combine(legacyRoot, DirectoryNames.UserData, FileTypes.UserDataIndexFileName), "index");
+        WriteFile(Path.Combine(legacyRoot, DirectoryNames.UserData, DirectoryNames.UserDataBackups, "save.bak"), "backup");
+        WriteFile(Path.Combine(legacyRoot, FileTypes.SettingsFileName), "settings");
+        WriteFile(Path.Combine(legacyRoot, FileTypes.WorkspaceMetadataFileName), "workspaces");
+        WriteFile(Path.Combine(legacyRoot, DirectoryNames.CasPool, "objects", "blob.bin"), "cas");
+    }
+
+    private static void WriteFile(string path, string content)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, content);
+    }
+
+    private static void DeleteDirectories(params string[] paths)
+    {
+        foreach (var path in paths.Select(Path.GetDirectoryName).Where(path => !string.IsNullOrEmpty(path)).Distinct())
+        {
+            try
+            {
+                if (Directory.Exists(path))
+                {
+                    Directory.Delete(path!, true);
+                }
+            }
+            catch (IOException)
+            {
+            }
+        }
     }
 
     /// <summary>
