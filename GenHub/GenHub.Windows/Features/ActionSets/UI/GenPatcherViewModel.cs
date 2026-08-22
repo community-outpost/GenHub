@@ -19,6 +19,8 @@ using GenHub.Core.Models.Results;
 using GenHub.Windows.Features.ActionSets.Infrastructure;
 using Microsoft.Extensions.Logging;
 
+#pragma warning disable S2325 // Methods/properties bound by Avalonia XAML or Command patterns must be instance members
+
 /// <summary>
 /// ViewModel for the GenPatcher feature.
 /// </summary>
@@ -282,14 +284,9 @@ public partial class GenPatcherViewModel(
     private async Task RefreshFixesForInstallationAsync(GameInstallation installation)
     {
         var version = Interlocked.Increment(ref _refreshVersion);
-        if (_refreshCts != null)
-        {
-            await _refreshCts.CancelAsync();
-            _refreshCts.Dispose();
-        }
+        await ResetRefreshCancellationTokenAsync();
 
-        _refreshCts = new CancellationTokenSource();
-        var ct = _refreshCts.Token;
+        var ct = _refreshCts!.Token;
 
         try
         {
@@ -301,37 +298,15 @@ public partial class GenPatcherViewModel(
 
             var sortedVms = await LoadAndSortActionSetViewModelsAsync(installation, ct);
 
-            if (ct.IsCancellationRequested || version != _refreshVersion || SelectedInstallation != installation)
+            if (!IsRefreshValid(version, installation, ct))
             {
                 logger.LogDebug("Refresh version {Version} was superseded or cancelled", version);
                 return;
             }
 
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                if (ct.IsCancellationRequested || version != _refreshVersion || SelectedInstallation != installation)
-                {
-                    return;
-                }
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => PopulateActionSets(sortedVms, version, installation, ct));
 
-                ActionSets.Clear();
-                foreach (var vm in sortedVms)
-                {
-                    ActionSets.Add(vm);
-                    logger.LogInformation(
-                        "[{Title}] ID={Id}, IsCore={IsCore}, Applicable={Applicable}, Applied={Applied}",
-                        vm.ActionSet.Title,
-                        vm.ActionSet.Id,
-                        vm.IsCore,
-                        vm.IsApplicable,
-                        vm.IsApplied);
-                }
-
-                ApplyFilter();
-                ApplyAllFixesCommand.NotifyCanExecuteChanged();
-            });
-
-            if (ct.IsCancellationRequested || version != _refreshVersion || SelectedInstallation != installation)
+            if (!IsRefreshValid(version, installation, ct))
             {
                 logger.LogDebug("Refresh version {Version} was superseded or cancelled", version);
                 return;
@@ -345,17 +320,60 @@ public partial class GenPatcherViewModel(
         }
         catch (Exception ex)
         {
-            if (version == _refreshVersion && !ct.IsCancellationRequested)
-            {
-                logger.LogError(ex, "Error refreshing fixes for installation {Path}", installation.InstallationPath);
-                notificationService.ShowError(
-                    "Failed to Load Fixes",
-                    $"An error occurred while loading fixes: {ex.Message}");
-            }
-            else
-            {
-                logger.LogDebug(ex, "Superseded refresh encountered an exception for installation {Path}", installation.InstallationPath);
-            }
+            HandleRefreshException(ex, installation, version, ct);
+        }
+    }
+
+    private async Task ResetRefreshCancellationTokenAsync()
+    {
+        if (_refreshCts != null)
+        {
+            await _refreshCts.CancelAsync();
+            _refreshCts.Dispose();
+        }
+
+        _refreshCts = new CancellationTokenSource();
+    }
+
+    private bool IsRefreshValid(int version, GameInstallation installation, CancellationToken ct) =>
+        !ct.IsCancellationRequested && version == _refreshVersion && SelectedInstallation == installation;
+
+    private void PopulateActionSets(List<ActionSetViewModel> sortedVms, int version, GameInstallation installation, CancellationToken ct)
+    {
+        if (!IsRefreshValid(version, installation, ct))
+        {
+            return;
+        }
+
+        ActionSets.Clear();
+        foreach (var vm in sortedVms)
+        {
+            ActionSets.Add(vm);
+            logger.LogInformation(
+                "[{Title}] ID={Id}, IsCore={IsCore}, Applicable={Applicable}, Applied={Applied}",
+                vm.ActionSet.Title,
+                vm.ActionSet.Id,
+                vm.IsCore,
+                vm.IsApplicable,
+                vm.IsApplied);
+        }
+
+        ApplyFilter();
+        ApplyAllFixesCommand.NotifyCanExecuteChanged();
+    }
+
+    private void HandleRefreshException(Exception ex, GameInstallation installation, int version, CancellationToken ct)
+    {
+        if (version == _refreshVersion && !ct.IsCancellationRequested)
+        {
+            logger.LogError(ex, "Error refreshing fixes for installation {Path}", installation.InstallationPath);
+            notificationService.ShowError(
+                "Failed to Load Fixes",
+                $"An error occurred while loading fixes: {ex.Message}");
+        }
+        else
+        {
+            logger.LogDebug(ex, "Superseded refresh encountered an exception for installation {Path}", installation.InstallationPath);
         }
     }
 

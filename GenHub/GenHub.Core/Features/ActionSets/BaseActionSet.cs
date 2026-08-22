@@ -1,6 +1,8 @@
 namespace GenHub.Core.Features.ActionSets;
 
 using System;
+using System.Globalization;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Models.GameInstallations;
@@ -115,6 +117,66 @@ public abstract class BaseActionSet(ILogger logger) : IActionSet
     /// <param name="message">The error message.</param>
     /// <returns>A failed ActionSetResult.</returns>
     protected static ActionSetResult Failure(string message) => new(false, message);
+
+    /// <summary>
+    /// Checks if the marker file exists on disk.
+    /// </summary>
+    /// <param name="markerPath">The marker file path.</param>
+    /// <returns><c>true</c> if the marker exists; otherwise, <c>false</c>.</returns>
+    protected static bool MarkerExists(string markerPath) => File.Exists(markerPath);
+
+    /// <summary>
+    /// Writes a marker file with the current UTC timestamp.
+    /// </summary>
+    /// <param name="markerPath">The marker file path.</param>
+    protected static void WriteMarkerFile(string markerPath)
+    {
+        try
+        {
+            var dir = Path.GetDirectoryName(markerPath);
+            if (!string.IsNullOrEmpty(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+
+            File.WriteAllText(markerPath, DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Ignored - marker write non-fatal
+        }
+    }
+
+    /// <summary>
+    /// Deletes a marker file if it exists on disk.
+    /// </summary>
+    /// <param name="markerPath">The marker file path.</param>
+    protected static void DeleteMarkerFile(string markerPath)
+    {
+        DeleteFileSafely(markerPath);
+    }
+
+    /// <summary>
+    /// Safely deletes a file if it exists, clearing read-only attributes.
+    /// </summary>
+    /// <param name="path">The file path to delete.</param>
+    protected static void DeleteFileSafely(string? path)
+    {
+        if (string.IsNullOrEmpty(path) || !File.Exists(path))
+        {
+            return;
+        }
+
+        try
+        {
+            File.SetAttributes(path, FileAttributes.Normal);
+            File.Delete(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Ignored - cleanup failure non-fatal
+        }
+    }
 
     /// <summary>
     /// Implements the specific application logic.

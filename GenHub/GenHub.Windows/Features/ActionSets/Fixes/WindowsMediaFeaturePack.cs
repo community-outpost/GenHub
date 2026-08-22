@@ -78,20 +78,7 @@ public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : 
 
             logger.LogWarning("Windows Media Feature Pack is not installed. Please install it from Windows Settings > Optional features > Add a feature, or visit {Url}", ExternalUrls.WindowsMediaFeaturePackSupportUrl);
 
-            try
-            {
-                var markerDir = Path.GetDirectoryName(_markerPath);
-                if (!string.IsNullOrEmpty(markerDir))
-                {
-                    Directory.CreateDirectory(markerDir);
-                }
-
-                File.WriteAllText(_markerPath, DateTime.UtcNow.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed to create marker file.");
-            }
+            WriteMarkerFile(_markerPath);
 
             return Task.FromResult(new ActionSetResult(true, null, ["Please manually install Windows Media Feature Pack. See logs for details."]));
         }
@@ -105,18 +92,7 @@ public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : 
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
-        try
-        {
-            if (File.Exists(_markerPath))
-            {
-                File.Delete(_markerPath);
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to delete marker file.");
-        }
-
+        DeleteMarkerFile(_markerPath);
         return Task.FromResult(new ActionSetResult(true, null, ["Media Feature Pack marker removed."]));
     }
 

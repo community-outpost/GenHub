@@ -11,6 +11,8 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Models.GameInstallations;
 using Microsoft.Extensions.Logging;
 
+#pragma warning disable S2325 // Methods/properties bound by Avalonia XAML or Command patterns must be instance members
+
 /// <summary>
 /// View model for an individual action set.
 /// </summary>

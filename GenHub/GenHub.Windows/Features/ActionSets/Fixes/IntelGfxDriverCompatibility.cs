@@ -97,20 +97,7 @@ public class IntelGfxDriverCompatibility(ILogger<IntelGfxDriverCompatibility> lo
 
             logger.LogWarning("Intel graphics driver detected. May need update from Intel website: {Url}", ExternalUrls.IntelDriverDownloadUrl);
 
-            try
-            {
-                var markerDir = Path.GetDirectoryName(_markerPath);
-                if (!string.IsNullOrEmpty(markerDir))
-                {
-                    Directory.CreateDirectory(markerDir);
-                }
-
-                File.WriteAllText(_markerPath, DateTime.UtcNow.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Failed to create marker file for IntelGfxDriverCompatibility");
-            }
+            WriteMarkerFile(_markerPath);
 
             return Task.FromResult(new ActionSetResult(true, null, ["Please update Intel graphics driver. See logs for details."]));
         }
@@ -124,18 +111,7 @@ public class IntelGfxDriverCompatibility(ILogger<IntelGfxDriverCompatibility> lo
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
-        try
-        {
-            if (File.Exists(_markerPath))
-            {
-                File.Delete(_markerPath);
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to delete marker file for IntelGfxDriverCompatibility");
-        }
-
+        DeleteMarkerFile(_markerPath);
         return Task.FromResult(new ActionSetResult(true, null, ["Intel graphics marker removed."]));
     }
 

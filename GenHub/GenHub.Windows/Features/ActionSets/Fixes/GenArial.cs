@@ -82,20 +82,7 @@ public class GenArial(ILogger<GenArial> logger) : BaseActionSet(logger)
             // Provide guidance for installing Arial font
             logger.LogWarning("Arial font is not installed. This may cause text rendering issues. Please install Arial from Windows Settings > Optional features > Add a font.");
 
-            try
-            {
-                var markerDir = Path.GetDirectoryName(_markerPath);
-                if (!string.IsNullOrEmpty(markerDir))
-                {
-                    Directory.CreateDirectory(markerDir);
-                }
-
-                File.WriteAllText(_markerPath, DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture));
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed to create marker file.");
-            }
+            WriteMarkerFile(_markerPath);
 
             return Task.FromResult(new ActionSetResult(true, null, ["Please manually install Arial font. See logs for details."]));
         }
@@ -109,18 +96,7 @@ public class GenArial(ILogger<GenArial> logger) : BaseActionSet(logger)
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
-        try
-        {
-            if (File.Exists(_markerPath))
-            {
-                File.Delete(_markerPath);
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to delete marker file for GenArial");
-        }
-
+        DeleteMarkerFile(_markerPath);
         return Task.FromResult(new ActionSetResult(true, null, ["Arial font marker removed."]));
     }
 

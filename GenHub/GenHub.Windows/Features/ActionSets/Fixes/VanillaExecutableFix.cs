@@ -47,12 +47,6 @@ public class VanillaExecutableFix(ILogger<VanillaExecutableFix> logger) : BaseEx
     protected override IReadOnlyList<string> CandidateExecutableNames => [ActionSetConstants.FileNames.GeneralsExe];
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
-    {
-        return Task.FromResult(installation.HasGenerals);
-    }
-
-    /// <inheritdoc/>
     protected override bool HasGame(GameInstallation installation) => installation.HasGenerals;
 
     /// <inheritdoc/>

@@ -91,37 +91,13 @@ public class DisableOriginInGame(ILogger<DisableOriginInGame> logger) : BaseActi
     /// <inheritdoc/>
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
-        try
-        {
-            if (File.Exists(_markerPath))
-            {
-                File.Delete(_markerPath);
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to clean up DisableOriginInGame marker");
-        }
-
+        DeleteMarkerFile(_markerPath);
         return Task.FromResult(new ActionSetResult(true, null, ["Origin overlay marker removed."]));
     }
 
     private void WriteMarker()
     {
-        try
-        {
-            var dir = Path.GetDirectoryName(_markerPath);
-            if (!string.IsNullOrEmpty(dir))
-            {
-                Directory.CreateDirectory(dir);
-            }
-
-            File.WriteAllText(_markerPath, DateTime.UtcNow.ToString("O"));
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to create marker file for DisableOriginInGame");
-        }
+        WriteMarkerFile(_markerPath);
     }
 
     private bool IsOriginInstalled()

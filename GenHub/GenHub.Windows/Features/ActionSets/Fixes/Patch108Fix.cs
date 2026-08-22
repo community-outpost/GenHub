@@ -361,22 +361,4 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
             }
         }
     }
-
-    private void DeleteFileSafely(string path)
-    {
-        if (!File.Exists(path))
-        {
-            return;
-        }
-
-        try
-        {
-            File.SetAttributes(path, FileAttributes.Normal);
-            File.Delete(path);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            logger.LogDebug(ex, "Failed to safely delete temporary file {Path}", path);
-        }
-    }
 }

@@ -18,6 +18,12 @@ using Microsoft.Extensions.Logging;
 public abstract class BaseExecutableVersionFix(ILogger logger) : BaseActionSet(logger)
 {
     /// <inheritdoc/>
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
+    {
+        return Task.FromResult(HasGame(installation));
+    }
+
+    /// <inheritdoc/>
     public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         try

@@ -54,12 +54,6 @@ public class VCRedist2005Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
     protected override long MinimumFileSizeBytes => 1024 * 1024; // ~2.6 MB
 
     /// <inheritdoc/>
-    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
-    {
-        return Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
-    }
-
-    /// <inheritdoc/>
     public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         if (IsProductInstalled(Vc2005ProductCode))
