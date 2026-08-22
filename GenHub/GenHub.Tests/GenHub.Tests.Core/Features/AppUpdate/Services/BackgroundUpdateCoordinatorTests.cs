@@ -1,0 +1,297 @@
+using System;
+using System.Collections.Generic;
+using System.Reactive.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
+using GenHub.Core.Interfaces.Notifications;
+using GenHub.Core.Messages;
+using GenHub.Core.Models.AppUpdate;
+using GenHub.Core.Models.Common;
+using GenHub.Core.Models.Notifications;
+using GenHub.Features.AppUpdate.Interfaces;
+using GenHub.Features.AppUpdate.Services;
+using Microsoft.Extensions.Logging;
+using Moq;
+using Xunit;
+
+namespace GenHub.Tests.Core.Features.AppUpdate.Services;
+
+/// <summary>
+/// Contains unit tests for the <see cref="BackgroundUpdateCoordinator"/> class.
+/// </summary>
+public class BackgroundUpdateCoordinatorTests
+{
+    /// <summary>
+    /// Verifies that when startup update check is disabled, no update checks are performed on initialize.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task InitializeAsync_WhenStartupCheckDisabled_DoesNotCheckUpdates()
+    {
+        var mockVelopack = new Mock<IVelopackUpdateManager>();
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings { AutoCheckForUpdatesOnStartup = false, AutoCheckForUpdatesPeriodically = false });
+        var mockNotificationService = CreateNotificationServiceMock();
+        var mockLogger = new Mock<ILogger<BackgroundUpdateCoordinator>>();
+
+        using var coordinator = new BackgroundUpdateCoordinator(
+            mockVelopack.Object,
+            mockUserSettings.Object,
+            mockNotificationService.Object,
+            mockLogger.Object);
+
+        await coordinator.InitializeAsync();
+
+        mockVelopack.Verify(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        mockVelopack.Verify(x => x.CheckForArtifactUpdatesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that when a subscribed PR is merged or closed, update checking falls back to the development branch artifact.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckForUpdatesAsync_WhenPrIsMerged_FallsBackToDevelopmentArtifact()
+    {
+        var notificationShownTcs = new TaskCompletionSource<NotificationMessage>();
+
+        var userSettings = new UserSettings
+        {
+            AutoCheckForUpdatesOnStartup = true,
+            SubscribedPrNumber = 265,
+            DismissedUpdateVersion = null,
+        };
+
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+
+        var devArtifactInfo = new ArtifactUpdateInfo(
+            Version: "0.0.99999-development",
+            GitHash: "abc1234",
+            PullRequestNumber: null,
+            WorkflowRunId: 12345,
+            WorkflowRunUrl: "https://example.com/runs/1",
+            ArtifactId: 67890,
+            ArtifactName: "genhub-velopack-linux-0.0.99999",
+            CreatedAt: DateTime.UtcNow,
+            DownloadUrl: "https://example.com/artifact.zip",
+            Size: 1024);
+
+        var mockVelopack = new Mock<IVelopackUpdateManager>();
+        mockVelopack.SetupProperty(x => x.SubscribedPrNumber, 265);
+        mockVelopack.SetupProperty(x => x.SubscribedBranch, null);
+
+        mockVelopack.Setup(x => x.CheckForArtifactUpdatesAsync(It.IsAny<CancellationToken>()))
+            .Returns<CancellationToken>(_ =>
+            {
+                if (mockVelopack.Object.SubscribedPrNumber == 265)
+                {
+                    mockVelopack.SetupGet(x => x.IsPrMergedOrClosed).Returns(true);
+                    return Task.FromResult<ArtifactUpdateInfo?>(null);
+                }
+
+                if (mockVelopack.Object.SubscribedBranch == AppUpdateConstants.DevelopmentBranch)
+                {
+                    return Task.FromResult<ArtifactUpdateInfo?>(devArtifactInfo);
+                }
+
+                return Task.FromResult<ArtifactUpdateInfo?>(null);
+            });
+
+        var mockNotificationService = CreateNotificationServiceMock();
+        mockNotificationService.Setup(x => x.Show(It.IsAny<NotificationMessage>()))
+            .Callback<NotificationMessage>(msg =>
+            {
+                if (msg.Title == AppUpdateConstants.PrMergedUpdateAvailableNotificationTitle)
+                {
+                    notificationShownTcs.TrySetResult(msg);
+                }
+            });
+
+        var mockLogger = new Mock<ILogger<BackgroundUpdateCoordinator>>();
+
+        using var coordinator = new BackgroundUpdateCoordinator(
+            mockVelopack.Object,
+            mockUserSettings.Object,
+            mockNotificationService.Object,
+            mockLogger.Object);
+
+        await coordinator.CheckForUpdatesAsync();
+        var updateNotification = await notificationShownTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.NotNull(updateNotification);
+        Assert.Equal(AppUpdateConstants.PrMergedUpdateAvailableNotificationTitle, updateNotification.Title);
+        Assert.True(updateNotification.IsPersistent);
+        Assert.True(updateNotification.ShowInBadge);
+        Assert.Contains("265", updateNotification.Message);
+        Assert.Single(updateNotification.Actions);
+    }
+
+    /// <summary>
+    /// Verifies that when a subscribed custom branch has no artifacts, update checking falls back to the development branch artifact.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckForUpdatesAsync_WhenCustomBranchIsStale_FallsBackToDevelopmentArtifact()
+    {
+        var notificationShownTcs = new TaskCompletionSource<NotificationMessage>();
+
+        var userSettings = new UserSettings
+        {
+            AutoCheckForUpdatesOnStartup = true,
+            SubscribedBranch = "feat/deleted-branch",
+            DismissedUpdateVersion = null,
+        };
+
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+
+        var devArtifactInfo = new ArtifactUpdateInfo(
+            Version: "0.0.99999-development",
+            GitHash: "abc1234",
+            PullRequestNumber: null,
+            WorkflowRunId: 12345,
+            WorkflowRunUrl: "https://example.com/runs/1",
+            ArtifactId: 67890,
+            ArtifactName: "genhub-velopack-linux-0.0.99999",
+            CreatedAt: DateTime.UtcNow,
+            DownloadUrl: "https://example.com/artifact.zip",
+            Size: 1024);
+
+        var mockVelopack = new Mock<IVelopackUpdateManager>();
+        mockVelopack.SetupProperty(x => x.SubscribedPrNumber, null);
+        mockVelopack.SetupProperty(x => x.SubscribedBranch, "feat/deleted-branch");
+
+        mockVelopack.Setup(x => x.CheckForArtifactUpdatesAsync(It.IsAny<CancellationToken>()))
+            .Returns<CancellationToken>(_ =>
+            {
+                if (mockVelopack.Object.SubscribedBranch == AppUpdateConstants.DevelopmentBranch)
+                {
+                    return Task.FromResult<ArtifactUpdateInfo?>(devArtifactInfo);
+                }
+
+                return Task.FromResult<ArtifactUpdateInfo?>(null);
+            });
+
+        var mockNotificationService = CreateNotificationServiceMock();
+        mockNotificationService.Setup(x => x.Show(It.IsAny<NotificationMessage>()))
+            .Callback<NotificationMessage>(msg =>
+            {
+                if (msg.Title == AppUpdateConstants.BranchStaleUpdateAvailableNotificationTitle)
+                {
+                    notificationShownTcs.TrySetResult(msg);
+                }
+            });
+
+        var mockLogger = new Mock<ILogger<BackgroundUpdateCoordinator>>();
+
+        using var coordinator = new BackgroundUpdateCoordinator(
+            mockVelopack.Object,
+            mockUserSettings.Object,
+            mockNotificationService.Object,
+            mockLogger.Object);
+
+        await coordinator.CheckForUpdatesAsync();
+        var updateNotification = await notificationShownTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.NotNull(updateNotification);
+        Assert.Equal(AppUpdateConstants.BranchStaleUpdateAvailableNotificationTitle, updateNotification.Title);
+        Assert.True(updateNotification.IsPersistent);
+        Assert.True(updateNotification.ShowInBadge);
+        Assert.Contains("feat/deleted-branch", updateNotification.Message);
+        Assert.Single(updateNotification.Actions);
+    }
+
+    /// <summary>
+    /// Verifies that when a custom branch has no artifacts and releases are checked via GitHub API, fallback notification is displayed.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CheckForUpdatesAsync_WhenCustomBranchIsStaleAndNoArtifact_FallsBackToGitHubApiRelease()
+    {
+        var notificationShownTcs = new TaskCompletionSource<NotificationMessage>();
+
+        var userSettings = new UserSettings
+        {
+            SubscribedBranch = "feat/deleted-branch",
+            DismissedUpdateVersion = null,
+        };
+
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(userSettings);
+
+        var mockVelopack = new Mock<IVelopackUpdateManager>();
+        mockVelopack.SetupProperty(x => x.SubscribedPrNumber, null);
+        mockVelopack.SetupProperty(x => x.SubscribedBranch, "feat/deleted-branch");
+        mockVelopack.Setup(x => x.CheckForArtifactUpdatesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ArtifactUpdateInfo?)null);
+        mockVelopack.Setup(x => x.CheckForUpdatesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Velopack.UpdateInfo?)null);
+        mockVelopack.SetupGet(x => x.HasUpdateAvailableFromGitHub).Returns(true);
+        mockVelopack.SetupGet(x => x.LatestVersionFromGitHub).Returns("1.5.0");
+
+        var mockNotificationService = CreateNotificationServiceMock();
+        mockNotificationService.Setup(x => x.Show(It.IsAny<NotificationMessage>()))
+            .Callback<NotificationMessage>(msg =>
+            {
+                if (msg.Title == AppUpdateConstants.BranchStaleUpdateAvailableNotificationTitle)
+                {
+                    notificationShownTcs.TrySetResult(msg);
+                }
+            });
+
+        var mockLogger = new Mock<ILogger<BackgroundUpdateCoordinator>>();
+
+        using var coordinator = new BackgroundUpdateCoordinator(
+            mockVelopack.Object,
+            mockUserSettings.Object,
+            mockNotificationService.Object,
+            mockLogger.Object);
+
+        await coordinator.CheckForUpdatesAsync();
+        var updateNotification = await notificationShownTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.NotNull(updateNotification);
+        Assert.Equal(AppUpdateConstants.BranchStaleUpdateAvailableNotificationTitle, updateNotification.Title);
+        Assert.Contains("1.5.0", updateNotification.Message);
+    }
+
+    /// <summary>
+    /// Verifies that receiving an update settings changed message restarts the periodic timer without exception.
+    /// </summary>
+    [Fact]
+    public void Receive_UpdateSettingsChangedMessage_RestartsPeriodicTimerWithoutException()
+    {
+        var mockVelopack = new Mock<IVelopackUpdateManager>();
+        var mockUserSettings = new Mock<IUserSettingsService>();
+        mockUserSettings.Setup(x => x.Get()).Returns(new UserSettings());
+        var mockNotificationService = CreateNotificationServiceMock();
+        var mockLogger = new Mock<ILogger<BackgroundUpdateCoordinator>>();
+
+        using var coordinator = new BackgroundUpdateCoordinator(
+            mockVelopack.Object,
+            mockUserSettings.Object,
+            mockNotificationService.Object,
+            mockLogger.Object);
+
+        var message = new UpdateSettingsChangedMessage(
+            AutoCheckForUpdatesOnStartup: true,
+            AutoCheckForUpdatesPeriodically: true,
+            PeriodicUpdateCheckIntervalMinutes: 15);
+
+        coordinator.Receive(message);
+    }
+
+    private static Mock<INotificationService> CreateNotificationServiceMock()
+    {
+        var mock = new Mock<INotificationService>();
+        mock.Setup(x => x.Notifications).Returns(Observable.Empty<NotificationMessage>());
+        mock.Setup(x => x.NotificationHistory).Returns(Observable.Empty<NotificationMessage>());
+        mock.Setup(x => x.DismissRequests).Returns(Observable.Empty<Guid>());
+        mock.Setup(x => x.DismissAllRequests).Returns(Observable.Empty<bool>());
+        mock.Setup(x => x.UpdateRequests).Returns(Observable.Empty<(Guid Id, string? Title, string Message)>());
+        return mock;
+    }
+}
