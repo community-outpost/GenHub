@@ -18,6 +18,27 @@ const CORS_HEADERS: Record<string, string> = {
   "Content-Type": "application/json",
 };
 
+const parseMaxSizeBytes = (rawLimit: string | undefined): number => {
+  if (typeof rawLimit === "string") {
+    return parseInt(rawLimit, 10);
+  }
+  return 10485760;
+};
+
+const parseMaxAgeSeconds = (rawAge: string | undefined): number => {
+  if (typeof rawAge === "string") {
+    return parseInt(rawAge, 10);
+  }
+  return 31536000;
+};
+
+const getContentType = (type: string | undefined): string => {
+  if (typeof type === "string") {
+    return type;
+  }
+  return "application/zip";
+};
+
 const signDeleteToken = async (fileKey: string, timestamp: number, secret: string): Promise<string> => {
   const hmacKey = await crypto.subtle.importKey(
     "raw",
@@ -69,12 +90,11 @@ const extractTokenParts = (
   };
 };
 
-const parseAndValidateTokenFormat = (
-  deleteToken: string,
+const validateTokenParts = (
+  parts: { payload: string; signature: string; key: string; timeStr: string } | null,
   fileKey: string,
   maxAgeSeconds: number
 ): TokenValidationResult => {
-  const parts = extractTokenParts(deleteToken);
   if (parts === null) {
     return { valid: false, error: "Malformed delete token" };
   }
@@ -86,6 +106,12 @@ const parseAndValidateTokenFormat = (
   }
   return { valid: true, payload: parts.payload, signature: parts.signature };
 };
+
+const parseAndValidateTokenFormat = (
+  deleteToken: string,
+  fileKey: string,
+  maxAgeSeconds: number
+): TokenValidationResult => validateTokenParts(extractTokenParts(deleteToken), fileKey, maxAgeSeconds);
 
 const verifyHmacSignature = async (payload: string, signature: string, secret: string): Promise<boolean> => {
   const hmacKey = await crypto.subtle.importKey(
@@ -106,12 +132,18 @@ const verifyHmacSignature = async (payload: string, signature: string, secret: s
 
 const isValidExtension = (name: string): boolean => {
   const lower = name.toLowerCase();
-  return lower.endsWith(".zip") || lower.endsWith(".rep");
+  if (lower.endsWith(".zip")) {
+    return true;
+  }
+  return lower.endsWith(".rep");
 };
 
 const validatePrepareRequest = (fileName: string, fileSize: number, maxSizeBytes: number): string | null => {
-  if (fileName.length === 0 || fileSize <= 0) {
-    return "Invalid file metadata";
+  if (fileName.length === 0) {
+    return "Invalid file name";
+  }
+  if (fileSize <= 0) {
+    return "Invalid file size";
   }
   if (fileSize > maxSizeBytes) {
     return `File exceeds max limit of ${maxSizeBytes} bytes`;
@@ -144,11 +176,15 @@ const requestPresignedSlot = async (
   }
 
   const data = (await res.json()) as { data?: Array<{ url: string; key: string }> };
-  if (!data.data || data.data.length === 0) {
+  const list = data.data;
+  if (!list) {
+    return null;
+  }
+  if (list.length === 0) {
     return null;
   }
 
-  return data.data[0];
+  return list[0];
 };
 
 const executeCloudDelete = async (fileKey: string, token: string): Promise<boolean> => {
@@ -163,28 +199,40 @@ const executeCloudDelete = async (fileKey: string, token: string): Promise<boole
   return res.ok;
 };
 
+const createUploadSuccessResponse = async (
+  slot: { url: string; key: string },
+  secret: string
+): Promise<Response> => {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const deleteToken = await signDeleteToken(slot.key, timestamp, secret);
+  return new Response(
+    JSON.stringify({
+      uploadUrl: slot.url,
+      fileKey: slot.key,
+      deleteToken,
+      publicUrl: `https://utfs.io/f/${slot.key}`,
+    }),
+    { status: 200, headers: CORS_HEADERS }
+  );
+};
+
 const handlePrepareUpload = async (request: Request, env: Env): Promise<Response> => {
   const body = (await request.json()) as { fileName?: string; fileSize?: number; contentType?: string };
-  const maxSizeBytes = parseInt(env.MAX_FILE_SIZE_BYTES || "10485760", 10);
-  const fileName = body.fileName || "";
-  const fileSize = body.fileSize || 0;
+  const fileName = typeof body.fileName === "string" ? body.fileName : "";
+  const fileSize = typeof body.fileSize === "number" ? body.fileSize : 0;
+  const maxSizeBytes = parseMaxSizeBytes(env.MAX_FILE_SIZE_BYTES);
 
   const validationError = validatePrepareRequest(fileName, fileSize, maxSizeBytes);
   if (validationError !== null) {
     return new Response(JSON.stringify({ error: validationError }), { status: 400, headers: CORS_HEADERS });
   }
 
-  const slot = await requestPresignedSlot(fileName, fileSize, body.contentType || "application/zip", env.UPLOADTHING_TOKEN);
+  const slot = await requestPresignedSlot(fileName, fileSize, getContentType(body.contentType), env.UPLOADTHING_TOKEN);
   if (slot === null) {
     return new Response(JSON.stringify({ error: "Storage provider rejected upload" }), { status: 502, headers: CORS_HEADERS });
   }
 
-  const timestamp = Math.floor(Date.now() / 1000);
-  const deleteToken = await signDeleteToken(slot.key, timestamp, env.GATEWAY_HMAC_SECRET);
-  return new Response(
-    JSON.stringify({ uploadUrl: slot.url, fileKey: slot.key, deleteToken, publicUrl: `https://utfs.io/f/${slot.key}` }),
-    { status: 200, headers: CORS_HEADERS }
-  );
+  return createUploadSuccessResponse(slot, env.GATEWAY_HMAC_SECRET);
 };
 
 const verifyDeleteRequest = async (
@@ -192,7 +240,7 @@ const verifyDeleteRequest = async (
   deleteToken: string,
   env: Env
 ): Promise<VerificationResult> => {
-  const maxAgeSeconds = parseInt(env.TOKEN_MAX_AGE_SECONDS || "31536000", 10);
+  const maxAgeSeconds = parseMaxAgeSeconds(env.TOKEN_MAX_AGE_SECONDS);
   const tokenData = parseAndValidateTokenFormat(deleteToken, fileKey, maxAgeSeconds);
   if (!tokenData.valid) {
     return { valid: false, error: tokenData.error };
@@ -208,8 +256,8 @@ const verifyDeleteRequest = async (
 
 const handleDeleteUpload = async (request: Request, env: Env): Promise<Response> => {
   const body = (await request.json()) as { fileKey?: string; deleteToken?: string };
-  const fileKey = body.fileKey || "";
-  const deleteToken = body.deleteToken || "";
+  const fileKey = typeof body.fileKey === "string" ? body.fileKey : "";
+  const deleteToken = typeof body.deleteToken === "string" ? body.deleteToken : "";
 
   if (fileKey.length === 0) {
     return new Response(JSON.stringify({ error: "Missing fileKey" }), { status: 400, headers: CORS_HEADERS });
