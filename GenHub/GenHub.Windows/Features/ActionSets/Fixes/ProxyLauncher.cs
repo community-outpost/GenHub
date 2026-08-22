@@ -46,6 +46,16 @@ public class ProxyLauncher(ILogger<ProxyLauncher> logger) : BaseActionSet(logger
     public override bool IsCrucialFix => false;
 
     /// <inheritdoc/>
+    public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
+    {
+        var isSteam = installation.InstallationType == GameInstallationType.Steam ||
+                      (!string.IsNullOrEmpty(installation.GeneralsPath) && installation.GeneralsPath.Contains("steamapps", StringComparison.OrdinalIgnoreCase)) ||
+                      (!string.IsNullOrEmpty(installation.ZeroHourPath) && installation.ZeroHourPath.Contains("steamapps", StringComparison.OrdinalIgnoreCase));
+
+        return Task.FromResult(isSteam || installation.HasGenerals || installation.HasZeroHour);
+    }
+
+    /// <inheritdoc/>
     public override Task<bool> IsAppliedAsync(GameInstallation installation, CancellationToken ct = default)
     {
         try

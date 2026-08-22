@@ -40,6 +40,10 @@ public abstract class BaseActionSet(ILogger logger) : IActionSet
     protected ILogger Logger => logger;
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// Default implementation returns <c>true</c> if either Generals or Zero Hour is detected in the installation.
+    /// Action sets that do not require a game installation should override this method.
+    /// </remarks>
     public virtual Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
         => Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
 
@@ -141,7 +145,11 @@ public abstract class BaseActionSet(ILogger logger) : IActionSet
 
             File.WriteAllText(markerPath, DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture));
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Ignored - marker write non-fatal
+        }
+        catch (UnauthorizedAccessException)
         {
             // Ignored - marker write non-fatal
         }
@@ -151,14 +159,18 @@ public abstract class BaseActionSet(ILogger logger) : IActionSet
     /// Safely reads all lines from a marker file.
     /// </summary>
     /// <param name="markerPath">The marker file path.</param>
-    /// <returns>The array of lines, or null if reading failed.</returns>
+    /// <returns>The array of lines if read successfully; an empty array if the file does not exist; or null if reading failed due to an I/O error.</returns>
     protected static string[]? ReadMarkerLinesSafely(string markerPath)
     {
         try
         {
-            return File.Exists(markerPath) ? File.ReadAllLines(markerPath) : null;
+            return File.Exists(markerPath) ? File.ReadAllLines(markerPath) : [];
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
         {
             return null;
         }
@@ -189,14 +201,18 @@ public abstract class BaseActionSet(ILogger logger) : IActionSet
             File.SetAttributes(path, FileAttributes.Normal);
             File.Delete(path);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Ignored - cleanup failure non-fatal
+        }
+        catch (UnauthorizedAccessException)
         {
             // Ignored - cleanup failure non-fatal
         }
     }
 
     /// <summary>
-    /// Safely deletes a directory and its contents if it exists.
+    /// Safely deletes a directory and its contents if it exists, clearing read-only attributes.
     /// </summary>
     /// <param name="path">The directory path to delete.</param>
     protected static void DeleteDirectorySafely(string? path)
@@ -208,9 +224,27 @@ public abstract class BaseActionSet(ILogger logger) : IActionSet
 
         try
         {
+            foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+            {
+                try
+                {
+                    File.SetAttributes(file, FileAttributes.Normal);
+                }
+                catch (IOException)
+                {
+                }
+                catch (UnauthorizedAccessException)
+                {
+                }
+            }
+
             Directory.Delete(path, true);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            // Ignored - directory cleanup failure non-fatal
+        }
+        catch (UnauthorizedAccessException)
         {
             // Ignored - directory cleanup failure non-fatal
         }

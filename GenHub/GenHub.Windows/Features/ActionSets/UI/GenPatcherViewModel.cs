@@ -108,7 +108,7 @@ public partial class GenPatcherViewModel(
     {
         logger.LogInformation("[GENPATCHER_INIT_001] GenPatcher tool opened by user");
 
-        var isAdmin = registryService.IsRunningAsAdministrator();
+        var isAdmin = await Task.Run(() => registryService.IsRunningAsAdministrator());
         var osVersion = Environment.OSVersion.VersionString;
         var dotnetVersion = Environment.Version.ToString();
 
@@ -191,14 +191,27 @@ public partial class GenPatcherViewModel(
         }
     }
 
-    partial void OnSelectedInstallationChanged(GameInstallation? value)
+    partial void OnSelectedInstallationChanged(GameInstallation? oldValue, GameInstallation? newValue)
     {
-        ApplyAllFixesCommand.NotifyCanExecuteChanged();
-        if (value != null && CanChangeInstallation)
+        if (newValue == null)
         {
-            logger.LogInformation("Selected installation changed to: {InstallType} at {Path}", value.InstallationType, value.InstallationPath);
-            _ = RefreshFixesForInstallationAsync(value);
+            return;
         }
+
+        if (!CanChangeInstallation)
+        {
+            logger.LogWarning("Cannot switch installation while fix is applying. Reverting to previous installation.");
+            if (oldValue != null)
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => SelectedInstallation = oldValue);
+            }
+
+            return;
+        }
+
+        ApplyAllFixesCommand.NotifyCanExecuteChanged();
+        logger.LogInformation("Selected installation changed to: {InstallType} at {Path}", newValue.InstallationType, newValue.InstallationPath);
+        _ = RefreshFixesForInstallationAsync(newValue);
     }
 
     partial void OnIsBatchApplyingChanged(bool value)
@@ -284,9 +297,7 @@ public partial class GenPatcherViewModel(
     private async Task RefreshFixesForInstallationAsync(GameInstallation installation)
     {
         var version = Interlocked.Increment(ref _refreshVersion);
-        await ResetRefreshCancellationTokenAsync();
-
-        var ct = _refreshCts?.Token ?? CancellationToken.None;
+        var ct = await ResetRefreshCancellationTokenAsync();
 
         try
         {
@@ -324,7 +335,7 @@ public partial class GenPatcherViewModel(
         }
     }
 
-    private async Task ResetRefreshCancellationTokenAsync()
+    private async Task<CancellationToken> ResetRefreshCancellationTokenAsync()
     {
         if (_refreshCts != null)
         {
@@ -333,6 +344,7 @@ public partial class GenPatcherViewModel(
         }
 
         _refreshCts = new CancellationTokenSource();
+        return _refreshCts.Token;
     }
 
     private bool IsRefreshValid(int version, GameInstallation installation, CancellationToken ct) =>

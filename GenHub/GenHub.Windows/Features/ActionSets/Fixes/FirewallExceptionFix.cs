@@ -266,18 +266,19 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
     }
 
     private bool AddPortRule(string ruleName, string protocol, int port) =>
-        RunNetshCommand($"advfirewall firewall add rule name=\"{ruleName}\" dir=in action=allow edge=yes protocol={protocol} localport={port}", ruleName);
+        RunNetshCommand($"advfirewall firewall add rule name=\"{ruleName}\" dir=in action=allow edge=yes protocol={protocol} localport={port}", ruleName, isAdd: true);
 
     private bool AddProgramRule(string ruleName, string programPath) =>
-        RunNetshCommand($"advfirewall firewall add rule name=\"{ruleName}\" dir=in action=allow edge=yes program=\"{programPath}\" enable=yes", ruleName);
+        RunNetshCommand($"advfirewall firewall add rule name=\"{ruleName}\" dir=in action=allow edge=yes program=\"{programPath}\" enable=yes", ruleName, isAdd: true);
 
     private bool RemoveFirewallRule(string ruleName) =>
-        RunNetshCommand($"advfirewall firewall delete rule name=\"{ruleName}\"", ruleName);
+        RunNetshCommand($"advfirewall firewall delete rule name=\"{ruleName}\"", ruleName, isAdd: false);
 
-    private bool RunNetshCommand(string arguments, string ruleName)
+    private bool RunNetshCommand(string arguments, string ruleName, bool isAdd = false)
     {
         try
         {
+            logger.LogInformation("Running: netsh {Args}", arguments);
             var psi = new ProcessStartInfo
             {
                 FileName = NetshPath,
@@ -291,17 +292,39 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
             using var process = Process.Start(psi);
             if (process != null)
             {
-                _ = process.StandardOutput.ReadToEnd();
-                _ = process.StandardError.ReadToEnd();
+                var stdout = process.StandardOutput.ReadToEnd();
+                var stderr = process.StandardError.ReadToEnd();
                 process.WaitForExit();
-                return process.ExitCode == ProcessConstants.ExitCodeSuccess;
+                if (process.ExitCode != ProcessConstants.ExitCodeSuccess)
+                {
+                    if (isAdd)
+                    {
+                        logger.LogError("netsh failed with exit code {ExitCode} for rule {RuleName}: {Error}", process.ExitCode, ruleName, stderr);
+                    }
+                    else
+                    {
+                        logger.LogDebug("netsh returned exit code {ExitCode} for rule {RuleName}", process.ExitCode, ruleName);
+                    }
+
+                    return false;
+                }
+
+                return true;
             }
 
             return false;
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Error running netsh command for rule {RuleName}", ruleName);
+            if (isAdd)
+            {
+                logger.LogError(ex, "Error running netsh command '{Args}' for rule {RuleName}", arguments, ruleName);
+            }
+            else
+            {
+                logger.LogWarning(ex, "Error running netsh command '{Args}' for rule {RuleName}", arguments, ruleName);
+            }
+
             return false;
         }
     }

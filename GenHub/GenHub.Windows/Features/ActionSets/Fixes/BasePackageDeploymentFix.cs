@@ -29,22 +29,16 @@ public abstract class BasePackageDeploymentFix(
     /// Execution context for package deployment operations.
     /// </summary>
     /// <param name="TempExtractDir">The temporary directory for archive extraction.</param>
-    /// <param name="TempBackupDir">The temporary directory for backing up pre-existing game files.</param>
-    /// <param name="BackupEntries">The list tracking backup metadata for rollback.</param>
+    /// <param name="BackupDir">The persistent directory for backing up pre-existing game files.</param>
+    /// <param name="BackupEntries">The list tracking backup metadata for rollback and undo.</param>
     /// <param name="DeployedFiles">The list accumulating deployed file paths.</param>
     /// <param name="Details">The diagnostic details list.</param>
     public record DeploymentContext(
         string TempExtractDir,
-        string TempBackupDir,
+        string BackupDir,
         List<(string DestPath, bool ExistedBefore, string? BackupPath)> BackupEntries,
         List<string> DeployedFiles,
         List<string> Details);
-
-    private readonly string _markerPath = markerPath ?? Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "GenHub",
-        ActionSetConstants.Paths.SubActionSetMarkers,
-        defaultMarkerFileName);
 
     /// <summary>
     /// Gets the list of download URLs for the package.
@@ -83,21 +77,25 @@ public abstract class BasePackageDeploymentFix(
         string destPath,
         DeploymentContext context)
     {
-        var alreadyBackedUp = context.BackupEntries.Any(b => string.Equals(b.DestPath, destPath, StringComparison.OrdinalIgnoreCase));
+        var existingEntryIndex = context.BackupEntries.FindIndex(b => string.Equals(b.DestPath, destPath, StringComparison.OrdinalIgnoreCase));
+        if (existingEntryIndex >= 0)
+        {
+            // Already backed up during this deployment batch; overwrite destination with new file without destroying original backup
+            File.Copy(sourceFilePath, destPath, overwrite: true);
+            return;
+        }
+
         var existedBefore = File.Exists(destPath);
         string? backupPath = null;
 
-        if (existedBefore && !alreadyBackedUp)
+        if (existedBefore)
         {
-            Directory.CreateDirectory(context.TempBackupDir);
-            backupPath = Path.Combine(context.TempBackupDir, $"{Guid.NewGuid():N}_{Path.GetFileName(destPath)}");
+            Directory.CreateDirectory(context.BackupDir);
+            backupPath = Path.Combine(context.BackupDir, $"{Guid.NewGuid():N}_{Path.GetFileName(destPath)}");
             File.Copy(destPath, backupPath, overwrite: true);
-            context.BackupEntries.Add((destPath, existedBefore, backupPath));
         }
-        else if (!alreadyBackedUp)
-        {
-            context.BackupEntries.Add((destPath, existedBefore, null));
-        }
+
+        context.BackupEntries.Add((destPath, existedBefore, backupPath));
 
         var destDir = Path.GetDirectoryName(destPath);
         if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
@@ -155,7 +153,11 @@ public abstract class BasePackageDeploymentFix(
             }
 
             var extractedFilePath = Path.Combine(extractDir, fileName);
-            await Task.Run(() => entry.WriteToFile(extractedFilePath), ct);
+            using (var entryStream = entry.OpenEntryStream())
+            await using (var fs = new FileStream(extractedFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
+            {
+                await entryStream.CopyToAsync(fs, ct);
+            }
 
             extractedFiles[fileName] = extractedFilePath;
         }
@@ -163,16 +165,73 @@ public abstract class BasePackageDeploymentFix(
         return extractedFiles;
     }
 
+    /// <summary>
+    /// Gets the resolved marker path for a specific game installation.
+    /// </summary>
+    /// <param name="installation">The game installation.</param>
+    /// <returns>The absolute marker file path.</returns>
+    protected string GetMarkerPath(GameInstallation installation)
+    {
+        if (!string.IsNullOrEmpty(markerPath))
+        {
+            return markerPath;
+        }
+
+        var baseDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "GenHub",
+            ActionSetConstants.Paths.SubActionSetMarkers);
+
+        var key = ComputeInstallationKey(installation);
+        var scopedMarker = Path.Combine(baseDir, $"{Path.GetFileNameWithoutExtension(defaultMarkerFileName)}_{key}{Path.GetExtension(defaultMarkerFileName)}");
+
+        // Backward compatibility: check legacy global marker if scoped marker is missing
+        var globalMarker = Path.Combine(baseDir, defaultMarkerFileName);
+        if (!File.Exists(scopedMarker) && File.Exists(globalMarker))
+        {
+            return globalMarker;
+        }
+
+        return scopedMarker;
+    }
+
+    /// <summary>
+    /// Gets the persistent backup directory for saving overwritten files.
+    /// </summary>
+    /// <param name="installation">The game installation.</param>
+    /// <returns>The backup directory path.</returns>
+    protected string GetBackupDirectory(GameInstallation installation)
+    {
+        var key = ComputeInstallationKey(installation);
+        return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "GenHub",
+            "Backups",
+            $"{Id}_{key}");
+    }
+
+    private static string ComputeInstallationKey(GameInstallation installation)
+    {
+        if (string.IsNullOrEmpty(installation.InstallationPath))
+        {
+            return "default";
+        }
+
+        var bytes = System.Text.Encoding.UTF8.GetBytes(installation.InstallationPath.ToUpperInvariant());
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes))[..12].ToLowerInvariant();
+    }
+
     /// <inheritdoc/>
     protected override async Task<ActionSetResult> ApplyInternalAsync(GameInstallation installation, CancellationToken ct)
     {
+        var targetMarkerPath = GetMarkerPath(installation);
+        var persistentBackupDir = GetBackupDirectory(installation);
         var tempFile = Path.Combine(Path.GetTempPath(), $"{TempFilePrefix}_{Guid.NewGuid():N}.dat");
         var tempExtractDir = Path.Combine(Path.GetTempPath(), $"{TempFilePrefix}_extract_{Guid.NewGuid():N}");
-        var tempBackupDir = Path.Combine(Path.GetTempPath(), $"{TempFilePrefix}_backup_{Guid.NewGuid():N}");
         var backupEntries = new List<(string DestPath, bool ExistedBefore, string? BackupPath)>();
         var deployedFiles = new List<string>();
         var details = new List<string>();
-        var context = new DeploymentContext(tempExtractDir, tempBackupDir, backupEntries, deployedFiles, details);
+        var context = new DeploymentContext(tempExtractDir, persistentBackupDir, backupEntries, deployedFiles, details);
 
         try
         {
@@ -208,16 +267,16 @@ public abstract class BasePackageDeploymentFix(
 
             if (deployed == null)
             {
-                RollbackDeployment(backupEntries, details);
+                RollbackDeployment(backupEntries, persistentBackupDir, details);
                 return new ActionSetResult(false, $"Failed to extract and validate {PackageDisplayName} package.", details);
             }
 
             details.Add($"✓ Extracted and deployed {extractedCount} assets to game folders.");
 
-            if (!RecordDeploymentMarker(deployedFiles))
+            if (!RecordDeploymentMarker(targetMarkerPath, backupEntries))
             {
                 details.Add("✗ Failed to record the deployment marker. Rolling back deployed files.");
-                RollbackDeployment(backupEntries, details);
+                RollbackDeployment(backupEntries, persistentBackupDir, details);
                 return new ActionSetResult(false, $"Failed to record the deployment marker for {Id}.", details);
             }
 
@@ -225,12 +284,12 @@ public abstract class BasePackageDeploymentFix(
         }
         catch (OperationCanceledException)
         {
-            RollbackDeployment(backupEntries, details);
+            RollbackDeployment(backupEntries, persistentBackupDir, details);
             throw;
         }
         catch (Exception ex)
         {
-            RollbackDeployment(backupEntries, details);
+            RollbackDeployment(backupEntries, persistentBackupDir, details);
             Logger.LogError(ex, "Error applying {Name} fix", PackageDisplayName);
             details.Add($"✗ Error: {ex.Message}");
             return new ActionSetResult(false, ex.Message, details);
@@ -239,7 +298,6 @@ public abstract class BasePackageDeploymentFix(
         {
             DeleteFileSafely(tempFile);
             DeleteDirectorySafely(tempExtractDir);
-            DeleteDirectorySafely(tempBackupDir);
         }
     }
 
@@ -247,10 +305,12 @@ public abstract class BasePackageDeploymentFix(
     protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
     {
         var details = new List<string>();
+        var targetMarkerPath = GetMarkerPath(installation);
+        var persistentBackupDir = GetBackupDirectory(installation);
 
         try
         {
-            if (!File.Exists(_markerPath))
+            if (!File.Exists(targetMarkerPath))
             {
                 if (AreAssetsPresent(installation))
                 {
@@ -261,38 +321,75 @@ public abstract class BasePackageDeploymentFix(
                 return Task.FromResult(new ActionSetResult(true, null, ["No deployment record found to undo."]));
             }
 
-            var lines = ReadMarkerLinesSafely(_markerPath);
+            var lines = ReadMarkerLinesSafely(targetMarkerPath);
             if (lines == null)
             {
-                Logger.LogWarning("Failed to read installed file paths from marker {MarkerPath}", _markerPath);
+                Logger.LogWarning("Failed to read installed file paths from marker {MarkerPath}", targetMarkerPath);
                 return Task.FromResult(new ActionSetResult(false, "Failed to read deployment marker", ["✗ Could not read deployment marker."]));
             }
 
-            var hasRootedPaths = lines.Any(l => !string.IsNullOrWhiteSpace(l) && Path.IsPathRooted(l.Trim()));
-            IReadOnlyList<string> targetFiles = !hasRootedPaths && lines.Length > 0
-                ? GetLegacyFilePaths(installation)
-                : lines;
-
-            var (removedCount, remainingFiles) = DeleteRecordedFiles(targetFiles, ct);
-
-            UpdateMarkerAfterUndo(remainingFiles);
-
-            if (remainingFiles.Count == 0)
+            if (lines.Length == 0)
             {
-                details.Add($"{PackageDisplayName} removed ({removedCount} files deleted).");
+                DeleteFileSafely(targetMarkerPath);
+                DeleteDirectorySafely(persistentBackupDir);
+                return Task.FromResult(new ActionSetResult(true, null, ["No deployment record found to undo."]));
+            }
+
+            // Parse marker records: format "destPath|backupPath" or legacy "destPath"
+            var records = new List<(string DestPath, string? BackupPath)>();
+            foreach (var line in lines)
+            {
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    continue;
+                }
+
+                var parts = line.Split('|');
+                var dest = parts[0].Trim();
+                var backup = parts.Length > 1 && !string.IsNullOrWhiteSpace(parts[1]) ? parts[1].Trim() : null;
+                if (!string.IsNullOrEmpty(dest))
+                {
+                    records.Add((dest, backup));
+                }
+            }
+
+            var hasRootedPaths = records.Any(r => Path.IsPathRooted(r.DestPath));
+            if (!hasRootedPaths)
+            {
+                // Legacy marker with relative or simple filenames
+                var legacyPaths = GetLegacyFilePaths(installation);
+                records = legacyPaths.Select(p => (p, (string?)null)).ToList();
+            }
+
+            var (removedCount, restoredCount, remainingRecords) = RestoreOrDeleteRecordedFiles(records, ct);
+
+            UpdateMarkerAfterUndo(targetMarkerPath, remainingRecords);
+
+            if (remainingRecords.Count == 0)
+            {
+                DeleteDirectorySafely(persistentBackupDir);
+                var summary = restoredCount > 0
+                    ? $"{PackageDisplayName} removed ({removedCount} files deleted, {restoredCount} originals restored)."
+                    : $"{PackageDisplayName} removed ({removedCount} files deleted).";
+                details.Add(summary);
                 return Task.FromResult(new ActionSetResult(true, null, details));
             }
 
-            details.Add($"⚠ Partial undo: removed {removedCount} files, {remainingFiles.Count} files could not be deleted.");
-            return Task.FromResult(new ActionSetResult(false, $"Failed to remove {remainingFiles.Count} files during undo.", details));
+            details.Add($"⚠ Partial undo: {removedCount} files removed, {restoredCount} restored, {remainingRecords.Count} files could not be processed.");
+            return Task.FromResult(new ActionSetResult(false, $"Failed to remove/restore {remainingRecords.Count} files during undo.", details));
         }
         catch (OperationCanceledException)
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
         {
-            Logger.LogWarning(ex, "Failed to delete marker or files for {Name}", PackageDisplayName);
+            Logger.LogWarning(ex, "I/O error deleting marker or restoring files for {Name}", PackageDisplayName);
+            return Task.FromResult(new ActionSetResult(false, ex.Message, details));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Logger.LogWarning(ex, "Permission error deleting marker or restoring files for {Name}", PackageDisplayName);
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
     }
@@ -381,78 +478,91 @@ public abstract class BasePackageDeploymentFix(
         return false;
     }
 
-    private (int RemovedCount, List<string> RemainingFiles) DeleteRecordedFiles(
-        IEnumerable<string> filePaths,
+    private (int RemovedCount, int RestoredCount, List<(string DestPath, string? BackupPath)> RemainingRecords) RestoreOrDeleteRecordedFiles(
+        IEnumerable<(string DestPath, string? BackupPath)> records,
         CancellationToken ct)
     {
         var removedCount = 0;
-        var remainingFiles = new List<string>();
+        var restoredCount = 0;
+        var remainingRecords = new List<(string DestPath, string? BackupPath)>();
 
-        foreach (var path in filePaths)
+        foreach (var (destPath, backupPath) in records)
         {
             ct.ThrowIfCancellationRequested();
-            var trimmed = path.Trim();
-            if (string.IsNullOrEmpty(trimmed) || !Path.IsPathRooted(trimmed))
+            var trimmedDest = destPath.Trim();
+            if (string.IsNullOrEmpty(trimmedDest) || !Path.IsPathRooted(trimmedDest))
             {
                 continue;
             }
 
             try
             {
-                if (File.Exists(trimmed))
+                if (!string.IsNullOrEmpty(backupPath) && File.Exists(backupPath))
                 {
-                    File.Delete(trimmed);
+                    var destDir = Path.GetDirectoryName(trimmedDest);
+                    if (!string.IsNullOrEmpty(destDir) && !Directory.Exists(destDir))
+                    {
+                        Directory.CreateDirectory(destDir);
+                    }
+
+                    File.Copy(backupPath, trimmedDest, overwrite: true);
+                    DeleteFileSafely(backupPath);
+                    restoredCount++;
+                }
+                else if (File.Exists(trimmedDest))
+                {
+                    DeleteFileSafely(trimmedDest);
                     removedCount++;
                 }
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (IOException ex)
             {
-                Logger.LogWarning(ex, "Failed to delete recorded file {FilePath} during undo", trimmed);
-                remainingFiles.Add(trimmed);
+                Logger.LogWarning(ex, "Failed to restore or delete file {FilePath} during undo", trimmedDest);
+                remainingRecords.Add((trimmedDest, backupPath));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                Logger.LogWarning(ex, "Permission denied restoring or deleting file {FilePath} during undo", trimmedDest);
+                remainingRecords.Add((trimmedDest, backupPath));
             }
         }
 
-        return (removedCount, remainingFiles);
+        return (removedCount, restoredCount, remainingRecords);
     }
 
-    private void UpdateMarkerAfterUndo(IReadOnlyList<string> remainingFiles)
+    private void UpdateMarkerAfterUndo(string targetMarkerPath, IReadOnlyList<(string DestPath, string? BackupPath)> remainingRecords)
     {
-        if (remainingFiles.Count == 0)
+        if (remainingRecords.Count == 0)
         {
-            try
-            {
-                if (File.Exists(_markerPath))
-                {
-                    File.Delete(_markerPath);
-                }
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                Logger.LogWarning(ex, "Failed to delete marker file {MarkerPath} after undo", _markerPath);
-            }
-
+            DeleteFileSafely(targetMarkerPath);
             return;
         }
 
         try
         {
-            var markerDir = Path.GetDirectoryName(_markerPath);
+            var markerDir = Path.GetDirectoryName(targetMarkerPath);
             if (!string.IsNullOrEmpty(markerDir))
             {
                 Directory.CreateDirectory(markerDir);
                 var tempMarker = Path.Combine(markerDir, $"{Guid.NewGuid():N}.tmp");
-                File.WriteAllLines(tempMarker, remainingFiles);
-                File.Move(tempMarker, _markerPath, overwrite: true);
+                var lines = remainingRecords.Select(r => $"{r.DestPath}|{r.BackupPath ?? string.Empty}");
+                File.WriteAllLines(tempMarker, lines);
+                File.Move(tempMarker, targetMarkerPath, overwrite: true);
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
         {
-            Logger.LogWarning(ex, "Failed to rewrite marker file {MarkerPath} with remaining files", _markerPath);
+            Logger.LogWarning(ex, "Failed to rewrite marker file {MarkerPath} with remaining files", targetMarkerPath);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Logger.LogWarning(ex, "Permission denied rewriting marker file {MarkerPath} with remaining files", targetMarkerPath);
         }
     }
 
     private void RollbackDeployment(
         List<(string DestPath, bool ExistedBefore, string? BackupPath)> backupEntries,
+        string backupDir,
         List<string> details)
     {
         details.Add("Rolling back deployed assets...");
@@ -475,15 +585,22 @@ public abstract class BasePackageDeploymentFix(
                 }
                 else if (File.Exists(destPath))
                 {
-                    File.Delete(destPath);
+                    DeleteFileSafely(destPath);
                 }
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            catch (IOException ex)
             {
                 hasRollbackError = true;
                 Logger.LogWarning(ex, "Failed to restore or remove file during rollback: {Path}", destPath);
             }
+            catch (UnauthorizedAccessException ex)
+            {
+                hasRollbackError = true;
+                Logger.LogWarning(ex, "Permission denied restoring or removing file during rollback: {Path}", destPath);
+            }
         }
+
+        DeleteDirectorySafely(backupDir);
 
         if (hasRollbackError)
         {
@@ -495,25 +612,34 @@ public abstract class BasePackageDeploymentFix(
         }
     }
 
-    private bool RecordDeploymentMarker(List<string> deployedFiles)
+    private bool RecordDeploymentMarker(
+        string targetMarkerPath,
+        List<(string DestPath, bool ExistedBefore, string? BackupPath)> backupEntries)
     {
         string? tempMarker = null;
         try
         {
-            var markerDir = Path.GetDirectoryName(_markerPath);
+            var markerDir = Path.GetDirectoryName(targetMarkerPath);
             if (!string.IsNullOrEmpty(markerDir))
             {
                 Directory.CreateDirectory(markerDir);
             }
 
             tempMarker = Path.Combine(markerDir ?? Path.GetTempPath(), $"{Guid.NewGuid():N}.tmp");
-            File.WriteAllLines(tempMarker, deployedFiles);
-            File.Move(tempMarker, _markerPath, overwrite: true);
+            var lines = backupEntries.Select(b => $"{b.DestPath}|{b.BackupPath ?? string.Empty}");
+            File.WriteAllLines(tempMarker, lines);
+            File.Move(tempMarker, targetMarkerPath, overwrite: true);
             return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
         {
             Logger.LogWarning(ex, "Failed to create marker file for {Name}", PackageDisplayName);
+            DeleteFileSafely(tempMarker);
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Logger.LogWarning(ex, "Permission denied creating marker file for {Name}", PackageDisplayName);
             DeleteFileSafely(tempMarker);
             return false;
         }

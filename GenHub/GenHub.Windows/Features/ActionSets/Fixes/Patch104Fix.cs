@@ -283,7 +283,7 @@ public class Patch104Fix(ILogger<Patch104Fix> logger, IHttpClientFactory httpCli
             var relativePath = Path.GetRelativePath(extractPath, file);
             var destPath = Path.Combine(targetDirectory, relativePath);
 
-            var fullTarget = Path.GetFullPath(targetDirectory);
+            var fullTarget = Path.GetFullPath(targetDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
             var fullDest = Path.GetFullPath(destPath);
             if (!fullDest.StartsWith(fullTarget, StringComparison.OrdinalIgnoreCase))
             {

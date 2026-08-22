@@ -70,6 +70,9 @@ public static class DownloadSecurityValidator
         }
     }
 
+    private const int CertEExpired = unchecked((int)0x800B0101);
+    private const int CertEValidityPeriodNesting = unchecked((int)0x800B0102);
+
     private static readonly Guid WinTrustActionGenericVerifyV2 = new("00AAC56B-CD44-11d0-8CC2-00C04FC295EE");
 
     /// <summary>
@@ -122,9 +125,20 @@ public static class DownloadSecurityValidator
         }
 
         var trustResult = VerifyWindowsAuthenticodeTrust(filePath);
-        if (!trustResult.Success && !allowExpiredCertificates)
+        if (!trustResult.Success)
         {
-            return trustResult;
+            return OperationResult<bool>.CreateFailure(trustResult.Errors);
+        }
+
+        int hresult = trustResult.Data;
+        if (hresult != 0)
+        {
+            bool isExpiredCert = hresult == CertEExpired || hresult == CertEValidityPeriodNesting;
+            if (!isExpiredCert || !allowExpiredCertificates)
+            {
+                return OperationResult<bool>.CreateFailure(
+                    $"Authenticode trust verification failed for '{Path.GetFileName(filePath)}' with error code 0x{hresult:X8}.");
+            }
         }
 
         // Verify publisher from the embedded certificate
@@ -147,9 +161,17 @@ public static class DownloadSecurityValidator
 
             return OperationResult<bool>.CreateSuccess(true);
         }
-        catch (Exception ex)
+        catch (CryptographicException ex)
         {
             return OperationResult<bool>.CreateFailure($"Authenticode certificate verification failed: {ex.Message}");
+        }
+        catch (IOException ex)
+        {
+            return OperationResult<bool>.CreateFailure($"Authenticode certificate read failed: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return OperationResult<bool>.CreateFailure($"Authenticode certificate access denied: {ex.Message}");
         }
     }
 
@@ -229,7 +251,7 @@ public static class DownloadSecurityValidator
         string filePath,
         IReadOnlyList<string>? allowedSha256Hashes = null,
         string? expectedAuthenticodePublisher = null,
-        bool allowExpiredCertificates = true,
+        bool allowExpiredCertificates = false,
         CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(filePath))
@@ -251,7 +273,19 @@ public static class DownloadSecurityValidator
                 File.SetAttributes(filePath, attributes & ~FileAttributes.ReadOnly);
             }
         }
-        catch
+        catch (IOException)
+        {
+            // Non-critical if filesystem does not support read-only attribute
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Non-critical if filesystem does not support read-only attribute
+        }
+        catch (ArgumentException)
+        {
+            // Non-critical if filesystem does not support read-only attribute
+        }
+        catch (NotSupportedException)
         {
             // Non-critical if filesystem does not support read-only attribute
         }
@@ -335,7 +369,7 @@ public static class DownloadSecurityValidator
         return OperationResult<bool>.CreateSuccess(true);
     }
 
-    private static OperationResult<bool> VerifyWindowsAuthenticodeTrust(string filePath)
+    private static OperationResult<int> VerifyWindowsAuthenticodeTrust(string filePath)
     {
         var fileInfo = new WinTrustFileInfo(Path.GetFullPath(filePath));
 
@@ -357,17 +391,11 @@ public static class DownloadSecurityValidator
             trustDataMarshaled = true;
 
             int result = WinVerifyTrust(IntPtr.Zero, WinTrustActionGenericVerifyV2, pData);
-            if (result != 0)
-            {
-                return OperationResult<bool>.CreateFailure(
-                    $"Authenticode trust verification failed for '{Path.GetFileName(filePath)}' with error code 0x{result:X8}.");
-            }
-
-            return OperationResult<bool>.CreateSuccess(true);
+            return OperationResult<int>.CreateSuccess(result);
         }
         catch (Exception ex)
         {
-            return OperationResult<bool>.CreateFailure($"WinVerifyTrust exception: {ex.Message}");
+            return OperationResult<int>.CreateFailure($"WinVerifyTrust exception: {ex.Message}");
         }
         finally
         {

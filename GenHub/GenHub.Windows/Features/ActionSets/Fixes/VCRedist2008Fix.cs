@@ -61,7 +61,20 @@ public class VCRedist2008Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
             return Task.FromResult(true);
         }
 
-        using var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Classes\Installer\Products\D20352A90C039D93DBF6126ECE614057");
-        return Task.FromResult(key != null);
+        try
+        {
+            using var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Classes\Installer\Products\D20352A90C039D93DBF6126ECE614057");
+            return Task.FromResult(key != null);
+        }
+        catch (System.Security.SecurityException ex)
+        {
+            logger.LogDebug(ex, "Security exception checking VC++ 2008 registry key");
+            return Task.FromResult(false);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogDebug(ex, "Unauthorized access checking VC++ 2008 registry key");
+            return Task.FromResult(false);
+        }
     }
 }

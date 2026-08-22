@@ -81,9 +81,25 @@ public class VCRedist2005Fix(IHttpClientFactory httpClientFactory, ILogger<VCRed
                 return Task.FromResult(true);
             }
         }
-        catch (Exception ex)
+        catch (System.Security.SecurityException ex)
         {
-            logger.LogDebug(ex, "Failed to inspect VC++ 2005 redistributable registry subkey");
+            logger.LogDebug(ex, "Security exception inspecting VC++ 2005 redistributable registry subkey");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogDebug(ex, "Unauthorized access inspecting VC++ 2005 redistributable registry subkey");
+        }
+        catch (IOException ex)
+        {
+            logger.LogDebug(ex, "I/O error inspecting VC++ 2005 redistributable registry subkey");
+        }
+        catch (ArgumentException ex)
+        {
+            logger.LogDebug(ex, "Argument exception inspecting VC++ 2005 redistributable registry subkey");
+        }
+        catch (ObjectDisposedException ex)
+        {
+            logger.LogDebug(ex, "Registry key disposed inspecting VC++ 2005 redistributable registry subkey");
         }
 
         return Task.FromResult(false);

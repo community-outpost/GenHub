@@ -100,9 +100,14 @@ public class ExpandedLanLobbyMenu(
                    !string.IsNullOrEmpty(installation.GeneralsPath) &&
                    KnownMenuBigFiles.Any(f => File.Exists(Path.Combine(installation.GeneralsPath, f)));
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
-            logger.LogWarning(ex, "Error checking LAN lobby menu status");
+            logger.LogWarning(ex, "I/O error checking LAN lobby menu status");
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Permission denied checking LAN lobby menu status");
             return false;
         }
     }

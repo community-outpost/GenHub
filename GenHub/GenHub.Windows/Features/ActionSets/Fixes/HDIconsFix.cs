@@ -136,7 +136,9 @@ public class HDIconsFix(
             }
 
             if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath) &&
-                RecognizedZeroHourIconFiles.Contains(fileName, StringComparer.OrdinalIgnoreCase))
+                RecognizedZeroHourIconFiles.Contains(fileName, StringComparer.OrdinalIgnoreCase) &&
+                (!string.Equals(installation.GeneralsPath, installation.ZeroHourPath, StringComparison.OrdinalIgnoreCase) ||
+                 !RecognizedGeneralsIconFiles.Contains(fileName, StringComparer.OrdinalIgnoreCase)))
             {
                 var zhDest = Path.Combine(installation.ZeroHourPath, fileName);
                 DeployFileWithBackup(extractedFilePath, zhDest, context);
@@ -173,9 +175,14 @@ public class HDIconsFix(
 
             return hasAnyTarget;
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
-            logger.LogWarning(ex, "Error checking for HD icons");
+            logger.LogWarning(ex, "I/O error checking for HD icons");
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Permission denied checking for HD icons");
             return false;
         }
     }

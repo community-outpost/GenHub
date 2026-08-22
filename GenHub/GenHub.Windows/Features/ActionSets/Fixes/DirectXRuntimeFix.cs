@@ -222,6 +222,7 @@ public class DirectXRuntimeFix(IHttpClientFactory httpClientFactory, ILogger<Dir
                 var securityValidation = await DownloadSecurityValidator.ValidateAndLockFileAsync(
                     downloadPath,
                     expectedAuthenticodePublisher: ActionSetConstants.Security.MicrosoftPublisher,
+                    allowExpiredCertificates: true,
                     ct: ct);
 
                 if (!securityValidation.Success || securityValidation.Data == null)

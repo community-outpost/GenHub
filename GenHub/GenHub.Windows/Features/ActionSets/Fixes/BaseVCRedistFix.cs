@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
+using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
@@ -99,9 +100,25 @@ public abstract class BaseVCRedistFix(
                 }
             }
         }
-        catch
+        catch (SecurityException ex)
         {
-            // Ignored - fallback to other detection methods
+            Logger.LogDebug(ex, "Security exception inspecting registry for {ProductCode}", productCode);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Logger.LogDebug(ex, "Unauthorized access inspecting registry for {ProductCode}", productCode);
+        }
+        catch (IOException ex)
+        {
+            Logger.LogDebug(ex, "I/O error inspecting registry for {ProductCode}", productCode);
+        }
+        catch (ArgumentException ex)
+        {
+            Logger.LogDebug(ex, "Argument exception inspecting registry for {ProductCode}", productCode);
+        }
+        catch (ObjectDisposedException ex)
+        {
+            Logger.LogDebug(ex, "Registry key disposed inspecting registry for {ProductCode}", productCode);
         }
 
         return false;
@@ -201,6 +218,7 @@ public abstract class BaseVCRedistFix(
             FileName = installerPath,
             Arguments = arguments,
             UseShellExecute = true,
+            Verb = "runas",
             CreateNoWindow = true,
         };
 

@@ -263,14 +263,14 @@ public class Patch108Fix(IHttpClientFactory httpClientFactory, ILogger<Patch108F
         CancellationToken ct)
     {
         int copiedCount = 0;
-        var canonicalGamePath = Path.GetFullPath(targetGamePath);
+        var canonicalGamePath = Path.GetFullPath(targetGamePath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
 
         foreach (var file in extractedFiles)
         {
             ct.ThrowIfCancellationRequested();
 
             var relativePath = file[extractPath.Length..].TrimStart(Path.DirectorySeparatorChar);
-            var destPath = Path.GetFullPath(Path.Combine(canonicalGamePath, relativePath));
+            var destPath = Path.GetFullPath(Path.Combine(targetGamePath, relativePath));
 
             if (!destPath.StartsWith(canonicalGamePath, StringComparison.OrdinalIgnoreCase))
             {
