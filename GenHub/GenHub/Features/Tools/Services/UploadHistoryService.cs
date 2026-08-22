@@ -19,6 +19,7 @@ namespace GenHub.Features.Tools.Services;
 /// <remarks>
 /// Initializes a new instance of the <see cref="UploadHistoryService"/> class.
 /// </remarks>
+/// <param name="uploadThingService">UploadThing cloud storage service.</param>
 /// <param name="logger">Logger instance.</param>
 /// <param name="appConfig">Application configuration service.</param>
 public sealed class UploadHistoryService(

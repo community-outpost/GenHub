@@ -92,12 +92,12 @@ public static class ApiConstants
     public const string UploadDeleteEndpoint = "/api/v1/uploads/delete";
 
     /// <summary>
-    /// Full default URL for cloud uploads.
+    /// Gets the full default URL for cloud uploads.
     /// </summary>
     public static string DefaultUploadUrl => UploadGatewayBaseUrl + UploadEndpoint;
 
     /// <summary>
-    /// Full default URL for deleting cloud uploads.
+    /// Gets the full default URL for deleting cloud uploads.
     /// </summary>
     public static string DefaultUploadDeleteUrl => UploadGatewayBaseUrl + UploadDeleteEndpoint;
 
