@@ -67,18 +67,7 @@ public sealed class UploadHistoryService(
             try
             {
                 var history = LoadHistoryInternal();
-                var resolvedCategory = category;
-                if (string.IsNullOrEmpty(resolvedCategory))
-                {
-                    if (fileName.EndsWith(".rep", StringComparison.OrdinalIgnoreCase) || fileName.Equals("replays.zip", StringComparison.OrdinalIgnoreCase))
-                    {
-                        resolvedCategory = ReplayManagerConstants.UploadCategory;
-                    }
-                    else
-                    {
-                        resolvedCategory = MapManagerConstants.UploadCategory;
-                    }
-                }
+                var resolvedCategory = string.IsNullOrEmpty(category) ? InferCategory(fileName) : category;
 
                 history.Add(new UploadRecord
                 {
@@ -96,7 +85,15 @@ public sealed class UploadHistoryService(
                 _cache = history; // Update cache
                 logger.LogInformation("Recorded upload of {Size} bytes for category '{Category}'. Total history: {Count} items.", fileSizeBytes, resolvedCategory, history.Count);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+            catch (IOException ex)
+            {
+                logger.LogError(ex, "Failed to record upload");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                logger.LogError(ex, "Failed to record upload");
+            }
+            catch (JsonException ex)
             {
                 logger.LogError(ex, "Failed to record upload");
             }
@@ -184,9 +181,9 @@ public sealed class UploadHistoryService(
                     return false;
                 }
             }
-            catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidOperationException)
+            catch (OperationCanceledException ex)
             {
-                logger.LogError(ex, "Exception occurred while deleting file from cloud storage for {Url}", url);
+                logger.LogWarning(ex, "Timeout or cancellation occurred while deleting file from cloud storage for {Url}", url);
                 return false;
             }
         }
@@ -237,6 +234,22 @@ public sealed class UploadHistoryService(
         }
     }
 
+    private static string InferCategory(string? fileName)
+    {
+        if (string.IsNullOrEmpty(fileName))
+        {
+            return MapManagerConstants.UploadCategory;
+        }
+
+        if (fileName.EndsWith(".rep", StringComparison.OrdinalIgnoreCase) ||
+            fileName.Equals("replays.zip", StringComparison.OrdinalIgnoreCase))
+        {
+            return ReplayManagerConstants.UploadCategory;
+        }
+
+        return MapManagerConstants.UploadCategory;
+    }
+
     private static string InferCategory(UploadRecord record)
     {
         if (!string.IsNullOrEmpty(record.Category))
@@ -244,20 +257,7 @@ public sealed class UploadHistoryService(
             return record.Category;
         }
 
-        var fileName = record.FileName ?? string.Empty;
-        if (fileName.EndsWith(".rep", StringComparison.OrdinalIgnoreCase) ||
-            fileName.Equals("replays.zip", StringComparison.OrdinalIgnoreCase))
-        {
-            return ReplayManagerConstants.UploadCategory;
-        }
-
-        if (fileName.EndsWith(".map", StringComparison.OrdinalIgnoreCase) ||
-            fileName.Equals("maps.zip", StringComparison.OrdinalIgnoreCase))
-        {
-            return MapManagerConstants.UploadCategory;
-        }
-
-        return string.Empty;
+        return InferCategory(record.FileName);
     }
 
     private static bool MatchesCategory(UploadRecord record, string? category)
@@ -286,9 +286,9 @@ public sealed class UploadHistoryService(
                         record.FileKey);
                 }
             }
-            catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidOperationException)
+            catch (OperationCanceledException ex)
             {
-                logger.LogError(ex, "Exception occurred while deleting file {Key} from cloud during clear history", record.FileKey);
+                logger.LogWarning(ex, "Timeout or cancellation occurred while deleting file {Key} from cloud during clear history", record.FileKey);
             }
         }
     }
@@ -336,7 +336,17 @@ public sealed class UploadHistoryService(
 
                 return new List<UploadRecord>(migratedHistory);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+            catch (IOException ex)
+            {
+                logger.LogError(ex, "Failed to load upload history.");
+                return [];
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                logger.LogError(ex, "Failed to load upload history.");
+                return [];
+            }
+            catch (JsonException ex)
             {
                 logger.LogError(ex, "Failed to load upload history.");
                 return [];
@@ -359,7 +369,15 @@ public sealed class UploadHistoryService(
                 var json = JsonSerializer.Serialize(history, JsonOptions);
                 File.WriteAllText(_historyFilePath, json);
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+            catch (IOException ex)
+            {
+                logger.LogError(ex, "Failed to save upload history");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                logger.LogError(ex, "Failed to save upload history");
+            }
+            catch (JsonException ex)
             {
                 logger.LogError(ex, "Failed to save upload history");
             }

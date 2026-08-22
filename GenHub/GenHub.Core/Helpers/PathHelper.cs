@@ -107,7 +107,23 @@ public static class PathHelper
             return IsContained(normalizedRoot, normalizedTarget) &&
                    IsContained(FollowLinks(normalizedRoot), FollowLinks(normalizedTarget));
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or NotSupportedException or ArgumentException)
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (SecurityException)
+        {
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
         {
             return false;
         }
@@ -175,7 +191,19 @@ public static class PathHelper
             };
             Process.Start(startInfo);
         }
-        catch (Exception ex) when (ex is Win32Exception or IOException or UnauthorizedAccessException or InvalidOperationException)
+        catch (Win32Exception)
+        {
+            /* Ignore explorer errors */
+        }
+        catch (IOException)
+        {
+            /* Ignore explorer errors */
+        }
+        catch (UnauthorizedAccessException)
+        {
+            /* Ignore explorer errors */
+        }
+        catch (InvalidOperationException)
         {
             /* Ignore explorer errors */
         }
