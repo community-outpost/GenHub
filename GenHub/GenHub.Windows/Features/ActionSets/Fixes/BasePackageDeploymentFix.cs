@@ -11,6 +11,7 @@ using GenHub.Core.Constants;
 using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Helpers;
 using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using SharpCompress.Archives;
 
@@ -153,9 +154,17 @@ public abstract class BasePackageDeploymentFix(
             }
 
             var extractedFilePath = Path.Combine(extractDir, fileName);
-            await using var entryStream = entry.OpenEntryStream();
-            await using var fs = new FileStream(extractedFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true);
-            await entryStream.CopyToAsync(fs, ct);
+            await using (var entryStream = entry.OpenEntryStream())
+            {
+                await BoundedArchiveExtractor.CopyEntryToFileAsync(
+                    entryStream,
+                    extractedFilePath,
+                    fileName,
+                    ActionSetConstants.Validation.MaximumAddonPackageSizeBytes,
+                    ActionSetConstants.Validation.MaximumAddonPackageSizeBytes,
+                    overwrite: true,
+                    cancellationToken: ct);
+            }
 
             extractedFiles[fileName] = extractedFilePath;
         }
