@@ -943,8 +943,9 @@ public class PlaywrightService(
         {
             page.Popup -= OnPopup;
             page.Download -= OnDownload;
-            foreach (var popup in popups)
+            for (var i = 0; i < popups.Count; i++)
             {
+                var popup = popups[i];
                 popup.Download -= OnDownload;
                 if (!popup.IsClosed)
                 {

@@ -648,7 +648,7 @@ public class ProfileLauncherFacade(
             }
             catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 740)
             {
-                logger.LogWarning("Tool requires elevation (Error 740). Retrying with UseShellExecute=true and Verb='runas'. Environment variables will be ignored.");
+                logger.LogWarning(ex, "Tool requires elevation (Error 740). Retrying with UseShellExecute=true and Verb='runas'. Environment variables will be ignored.");
 
                 // Reconfigure for elevation
                 processStartInfo.UseShellExecute = true;
@@ -1005,7 +1005,12 @@ public class ProfileLauncherFacade(
             return ProfileOperationResult<GameLaunchInfo>.CreateFailure(string.Join(", ", launchResult.Errors));
         }
 
-        var launchInfo = launchResult.Data!;
+        if (launchResult.Data == null)
+        {
+            return ProfileOperationResult<GameLaunchInfo>.CreateFailure("Launch result data was null");
+        }
+
+        var launchInfo = launchResult.Data;
         logger.LogInformation(
             "=== LAUNCH SUCCESS: Profile {ProfileId}, ProcessId {ProcessId} ===",
             profile.Id,

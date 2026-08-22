@@ -63,7 +63,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly IWorkspaceManager _workspaceManager;
     private readonly IContentManifestPool _manifestPool;
     private readonly IVelopackUpdateManager _updateManager;
-    private readonly IGitHubApiClient _githubClient;
     private readonly IPublisherSubscriptionStore _subscriptionStore;
     private readonly IPublisherCatalogRefreshService _catalogRefreshService;
     private readonly INotificationService _notificationService;
@@ -263,7 +262,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _updateManager = updateManager ?? throw new ArgumentNullException(nameof(updateManager));
         _subscriptionStore = subscriptionStore ?? throw new ArgumentNullException(nameof(subscriptionStore));
         _catalogRefreshService = catalogRefreshService ?? throw new ArgumentNullException(nameof(catalogRefreshService));
-        _githubClient = githubClient ?? throw new ArgumentNullException(nameof(githubClient));
+        ArgumentNullException.ThrowIfNull(githubClient);
         _notificationService = notificationService ?? throw new ArgumentNullException(nameof(notificationService));
         _configurationProvider = configurationProvider ?? throw new ArgumentNullException(nameof(configurationProvider));
         _installationService = installationService ?? throw new ArgumentNullException(nameof(installationService));
@@ -1201,15 +1200,15 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             {
                 var count = manifestsResult.Data.Count();
                 var allRemoved = true;
-                foreach (var manifest in manifestsResult.Data)
+                foreach (var manifestId in manifestsResult.Data.Select(manifest => manifest.Id))
                 {
-                    var removeResult = await _manifestPool.RemoveManifestAsync(manifest.Id);
+                    var removeResult = await _manifestPool.RemoveManifestAsync(manifestId);
                     if (!removeResult.Success)
                     {
                         allRemoved = false;
                         _logger.LogWarning(
                             "Failed to delete manifest {ManifestId}: {Error}",
-                            manifest.Id,
+                            manifestId,
                             removeResult.FirstError);
                     }
                 }

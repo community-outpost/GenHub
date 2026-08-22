@@ -154,20 +154,7 @@ public sealed class ImageCacheService
         try
         {
             var addresses = await Dns.GetHostAddressesAsync(host, cancellationToken);
-            if (addresses.Length == 0)
-            {
-                return false;
-            }
-
-            foreach (var addr in addresses)
-            {
-                if (!IsSafeIpAddress(addr))
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return addresses.All(IsSafeIpAddress);
         }
         catch
         {
@@ -407,7 +394,7 @@ public sealed class ImageCacheService
                 request.Headers.Add("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8");
                 if (currentUrl.Contains("moddb.com", StringComparison.OrdinalIgnoreCase))
                 {
-                    request.Headers.Referrer = new Uri("https://www.moddb.com/");
+                    request.Headers.Referrer = new Uri(ModDBConstants.BaseUrl);
                 }
 
                 response?.Dispose();
@@ -432,7 +419,7 @@ public sealed class ImageCacheService
                 break;
             }
 
-            if (response == null || !response.IsSuccessStatusCode)
+            if (response is not { IsSuccessStatusCode: true })
             {
                 response?.Dispose();
                 return null;

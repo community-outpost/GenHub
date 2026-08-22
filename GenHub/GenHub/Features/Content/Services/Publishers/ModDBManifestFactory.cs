@@ -133,7 +133,7 @@ public partial class ModDBManifestFactory(
             var filePath = allFiles[i];
             var fileInfo = new FileInfo(filePath);
             var relativePath = Path.GetRelativePath(extractedDirectory, filePath);
-            var stageProgress = allFiles.Count > 0 ? (double)(i + 1) / allFiles.Count * 100 : 100;
+            var stageProgress = (double)(i + 1) / allFiles.Count * 100;
             progress?.Report(new ContentAcquisitionProgress
             {
                 CurrentStage = 3,

@@ -28,7 +28,6 @@ namespace GenHub.Features.Content.Services.GitHub;
 /// </summary>
 public class GitHubContentDeliverer(
     IDownloadService downloadService,
-    PublisherManifestFactoryResolver factoryResolver,
     IFileHashProvider hashProvider,
     ILogger<GitHubContentDeliverer> logger) : IContentDeliverer
 {
@@ -274,65 +273,6 @@ public class GitHubContentDeliverer(
                ext == FileTypes.TarFileExtension ||
                ext == FileTypes.GzipFileExtension ||
                ext == FileTypes.RarFileExtension;
-    }
-
-    /// <summary>
-    /// Handles extracted content by using publisher-specific factories to create manifests.
-    /// May return multiple manifests if the publisher factory detects multi-variant content.
-    /// </summary>
-    private async Task<OperationResult<ContentManifest>> HandleExtractedContentAsync(
-        ContentManifest originalManifest,
-        string extractedDirectory,
-        IProgress<ContentAcquisitionProgress>? progress,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            // Resolve the appropriate factory for this publisher/content type
-            logger.LogInformation(
-                "Resolving factory for manifest {ManifestId}, Publisher={PublisherType}, ContentType={ContentType}",
-                originalManifest.Id,
-                originalManifest.Publisher?.PublisherType,
-                originalManifest.ContentType);
-
-            var factory = factoryResolver.ResolveFactory(originalManifest);
-            if (factory == null)
-            {
-                return OperationResult<ContentManifest>.CreateFailure(
-                    $"No factory found for manifest {originalManifest.Id} (Publisher: {originalManifest.Publisher?.PublisherType ?? GameClientConstants.UnknownVersion})");
-            }
-
-            logger.LogInformation(
-                "Using factory {FactoryType} for manifest {ManifestId}",
-                factory.GetType().Name,
-                originalManifest.Id);
-
-            // Use the factory to create manifests from extracted content
-            var manifests = await factory.CreateManifestsFromExtractedContentAsync(
-                originalManifest,
-                extractedDirectory,
-                cancellationToken);
-
-            if (manifests.Count == 0)
-            {
-                logger.LogWarning("Factory produced no manifests for {ManifestId}", originalManifest.Id);
-                return OperationResult<ContentManifest>.CreateFailure("No manifests generated from extracted content");
-            }
-
-            logger.LogInformation(
-                "Factory generated {Count} manifest(s) from extracted content: {ManifestIds}",
-                manifests.Count,
-                string.Join(", ", manifests.Select(m => m.Id.Value)));
-
-            var primaryManifest = manifests[0];
-
-            return OperationResult<ContentManifest>.CreateSuccess(primaryManifest);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to handle extracted content using factory");
-            return OperationResult<ContentManifest>.CreateFailure($"Factory content handling failed: {ex.Message}");
-        }
     }
 
     /// <summary>

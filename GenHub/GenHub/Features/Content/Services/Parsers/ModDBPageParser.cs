@@ -728,7 +728,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
             formatted = CamelCaseSplitRegex().Replace(formatted, " ");
         }
 
-        formatted = Regex.Replace(formatted, @"\s+", " ").Trim();
+        formatted = Regex.Replace(formatted, @"\s+", " ", RegexOptions.None, TimeSpan.FromSeconds(1)).Trim();
 
         return string.IsNullOrWhiteSpace(formatted) ? "Video" : formatted;
     }
@@ -3199,7 +3199,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
 
         if (!string.IsNullOrEmpty(downloadsStr))
         {
-            var numberMatch = System.Text.RegularExpressions.Regex.Match(downloadsStr, @"[\d,]+");
+            var numberMatch = System.Text.RegularExpressions.Regex.Match(downloadsStr, @"[\d,]+", RegexOptions.None, TimeSpan.FromSeconds(1));
             if (numberMatch.Success && int.TryParse(numberMatch.Value.Replace(",", string.Empty), out var parsedDl))
             {
                 return parsedDl;

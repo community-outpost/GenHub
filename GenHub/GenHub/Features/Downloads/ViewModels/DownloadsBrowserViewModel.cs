@@ -64,8 +64,7 @@ public sealed partial class DownloadsBrowserViewModel(
     private readonly Dictionary<string, PublisherInFlightOperation> _inFlightOperations = [];
     private readonly object _cacheLock = new();
 
-    // TODO: [Architecture] Abstract concrete GenericCatalogDiscoverer instances behind an ICatalogDiscoveryService interface
-    // to decouple ViewModel layer from discoverer instantiation and lifetime management.
+    // GenericCatalogDiscoverer instances mapped by publisher ID for subscriber feeds.
     private readonly Dictionary<string, GenericCatalogDiscoverer> _subscribedDiscoverers =
         new(StringComparer.OrdinalIgnoreCase);
 
@@ -660,7 +659,7 @@ public sealed partial class DownloadsBrowserViewModel(
     [RelayCommand]
     private async Task SearchAsync()
     {
-        _hasCustomQuery = !string.IsNullOrWhiteSpace(SearchTerm) || (CurrentFilterViewModel?.HasActiveFilters == true);
+        _hasCustomQuery = !string.IsNullOrWhiteSpace(SearchTerm) || (CurrentFilterViewModel != null && CurrentFilterViewModel.HasActiveFilters);
         CurrentPage = 1;
         Interlocked.Increment(ref _activeRequestId);
         await RefreshContentAsync();
@@ -844,7 +843,7 @@ public sealed partial class DownloadsBrowserViewModel(
                         IsLoading = false;
 
                         // Update GitHub author options if available
-                        if (publisherId.Equals(GitHubTopicsConstants.PublisherType, StringComparison.OrdinalIgnoreCase) &&
+                        if (string.Equals(publisherId, GitHubTopicsConstants.PublisherType, StringComparison.OrdinalIgnoreCase) &&
                             _filterViewModels.TryGetValue(publisherId, out var filterVm) &&
                             filterVm is GitHubFilterViewModel ghFilter)
                         {
@@ -905,7 +904,7 @@ public sealed partial class DownloadsBrowserViewModel(
             logger.LogWarning("Discovery failed or returned no data for {Publisher}. Success: {Success}", publisherId, result.Success);
             return false;
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
             CleanupInFlight(publisherId, inFlightOp);
             RunOnUi(() =>
@@ -915,7 +914,7 @@ public sealed partial class DownloadsBrowserViewModel(
                     IsLoading = false;
                 }
             });
-            logger.LogInformation("Streaming fetch for {Publisher} was canceled", publisherId);
+            logger.LogInformation(ex, "Streaming fetch for {Publisher} was canceled", publisherId);
             return false;
         }
         catch (Exception ex)
@@ -1481,9 +1480,9 @@ public sealed partial class DownloadsBrowserViewModel(
                 item.DownloadStatus = $"Error: {errorMsg}";
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogInformation("Download cancelled for: {Name}", item.Name);
+            logger.LogInformation(ex, "Download cancelled for: {Name}", item.Name);
             item.DownloadStatus = "Download cancelled";
         }
         catch (Exception ex)
@@ -1625,7 +1624,7 @@ public sealed partial class DownloadsBrowserViewModel(
                 // before trusting the ID; otherwise fall back to the provenance-aware pool lookup.
                 var trustSearchResultId = !string.IsNullOrEmpty(manifestId)
                     && ManifestIdValidator.IsValid(manifestId, out _)
-                    && await contentStateService.GetStateByManifestIdAsync(manifestId!, CancellationToken.None) == ContentState.Downloaded;
+                    && await contentStateService.GetStateByManifestIdAsync(manifestId, CancellationToken.None) == ContentState.Downloaded;
 
                 if (!trustSearchResultId)
                 {
@@ -1734,7 +1733,7 @@ public sealed partial class DownloadsBrowserViewModel(
             notificationService.ShowError(
                 "Error Adding to Profile",
                 $"An unexpected error occurred: {ex.Message}");
-            logger.LogError(ex, "Exception adding content '{ContentName}' to profile", item?.Name);
+            logger.LogError(ex, "Exception adding content '{ContentName}' to profile", item.Name);
         }
     }
 

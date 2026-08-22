@@ -183,7 +183,7 @@ try {
 
             # Use --no-restore to skip package resolution (much faster)
             # Use --no-dependencies when checking a single project (skip transitive)
-            $args = @(
+            $buildArgs = @(
                 "build", $target,
                 "--no-restore",
                 "--nologo",
@@ -192,24 +192,24 @@ try {
             )
 
             if ($Project) {
-                $args += "--no-dependencies"
+                $buildArgs += "--no-dependencies"
             }
 
-            & dotnet @args
+            & dotnet @buildArgs
             $exitCode = $LASTEXITCODE
         }
 
         "build" {
             Write-Status "Running full build on: $(Split-Path $target -Leaf)"
 
-            $args = @(
+            $buildArgs = @(
                 "build", $target,
                 "--nologo",
                 "--verbosity", $Verbosity,
                 "-maxcpucount:2"
             )
 
-            & dotnet @args
+            & dotnet @buildArgs
             $exitCode = $LASTEXITCODE
         }
 

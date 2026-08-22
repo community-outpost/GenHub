@@ -1193,7 +1193,6 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
             while (z0.Read(buf0, 0, buf0.Length) > 0)
             {
                 // Discard decompressed uninstaller info script stream bytes until EOF.
-                continue;
             }
 
             stream.Position = payloadOffset + z0.TotalIn;
@@ -1351,7 +1350,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         {
             cancellationToken.ThrowIfCancellationRequested();
             var rec = records[i];
-            var stageProgress = totalRecords > 0 ? (double)(i + 1) / totalRecords * 100 : 100;
+            var stageProgress = (double)(i + 1) / totalRecords * 100;
             var shortName = Path.GetFileName(rec.Name);
             progress?.Report(new ContentAcquisitionProgress
             {

@@ -168,9 +168,6 @@ public partial class CNCLabsFilterViewModel : FilterPanelViewModelBase
         TargetGame = game;
         OnPropertyChanged(nameof(IsZeroHourSelected));
         OnPropertyChanged(nameof(IsGeneralsSelected));
-
-        // REMOVED: Auto-refresh on game change
-        // NotifyFiltersChanged();
     }
 
     /// <summary>
@@ -195,9 +192,6 @@ public partial class CNCLabsFilterViewModel : FilterPanelViewModelBase
     private void ToggleTag(MapTagFilterItem item)
     {
         // Don't toggle IsSelected here - TwoWay binding on IsChecked already handles it
-
-        // REMOVED: Auto-refresh on tag toggle
-        // NotifyFiltersChanged();
         OnPropertyChanged(nameof(ActiveTags));
     }
 
@@ -213,8 +207,5 @@ public partial class CNCLabsFilterViewModel : FilterPanelViewModelBase
         // Ensure current is selected (in case it was already selected, it stays selected)
         item.IsSelected = true;
         SelectedContentType = item.ContentType;
-
-        // REMOVED: Auto-refresh on content type change
-        // NotifyFiltersChanged();
     }
 }

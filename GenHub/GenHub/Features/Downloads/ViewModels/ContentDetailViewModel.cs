@@ -840,7 +840,7 @@ public partial class ContentDetailViewModel(
 
             try
             {
-                installable.CurrentState = await contentStateService.GetStateAsync(snapshot);
+                installable.CurrentState = await contentStateService.GetStateAsync(snapshot, _cts.Token);
             }
             catch (Exception ex)
             {
@@ -1193,12 +1193,12 @@ public partial class ContentDetailViewModel(
                 return;
             }
 
-            var state = await contentStateService.GetStateAsync(searchResult);
+            var state = await contentStateService.GetStateAsync(searchResult, _cts.Token);
 
             if (state == ContentState.Downloaded &&
                 (string.IsNullOrEmpty(searchResult.Id) || !ManifestIdValidator.IsValid(searchResult.Id!, out _)))
             {
-                var manifestId = await contentStateService.GetLocalManifestIdAsync(searchResult);
+                var manifestId = await contentStateService.GetLocalManifestIdAsync(searchResult, _cts.Token);
                 if (!string.IsNullOrEmpty(manifestId))
                 {
                     searchResult.UpdateId(manifestId!);
@@ -2516,7 +2516,7 @@ public partial class ContentDetailViewModel(
     {
         foreach (var component in BundleComponents)
         {
-            await component.RefreshStateAsync(contentStateService);
+            await component.RefreshStateAsync(contentStateService, _cts.Token);
         }
 
         await RunOnUiThreadAsync(() =>
@@ -2729,6 +2729,8 @@ public partial class ContentDetailViewModel(
     /// </summary>
     private ContentSearchResult CreateFileSearchResult(DownloadableFile file, ContentType? overrideContentType = null)
     {
+        ArgumentNullException.ThrowIfNull(file);
+
         ContentType fileContentType;
         if (overrideContentType.HasValue)
         {
@@ -2879,7 +2881,7 @@ public partial class ContentDetailViewModel(
         try
         {
             var rowSearchResult = CreateFileSearchResult(file, row.ContentType);
-            var state = await contentStateService.GetStateAsync(rowSearchResult);
+            var state = await contentStateService.GetStateAsync(rowSearchResult, _cts.Token);
             if (state == ContentState.NotDownloaded)
             {
                 return;
@@ -2888,7 +2890,7 @@ public partial class ContentDetailViewModel(
             // Prefer the on-disk manifest ID from the pool over the synthesized row ID, which is a
             // "file:..." placeholder and not a real manifest. GetLocalManifestIdAsync walks the
             // provenance (OriginalProviderName/OriginalContentId) and publisher+type+game fallbacks.
-            var manifestId = await contentStateService.GetLocalManifestIdAsync(rowSearchResult);
+            var manifestId = await contentStateService.GetLocalManifestIdAsync(rowSearchResult, _cts.Token);
             if (string.IsNullOrEmpty(manifestId))
             {
                 logger.LogWarning(
@@ -3011,7 +3013,7 @@ public partial class ContentDetailViewModel(
 
     private async Task LoadDependencySummaryAsync(string manifestId)
     {
-        var manifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(manifestId));
+        var manifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(manifestId), _cts.Token);
         if (manifestResult.Success && manifestResult.Data != null)
         {
             var manifest = manifestResult.Data;
@@ -3077,7 +3079,7 @@ public partial class ContentDetailViewModel(
                 return;
             }
 
-            var manifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(manifestId));
+            var manifestResult = await manifestPool.GetManifestAsync(ManifestId.Create(manifestId), _cts.Token);
             if (!manifestResult.Success || manifestResult.Data == null)
             {
                 logger.LogWarning(
@@ -3109,7 +3111,7 @@ public partial class ContentDetailViewModel(
                 EnsureGameInstallationDependency(manifest);
             }
 
-            var saveResult = await manifestPool.AddManifestAsync(manifest);
+            var saveResult = await manifestPool.AddManifestAsync(manifest, _cts.Token);
             if (!saveResult.Success)
             {
                 logger.LogError(
@@ -3148,7 +3150,7 @@ public partial class ContentDetailViewModel(
             return searchResult.Id;
         }
 
-        return await contentStateService.GetLocalManifestIdAsync(searchResult);
+        return await contentStateService.GetLocalManifestIdAsync(searchResult, _cts.Token);
     }
 
     /// <summary>
@@ -3290,7 +3292,7 @@ public partial class ContentDetailViewModel(
                 // The search result still carries the catalog ID — look the manifest up in the
                 // pool before concluding the content is not downloaded (same fallback as the
                 // grid path in DownloadsBrowserViewModel.AddContentToProfileAsync).
-                contentManifestId = await contentStateService.GetLocalManifestIdAsync(searchResult);
+                contentManifestId = await contentStateService.GetLocalManifestIdAsync(searchResult, _cts.Token);
                 selectedContentName = searchResult.Name;
 
                 if (string.IsNullOrEmpty(contentManifestId))

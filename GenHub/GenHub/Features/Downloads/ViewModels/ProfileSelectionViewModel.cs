@@ -267,13 +267,9 @@ public sealed partial class ProfileSelectionViewModel(
             return ids;
         }
 
-        foreach (var id in additionalManifestIds)
+        foreach (var id in additionalManifestIds.Where(id => !string.IsNullOrWhiteSpace(id) && !ids.Contains(id, StringComparer.OrdinalIgnoreCase)))
         {
-            if (!string.IsNullOrWhiteSpace(id) &&
-                !ids.Contains(id, StringComparer.OrdinalIgnoreCase))
-            {
-                ids.Add(id);
-            }
+            ids.Add(id);
         }
 
         return ids;

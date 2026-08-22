@@ -698,7 +698,7 @@ public sealed partial class ContentStateService(
             return null;
         }
 
-        var match = Regex.Match(input, @"\b(720p?|900p?|1080p?|1440p?|2160p?|4k)\b", RegexOptions.IgnoreCase);
+        var match = Regex.Match(input, @"\b(720p?|900p?|1080p?|1440p?|2160p?|4k)\b", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
         if (match.Success)
         {
             var token = match.Value.ToLowerInvariant();
@@ -713,7 +713,7 @@ public sealed partial class ContentStateService(
             };
         }
 
-        var inlineMatch = Regex.Match(input, @"(720p|900p|1080p|1440p|2160p|4k)", RegexOptions.IgnoreCase);
+        var inlineMatch = Regex.Match(input, @"(720p|900p|1080p|1440p|2160p|4k)", RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
         if (inlineMatch.Success)
         {
             return inlineMatch.Value.ToLowerInvariant();

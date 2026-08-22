@@ -627,18 +627,20 @@ public partial class AddLocalContentViewModel(
             }
             else if (extension.Equals(".zip", StringComparison.OrdinalIgnoreCase))
             {
-                await Task.Run(() =>
-                {
-                    ZipFile.ExtractToDirectory(destFile, _stagingPath, true);
-                    try
+                await Task.Run(
+                    () =>
                     {
-                        File.Delete(destFile);
-                    }
-                    catch
-                    {
-                        // Best effort cleanup of source zip in staging
-                    }
-                });
+                        ZipFile.ExtractToDirectory(destFile, _stagingPath, true);
+                        try
+                        {
+                            File.Delete(destFile);
+                        }
+                        catch
+                        {
+                            // Best effort cleanup of source zip in staging
+                        }
+                    },
+                    cancellationToken);
             }
         }
         else if (Directory.Exists(path))
@@ -646,7 +648,7 @@ public partial class AddLocalContentViewModel(
             var dirInfo = new DirectoryInfo(path);
             logger?.LogDebug("ImportContentAsync: Copying folder contents from source {Source} to staging root {Staging}", path, _stagingPath);
 
-            await Task.Run(() => CopyDirectory(dirInfo, new DirectoryInfo(_stagingPath)));
+            await Task.Run(() => CopyDirectory(dirInfo, new DirectoryInfo(_stagingPath)), cancellationToken);
 
             if (archivePayloadProcessor != null)
             {
@@ -835,7 +837,7 @@ public partial class AddLocalContentViewModel(
             StatusMessage = "Normalizing inactive archives (.ctr / .gib) to .big...";
             logger?.LogInformation("User triggered archive normalization in staging: {StagingPath}", _stagingPath);
 
-            await Task.Run(NormalizeStagingDirectory);
+            await Task.Run(NormalizeStagingDirectory, _cts?.Token ?? CancellationToken.None);
 
             await RefreshStagingTreeAsync();
             StatusMessage = "Inactive archives normalized to .big successfully.";

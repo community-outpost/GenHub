@@ -177,7 +177,7 @@ public static class CatalogManifestIdentity
         }
 
         var bytes = Encoding.UTF8.GetBytes(cleanVersion);
-        var hash = MD5.HashData(bytes);
+        var hash = SHA256.HashData(bytes);
         return (int)((uint)BitConverter.ToInt32(hash, 0) % 1_000_000);
     }
 

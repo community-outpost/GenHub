@@ -793,7 +793,7 @@ public partial class ModDBDiscoverer(
                     published = parsedDate;
                 }
 
-                System.Xml.Linq.XNamespace media = "http://search.yahoo.com/mrss/";
+                System.Xml.Linq.XNamespace media = ModDBConstants.MediaRssNamespace;
                 var fullImage = item.Descendants(media + "content").FirstOrDefault()?.Attribute("url")?.Value;
                 var thumbnail = item.Descendants(media + "thumbnail").FirstOrDefault()?.Attribute("url")?.Value
                     ?? fullImage

@@ -96,9 +96,10 @@ internal sealed class ManagedChromiumRuntime(
 
         int exitCode = 0;
         using var progressCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var progressTask = Task.Run(async () =>
-        {
-            try
+        var progressTask = Task.Run(
+            async () =>
+            {
+                try
             {
                 var stopwatch = System.Diagnostics.Stopwatch.StartNew();
                 while (!progressCts.Token.IsCancellationRequested)
@@ -139,7 +140,8 @@ internal sealed class ManagedChromiumRuntime(
             {
                 logger.LogDebug(ex, "Error updating Chromium install progress notification");
             }
-        });
+        },
+            progressCts.Token);
 
         try
         {
@@ -198,17 +200,20 @@ internal sealed class ManagedChromiumRuntime(
                 ModDBConstants.ChromiumReadyMessage,
                 ModDBConstants.ChromiumReadyTitle);
 
-            _ = Task.Delay(NotificationDurations.Medium, CancellationToken.None).ContinueWith(_ =>
-            {
-                try
+            _ = Task.Run(
+                async () =>
                 {
-                    notificationService.Dismiss(toastId);
-                }
-                catch
-                {
-                    // Ignore dismissal errors during cleanup
-                }
-            });
+                    try
+                    {
+                        await Task.Delay(NotificationDurations.Medium, CancellationToken.None);
+                        notificationService.Dismiss(toastId);
+                    }
+                    catch
+                    {
+                        // Ignore dismissal errors during cleanup
+                    }
+                },
+                CancellationToken.None);
         }
     }
 

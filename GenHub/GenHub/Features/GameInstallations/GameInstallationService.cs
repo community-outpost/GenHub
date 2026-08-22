@@ -496,7 +496,7 @@ public class GameInstallationService(
                     var pathResult = ContentPathPolicy.ResolveContainedFile(gamePath, resolution.RelativePath);
                     if (pathResult.Success)
                     {
-                        executablePath = pathResult.Data!;
+                        executablePath = pathResult.Data ?? string.Empty;
                     }
                 }
 

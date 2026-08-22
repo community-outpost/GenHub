@@ -97,6 +97,12 @@ public class GameLauncher(
         }
     }
 
+    private readonly record struct WorkspaceSetupContext(
+        string ActualInstallationPath,
+        string DynamicWorkspacePath,
+        bool IsSteamLaunch,
+        Dictionary<string, string> ManifestSourcePaths);
+
     /// <summary>
     /// Launches a game using the provided configuration.
     /// </summary>
@@ -881,15 +887,13 @@ public class GameLauncher(
         }
 
         var (installation, gameClient, actualInstallationPath, dynamicWorkspacePath, isSteamLaunch) = installResult.Data;
+        var setupContext = new WorkspaceSetupContext(actualInstallationPath, dynamicWorkspacePath, isSteamLaunch, manifestSourcePaths);
 
         var workspaceSetupResult = await SetupAndAcquireWorkspaceAsync(
             profile,
             manifests,
             gameClient,
-            actualInstallationPath,
-            dynamicWorkspacePath,
-            isSteamLaunch,
-            manifestSourcePaths,
+            setupContext,
             progress,
             cancellationToken);
 
@@ -995,32 +999,29 @@ public class GameLauncher(
         GameProfile profile,
         List<ContentManifest> manifests,
         GenHub.Core.Models.GameClients.GameClient gameClient,
-        string actualInstallationPath,
-        string dynamicWorkspacePath,
-        bool isSteamLaunch,
-        Dictionary<string, string> manifestSourcePaths,
+        WorkspaceSetupContext context,
         IProgress<LaunchProgress>? progress,
         CancellationToken cancellationToken)
     {
         IDisposable? steamInstallationLock = null;
         try
         {
-            if (isSteamLaunch)
+            if (context.IsSteamLaunch)
             {
-                steamInstallationLock = await AcquireSteamInstallationLockAsync(actualInstallationPath, cancellationToken);
+                steamInstallationLock = await AcquireSteamInstallationLockAsync(context.ActualInstallationPath, cancellationToken);
                 logger.LogInformation("[GameLauncher] Steam launch detected - workspace will be adjacent to installation in .genhub-workspace directory");
             }
 
-            logger.LogDebug("[GameLauncher] Using dynamic workspace path: {WorkspacePath} (Installation: {InstallPath})", dynamicWorkspacePath, actualInstallationPath);
+            logger.LogDebug("[GameLauncher] Using dynamic workspace path: {WorkspacePath} (Installation: {InstallPath})", context.DynamicWorkspacePath, context.ActualInstallationPath);
 
             var workspaceResult = await PrepareWorkspaceForLaunchAsync(
                 profile,
                 manifests,
                 gameClient,
-                actualInstallationPath,
-                dynamicWorkspacePath,
-                isSteamLaunch,
-                manifestSourcePaths,
+                context.ActualInstallationPath,
+                context.DynamicWorkspacePath,
+                context.IsSteamLaunch,
+                context.ManifestSourcePaths,
                 progress,
                 cancellationToken);
 

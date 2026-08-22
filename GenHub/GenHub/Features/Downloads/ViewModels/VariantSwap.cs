@@ -107,23 +107,7 @@ public static class VariantSwap
     {
         if (!string.IsNullOrWhiteSpace(info?.Name))
         {
-            // Prefer an already-composed sibling name (family + variant) when present.
-            if (!string.IsNullOrWhiteSpace(sibling.Name) &&
-                !string.IsNullOrEmpty(sibling.VariantFamilyName) &&
-                !string.Equals(sibling.Name, sibling.VariantFamilyName, StringComparison.Ordinal) &&
-                sibling.Name.Contains(info.Name, StringComparison.OrdinalIgnoreCase))
-            {
-                return sibling.Name;
-            }
-
-            // Short resolution labels (e.g. "1080p (Recommended)") need the family prefix.
-            if (!string.IsNullOrWhiteSpace(sibling.VariantFamilyName) &&
-                !info.Name.Contains(sibling.VariantFamilyName, StringComparison.OrdinalIgnoreCase))
-            {
-                return $"{sibling.VariantFamilyName} - {info.Name}";
-            }
-
-            return info.Name;
+            return ResolveFromVariantInfo(sibling, info.Name);
         }
 
         if (!string.IsNullOrWhiteSpace(sibling.Name) &&
@@ -133,14 +117,12 @@ public static class VariantSwap
             return sibling.Name;
         }
 
-        if (!string.IsNullOrWhiteSpace(sibling.VariantFamilyName) &&
-            !string.IsNullOrWhiteSpace(info?.Id))
+        if (!string.IsNullOrWhiteSpace(sibling.VariantFamilyName) && !string.IsNullOrWhiteSpace(info?.Id))
         {
-            var suffix = info.Id.Contains('.') ? info.Id[(info.Id.LastIndexOf('.') + 1)..] : info.Id;
-            if (!string.IsNullOrWhiteSpace(suffix) &&
-                !string.Equals(suffix, sibling.VariantFamilyName, StringComparison.OrdinalIgnoreCase))
+            var formattedSuffix = FormatFamilySuffix(sibling.VariantFamilyName, info.Id);
+            if (formattedSuffix != null)
             {
-                return $"{sibling.VariantFamilyName} — {suffix}";
+                return formattedSuffix;
             }
         }
 
@@ -202,5 +184,36 @@ public static class VariantSwap
         target.VariantFamilyName = familyName;
         target.VariantGroupId = groupId;
         target.Variants = variants;
+    }
+
+    private static string ResolveFromVariantInfo(ContentSearchResult sibling, string infoName)
+    {
+        if (!string.IsNullOrWhiteSpace(sibling.Name) &&
+            !string.IsNullOrEmpty(sibling.VariantFamilyName) &&
+            !string.Equals(sibling.Name, sibling.VariantFamilyName, StringComparison.Ordinal) &&
+            sibling.Name.Contains(infoName, StringComparison.OrdinalIgnoreCase))
+        {
+            return sibling.Name;
+        }
+
+        if (!string.IsNullOrWhiteSpace(sibling.VariantFamilyName) &&
+            !infoName.Contains(sibling.VariantFamilyName, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{sibling.VariantFamilyName} - {infoName}";
+        }
+
+        return infoName;
+    }
+
+    private static string? FormatFamilySuffix(string familyName, string infoId)
+    {
+        var suffix = infoId.Contains('.') ? infoId[(infoId.LastIndexOf('.') + 1)..] : infoId;
+        if (!string.IsNullOrWhiteSpace(suffix) &&
+            !string.Equals(suffix, familyName, StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{familyName} — {suffix}";
+        }
+
+        return null;
     }
 }

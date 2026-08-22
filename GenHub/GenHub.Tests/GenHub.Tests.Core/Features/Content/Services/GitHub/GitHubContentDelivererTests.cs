@@ -461,7 +461,7 @@ public class GitHubContentDelivererTests
     }
 
     private GitHubContentDeliverer CreateSut() =>
-        new(_downloadService.Object, _factoryResolver, _fileHashProvider.Object, _logger.Object);
+        new(_downloadService.Object, _fileHashProvider.Object, _logger.Object);
 
     private GitHubContentDeliverer CreateDeliverer() => CreateSut();
 

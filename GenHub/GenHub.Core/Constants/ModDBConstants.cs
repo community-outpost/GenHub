@@ -56,6 +56,9 @@ public static class ModDBConstants
     /// <summary>Addons section for Zero Hour.</summary>
     public const string ZeroHourAddonsUrl = ZeroHourBaseUrl + "/addons";
 
+    /// <summary>Media RSS XML namespace URI.</summary>
+    public const string MediaRssNamespace = "http://search.yahoo.com/mrss/";
+
     // ===== Publisher Info =====
 
     /// <summary>Canonical identifier string for ModDB.</summary>
