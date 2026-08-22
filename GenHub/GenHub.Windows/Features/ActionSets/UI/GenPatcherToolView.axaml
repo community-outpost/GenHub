@@ -9,10 +9,10 @@
              x:DataType="vm:GenPatcherViewModel">
 
     <UserControl.Styles>
-        <!-- Standard Action Button (GenHub Translucent Purple Style) -->
+        <!-- Standard Action Button (GenHub Translucent Theme Style) -->
         <Style Selector="Button.ActionBtn">
-            <Setter Property="Background" Value="#337B2CBF"/>
-            <Setter Property="BorderBrush" Value="#669D4EDD"/>
+            <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="16,6"/>
@@ -29,12 +29,12 @@
             </Setter>
         </Style>
         <Style Selector="Button.ActionBtn:pointerover">
-            <Setter Property="Background" Value="#559D4EDD"/>
-            <Setter Property="BorderBrush" Value="#C77DFF"/>
+            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentLightBrush}"/>
             <Setter Property="RenderTransform" Value="scale(1.03)"/>
         </Style>
         <Style Selector="Button.ActionBtn:pressed">
-            <Setter Property="Background" Value="#7B2CBF"/>
+            <Setter Property="Background" Value="{DynamicResource AccentDarkBrush}"/>
             <Setter Property="RenderTransform" Value="scale(0.97)"/>
         </Style>
         <Style Selector="Button.ActionBtn:disabled">
@@ -43,7 +43,7 @@
 
         <!-- Fix Card Glassmorphic Style -->
         <Style Selector="Border.FixCard">
-            <Setter Property="Background" Value="#1C182A"/>
+            <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="8"/>
@@ -59,7 +59,7 @@
             </Setter>
         </Style>
         <Style Selector="Border.FixCard:pointerover">
-            <Setter Property="Background" Value="#28223C"/>
+            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="RenderTransform" Value="translateY(-2px)"/>
         </Style>
@@ -84,8 +84,8 @@
             </Setter>
         </Style>
         <Style Selector="Button.CategoryChip:pointerover">
-            <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
         </Style>
 
@@ -100,7 +100,7 @@
             <Setter Property="Cursor" Value="Hand"/>
         </Style>
         <Style Selector="Button.DetailsToggleBtn:pointerover">
-            <Setter Property="Foreground" Value="#C77DFF"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentLightBrush}"/>
         </Style>
 
         <!-- GenPatcher Primary Red Accent Button -->
@@ -160,12 +160,12 @@
     </UserControl.Styles>
 
     <Panel>
-        <!-- Glassmorphic Background with Dark Crimson Tint -->
+        <!-- Glassmorphic Background with Dark Surface Tint -->
         <ExperimentalAcrylicBorder IsHitTestVisible="False">
             <ExperimentalAcrylicBorder.Material>
                 <ExperimentalAcrylicMaterial
                     BackgroundSource="Digger"
-                    TintColor="#FF0D0812"
+                    TintColor="#08080C"
                     TintOpacity="0.94"
                     MaterialOpacity="0.80" />
             </ExperimentalAcrylicBorder.Material>
@@ -201,8 +201,8 @@
                             <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                 <TextBlock Text="GenPatcher" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" />
                                 <!-- Progress Pill -->
-                                <Border Background="#3328A745" BorderBrush="#5528A745" BorderThickness="1" CornerRadius="12" Padding="8,2" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding ProgressSummaryText}" FontSize="11" FontWeight="Bold" Foreground="#4ADE80"/>
+                                <Border Background="#2010B981" BorderBrush="{DynamicResource SuccessBrush}" BorderThickness="1" CornerRadius="12" Padding="8,2" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding ProgressSummaryText}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}"/>
                                 </Border>
                             </StackPanel>
                             <TextBlock Text="Essential fixes and enhancements for Command &amp; Conquer" FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
@@ -283,7 +283,7 @@
             </Grid>
 
             <!-- Content Area - Scrollable Card Grid -->
-            <ScrollViewer Grid.Row="2" Padding="0,4,6,0">
+            <ScrollViewer Grid.Row="2" Focusable="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,4,6,0">
                 <ItemsControl ItemsSource="{Binding FilteredActionSets}" HorizontalAlignment="Center">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
