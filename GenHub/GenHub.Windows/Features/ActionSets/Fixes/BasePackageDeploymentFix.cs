@@ -17,7 +17,12 @@ using Microsoft.Extensions.Logging;
 /// Abstract base class for downloadable package deployment fixes (e.g., HD Icons, Expanded LAN Lobby).
 /// Handles package download, hash validation, safe materialization with backup tracking, marker persistence, and rollback.
 /// </summary>
-public abstract class BasePackageDeploymentFix : BaseActionSet
+public abstract class BasePackageDeploymentFix(
+    IHttpClientFactory httpClientFactory,
+    ILogger logger,
+    string defaultMarkerFileName,
+    string? markerPath = null)
+    : BaseActionSet(logger)
 {
     /// <summary>
     /// Execution context for package deployment operations.
@@ -34,32 +39,11 @@ public abstract class BasePackageDeploymentFix : BaseActionSet
         List<string> DeployedFiles,
         List<string> Details);
 
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly ILogger _logger;
-    private readonly string _markerPath;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="BasePackageDeploymentFix"/> class.
-    /// </summary>
-    /// <param name="httpClientFactory">HTTP client factory for package downloads.</param>
-    /// <param name="logger">Logger instance.</param>
-    /// <param name="defaultMarkerFileName">Default marker file name.</param>
-    /// <param name="markerPath">Optional custom marker path.</param>
-    protected BasePackageDeploymentFix(
-        IHttpClientFactory httpClientFactory,
-        ILogger logger,
-        string defaultMarkerFileName,
-        string? markerPath = null)
-        : base(logger)
-    {
-        _httpClientFactory = httpClientFactory;
-        _logger = logger;
-        _markerPath = markerPath ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "GenHub",
-            ActionSetConstants.Paths.SubActionSetMarkers,
-            defaultMarkerFileName);
-    }
+    private readonly string _markerPath = markerPath ?? Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "GenHub",
+        ActionSetConstants.Paths.SubActionSetMarkers,
+        defaultMarkerFileName);
 
     /// <summary>
     /// Gets the list of download URLs for the package.
@@ -175,7 +159,7 @@ public abstract class BasePackageDeploymentFix : BaseActionSet
             if (!validation.Success)
             {
                 var errorSummary = string.Join("; ", validation.Errors);
-                _logger.LogWarning("Security validation failed for {Name} package: {Error}", PackageDisplayName, errorSummary);
+                Logger.LogWarning("Security validation failed for {Name} package: {Error}", PackageDisplayName, errorSummary);
                 return new ActionSetResult(false, $"Package failed security verification: {errorSummary}", details);
             }
 
@@ -214,7 +198,7 @@ public abstract class BasePackageDeploymentFix : BaseActionSet
         catch (Exception ex)
         {
             RollbackDeployment(backupEntries, details);
-            _logger.LogError(ex, "Error applying {Name} fix", PackageDisplayName);
+            Logger.LogError(ex, "Error applying {Name} fix", PackageDisplayName);
             details.Add($"✗ Error: {ex.Message}");
             return new ActionSetResult(false, ex.Message, details);
         }
@@ -249,7 +233,7 @@ public abstract class BasePackageDeploymentFix : BaseActionSet
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                _logger.LogWarning(ex, "Failed to read installed file paths from marker {MarkerPath}", _markerPath);
+                Logger.LogWarning(ex, "Failed to read installed file paths from marker {MarkerPath}", _markerPath);
                 return Task.FromResult(new ActionSetResult(false, $"Failed to read deployment marker: {ex.Message}", ["✗ Could not read deployment marker."]));
             }
 
@@ -277,7 +261,7 @@ public abstract class BasePackageDeploymentFix : BaseActionSet
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _logger.LogWarning(ex, "Failed to delete marker or files for {Name}", PackageDisplayName);
+            Logger.LogWarning(ex, "Failed to delete marker or files for {Name}", PackageDisplayName);
             return Task.FromResult(new ActionSetResult(false, ex.Message, details));
         }
     }
@@ -322,14 +306,14 @@ public abstract class BasePackageDeploymentFix : BaseActionSet
         List<string> details,
         CancellationToken ct)
     {
-        using var client = _httpClientFactory.CreateClient("Downloader");
+        using var client = httpClientFactory.CreateClient("Downloader");
         client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
         foreach (var url in DownloadUrls)
         {
             try
             {
-                _logger.LogInformation("Attempting {Name} download from {Url}", PackageDisplayName, url);
+                Logger.LogInformation("Attempting {Name} download from {Url}", PackageDisplayName, url);
                 using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
                 response.EnsureSuccessStatusCode();
 
@@ -341,7 +325,7 @@ public abstract class BasePackageDeploymentFix : BaseActionSet
                 var fileInfo = new FileInfo(tempFile);
                 if (fileInfo.Length < ActionSetConstants.Validation.MinimumAddonPackageSizeBytes)
                 {
-                    _logger.LogWarning("Downloaded file from {Url} is too small ({Size} bytes).", url, fileInfo.Length);
+                    Logger.LogWarning("Downloaded file from {Url} is too small ({Size} bytes).", url, fileInfo.Length);
                     if (File.Exists(tempFile))
                     {
                         File.Delete(tempFile);
@@ -359,7 +343,7 @@ public abstract class BasePackageDeploymentFix : BaseActionSet
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to download {Name} from {Url}", PackageDisplayName, url);
+                Logger.LogWarning(ex, "Failed to download {Name} from {Url}", PackageDisplayName, url);
             }
         }
 
@@ -392,7 +376,7 @@ public abstract class BasePackageDeploymentFix : BaseActionSet
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                _logger.LogWarning(ex, "Failed to delete recorded file {FilePath} during undo", trimmed);
+                Logger.LogWarning(ex, "Failed to delete recorded file {FilePath} during undo", trimmed);
                 remainingFiles.Add(trimmed);
             }
         }
@@ -413,7 +397,7 @@ public abstract class BasePackageDeploymentFix : BaseActionSet
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                _logger.LogWarning(ex, "Failed to delete marker file {MarkerPath} after undo", _markerPath);
+                Logger.LogWarning(ex, "Failed to delete marker file {MarkerPath} after undo", _markerPath);
             }
 
             return;
@@ -432,7 +416,7 @@ public abstract class BasePackageDeploymentFix : BaseActionSet
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _logger.LogWarning(ex, "Failed to rewrite marker file {MarkerPath} with remaining files", _markerPath);
+            Logger.LogWarning(ex, "Failed to rewrite marker file {MarkerPath} with remaining files", _markerPath);
         }
     }
 
@@ -455,7 +439,7 @@ public abstract class BasePackageDeploymentFix : BaseActionSet
                     else
                     {
                         hasRollbackError = true;
-                        _logger.LogWarning("Original backup missing for {DestPath} during rollback", destPath);
+                        Logger.LogWarning("Original backup missing for {DestPath} during rollback", destPath);
                     }
                 }
                 else if (File.Exists(destPath))
@@ -466,7 +450,7 @@ public abstract class BasePackageDeploymentFix : BaseActionSet
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 hasRollbackError = true;
-                _logger.LogWarning(ex, "Failed to restore or remove file during rollback: {Path}", destPath);
+                Logger.LogWarning(ex, "Failed to restore or remove file during rollback: {Path}", destPath);
             }
         }
 
@@ -498,58 +482,16 @@ public abstract class BasePackageDeploymentFix : BaseActionSet
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _logger.LogWarning(ex, "Failed to create marker file for {Name}", PackageDisplayName);
-            CleanupTempFile(tempMarker);
+            Logger.LogWarning(ex, "Failed to create marker file for {Name}", PackageDisplayName);
+            DeleteFileSafely(tempMarker);
             return false;
-        }
-    }
-
-    private void CleanupTempFile(string? path)
-    {
-        if (string.IsNullOrEmpty(path))
-        {
-            return;
-        }
-
-        try
-        {
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            _logger.LogDebug(ex, "Failed to clean up temporary file {TempPath}", path);
         }
     }
 
     private void CleanupTempFiles(string tempFile, string tempExtractDir, string tempBackupDir)
     {
-        CleanupTempFile(tempFile);
-
-        try
-        {
-            if (Directory.Exists(tempExtractDir))
-            {
-                Directory.Delete(tempExtractDir, recursive: true);
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            _logger.LogDebug(ex, "Failed to delete temp directory {TempDir}", tempExtractDir);
-        }
-
-        try
-        {
-            if (Directory.Exists(tempBackupDir))
-            {
-                Directory.Delete(tempBackupDir, recursive: true);
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            _logger.LogDebug(ex, "Failed to delete temp backup directory {TempDir}", tempBackupDir);
-        }
+        DeleteFileSafely(tempFile);
+        DeleteDirectorySafely(tempExtractDir);
+        DeleteDirectorySafely(tempBackupDir);
     }
 }
