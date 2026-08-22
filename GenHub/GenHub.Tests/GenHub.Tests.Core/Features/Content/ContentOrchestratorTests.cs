@@ -533,4 +533,62 @@ public class ContentOrchestratorTests
         Assert.Equal("thesuperhackers", items[0].ProviderName);
         Assert.Equal("TheSuperHackers Patch 2", items[0].Name);
     }
+
+    /// <summary>
+    /// Verifies that ResolveManifestAsync successfully matches resolvers across hyphen and case variations.
+    /// </summary>
+    /// <param name="searchResolverId">The resolver ID variant to test.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Theory]
+    [InlineData("community-outpost")]
+    [InlineData("communityoutpost")]
+    [InlineData("COMMUNITY-OUTPOST")]
+    [InlineData("COMMUNITYOUTPOST")]
+    public async Task ResolveManifestAsync_MatchesResolverWithHyphenAndCaseVariationsAsync(string searchResolverId)
+    {
+        // Arrange
+        var resolverMock = new Mock<IContentResolver>();
+        resolverMock.Setup(r => r.ResolverId).Returns("community-outpost");
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = "1.0.communityoutpost.addon.gent",
+            Name = "GenTool",
+            ResolverId = searchResolverId,
+        };
+
+        var manifest = new ContentManifest
+        {
+            Id = searchResult.Id,
+            Name = searchResult.Name,
+            ContentType = ContentType.Addon,
+        };
+
+        resolverMock
+            .Setup(r => r.ResolveAsync(searchResult, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(manifest));
+
+        _contentValidatorMock
+            .Setup(v => v.ValidateManifestAsync(manifest, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(manifest.Id, []));
+
+        var orchestrator = new ContentOrchestrator(
+            _loggerMock.Object,
+            [],
+            [],
+            [resolverMock.Object],
+            _cacheMock.Object,
+            _contentValidatorMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _installationCasPoolServiceMock.Object);
+
+        // Act
+        var result = await orchestrator.ResolveManifestAsync(searchResult);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal("GenTool", result.Data.Name);
+    }
 }

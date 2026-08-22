@@ -66,12 +66,18 @@ public class ContentOrchestrator : IContentOrchestrator
         _logger = logger;
         _providers = [.. providers];
         _discoverers = [.. discoverers];
-        _resolvers = new ConcurrentDictionary<string, IContentResolver>();
+        _resolvers = new ConcurrentDictionary<string, IContentResolver>(StringComparer.OrdinalIgnoreCase);
         foreach (var resolver in resolvers)
         {
             if (!_resolvers.TryAdd(resolver.ResolverId, resolver))
             {
                 _logger.LogWarning("Duplicate ResolverId found: {ResolverId}. Skipping resolver.", resolver.ResolverId);
+            }
+
+            var normalized = resolver.ResolverId.Replace("-", string.Empty).Replace("_", string.Empty);
+            if (!string.Equals(normalized, resolver.ResolverId, StringComparison.OrdinalIgnoreCase))
+            {
+                _resolvers.TryAdd(normalized, resolver);
             }
         }
 
@@ -384,8 +390,12 @@ public class ContentOrchestrator : IContentOrchestrator
 
         if (!_resolvers.TryGetValue(contentSearchResult.ResolverId, out IContentResolver? resolver))
         {
-            return OperationResult<ContentManifest>.CreateFailure(
-                $"No resolver found for ResolverId: {contentSearchResult.ResolverId}");
+            var normalized = contentSearchResult.ResolverId.Replace("-", string.Empty).Replace("_", string.Empty);
+            if (!_resolvers.TryGetValue(normalized, out resolver))
+            {
+                return OperationResult<ContentManifest>.CreateFailure(
+                    $"No resolver found for ResolverId: {contentSearchResult.ResolverId}");
+            }
         }
 
         var manifestResult = await resolver.ResolveAsync(contentSearchResult, cancellationToken);
