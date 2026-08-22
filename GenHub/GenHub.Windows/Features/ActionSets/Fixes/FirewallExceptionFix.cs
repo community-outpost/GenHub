@@ -265,82 +265,23 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
         }
     }
 
-    private bool AddPortRule(string ruleName, string protocol, int port)
+    private bool AddPortRule(string ruleName, string protocol, int port) =>
+        RunNetshCommand($"advfirewall firewall add rule name=\"{ruleName}\" dir=in action=allow edge=yes protocol={protocol} localport={port}", ruleName);
+
+    private bool AddProgramRule(string ruleName, string programPath) =>
+        RunNetshCommand($"advfirewall firewall add rule name=\"{ruleName}\" dir=in action=allow edge=yes program=\"{programPath}\" enable=yes", ruleName);
+
+    private bool RemoveFirewallRule(string ruleName) =>
+        RunNetshCommand($"advfirewall firewall delete rule name=\"{ruleName}\"", ruleName);
+
+    private bool RunNetshCommand(string arguments, string ruleName)
     {
         try
         {
             var psi = new ProcessStartInfo
             {
                 FileName = NetshPath,
-                Arguments = $"advfirewall firewall add rule name=\"{ruleName}\" dir=in action=allow edge=yes protocol={protocol} localport={port}",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-
-            logger.LogInformation("Running: netsh {Args}", psi.Arguments);
-
-            using var process = Process.Start(psi);
-            if (process != null)
-            {
-                _ = process.StandardOutput.ReadToEnd();
-                _ = process.StandardError.ReadToEnd();
-                process.WaitForExit();
-                return process.ExitCode == ProcessConstants.ExitCodeSuccess;
-            }
-
-            return false;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error adding port firewall rule: {RuleName}", ruleName);
-            return false;
-        }
-    }
-
-    private bool AddProgramRule(string ruleName, string programPath)
-    {
-        try
-        {
-            var psi = new ProcessStartInfo
-            {
-                FileName = NetshPath,
-                Arguments = $"advfirewall firewall add rule name=\"{ruleName}\" dir=in action=allow edge=yes program=\"{programPath}\" enable=yes",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-
-            logger.LogInformation("Running: netsh {Args}", psi.Arguments);
-
-            using var process = Process.Start(psi);
-            if (process != null)
-            {
-                _ = process.StandardOutput.ReadToEnd();
-                _ = process.StandardError.ReadToEnd();
-                process.WaitForExit();
-                return process.ExitCode == ProcessConstants.ExitCodeSuccess;
-            }
-
-            return false;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error adding program firewall rule: {RuleName}", ruleName);
-            return false;
-        }
-    }
-
-    private bool RemoveFirewallRule(string ruleName)
-    {
-        try
-        {
-            var psi = new ProcessStartInfo
-            {
-                FileName = NetshPath,
-                Arguments = $"advfirewall firewall delete rule name=\"{ruleName}\"",
+                Arguments = arguments,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
@@ -360,7 +301,7 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Error removing firewall rule: {RuleName}", ruleName);
+            logger.LogWarning(ex, "Error running netsh command for rule {RuleName}", ruleName);
             return false;
         }
     }
