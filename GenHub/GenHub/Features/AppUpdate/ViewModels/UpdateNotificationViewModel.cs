@@ -749,30 +749,41 @@ public partial class UpdateNotificationViewModel : ObservableObject, IDisposable
             // check branch updates if subscribed
             if (!string.IsNullOrEmpty(SubscribedBranch))
             {
-                if (!HasPat)
-                {
-                    _logger.LogInformation("Subscribed to branch '{Branch}' but GitHub PAT is not configured", SubscribedBranch);
-                    StatusMessage = AppUpdateConstants.PatRequiredForArtifactsMessage;
-                    IsUpdateAvailable = false;
-                    return;
-                }
-
-                _logger.LogInformation("Checking for artifact updates on branch: {Branch}", SubscribedBranch);
-                var branchArtifact = await _velopackUpdateManager.CheckForArtifactUpdatesAsync(_cancellationTokenSource.Token);
-
-                if (branchArtifact != null)
-                {
-                    ProcessBranchArtifactUpdate(branchArtifact, SubscribedBranch);
-                    return;
-                }
-
-                // if subscribed to branch but no artifact found, do not fall through to main release unless on main branch
                 if (string.Equals(SubscribedBranch, AppUpdateConstants.MainBranch, StringComparison.OrdinalIgnoreCase))
                 {
+                    if (HasPat)
+                    {
+                        _logger.LogInformation("Checking for artifact updates on main branch");
+                        var mainArtifact = await _velopackUpdateManager.CheckForArtifactUpdatesAsync(_cancellationTokenSource.Token);
+                        if (mainArtifact != null)
+                        {
+                            ProcessBranchArtifactUpdate(mainArtifact, SubscribedBranch);
+                            return;
+                        }
+                    }
+
                     _logger.LogInformation("Subscribed to main branch; proceeding to release check");
                 }
                 else
                 {
+                    if (!HasPat)
+                    {
+                        _logger.LogInformation("Subscribed to branch '{Branch}' but GitHub PAT is not configured", SubscribedBranch);
+                        StatusMessage = AppUpdateConstants.PatRequiredForArtifactsMessage;
+                        IsUpdateAvailable = false;
+                        return;
+                    }
+
+                    _logger.LogInformation("Checking for artifact updates on branch: {Branch}", SubscribedBranch);
+                    var branchArtifact = await _velopackUpdateManager.CheckForArtifactUpdatesAsync(_cancellationTokenSource.Token);
+
+                    if (branchArtifact != null)
+                    {
+                        ProcessBranchArtifactUpdate(branchArtifact, SubscribedBranch);
+                        return;
+                    }
+
+                    // if subscribed to branch but no artifact found, do not fall through to main release
                     _logger.LogInformation("Subscribed to branch '{Branch}' but no artifact available yet", SubscribedBranch);
                     StatusMessage = string.Equals(SubscribedBranch, AppUpdateConstants.DevelopmentBranch, StringComparison.OrdinalIgnoreCase)
                         ? $"Waiting for {SubscribedBranch} build..."

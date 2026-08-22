@@ -47,8 +47,7 @@ public class BackgroundUpdateCoordinator(
         var settings = userSettingsService.Get();
         if (settings.AutoCheckForUpdatesOnStartup)
         {
-            var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, cancellationToken);
-            _ = CheckForUpdatesInBackgroundAsync(linkedCts.Token);
+            _ = CheckForUpdatesOnStartupAsync(cancellationToken);
         }
 
         RestartPeriodicUpdateTimer(settings.AutoCheckForUpdatesPeriodically, settings.PeriodicUpdateCheckIntervalMinutes);
@@ -60,9 +59,14 @@ public class BackgroundUpdateCoordinator(
     {
         logger?.LogDebug("Starting background update check");
 
-        await _checkLock.WaitAsync(cancellationToken);
-        var originalPrNumber = velopackUpdateManager.SubscribedPrNumber;
-        var originalBranch = velopackUpdateManager.SubscribedBranch;
+        try
+        {
+            await _checkLock.WaitAsync(cancellationToken);
+        }
+        catch (ObjectDisposedException)
+        {
+            return;
+        }
 
         try
         {
@@ -95,9 +99,18 @@ public class BackgroundUpdateCoordinator(
         }
         finally
         {
-            velopackUpdateManager.SubscribedPrNumber = originalPrNumber;
-            velopackUpdateManager.SubscribedBranch = originalBranch;
-            _checkLock.Release();
+            var currentSettings = userSettingsService.Get();
+            velopackUpdateManager.SubscribedPrNumber = currentSettings.SubscribedPrNumber;
+            velopackUpdateManager.SubscribedBranch = currentSettings.SubscribedBranch;
+
+            try
+            {
+                _checkLock.Release();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Coordinator was disposed during check
+            }
         }
     }
 
@@ -602,7 +615,7 @@ public class BackgroundUpdateCoordinator(
             {
                 logger?.LogInformation("Starting one-click artifact install: {Version}", artifactUpdate.DisplayVersion);
                 await velopackUpdateManager.InstallArtifactAsync(artifactUpdate, progress, _cts.Token);
-                ClearStaleSubscription(clearedPrNumber, clearedBranch);
+                await ClearStaleSubscriptionAsync(clearedPrNumber, clearedBranch);
                 notificationService.Update(
                     progressNotificationId,
                     AppUpdateConstants.UpdateCompleteRestartingMessage,
@@ -612,7 +625,7 @@ public class BackgroundUpdateCoordinator(
             {
                 logger?.LogInformation("Starting one-click release update: {Version}", updateInfo.TargetFullRelease.Version);
                 await velopackUpdateManager.DownloadUpdatesAsync(updateInfo, progress, _cts.Token);
-                ClearStaleSubscription(clearedPrNumber, clearedBranch);
+                await ClearStaleSubscriptionAsync(clearedPrNumber, clearedBranch);
                 notificationService.Update(
                     progressNotificationId,
                     AppUpdateConstants.UpdateDownloadedRestartingMessage,
@@ -621,7 +634,6 @@ public class BackgroundUpdateCoordinator(
             }
             else if (!string.IsNullOrWhiteSpace(githubVersion))
             {
-                ClearStaleSubscription(clearedPrNumber, clearedBranch);
                 logger?.LogInformation("Opening update window for GitHub API update: {Version}", githubVersion);
                 notificationService.Dismiss(progressNotificationId);
                 OpenUpdateSettings();
@@ -638,7 +650,7 @@ public class BackgroundUpdateCoordinator(
         }
     }
 
-    private void ClearStaleSubscription(int? clearedPrNumber, string? clearedBranch)
+    private async Task ClearStaleSubscriptionAsync(int? clearedPrNumber, string? clearedBranch)
     {
         if (!clearedPrNumber.HasValue && string.IsNullOrEmpty(clearedBranch))
         {
@@ -660,7 +672,7 @@ public class BackgroundUpdateCoordinator(
                     settings.SubscribedBranch = null;
                 }
             });
-            _ = userSettingsService.SaveAsync();
+            await userSettingsService.SaveAsync();
             logger?.LogInformation(
                 "Cleared stale subscription (PR: {PrNumber}, Branch: {Branch}) after applying fallback update",
                 clearedPrNumber,
@@ -687,6 +699,12 @@ public class BackgroundUpdateCoordinator(
                 logger?.LogError(ex, "Failed to open update window");
             }
         });
+    }
+
+    private async Task CheckForUpdatesOnStartupAsync(CancellationToken cancellationToken)
+    {
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, cancellationToken);
+        await CheckForUpdatesInBackgroundAsync(linkedCts.Token);
     }
 
     private async Task CheckForUpdatesInBackgroundAsync(CancellationToken ct)
