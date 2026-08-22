@@ -24,6 +24,7 @@ using GenHub.Core.Models.Tools.UploadThing;
 using GenHub.Features.Tools.ViewModels;
 using Microsoft.Extensions.Logging;
 
+
 namespace GenHub.Features.Tools.ReplayManager.ViewModels;
 
 /// <summary>
@@ -50,8 +51,8 @@ public partial class ReplayManagerViewModel(
     }
 
     private static bool IsDemoPath(string path) =>
-        path.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-        path.Contains("/Mock/", StringComparison.OrdinalIgnoreCase);
+        path.Contains(ReplayManagerConstants.WindowsMockPathSegment, StringComparison.OrdinalIgnoreCase) ||
+        path.Contains(ReplayManagerConstants.UnixMockPathSegment, StringComparison.OrdinalIgnoreCase);
 
     [ObservableProperty]
     private GameType selectedTab = GameType.ZeroHour;
@@ -72,7 +73,8 @@ public partial class ReplayManagerViewModel(
     /// <summary>
     /// Gets the current progress as a whole integer percentage between 0 and 100.
     /// </summary>
-    public int ProgressPercentage => (int)Math.Round(Progress * 100);
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding")]
+    public int ProgressPercentage => (int)Math.Round(progress * 100);
 
     [ObservableProperty]
     private string statusMessage = "Ready";
@@ -230,13 +232,13 @@ public partial class ReplayManagerViewModel(
             }
             else
             {
-                notificationService.ShowError("Delete Failed", "Failed to delete file from cloud storage.");
+                notificationService.ShowError(ReplayManagerConstants.DeleteFailedTitle, "Failed to delete file from cloud storage.");
             }
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to remove history item");
-            notificationService.ShowError("Delete Failed", "Failed to delete history item.");
+            notificationService.ShowError(ReplayManagerConstants.DeleteFailedTitle, "Failed to delete history item.");
         }
     }
 
@@ -559,13 +561,45 @@ public partial class ReplayManagerViewModel(
         }
         else
         {
-            notificationService.ShowError("Delete Failed", "Could not delete selected replays.");
+            notificationService.ShowError(ReplayManagerConstants.DeleteFailedTitle, "Could not delete selected replays.");
             StatusMessage = "Deletion error.";
         }
 
         SelectedReplays.Clear();
         await LoadReplaysAsync();
         IsBusy = false;
+    }
+
+    private static string GetUniqueZipDestinationPath(string directory, string rawZipName)
+    {
+        var safeZipName = SanitizeFileName(rawZipName);
+        if (!safeZipName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            safeZipName += ".zip";
+
+        var destinationPath = Path.Combine(directory, safeZipName);
+
+        // Handle filename conflict by appending (1), (2), etc.
+        if (File.Exists(destinationPath))
+        {
+            var dir = Path.GetDirectoryName(destinationPath) ?? string.Empty;
+            var nameOnly = Path.GetFileNameWithoutExtension(destinationPath);
+            var ext = Path.GetExtension(destinationPath);
+            int count = 1;
+            while (File.Exists(destinationPath))
+            {
+                destinationPath = Path.Combine(dir, $"{nameOnly} ({count}){ext}");
+                count++;
+            }
+        }
+        return destinationPath;
+    }
+
+    private static string FormatUploadStageMessage(bool isZip, int percent)
+    {
+        if (!isZip && percent < 25) return $"Compressing replays... {percent}%";
+        if (percent < 88) return $"Uploading to cloud... {percent}%";
+        if (percent < 100) return $"Finalizing cloud upload... {percent}%";
+        return "Upload complete! 100%";
     }
 
     [RelayCommand]
@@ -595,25 +629,7 @@ public partial class ReplayManagerViewModel(
         try
         {
             var directory = directoryService.GetReplayDirectory(SelectedTab);
-            var safeZipName = SanitizeFileName(ZipName);
-            if (!safeZipName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-                safeZipName += ".zip";
-
-            var destinationPath = Path.Combine(directory, safeZipName);
-
-            // Handle filename conflict by appending (1), (2), etc.
-            if (File.Exists(destinationPath))
-            {
-                var dir = Path.GetDirectoryName(destinationPath) ?? string.Empty;
-                var nameOnly = Path.GetFileNameWithoutExtension(destinationPath);
-                var ext = Path.GetExtension(destinationPath);
-                int count = 1;
-                while (File.Exists(destinationPath))
-                {
-                    destinationPath = Path.Combine(dir, $"{nameOnly} ({count}){ext}");
-                    count++;
-                }
-            }
+            var destinationPath = GetUniqueZipDestinationPath(directory, ZipName);
 
             var progressHandler = new Progress<double>(p =>
             {
@@ -707,22 +723,7 @@ public partial class ReplayManagerViewModel(
             {
                 Progress = p;
                 int percent = (int)Math.Round(p * 100);
-                if (!isZip && percent < 25)
-                {
-                    StatusMessage = $"Compressing replays... {percent}%";
-                }
-                else if (percent < 88)
-                {
-                    StatusMessage = $"Uploading to cloud... {percent}%";
-                }
-                else if (percent < 100)
-                {
-                    StatusMessage = $"Finalizing cloud upload... {percent}%";
-                }
-                else
-                {
-                    StatusMessage = "Upload complete! 100%";
-                }
+                StatusMessage = FormatUploadStageMessage(isZip, percent);
             });
 
             var uploadResult = await exportService.UploadToUploadThingAsync([.. SelectedReplays], progressHandler);

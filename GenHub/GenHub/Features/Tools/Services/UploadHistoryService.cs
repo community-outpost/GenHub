@@ -195,26 +195,7 @@ public sealed class UploadHistoryService(
 
         if (deleteFromCloud)
         {
-            foreach (var record in recordsToDelete)
-            {
-                if (!string.IsNullOrEmpty(record.FileKey) && !string.IsNullOrEmpty(record.DeleteToken))
-                {
-                    try
-                    {
-                        var deleted = await uploadThingService.DeleteFileAsync(record.FileKey, record.DeleteToken);
-                        if (!deleted)
-                        {
-                            logger.LogWarning(
-                                "Failed to delete file {Key} from cloud storage during clear history.",
-                                record.FileKey);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogError(ex, "Exception occurred while deleting file {Key} from cloud during clear history", record.FileKey);
-                    }
-                }
-            }
+            await DeleteRecordsFromCloudAsync(recordsToDelete);
         }
 
         lock (FileLock)
@@ -226,6 +207,28 @@ public sealed class UploadHistoryService(
                 SaveHistoryInternal(history);
                 _cache = history;
                 logger.LogInformation("Cleared upload history.");
+            }
+        }
+    }
+
+    private async Task DeleteRecordsFromCloudAsync(IEnumerable<UploadRecord> records)
+    {
+        var eligibleRecords = records.Where(r => !string.IsNullOrEmpty(r.FileKey) && !string.IsNullOrEmpty(r.DeleteToken));
+        foreach (var record in eligibleRecords)
+        {
+            try
+            {
+                var deleted = await uploadThingService.DeleteFileAsync(record.FileKey!, record.DeleteToken!);
+                if (!deleted)
+                {
+                    logger.LogWarning(
+                        "Failed to delete file {Key} from cloud storage during clear history.",
+                        record.FileKey);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Exception occurred while deleting file {Key} from cloud during clear history", record.FileKey);
             }
         }
     }

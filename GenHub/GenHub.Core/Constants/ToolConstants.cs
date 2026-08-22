@@ -1,10 +1,29 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
 /// Constants for tool plugin metadata and configuration.
 /// </summary>
+[SuppressMessage("Major Code Smell", "S1075:URIs should not be hardcoded", Justification = "Mock URLs for demo tool services.")]
 public static class ToolConstants
 {
+    /// <summary>
+    /// Mock sharing URLs for demo tool services.
+    /// </summary>
+    public static class MockUrls
+    {
+        /// <summary>
+        /// Mock upload URL for replays.
+        /// </summary>
+        public const string MockReplayUploadUrl = "https://example.com/share/1234";
+
+        /// <summary>
+        /// Mock upload URL for maps.
+        /// </summary>
+        public const string MockMapUploadUrl = "https://example.com/maps/123";
+    }
+
     /// <summary>
     /// Constants for the Replay Manager tool plugin.
     /// </summary>

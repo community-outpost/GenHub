@@ -1,10 +1,12 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace GenHub.Core.Constants;
 
 /// <summary>
 /// API and network related constants.
 /// </summary>
+[SuppressMessage("Major Code Smell", "S1075:URIs should not be hardcoded", Justification = "Centralized fallback API constants and endpoint definitions.")]
 public static class ApiConstants
 {
     // GitHub

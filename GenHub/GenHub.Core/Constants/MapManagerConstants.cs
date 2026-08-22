@@ -111,6 +111,21 @@ public static class MapManagerConstants
     public const string ToolDescription = "Manage, import, and share custom maps. Create MapPacks for easy profile switching.";
 
     /// <summary>
+    /// Mock path separator indicator for demo environments on Windows.
+    /// </summary>
+    public const string WindowsMockPathSegment = "\\Mock\\";
+
+    /// <summary>
+    /// Mock path separator indicator for demo environments on Unix.
+    /// </summary>
+    public const string UnixMockPathSegment = "/Mock/";
+
+    /// <summary>
+    /// Notification title for delete failure.
+    /// </summary>
+    public const string DeleteFailedTitle = "Delete Failed";
+
+    /// <summary>
     /// Allowed file extensions for map packages.
     /// </summary>
     public static readonly string[] AllowedExtensions = [".map", ".tga", ".ini", ".str", ".txt"];

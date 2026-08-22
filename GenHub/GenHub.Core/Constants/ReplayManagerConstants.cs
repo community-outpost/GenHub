@@ -41,7 +41,17 @@ public static class ReplayManagerConstants
     public const string TempShareFilePrefix = "genhub_share_";
 
     /// <summary>
-    /// Default file name for imported replays.
+    /// Notification title for delete failure.
     /// </summary>
-    public const string DefaultImportedReplayFileName = "imported_replay.rep";
+    public const string DeleteFailedTitle = "Delete Failed";
+
+    /// <summary>
+    /// Mock path separator indicator for demo environments on Windows.
+    /// </summary>
+    public const string WindowsMockPathSegment = "\\Mock\\";
+
+    /// <summary>
+    /// Mock path separator indicator for demo environments on Unix.
+    /// </summary>
+    public const string UnixMockPathSegment = "/Mock/";
 }

@@ -26,6 +26,7 @@ using GenHub.Features.Tools.ViewModels;
 using GenHub.Infrastructure.Imaging;
 using Microsoft.Extensions.Logging;
 
+
 namespace GenHub.Features.Tools.MapManager.ViewModels;
 
 /// <summary>
@@ -103,7 +104,8 @@ public partial class MapManagerViewModel : ObservableObject
     /// <summary>
     /// Gets the current progress as a whole integer percentage between 0 and 100.
     /// </summary>
-    public int ProgressPercentage => (int)Math.Round(Progress * 100);
+    [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Instance property required for Avalonia UI data binding")]
+    public int ProgressPercentage => (int)Math.Round(progress * 100);
 
     [ObservableProperty]
     private string statusMessage = "Ready";
@@ -322,8 +324,7 @@ public partial class MapManagerViewModel : ObservableObject
     {
         // Check if current tab is using demo paths
         var demoPath = _directoryService.GetMapDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
             _notificationService.ShowInfo(
@@ -374,8 +375,7 @@ public partial class MapManagerViewModel : ObservableObject
 
         // Check if current tab is using demo paths
         var demoPath = _directoryService.GetMapDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
             _notificationService.ShowInfo(
@@ -430,8 +430,7 @@ public partial class MapManagerViewModel : ObservableObject
     {
         // Check if current tab is using demo paths
         var demoPath = _directoryService.GetMapDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
             _notificationService.ShowInfo(
@@ -472,8 +471,7 @@ public partial class MapManagerViewModel : ObservableObject
         }
 
         // Check if any selected maps are demo items (have mock paths)
-        var demoMaps = SelectedMaps.Where(m => m.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-                                                    m.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase)).ToList();
+        var demoMaps = SelectedMaps.Where(m => IsDemoPath(m.FullPath)).ToList();
         if (demoMaps.Count > 0)
         {
             // Show notification toast explaining what the button does
@@ -509,11 +507,72 @@ public partial class MapManagerViewModel : ObservableObject
         }
         else
         {
-            _notificationService.ShowError("Delete Failed", "Could not delete selected maps.");
+            _notificationService.ShowError(MapManagerConstants.DeleteFailedTitle, "Could not delete selected maps.");
             StatusMessage = "Deletion error.";
         }
 
         IsBusy = false;
+    }
+
+    private static bool IsDemoPath(string path) =>
+        path.Contains(MapManagerConstants.WindowsMockPathSegment, StringComparison.OrdinalIgnoreCase) ||
+        path.Contains(MapManagerConstants.UnixMockPathSegment, StringComparison.OrdinalIgnoreCase);
+
+    private static string GetUniqueZipDestinationPath(string directory, string rawZipName)
+    {
+        var safeZipName = rawZipName.EndsWith(Path.GetExtension(MapManagerConstants.ZipFilePattern), StringComparison.OrdinalIgnoreCase)
+            ? rawZipName
+            : rawZipName + Path.GetExtension(MapManagerConstants.ZipFilePattern);
+
+        var destinationPath = Path.Combine(directory, safeZipName);
+        if (!File.Exists(destinationPath))
+        {
+            return destinationPath;
+        }
+
+        var dir = Path.GetDirectoryName(destinationPath) ?? string.Empty;
+        var nameOnly = Path.GetFileNameWithoutExtension(destinationPath);
+        var ext = Path.GetExtension(destinationPath);
+        int count = 1;
+        while (File.Exists(destinationPath))
+        {
+            destinationPath = Path.Combine(dir, $"{nameOnly} ({count}){ext}");
+            count++;
+        }
+
+        return destinationPath;
+    }
+
+    private static string FormatUploadStageMessage(bool isZip, int percent)
+    {
+        if (!isZip && percent < 25)
+        {
+            return $"Compressing maps... {percent}%";
+        }
+
+        if (percent < 88)
+        {
+            return $"Uploading to cloud... {percent}%";
+        }
+
+        if (percent < 100)
+        {
+            return $"Finalizing cloud upload... {percent}%";
+        }
+
+        return "Upload complete! 100%";
+    }
+
+    private static void RevealInExplorer(string filePath)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{filePath}\"");
+        }
+        catch
+        {
+            /* Ignore explorer errors */
+        }
     }
 
     [RelayCommand]
@@ -525,8 +584,7 @@ public partial class MapManagerViewModel : ObservableObject
         }
 
         // Check if any selected maps are demo items (have mock paths)
-        var demoMaps = SelectedMaps.Where(m => m.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-                                                    m.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase)).ToList();
+        var demoMaps = SelectedMaps.Where(m => IsDemoPath(m.FullPath)).ToList();
         if (demoMaps.Count > 0)
         {
             // Show notification toast explaining what the button does
@@ -544,24 +602,7 @@ public partial class MapManagerViewModel : ObservableObject
         try
         {
             var directory = _directoryService.GetMapDirectory(SelectedTab);
-            var safeZipName = ZipName.EndsWith(Path.GetExtension(MapManagerConstants.ZipFilePattern), StringComparison.OrdinalIgnoreCase)
-                ? ZipName
-                : ZipName + Path.GetExtension(MapManagerConstants.ZipFilePattern);
-
-            var destinationPath = Path.Combine(directory, safeZipName);
-
-            if (File.Exists(destinationPath))
-            {
-                var dir = Path.GetDirectoryName(destinationPath) ?? string.Empty;
-                var nameOnly = Path.GetFileNameWithoutExtension(destinationPath);
-                var ext = Path.GetExtension(destinationPath);
-                int count = 1;
-                while (File.Exists(destinationPath))
-                {
-                    destinationPath = Path.Combine(dir, $"{nameOnly} ({count}){ext}");
-                    count++;
-                }
-            }
+            var destinationPath = GetUniqueZipDestinationPath(directory, ZipName);
 
             var progressHandler = new Progress<double>(p =>
             {
@@ -577,21 +618,7 @@ public partial class MapManagerViewModel : ObservableObject
 
                 // Reload maps to show the new ZIP
                 await LoadMapsAsync();
-
-                // Reveal in Explorer
-                try
-                {
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = PlatformConstants.WindowsExplorerPath,
-                        Arguments = string.Format(PlatformConstants.WindowsExplorerSelectArgument, result),
-                        UseShellExecute = true,
-                    });
-                }
-                catch
-                {
-                    /* Ignore explorer errors */
-                }
+                RevealInExplorer(result);
             }
             else
             {
@@ -655,22 +682,7 @@ public partial class MapManagerViewModel : ObservableObject
             {
                 Progress = p;
                 int percent = (int)Math.Round(p * 100);
-                if (!isZip && percent < 25)
-                {
-                    StatusMessage = $"Compressing maps... {percent}%";
-                }
-                else if (percent < 88)
-                {
-                    StatusMessage = $"Uploading to cloud... {percent}%";
-                }
-                else if (percent < 100)
-                {
-                    StatusMessage = $"Finalizing cloud upload... {percent}%";
-                }
-                else
-                {
-                    StatusMessage = "Upload complete! 100%";
-                }
+                StatusMessage = FormatUploadStageMessage(isZip, percent);
             });
 
             var uploadResult = await _exportService.UploadToUploadThingAsync([.. SelectedMaps], progressHandler);
@@ -699,8 +711,7 @@ public partial class MapManagerViewModel : ObservableObject
 
     private bool ValidateDemoMapsSelected()
     {
-        var demoMaps = SelectedMaps.Where(m => m.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-                                               m.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase)).ToList();
+        var demoMaps = SelectedMaps.Where(m => IsDemoPath(m.FullPath)).ToList();
         if (demoMaps.Count > 0)
         {
             _notificationService.ShowInfo(
@@ -796,8 +807,7 @@ public partial class MapManagerViewModel : ObservableObject
     {
         // Check if current tab is using demo paths
         var demoPath = _directoryService.GetMapDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
             _notificationService.ShowInfo(
@@ -813,8 +823,7 @@ public partial class MapManagerViewModel : ObservableObject
     private void RevealFile(MapFile map)
     {
         // Check if map is a demo item (has mock path)
-        if (map.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            map.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(map.FullPath))
         {
             // Show notification toast explaining what the button does
             _notificationService.ShowInfo(
@@ -836,8 +845,7 @@ public partial class MapManagerViewModel : ObservableObject
         if (zipFiles.Count == 0) return;
 
         // Check if any selected maps are demo items (have mock paths)
-        var demoMaps = SelectedMaps.Where(m => m.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-                                                   m.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase)).ToList();
+        var demoMaps = SelectedMaps.Where(m => IsDemoPath(m.FullPath)).ToList();
         if (demoMaps.Count > 0)
         {
             // Show notification toast explaining what the button does
@@ -899,8 +907,7 @@ public partial class MapManagerViewModel : ObservableObject
     {
         // Check if current tab is using demo paths
         var demoPath = _directoryService.GetMapDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             _notificationService.ShowInfo(
                 "MapPacks",
@@ -939,8 +946,7 @@ public partial class MapManagerViewModel : ObservableObject
         }
 
         // Check if any selected maps are demo items (have mock paths)
-        var demoMaps = SelectedMaps.Where(m => m.FullPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-                                                   m.FullPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase)).ToList();
+        var demoMaps = SelectedMaps.Where(m => IsDemoPath(m.FullPath)).ToList();
         if (demoMaps.Count > 0)
         {
             // Show notification toast explaining what the button does
@@ -996,8 +1002,7 @@ public partial class MapManagerViewModel : ObservableObject
     {
         // Check if current tab is using demo paths
         var demoPath = _directoryService.GetMapDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
             _notificationService.ShowInfo(
@@ -1027,8 +1032,7 @@ public partial class MapManagerViewModel : ObservableObject
     {
         // Check if current tab is using demo paths
         var demoPath = _directoryService.GetMapDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
             _notificationService.ShowInfo(
@@ -1058,8 +1062,7 @@ public partial class MapManagerViewModel : ObservableObject
     {
         // Check if current tab is using demo paths
         var demoPath = _directoryService.GetMapDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             // Show notification toast explaining what the button does
             _notificationService.ShowInfo(
@@ -1080,7 +1083,7 @@ public partial class MapManagerViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to delete MapPack");
-            _notificationService.ShowError("Delete Failed", "Failed to delete MapPack.");
+            _notificationService.ShowError(MapManagerConstants.DeleteFailedTitle, "Failed to delete MapPack.");
         }
     }
 
@@ -1090,8 +1093,7 @@ public partial class MapManagerViewModel : ObservableObject
     {
         // Check if current tab is using demo paths
         var demoPath = _directoryService.GetMapDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             _notificationService.ShowInfo(
                 "Upload History",
@@ -1162,8 +1164,7 @@ public partial class MapManagerViewModel : ObservableObject
     {
         // Check if current tab is using demo paths
         var demoPath = _directoryService.GetMapDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             _notificationService.ShowInfo(
                 "Copy Link",
@@ -1192,8 +1193,7 @@ public partial class MapManagerViewModel : ObservableObject
     {
         // Check if current tab is using demo paths
         var demoPath = _directoryService.GetMapDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             _notificationService.ShowInfo(
                 "Delete Upload",
@@ -1213,13 +1213,13 @@ public partial class MapManagerViewModel : ObservableObject
             }
             else
             {
-                _notificationService.ShowError("Delete Failed", "Failed to delete file from cloud storage.");
+                _notificationService.ShowError(MapManagerConstants.DeleteFailedTitle, "Failed to delete file from cloud storage.");
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to remove history item");
-            _notificationService.ShowError("Delete Failed", "Failed to delete history item.");
+            _notificationService.ShowError(MapManagerConstants.DeleteFailedTitle, "Failed to delete history item.");
         }
     }
 
@@ -1231,8 +1231,7 @@ public partial class MapManagerViewModel : ObservableObject
     {
         // Check if current tab is using demo paths
         var demoPath = _directoryService.GetMapDirectory(SelectedTab);
-        if (demoPath.Contains("\\Mock\\", StringComparison.OrdinalIgnoreCase) ||
-            demoPath.Contains("/Mock/", StringComparison.OrdinalIgnoreCase))
+        if (IsDemoPath(demoPath))
         {
             _notificationService.ShowInfo(
                 "Clear History",
