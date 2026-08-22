@@ -323,17 +323,24 @@ const handleHealth = (): Response =>
     headers: CORS_HEADERS,
   });
 
-const routeRequest = async (pathname: string, method: string, request: Request, env: Env): Promise<Response | null> => {
-  if (pathname === "/api/v1/health" && method === "GET") {
-    return handleHealth();
+const getErrorMessage = (err: unknown): string => {
+  if (err instanceof Error) {
+    return err.message;
   }
-  if (pathname === "/api/v1/uploads/prepare" && method === "POST") {
-    return handlePrepareUpload(request, env);
+  return String(err);
+};
+
+const handleApiRoute = async (routeKey: string, request: Request, env: Env): Promise<Response | null> => {
+  switch (routeKey) {
+    case "GET /api/v1/health":
+      return handleHealth();
+    case "POST /api/v1/uploads/prepare":
+      return handlePrepareUpload(request, env);
+    case "POST /api/v1/uploads/delete":
+      return handleDeleteUpload(request, env);
+    default:
+      return null;
   }
-  if (pathname === "/api/v1/uploads/delete" && method === "POST") {
-    return handleDeleteUpload(request, env);
-  }
-  return null;
 };
 
 export default {
@@ -344,13 +351,12 @@ export default {
 
     try {
       const { pathname } = new URL(request.url);
-      const res = await routeRequest(pathname, request.method, request, env);
+      const res = await handleApiRoute(`${request.method} ${pathname}`, request, env);
       if (res !== null) {
         return res;
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      return new Response(JSON.stringify({ error: "Internal error", message }), {
+      return new Response(JSON.stringify({ error: "Internal error", message: getErrorMessage(err) }), {
         status: 500,
         headers: CORS_HEADERS,
       });
