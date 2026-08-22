@@ -170,6 +170,20 @@ public class FirewallExceptionFix(ILogger<FirewallExceptionFix> logger) : BaseAc
         return (added, failed);
     }
 
+    private void TryAddPortRule(string ruleName, string protocol, int port, List<string> details, ref int rulesAdded, ref int rulesFailed)
+    {
+        if (AddPortRule(ruleName, protocol, port))
+        {
+            rulesAdded++;
+            details.Add($"✓ Added port rule: {ruleName} ({protocol.ToUpperInvariant()} {port})");
+        }
+        else
+        {
+            rulesFailed++;
+            details.Add($"⚠ Failed: {ruleName}");
+        }
+    }
+
     private void TryAddProgramRule(string ruleName, string path, List<string> details, ref int rulesAdded, ref int rulesFailed)
     {
         if (!File.Exists(path))

@@ -96,7 +96,7 @@ public partial class GenPatcherViewModel(
     /// <summary>
     /// Gets a value indicating whether the user can change the target installation (not busy).
     /// </summary>
-    public bool CanChangeInstallation => !isBatchApplying && actionSets.All(x => !x.IsApplying);
+    public bool CanChangeInstallation => !IsBatchApplying && ActionSets.All(x => !x.IsApplying);
 
     /// <summary>
     /// Initializes the ViewModel asynchronously.
@@ -173,7 +173,7 @@ public partial class GenPatcherViewModel(
         return 2;
     }
 
-    private bool CanExecuteCancelBatchApply() => isBatchApplying;
+    private bool CanExecuteCancelBatchApply() => IsBatchApplying;
 
     /// <summary>
     /// Cancels the ongoing batch fix application if running.
@@ -416,7 +416,7 @@ public partial class GenPatcherViewModel(
             $"Successfully loaded {ActionSets.Count} fixes for {installation.InstallationType}.\nApplied: {appliedAndApplicableCount} / {applicableCount} applicable fixes.");
     }
 
-    private bool CanExecuteApplyAllFixes() => !isBatchApplying && selectedInstallation != null && actionSets.All(x => !x.IsApplying);
+    private bool CanExecuteApplyAllFixes() => !IsBatchApplying && SelectedInstallation != null && ActionSets.All(x => !x.IsApplying);
 
     private void NotifyExecutionStateChanged()
     {
@@ -639,34 +639,22 @@ public partial class GenPatcherViewModel(
 
     private void UpdateMetrics()
     {
-        totalFixesCount = actionSets.Count;
-        applicableFixesCount = actionSets.Count(x => x.IsApplicable);
-        appliedFixesCount = actionSets.Count(x => x.IsApplicable && x.IsApplied);
-        unappliedFixesCount = actionSets.Count(x => x.IsApplicable && !x.IsApplied);
+        TotalFixesCount = ActionSets.Count;
+        ApplicableFixesCount = ActionSets.Count(x => x.IsApplicable);
+        AppliedFixesCount = ActionSets.Count(x => x.IsApplicable && x.IsApplied);
+        UnappliedFixesCount = ActionSets.Count(x => x.IsApplicable && !x.IsApplied);
 
-        progressPercentage = applicableFixesCount > 0
-            ? (double)appliedFixesCount / applicableFixesCount * 100.0
+        ProgressPercentage = ApplicableFixesCount > 0
+            ? (double)AppliedFixesCount / ApplicableFixesCount * 100.0
             : 0.0;
 
-        progressSummaryText = $"{appliedFixesCount} of {applicableFixesCount} applied";
+        ProgressSummaryText = $"{AppliedFixesCount} of {ApplicableFixesCount} applied";
 
-        allCategoryCount = actionSets.Count;
-        coreCategoryCount = actionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.CoreAndStability, StringComparison.OrdinalIgnoreCase));
-        compatibilityCategoryCount = actionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.Compatibility, StringComparison.OrdinalIgnoreCase));
-        multiplayerCategoryCount = actionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.Multiplayer, StringComparison.OrdinalIgnoreCase));
-        qolCategoryCount = actionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.QualityOfLife, StringComparison.OrdinalIgnoreCase));
-
-        OnPropertyChanged(nameof(TotalFixesCount));
-        OnPropertyChanged(nameof(ApplicableFixesCount));
-        OnPropertyChanged(nameof(AppliedFixesCount));
-        OnPropertyChanged(nameof(UnappliedFixesCount));
-        OnPropertyChanged(nameof(ProgressPercentage));
-        OnPropertyChanged(nameof(ProgressSummaryText));
-        OnPropertyChanged(nameof(AllCategoryCount));
-        OnPropertyChanged(nameof(CoreCategoryCount));
-        OnPropertyChanged(nameof(CompatibilityCategoryCount));
-        OnPropertyChanged(nameof(MultiplayerCategoryCount));
-        OnPropertyChanged(nameof(QolCategoryCount));
+        AllCategoryCount = ActionSets.Count;
+        CoreCategoryCount = ActionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.CoreAndStability, StringComparison.OrdinalIgnoreCase));
+        CompatibilityCategoryCount = ActionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.Compatibility, StringComparison.OrdinalIgnoreCase));
+        MultiplayerCategoryCount = ActionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.Multiplayer, StringComparison.OrdinalIgnoreCase));
+        QolCategoryCount = ActionSets.Count(x => string.Equals(x.Category, ActionSetConstants.Categories.QualityOfLife, StringComparison.OrdinalIgnoreCase));
     }
 
     private void SortActionSets()

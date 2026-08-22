@@ -42,7 +42,12 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
     /// <inheritdoc/>
     public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default)
     {
-        return Task.FromResult(installation.HasGenerals || installation.HasZeroHour);
+        if (!installation.HasGenerals && !installation.HasZeroHour)
+        {
+            return Task.FromResult(false);
+        }
+
+        return Task.FromResult(true);
     }
 
     /// <inheritdoc/>
@@ -97,6 +102,90 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
             details.Add($"✗ Error: {ex.Message}");
             return new ActionSetResult(false, ex.Message, details);
         }
+    }
+
+    /// <inheritdoc/>
+    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
+    {
+        var details = new List<string>();
+        var commonPrograms = Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms);
+
+        try
+        {
+            if (installation.HasGenerals)
+            {
+                var folder = Path.Combine(commonPrograms, "Command and Conquer Generals");
+                var lnk = Path.Combine(folder, "Command & Conquer Generals Windowed.lnk");
+                if (File.Exists(lnk))
+                {
+                    File.Delete(lnk);
+                    details.Add("✓ Removed Generals windowed shortcut");
+                }
+
+                if (Directory.Exists(folder) && !Directory.EnumerateFileSystemEntries(folder).Any())
+                {
+                    Directory.Delete(folder);
+                }
+            }
+
+            if (installation.HasZeroHour)
+            {
+                var folder = Path.Combine(commonPrograms, "Command and Conquer Generals Zero Hour");
+                var lnk1 = Path.Combine(folder, "Command & Conquer Generals Zero Hour Windowed.lnk");
+                var lnk2 = Path.Combine(folder, "EdgeScroller.lnk");
+                if (File.Exists(lnk1))
+                {
+                    File.Delete(lnk1);
+                    details.Add("✓ Removed Zero Hour windowed shortcut");
+                }
+
+                if (File.Exists(lnk2))
+                {
+                    File.Delete(lnk2);
+                    details.Add("✓ Removed EdgeScroller shortcut");
+                }
+
+                if (Directory.Exists(folder) && !Directory.EnumerateFileSystemEntries(folder).Any())
+                {
+                    Directory.Delete(folder);
+                }
+            }
+
+            return Task.FromResult(new ActionSetResult(true, null, details));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error undoing Start Menu shortcuts fix");
+            return Task.FromResult(new ActionSetResult(false, ex.Message, details));
+        }
+    }
+
+    private static bool DoShortcutsExist(GameInstallation installation)
+    {
+        var searchPaths = new[]
+        {
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms),
+            Environment.GetFolderPath(Environment.SpecialFolder.Programs),
+        };
+
+        bool generalsFound = !installation.HasGenerals || HasAnyShortcut(
+            searchPaths,
+            ["Command and Conquer Generals", "Command & Conquer Generals"],
+            "Command & Conquer Generals Windowed.lnk");
+
+        bool zhFound = !installation.HasZeroHour || HasAnyShortcut(
+            searchPaths,
+            ["Command and Conquer Generals Zero Hour", "Command & Conquer Generals Zero Hour"],
+            "Command & Conquer Generals Zero Hour Windowed.lnk");
+
+        return generalsFound && zhFound;
+    }
+
+    private static bool HasAnyShortcut(string[] searchPaths, string[] folderVariants, string shortcutFileName)
+    {
+        return searchPaths.Any(programsPath =>
+            folderVariants.Any(folder =>
+                File.Exists(Path.Combine(programsPath, folder, shortcutFileName))));
     }
 
     private async Task<(int Created, bool HasFailures)> CreateGeneralsShortcutsAsync(
@@ -169,62 +258,6 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
         return (createdCount, hasFailures);
     }
 
-    /// <inheritdoc/>
-    protected override Task<ActionSetResult> UndoInternalAsync(GameInstallation installation, CancellationToken ct)
-    {
-        var details = new List<string>();
-        var commonPrograms = Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms);
-
-        try
-        {
-            if (installation.HasGenerals)
-            {
-                var folder = Path.Combine(commonPrograms, "Command and Conquer Generals");
-                var lnk = Path.Combine(folder, "Command & Conquer Generals Windowed.lnk");
-                if (File.Exists(lnk))
-                {
-                    File.Delete(lnk);
-                    details.Add("✓ Removed Generals windowed shortcut");
-                }
-
-                if (Directory.Exists(folder) && !Directory.EnumerateFileSystemEntries(folder).Any())
-                {
-                    Directory.Delete(folder);
-                }
-            }
-
-            if (installation.HasZeroHour)
-            {
-                var folder = Path.Combine(commonPrograms, "Command and Conquer Generals Zero Hour");
-                var lnk1 = Path.Combine(folder, "Command & Conquer Generals Zero Hour Windowed.lnk");
-                var lnk2 = Path.Combine(folder, "EdgeScroller.lnk");
-                if (File.Exists(lnk1))
-                {
-                    File.Delete(lnk1);
-                    details.Add("✓ Removed Zero Hour windowed shortcut");
-                }
-
-                if (File.Exists(lnk2))
-                {
-                    File.Delete(lnk2);
-                    details.Add("✓ Removed EdgeScroller shortcut");
-                }
-
-                if (Directory.Exists(folder) && !Directory.EnumerateFileSystemEntries(folder).Any())
-                {
-                    Directory.Delete(folder);
-                }
-            }
-
-            return Task.FromResult(new ActionSetResult(true, null, details));
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error undoing Start Menu shortcuts fix");
-            return Task.FromResult(new ActionSetResult(false, ex.Message, details));
-        }
-    }
-
     private async Task<(bool Created, bool Failed)> CreateShortcutIfExeExistsAsync(
         string shortcutPath,
         string exePath,
@@ -247,33 +280,5 @@ public class StartMenuFix(IShortcutService shortcutService, ILogger<StartMenuFix
 
         details.Add($"✗ Failed to create {Path.GetFileName(shortcutPath)}: {result.Errors.FirstOrDefault()}");
         return (false, true);
-    }
-
-    private static bool DoShortcutsExist(GameInstallation installation)
-    {
-        var searchPaths = new[]
-        {
-            Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms),
-            Environment.GetFolderPath(Environment.SpecialFolder.Programs),
-        };
-
-        bool generalsFound = !installation.HasGenerals || HasAnyShortcut(
-            searchPaths,
-            ["Command and Conquer Generals", "Command & Conquer Generals"],
-            "Command & Conquer Generals Windowed.lnk");
-
-        bool zhFound = !installation.HasZeroHour || HasAnyShortcut(
-            searchPaths,
-            ["Command and Conquer Generals Zero Hour", "Command & Conquer Generals Zero Hour"],
-            "Command & Conquer Generals Zero Hour Windowed.lnk");
-
-        return generalsFound && zhFound;
-    }
-
-    private static bool HasAnyShortcut(string[] searchPaths, string[] folderVariants, string shortcutFileName)
-    {
-        return searchPaths.Any(programsPath =>
-            folderVariants.Any(folder =>
-                File.Exists(Path.Combine(programsPath, folder, shortcutFileName))));
     }
 }

@@ -130,47 +130,6 @@ public class GameRangerRunAsAdmin(ILogger<GameRangerRunAsAdmin> logger) : BaseAc
         return false;
     }
 
-    private bool IsGameRangerInstalled()
-    {
-        try
-        {
-            // Check for GameRanger in registry (HKLM, WOW6432Node, HKCU)
-            if (CheckUninstallKey(Microsoft.Win32.Registry.LocalMachine, RegistryConstants.UninstallKeyPath)) return true;
-            if (CheckUninstallKey(Microsoft.Win32.Registry.LocalMachine, RegistryConstants.UninstallKeyPathWow64)) return true;
-            if (CheckUninstallKey(Microsoft.Win32.Registry.CurrentUser, RegistryConstants.UninstallKeyPath)) return true;
-
-            // Check for GameRanger processes
-            var processes = Process.GetProcessesByName("GameRanger");
-            try
-            {
-                return processes.Length > 0;
-            }
-            finally
-            {
-                foreach (var p in processes) p.Dispose();
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Error checking for GameRanger installation");
-            return false;
-        }
-    }
-
-    private bool HasAdminCompatibility(GameInstallation installation)
-    {
-        try
-        {
-            var executables = GetExistingGameExecutables(installation);
-            return IsAnyExeConfiguredWithRunAsAdmin(executables);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error checking admin compatibility");
-            return false;
-        }
-    }
-
     private static List<string> GetExistingGameExecutables(GameInstallation installation)
     {
         var executables = new List<string>();
@@ -215,5 +174,46 @@ public class GameRangerRunAsAdmin(ILogger<GameRangerRunAsAdmin> logger) : BaseAc
         }
 
         return false;
+    }
+
+    private bool IsGameRangerInstalled()
+    {
+        try
+        {
+            // Check for GameRanger in registry (HKLM, WOW6432Node, HKCU)
+            if (CheckUninstallKey(Microsoft.Win32.Registry.LocalMachine, RegistryConstants.UninstallKeyPath)) return true;
+            if (CheckUninstallKey(Microsoft.Win32.Registry.LocalMachine, RegistryConstants.UninstallKeyPathWow64)) return true;
+            if (CheckUninstallKey(Microsoft.Win32.Registry.CurrentUser, RegistryConstants.UninstallKeyPath)) return true;
+
+            // Check for GameRanger processes
+            var processes = Process.GetProcessesByName("GameRanger");
+            try
+            {
+                return processes.Length > 0;
+            }
+            finally
+            {
+                foreach (var p in processes) p.Dispose();
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Error checking for GameRanger installation");
+            return false;
+        }
+    }
+
+    private bool HasAdminCompatibility(GameInstallation installation)
+    {
+        try
+        {
+            var executables = GetExistingGameExecutables(installation);
+            return IsAnyExeConfiguredWithRunAsAdmin(executables);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error checking admin compatibility");
+            return false;
+        }
     }
 }

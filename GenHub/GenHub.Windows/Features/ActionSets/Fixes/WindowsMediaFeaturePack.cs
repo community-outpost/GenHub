@@ -120,6 +120,20 @@ public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : 
         return Task.FromResult(new ActionSetResult(true, null, ["Media Feature Pack marker removed."]));
     }
 
+    private static bool IsPackageInstalled(Microsoft.Win32.RegistryKey subKey)
+    {
+        var installStateVal = subKey.GetValue(RegistryConstants.InstallStateValueName);
+        if (installStateVal is int stateInt &&
+            (stateInt == RegistryConstants.CbsInstallStateStaged ||
+             stateInt == RegistryConstants.CbsInstallStateInstalled ||
+             stateInt == RegistryConstants.CbsInstallStateSuperseded))
+        {
+            return true;
+        }
+
+        return installStateVal is string installState && installState.Equals("Installed", StringComparison.OrdinalIgnoreCase);
+    }
+
     private bool IsMediaFeaturePackInstalled()
     {
         try
@@ -157,20 +171,6 @@ public class WindowsMediaFeaturePack(ILogger<WindowsMediaFeaturePack> logger) : 
         }
 
         return false;
-    }
-
-    private static bool IsPackageInstalled(Microsoft.Win32.RegistryKey subKey)
-    {
-        var installStateVal = subKey.GetValue(RegistryConstants.InstallStateValueName);
-        if (installStateVal is int stateInt &&
-            (stateInt == RegistryConstants.CbsInstallStateStaged ||
-             stateInt == RegistryConstants.CbsInstallStateInstalled ||
-             stateInt == RegistryConstants.CbsInstallStateSuperseded))
-        {
-            return true;
-        }
-
-        return installStateVal is string installState && installState.Equals("Installed", StringComparison.OrdinalIgnoreCase);
     }
 
     private bool HasWindowsMediaPlayer()
