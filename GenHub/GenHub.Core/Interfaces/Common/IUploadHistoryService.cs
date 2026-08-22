@@ -47,9 +47,9 @@ public interface IUploadHistoryService
     /// Removes an item from upload history and optionally deletes the hosted file from cloud storage.
     /// </summary>
     /// <param name="url">The URL.</param>
-    /// <param name="deleteFromCloud">Whether to attempt deleting the file from cloud storage.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    Task RemoveHistoryItemAsync(string url, bool deleteFromCloud = true);
+    /// <param name="deleteFromCloud">Whether to attempt deleting the file from cloud storage. Defaults to false.</param>
+    /// <returns>A task representing the asynchronous operation, returning true if removal succeeded.</returns>
+    Task<bool> RemoveHistoryItemAsync(string url, bool deleteFromCloud = false);
 
     /// <summary>
     /// Clears local history without deleting hosted files.

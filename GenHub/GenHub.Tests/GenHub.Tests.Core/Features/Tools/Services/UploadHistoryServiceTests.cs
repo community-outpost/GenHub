@@ -72,14 +72,37 @@ public sealed class UploadHistoryServiceTests : IDisposable
         var service = CreateService();
         service.RecordUpload(1024, "https://utfs.io/f/key_123", "example.zip", "key_123", "token_abc");
 
-        await service.RemoveHistoryItemAsync("https://utfs.io/f/key_123", deleteFromCloud: true);
+        var success = await service.RemoveHistoryItemAsync("https://utfs.io/f/key_123", deleteFromCloud: true);
 
+        Assert.True(success);
         _uploadThingServiceMock.Verify(
             u => u.DeleteFileAsync("key_123", "token_abc", It.IsAny<CancellationToken>()),
             Times.Once);
 
         var reloadedService = CreateService();
         Assert.Empty(await reloadedService.GetUploadHistoryAsync());
+    }
+
+    /// <summary>
+    /// Verifies that when cloud deletion fails, local history preserves the record so deletion can be retried.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task RemoveHistoryItemAsync_WhenCloudDeletionFails_PreservesRecordForRetryAsync()
+    {
+        _uploadThingServiceMock
+            .Setup(u => u.DeleteFileAsync("key_123", "token_abc", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var service = CreateService();
+        service.RecordUpload(1024, "https://utfs.io/f/key_123", "example.zip", "key_123", "token_abc");
+
+        var success = await service.RemoveHistoryItemAsync("https://utfs.io/f/key_123", deleteFromCloud: true);
+
+        Assert.False(success);
+        var reloadedService = CreateService();
+        var item = Assert.Single(await reloadedService.GetUploadHistoryAsync());
+        Assert.Equal("https://utfs.io/f/key_123", item.Url);
     }
 
     /// <summary>

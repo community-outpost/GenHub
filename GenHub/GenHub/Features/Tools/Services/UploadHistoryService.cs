@@ -112,13 +112,44 @@ public sealed class UploadHistoryService(
     }
 
     /// <inheritdoc />
-    public async Task RemoveHistoryItemAsync(string url, bool deleteFromCloud = true)
+    public async Task<bool> RemoveHistoryItemAsync(string url, bool deleteFromCloud = false)
     {
         UploadRecord? matchingRecord = null;
         lock (FileLock)
         {
             var history = LoadHistoryInternal();
             matchingRecord = history.FirstOrDefault(r => r.Url == url);
+        }
+
+        if (matchingRecord == null)
+        {
+            return true;
+        }
+
+        if (deleteFromCloud && !string.IsNullOrEmpty(matchingRecord.FileKey) && !string.IsNullOrEmpty(matchingRecord.DeleteToken))
+        {
+            try
+            {
+                var cloudDeleted = await uploadThingService.DeleteFileAsync(matchingRecord.FileKey, matchingRecord.DeleteToken);
+                if (!cloudDeleted)
+                {
+                    logger.LogWarning(
+                        "Failed to delete file {Key} from cloud storage for {Url}. Preserving local history item for retry.",
+                        matchingRecord.FileKey,
+                        url);
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Exception occurred while deleting file from cloud storage for {Url}", url);
+                return false;
+            }
+        }
+
+        lock (FileLock)
+        {
+            var history = LoadHistoryInternal();
             var removed = history.RemoveAll(r => r.Url == url);
             if (removed > 0)
             {
@@ -131,17 +162,7 @@ public sealed class UploadHistoryService(
             }
         }
 
-        if (deleteFromCloud && matchingRecord != null && !string.IsNullOrEmpty(matchingRecord.FileKey) && !string.IsNullOrEmpty(matchingRecord.DeleteToken))
-        {
-            try
-            {
-                await uploadThingService.DeleteFileAsync(matchingRecord.FileKey, matchingRecord.DeleteToken);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed to delete file from cloud storage for {Url}", url);
-            }
-        }
+        return true;
     }
 
     /// <inheritdoc />
