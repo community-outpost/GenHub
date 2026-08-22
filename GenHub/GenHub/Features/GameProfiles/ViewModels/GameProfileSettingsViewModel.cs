@@ -411,7 +411,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         List<string>? autoEnabledNames = null,
         CancellationToken cancellationToken = default)
     {
-        if (!CanEnableContent(contentItem, bypassLoadingGuard))
+        if (contentItem is null || !CanEnableContent(contentItem, bypassLoadingGuard))
         {
             return;
         }

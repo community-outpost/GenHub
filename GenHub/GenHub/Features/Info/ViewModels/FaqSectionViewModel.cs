@@ -19,8 +19,9 @@ namespace GenHub.Features.Info.ViewModels;
 /// </summary>
 public sealed partial class FaqSectionViewModel(IFaqService faqService, ILogger<FaqSectionViewModel> logger) : ObservableObject, IInfoSectionViewModel, IDisposable
 {
+    private readonly object _gate = new();
     private CancellationTokenSource? _loadCts;
-
+    private int _loadGeneration;
     private bool _disposed;
 
     [ObservableProperty]
@@ -74,17 +75,23 @@ public sealed partial class FaqSectionViewModel(IFaqService faqService, ILogger<
     /// <inheritdoc/>
     public void Dispose()
     {
-        if (_disposed)
+        CancellationTokenSource? ctsToDispose;
+        lock (_gate)
         {
-            return;
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            ctsToDispose = _loadCts;
+            _loadCts = null;
         }
 
-        _disposed = true;
-        var oldCts = Interlocked.Exchange(ref _loadCts, null);
-        if (oldCts != null)
+        if (ctsToDispose != null)
         {
-            oldCts.Cancel();
-            oldCts.Dispose();
+            ctsToDispose.Cancel();
+            ctsToDispose.Dispose();
         }
 
         GC.SuppressFinalize(this);
@@ -107,33 +114,62 @@ public sealed partial class FaqSectionViewModel(IFaqService faqService, ILogger<
     [RelayCommand]
     private async Task LoadFaqAsync()
     {
-        var oldCts = Interlocked.Exchange(ref _loadCts, null);
+        CancellationTokenSource? oldCts;
+        CancellationTokenSource cts;
+        int currentGeneration;
+
+        lock (_gate)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            oldCts = _loadCts;
+            cts = new CancellationTokenSource();
+            _loadCts = cts;
+            currentGeneration = ++_loadGeneration;
+        }
+
         if (oldCts != null)
         {
             await oldCts.CancelAsync();
             oldCts.Dispose();
         }
 
-        if (_disposed)
-        {
-            return;
-        }
-
-        var cts = new CancellationTokenSource();
-        _loadCts = cts;
         var token = cts.Token;
-
         IsLoading = true;
         StatusMessage = string.Empty;
 
         try
         {
             var result = await faqService.GetFaqAsync(SelectedLanguageOption.Code, token);
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            lock (_gate)
+            {
+                if (_disposed || _loadGeneration != currentGeneration)
+                {
+                    return;
+                }
+            }
+
             if (result.Success)
             {
                 await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(
                     () =>
                     {
+                        lock (_gate)
+                        {
+                            if (_disposed || _loadGeneration != currentGeneration)
+                            {
+                                return;
+                            }
+                        }
+
                         Categories.Clear();
                         foreach (var category in result.Data)
                         {
@@ -161,9 +197,12 @@ public sealed partial class FaqSectionViewModel(IFaqService faqService, ILogger<
         }
         finally
         {
-            if (ReferenceEquals(_loadCts, cts))
+            lock (_gate)
             {
-                IsLoading = false;
+                if (_loadGeneration == currentGeneration)
+                {
+                    IsLoading = false;
+                }
             }
         }
     }

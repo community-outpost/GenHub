@@ -438,6 +438,11 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
         string gamePath,
         CancellationToken cancellationToken)
     {
+        if (contentManifestPool is null)
+        {
+            return null;
+        }
+
         try
         {
             // Search for ANY GameInstallation manifest matching this installation type and game type
@@ -562,6 +567,11 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
             versionForManifest = detectedVersion;
         }
 
+        if (contentManifestPool is null || manifestGenerationService is null)
+        {
+            return;
+        }
+
         var idResult = ManifestIdGenerator.GenerateGameInstallationId(
             installation, gameType, versionForId);
         var manifestId = ManifestId.Create(idResult);
@@ -577,12 +587,11 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
             return;
         }
 
-        var manifestBuilder = await manifestGenerationService!
-            .CreateGameInstallationManifestAsync(
-                gamePath,
-                gameType,
-                installation.InstallationType,
-                versionForManifest);
+        var manifestBuilder = await manifestGenerationService.CreateGameInstallationManifestAsync(
+            gamePath,
+            gameType,
+            installation.InstallationType,
+            versionForManifest);
 
         var manifest = manifestBuilder.Build();
         manifest.ContentType = ContentType.GameInstallation;
@@ -949,10 +958,10 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
             var baseGameClient = installation.AvailableGameClients
                 .FirstOrDefault(c => c.GameType == gameType && !c.IsPublisherClient);
 
-            if (baseGameClient == null)
+            if (baseGameClient == null || contentManifestPool == null || manifestGenerationService == null)
             {
                 logger.LogWarning(
-                    "No base game client found for {GameType} in installation {InstallationId}, skipping GameInstallation manifest creation",
+                    "No base game client found or manifest services unavailable for {GameType} in installation {InstallationId}, skipping GameInstallation manifest creation",
                     gameType,
                     installation.Id);
                 return;
