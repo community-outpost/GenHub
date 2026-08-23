@@ -326,6 +326,8 @@ public class GameInstallationTests
     [InlineData(GameClientConstants.SuperHackersZeroHourExecutable)]
     [InlineData(GameClientConstants.GeneralsOnlineDefaultExecutable)]
     [InlineData(GameClientConstants.GeneralsOnline60HzExecutable)]
+    [InlineData(GameClientConstants.GeneralsOnlineEacLauncherExecutable)]
+    [InlineData(GameClientConstants.ContraExecutable)]
     public void GameInstallation_Fetch_DetectsZeroHour_WhenClientExecutablePresent(string exeName)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "GenericRoot_" + Guid.NewGuid().ToString("N"));
@@ -343,6 +345,88 @@ public class GameInstallationTests
         finally
         {
             Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that Fetch identifies a directory named Zero Hour as Zero Hour even if generic INI.big is present (repack scenario).
+    /// </summary>
+    [Fact]
+    public void GameInstallation_Fetch_DetectsZeroHour_WhenNamedZeroHourAndIniBigPresent()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "Command and Conquer Generals Zero Hour_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "generals.exe"), string.Empty);
+            File.WriteAllText(Path.Combine(tempDir, "INI.big"), string.Empty);
+
+            var installation = new GameInstallation(tempDir, GameInstallationType.Retail, NullLogger<GameInstallation>.Instance);
+            installation.Fetch();
+
+            Assert.True(installation.HasZeroHour);
+            Assert.Equal(tempDir, installation.ZeroHourPath);
+            Assert.False(installation.HasGenerals);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that Fetch detects Zero Hour when non-English localized archives like RussianZH.big or GermanZH.big are present.
+    /// </summary>
+    /// <param name="archiveName">The localized Zero Hour archive filename.</param>
+    [Theory]
+    [InlineData("RussianZH.big")]
+    [InlineData("GermanZH.big")]
+    [InlineData("FrenchZH.big")]
+    [InlineData("AudioZH.big")]
+    public void GameInstallation_Fetch_DetectsZeroHour_WhenLocalizedZhBigArchivePresent(string archiveName)
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenericRoot_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "generals.exe"), string.Empty);
+            File.WriteAllText(Path.Combine(tempDir, archiveName), string.Empty);
+
+            var installation = new GameInstallation(tempDir, GameInstallationType.Retail, NullLogger<GameInstallation>.Instance);
+            installation.Fetch();
+
+            Assert.True(installation.HasZeroHour);
+            Assert.Equal(tempDir, installation.ZeroHourPath);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that Fetch preserves explicitly configured paths when those paths exist on disk.
+    /// </summary>
+    [Fact]
+    public void GameInstallation_Fetch_PreservesExplicitlyConfiguredPaths()
+    {
+        var tempParent = Path.Combine(Path.GetTempPath(), "ExplicitTest_" + Guid.NewGuid().ToString("N"));
+        var zhDir = Path.Combine(tempParent, "ZH_Custom");
+        Directory.CreateDirectory(zhDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(zhDir, "generals.exe"), string.Empty);
+
+            var installation = new GameInstallation(tempParent, GameInstallationType.Retail, NullLogger<GameInstallation>.Instance);
+            installation.SetPaths(null, zhDir);
+            installation.Fetch();
+
+            Assert.True(installation.HasZeroHour);
+            Assert.Equal(zhDir, installation.ZeroHourPath);
+        }
+        finally
+        {
+            Directory.Delete(tempParent, true);
         }
     }
 }
