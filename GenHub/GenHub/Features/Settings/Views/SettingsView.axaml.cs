@@ -1,8 +1,12 @@
 using System;
+using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
+using GenHub.Core.Constants;
+using GenHub.Features.Settings.Models;
 using GenHub.Features.Settings.ViewModels;
 
 namespace GenHub.Features.Settings.Views;
@@ -12,6 +16,8 @@ namespace GenHub.Features.Settings.Views;
 /// </summary>
 public partial class SettingsView : UserControl
 {
+    private SettingsViewModel? _boundViewModel;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SettingsView"/> class.
     /// </summary>
@@ -33,6 +39,7 @@ public partial class SettingsView : UserControl
         if (DataContext is SettingsViewModel vm)
         {
             vm.IsViewVisible = true;
+            HookViewModel(vm);
         }
     }
 
@@ -43,6 +50,7 @@ public partial class SettingsView : UserControl
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
+        UnhookViewModel();
         if (DataContext is SettingsViewModel vm)
         {
             vm.IsViewVisible = false;
@@ -57,10 +65,78 @@ public partial class SettingsView : UserControl
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
+        UnhookViewModel();
         if (DataContext is SettingsViewModel vm)
         {
             // Sync visibility state with current visual tree state
             vm.IsViewVisible = VisualRoot != null;
+            HookViewModel(vm);
+        }
+    }
+
+    private void HookViewModel(SettingsViewModel vm)
+    {
+        if (ReferenceEquals(_boundViewModel, vm))
+        {
+            return;
+        }
+
+        UnhookViewModel();
+        _boundViewModel = vm;
+        _boundViewModel.PropertyChanged += OnViewModelPropertyChanged;
+    }
+
+    private void UnhookViewModel()
+    {
+        if (_boundViewModel != null)
+        {
+            _boundViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            _boundViewModel = null;
+        }
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SettingsViewModel.SelectedSection) && _boundViewModel != null)
+        {
+            ScrollToSection(_boundViewModel.SelectedSection);
+        }
+    }
+
+    private void ScrollToSection(SettingsSectionItem? section)
+    {
+        if (section is null)
+        {
+            return;
+        }
+
+        var expanderName = section.Id switch
+        {
+            SettingsConstants.SectionGameConfig => "Expander_GameConfig",
+            SettingsConstants.SectionDownloads => "Expander_Downloads",
+            SettingsConstants.SectionAppearance => "Expander_Appearance",
+            SettingsConstants.SectionDataDirectories => "Expander_DataDirectories",
+            SettingsConstants.SectionLogs => "Expander_Logs",
+            SettingsConstants.SectionPerformance => "Expander_Performance",
+            SettingsConstants.SectionCas => "Expander_Cas",
+            SettingsConstants.SectionLocalContent => "Expander_LocalContent",
+            SettingsConstants.SectionGitHubDiscovery => "Expander_GitHubDiscovery",
+            SettingsConstants.SectionUpdates => "Expander_Updates",
+            SettingsConstants.SectionSubscriptions => "Expander_Subscriptions",
+            SettingsConstants.SectionDangerZone => "Expander_DangerZone",
+            _ => null,
+        };
+
+        if (expanderName is null)
+        {
+            return;
+        }
+
+        var expander = ControlExtensions.FindControl<Expander>(this, expanderName);
+        if (expander != null)
+        {
+            expander.IsExpanded = true;
+            Dispatcher.UIThread.Post(() => expander.BringIntoView(), DispatcherPriority.Render);
         }
     }
 

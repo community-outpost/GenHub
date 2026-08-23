@@ -39,8 +39,9 @@
 
   <controls:SidebarLayout PaneTitle="Info"
                           ItemsSource="{Binding SidebarItems}"
-                          SelectedItem="{Binding SelectedSidebarItem}"
-                          IsPaneOpen="{Binding IsPaneOpen}">
+                          SelectedItem="{Binding SelectedSidebarItem, Mode=TwoWay}"
+                          IsPaneOpen="{Binding IsPaneOpen, Mode=TwoWay}"
+                          OpenPaneLength="{Binding OpenPaneLength, Mode=TwoWay}">
 
     <controls:SidebarLayout.PaneHeader>
         <ComboBox ItemsSource="{Binding Modules}"

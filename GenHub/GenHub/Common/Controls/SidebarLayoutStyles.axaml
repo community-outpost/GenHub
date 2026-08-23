@@ -9,155 +9,206 @@
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="Template">
       <ControlTemplate>
-        <Grid>
-          <SplitView IsPaneOpen="{TemplateBinding IsPaneOpen, Mode=TwoWay}"
-                     DisplayMode="Overlay"
-                     OpenPaneLength="{TemplateBinding OpenPaneLength}"
-                     PanePlacement="Left"
-                     Background="Transparent"
-                     PaneBackground="Transparent">
+        <Grid x:Name="PART_RootGrid">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220"
+                              MinWidth="140"
+                              MaxWidth="360" />
+            <ColumnDefinition Width="4" />
+            <ColumnDefinition Width="*"
+                              MinWidth="0" />
+          </Grid.ColumnDefinitions>
 
-            <SplitView.Pane>
-              <!-- PART_SidebarPane is critical for the hover logic -->
-              <Border x:Name="PART_SidebarPane"
-                      Background="Transparent"
-                      BorderBrush="{DynamicResource BorderBrush}"
-                      BorderThickness="0,0,1,0"
-                      CornerRadius="0"
-                      BoxShadow="4 0 28 0 #80000000"
-                      ClipToBounds="False">
+          <!-- Sidebar Pane (Column 0) -->
+          <Border x:Name="PART_SidebarPane"
+                  Grid.Column="0"
+                  Background="Transparent"
+                  BorderBrush="{DynamicResource BorderBrush}"
+                  BorderThickness="0,0,1,0"
+                  CornerRadius="0"
+                  ClipToBounds="True">
+            <Panel>
+              <!-- 1. Blur Layer (Glass) -->
+              <ExperimentalAcrylicBorder CornerRadius="0" IsHitTestVisible="False">
+                <ExperimentalAcrylicBorder.Material>
+                  <ExperimentalAcrylicMaterial
+                      BackgroundSource="Digger"
+                      TintColor="Black"
+                      TintOpacity="0.85"
+                      MaterialOpacity="0.6" />
+                </ExperimentalAcrylicBorder.Material>
+              </ExperimentalAcrylicBorder>
 
-                <Panel>
-                  <!-- 1. Blur Layer (Glass) -->
-                  <ExperimentalAcrylicBorder CornerRadius="0" IsHitTestVisible="False">
-                    <ExperimentalAcrylicBorder.Material>
-                      <ExperimentalAcrylicMaterial
-                          BackgroundSource="Digger"
-                          TintColor="Black"
-                          TintOpacity="0.85"
-                          MaterialOpacity="0.6" />
-                    </ExperimentalAcrylicBorder.Material>
-                  </ExperimentalAcrylicBorder>
+              <!-- 2. Dark Slate Surface Tint Layer -->
+              <Border CornerRadius="0" IsHitTestVisible="False" Opacity="0.95" Background="{DynamicResource SidebarSurfaceGradientBrush}" />
 
-                  <!-- 2. Dark Slate Surface Tint Layer -->
-                  <Border CornerRadius="0" IsHitTestVisible="False" Opacity="0.95" Background="{DynamicResource SidebarSurfaceGradientBrush}" />
+              <!-- 3. Content Layer -->
+              <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="14,18,14,14">
+                <!-- Header title & Close Button -->
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,2">
+                  <TextBlock Text="{TemplateBinding PaneTitle}"
+                             FontSize="16"
+                             FontWeight="Bold"
+                             Foreground="{DynamicResource TextPrimary}"
+                             VerticalAlignment="Center"
+                             TextTrimming="CharacterEllipsis" />
 
-                  <!-- 3. Content Layer -->
-                  <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="16,20,16,16">
-                    <!-- Header title -->
-                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
-                      <TextBlock Text="{TemplateBinding PaneTitle}"
-                                 FontSize="17"
-                                 FontWeight="Bold"
-                                 Foreground="{DynamicResource TextPrimary}"
-                                 VerticalAlignment="Center" />
+                  <!-- Close Button -->
+                  <Button Grid.Column="1"
+                          Command="{Binding ClosePaneCommand, RelativeSource={RelativeSource TemplatedParent}}"
+                          Background="{DynamicResource SurfaceElevatedBrush}"
+                          BorderBrush="{DynamicResource BorderBrush}"
+                          BorderThickness="1"
+                          Width="26" Height="26"
+                          CornerRadius="6"
+                          Padding="0"
+                          VerticalAlignment="Center"
+                          HorizontalContentAlignment="Center"
+                          VerticalContentAlignment="Center"
+                          Cursor="Hand"
+                          ToolTip.Tip="Close Sidebar">
+                    <Button.Styles>
+                      <Style Selector="Button:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}"/>
+                        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                      </Style>
+                    </Button.Styles>
+                    <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
+                              Width="9" Height="9" Foreground="{DynamicResource TextSecondary}"/>
+                  </Button>
+                </Grid>
 
-                      <!-- Close Button -->
-                      <Button Grid.Column="1"
-                              Command="{Binding ClosePaneCommand, RelativeSource={RelativeSource TemplatedParent}}"
-                              Background="{DynamicResource SurfaceElevatedBrush}"
-                              BorderBrush="{DynamicResource BorderBrush}"
-                              BorderThickness="1"
-                              Width="28" Height="28"
-                              CornerRadius="6"
-                              Padding="0"
-                              VerticalAlignment="Center"
-                              HorizontalContentAlignment="Center"
-                              VerticalContentAlignment="Center"
-                              Cursor="Hand"
-                              ToolTip.Tip="Close Sidebar">
-                        <Button.Styles>
-                          <Style Selector="Button:pointerover /template/ ContentPresenter">
-                            <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}"/>
-                            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                          </Style>
-                        </Button.Styles>
-                        <PathIcon Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"
-                                  Width="10" Height="10" Foreground="{DynamicResource TextSecondary}"/>
-                      </Button>
-                    </Grid>
+                <!-- Pane Header (Action button / search / selector) -->
+                <ContentPresenter Grid.Row="1"
+                                  Content="{TemplateBinding PaneHeader}"
+                                  Margin="0,10,0,6"
+                                  IsVisible="{TemplateBinding PaneHeader, Converter={x:Static ObjectConverters.IsNotNull}}" />
 
-                    <!-- Pane Header (Action button / search / selector) -->
-                    <ContentPresenter Grid.Row="1" Content="{TemplateBinding PaneHeader}" Margin="0,14,0,6" />
+                <!-- List - Inset rounded items -->
+                <ScrollViewer Grid.Row="2"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              Margin="0,2,0,6">
+                  <ListBox ItemsSource="{TemplateBinding ItemsSource}"
+                           SelectedItem="{TemplateBinding SelectedItem, Mode=TwoWay}"
+                           ItemTemplate="{TemplateBinding ItemTemplate}"
+                           Background="Transparent">
+                    <ListBox.Styles>
+                      <Style Selector="ListBoxItem">
+                        <Setter Property="Padding" Value="10,8"/>
+                        <Setter Property="Margin" Value="0,2"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        <Setter Property="CornerRadius" Value="8"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+                        <Setter Property="Transitions">
+                          <Transitions>
+                            <BrushTransition Property="Background" Duration="0:0:0.15"/>
+                            <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
+                          </Transitions>
+                        </Setter>
+                      </Style>
 
-                    <!-- List - Inset rounded items -->
-                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="0,4,0,8">
-                      <ListBox ItemsSource="{TemplateBinding ItemsSource}"
-                               SelectedItem="{TemplateBinding SelectedItem, Mode=TwoWay}"
-                               ItemTemplate="{TemplateBinding ItemTemplate}"
-                               Background="Transparent">
-                        <ListBox.Styles>
-                          <Style Selector="ListBoxItem">
-                            <Setter Property="Padding" Value="12,10"/>
-                            <Setter Property="Margin" Value="0,2"/>
-                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                            <Setter Property="CornerRadius" Value="8"/>
-                            <Setter Property="Background" Value="Transparent"/>
-                            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-                            <Setter Property="Transitions">
-                              <Transitions>
-                                <BrushTransition Property="Background" Duration="0:0:0.15"/>
-                                <BrushTransition Property="BorderBrush" Duration="0:0:0.15"/>
-                              </Transitions>
-                            </Setter>
-                          </Style>
+                      <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}"/>
+                        <Setter Property="CornerRadius" Value="8"/>
+                      </Style>
 
-                          <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-                            <Setter Property="Background" Value="{DynamicResource AccentTintBackgroundBrush}"/>
-                            <Setter Property="CornerRadius" Value="8"/>
-                          </Style>
+                      <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
+                        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                        <Setter Property="BorderThickness" Value="1"/>
+                        <Setter Property="CornerRadius" Value="8"/>
+                      </Style>
 
-                          <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
-                            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
-                            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                            <Setter Property="BorderThickness" Value="1"/>
-                            <Setter Property="CornerRadius" Value="8"/>
-                          </Style>
+                      <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter">
+                        <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
+                        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                        <Setter Property="BorderThickness" Value="1"/>
+                        <Setter Property="CornerRadius" Value="8"/>
+                      </Style>
+                    </ListBox.Styles>
+                  </ListBox>
+                </ScrollViewer>
 
-                          <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter">
-                            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}"/>
-                            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                            <Setter Property="BorderThickness" Value="1"/>
-                            <Setter Property="CornerRadius" Value="8"/>
-                          </Style>
-                        </ListBox.Styles>
-                      </ListBox>
-                    </ScrollViewer>
-
-                    <!-- Footer -->
-                    <ContentPresenter Grid.Row="3" Content="{TemplateBinding PaneFooter}" Margin="0,8,0,0"/>
-                  </Grid>
-                </Panel>
-              </Border>
-            </SplitView.Pane>
-
-            <SplitView.Content>
-              <Grid>
-                <!-- Main Content -->
-                <ContentPresenter Content="{TemplateBinding Content}" />
-
-                <!-- Click-outside/Blur overlay -->
-                <Panel x:Name="PART_ContentOverlay"
-                       Background="#66000000"
-                       IsVisible="{TemplateBinding IsPaneOpen}">
-                  <Panel.Transitions>
-                    <Transitions>
-                      <DoubleTransition Property="Opacity" Duration="0:0:0.3"/>
-                    </Transitions>
-                  </Panel.Transitions>
-                </Panel>
+                <!-- Footer -->
+                <ContentPresenter Grid.Row="3"
+                                  Content="{TemplateBinding PaneFooter}"
+                                  Margin="0,6,0,0"
+                                  IsVisible="{TemplateBinding PaneFooter, Converter={x:Static ObjectConverters.IsNotNull}}" />
               </Grid>
-            </SplitView.Content>
-          </SplitView>
+            </Panel>
+          </Border>
 
-          <!-- Trigger Zone (Edge Hover Area) -->
-          <Panel x:Name="PART_TriggerZone"
-                 Width="40"
-                 HorizontalAlignment="Left"
-                 Background="Transparent"
-                 IsVisible="{Binding !IsPaneOpen, RelativeSource={RelativeSource TemplatedParent}}">
-            <Panel Background="Transparent" Width="40" />
-          </Panel>
+          <!-- Resizer (GridSplitter, Column 1) -->
+          <GridSplitter x:Name="PART_Splitter"
+                        Grid.Column="1"
+                        Width="4"
+                        Background="Transparent"
+                        ResizeDirection="Columns">
+            <GridSplitter.Template>
+              <ControlTemplate>
+                <Border Background="Transparent" Width="6" HorizontalAlignment="Center" Cursor="SizeWestEast">
+                  <Border.Styles>
+                    <Style Selector="Border > Rectangle">
+                      <Setter Property="Fill" Value="Transparent" />
+                      <Setter Property="Transitions">
+                        <Transitions>
+                          <BrushTransition Property="Fill" Duration="0:0:0.15" />
+                        </Transitions>
+                      </Setter>
+                    </Style>
+                    <Style Selector="Border:pointerover > Rectangle">
+                      <Setter Property="Fill" Value="{DynamicResource AccentBrush}" />
+                    </Style>
+                  </Border.Styles>
+                  <Rectangle Width="2" HorizontalAlignment="Center" />
+                </Border>
+              </ControlTemplate>
+            </GridSplitter.Template>
+          </GridSplitter>
+
+          <!-- Main Content (Column 2) -->
+          <ContentPresenter x:Name="PART_ContentPresenter"
+                            Grid.Column="2"
+                            Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}" />
+
+          <!-- Edge Trigger Zone (Edge Hover Area when closed) -->
+          <Border x:Name="PART_TriggerZone"
+                  Grid.Column="0"
+                  Grid.ColumnSpan="3"
+                  HorizontalAlignment="Left"
+                  VerticalAlignment="Stretch"
+                  Width="24"
+                  Background="Transparent"
+                  Cursor="Hand"
+                  ToolTip.Tip="Expand Sidebar"
+                  ZIndex="50">
+            <Border.Styles>
+              <Style Selector="Border#PART_TriggerZone > Border.expand-tab">
+                <Setter Property="Opacity" Value="0.3" />
+                <Setter Property="Transitions">
+                  <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.2" />
+                    <BrushTransition Property="Background" Duration="0:0:0.2" />
+                  </Transitions>
+                </Setter>
+              </Style>
+              <Style Selector="Border#PART_TriggerZone:pointerover > Border.expand-tab">
+                <Setter Property="Opacity" Value="1.0" />
+                <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+              </Style>
+            </Border.Styles>
+
+            <Border Classes="expand-tab"
+                    Width="4"
+                    Height="48"
+                    CornerRadius="0,3,3,0"
+                    Background="#40FFFFFF"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Center" />
+          </Border>
         </Grid>
       </ControlTemplate>
     </Setter>
