@@ -79,10 +79,11 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
     /// <param name="sectionId">The ID of the section to open.</param>
     public void OpenSection(string sectionId)
     {
-        SelectedModule = (sectionId.Equals("faq", StringComparison.OrdinalIgnoreCase) ||
-                          sectionId.Equals("go-changelog", StringComparison.OrdinalIgnoreCase))
-            ? InfoConstants.ModuleGeneralsOnline
-            : InfoConstants.ModuleGuide;
+        SelectedModule = sectionId.Equals("faq", StringComparison.OrdinalIgnoreCase)
+            ? InfoConstants.ModuleZeroHour
+            : sectionId.Equals("go-changelog", StringComparison.OrdinalIgnoreCase)
+                ? InfoConstants.ModuleGeneralsOnline
+                : InfoConstants.ModuleGuide;
 
         var targetSection = Sections.FirstOrDefault(s => s.Id.Equals(sectionId, StringComparison.OrdinalIgnoreCase));
 
