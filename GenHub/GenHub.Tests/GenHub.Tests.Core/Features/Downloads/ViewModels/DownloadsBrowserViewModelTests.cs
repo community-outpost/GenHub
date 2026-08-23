@@ -262,7 +262,11 @@ public class DownloadsBrowserViewModelTests
         viewModel.SelectedPublisher = streamPublisher;
 
         // Allow async streaming tasks to complete
-        await Task.Delay(100);
+        var timeout = DateTime.UtcNow.AddSeconds(5);
+        while (viewModel.IsLoading && DateTime.UtcNow < timeout)
+        {
+            await Task.Delay(25);
+        }
 
         // Assert
         Assert.Equal(3, viewModel.ContentItems.Count);
@@ -398,7 +402,11 @@ public class DownloadsBrowserViewModelTests
         tcsA.SetResult(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = itemsA, TotalItems = 2 }));
         tcsB.SetResult(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = itemsB, TotalItems = 1 }));
 
-        await Task.Delay(100);
+        var timeout = DateTime.UtcNow.AddSeconds(5);
+        while (viewModel.IsLoading && DateTime.UtcNow < timeout)
+        {
+            await Task.Delay(25);
+        }
 
         // Assert: ContentItems MUST contain ONLY items from C
         Assert.Equal(2, viewModel.ContentItems.Count);
@@ -496,7 +504,12 @@ public class DownloadsBrowserViewModelTests
 
         // Act 2: Complete Publisher A's background fetch
         tcsA.SetResult(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = itemsA, TotalItems = 3 }));
-        await Task.Delay(100);
+
+        var timeout = DateTime.UtcNow.AddSeconds(5);
+        while (viewModel.IsLoading && DateTime.UtcNow < timeout)
+        {
+            await Task.Delay(25);
+        }
 
         // Verify currently on B
         Assert.Single(viewModel.ContentItems);

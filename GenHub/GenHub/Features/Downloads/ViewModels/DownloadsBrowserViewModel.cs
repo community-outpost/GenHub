@@ -1072,8 +1072,8 @@ public sealed partial class DownloadsBrowserViewModel(
                 }
             });
 
-            // Yield briefly to let the UI thread render each card progressively one by one
-            await Task.Yield();
+            // Delay briefly to let the UI thread layout and render each card progressively one by one
+            await Task.Delay(UiConstants.ProgressiveItemRenderDelayMs, ct);
         }
 
         return newVms;
