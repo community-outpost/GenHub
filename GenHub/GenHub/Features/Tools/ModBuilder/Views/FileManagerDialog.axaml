@@ -52,19 +52,8 @@
         </StackPanel>
       </StackPanel>
 
-      <!-- Right Header Actions (Done Button + Window Controls) -->
-      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-        <Button Click="OnCloseClicked"
-                Padding="16,7" CornerRadius="8" VerticalAlignment="Center"
-                Background="{DynamicResource AccentBrush}" Foreground="White"
-                BorderThickness="0" Cursor="Hand"
-                ToolTip.Tip="Save changes and return to project">
-          <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-            <Path Width="12" Height="12" Fill="White" Data="{StaticResource IconCheckmark}" Stretch="Uniform" VerticalAlignment="Center"/>
-            <TextBlock Text="Done" FontWeight="SemiBold" VerticalAlignment="Center"/>
-          </StackPanel>
-        </Button>
-
+      <!-- Right Header Actions (Window Controls) -->
+      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
         <!-- Minimize Button -->
         <Button Click="MinimizeButton_Click" Background="Transparent" BorderThickness="0" Padding="8" CornerRadius="4" VerticalAlignment="Center" ToolTip.Tip="Minimize" Cursor="Hand">
           <Path Width="10" Height="2" Fill="{DynamicResource TextSecondary}" Data="{StaticResource IconMinimize}" Stretch="Uniform"/>
