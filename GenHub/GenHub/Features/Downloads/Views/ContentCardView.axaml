@@ -68,10 +68,10 @@
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontSize" Value="12.5" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
             <Setter Property="Transitions">
                 <Setter.Value>
                     <Transitions>
@@ -84,8 +84,8 @@
         </Style>
 
         <Style Selector="Button.card-button:pointerover">
-            <Setter Property="Opacity" Value="0.9" />
-            <Setter Property="RenderTransform" Value="scale(1.02)" />
+            <Setter Property="Opacity" Value="0.94" />
+            <Setter Property="RenderTransform" Value="scale(1.015)" />
         </Style>
 
         <Style Selector="Button.card-button:pressed">
@@ -117,25 +117,37 @@
         <Style Selector="Border.type-badge">
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="6" />
-            <Setter Property="Padding" Value="7,2" />
+            <Setter Property="Padding" Value="7,3" />
+            <Setter Property="BoxShadow" Value="0 2 6 0 #80000000" />
         </Style>
 
         <Style Selector="Border.player-count-badge">
-            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+            <Setter Property="Background" Value="{DynamicResource CardBackground}" />
             <Setter Property="BorderBrush" Value="{DynamicResource ZeroHourFactionBrush}" />
             <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BoxShadow" Value="0 2 6 0 #80000000" />
         </Style>
 
         <Style Selector="Border.category-badge">
-            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+            <Setter Property="Background" Value="{DynamicResource CardBackground}" />
             <Setter Property="BorderBrush" Value="{DynamicResource GeneralsFactionBrush}" />
             <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BoxShadow" Value="0 2 6 0 #80000000" />
         </Style>
 
         <Style Selector="Border.variant-count-badge">
-            <Setter Property="Background" Value="{DynamicResource AccentBadgeBackgroundBrush}" />
+            <Setter Property="Background" Value="{DynamicResource CardBackground}" />
             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BoxShadow" Value="0 2 6 0 #80000000" />
+        </Style>
+
+        <Style Selector="Border.info-chip">
+            <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderHighlightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="5" />
+            <Setter Property="Padding" Value="6,2" />
         </Style>
 
         <Style Selector="ComboBox.card-variant-combo">
@@ -251,7 +263,7 @@
                                        Margin="6"
                                        MaxWidth="228">
                                 <Border Classes="type-badge"
-                                        Background="{Binding ContentType, Converter={StaticResource ContentTypeToBadgeBackgroundConverter}}"
+                                        Background="{DynamicResource CardBackground}"
                                         BorderBrush="{Binding ContentType, Converter={StaticResource ContentTypeToBrushConverter}}"
                                         Margin="0,0,4,4"
                                         ToolTip.Tip="{Binding ContentTypeDisplay}">
@@ -496,26 +508,21 @@
                         <!-- Version badge -->
                         <StackPanel Orientation="Horizontal" Spacing="6"
                                     IsVisible="{Binding HasDisplayVersion}">
-                            <Border Background="{DynamicResource SurfaceElevatedBrush}"
-                                    BorderBrush="{DynamicResource BorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="4" Padding="6,2"
+                            <Border Classes="info-chip"
                                     ToolTip.Tip="{Binding Version}">
                                 <TextBlock Text="{Binding VersionBadge}"
-                                           FontSize="10"
-                                           Foreground="{DynamicResource TextSecondary}" />
+                                           FontSize="10.5"
+                                           FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimary}" />
                             </Border>
 
-                            <Border Background="{DynamicResource SurfaceElevatedBrush}"
-                                    BorderBrush="{DynamicResource BorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="4"
-                                    Padding="6,2"
+                            <Border Classes="info-chip"
                                     IsVisible="{Binding IsDownloadSizeVisible}"
                                     ToolTip.Tip="{Binding DownloadSize, Converter={StaticResource FileSizeConverter}}">
                                 <TextBlock Text="{Binding DownloadSize, Converter={StaticResource FileSizeConverter}}"
-                                           FontSize="10"
-                                           Foreground="{DynamicResource TextSecondary}" />
+                                           FontSize="10.5"
+                                           FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimary}" />
                             </Border>
                         </StackPanel>
 
@@ -529,16 +536,13 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Background="{DynamicResource SurfaceElevatedBrush}"
-                                            BorderBrush="{DynamicResource BorderBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="4"
-                                            Padding="5,1"
-                                            Margin="0,0,4,2"
+                                    <Border Classes="info-chip"
+                                            Margin="0,0,4,4"
                                             ToolTip.Tip="{Binding}">
                                         <TextBlock Text="{Binding}"
                                                    FontSize="10"
-                                                   Foreground="{DynamicResource TextSecondary}" />
+                                                   FontWeight="Medium"
+                                                   Foreground="{DynamicResource TextPrimary}" />
                                     </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -586,10 +590,11 @@
                             IsVisible="{Binding ShowDownloadButton}"
                             IsEnabled="{Binding !IsDownloading}">
                         <ToolTip.Tip>Download this content to your library</ToolTip.Tip>
-                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Path Data="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"
-                                  Fill="White" Width="12" Height="12" Stretch="Uniform" VerticalAlignment="Center" />
-                            <TextBlock Text="Download" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Path Data="M12 3v9m0 0l-3-3m3 3l3-3M4 15v2a2 2 0 002 2h12a2 2 0 002-2v-2"
+                                  Stroke="White" StrokeThickness="2" StrokeJoin="Round" StrokeLineCap="Round"
+                                  Width="13" Height="13" Stretch="Uniform" VerticalAlignment="Center" />
+                            <TextBlock Text="Download" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
 
@@ -600,10 +605,10 @@
                             IsVisible="{Binding ShowUpdateButton}"
                             IsEnabled="{Binding !IsDownloading}">
                         <ToolTip.Tip>A newer version is available. Click to update.</ToolTip.Tip>
-                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Path Data="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"
                                   Fill="White" Width="12" Height="12" Stretch="Uniform" VerticalAlignment="Center" />
-                            <TextBlock Text="Update Available" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <TextBlock Text="Update Available" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
 
@@ -613,10 +618,11 @@
                             CommandParameter="{Binding}"
                             IsVisible="{Binding ShowAddToProfileButton}">
                         <ToolTip.Tip>Add this content to a game profile</ToolTip.Tip>
-                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Path Data="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"
-                                  Fill="White" Width="12" Height="12" Stretch="Uniform" VerticalAlignment="Center" />
-                            <TextBlock Text="Add to Profile" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <StackPanel Orientation="Horizontal" Spacing="7" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Path Data="M12 5v14M5 12h14"
+                                  Stroke="White" StrokeThickness="2" StrokeJoin="Round" StrokeLineCap="Round"
+                                  Width="12" Height="12" Stretch="Uniform" VerticalAlignment="Center" />
+                            <TextBlock Text="Add to Profile" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                 </StackPanel>

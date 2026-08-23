@@ -16,6 +16,7 @@ namespace GenHub.Features.Info.ViewModels;
 /// <summary>
 /// ViewModel for the Info tab, managing multiple info sections.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel instance methods and properties bound to Avalonia XAML bindings.")]
 public partial class InfoViewModel : ViewModelBase, IDisposable, IRecipient<OpenInfoSectionMessage>
 {
     [ObservableProperty]

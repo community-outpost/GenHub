@@ -1071,6 +1071,9 @@ public sealed partial class DownloadsBrowserViewModel(
                     ContentItems.Add(vm);
                 }
             });
+
+            // Yield briefly to let the UI thread render each card progressively one by one
+            await Task.Delay(20, ct);
         }
 
         return newVms;
