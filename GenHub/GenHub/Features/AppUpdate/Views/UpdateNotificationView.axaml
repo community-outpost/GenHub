@@ -242,7 +242,7 @@
                                                     <!-- Row 0: PR Number + Title in a 2-column grid so Title trims with ellipsis -->
                                                     <Grid Grid.Row="0" ColumnDefinitions="Auto,*">
                                                         <Button Grid.Column="0"
-                                                                Command="{Binding $parent[views:UpdateNotificationView].((vm:UpdateNotificationViewModel)DataContext).OpenPullRequestUrlCommand}"
+                                                                Command="{Binding #Root.((vm:UpdateNotificationViewModel)DataContext).OpenPullRequestUrlCommand}"
                                                                 CommandParameter="{Binding Number}"
                                                                 Classes="pr-link"
                                                                 Margin="0,0,6,0"
@@ -272,14 +272,14 @@
                                                 <!-- Right side: Subscribe Button -->
                                                 <Button Grid.Column="1"
                                                         VerticalAlignment="Center"
-                                                        Command="{Binding $parent[views:UpdateNotificationView].((vm:UpdateNotificationViewModel)DataContext).SubscribeToPrCommand}"
+                                                        Command="{Binding #Root.((vm:UpdateNotificationViewModel)DataContext).SubscribeToPrCommand}"
                                                         CommandParameter="{Binding Number}"
                                                         Classes="SmallAction SubscribeState">
                                                     <Button.Tag>
                                                         <MultiBinding Converter="{StaticResource IsSubscribedConverter}">
                                                             <Binding Path="." />
-                                                            <Binding Path="$parent[views:UpdateNotificationView].((vm:UpdateNotificationViewModel)DataContext).SubscribedPr" />
-                                                            <Binding Path="$parent[views:UpdateNotificationView].((vm:UpdateNotificationViewModel)DataContext).SubscribedBranch" />
+                                                            <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedPr" />
+                                                            <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedBranch" />
                                                         </MultiBinding>
                                                     </Button.Tag>
                                                 </Button>
@@ -320,14 +320,14 @@
                                                            Margin="0,0,12,0"/>
                                                 <Button Grid.Column="1"
                                                         VerticalAlignment="Center"
-                                                        Command="{Binding $parent[views:UpdateNotificationView].((vm:UpdateNotificationViewModel)DataContext).SubscribeToBranchCommand}"
+                                                        Command="{Binding #Root.((vm:UpdateNotificationViewModel)DataContext).SubscribeToBranchCommand}"
                                                         CommandParameter="{Binding}"
                                                         Classes="SmallAction SubscribeState">
                                                     <Button.Tag>
                                                         <MultiBinding Converter="{StaticResource IsSubscribedConverter}">
                                                             <Binding Path="." />
-                                                            <Binding Path="$parent[views:UpdateNotificationView].((vm:UpdateNotificationViewModel)DataContext).SubscribedPr" />
-                                                            <Binding Path="$parent[views:UpdateNotificationView].((vm:UpdateNotificationViewModel)DataContext).SubscribedBranch" />
+                                                            <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedPr" />
+                                                            <Binding Path="#Root.((vm:UpdateNotificationViewModel)DataContext).SubscribedBranch" />
                                                         </MultiBinding>
                                                     </Button.Tag>
                                                 </Button>

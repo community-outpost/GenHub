@@ -51,6 +51,11 @@ public partial class ConfigEditorViewModel(
     public ObservableCollection<BundlePackConfigViewModel> BundlePacks { get; } = [];
 
     /// <summary>
+    /// Gets the list of selectable bundle items for the currently selected bundle pack.
+    /// </summary>
+    public ObservableCollection<BundleItemSelectionItemViewModel> PackItemSelections { get; } = [];
+
+    /// <summary>
     /// Gets or sets the selected bundle item.
     /// </summary>
     [ObservableProperty]
@@ -112,6 +117,10 @@ public partial class ConfigEditorViewModel(
             // Load bundle items
             foreach (var item in Configuration.Items)
             {
+                var pattern = item.Files.Count > 0
+                    ? string.Join("; ", item.Files.Select(f => f.AbsSourceFile))
+                    : "GameFilesEdited/**/*.*";
+
                 var viewModel = new BundleItemEditorViewModel
                 {
                     Name = item.Name,
@@ -121,6 +130,7 @@ public partial class ConfigEditorViewModel(
                     BigSuffix = item.BigSuffix,
                     SetGameLanguageOnInstall = item.SetGameLanguageOnInstall,
                     FileCount = item.Files.Count,
+                    SourcePattern = pattern,
                 };
                 BundleItems.Add(viewModel);
             }
@@ -145,6 +155,16 @@ public partial class ConfigEditorViewModel(
                 BundlePacks.Add(viewModel);
             }
 
+            if (BundleItems.Count > 0)
+            {
+                SelectedBundleItem = BundleItems[0];
+            }
+
+            if (BundlePacks.Count > 0)
+            {
+                SelectedBundlePack = BundlePacks[0];
+            }
+
             HasChanges = false;
         }
 
@@ -159,6 +179,20 @@ public partial class ConfigEditorViewModel(
     }
 
     /// <summary>
+    /// Sets a predefined source pattern on the selected bundle item.
+    /// </summary>
+    /// <param name="pattern">The glob pattern to apply.</param>
+    [RelayCommand]
+    private void SetSourcePattern(string pattern)
+    {
+        if (SelectedBundleItem != null && !string.IsNullOrEmpty(pattern))
+        {
+            SelectedBundleItem.SourcePattern = pattern;
+            HasChanges = true;
+        }
+    }
+
+    /// <summary>
     /// Adds a new bundle item.
     /// </summary>
     [RelayCommand]
@@ -168,11 +202,13 @@ public partial class ConfigEditorViewModel(
         {
             Name = $"NewBundle{BundleItems.Count + 1}",
             IsBig = true,
+            SourcePattern = "GameFilesEdited/**/*.*",
         };
 
         BundleItems.Add(newItem);
         SelectedBundleItem = newItem;
         HasChanges = true;
+        UpdatePackItemSelections();
     }
 
     /// <summary>
@@ -205,6 +241,11 @@ public partial class ConfigEditorViewModel(
             AllowBuild = true,
             AllowInstall = true,
         };
+
+        foreach (var item in BundleItems)
+        {
+            newPack.ItemNames.Add(item.Name);
+        }
 
         BundlePacks.Add(newPack);
         SelectedBundlePack = newPack;
@@ -258,6 +299,28 @@ public partial class ConfigEditorViewModel(
             {
                 existingItems.TryGetValue(itemVm.Name, out var existingItem);
 
+                var files = new List<BundleFile>();
+                if (!string.IsNullOrWhiteSpace(itemVm.SourcePattern))
+                {
+                    var patterns = itemVm.SourcePattern.Split([';', ','], StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var p in patterns)
+                    {
+                        var trimmed = p.Trim();
+                        if (!string.IsNullOrEmpty(trimmed))
+                        {
+                            files.Add(new BundleFile { AbsSourceFile = trimmed });
+                        }
+                    }
+                }
+                else if (existingItem?.Files != null && existingItem.Files.Count > 0)
+                {
+                    files.AddRange(existingItem.Files);
+                }
+                else
+                {
+                    files.Add(new BundleFile { AbsSourceFile = "GameFilesEdited/**/*.*" });
+                }
+
                 var item = new BundleItem
                 {
                     Name = itemVm.Name,
@@ -266,7 +329,7 @@ public partial class ConfigEditorViewModel(
                     IsBig = itemVm.IsBig,
                     BigSuffix = itemVm.BigSuffix,
                     SetGameLanguageOnInstall = itemVm.SetGameLanguageOnInstall,
-                    Files = existingItem?.Files != null ? new List<BundleFile>(existingItem.Files) : [],
+                    Files = files,
                     Events = existingItem?.Events != null ? new Dictionary<BundleEventType, BundleEvent>(existingItem.Events) : [],
                 };
                 Configuration.Items.Add(item);
@@ -369,5 +432,38 @@ public partial class ConfigEditorViewModel(
     partial void OnSelectedBundlePackChanged(BundlePackConfigViewModel? value)
     {
         RemoveBundlePackCommand.NotifyCanExecuteChanged();
+        UpdatePackItemSelections();
+    }
+
+    private void UpdatePackItemSelections()
+    {
+        PackItemSelections.Clear();
+        if (SelectedBundlePack == null)
+        {
+            return;
+        }
+
+        foreach (var item in BundleItems)
+        {
+            var itemName = item.Name;
+            var isIncluded = SelectedBundlePack.ItemNames.Contains(itemName, StringComparer.OrdinalIgnoreCase);
+            PackItemSelections.Add(new BundleItemSelectionItemViewModel(itemName, isIncluded, selected =>
+            {
+                if (SelectedBundlePack == null) return;
+                HasChanges = true;
+                if (selected && !SelectedBundlePack.ItemNames.Contains(itemName, StringComparer.OrdinalIgnoreCase))
+                {
+                    SelectedBundlePack.ItemNames.Add(itemName);
+                }
+                else if (!selected && SelectedBundlePack.ItemNames.Contains(itemName, StringComparer.OrdinalIgnoreCase))
+                {
+                    var match = SelectedBundlePack.ItemNames.FirstOrDefault(n => string.Equals(n, itemName, StringComparison.OrdinalIgnoreCase));
+                    if (match != null)
+                    {
+                        SelectedBundlePack.ItemNames.Remove(match);
+                    }
+                }
+            }));
+        }
     }
 }

@@ -50,6 +50,12 @@ public partial class BundleItemEditorViewModel : ObservableObject
     private int _fileCount;
 
     /// <summary>
+    /// Gets or sets the file source pattern / glob for this bundle (e.g. GameFilesEdited/**/*.*).
+    /// </summary>
+    [ObservableProperty]
+    private string _sourcePattern = string.Empty;
+
+    /// <summary>
     /// Gets the display name for the bundle item.
     /// </summary>
     public string DisplayName => $"{NamePrefix}{Name}{NameSuffix}";
