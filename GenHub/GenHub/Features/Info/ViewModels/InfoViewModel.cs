@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -17,6 +18,7 @@ namespace GenHub.Features.Info.ViewModels;
 /// <summary>
 /// ViewModel for the Info tab, managing multiple info sections.
 /// </summary>
+[SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Observable property access on view model")]
 public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipient<OpenInfoSectionMessage>
 {
     private bool _disposed;
@@ -115,6 +117,7 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
     /// Initializes the view model and the selected section.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Observable property access on view model")]
     public async Task InitializeAsync()
     {
         if (SelectedSection != null)
@@ -274,6 +277,7 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
         }
     }
 
+    [SuppressMessage("Minor Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Observable property access on view model")]
     private void OnFaqSectionPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(FaqSectionViewModel.SelectedCategory) && sender is FaqSectionViewModel faqSection)
