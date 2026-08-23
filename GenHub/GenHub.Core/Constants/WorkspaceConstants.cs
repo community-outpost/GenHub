@@ -17,5 +17,5 @@ public static class WorkspaceConstants
     /// Guidance message appended to errors when zero-copy hard links or symlinks cannot be created.
     /// </summary>
     public const string ZeroCopyElevationGuidance =
-        "To use zero-copy workspaces without copying game files, please run GenHub as Administrator or enable Windows Developer Mode.";
+        "To use zero-copy workspaces without copying game files, ensure GenHub has permission to create links (on Windows, enable Developer Mode or run as Administrator).";
 }

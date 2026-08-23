@@ -101,8 +101,16 @@ public class UnixFileOperationsService(
 
         if (!useHardLink)
         {
-            await baseService.CreateSymlinkAsync(destinationPath, casPath, true, cancellationToken).ConfigureAwait(false);
-            return true;
+            try
+            {
+                await baseService.CreateSymlinkAsync(destinationPath, casPath, allowFallback: false, cancellationToken).ConfigureAwait(false);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to create symlink from CAS hash {Hash} to {DestinationPath}", hash, destinationPath);
+                return false;
+            }
         }
 
         try
@@ -110,17 +118,10 @@ public class UnixFileOperationsService(
             await CreateHardLinkAsync(destinationPath, casPath, cancellationToken).ConfigureAwait(false);
             return true;
         }
-        catch (IOException ex) when (ex is not FileNotFoundException)
+        catch (Exception ex)
         {
-            // Cross-device or a filesystem without link support. Copying keeps the
-            // workspace usable; the caller loses deduplication, not correctness.
-            logger.LogWarning(
-                ex,
-                "Hard link from CAS failed for {Destination}; falling back to a copy",
-                destinationPath);
-
-            await baseService.CopyFileAsync(casPath, destinationPath, cancellationToken).ConfigureAwait(false);
-            return true;
+            logger.LogError(ex, "Failed to create hard link from CAS hash {Hash} to {DestinationPath}", hash, destinationPath);
+            return false;
         }
     }
 

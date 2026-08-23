@@ -14,8 +14,8 @@ using Microsoft.Extensions.Logging;
 namespace GenHub.Features.Workspace.Strategies;
 
 /// <summary>
-/// Workspace strategy that creates hard links to game files where possible, falling back to copy.
-/// Space-efficient, requires same volume for optimal results.
+/// Workspace strategy that creates hard links or symbolic links to game files.
+/// Space-efficient zero-copy workspace.
 /// </summary>
 /// <remarks>
 /// Initializes a new instance of the <see cref="HardLinkStrategy"/> class.
@@ -34,7 +34,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
     public override bool RequiresAdminRights => false;
 
     /// <inheritdoc/>
-    public override bool RequiresSameVolume => true;
+    public override bool RequiresSameVolume => false;
 
     /// <inheritdoc/>
     public override bool CanHandle(WorkspaceConfiguration configuration)
@@ -104,8 +104,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             var totalFiles = prioritizedFiles.Count;
             var processedFiles = 0;
             long totalBytesProcessed = 0;
-            var hardLinkedFiles = 0;
-            var copiedFiles = 0;
+            var linkedFiles = 0;
 
             // Check if source and destination are on the same volume
             var sourceRoot = Path.GetPathRoot(configuration.BaseInstallationPath);
@@ -131,14 +130,10 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                           file.SourceType != Core.Models.Enums.ContentSourceType.LocalFile)) &&
                         !string.IsNullOrEmpty(file.Hash))
                     {
-                        var (hardLinked, bytes) = await ProcessCasFileAsync(file, manifest, destinationPath, sameVolume, cancellationToken);
-                        if (hardLinked)
+                        var (linked, bytes) = await ProcessCasFileAsync(file, manifest, destinationPath, sameVolume, cancellationToken);
+                        if (linked)
                         {
-                            hardLinkedFiles++;
-                        }
-                        else
-                        {
-                            copiedFiles++;
+                            linkedFiles++;
                         }
 
                         totalBytesProcessed += bytes;
@@ -150,11 +145,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                         {
                             if (processResult.HardLinked)
                             {
-                                hardLinkedFiles++;
-                            }
-                            else
-                            {
-                                copiedFiles++;
+                                linkedFiles++;
                             }
 
                             totalBytesProcessed += processResult.BytesProcessed;
@@ -172,7 +163,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                 }
 
                 processedFiles++;
-                var operation = sameVolume ? "Hard linking" : "Copying";
+                var operation = sameVolume ? "Hard linking" : "Symlinking";
                 ReportProgress(progress, processedFiles, totalFiles, operation, file.RelativePath);
             }
 
@@ -180,10 +171,9 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             workspaceInfo.IsPrepared = true;
 
             Logger.LogInformation(
-                "Hard link workspace prepared successfully at {WorkspacePath} with {HardLinked} hard links and {Copied} copies ({TotalSize} bytes)",
+                "Hard link workspace prepared successfully at {WorkspacePath} with {Linked} zero-copy links ({TotalSize} bytes)",
                 workspacePath,
-                hardLinkedFiles,
-                copiedFiles,
+                linkedFiles,
                 totalBytesProcessed);
 
             return workspaceInfo;
@@ -299,13 +289,13 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
 
     private static Exception WrapLinkException(string relativePath, Exception ex, bool isCrossVolume = false)
     {
-        if (ex is OperationCanceledException)
+        if (ex is OperationCanceledException or FileNotFoundException or DirectoryNotFoundException or PlatformNotSupportedException)
         {
             return ex;
         }
 
         var message = isCrossVolume
-            ? $"Failed to create symbolic link across volumes for '{relativePath}'. {WorkspaceConstants.ZeroCopyElevationGuidance}"
+            ? $"Failed to create symbolic link across different volumes for '{relativePath}'. {WorkspaceConstants.ZeroCopyElevationGuidance}"
             : $"Failed to create hard link or symbolic link for '{relativePath}'. {WorkspaceConstants.ZeroCopyElevationGuidance}";
 
         return new UnauthorizedAccessException(message, ex);
@@ -372,7 +362,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         return (false, hardLinked, bytesProcessed);
     }
 
-    private async Task<(bool Skipped, bool HardLinked, long BytesProcessed, bool VerifyHash)> ProcessSameVolumeFileAsync(
+    private async Task<(bool Skipped, bool HardLinked, long BytesProcessed)> ProcessSameVolumeFileAsync(
         ManifestFile file,
         string sourcePath,
         string destinationPath,
@@ -381,7 +371,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         try
         {
             await FileOperations.CreateHardLinkAsync(destinationPath, sourcePath, cancellationToken);
-            return (false, true, LinkOverheadBytes, false);
+            return (false, true, LinkOverheadBytes);
         }
         catch (IOException ioEx)
         {
@@ -389,7 +379,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                 ioEx.Message.Contains("does not exist", StringComparison.OrdinalIgnoreCase))
             {
                 Logger.LogWarning("Skipping missing file: {RelativePath} (source: {SourcePath})", file.RelativePath, sourcePath);
-                return (true, false, 0, false);
+                return (true, false, 0);
             }
 
             Logger.LogWarning(ioEx, "Hard link creation failed for {RelativePath}, attempting symlink fallback", file.RelativePath);
@@ -397,7 +387,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             try
             {
                 await FileOperations.CreateSymlinkAsync(destinationPath, sourcePath, allowFallback: false, cancellationToken);
-                return (false, true, LinkOverheadBytes, false);
+                return (false, true, LinkOverheadBytes);
             }
             catch (Exception symlinkEx) when (symlinkEx is not OperationCanceledException)
             {
@@ -411,7 +401,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         }
     }
 
-    private async Task<(bool Skipped, bool HardLinked, long BytesProcessed, bool VerifyHash)> ProcessDifferentVolumeFileAsync(
+    private async Task<(bool Skipped, bool HardLinked, long BytesProcessed)> ProcessDifferentVolumeFileAsync(
         ManifestFile file,
         string sourcePath,
         string destinationPath,
@@ -420,13 +410,13 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         if (!File.Exists(sourcePath))
         {
             Logger.LogWarning("Skipping missing file: {RelativePath} (source: {SourcePath})", file.RelativePath, sourcePath);
-            return (true, false, 0, false);
+            return (true, false, 0);
         }
 
         try
         {
             await FileOperations.CreateSymlinkAsync(destinationPath, sourcePath, allowFallback: false, cancellationToken);
-            return (false, true, LinkOverheadBytes, false);
+            return (false, true, LinkOverheadBytes);
         }
         catch (Exception symlinkEx) when (symlinkEx is not OperationCanceledException)
         {

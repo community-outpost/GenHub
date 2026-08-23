@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Models.Enums;
@@ -56,6 +57,51 @@ public static class InstallationExtensions
             // If directory enumeration fails, fall back to false
             return false;
         }
+    }
+
+    /// <summary>
+    /// Checks if a subdirectory exists under a parent path in a case-insensitive manner, returning the matched directory path.
+    /// </summary>
+    /// <param name="parentDirectory">The parent directory to search within.</param>
+    /// <param name="subDirectoryName">The subdirectory name to look for.</param>
+    /// <param name="matchedPath">The actual matched full path if found.</param>
+    /// <returns>True if the subdirectory exists; otherwise false.</returns>
+    public static bool TryGetDirectoryCaseInsensitive(this string parentDirectory, string subDirectoryName, [NotNullWhen(true)] out string? matchedPath)
+    {
+        matchedPath = null;
+        if (string.IsNullOrEmpty(parentDirectory) || string.IsNullOrEmpty(subDirectoryName))
+        {
+            return false;
+        }
+
+        try
+        {
+            var candidate = Path.Combine(parentDirectory, subDirectoryName);
+            if (Directory.Exists(candidate))
+            {
+                matchedPath = candidate;
+                return true;
+            }
+
+            var directoryInfo = new DirectoryInfo(parentDirectory);
+            if (!directoryInfo.Exists)
+            {
+                return false;
+            }
+
+            var matchingDir = directoryInfo.GetDirectories().FirstOrDefault(d => string.Equals(d.Name, subDirectoryName, StringComparison.OrdinalIgnoreCase));
+            if (matchingDir is not null)
+            {
+                matchedPath = matchingDir.FullName;
+                return true;
+            }
+        }
+        catch
+        {
+            return false;
+        }
+
+        return false;
     }
 
     /// <summary>

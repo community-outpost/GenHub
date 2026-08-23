@@ -201,7 +201,7 @@ public class StrategyTests : IDisposable
     [InlineData(WorkspaceStrategy.FullCopy, false, false)]
     [InlineData(WorkspaceStrategy.SymlinkOnly, true, false)]
     [InlineData(WorkspaceStrategy.HybridCopySymlink, true, false)]
-    [InlineData(WorkspaceStrategy.HardLink, false, true)]
+    [InlineData(WorkspaceStrategy.HardLink, false, false)]
     public void AllStrategies_Requirements_MatchExpected(WorkspaceStrategy strategyType, bool expectedAdminRights, bool expectedSameVolume)
     {
         // Arrange
@@ -311,10 +311,83 @@ public class StrategyTests : IDisposable
             service => service.LinkFromCasAsync(
                 Hash,
                 It.IsAny<string>(),
+                true,
+                ManifestContentType.GameClient,
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        _fileOps.Verify(
+            service => service.LinkFromCasAsync(
+                Hash,
+                It.IsAny<string>(),
                 false,
                 ManifestContentType.GameClient,
                 It.IsAny<CancellationToken>()),
             Times.Once);
+        _fileOps.Verify(
+            service => service.CopyFromCasAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<ManifestContentType?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Tests that HardLinkStrategy records preparation failure when both hard link and symlink CAS operations fail.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task HardLinkStrategy_PrepareAsync_HandlesCasLinkDoubleFailure_FailsPreparation()
+    {
+        const string Hash = "test-hash";
+        var strategy = new HardLinkStrategy(_fileOps.Object, new Mock<ILogger<HardLinkStrategy>>().Object);
+        var configuration = new WorkspaceConfiguration
+        {
+            Id = "test-ws-double-failure",
+            Strategy = WorkspaceStrategy.HardLink,
+            WorkspaceRootPath = _tempDir,
+            BaseInstallationPath = "relative-installation-path",
+            GameClient = new GameClient { Id = "test" },
+            Manifests =
+            [
+                new ContentManifest
+                {
+                    ContentType = ManifestContentType.GameClient,
+                    Files =
+                    [
+                        new ManifestFile
+                        {
+                            RelativePath = "game.exe",
+                            Hash = Hash,
+                            Size = 1024,
+                            InstallTarget = ContentInstallTarget.Workspace,
+                            SourceType = ContentSourceType.ContentAddressable,
+                        },
+                    ],
+                },
+            ],
+        };
+        _fileOps
+            .Setup(service => service.LinkFromCasAsync(
+                Hash,
+                It.IsAny<string>(),
+                true,
+                ManifestContentType.GameClient,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _fileOps
+            .Setup(service => service.LinkFromCasAsync(
+                Hash,
+                It.IsAny<string>(),
+                false,
+                ManifestContentType.GameClient,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var result = await strategy.PrepareAsync(configuration, null, CancellationToken.None);
+
+        Assert.False(result.IsPrepared);
+        Assert.NotEmpty(result.ValidationIssues);
         _fileOps.Verify(
             service => service.CopyFromCasAsync(
                 It.IsAny<string>(),
