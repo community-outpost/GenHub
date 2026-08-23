@@ -532,11 +532,9 @@ public sealed class BuildEngineService(
                 {
                     if (File.Exists(zipFilePath))
                     {
+                        var md5Hex = await hashProvider.ComputeFileHashAsync(zipFilePath, cancellationToken).ConfigureAwait(false);
                         using var fileStream = File.OpenRead(zipFilePath);
-                        var md5Hash = await System.Security.Cryptography.MD5.HashDataAsync(fileStream, cancellationToken).ConfigureAwait(false);
-                        fileStream.Position = 0;
                         var sha256Hash = await System.Security.Cryptography.SHA256.HashDataAsync(fileStream, cancellationToken).ConfigureAwait(false);
-                        var md5Hex = Convert.ToHexString(md5Hash).ToLowerInvariant();
                         var sha256Hex = Convert.ToHexString(sha256Hash).ToLowerInvariant();
                         var sizeBytes = fileStream.Length.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
@@ -846,9 +844,9 @@ public sealed class BuildEngineService(
     }
 
     /// <summary>
-    /// Executes the Run stage.
+    /// Executes the run game stage.
     /// </summary>
-    /// <param name="setup">The build setup.</param>
+    /// <param name="setup">Build setup.</param>
     /// <param name="progress">Progress reporter.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if successful; otherwise, false.</returns>
@@ -867,15 +865,39 @@ public sealed class BuildEngineService(
             return true;
         }
 
+        var gameExePath = ResolveGameExecutablePath(setup, runnerConfig);
+        if (string.IsNullOrEmpty(gameExePath))
+        {
+            logger.LogWarning("Game executable not configured, skipping run");
+            return true;
+        }
+
+        if (!File.Exists(gameExePath))
+        {
+            logger.LogError("Game executable not found: {Path}", gameExePath);
+            throw new FileNotFoundException($"Game executable not found: {gameExePath}");
+        }
+
+        var startInfo = BuildGameStartInfo(runnerConfig, setup, gameExePath);
+        logger.LogDebug("Process start: {FileName} {Arguments}", startInfo.FileName, startInfo.Arguments);
+
+        var process = Process.Start(startInfo);
+        if (process == null)
+        {
+            logger.LogError("Failed to start game process");
+            return false;
+        }
+
+        logger.LogInformation("Game launched successfully (PID: {Pid})", process.Id);
+        return true;
+    }
+
+    private string? ResolveGameExecutablePath(BuildSetup setup, RunnerConfiguration runnerConfig)
+    {
         var gameExePath = runnerConfig.AbsExe;
         if (string.IsNullOrEmpty(gameExePath))
         {
-            var resolvedGameDir = setup.Folders?.AbsGameDir;
-            if (string.IsNullOrEmpty(resolvedGameDir))
-            {
-                resolvedGameDir = _cachedBuildStructure?.Configuration?.Folders?.AbsGameDir;
-            }
-
+            var resolvedGameDir = setup.Folders?.AbsGameDir ?? _cachedBuildStructure?.Configuration?.Folders?.AbsGameDir;
             if (!string.IsNullOrEmpty(resolvedGameDir) && Directory.Exists(resolvedGameDir))
             {
                 var candidateExes = new[] { "generals.exe", "game.dat", "EAC_LaunchGeneralsOnline.exe", "worldbuilder.exe" };
@@ -893,8 +915,7 @@ public sealed class BuildEngineService(
 
         if (string.IsNullOrEmpty(gameExePath))
         {
-            logger.LogWarning("Game executable not configured, skipping run");
-            return true;
+            return null;
         }
 
         if (!Path.IsPathRooted(gameExePath))
@@ -909,14 +930,11 @@ public sealed class BuildEngineService(
             gameExePath = Path.Combine(gameDir, gameExePath);
         }
 
-        if (!File.Exists(gameExePath))
-        {
-            logger.LogError("Game executable not found: {Path}", gameExePath);
-            throw new FileNotFoundException($"Game executable not found: {gameExePath}");
-        }
+        return gameExePath;
+    }
 
-        logger.LogInformation("Launching game: {Path}", gameExePath);
-
+    private static ProcessStartInfo BuildGameStartInfo(RunnerConfiguration runnerConfig, BuildSetup setup, string gameExePath)
+    {
         var workingDirectory = runnerConfig.WorkingDir;
         if (string.IsNullOrEmpty(workingDirectory))
         {
@@ -936,7 +954,7 @@ public sealed class BuildEngineService(
             FileName = gameExePath,
             WorkingDirectory = workingDirectory,
             UseShellExecute = false,
-            CreateNoWindow = false
+            CreateNoWindow = false,
         };
 
         var args = runnerConfig.Args ?? string.Empty;
@@ -961,17 +979,7 @@ public sealed class BuildEngineService(
             startInfo.Arguments = args;
         }
 
-        logger.LogInformation("Process start: {FileName} {Arguments}", startInfo.FileName, startInfo.Arguments);
-
-        var process = Process.Start(startInfo);
-        if (process == null)
-        {
-            logger.LogError("Failed to start game process");
-            return false;
-        }
-
-        logger.LogInformation("Game launched successfully (PID: {Pid})", process.Id);
-        return true;
+        return startInfo;
     }
 
     /// <summary>

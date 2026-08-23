@@ -117,15 +117,8 @@ public partial class ConfigEditorViewModel(
             PopulateBundleItems(Configuration);
             PopulateBundlePacks(Configuration);
 
-            if (BundleItems.Count > 0)
-            {
-                SelectedBundleItem = BundleItems[0];
-            }
-
-            if (BundlePacks.Count > 0)
-            {
-                SelectedBundlePack = BundlePacks[0];
-            }
+            SelectedBundleItem = BundleItems.FirstOrDefault();
+            SelectedBundlePack = BundlePacks.FirstOrDefault();
 
             HasChanges = false;
         }
@@ -256,12 +249,9 @@ public partial class ConfigEditorViewModel(
             SetGameLanguageOnInstall = string.Empty,
         };
 
-        foreach (var item in BundleItems)
+        foreach (var item in BundleItems.Where(item => !string.IsNullOrEmpty(item.Name)))
         {
-            if (!string.IsNullOrEmpty(item.Name))
-            {
-                newPack.ItemNames.Add(item.Name);
-            }
+            newPack.ItemNames.Add(item.Name);
         }
 
         BundlePacks.Add(newPack);
