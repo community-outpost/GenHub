@@ -414,7 +414,6 @@ public sealed class PlaywrightService(
     }
 
     /// <inheritdoc />
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CS-P1001:Calling GC methods manually may reduce performance", Justification = "Standard IDisposable pattern.")]
     public void Dispose()
     {
         if (_disposed)
@@ -423,11 +422,9 @@ public sealed class PlaywrightService(
         }
 
         Task.Run(() => DisposeAsync().AsTask()).GetAwaiter().GetResult();
-        GC.SuppressFinalize(this);
     }
 
     /// <inheritdoc />
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CS-P1001:Calling GC methods manually may reduce performance", Justification = "Standard IAsyncDisposable pattern.")]
     public async ValueTask DisposeAsync()
     {
         if (_disposed)
@@ -466,7 +463,6 @@ public sealed class PlaywrightService(
         }
 
         _disposed = true;
-        GC.SuppressFinalize(this);
     }
 
     /// <inheritdoc />
@@ -1240,7 +1236,7 @@ public sealed class PlaywrightService(
             return;
         }
 
-        List<IPage> pages;
+        List<IPage> pages = [];
         try
         {
             pages = [.. _persistentContext.Pages];

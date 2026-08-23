@@ -62,6 +62,9 @@ public static class ModDBConstants
     /// <summary>Games URL path segment.</summary>
     public const string GamesSegment = "/games/";
 
+    /// <summary>Games section name.</summary>
+    public const string GamesSection = "games";
+
     /// <summary>News URL path segment.</summary>
     public const string NewsSegment = "/news";
 

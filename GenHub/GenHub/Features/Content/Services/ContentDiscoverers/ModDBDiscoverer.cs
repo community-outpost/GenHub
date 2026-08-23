@@ -35,6 +35,31 @@ public partial class ModDBDiscoverer(
 {
     private const string UnknownValue = "Unknown";
 
+    private static readonly HashSet<string> NonContentKeywords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "news",
+        "articles",
+        "tutorials",
+        "videos",
+        "images",
+        "reviews",
+        "forum",
+        "threads",
+        "features",
+        "blogs",
+        "members",
+        "company",
+        "groups",
+        "events",
+        "comments",
+        "polls",
+        "engines",
+        "jobs",
+        "hardware",
+        "register",
+        "login",
+    };
+
     /// <inheritdoc />
     public string SourceName => ModDBConstants.DiscovererSourceName;
 
@@ -200,70 +225,7 @@ public partial class ModDBDiscoverer(
         }
 
         var segments = uri.AbsolutePath.TrimEnd('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
-        if (segments.Length == 0)
-        {
-            return false;
-        }
-
-        // 1. Mod detail: /mods/{slug}
-        if (segments.Length == 2 && segments[0].Equals("mods", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        // 2. Direct download detail: /downloads/{slug}
-        if (segments.Length == 2 && segments[0].Equals("downloads", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        // 3. Direct addon detail: /addons/{slug}
-        if (segments.Length == 2 && segments[0].Equals("addons", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        // 4. Mod-scoped download detail: /mods/{mod-slug}/downloads/{slug}
-        if (segments.Length == 4 &&
-            segments[0].Equals("mods", StringComparison.OrdinalIgnoreCase) &&
-            segments[2].Equals("downloads", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        // 5. Mod-scoped addon detail: /mods/{mod-slug}/addons/{slug}
-        if (segments.Length == 4 &&
-            segments[0].Equals("mods", StringComparison.OrdinalIgnoreCase) &&
-            segments[2].Equals("addons", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        // 6. Game-scoped download detail: /games/{game-slug}/downloads/{slug}
-        if (segments.Length == 4 &&
-            segments[0].Equals("games", StringComparison.OrdinalIgnoreCase) &&
-            segments[2].Equals("downloads", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        // 7. Game-scoped addon detail: /games/{game-slug}/addons/{slug}
-        if (segments.Length == 4 &&
-            segments[0].Equals("games", StringComparison.OrdinalIgnoreCase) &&
-            segments[2].Equals("addons", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        // 8. Game-scoped mod detail: /games/{game-slug}/mods/{slug}
-        if (segments.Length == 4 &&
-            segments[0].Equals("games", StringComparison.OrdinalIgnoreCase) &&
-            segments[2].Equals("mods", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        return false;
+        return IsDetailPathSegments(segments);
     }
 
     /// <summary>
@@ -285,32 +247,7 @@ public partial class ModDBDiscoverer(
         }
 
         var segments = path.TrimEnd('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
-        var nonContentKeywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "news",
-            "articles",
-            "tutorials",
-            "videos",
-            "images",
-            "reviews",
-            "forum",
-            "threads",
-            "features",
-            "blogs",
-            "members",
-            "company",
-            "groups",
-            "events",
-            "comments",
-            "polls",
-            "engines",
-            "jobs",
-            "hardware",
-            "register",
-            "login",
-        };
-
-        return segments.Any(seg => nonContentKeywords.Contains(seg));
+        return segments.Any(NonContentKeywords.Contains);
     }
 
     /// <summary>
@@ -337,37 +274,42 @@ public partial class ModDBDiscoverer(
         }
 
         var segments = path.TrimEnd('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
-        if (segments.Length == 0)
+        return IsDetailPathSegments(segments);
+    }
+
+    private static bool IsDetailPathSegments(string[] segments)
+    {
+        if (segments.Length == 2)
         {
-            return false;
+            return IsDirectContentSection(segments[0]);
         }
 
-        // Mod detail: /mods/{slug}
-        if (segments.Length == 2 && segments[0].Equals("mods", StringComparison.OrdinalIgnoreCase))
+        if (segments.Length == 4)
         {
-            return true;
+            return IsScopedContentSection(segments[0], segments[2]);
         }
 
-        // Download detail: /downloads/{slug} or /mods/{mod}/downloads/{slug} or /games/{game}/downloads/{slug}
-        if ((segments.Length == 2 && segments[0].Equals("downloads", StringComparison.OrdinalIgnoreCase)) ||
-            (segments.Length == 4 && segments[2].Equals("downloads", StringComparison.OrdinalIgnoreCase)))
+        return false;
+    }
+
+    private static bool IsDirectContentSection(string segment) =>
+        segment.Equals(ModDBConstants.ModsSection, StringComparison.OrdinalIgnoreCase) ||
+        segment.Equals(ModDBConstants.DownloadsSection, StringComparison.OrdinalIgnoreCase) ||
+        segment.Equals(ModDBConstants.AddonsSection, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsScopedContentSection(string scopeSegment, string typeSegment)
+    {
+        if (scopeSegment.Equals(ModDBConstants.ModsSection, StringComparison.OrdinalIgnoreCase))
         {
-            return true;
+            return typeSegment.Equals(ModDBConstants.DownloadsSection, StringComparison.OrdinalIgnoreCase) ||
+                   typeSegment.Equals(ModDBConstants.AddonsSection, StringComparison.OrdinalIgnoreCase);
         }
 
-        // Addon detail: /addons/{slug} or /mods/{mod}/addons/{slug} or /games/{game}/addons/{slug}
-        if ((segments.Length == 2 && segments[0].Equals("addons", StringComparison.OrdinalIgnoreCase)) ||
-            (segments.Length == 4 && segments[2].Equals("addons", StringComparison.OrdinalIgnoreCase)))
+        if (scopeSegment.Equals(ModDBConstants.GamesSection, StringComparison.OrdinalIgnoreCase))
         {
-            return true;
-        }
-
-        // Game mod detail: /games/{game}/mods/{slug}
-        if (segments.Length == 4 &&
-            segments[0].Equals("games", StringComparison.OrdinalIgnoreCase) &&
-            segments[2].Equals("mods", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
+            return typeSegment.Equals(ModDBConstants.ModsSection, StringComparison.OrdinalIgnoreCase) ||
+                   typeSegment.Equals(ModDBConstants.DownloadsSection, StringComparison.OrdinalIgnoreCase) ||
+                   typeSegment.Equals(ModDBConstants.AddonsSection, StringComparison.OrdinalIgnoreCase);
         }
 
         return false;
@@ -609,9 +551,17 @@ public partial class ModDBDiscoverer(
 
         if (!IsValidContentDetailUrl(href)) return null;
 
-        var detailUrl = href.StartsWith("http", StringComparison.OrdinalIgnoreCase)
-            ? href
-            : $"{ModDBConstants.BaseUrl.TrimEnd('/')}/{(href.StartsWith('/') ? href.TrimStart('/') : href)}";
+        string detailUrl;
+        if (href.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+        {
+            detailUrl = href;
+        }
+        else
+        {
+            var relativePath = href.StartsWith('/') ? href.TrimStart('/') : href;
+            detailUrl = $"{ModDBConstants.BaseUrl.TrimEnd('/')}/{relativePath}";
+        }
+
         return (title, detailUrl);
     }
 
@@ -654,7 +604,8 @@ public partial class ModDBDiscoverer(
             }
             else if (!iconUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
             {
-                iconUrl = $"{ModDBConstants.BaseUrl.TrimEnd('/')}/{(iconUrl.StartsWith('/') ? iconUrl.TrimStart('/') : iconUrl)}";
+                var relativePath = iconUrl.StartsWith('/') ? iconUrl.TrimStart('/') : iconUrl;
+                iconUrl = $"{ModDBConstants.BaseUrl.TrimEnd('/')}/{relativePath}";
             }
         }
 
