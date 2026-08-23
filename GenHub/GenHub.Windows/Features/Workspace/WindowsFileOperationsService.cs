@@ -119,7 +119,7 @@ public partial class WindowsFileOperationsService(
             }
             else
             {
-                await CreateSymlinkAsync(destinationPath, casSourcePath, allowFallback: true, cancellationToken).ConfigureAwait(false);
+                await CreateSymlinkAsync(destinationPath, casSourcePath, allowFallback: false, cancellationToken).ConfigureAwait(false);
             }
 
             logger.LogDebug("Created {LinkType} from CAS hash {Hash} to {DestinationPath}", useHardLink ? "hard link" : "symlink", hash, destinationPath);

@@ -207,6 +207,10 @@ Configuration key constants for `appsettings.json` and environment variables.
 Constants related to workspace management and configuration.
 
 - `DefaultWorkspaceStrategy`: The default workspace strategy to use when none is specified (`WorkspaceStrategy.HardLink`)
+- `ZeroCopyElevationGuidance`: Guidance message appended to errors when zero-copy hard links or symlinks cannot be created (`"To use zero-copy workspaces without copying game files, ensure GenHub has permission to create links (on Windows, enable Developer Mode or run as Administrator)."`)
+
+---
+
 ## CommandLineConstants Class
 
 Constants for command line arguments and URI schemes.
@@ -698,6 +702,15 @@ Constants related to game client detection and management.
 | `ZeroHourDirectoryNameAmpersandHyphen` | `"Command & Conquer Generals - Zero Hour"`  | Zero Hour directory name with ampersand and hyphen (Steam standard) |
 | `ZeroHourDirectoryNameColonVariant`    | `"Command & Conquer: Generals - Zero Hour"` | Zero Hour directory name with colon variant |
 | `ZeroHourDirectoryNameAbbreviated`     | `"C&C Generals Zero Hour"`                  | Zero Hour directory name abbreviated form |
+
+### Core Game Archives
+
+| Constant            | Value          | Description                              |
+| ------------------- | -------------- | ---------------------------------------- |
+| `ZeroHourIniBig`    | `"INIZH.big"`  | Primary Zero Hour INI archive filename   |
+| `ZeroHourPatchBig`  | `"PatchZH.big"`| Primary Zero Hour Patch archive filename |
+| `GeneralsIniBig`    | `"INI.big"`    | Primary Generals Vanilla INI archive     |
+| `GeneralsPatchBig`  | `"Patch.big"`  | Primary Generals Vanilla Patch archive   |
 
 ### GeneralsOnline Client Detection
 
