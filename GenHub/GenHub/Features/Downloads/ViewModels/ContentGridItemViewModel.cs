@@ -30,6 +30,7 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <param name="searchResult">The content search result to display.</param>
 /// <param name="contentStateService">The content state service.</param>
 /// <param name="logger">The logger.</param>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel instance methods and properties bound to UI and MVVM bindings.")]
 public sealed partial class ContentGridItemViewModel(
     ContentSearchResult searchResult,
     IContentStateService contentStateService,
@@ -583,15 +584,12 @@ public sealed partial class ContentGridItemViewModel(
                 switch (e.NewState)
                 {
                     case ContentState.Downloaded:
+                    case ContentState.UpdateAvailable:
                         IsDownloaded = true;
                         IsDownloading = false;
                         break;
                     case ContentState.NotDownloaded:
                         IsDownloaded = false;
-                        IsDownloading = false;
-                        break;
-                    case ContentState.UpdateAvailable:
-                        IsDownloaded = true;
                         IsDownloading = false;
                         break;
                     default:

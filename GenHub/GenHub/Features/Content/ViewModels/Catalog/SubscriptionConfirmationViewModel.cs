@@ -33,6 +33,7 @@ namespace GenHub.Features.Content.ViewModels.Catalog;
 /// catalog endpoint(s) from the definition — without changing the OS protocol or IPC shape.
 /// </para>
 /// </remarks>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
 public partial class SubscriptionConfirmationViewModel(
     string catalogUrl,
     IPublisherSubscriptionStore subscriptionStore,

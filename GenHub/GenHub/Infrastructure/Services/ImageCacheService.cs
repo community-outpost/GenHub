@@ -525,9 +525,14 @@ public sealed class ImageCacheService
             break;
         }
 
-        if (response is not { IsSuccessStatusCode: true })
+        if (response == null)
         {
-            response?.Dispose();
+            return null;
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            response.Dispose();
             return null;
         }
 

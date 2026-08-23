@@ -416,9 +416,8 @@ public class GenericCatalogDiscoverer(
 
             return OperationResult<ContentDiscoveryResult>.CreateSuccess(result);
         }
-        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            logger.LogInformation(ex, "Content discovery cancelled by user for publisher '{PublisherId}'", _subscription.PublisherId);
             throw;
         }
         catch (Exception ex)
@@ -456,10 +455,10 @@ public class GenericCatalogDiscoverer(
             }
             else
             {
-                var fetchTask = PendingReleaseFetches.GetOrAdd(cacheKey, _ => FetchAndCacheReleaseAsync(
+                var fetchTask = PendingReleaseFetches.GetOrAdd(cacheKey, key => FetchAndCacheReleaseAsync(
                     SuperHackersConstants.GeneralsGameCodeOwner,
                     SuperHackersConstants.GeneralsGameCodeRepo,
-                    cacheKey));
+                    key));
 
                 latestRelease = await fetchTask.WaitAsync(cancellationToken);
             }

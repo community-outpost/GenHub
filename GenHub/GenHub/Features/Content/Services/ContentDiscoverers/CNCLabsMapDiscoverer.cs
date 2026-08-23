@@ -477,10 +477,10 @@ public partial class CNCLabsMapDiscoverer(HttpClient httpClient, ILogger<CNCLabs
 
         return new MapListItem(
             id,
-            name ?? string.Empty,
+            name,
             description ?? string.Empty,
             author ?? CNCLabsConstants.DefaultAuthorName,
-            detailsHref ?? string.Empty,
+            detailsHref,
             query.TargetGame,
             query.ContentType,
             lastUpdated ?? DateTime.MinValue,

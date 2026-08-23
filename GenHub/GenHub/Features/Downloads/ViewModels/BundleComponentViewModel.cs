@@ -20,6 +20,7 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// One member of a ContentBundle card: identity, optional variant pickers, and download state
 /// for the currently selected option.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
 public sealed partial class BundleComponentViewModel : ObservableObject
 {
     private readonly Dictionary<string, ContentSearchResult> _variantSearchResults = new(StringComparer.OrdinalIgnoreCase);

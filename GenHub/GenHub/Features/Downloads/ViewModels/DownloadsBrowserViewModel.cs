@@ -45,6 +45,8 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// without a custom publisher class. After <c>genhub://subscribe</c> confirms,
 /// <see cref="InitializeAsync"/> refreshes only the subscribed sidebar rows.
 /// </remarks>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Primary constructor injects required services for browser and discovery orchestrator.")]
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
 public sealed partial class DownloadsBrowserViewModel(
     IServiceProvider serviceProvider,
     ILogger<DownloadsBrowserViewModel> logger,

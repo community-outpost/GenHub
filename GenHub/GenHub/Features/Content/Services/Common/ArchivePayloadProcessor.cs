@@ -88,8 +88,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                         }
                         catch (Exception ex)
                         {
-                            logger.LogError(ex, "Failed to extract archive: {ArchivePath}", archivePath);
-                            throw;
+                            throw new InvalidDataException($"Failed to extract archive: {archivePath}", ex);
                         }
                     }
                 }
@@ -967,6 +966,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         return sigOffset;
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Internal extraction helper needing unpack context.")]
     private static bool TryExtractSimPayload(
         Stream stream,
         long payloadOffset,
@@ -1007,6 +1007,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         return false;
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2589:Boolean expressions should not be gratuitous", Justification = "Required for C# compiler nullable struct value analysis.")]
     private static (byte[]? TableData, long PayloadOffset) ReadSmartInstallMakerMetadata(Stream stream)
     {
         using var reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen: true);
