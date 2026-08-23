@@ -502,14 +502,9 @@ public class DownloadsBrowserViewModelTests
         Assert.Equal(publisherA, viewModel.SelectedPublisher);
         viewModel.SelectedPublisher = publisherB;
 
-        // Act 2: Complete Publisher A's background fetch
+        // Act 2: Complete Publisher A's background fetch and allow background task to commit to cache
         tcsA.SetResult(OperationResult<ContentDiscoveryResult>.CreateSuccess(new ContentDiscoveryResult { Items = itemsA, TotalItems = 3 }));
-
-        var timeout = DateTime.UtcNow.AddSeconds(5);
-        while (viewModel.IsLoading && DateTime.UtcNow < timeout)
-        {
-            await Task.Delay(25);
-        }
+        await Task.Delay(250);
 
         // Verify currently on B
         Assert.Single(viewModel.ContentItems);
