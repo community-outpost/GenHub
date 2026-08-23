@@ -159,9 +159,9 @@ public sealed class BuildEngineService(
             logger.LogInformation("Starting ModBuilder build pipeline");
 
             var steps = ResolveBuildSteps(buildStructure.Setup.Step);
-            if (steps == BuildStep.Zero)
+            if (steps == BuildStep.None)
             {
-                logger.LogWarning("BuildStep is Zero, nothing to do");
+                logger.LogWarning("BuildStep is None, nothing to do");
                 return true;
             }
 
@@ -193,9 +193,9 @@ public sealed class BuildEngineService(
 
     private static BuildStep ResolveBuildSteps(BuildStep steps)
     {
-        if (steps == BuildStep.Zero)
+        if (steps == BuildStep.None)
         {
-            return BuildStep.Zero;
+            return BuildStep.None;
         }
 
         if ((steps & BuildStep.Release) != 0)
@@ -1196,7 +1196,7 @@ public sealed class BuildEngineService(
         }
 
         var combinedString = string.Join("|", hashParts);
-        var tempFile = Path.GetTempFileName();
+        var tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
         try
         {
             await File.WriteAllTextAsync(tempFile, combinedString, cancellationToken)

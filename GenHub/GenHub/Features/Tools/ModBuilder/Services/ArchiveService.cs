@@ -132,7 +132,14 @@ public sealed class ArchiveService(
 
             try
             {
-                using (var archive = ZipFile.Open(tempZipPath, ZipArchiveMode.Create))
+                await using (var zipStream = new FileStream(
+                    tempZipPath,
+                    FileMode.Create,
+                    FileAccess.Write,
+                    FileShare.None,
+                    IoConstants.DefaultFileBufferSize,
+                    useAsync: true))
+                using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, leaveOpen: false))
                 {
                     foreach (var filePath in files)
                     {

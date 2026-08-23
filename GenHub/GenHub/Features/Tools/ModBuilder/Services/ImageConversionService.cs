@@ -23,17 +23,6 @@ namespace GenHub.Features.Tools.ModBuilder.Services;
 /// </summary>
 public class ImageConversionService(ILogger<ImageConversionService> logger) : IImageConversionService
 {
-    // Supported resampling algorithms
-    private static readonly Dictionary<string, ResamplingMode> ResamplingModes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        { "nearest", ResamplingMode.NearestNeighbor },
-        { "box", ResamplingMode.Box },
-        { "bilinear", ResamplingMode.Bilinear },
-        { "hamming", ResamplingMode.Hamming },
-        { "bicubic", ResamplingMode.Bicubic },
-        { "lanczos", ResamplingMode.Lanczos },
-    };
-
     public async Task<bool> ConvertImageAsync(
         string sourcePath,
         string targetPath,
@@ -99,7 +88,7 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
                 }
 
                 using var image = Image.Load(imagePath);
-                return HasAlphaChannel(image);
+                return ImageProcessingHelper.DetectAlpha(image);
             }, cancellationToken);
         }
         catch (Exception ex)
@@ -230,43 +219,30 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            using var image = Image.Load(sourcePath);
-            var resizedImage = ApplyResizeParameters(image, parameters);
+            using var image = await Image.LoadAsync(sourcePath, cancellationToken).ConfigureAwait(false);
+            var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
 
             cancellationToken.ThrowIfCancellationRequested();
 
             var targetExt = Path.GetExtension(targetPath).ToLowerInvariant();
-            switch (targetExt)
+            if (targetExt == ".dds")
             {
-                case ".bmp":
-                    resizedImage.SaveAsBmp(targetPath, new BmpEncoder());
-                    break;
-                case ".tga":
-                    resizedImage.SaveAsTga(targetPath, new TgaEncoder
+                var tempPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+                try
+                {
+                    await ImageProcessingHelper.SaveImageToTargetAsync(resizedImage, tempPath, ".tga", cancellationToken).ConfigureAwait(false);
+                    return await ConvertDdsAsync(tempPath, targetPath, parameters, cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    if (File.Exists(tempPath))
                     {
-                        BitsPerPixel = TgaBitsPerPixel.Pixel32,
-                        Compression = TgaCompression.None
-                    });
-                    break;
-                case ".dds":
-                    // Save to temp file first, then convert to DDS
-                    var tempPath = Path.GetTempFileName();
-                    try
-                    {
-                        resizedImage.SaveAsTga(tempPath);
-                        return await ConvertToDdsAsync(tempPath, targetPath, parameters, cancellationToken).ConfigureAwait(false);
+                        File.Delete(tempPath);
                     }
-                    finally
-                    {
-                        if (File.Exists(tempPath))
-                            File.Delete(tempPath);
-                    }
-
-                default:
-                    resizedImage.Save(targetPath);
-                    break;
+                }
             }
 
+            await ImageProcessingHelper.SaveImageToTargetAsync(resizedImage, targetPath, targetExt, cancellationToken).ConfigureAwait(false);
             return true;
         }, cancellationToken).ConfigureAwait(false);
     }
@@ -280,46 +256,27 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
         var targetExt = Path.GetExtension(targetPath).ToLowerInvariant();
         if (targetExt == ".dds")
         {
-            return await ConvertToDdsAsync(sourcePath, targetPath, parameters, cancellationToken).ConfigureAwait(false);
+            return await ConvertDdsAsync(sourcePath, targetPath, parameters, cancellationToken).ConfigureAwait(false);
         }
 
-        return await Task.Run(() =>
+        return await Task.Run(async () =>
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            using var image = Image.Load(sourcePath);
+            using var image = await Image.LoadAsync(sourcePath, cancellationToken).ConfigureAwait(false);
 
-            // TIFF supports RGB, RGBA, RGBX modes
-            // Note: No composite support, single alpha channel only, no transparent background
             if (image.PixelType.BitsPerPixel < 24)
             {
                 logger.LogError("TIFF image has unsupported color mode: {SourcePath}", sourcePath);
                 return false;
             }
 
-            var resizedImage = ApplyResizeParameters(image, parameters);
+            var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
 
             cancellationToken.ThrowIfCancellationRequested();
-
-            switch (targetExt)
-            {
-                case ".bmp":
-                    resizedImage.SaveAsBmp(targetPath, new BmpEncoder());
-                    break;
-                case ".tga":
-                    resizedImage.SaveAsTga(targetPath, new TgaEncoder
-                    {
-                        BitsPerPixel = TgaBitsPerPixel.Pixel32,
-                        Compression = TgaCompression.None
-                    });
-                    break;
-                default:
-                    resizedImage.Save(targetPath);
-                    break;
-            }
-
+            await ImageProcessingHelper.SaveImageToTargetAsync(resizedImage, targetPath, targetExt, cancellationToken).ConfigureAwait(false);
             return true;
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<bool> ConvertDdsAsync(
@@ -328,26 +285,12 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
         IDictionary<string, object>? parameters,
         CancellationToken cancellationToken)
     {
-        // DDS to DDS re-export (format conversion, e.g., DXT5 to DXT1)
-        return await ConvertToDdsAsync(sourcePath, targetPath, parameters, cancellationToken);
-    }
-
-    /// <summary>
-    /// Converts any image format to DDS using BCnEncoder.NET.
-    /// Auto-detects DXT1 (no alpha) or DXT5 (with alpha) format.
-    /// </summary>
-    private async Task<bool> ConvertToDdsAsync(
-        string sourcePath,
-        string targetPath,
-        IDictionary<string, object>? parameters,
-        CancellationToken cancellationToken)
-    {
         try
         {
-            byte[] rawData = [];
-            int width = 0;
-            int height = 0;
-            bool hasAlpha = false;
+            byte[] rawData;
+            int width;
+            int height;
+            bool hasAlpha;
 
             if (sourcePath.EndsWith(".dds", StringComparison.OrdinalIgnoreCase))
             {
@@ -360,10 +303,10 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
             }
             else
             {
-                using var image = await Image.LoadAsync<Rgba32>(sourcePath, cancellationToken);
+                using var image = await Image.LoadAsync<Rgba32>(sourcePath, cancellationToken).ConfigureAwait(false);
                 width = image.Width;
                 height = image.Height;
-                hasAlpha = await HasAlphaChannelAsync(sourcePath, cancellationToken);
+                hasAlpha = await HasAlphaChannelAsync(sourcePath, cancellationToken).ConfigureAwait(false);
 
                 rawData = new byte[width * height * 4];
                 image.CopyPixelDataTo(rawData);
@@ -385,7 +328,8 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
                 width,
                 height,
                 BCnEncoder.Encoder.PixelFormat.Rgba32,
-                output).ConfigureAwait(false);
+                output,
+                cancellationToken).ConfigureAwait(false);
 
             logger.LogInformation("Converted {Source} to DDS format {Format}", sourcePath, encoder.OutputOptions.Format);
             return true;
@@ -403,7 +347,7 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
         IDictionary<string, object>? parameters,
         CancellationToken cancellationToken)
     {
-        return await Task.Run(() =>
+        return await Task.Run(async () =>
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -414,278 +358,12 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
                 return true;
             }
 
-            using var image = Image.Load(sourcePath);
-            var resizedImage = ApplyResizeParameters(image, parameters);
+            using var image = await Image.LoadAsync(sourcePath, cancellationToken).ConfigureAwait(false);
+            var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
 
             cancellationToken.ThrowIfCancellationRequested();
-
-            resizedImage.Save(targetPath);
+            await ImageProcessingHelper.SaveImageToTargetAsync(resizedImage, targetPath, Path.GetExtension(targetPath).ToLowerInvariant(), cancellationToken).ConfigureAwait(false);
             return true;
-        }, cancellationToken);
-    }
-
-    /// <summary>
-    /// Applies resize/rescale parameters to an image.
-    /// For RGBA images, splits channels and resizes independently to prevent color loss.
-    /// </summary>
-    private Image ApplyResizeParameters(Image image, IDictionary<string, object>? parameters)
-    {
-        if (parameters == null || parameters.Count == 0)
-        {
-            return image;
-        }
-
-        var size = image.Size;
-        var hasResize = false;
-
-        // Parse resize parameter (absolute size)
-        if (parameters.TryGetValue("resize", out var resizeObj))
-        {
-            size = ParseSizeParameter(resizeObj, size);
-            hasResize = true;
-        }
-
-        // Parse rescale parameter (scale factor)
-        if (parameters.TryGetValue("rescale", out var rescaleObj))
-        {
-            var scale = ParseScaleParameter(rescaleObj);
-            size = new Size((int)(size.Width * scale.Width), (int)(size.Height * scale.Height));
-            hasResize = true;
-        }
-
-        if (!hasResize || size == image.Size)
-        {
-            return image;
-        }
-
-        // Parse resampling mode
-        var resamplingMode = ResamplingMode.Bilinear; // Default
-        if (parameters.TryGetValue("resampling", out var resamplingObj) &&
-            resamplingObj is string resamplingStr &&
-            ResamplingModes.TryGetValue(resamplingStr, out var mode))
-        {
-            resamplingMode = mode;
-        }
-
-        // For RGBA images, resize channels separately to prevent color loss where alpha is black
-        if (HasAlphaChannel(image))
-        {
-            return ResizeRgbaChannelsSeparately(image, size, resamplingMode);
-        }
-
-        // Standard resize for non-RGBA images
-        var resampler = resamplingMode switch
-        {
-            ResamplingMode.NearestNeighbor => KnownResamplers.NearestNeighbor,
-            ResamplingMode.Box => KnownResamplers.Box,
-            ResamplingMode.Bilinear => KnownResamplers.Triangle,
-            ResamplingMode.Hamming => KnownResamplers.Hermite,
-            ResamplingMode.Bicubic => KnownResamplers.Bicubic,
-            ResamplingMode.Lanczos => KnownResamplers.Lanczos3,
-            _ => KnownResamplers.Triangle,
-        };
-
-        image.Mutate(x => x.Resize(new ResizeOptions
-        {
-            Size = size,
-            Mode = ResizeMode.Stretch,
-            Sampler = resampler,
-        }));
-
-        return image;
-    }
-
-    /// <summary>
-    /// Resizes RGBA image by splitting channels and resizing independently.
-    /// This prevents color information loss where alpha is black.
-    /// </summary>
-    private Image ResizeRgbaChannelsSeparately(Image image, Size size, ResamplingMode resamplingMode)
-    {
-        var resampler = resamplingMode switch
-        {
-            ResamplingMode.NearestNeighbor => KnownResamplers.NearestNeighbor,
-            ResamplingMode.Box => KnownResamplers.Box,
-            ResamplingMode.Bilinear => KnownResamplers.Triangle,
-            ResamplingMode.Hamming => KnownResamplers.Hermite,
-            ResamplingMode.Bicubic => KnownResamplers.Bicubic,
-            ResamplingMode.Lanczos => KnownResamplers.Lanczos3,
-            _ => KnownResamplers.Triangle,
-        };
-
-        // Convert to Rgba32 for channel manipulation
-        using var rgba32Image = image.CloneAs<Rgba32>();
-
-        // Extract channels
-        using var rChannel = new Image<L8>(rgba32Image.Width, rgba32Image.Height);
-        using var gChannel = new Image<L8>(rgba32Image.Width, rgba32Image.Height);
-        using var bChannel = new Image<L8>(rgba32Image.Width, rgba32Image.Height);
-        using var aChannel = new Image<L8>(rgba32Image.Width, rgba32Image.Height);
-
-        // Split RGBA into separate channels using DangerousTryGetSinglePixelMemory (50x faster than direct pixel access)
-        if (rgba32Image.DangerousTryGetSinglePixelMemory(out Memory<Rgba32> rgbaMemory) &&
-            rChannel.DangerousTryGetSinglePixelMemory(out Memory<L8> rMemory) &&
-            gChannel.DangerousTryGetSinglePixelMemory(out Memory<L8> gMemory) &&
-            bChannel.DangerousTryGetSinglePixelMemory(out Memory<L8> bMemory) &&
-            aChannel.DangerousTryGetSinglePixelMemory(out Memory<L8> aMemory))
-        {
-            Span<Rgba32> rgbaSpan = rgbaMemory.Span;
-            Span<L8> rSpan = rMemory.Span;
-            Span<L8> gSpan = gMemory.Span;
-            Span<L8> bSpan = bMemory.Span;
-            Span<L8> aSpan = aMemory.Span;
-
-            for (int i = 0; i < rgbaSpan.Length; i++)
-            {
-                var pixel = rgbaSpan[i];
-                rSpan[i] = new L8(pixel.R);
-                gSpan[i] = new L8(pixel.G);
-                bSpan[i] = new L8(pixel.B);
-                aSpan[i] = new L8(pixel.A);
-            }
-        }
-        else
-        {
-            // Fallback to row-by-row processing
-            for (int y = 0; y < rgba32Image.Height; y++)
-            {
-                for (int x = 0; x < rgba32Image.Width; x++)
-                {
-                    var pixel = rgba32Image[x, y];
-                    rChannel[x, y] = new L8(pixel.R);
-                    gChannel[x, y] = new L8(pixel.G);
-                    bChannel[x, y] = new L8(pixel.B);
-                    aChannel[x, y] = new L8(pixel.A);
-                }
-            }
-        }
-
-        // Resize each channel independently
-        rChannel.Mutate(x => x.Resize(new ResizeOptions { Size = size, Mode = ResizeMode.Stretch, Sampler = resampler }));
-        gChannel.Mutate(x => x.Resize(new ResizeOptions { Size = size, Mode = ResizeMode.Stretch, Sampler = resampler }));
-        bChannel.Mutate(x => x.Resize(new ResizeOptions { Size = size, Mode = ResizeMode.Stretch, Sampler = resampler }));
-        aChannel.Mutate(x => x.Resize(new ResizeOptions { Size = size, Mode = ResizeMode.Stretch, Sampler = resampler }));
-
-        // Merge channels back using DangerousTryGetSinglePixelMemory (50x faster than direct pixel access)
-        var result = new Image<Rgba32>(size.Width, size.Height);
-        if (result.DangerousTryGetSinglePixelMemory(out Memory<Rgba32> resultMemory) &&
-            rChannel.DangerousTryGetSinglePixelMemory(out Memory<L8> rResizedMemory) &&
-            gChannel.DangerousTryGetSinglePixelMemory(out Memory<L8> gResizedMemory) &&
-            bChannel.DangerousTryGetSinglePixelMemory(out Memory<L8> bResizedMemory) &&
-            aChannel.DangerousTryGetSinglePixelMemory(out Memory<L8> aResizedMemory))
-        {
-            Span<Rgba32> resultSpan = resultMemory.Span;
-            Span<L8> rSpan = rResizedMemory.Span;
-            Span<L8> gSpan = gResizedMemory.Span;
-            Span<L8> bSpan = bResizedMemory.Span;
-            Span<L8> aSpan = aResizedMemory.Span;
-
-            for (int i = 0; i < resultSpan.Length; i++)
-            {
-                resultSpan[i] = new Rgba32(rSpan[i].PackedValue, gSpan[i].PackedValue, bSpan[i].PackedValue, aSpan[i].PackedValue);
-            }
-        }
-        else
-        {
-            // Fallback to row-by-row processing
-            for (int y = 0; y < result.Height; y++)
-            {
-                for (int x = 0; x < result.Width; x++)
-                {
-                    result[x, y] = new Rgba32(
-                        rChannel[x, y].PackedValue,
-                        gChannel[x, y].PackedValue,
-                        bChannel[x, y].PackedValue,
-                        aChannel[x, y].PackedValue);
-                }
-            }
-        }
-
-        return result;
-    }
-
-    private Size ParseSizeParameter(object sizeObj, Size currentSize)
-    {
-        return sizeObj switch
-        {
-            int singleValue => new Size(singleValue, singleValue),
-            double singleDouble => new Size((int)singleDouble, (int)singleDouble),
-            int[] array when array.Length == 1 => new Size(array[0], array[0]),
-            int[] array when array.Length >= 2 => new Size(array[0], array[1]),
-            List<int> list when list.Count == 1 => new Size(list[0], list[0]),
-            List<int> list when list.Count >= 2 => new Size(list[0], list[1]),
-            _ => currentSize
-        };
-    }
-
-    private (double Width, double Height) ParseScaleParameter(object scaleObj)
-    {
-        return scaleObj switch
-        {
-            double singleValue => (singleValue, singleValue),
-            int singleInt => (singleInt, singleInt),
-            double[] array when array.Length == 1 => (array[0], array[0]),
-            double[] array when array.Length >= 2 => (array[0], array[1]),
-            List<double> list when list.Count == 1 => (list[0], list[0]),
-            List<double> list when list.Count >= 2 => (list[0], list[1]),
-            _ => (1.0, 1.0)
-        };
-    }
-
-    private static bool HasAlphaChannel(Image image)
-    {
-        if (image.PixelType.AlphaRepresentation == PixelAlphaRepresentation.None ||
-            image.PixelType.BitsPerPixel == 24 ||
-            image.PixelType.BitsPerPixel == 48)
-        {
-            return false;
-        }
-
-        if (image is Image<Rgba32> rgbaImage)
-        {
-            if (rgbaImage.DangerousTryGetSinglePixelMemory(out Memory<Rgba32> memory))
-            {
-                var span = memory.Span;
-                for (int i = 0; i < span.Length; i++)
-                {
-                    if (span[i].A < 255)
-                    {
-                        return true;
-                    }
-                }
-
-                return false;
-            }
-
-            var hasAlpha = false;
-            rgbaImage.ProcessPixelRows(accessor =>
-            {
-                for (int y = 0; y < accessor.Height; y++)
-                {
-                    var pixelRow = accessor.GetRowSpan(y);
-                    for (int x = 0; x < pixelRow.Length; x++)
-                    {
-                        if (pixelRow[x].A < 255)
-                        {
-                            hasAlpha = true;
-                            return;
-                        }
-                    }
-                }
-            });
-
-            return hasAlpha;
-        }
-
-        return true;
-    }
-
-    private enum ResamplingMode
-    {
-        NearestNeighbor,
-        Box,
-        Bilinear,
-        Hamming,
-        Bicubic,
-        Lanczos,
+        }, cancellationToken).ConfigureAwait(false);
     }
 }

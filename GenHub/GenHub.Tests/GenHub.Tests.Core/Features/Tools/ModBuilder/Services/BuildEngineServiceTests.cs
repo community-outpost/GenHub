@@ -199,18 +199,20 @@ public sealed class BuildEngineServiceTests : IDisposable
     public async Task AbortAsync_WhenNotRunning_DoesNotThrow()
     {
         // Act
-        await _service.AbortAsync();
+        var act = async () => await _service.AbortAsync();
 
-        // Assert - No exception should be thrown
+        // Assert
+        await act.Should().NotThrowAsync();
     }
 
     [Fact]
     public void InvalidateBuildStructureCache_ClearsCache()
     {
         // Act
-        _service.InvalidateBuildStructureCache();
+        var act = () => _service.InvalidateBuildStructureCache();
 
-        // Assert - No exception should be thrown
+        // Assert
+        act.Should().NotThrow();
     }
 
     [Fact]

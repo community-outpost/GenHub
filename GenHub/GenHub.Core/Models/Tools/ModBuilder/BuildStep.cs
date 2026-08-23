@@ -9,7 +9,7 @@ public enum BuildStep
     /// <summary>
     /// No build steps.
     /// </summary>
-    Zero = 0,
+    None = 0,
 
     /// <summary>
     /// Execute pre-build tasks.
