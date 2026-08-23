@@ -40,6 +40,10 @@ public partial class SettingsView : UserControl
         {
             vm.IsViewVisible = true;
             HookViewModel(vm);
+            if (vm.SelectedSection != null)
+            {
+                ScrollToSection(vm.SelectedSection);
+            }
         }
     }
 
@@ -122,7 +126,6 @@ public partial class SettingsView : UserControl
             SettingsConstants.SectionLocalContent => "Expander_LocalContent",
             SettingsConstants.SectionGitHubDiscovery => "Expander_GitHubDiscovery",
             SettingsConstants.SectionUpdates => "Expander_Updates",
-            SettingsConstants.SectionSubscriptions => "Expander_Subscriptions",
             SettingsConstants.SectionDangerZone => "Expander_DangerZone",
             _ => null,
         };
@@ -132,7 +135,7 @@ public partial class SettingsView : UserControl
             return;
         }
 
-        var expander = ControlExtensions.FindControl<Expander>(this, expanderName);
+        var expander = this.FindControl<Expander>(expanderName);
         if (expander != null)
         {
             expander.IsExpanded = true;

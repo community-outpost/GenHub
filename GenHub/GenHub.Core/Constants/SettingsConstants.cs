@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace GenHub.Core.Constants;
 
 /// <summary>
@@ -56,11 +54,6 @@ public static class SettingsConstants
     /// Section ID for Updates.
     /// </summary>
     public const string SectionUpdates = "updates";
-
-    /// <summary>
-    /// Section ID for Catalog Subscriptions.
-    /// </summary>
-    public const string SectionSubscriptions = "subscriptions";
 
     /// <summary>
     /// Section ID for Danger Zone.

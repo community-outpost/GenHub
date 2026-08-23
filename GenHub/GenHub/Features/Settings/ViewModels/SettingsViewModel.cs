@@ -106,7 +106,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private bool _isPaneOpen = true;
 
     [ObservableProperty]
-    private double _openPaneLength = 220.0;
+    private double _openPaneLength = SidebarConstants.DefaultOpenPaneLength;
 
     [ObservableProperty]
     private string _theme = ThemeConstants.DefaultTheme.Id;
