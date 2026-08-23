@@ -17,9 +17,9 @@ namespace GenHub.Features.Info.ViewModels;
 /// <summary>
 /// ViewModel for the Info tab, managing multiple info sections.
 /// </summary>
-public partial class InfoViewModel : ViewModelBase, IDisposable, IRecipient<OpenInfoSectionMessage>
+public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipient<OpenInfoSectionMessage>
 {
-    private readonly IEnumerable<IInfoSectionViewModel> _sectionViewModels;
+    private bool _disposed;
 
     [ObservableProperty]
     private IInfoSectionViewModel? _selectedSection;
@@ -29,6 +29,34 @@ public partial class InfoViewModel : ViewModelBase, IDisposable, IRecipient<Open
 
     [ObservableProperty]
     private double _openPaneLength = SidebarConstants.DefaultOpenPaneLength;
+
+    [ObservableProperty]
+    private string _selectedModule = InfoConstants.ModuleGuide;
+
+    [ObservableProperty]
+    private System.Collections.IEnumerable? _sidebarItems;
+
+    [ObservableProperty]
+    private object? _selectedSidebarItem;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="InfoViewModel"/> class.
+    /// </summary>
+    /// <param name="sectionViewModels">The available info section view models.</param>
+    public InfoViewModel(IEnumerable<IInfoSectionViewModel> sectionViewModels)
+    {
+        Sections = new ObservableCollection<IInfoSectionViewModel>(sectionViewModels.OrderBy(s => s.Order));
+
+        // Default to GenHub Guide
+        SelectedSection = Sections.OfType<GenHubInfoSectionViewModel>().FirstOrDefault()
+            ?? Sections.FirstOrDefault();
+
+        // Initialize sidebar items
+        UpdateSidebarItems();
+
+        // Register for navigation messages
+        WeakReferenceMessenger.Default.Register<OpenInfoSectionMessage>(this);
+    }
 
     /// <summary>
     /// Gets the list of available modules.
@@ -67,7 +95,7 @@ public partial class InfoViewModel : ViewModelBase, IDisposable, IRecipient<Open
             var genHubSection = Sections.OfType<GenHubInfoSectionViewModel>().FirstOrDefault();
             if (genHubSection != null)
             {
-                var previousModule = IsGeneralsOnlineSelected
+                var previousModule = string.Equals(SelectedModule, InfoConstants.ModuleGeneralsOnline, StringComparison.Ordinal)
                     ? GeneralsHubModule.GeneralsOnline
                     : GeneralsHubModule.Guide;
 
@@ -96,39 +124,75 @@ public partial class InfoViewModel : ViewModelBase, IDisposable, IRecipient<Open
         }
     }
 
-    [ObservableProperty]
-    private string _selectedModule = InfoConstants.ModuleGuide;
+    /// <inheritdoc/>
+    public void Receive(OpenInfoSectionMessage message)
+    {
+        OpenSection(message.Value);
+    }
 
     /// <summary>
-    /// Gets a value indicating whether the "GenHub Guide" module is selected.
+    /// Initializes the view model and the selected section.
     /// </summary>
-    public bool IsGuideSelected => SelectedModule == InfoConstants.ModuleGuide;
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public async Task InitializeAsync()
+    {
+        if (SelectedSection != null)
+        {
+            await SelectedSection.InitializeAsync();
+        }
+    }
 
-    /// <summary>
-    /// Gets a value indicating whether the "Zero Hour" module is selected.
-    /// </summary>
-    public bool IsZeroHourSelected => SelectedModule == InfoConstants.ModuleZeroHour;
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
 
-    /// <summary>
-    /// Gets a value indicating whether the "GeneralsOnline" module is selected.
-    /// </summary>
-    public bool IsGeneralsOnlineSelected => SelectedModule == InfoConstants.ModuleGeneralsOnline;
+        WeakReferenceMessenger.Default.UnregisterAll(this);
+        var faqSection = Sections.OfType<FaqSectionViewModel>().FirstOrDefault();
+        if (faqSection != null)
+        {
+            faqSection.PropertyChanged -= OnFaqSectionPropertyChanged;
+        }
 
-    /// <summary>
-    /// Gets the items to display in the sidebar for the current module.
-    /// </summary>
-    [ObservableProperty]
-    private System.Collections.IEnumerable? _sidebarItems;
-
-    [ObservableProperty]
-    private object? _selectedSidebarItem;
+        _disposed = true;
+        GC.SuppressFinalize(this);
+    }
 
     partial void OnSelectedModuleChanged(string value)
     {
-        OnPropertyChanged(nameof(IsGuideSelected));
-        OnPropertyChanged(nameof(IsZeroHourSelected));
-        OnPropertyChanged(nameof(IsGeneralsOnlineSelected));
         UpdateSidebarItems();
+    }
+
+    partial void OnSelectedSectionChanged(IInfoSectionViewModel? value)
+    {
+        if (value != null)
+        {
+            _ = value.InitializeAsync();
+        }
+    }
+
+    partial void OnSelectedSidebarItemChanged(object? value)
+    {
+        if (string.Equals(SelectedModule, InfoConstants.ModuleGuide, StringComparison.Ordinal) ||
+            string.Equals(SelectedModule, InfoConstants.ModuleGeneralsOnline, StringComparison.Ordinal))
+        {
+            var genHubSection = Sections.OfType<GenHubInfoSectionViewModel>().FirstOrDefault();
+            if (genHubSection != null && value is InfoSectionViewModel infoSection)
+            {
+                genHubSection.SelectedSection = infoSection;
+            }
+        }
+        else
+        {
+            var faqSection = Sections.OfType<FaqSectionViewModel>().FirstOrDefault();
+            if (faqSection != null && value is FaqCategoryViewModel faqCategory)
+            {
+                faqSection.SelectedCategory = faqCategory;
+            }
+        }
     }
 
     private void UpdateSidebarItems()
@@ -140,22 +204,19 @@ public partial class InfoViewModel : ViewModelBase, IDisposable, IRecipient<Open
             faqSection.PropertyChanged -= OnFaqSectionPropertyChanged;
         }
 
-        if (IsGuideSelected)
+        if (string.Equals(SelectedModule, InfoConstants.ModuleGuide, StringComparison.Ordinal))
         {
             var genHubSection = Sections.OfType<GenHubInfoSectionViewModel>().FirstOrDefault();
             if (genHubSection != null)
             {
-                 // Filter for Guide sections (exclude FAQ and Changelog identifiers if needed,
-                 // but for now we'll filter them in the ViewModel or just reuse the section)
-                 // Actually, we need to switch the context of the GenHubInfoSectionViewModel
-                 genHubSection.SetModuleContext(GeneralsHubModule.Guide);
+                genHubSection.SetModuleContext(GeneralsHubModule.Guide);
 
-                 SelectedSection = genHubSection;
-                 SidebarItems = genHubSection.Sections;
-                 SelectedSidebarItem = genHubSection.SelectedSection;
+                SelectedSection = genHubSection;
+                SidebarItems = genHubSection.Sections;
+                SelectedSidebarItem = genHubSection.SelectedSection;
             }
         }
-        else if (IsGeneralsOnlineSelected)
+        else if (string.Equals(SelectedModule, InfoConstants.ModuleGeneralsOnline, StringComparison.Ordinal))
         {
             var genHubSection = Sections.OfType<GenHubInfoSectionViewModel>().FirstOrDefault();
             if (genHubSection != null)
@@ -195,94 +256,14 @@ public partial class InfoViewModel : ViewModelBase, IDisposable, IRecipient<Open
         }
     }
 
-    partial void OnSelectedSidebarItemChanged(object? value)
-    {
-        if (IsGuideSelected || IsGeneralsOnlineSelected)
-        {
-            var genHubSection = Sections.OfType<GenHubInfoSectionViewModel>().FirstOrDefault();
-            if (genHubSection != null && value is InfoSectionViewModel infoSection)
-            {
-                genHubSection.SelectedSection = infoSection;
-            }
-        }
-        else
-        {
-            var faqSection = Sections.OfType<FaqSectionViewModel>().FirstOrDefault();
-            if (faqSection != null && value is FaqCategoryViewModel faqCategory)
-            {
-                faqSection.SelectedCategory = faqCategory;
-            }
-        }
-    }
-
-    // Keep SelectedSection for content binding
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="InfoViewModel"/> class.
-    /// </summary>
-    /// <param name="sectionViewModels">The available info section view models.</param>
-    public InfoViewModel(IEnumerable<IInfoSectionViewModel> sectionViewModels)
-    {
-        _sectionViewModels = sectionViewModels;
-        Sections = new ObservableCollection<IInfoSectionViewModel>(_sectionViewModels.OrderBy(s => s.Order));
-
-        // Default to GenHub Guide
-        SelectedSection = Sections.OfType<GenHubInfoSectionViewModel>().FirstOrDefault()
-            ?? Sections.FirstOrDefault();
-
-        // Initialize sidebar items
-        UpdateSidebarItems();
-
-        // Register for navigation messages
-        WeakReferenceMessenger.Default.Register<OpenInfoSectionMessage>(this);
-    }
-
-    /// <inheritdoc/>
-    public void Receive(OpenInfoSectionMessage message)
-    {
-        OpenSection(message.Value);
-    }
-
-    /// <summary>
-    /// Initializes the view model and the selected section.
-    /// </summary>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task InitializeAsync()
-    {
-        if (SelectedSection != null)
-        {
-            await SelectedSection.InitializeAsync();
-        }
-    }
-
-    /// <inheritdoc/>
-    public void Dispose()
-    {
-        var faqSection = Sections.OfType<FaqSectionViewModel>().FirstOrDefault();
-        if (faqSection != null)
-        {
-            faqSection.PropertyChanged -= OnFaqSectionPropertyChanged;
-        }
-
-        GC.SuppressFinalize(this);
-    }
-
-    partial void OnSelectedSectionChanged(IInfoSectionViewModel? value)
-    {
-        if (value != null)
-        {
-            _ = value.InitializeAsync();
-        }
-    }
-
     private void OpenSubSection(GenHubInfoSectionViewModel parent, string sectionId)
     {
-         var target = parent.Sections.FirstOrDefault(s => s.Id.Equals(sectionId, StringComparison.OrdinalIgnoreCase));
-         if (target != null)
-         {
-             SelectedSection = parent;
-             parent.SelectedSection = target;
-             SelectedSidebarItem = target;
-         }
+        var target = parent.Sections.FirstOrDefault(s => s.Id.Equals(sectionId, StringComparison.OrdinalIgnoreCase));
+        if (target != null)
+        {
+            SelectedSection = parent;
+            parent.SelectedSection = target;
+            SelectedSidebarItem = target;
+        }
     }
 }
