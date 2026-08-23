@@ -117,18 +117,18 @@
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>
-            <DataGridTextColumn Header="Name" Binding="{Binding DisplayName}" Width="2*" />
-            <DataGridTextColumn Header="Size" Width="Auto">
+            <DataGridTextColumn Header="Name" Binding="{Binding DisplayName}" Width="*" MinWidth="180" />
+            <DataGridTextColumn Header="Size" Width="Auto" MinWidth="95">
               <DataGridTextColumn.Binding>
                 <Binding Path="SizeBytes" Converter="{StaticResource FileSizeConverter}" Mode="OneWay" />
               </DataGridTextColumn.Binding>
             </DataGridTextColumn>
-            <DataGridTextColumn Header="Type" Width="160">
+            <DataGridTextColumn Header="Type" Width="Auto" MinWidth="130">
               <DataGridTextColumn.Binding>
                 <Binding Path="." Converter="{StaticResource MapTypeDisplayConverter}" Mode="OneWay" />
               </DataGridTextColumn.Binding>
             </DataGridTextColumn>
-            <DataGridTextColumn Header="Modified" Binding="{Binding LastModified, StringFormat='{}{0:g}'}" Width="150" />
+            <DataGridTextColumn Header="Modified" Binding="{Binding LastModified, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" Width="Auto" MinWidth="180" />
           </DataGrid.Columns>
         </DataGrid>
       </Border>

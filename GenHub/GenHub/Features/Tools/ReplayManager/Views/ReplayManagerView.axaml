@@ -96,9 +96,9 @@
                   BorderThickness="0"
                   RowHeight="42">
           <DataGrid.Columns>
-            <DataGridTextColumn Header="Filename" Binding="{Binding FileName}" Width="*" MinWidth="160" />
-            <DataGridTextColumn Header="Size" Binding="{Binding FormattedSize}" Width="Auto" MinWidth="90" IsReadOnly="True" />
-            <DataGridTextColumn Header="Modified" Binding="{Binding LastModified, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="Auto" MinWidth="140" IsReadOnly="True" />
+            <DataGridTextColumn Header="Filename" Binding="{Binding FileName}" Width="*" MinWidth="180" />
+            <DataGridTextColumn Header="Size" Binding="{Binding FormattedSize}" Width="Auto" MinWidth="95" IsReadOnly="True" />
+            <DataGridTextColumn Header="Modified" Binding="{Binding LastModified, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="Auto" MinWidth="180" IsReadOnly="True" />
             <DataGridTemplateColumn Width="140" Header="Actions">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
