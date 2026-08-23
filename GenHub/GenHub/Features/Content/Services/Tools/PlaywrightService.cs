@@ -1236,14 +1236,22 @@ public sealed class PlaywrightService(
             return;
         }
 
-        List<IPage> pages = [];
-        try
+        List<IPage> GetPersistentPages()
         {
-            pages = [.. _persistentContext.Pages];
+            try
+            {
+                return [.. _persistentContext.Pages];
+            }
+            catch (PlaywrightException ex) when (IsContextClosedError(ex))
+            {
+                logger.LogDebug(ex, "Persistent context closed while collecting orphan startup pages.");
+                return [];
+            }
         }
-        catch (PlaywrightException ex) when (IsContextClosedError(ex))
+
+        var pages = GetPersistentPages();
+        if (pages.Count == 0)
         {
-            logger.LogDebug(ex, "Persistent context closed while collecting orphan startup pages.");
             return;
         }
 
