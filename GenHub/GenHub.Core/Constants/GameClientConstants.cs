@@ -78,6 +78,12 @@ public static class GameClientConstants
     /// <summary>Primary Generals Vanilla Patch archive filename.</summary>
     public const string GeneralsPatchBig = "Patch.big";
 
+    /// <summary>Generals Vanilla security archive filename.</summary>
+    public const string GeneralsSecurityBig = "gensec.big";
+
+    /// <summary>Zero Hour archive extension suffix.</summary>
+    public const string ZeroHourArchiveExtensionSuffix = "ZH.big";
+
     // ===== GeneralsOnline Client Detection =====
 
     /// <summary>GeneralsOnline 60Hz client executable name.</summary>

@@ -719,9 +719,14 @@ public class GameInstallationService(
                     DetectedAt = DateTime.UtcNow,
                 };
 
-                // Seed game capabilities from existing manifests
-                var hasGeneralsManifest = group.Any(m => m.TargetGame == GameType.Generals || m.Id.Value.Contains(".gameinstallation.generals", StringComparison.OrdinalIgnoreCase));
-                var hasZeroHourManifest = group.Any(m => m.TargetGame == GameType.ZeroHour || m.Id.Value.Contains(".gameinstallation.zerohour", StringComparison.OrdinalIgnoreCase));
+                // Seed game capabilities from existing manifests (canonical ID takes precedence over TargetGame)
+                var hasGeneralsManifest = group.Any(m =>
+                    m.Id.Value.Contains(".gameinstallation.generals", StringComparison.OrdinalIgnoreCase) ||
+                    (m.TargetGame == GameType.Generals && !m.Id.Value.Contains(".gameinstallation.zerohour", StringComparison.OrdinalIgnoreCase)));
+
+                var hasZeroHourManifest = group.Any(m =>
+                    m.Id.Value.Contains(".gameinstallation.zerohour", StringComparison.OrdinalIgnoreCase) ||
+                    (m.TargetGame == GameType.ZeroHour && !m.Id.Value.Contains(".gameinstallation.generals", StringComparison.OrdinalIgnoreCase)));
 
                 installation.SetPaths(
                     hasGeneralsManifest ? sourcePath : null,
