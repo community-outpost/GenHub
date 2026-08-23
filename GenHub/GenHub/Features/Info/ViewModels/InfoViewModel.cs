@@ -74,19 +74,6 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
     public ObservableCollection<IInfoSectionViewModel> Sections { get; }
 
     /// <summary>
-    /// Initializes the specified section asynchronously.
-    /// </summary>
-    /// <param name="section">The section to initialize.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    public static async Task InitializeAsync(IInfoSectionViewModel? section)
-    {
-        if (section != null)
-        {
-            await section.InitializeAsync();
-        }
-    }
-
-    /// <summary>
     /// Resolves the module name corresponding to the specified section ID.
     /// </summary>
     /// <param name="sectionId">The section ID.</param>
@@ -128,7 +115,13 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
     /// Initializes the view model and the selected section.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public Task InitializeAsync() => InitializeAsync(SelectedSection);
+    public async Task InitializeAsync()
+    {
+        if (SelectedSection != null)
+        {
+            await SelectedSection.InitializeAsync();
+        }
+    }
 
     /// <inheritdoc/>
     public void Receive(OpenInfoSectionMessage message)
@@ -197,34 +190,35 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
             return;
         }
 
-        var previousModule = string.Equals(SelectedModule, InfoConstants.ModuleGeneralsOnline, StringComparison.Ordinal)
-            ? GeneralsHubModule.GeneralsOnline
-            : GeneralsHubModule.Guide;
-
-        if (TryActivateSubSection(genHubSection, GeneralsHubModule.Guide, InfoConstants.ModuleGuide, sectionId) ||
-            TryActivateSubSection(genHubSection, GeneralsHubModule.GeneralsOnline, InfoConstants.ModuleGeneralsOnline, sectionId))
+        // 1. Try Guide Context
+        genHubSection.SetModuleContext(GeneralsHubModule.Guide);
+        var guideSubSection = genHubSection.Sections.FirstOrDefault(s => string.Equals(s.Id, sectionId, StringComparison.OrdinalIgnoreCase));
+        if (guideSubSection != null)
         {
+            SelectedModule = InfoConstants.ModuleGuide;
+            SelectedSection = genHubSection;
+            genHubSection.SelectedSection = guideSubSection;
+            SelectedSidebarItem = guideSubSection;
             return;
         }
 
-        genHubSection.SetModuleContext(previousModule);
-        UpdateSidebarItems();
-    }
-
-    private bool TryActivateSubSection(GenHubInfoSectionViewModel genHubSection, GeneralsHubModule module, string moduleName, string sectionId)
-    {
-        genHubSection.SetModuleContext(module);
-        var subSection = genHubSection.Sections.FirstOrDefault(s => string.Equals(s.Id, sectionId, StringComparison.OrdinalIgnoreCase));
-        if (subSection == null)
+        // 2. Try GeneralsOnline Context
+        genHubSection.SetModuleContext(GeneralsHubModule.GeneralsOnline);
+        var goSubSection = genHubSection.Sections.FirstOrDefault(s => string.Equals(s.Id, sectionId, StringComparison.OrdinalIgnoreCase));
+        if (goSubSection != null)
         {
-            return false;
+            SelectedModule = InfoConstants.ModuleGeneralsOnline;
+            SelectedSection = genHubSection;
+            genHubSection.SelectedSection = goSubSection;
+            SelectedSidebarItem = goSubSection;
+            return;
         }
 
-        SelectedModule = moduleName;
-        SelectedSection = genHubSection;
-        genHubSection.SelectedSection = subSection;
-        SelectedSidebarItem = subSection;
-        return true;
+        var previousModule = string.Equals(SelectedModule, InfoConstants.ModuleGeneralsOnline, StringComparison.Ordinal)
+            ? GeneralsHubModule.GeneralsOnline
+            : GeneralsHubModule.Guide;
+        genHubSection.SetModuleContext(previousModule);
+        UpdateSidebarItems();
     }
 
     private void UpdateSidebarItems()
