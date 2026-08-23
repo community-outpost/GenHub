@@ -226,7 +226,7 @@ public sealed class TextProcessingService(
                 WhitespaceMode.Leading => line.TrimStart(),
                 WhitespaceMode.Trailing => line.TrimEnd(),
                 WhitespaceMode.EmptyLines => string.IsNullOrWhiteSpace(line) ? null : line,
-                WhitespaceMode.ExtraOnly => Regex.Replace(line, @"\s+", " "),
+                WhitespaceMode.ExtraOnly => Regex.Replace(line, @"\s+", " ", RegexOptions.None, TimeSpan.FromSeconds(1)),
                 WhitespaceMode.All => line.Trim(),
                 _ => line,
             };

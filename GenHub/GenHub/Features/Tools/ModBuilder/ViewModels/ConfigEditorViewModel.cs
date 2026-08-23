@@ -114,46 +114,8 @@ public partial class ConfigEditorViewModel(
             BundleItems.Clear();
             BundlePacks.Clear();
 
-            // Load bundle items
-            foreach (var item in Configuration.Items)
-            {
-                var pattern = item.Files.Count > 0
-                    ? string.Join("; ", item.Files.Select(f => f.AbsSourceFile))
-                    : "GameFilesEdited/**/*.*";
-
-                var viewModel = new BundleItemEditorViewModel
-                {
-                    Name = item.Name,
-                    NamePrefix = item.NamePrefix,
-                    NameSuffix = item.NameSuffix,
-                    IsBig = item.IsBig,
-                    BigSuffix = item.BigSuffix,
-                    SetGameLanguageOnInstall = item.SetGameLanguageOnInstall,
-                    FileCount = item.Files.Count,
-                    SourcePattern = pattern,
-                };
-                BundleItems.Add(viewModel);
-            }
-
-            // Load bundle packs
-            foreach (var pack in Configuration.Packs)
-            {
-                var viewModel = new BundlePackConfigViewModel
-                {
-                    Name = pack.Name,
-                    NamePrefix = pack.NamePrefix,
-                    NameSuffix = pack.NameSuffix,
-                    AllowBuild = pack.AllowBuild,
-                    AllowInstall = pack.AllowInstall,
-                    SetGameLanguageOnInstall = pack.SetGameLanguageOnInstall,
-                };
-                foreach (var itemName in pack.ItemNames)
-                {
-                    viewModel.ItemNames.Add(itemName);
-                }
-
-                BundlePacks.Add(viewModel);
-            }
+            PopulateBundleItems(Configuration);
+            PopulateBundlePacks(Configuration);
 
             if (BundleItems.Count > 0)
             {
@@ -175,6 +137,50 @@ public partial class ConfigEditorViewModel(
         else
         {
             await Dispatcher.UIThread.InvokeAsync(LoadData);
+        }
+    }
+
+    private void PopulateBundleItems(BuildConfiguration configuration)
+    {
+        foreach (var item in configuration.Items)
+        {
+            var pattern = item.Files.Count > 0
+                ? string.Join("; ", item.Files.Select(f => f.AbsSourceFile))
+                : "GameFilesEdited/**/*.*";
+
+            BundleItems.Add(new BundleItemEditorViewModel
+            {
+                Name = item.Name,
+                NamePrefix = item.NamePrefix,
+                NameSuffix = item.NameSuffix,
+                IsBig = item.IsBig,
+                BigSuffix = item.BigSuffix,
+                SetGameLanguageOnInstall = item.SetGameLanguageOnInstall,
+                FileCount = item.Files.Count,
+                SourcePattern = pattern,
+            });
+        }
+    }
+
+    private void PopulateBundlePacks(BuildConfiguration configuration)
+    {
+        foreach (var pack in configuration.Packs)
+        {
+            var viewModel = new BundlePackConfigViewModel
+            {
+                Name = pack.Name,
+                NamePrefix = pack.NamePrefix,
+                NameSuffix = pack.NameSuffix,
+                AllowBuild = pack.AllowBuild,
+                AllowInstall = pack.AllowInstall,
+                SetGameLanguageOnInstall = pack.SetGameLanguageOnInstall,
+            };
+            foreach (var itemName in pack.ItemNames)
+            {
+                viewModel.ItemNames.Add(itemName);
+            }
+
+            BundlePacks.Add(viewModel);
         }
     }
 
@@ -200,8 +206,13 @@ public partial class ConfigEditorViewModel(
     {
         var newItem = new BundleItemEditorViewModel
         {
-            Name = $"NewBundle{BundleItems.Count + 1}",
-            IsBig = true,
+            Name = $"NewBundleItem{BundleItems.Count + 1}",
+            NamePrefix = string.Empty,
+            NameSuffix = string.Empty,
+            IsBig = false,
+            BigSuffix = string.Empty,
+            SetGameLanguageOnInstall = string.Empty,
+            FileCount = 0,
             SourcePattern = "GameFilesEdited/**/*.*",
         };
 
@@ -237,14 +248,20 @@ public partial class ConfigEditorViewModel(
     {
         var newPack = new BundlePackConfigViewModel
         {
-            Name = $"NewPack{BundlePacks.Count + 1}",
+            Name = $"NewBundlePack{BundlePacks.Count + 1}",
+            NamePrefix = string.Empty,
+            NameSuffix = string.Empty,
             AllowBuild = true,
             AllowInstall = true,
+            SetGameLanguageOnInstall = string.Empty,
         };
 
         foreach (var item in BundleItems)
         {
-            newPack.ItemNames.Add(item.Name);
+            if (!string.IsNullOrEmpty(item.Name))
+            {
+                newPack.ItemNames.Add(item.Name);
+            }
         }
 
         BundlePacks.Add(newPack);
@@ -283,45 +300,16 @@ public partial class ConfigEditorViewModel(
 
         try
         {
-            // Index existing items by name safely to prevent duplicate key crashes
-            var existingItems = new Dictionary<string, BundleItem>(StringComparer.OrdinalIgnoreCase);
-            foreach (var item in Configuration.Items)
-            {
-                if (!string.IsNullOrEmpty(item.Name) && !existingItems.ContainsKey(item.Name))
-                {
-                    existingItems[item.Name] = item;
-                }
-            }
+            var existingItems = Configuration.Items
+                .Where(i => !string.IsNullOrEmpty(i.Name))
+                .GroupBy(i => i.Name, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
-            // Update configuration from view models
             Configuration.Items.Clear();
             foreach (var itemVm in BundleItems)
             {
                 existingItems.TryGetValue(itemVm.Name, out var existingItem);
-
-                var files = new List<BundleFile>();
-                if (!string.IsNullOrWhiteSpace(itemVm.SourcePattern))
-                {
-                    var patterns = itemVm.SourcePattern.Split([';', ','], StringSplitOptions.RemoveEmptyEntries);
-                    foreach (var p in patterns)
-                    {
-                        var trimmed = p.Trim();
-                        if (!string.IsNullOrEmpty(trimmed))
-                        {
-                            files.Add(new BundleFile { AbsSourceFile = trimmed });
-                        }
-                    }
-                }
-                else if (existingItem?.Files != null && existingItem.Files.Count > 0)
-                {
-                    files.AddRange(existingItem.Files);
-                }
-                else
-                {
-                    files.Add(new BundleFile { AbsSourceFile = "GameFilesEdited/**/*.*" });
-                }
-
-                var item = new BundleItem
+                Configuration.Items.Add(new BundleItem
                 {
                     Name = itemVm.Name,
                     NamePrefix = itemVm.NamePrefix,
@@ -329,16 +317,15 @@ public partial class ConfigEditorViewModel(
                     IsBig = itemVm.IsBig,
                     BigSuffix = itemVm.BigSuffix,
                     SetGameLanguageOnInstall = itemVm.SetGameLanguageOnInstall,
-                    Files = files,
+                    Files = ParseItemFiles(itemVm, existingItem),
                     Events = existingItem?.Events != null ? new Dictionary<BundleEventType, BundleEvent>(existingItem.Events) : [],
-                };
-                Configuration.Items.Add(item);
+                });
             }
 
             Configuration.Packs.Clear();
             foreach (var packVm in BundlePacks)
             {
-                var pack = new BundlePack
+                Configuration.Packs.Add(new BundlePack
                 {
                     Name = packVm.Name,
                     NamePrefix = packVm.NamePrefix,
@@ -347,34 +334,15 @@ public partial class ConfigEditorViewModel(
                     AllowInstall = packVm.AllowInstall,
                     SetGameLanguageOnInstall = packVm.SetGameLanguageOnInstall,
                     ItemNames = packVm.ItemNames.ToList(),
-                };
-                Configuration.Packs.Add(pack);
+                });
             }
 
-            // Persist configuration files to disk if project directory exists
-            if (!string.IsNullOrEmpty(CurrentProject.ProjectDir))
-            {
-                var configDir = Path.Combine(CurrentProject.ProjectDir, ModBuilderConstants.ConfigDir);
-                if (!Directory.Exists(configDir))
-                {
-                    Directory.CreateDirectory(configDir);
-                }
-
-                var itemsPath = Path.Combine(configDir, ModBuilderConstants.BundleItemsConfigFileName);
-                var packsPath = Path.Combine(configDir, ModBuilderConstants.BundlePacksConfigFileName);
-
-                var jsonOptions = new System.Text.Json.JsonSerializerOptions { WriteIndented = true };
-                var itemsConfig = new BuildConfiguration { Items = Configuration.Items };
-                var packsConfig = new BuildConfiguration { Packs = Configuration.Packs };
-                File.WriteAllText(itemsPath, System.Text.Json.JsonSerializer.Serialize(itemsConfig, jsonOptions));
-                File.WriteAllText(packsPath, System.Text.Json.JsonSerializer.Serialize(packsConfig, jsonOptions));
-            }
+            PersistConfigurationToDisk(CurrentProject.ProjectDir);
 
             HasChanges = false;
             notificationService.ShowSuccess("Configuration Saved", "Configuration changes saved successfully");
             logger.LogInformation("Configuration saved successfully");
 
-            // Close the dialog after successful save
             if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
             {
                 CloseDialog();
@@ -389,6 +357,56 @@ public partial class ConfigEditorViewModel(
             logger.LogError(ex, "Failed to save configuration");
             notificationService.ShowError("Save Failed", $"Failed to save configuration: {ex.Message}");
         }
+    }
+
+    private static List<BundleFile> ParseItemFiles(BundleItemEditorViewModel itemVm, BundleItem? existingItem)
+    {
+        var files = new List<BundleFile>();
+        if (!string.IsNullOrWhiteSpace(itemVm.SourcePattern))
+        {
+            var patterns = itemVm.SourcePattern.Split([';', ','], StringSplitOptions.RemoveEmptyEntries);
+            foreach (var p in patterns)
+            {
+                var trimmed = p.Trim();
+                if (!string.IsNullOrEmpty(trimmed))
+                {
+                    files.Add(new BundleFile { AbsSourceFile = trimmed });
+                }
+            }
+        }
+        else if (existingItem?.Files != null && existingItem.Files.Count > 0)
+        {
+            files.AddRange(existingItem.Files);
+        }
+        else
+        {
+            files.Add(new BundleFile { AbsSourceFile = "GameFilesEdited/**/*.*" });
+        }
+
+        return files;
+    }
+
+    private void PersistConfigurationToDisk(string? projectDir)
+    {
+        if (string.IsNullOrEmpty(projectDir) || Configuration == null)
+        {
+            return;
+        }
+
+        var configDir = Path.Combine(projectDir, ModBuilderConstants.ConfigDir);
+        if (!Directory.Exists(configDir))
+        {
+            Directory.CreateDirectory(configDir);
+        }
+
+        var itemsPath = Path.Combine(configDir, ModBuilderConstants.BundleItemsConfigFileName);
+        var packsPath = Path.Combine(configDir, ModBuilderConstants.BundlePacksConfigFileName);
+
+        var jsonOptions = new System.Text.Json.JsonSerializerOptions { WriteIndented = true };
+        var itemsConfig = new BuildConfiguration { Items = Configuration.Items };
+        var packsConfig = new BuildConfiguration { Packs = Configuration.Packs };
+        File.WriteAllText(itemsPath, System.Text.Json.JsonSerializer.Serialize(itemsConfig, jsonOptions));
+        File.WriteAllText(packsPath, System.Text.Json.JsonSerializer.Serialize(packsConfig, jsonOptions));
     }
 
     /// <summary>

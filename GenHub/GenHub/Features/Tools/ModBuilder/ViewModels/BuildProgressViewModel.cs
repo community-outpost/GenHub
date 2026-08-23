@@ -12,10 +12,11 @@ namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 /// <summary>
 /// ViewModel for build progress overlay with stage-by-stage visualization.
 /// </summary>
-public partial class BuildProgressViewModel : ObservableObject
+public partial class BuildProgressViewModel : ObservableObject, IDisposable
 {
     private readonly Stopwatch _stopwatch = new();
     private CancellationTokenSource? _cancellationTokenSource;
+    private bool _disposed;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="BuildProgressViewModel"/> class.
@@ -99,6 +100,7 @@ public partial class BuildProgressViewModel : ObservableObject
         FilesPerSecond = 0;
 
         _stopwatch.Restart();
+        _cancellationTokenSource?.Dispose();
         _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
         // Initialize stages
@@ -107,25 +109,25 @@ public partial class BuildProgressViewModel : ObservableObject
         {
             Title = "Scanning Files",
             Icon = "IconScanning",
-            Status = "Pending"
+            Status = "Pending",
         });
         Stages.Add(new ProgressCardViewModel
         {
             Title = "Converting Assets",
             Icon = "IconConverting",
-            Status = "Pending"
+            Status = "Pending",
         });
         Stages.Add(new ProgressCardViewModel
         {
             Title = "Caching Results",
             Icon = "IconCaching",
-            Status = "Pending"
+            Status = "Pending",
         });
         Stages.Add(new ProgressCardViewModel
         {
             Title = "Creating Archives",
             Icon = "IconArchiving",
-            Status = "Pending"
+            Status = "Pending",
         });
 
         // Start timer for elapsed time updates
@@ -206,10 +208,9 @@ public partial class BuildProgressViewModel : ObservableObject
         }
 
         // Hide overlay after a short delay
-        Task.Delay(2000).ContinueWith(_ =>
-        {
-            Dispatcher.UIThread.Post(() => IsVisible = false);
-        });
+        Task.Delay(2000, CancellationToken.None).ContinueWith(
+            _ => Dispatcher.UIThread.Post(() => IsVisible = false),
+            TaskScheduler.Default);
     }
 
     /// <summary>
@@ -232,5 +233,19 @@ public partial class BuildProgressViewModel : ObservableObject
             ElapsedTime = _stopwatch.Elapsed.ToString(@"mm\:ss");
             await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _cancellationTokenSource?.Dispose();
+        _cancellationTokenSource = null;
+        GC.SuppressFinalize(this);
     }
 }

@@ -24,16 +24,6 @@ public class CrunchImageConversionService(
     IExternalToolService externalToolService,
     ILogger<CrunchImageConversionService> logger) : IImageConversionService
 {
-    private static readonly Dictionary<string, ResamplingMode> ResamplingModes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        { "nearest", ResamplingMode.NearestNeighbor },
-        { "box", ResamplingMode.Box },
-        { "bilinear", ResamplingMode.Bilinear },
-        { "hamming", ResamplingMode.Hamming },
-        { "bicubic", ResamplingMode.Bicubic },
-        { "lanczos", ResamplingMode.Lanczos },
-    };
-
     /// <inheritdoc />
     public async Task<bool> ConvertImageAsync(
         string sourcePath,
@@ -101,7 +91,7 @@ public class CrunchImageConversionService(
                 }
 
                 using var loaded = Image.Load(imagePath);
-                return DetectAlpha(loaded);
+                return ImageProcessingHelper.DetectAlpha(loaded);
             }, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
@@ -385,7 +375,7 @@ public class CrunchImageConversionService(
                     magickImage.Write(ms);
                     ms.Position = 0;
                     using var loaded = Image.Load(ms);
-                    var resized = ApplyResizeParameters(loaded, parameters);
+                    var resized = ImageProcessingHelper.ApplyResizeParameters(loaded, parameters);
                     resized.SaveAsTga(targetTgaPath, new TgaEncoder
                     {
                         BitsPerPixel = TgaBitsPerPixel.Pixel32,
@@ -421,7 +411,7 @@ public class CrunchImageConversionService(
                 alpha.Dispose();
 
                 using var psdLoaded = Image.Load(msPsd);
-                var resizedPsd = ApplyResizeParameters(psdLoaded, parameters);
+                var resizedPsd = ImageProcessingHelper.ApplyResizeParameters(psdLoaded, parameters);
                 resizedPsd.SaveAsTga(targetTgaPath, new TgaEncoder
                 {
                     BitsPerPixel = TgaBitsPerPixel.Pixel32,
@@ -438,7 +428,7 @@ public class CrunchImageConversionService(
             }
 
             using var image = Image.Load(sourcePath);
-            var resizedImage = ApplyResizeParameters(image, parameters);
+            var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
 
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -463,46 +453,27 @@ public class CrunchImageConversionService(
         IDictionary<string, object>? parameters,
         CancellationToken cancellationToken)
     {
-        return await Task.Run(() =>
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (sourceExt == ".dds")
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (sourceExt == ".dds")
-            {
-                using var magickDds = new MagickImage(sourcePath);
-                magickDds.Write(targetPath);
-                return true;
-            }
-
-            if (sourceExt == ".psd")
-            {
-                return ConvertPsdToStandardImage(sourcePath, targetPath, targetExt, parameters);
-            }
-
-            using var image = Image.Load(sourcePath);
-            var resizedImage = ApplyResizeParameters(image, parameters);
-
-            cancellationToken.ThrowIfCancellationRequested();
-
-            switch (targetExt)
-            {
-                case ".bmp":
-                    resizedImage.SaveAsBmp(targetPath, new BmpEncoder());
-                    break;
-                case ".tga":
-                    resizedImage.SaveAsTga(targetPath, new TgaEncoder
-                    {
-                        BitsPerPixel = TgaBitsPerPixel.Pixel32,
-                        Compression = TgaCompression.None
-                    });
-                    break;
-                default:
-                    resizedImage.Save(targetPath);
-                    break;
-            }
-
+            using var magickDds = new MagickImage(sourcePath);
+            magickDds.Write(targetPath);
             return true;
-        }, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (sourceExt == ".psd")
+        {
+            return ConvertPsdToStandardImage(sourcePath, targetPath, targetExt, parameters);
+        }
+
+        using var image = await Image.LoadAsync(sourcePath, cancellationToken).ConfigureAwait(false);
+        var resizedImage = ImageProcessingHelper.ApplyResizeParameters(image, parameters);
+
+        cancellationToken.ThrowIfCancellationRequested();
+        await ImageProcessingHelper.SaveImageToTargetAsync(resizedImage, targetPath, targetExt, cancellationToken).ConfigureAwait(false);
+
+        return true;
     }
 
     /// <summary>
@@ -523,8 +494,8 @@ public class CrunchImageConversionService(
             magickImage.Write(ms);
             ms.Position = 0;
             using var loaded = Image.Load(ms);
-            var resized = ApplyResizeParameters(loaded, parameters);
-            SaveImageToTarget(resized, targetPath, targetExt);
+            var resized = ImageProcessingHelper.ApplyResizeParameters(loaded, parameters);
+            ImageProcessingHelper.SaveImageToTargetAsync(resized, targetPath, targetExt).GetAwaiter().GetResult();
             return true;
         }
 
@@ -534,7 +505,7 @@ public class CrunchImageConversionService(
         var b = channels[2];
 
         var alpha = new MagickImage(MagickColors.White, magickImage.Width, magickImage.Height);
-        for (int i = 3; i < magickImage.ChannelCount; i++)
+        for (var i = 3; i < magickImage.ChannelCount; i++)
         {
             alpha.Composite(channels[i], CompositeOperator.Multiply);
         }
@@ -554,32 +525,9 @@ public class CrunchImageConversionService(
         alpha.Dispose();
 
         using var psdLoaded = Image.Load(msCombined);
-        var resizedPsd = ApplyResizeParameters(psdLoaded, parameters);
-        SaveImageToTarget(resizedPsd, targetPath, targetExt);
+        var resizedPsd = ImageProcessingHelper.ApplyResizeParameters(psdLoaded, parameters);
+        ImageProcessingHelper.SaveImageToTargetAsync(resizedPsd, targetPath, targetExt).GetAwaiter().GetResult();
         return true;
-    }
-
-    /// <summary>
-    /// Saves an imagesharp image to target path with proper format encoders.
-    /// </summary>
-    private static void SaveImageToTarget(Image image, string targetPath, string targetExt)
-    {
-        switch (targetExt)
-        {
-            case ".bmp":
-                image.SaveAsBmp(targetPath, new BmpEncoder());
-                break;
-            case ".tga":
-                image.SaveAsTga(targetPath, new TgaEncoder
-                {
-                    BitsPerPixel = TgaBitsPerPixel.Pixel32,
-                    Compression = TgaCompression.None
-                });
-                break;
-            default:
-                image.Save(targetPath);
-                break;
-        }
     }
 
     /// <summary>
@@ -635,265 +583,5 @@ public class CrunchImageConversionService(
         }
 
         return parameters.ContainsKey("resize") || parameters.ContainsKey("rescale");
-    }
-
-    /// <summary>
-    /// Applies resize and rescale parameters to an image.
-    /// </summary>
-    private static Image ApplyResizeParameters(Image image, IDictionary<string, object>? parameters)
-    {
-        if (parameters == null || parameters.Count == 0)
-        {
-            return image;
-        }
-
-        var size = image.Size;
-        var hasResize = false;
-
-        if (parameters.TryGetValue("resize", out var resizeObj))
-        {
-            size = ParseSizeParameter(resizeObj, size);
-            hasResize = true;
-        }
-
-        if (parameters.TryGetValue("rescale", out var rescaleObj))
-        {
-            var scale = ParseScaleParameter(rescaleObj);
-            size = new Size((int)(size.Width * scale.Width), (int)(size.Height * scale.Height));
-            hasResize = true;
-        }
-
-        if (!hasResize || size == image.Size)
-        {
-            return image;
-        }
-
-        var resamplingMode = ResamplingMode.Bilinear;
-        if (parameters.TryGetValue("resampling", out var resamplingObj) &&
-            resamplingObj is string resamplingStr &&
-            ResamplingModes.TryGetValue(resamplingStr, out var mode))
-        {
-            resamplingMode = mode;
-        }
-
-        if (DetectAlpha(image))
-        {
-            return ResizeRgbaChannelsSeparately(image, size, resamplingMode);
-        }
-
-        var resampler = resamplingMode switch
-        {
-            ResamplingMode.NearestNeighbor => KnownResamplers.NearestNeighbor,
-            ResamplingMode.Box => KnownResamplers.Box,
-            ResamplingMode.Bilinear => KnownResamplers.Triangle,
-            ResamplingMode.Hamming => KnownResamplers.Hermite,
-            ResamplingMode.Bicubic => KnownResamplers.Bicubic,
-            ResamplingMode.Lanczos => KnownResamplers.Lanczos3,
-            _ => KnownResamplers.Triangle,
-        };
-
-        image.Mutate(x => x.Resize(new ResizeOptions
-        {
-            Size = size,
-            Mode = ResizeMode.Stretch,
-            Sampler = resampler,
-        }));
-
-        return image;
-    }
-
-    /// <summary>
-    /// Resizes rgba channels independently to preserve color information where alpha is black.
-    /// </summary>
-    private static Image ResizeRgbaChannelsSeparately(Image image, Size size, ResamplingMode resamplingMode)
-    {
-        var resampler = resamplingMode switch
-        {
-            ResamplingMode.NearestNeighbor => KnownResamplers.NearestNeighbor,
-            ResamplingMode.Box => KnownResamplers.Box,
-            ResamplingMode.Bilinear => KnownResamplers.Triangle,
-            ResamplingMode.Hamming => KnownResamplers.Hermite,
-            ResamplingMode.Bicubic => KnownResamplers.Bicubic,
-            ResamplingMode.Lanczos => KnownResamplers.Lanczos3,
-            _ => KnownResamplers.Triangle,
-        };
-
-        using var rgba32Image = image.CloneAs<Rgba32>();
-
-        using var rChannel = new Image<L8>(rgba32Image.Width, rgba32Image.Height);
-        using var gChannel = new Image<L8>(rgba32Image.Width, rgba32Image.Height);
-        using var bChannel = new Image<L8>(rgba32Image.Width, rgba32Image.Height);
-        using var aChannel = new Image<L8>(rgba32Image.Width, rgba32Image.Height);
-
-        if (rgba32Image.DangerousTryGetSinglePixelMemory(out Memory<Rgba32> rgbaMemory) &&
-            rChannel.DangerousTryGetSinglePixelMemory(out Memory<L8> rMemory) &&
-            gChannel.DangerousTryGetSinglePixelMemory(out Memory<L8> gMemory) &&
-            bChannel.DangerousTryGetSinglePixelMemory(out Memory<L8> bMemory) &&
-            aChannel.DangerousTryGetSinglePixelMemory(out Memory<L8> aMemory))
-        {
-            var rgbaSpan = rgbaMemory.Span;
-            var rSpan = rMemory.Span;
-            var gSpan = gMemory.Span;
-            var bSpan = bMemory.Span;
-            var aSpan = aMemory.Span;
-
-            for (int i = 0; i < rgbaSpan.Length; i++)
-            {
-                var pixel = rgbaSpan[i];
-                rSpan[i] = new L8(pixel.R);
-                gSpan[i] = new L8(pixel.G);
-                bSpan[i] = new L8(pixel.B);
-                aSpan[i] = new L8(pixel.A);
-            }
-        }
-        else
-        {
-            for (int y = 0; y < rgba32Image.Height; y++)
-            {
-                for (int x = 0; x < rgba32Image.Width; x++)
-                {
-                    var pixel = rgba32Image[x, y];
-                    rChannel[x, y] = new L8(pixel.R);
-                    gChannel[x, y] = new L8(pixel.G);
-                    bChannel[x, y] = new L8(pixel.B);
-                    aChannel[x, y] = new L8(pixel.A);
-                }
-            }
-        }
-
-        rChannel.Mutate(x => x.Resize(new ResizeOptions { Size = size, Mode = ResizeMode.Stretch, Sampler = resampler }));
-        gChannel.Mutate(x => x.Resize(new ResizeOptions { Size = size, Mode = ResizeMode.Stretch, Sampler = resampler }));
-        bChannel.Mutate(x => x.Resize(new ResizeOptions { Size = size, Mode = ResizeMode.Stretch, Sampler = resampler }));
-        aChannel.Mutate(x => x.Resize(new ResizeOptions { Size = size, Mode = ResizeMode.Stretch, Sampler = resampler }));
-
-        var result = new Image<Rgba32>(size.Width, size.Height);
-        if (result.DangerousTryGetSinglePixelMemory(out Memory<Rgba32> resultMemory) &&
-            rChannel.DangerousTryGetSinglePixelMemory(out Memory<L8> rResizedMemory) &&
-            gChannel.DangerousTryGetSinglePixelMemory(out Memory<L8> gResizedMemory) &&
-            bChannel.DangerousTryGetSinglePixelMemory(out Memory<L8> bResizedMemory) &&
-            aChannel.DangerousTryGetSinglePixelMemory(out Memory<L8> aResizedMemory))
-        {
-            var resultSpan = resultMemory.Span;
-            var rSpan = rResizedMemory.Span;
-            var gSpan = gResizedMemory.Span;
-            var bSpan = bResizedMemory.Span;
-            var aSpan = aResizedMemory.Span;
-
-            for (int i = 0; i < resultSpan.Length; i++)
-            {
-                resultSpan[i] = new Rgba32(rSpan[i].PackedValue, gSpan[i].PackedValue, bSpan[i].PackedValue, aSpan[i].PackedValue);
-            }
-        }
-        else
-        {
-            for (int y = 0; y < result.Height; y++)
-            {
-                for (int x = 0; x < result.Width; x++)
-                {
-                    result[x, y] = new Rgba32(
-                        rChannel[x, y].PackedValue,
-                        gChannel[x, y].PackedValue,
-                        bChannel[x, y].PackedValue,
-                        aChannel[x, y].PackedValue);
-                }
-            }
-        }
-
-        return result;
-    }
-
-    /// <summary>
-    /// Parses size parameters from diverse input formats.
-    /// </summary>
-    private static Size ParseSizeParameter(object sizeObj, Size currentSize)
-    {
-        return sizeObj switch
-        {
-            int singleValue => new Size(singleValue, singleValue),
-            double singleDouble => new Size((int)singleDouble, (int)singleDouble),
-            int[] array when array.Length == 1 => new Size(array[0], array[0]),
-            int[] array when array.Length >= 2 => new Size(array[0], array[1]),
-            List<int> list when list.Count == 1 => new Size(list[0], list[0]),
-            List<int> list when list.Count >= 2 => new Size(list[0], list[1]),
-            _ => currentSize
-        };
-    }
-
-    /// <summary>
-    /// Parses scale parameters from diverse input formats.
-    /// </summary>
-    private static (double Width, double Height) ParseScaleParameter(object scaleObj)
-    {
-        return scaleObj switch
-        {
-            double singleValue => (singleValue, singleValue),
-            int singleInt => (singleInt, singleInt),
-            double[] array when array.Length == 1 => (array[0], array[0]),
-            double[] array when array.Length >= 2 => (array[0], array[1]),
-            List<double> list when list.Count == 1 => (list[0], list[0]),
-            List<double> list when list.Count >= 2 => (list[0], list[1]),
-            _ => (1.0, 1.0)
-        };
-    }
-
-    /// <summary>
-    /// Detects if an imagesharp image has non-opaque alpha pixels.
-    /// </summary>
-    private static bool DetectAlpha(Image image)
-    {
-        if (image.PixelType.AlphaRepresentation == PixelAlphaRepresentation.None ||
-            image.PixelType.BitsPerPixel == 24 ||
-            image.PixelType.BitsPerPixel == 48)
-        {
-            return false;
-        }
-
-        if (image is Image<Rgba32> rgbaImage)
-        {
-            if (rgbaImage.DangerousTryGetSinglePixelMemory(out Memory<Rgba32> memory))
-            {
-                var span = memory.Span;
-                for (int i = 0; i < span.Length; i++)
-                {
-                    if (span[i].A < 255)
-                    {
-                        return true;
-                    }
-                }
-
-                return false;
-            }
-
-            var hasAlpha = false;
-            rgbaImage.ProcessPixelRows(accessor =>
-            {
-                for (int y = 0; y < accessor.Height; y++)
-                {
-                    var pixelRow = accessor.GetRowSpan(y);
-                    for (int x = 0; x < pixelRow.Length; x++)
-                    {
-                        if (pixelRow[x].A < 255)
-                        {
-                            hasAlpha = true;
-                            return;
-                        }
-                    }
-                }
-            });
-
-            return hasAlpha;
-        }
-
-        return true;
-    }
-
-    private enum ResamplingMode
-    {
-        NearestNeighbor,
-        Box,
-        Bilinear,
-        Hamming,
-        Bicubic,
-        Lanczos,
     }
 }

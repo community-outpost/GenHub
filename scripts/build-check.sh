@@ -36,9 +36,9 @@ SOLUTION_DIR="$(cd "${SCRIPT_DIR}/../GenHub" && pwd)"
 SOLUTION_FILE="${SOLUTION_DIR}/GenHub.sln"
 LOCK_FILE="/tmp/GenHub_Build_Mutex.lock"
 
-if [ -n "$PROJECT" ]; then
+if [[ -n "$PROJECT" ]]; then
   TARGET="${SOLUTION_DIR}/${PROJECT}"
-  if [ ! -f "$TARGET" ]; then
+  if [[ ! -f "$TARGET" ]]; then
     echo "Project not found: $TARGET"
     exit 1
   fi
@@ -57,7 +57,7 @@ echo "[build-check] Running ${MODE} on $(basename "$TARGET")..."
 EXIT_CODE=0
 case "$MODE" in
   check)
-    if [ -n "$PROJECT" ]; then
+    if [[ -n "$PROJECT" ]]; then
       dotnet build "$TARGET" --no-restore --nologo --verbosity "$VERBOSITY" -maxcpucount:2 --no-dependencies
     else
       dotnet build "$TARGET" --no-restore --nologo --verbosity "$VERBOSITY" -maxcpucount:2
@@ -74,7 +74,7 @@ case "$MODE" in
     ;;
 esac
 
-if [ $EXIT_CODE -eq 0 ]; then
+if [[ $EXIT_CODE -eq 0 ]]; then
   echo "[build-check] Completed successfully with no errors."
 else
   echo "[build-check] ERROR: Build/check failed with exit code: $EXIT_CODE"

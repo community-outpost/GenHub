@@ -439,7 +439,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     {
         try
         {
-            var result = await _projectConfigService.GetRecentProjectsAsync(10).ConfigureAwait(false);
+            var result = await _projectConfigService.GetRecentProjectsAsync(10, CancellationToken.None).ConfigureAwait(false);
             if (result.Success && result.Data != null)
             {
                 var projectInfos = new List<RecentProjectInfo>();
@@ -577,7 +577,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                         CancellationToken.None).ConfigureAwait(false);
 
                     await LoadProjectDataAsync().ConfigureAwait(false);
-                    await _projectConfigService.AddToRecentProjectsAsync(projectPath).ConfigureAwait(false);
+                    await _projectConfigService.AddToRecentProjectsAsync(projectPath, CancellationToken.None).ConfigureAwait(false);
                     await LoadRecentProjectsAsync().ConfigureAwait(false);
 
                     _notificationService.ShowSuccess(
@@ -842,7 +842,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 ShowQuickStartGuide = true;
 
                 await LoadProjectDataAsync().ConfigureAwait(false);
-                await _projectConfigService.AddToRecentProjectsAsync(projectPath).ConfigureAwait(false);
+                await _projectConfigService.AddToRecentProjectsAsync(projectPath, CancellationToken.None).ConfigureAwait(false);
 
                 _notificationService.ShowSuccess("Project Loaded", $"Loaded: {Path.GetFileName(projectPath)}");
                 AppendBuildLog($"Loaded project: {projectPath}");
@@ -1232,7 +1232,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             });
 
             // Build the BuildStep flags from enabled checkboxes
-            var buildSteps = BuildStep.Zero;
+            var buildSteps = BuildStep.None;
             if (CleanEnabled) buildSteps |= BuildStep.Clean;
             if (BuildEnabled) buildSteps |= BuildStep.Build;
             if (ReleaseEnabled) buildSteps |= BuildStep.Release;
@@ -1381,17 +1381,19 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             }
 
             // Count all files in GameFilesEdited folder recursively
-            var fileCount = await Task.Run(() =>
-            {
-                try
+            var fileCount = await Task.Run(
+                () =>
                 {
-                    return Directory.GetFiles(editFolder, "*.*", SearchOption.AllDirectories).Length;
-                }
-                catch
-                {
-                    return 0;
-                }
-            }).ConfigureAwait(false);
+                    try
+                    {
+                        return Directory.GetFiles(editFolder, "*.*", SearchOption.AllDirectories).Length;
+                    }
+                    catch
+                    {
+                        return 0;
+                    }
+                },
+                CancellationToken.None).ConfigureAwait(false);
 
             return fileCount;
         }
@@ -1429,7 +1431,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             var buildDir = CurrentProject.Directories.Build;
             if (!string.IsNullOrEmpty(buildDir) && Directory.Exists(buildDir))
             {
-                await Task.Run(() => Directory.Delete(buildDir, recursive: true)).ConfigureAwait(false);
+                await Task.Run(() => Directory.Delete(buildDir, recursive: true), CancellationToken.None).ConfigureAwait(false);
                 AppendBuildLog($"Cleaned build directory: {buildDir}");
                 _notificationService.ShowSuccess("Clean Complete", "Build directory cleaned");
                 StatusMessage = "Build directory cleaned";

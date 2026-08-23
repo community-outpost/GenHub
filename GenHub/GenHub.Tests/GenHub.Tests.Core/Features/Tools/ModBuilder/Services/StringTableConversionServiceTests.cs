@@ -15,13 +15,15 @@ namespace GenHub.Tests.Core.Features.Tools.ModBuilder.Services;
 public sealed class StringTableConversionServiceTests : IDisposable
 {
     private readonly Mock<ILogger<StringTableConversionService>> _mockLogger;
+    private readonly Mock<GenHub.Core.Interfaces.Tools.ModBuilder.IExternalToolService> _mockExternalToolService;
     private readonly StringTableConversionService _service;
     private readonly string _tempDirectory;
 
     public StringTableConversionServiceTests()
     {
         _mockLogger = new Mock<ILogger<StringTableConversionService>>();
-        _service = new StringTableConversionService(_mockLogger.Object);
+        _mockExternalToolService = new Mock<GenHub.Core.Interfaces.Tools.ModBuilder.IExternalToolService>();
+        _service = new StringTableConversionService(_mockExternalToolService.Object, _mockLogger.Object);
         _tempDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         Directory.CreateDirectory(_tempDirectory);
     }
@@ -38,7 +40,7 @@ public sealed class StringTableConversionServiceTests : IDisposable
     public void Constructor_WithValidDependencies_DoesNotThrow()
     {
         // Act
-        var service = new StringTableConversionService(_mockLogger.Object);
+        var service = new StringTableConversionService(_mockExternalToolService.Object, _mockLogger.Object);
 
         // Assert
         service.Should().NotBeNull();

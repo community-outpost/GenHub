@@ -463,12 +463,12 @@ public partial class FileManagerViewModel(
     }
 
     /// <summary>
-    /// Computes MD5 hash of a file.
+    /// Computes hash of a file for comparison.
     /// </summary>
     private static async Task<string> ComputeFileHashAsync(string filePath, CancellationToken cancellationToken)
     {
         await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, useAsync: true);
-        var hash = await MD5.HashDataAsync(stream, cancellationToken).ConfigureAwait(false);
+        var hash = await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false);
         return Convert.ToHexString(hash);
     }
 

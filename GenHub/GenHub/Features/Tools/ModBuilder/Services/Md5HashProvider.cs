@@ -11,6 +11,8 @@ namespace GenHub.Features.Tools.ModBuilder.Services;
 /// <summary>
 /// Provides MD5 hash computation for files with efficient streaming.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5351:Do Not Use Broken Cryptographic Algorithms", Justification = "MD5 is required for legacy C&C game asset compatibility and non-cryptographic checksum verification")]
+[System.Diagnostics.CodeAnalysis.SuppressMessage("SonarSource.Security", "S4790", Justification = "MD5 is required for legacy game engine checksum compatibility")]
 public sealed class Md5HashProvider : IMd5HashProvider
 {
     /// <summary>
@@ -19,6 +21,8 @@ public sealed class Md5HashProvider : IMd5HashProvider
     /// <param name="filePath">The path to the file.</param>
     /// <param name="cancellationToken">A cancellation token.</param>
     /// <returns>The MD5 hash as a lowercase hex string.</returns>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5351:Do Not Use Broken Cryptographic Algorithms", Justification = "MD5 is required for legacy C&C game asset compatibility")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("SonarSource.Security", "S4790", Justification = "MD5 is required for legacy game engine checksum compatibility")]
     public async Task<string> ComputeFileHashAsync(string filePath, CancellationToken cancellationToken = default)
     {
         await using var stream = new FileStream(

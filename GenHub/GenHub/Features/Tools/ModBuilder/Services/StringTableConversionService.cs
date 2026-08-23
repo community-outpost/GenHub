@@ -14,6 +14,7 @@ namespace GenHub.Features.Tools.ModBuilder.Services;
 /// Service for converting between CSF (game string table) and STR (text) formats using gametextcompiler.
 /// </summary>
 public sealed class StringTableConversionService(
+    IExternalToolService externalToolService,
     ILogger<StringTableConversionService> logger) : IStringTableConversionService
 {
     private const string ToolName = "gametextcompiler";
@@ -58,7 +59,8 @@ public sealed class StringTableConversionService(
             logger.LogInformation("Converting STR to CSF: {Source} -> {Target}", sourceStrPath, targetCsfPath);
             logger.LogDebug("Executing: {Tool} {Args}", toolPath, arguments);
 
-            var result = await ExecuteToolAsync(toolPath, arguments.ToString(), cancellationToken);
+            var workingDir = Path.GetDirectoryName(toolPath) ?? Environment.CurrentDirectory;
+            var result = await externalToolService.ExecuteToolAsync(toolPath, arguments.ToString(), workingDir, null, cancellationToken).ConfigureAwait(false);
 
             if (result.Success)
             {
@@ -119,7 +121,8 @@ public sealed class StringTableConversionService(
             logger.LogInformation("Converting CSF to STR: {Source} -> {Target}", sourceCsfPath, targetStrPath);
             logger.LogDebug("Executing: {Tool} {Args}", toolPath, arguments);
 
-            var result = await ExecuteToolAsync(toolPath, arguments.ToString(), cancellationToken);
+            var workingDir = Path.GetDirectoryName(toolPath) ?? Environment.CurrentDirectory;
+            var result = await externalToolService.ExecuteToolAsync(toolPath, arguments.ToString(), workingDir, null, cancellationToken).ConfigureAwait(false);
 
             if (result.Success)
             {
@@ -147,109 +150,15 @@ public sealed class StringTableConversionService(
     }
 
     /// <summary>
-    /// Executes the external tool with the given arguments.
-    /// </summary>
-    /// <param name="toolPath">The path to the tool executable.</param>
-    /// <param name="arguments">The command-line arguments.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Operation result.</returns>
-    private async Task<OperationResult<bool>> ExecuteToolAsync(string toolPath, string arguments, CancellationToken cancellationToken)
-    {
-        var processStartInfo = new ProcessStartInfo
-        {
-            FileName = toolPath,
-            Arguments = arguments,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
-            WorkingDirectory = Path.GetDirectoryName(toolPath) ?? Environment.CurrentDirectory,
-        };
-
-        var outputBuilder = new StringBuilder();
-        var errorBuilder = new StringBuilder();
-
-        try
-        {
-            using var process = new Process { StartInfo = processStartInfo };
-
-            process.OutputDataReceived += (sender, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                {
-                    outputBuilder.AppendLine(e.Data);
-                    logger.LogDebug("[{Tool}] {Output}", ToolName, e.Data);
-                }
-            };
-
-            process.ErrorDataReceived += (sender, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                {
-                    errorBuilder.AppendLine(e.Data);
-                    logger.LogWarning("[{Tool}] {Error}", ToolName, e.Data);
-                }
-            };
-
-            process.Start();
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-            try
-            {
-                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                timeoutCts.CancelAfter(TimeSpan.FromSeconds(60));
-                await process.WaitForExitAsync(timeoutCts.Token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                try
-                {
-                    if (!process.HasExited)
-                    {
-                        process.Kill(entireProcessTree: true);
-                    }
-                }
-                catch
-                {
-                    // Ignore failure killing already exited process
-                }
-
-                throw;
-            }
-
-            var exitCode = process.ExitCode;
-
-            if (exitCode != 0)
-            {
-                var errorMessage = errorBuilder.Length > 0 ? errorBuilder.ToString() : $"Process exited with code {exitCode}";
-                logger.LogError("{Tool} failed with exit code {ExitCode}: {Error}", ToolName, exitCode, errorMessage);
-                return OperationResult<bool>.CreateFailure(errorMessage);
-            }
-
-            return OperationResult<bool>.CreateSuccess(true);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error executing {Tool}", ToolName);
-            return OperationResult<bool>.CreateFailure($"Error executing {ToolName}: {ex.Message}");
-        }
-    }
-
-    /// <summary>
     /// Finds the path to the gametextcompiler tool.
     /// </summary>
     /// <returns>The tool path if found; otherwise, null.</returns>
-    private string? FindToolPath()
+    private static string? FindToolPath()
     {
         var extensions = OperatingSystem.IsWindows()
             ? new[] { ".exe", string.Empty }
             : new[] { string.Empty, ".exe" };
 
-        // Check if tool exists in PATH
         var pathEnv = Environment.GetEnvironmentVariable("PATH");
         if (!string.IsNullOrEmpty(pathEnv))
         {
@@ -267,28 +176,12 @@ public sealed class StringTableConversionService(
             }
         }
 
-        // Check current directory
         foreach (var ext in extensions)
         {
             var currentDirTool = Path.Combine(Environment.CurrentDirectory, ToolName + ext);
             if (File.Exists(currentDirTool))
             {
                 return currentDirTool;
-            }
-        }
-
-        // Check common tool locations
-        var commonPaths = new[]
-        {
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "GeneralsTools", ToolName + ".exe"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "GeneralsTools", ToolName + ".exe"),
-        };
-
-        foreach (var path in commonPaths)
-        {
-            if (File.Exists(path))
-            {
-                return path;
             }
         }
 
