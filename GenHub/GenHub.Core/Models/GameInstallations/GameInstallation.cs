@@ -262,7 +262,7 @@ public class GameInstallation : IGameInstallation
             if (Directory.Exists(path))
             {
                 var directoryInfo = new DirectoryInfo(path);
-                if (directoryInfo.GetFiles("*.big").Any(f => f.Name.EndsWith(GameClientConstants.ZeroHourArchiveExtensionSuffix, StringComparison.OrdinalIgnoreCase)))
+                if (directoryInfo.EnumerateFiles().Any(f => f.Name.EndsWith(GameClientConstants.ZeroHourArchiveExtensionSuffix, StringComparison.OrdinalIgnoreCase)))
                 {
                     return true;
                 }

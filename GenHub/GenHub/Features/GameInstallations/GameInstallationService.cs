@@ -702,7 +702,7 @@ public class GameInstallationService(
 
                     return hasPath;
                 })
-                .GroupBy(m => m.Metadata.SourcePath!, StringComparer.OrdinalIgnoreCase);
+                .GroupBy(m => m.Metadata.SourcePath!, PathHelper.PathComparer);
 
             foreach (var group in manifestsByPath)
             {
