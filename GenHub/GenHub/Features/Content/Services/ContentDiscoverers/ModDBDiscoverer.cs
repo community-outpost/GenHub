@@ -27,11 +27,14 @@ namespace GenHub.Features.Content.Services.ContentDiscoverers;
 /// <summary>
 /// Discovers content from ModDB website using Playwright to bypass WAF/Bot protections.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "ModDB discovery handles pagination, challenge detection, and scraping across multiple sections.")]
 public partial class ModDBDiscoverer(
     ILogger<ModDBDiscoverer> logger,
     IPlaywrightService playwrightService,
     IHttpClientFactory httpClientFactory) : IContentDiscoverer
 {
+    private const string UnknownValue = "Unknown";
+
     /// <inheritdoc />
     public string SourceName => ModDBConstants.DiscovererSourceName;
 
@@ -182,14 +185,13 @@ public partial class ModDBDiscoverer(
     private static bool TryNormalizeHttpModDBUrl(string trimmed, [NotNullWhen(true)] out string? normalizedUrl)
     {
         normalizedUrl = null;
-        if (trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-            trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        if ((trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+             trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) &&
+            Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) &&
+            IsModDBHost(uri.Host))
         {
-            if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) && IsModDBHost(uri.Host))
-            {
-                normalizedUrl = uri.AbsoluteUri;
-                return true;
-            }
+            normalizedUrl = uri.AbsoluteUri;
+            return true;
         }
 
         return false;
@@ -198,14 +200,13 @@ public partial class ModDBDiscoverer(
     private static bool TryNormalizeDomainModDBUrl(string trimmed, [NotNullWhen(true)] out string? normalizedUrl)
     {
         normalizedUrl = null;
-        if (trimmed.StartsWith("moddb.com", StringComparison.OrdinalIgnoreCase) ||
-            trimmed.StartsWith("www.moddb.com", StringComparison.OrdinalIgnoreCase))
+        if ((trimmed.StartsWith("moddb.com", StringComparison.OrdinalIgnoreCase) ||
+             trimmed.StartsWith("www.moddb.com", StringComparison.OrdinalIgnoreCase)) &&
+            Uri.TryCreate("https://" + trimmed, UriKind.Absolute, out var uri) &&
+            IsModDBHost(uri.Host))
         {
-            if (Uri.TryCreate("https://" + trimmed, UriKind.Absolute, out var uri) && IsModDBHost(uri.Host))
-            {
-                normalizedUrl = uri.AbsoluteUri;
-                return true;
-            }
+            normalizedUrl = uri.AbsoluteUri;
+            return true;
         }
 
         return false;
@@ -427,7 +428,7 @@ public partial class ModDBDiscoverer(
                         item.QuerySelector("span.by a") ??
                         item.QuerySelector("span.author a");
         var author = authorLink?.TextContent?.Trim();
-        return string.IsNullOrWhiteSpace(author) ? "Unknown" : author;
+        return string.IsNullOrWhiteSpace(author) ? UnknownValue : author;
     }
 
     private static string ExtractIconUrl(AngleSharp.Dom.IElement item)
@@ -674,7 +675,7 @@ public partial class ModDBDiscoverer(
         }
 
         var authorLink = document.QuerySelector("a[href*='/members/'], span.by a, span.author a, .subheading a");
-        var author = authorLink?.TextContent?.Trim() ?? "Unknown";
+        var author = authorLink?.TextContent?.Trim() ?? UnknownValue;
 
         var descEl = document.QuerySelector("meta[name='description']");
         var descriptionText = descEl?.GetAttribute("content")
@@ -949,7 +950,7 @@ public partial class ModDBDiscoverer(
             "ModDB did not expose a listing selector within {Timeout} ms for {Url} (page title: '{Title}'), parsing the current document...",
             ModDBConstants.VerificationWaitTimeoutMs,
             url,
-            pageTitle ?? "Unknown");
+            pageTitle ?? UnknownValue);
         return false;
     }
 
@@ -1016,7 +1017,7 @@ public partial class ModDBDiscoverer(
                     Id = prospectiveId,
                     Name = title,
                     Description = description,
-                    AuthorName = "Unknown",
+                    AuthorName = UnknownValue,
                     ContentType = contentType,
                     TargetGame = gameType,
                     ProviderName = ModDBConstants.DiscovererSourceName,

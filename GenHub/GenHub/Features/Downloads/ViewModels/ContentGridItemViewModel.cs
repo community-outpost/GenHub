@@ -31,6 +31,7 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <param name="contentStateService">The content state service.</param>
 /// <param name="logger">The logger.</param>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel instance methods and properties bound to UI and MVVM bindings.")]
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Content grid item VM coordinates download, installation, and multi-component bundle state.")]
 public sealed partial class ContentGridItemViewModel(
     ContentSearchResult searchResult,
     IContentStateService contentStateService,
@@ -563,12 +564,9 @@ public sealed partial class ContentGridItemViewModel(
             {
                 foreach (var component in BundleComponents)
                 {
-                    foreach (var variant in component.Variants)
+                    foreach (var variant in component.Variants.Where(variant => !string.IsNullOrEmpty(variant.ManifestId) && variantIds.Contains(variant.ManifestId)))
                     {
-                        if (!string.IsNullOrEmpty(variant.ManifestId) && variantIds.Contains(variant.ManifestId))
-                        {
-                            component.MarkDownloaded(e.ContentId, e.ManifestId ?? variant.ManifestId);
-                        }
+                        component.MarkDownloaded(e.ContentId, e.ManifestId ?? variant.ManifestId);
                     }
                 }
 

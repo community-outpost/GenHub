@@ -53,6 +53,7 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <param name="variantSearchResults">Optional map of sibling variant search results.</param>
 [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ContentDetailViewModel coordinates rich media, downloads, profile binding, and custom tabs.")]
 [SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Properties and methods access CommunityToolkit MVVM generated instance properties.")]
+[SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Content detail ViewModel coordinates complex UI state, downloads, and multiple catalog sources.")]
 public partial class ContentDetailViewModel(
     ContentSearchResult searchResult,
     IReadOnlyList<IWebPageParser> parsers,
@@ -1455,14 +1456,14 @@ public partial class ContentDetailViewModel(
             return await parser.ParseAsync(searchResult.SourceUrl ?? string.Empty, timeoutCts.Token)
                 .WaitAsync(timeoutCts.Token);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
             if (_cts.IsCancellationRequested)
             {
                 throw;
             }
 
-            logger.LogWarning("Timed out parsing {Url}; showing catalog data only", searchResult.SourceUrl);
+            logger.LogWarning(ex, "Timed out parsing {Url}; showing catalog data only", searchResult.SourceUrl);
             return null;
         }
     }
@@ -1720,12 +1721,9 @@ public partial class ContentDetailViewModel(
             return;
         }
 
-        foreach (var screenshot in catalogItem.Metadata.ScreenshotUrls)
+        foreach (var screenshot in catalogItem.Metadata.ScreenshotUrls.Where(screenshot => !Screenshots.Contains(screenshot)))
         {
-            if (!Screenshots.Contains(screenshot))
-            {
-                Screenshots.Add(screenshot);
-            }
+            Screenshots.Add(screenshot);
         }
 
         if (string.IsNullOrEmpty(SelectedScreenshotUrl))
@@ -3489,7 +3487,7 @@ public partial class ContentDetailViewModel(
             releaseItem.SelectCommand = new RelayCommand(
                 () =>
                 {
-                    if (variantSearchResults != null && variantSearchResults.TryGetValue(manifestId, out var swapSr))
+                    if (variantSearchResults?.TryGetValue(manifestId, out var swapSr) == true)
                     {
                         VariantSwap.Apply(searchResult, swapSr);
                         SelectedVariant = variant;
@@ -3501,7 +3499,7 @@ public partial class ContentDetailViewModel(
 
             releaseItem.DownloadCommand = new AsyncRelayCommand(async () =>
             {
-                if (variantSearchResults != null && variantSearchResults.TryGetValue(manifestId, out var swapSr))
+                if (variantSearchResults?.TryGetValue(manifestId, out var swapSr) == true)
                 {
                     VariantSwap.Apply(searchResult, swapSr);
                     SelectedVariant = variant;
@@ -3512,7 +3510,7 @@ public partial class ContentDetailViewModel(
 
             releaseItem.AddToProfileCommand = new AsyncRelayCommand(async () =>
             {
-                if (variantSearchResults != null && variantSearchResults.TryGetValue(manifestId, out var swapSr))
+                if (variantSearchResults?.TryGetValue(manifestId, out var swapSr) == true)
                 {
                     VariantSwap.Apply(searchResult, swapSr);
                     SelectedVariant = variant;

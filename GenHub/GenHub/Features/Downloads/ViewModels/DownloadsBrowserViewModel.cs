@@ -47,6 +47,7 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// </remarks>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Primary constructor injects required services for browser and discovery orchestrator.")]
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel properties and methods bound to MVVM UI.")]
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Downloads browser orchestrates multi-source discovery, filtering, pagination, and subscription catalog caching.")]
 public sealed partial class DownloadsBrowserViewModel(
     IServiceProvider serviceProvider,
     ILogger<DownloadsBrowserViewModel> logger,

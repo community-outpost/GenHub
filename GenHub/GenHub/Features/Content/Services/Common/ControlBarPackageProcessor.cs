@@ -317,6 +317,7 @@ public class ControlBarPackageProcessor(
             catch (IOException ex) when (attempt < maxRetries)
             {
                 logger.LogWarning(
+                    ex,
                     "File copy attempt {Attempt}/{MaxRetries} failed for {Source}: {Message}. Retrying...",
                     attempt,
                     maxRetries,
@@ -497,14 +498,11 @@ public class ControlBarPackageProcessor(
                 Path.Combine(extractedDirectory, "CCG", variantId, "BIG", ControlBarProZhBigFileName),
             };
 
-            foreach (var searchPath in metadataSearchPaths)
+            var foundSearchPath = metadataSearchPaths.FirstOrDefault(File.Exists);
+            if (foundSearchPath != null)
             {
-                if (File.Exists(searchPath))
-                {
-                    logger.LogInformation("Found Control Bar metadata file at {SourcePath}, copying to root", searchPath);
-                    await TryCopyFileWithRetryAsync(searchPath, metadataTargetPath, logger);
-                    break;
-                }
+                logger.LogInformation("Found Control Bar metadata file at {SourcePath}, copying to root", foundSearchPath);
+                await TryCopyFileWithRetryAsync(foundSearchPath, metadataTargetPath, logger);
             }
         }
 

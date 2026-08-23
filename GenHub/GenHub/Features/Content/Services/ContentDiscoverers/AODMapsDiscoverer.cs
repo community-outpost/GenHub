@@ -495,6 +495,7 @@ public partial class AODMapsDiscoverer(
     public ContentSourceCapabilities Capabilities => ContentSourceCapabilities.RequiresDiscovery;
 
     /// <inheritdoc />
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "AODMaps discovery iterates irregular legacy HTML pages and handles custom pagination.")]
     public async Task<OperationResult<ContentDiscoveryResult>> DiscoverAsync(
         ContentSearchQuery query,
         CancellationToken cancellationToken = default)
@@ -616,7 +617,6 @@ public partial class AODMapsDiscoverer(
         }
         catch (OperationCanceledException)
         {
-            logger.LogInformation("AODMaps discovery was cancelled");
             throw;
         }
         catch (Exception ex)

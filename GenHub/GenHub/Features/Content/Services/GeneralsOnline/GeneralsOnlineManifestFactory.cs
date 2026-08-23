@@ -263,7 +263,7 @@ public class GeneralsOnlineManifestFactory(
     {
         // For maps, relative path should be relative to the Maps directory if present
         var mapRelativePath = relativePath;
-        var pathSegments = relativePath.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]);
+        var pathSegments = relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         var mapsIndex = Array.FindIndex(pathSegments, s => s.Equals(GeneralsOnlineConstants.MapsSubdirectory, StringComparison.OrdinalIgnoreCase));
         if (mapsIndex >= 0 && mapsIndex < pathSegments.Length - 1)
         {

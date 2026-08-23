@@ -145,15 +145,8 @@ public partial class CommunityOutpostDeliverer(
             return prefixMetadata.ContentCode;
         }
 
-        foreach (var code in GenPatcherContentRegistry.GetKnownContentCodes())
-        {
-            if (contentName.StartsWith(code, StringComparison.OrdinalIgnoreCase))
-            {
-                return code;
-            }
-        }
-
-        return codePrefix;
+        return GenPatcherContentRegistry.GetKnownContentCodes()
+            .FirstOrDefault(code => contentName.StartsWith(code, StringComparison.OrdinalIgnoreCase)) ?? codePrefix;
     }
 
     [GeneratedRegex(@"href=[""']([^""']*generals-?zh.*?(\d{4}-\d{2}-\d{2}|\d{2}-\d{2}-\d{4}|\d{8}|\d{6}).*?\.(?:zip|7z|rar|exe))[""']", RegexOptions.IgnoreCase)]

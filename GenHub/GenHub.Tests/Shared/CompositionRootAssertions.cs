@@ -244,6 +244,7 @@ public static class CompositionRootAssertions
                 ValidateOnBuild = true,
                 ValidateScopes = true,
             });
+            Assert.NotNull(provider);
         }
         catch (AggregateException aggregate)
         {

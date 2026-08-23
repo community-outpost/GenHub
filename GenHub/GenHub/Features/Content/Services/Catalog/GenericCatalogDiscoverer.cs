@@ -30,6 +30,7 @@ namespace GenHub.Features.Content.Services.Catalog;
 /// Built-in providers (GeneralsOnline, ModDB, …) keep their specialized discoverers; this class
 /// covers user-subscribed catalogs and future definition-resolved catalog endpoints.
 /// </remarks>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Catalog discovery involves multi-axis variant normalization, dynamic hydration, and manifest conversion.")]
 public class GenericCatalogDiscoverer(
     ILogger<GenericCatalogDiscoverer> logger,
     IHttpClientFactory httpClientFactory,
@@ -133,9 +134,10 @@ public class GenericCatalogDiscoverer(
         }
 
         var multiAxes = hinted
-            .GroupBy(a => a.VariantAxis!, StringComparer.OrdinalIgnoreCase)
+            .Where(a => a.VariantAxis != null)
+            .GroupBy(a => a.VariantAxis, StringComparer.OrdinalIgnoreCase)
             .Where(g => g.Count() > 1)
-            .Select(g => g.Key)
+            .Select(g => g.Key!)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         if (multiAxes.Count == 0)
@@ -143,7 +145,7 @@ public class GenericCatalogDiscoverer(
             return [];
         }
 
-        return hinted.Where(a => multiAxes.Contains(a.VariantAxis!)).ToList();
+        return hinted.Where(a => a.VariantAxis != null && multiAxes.Contains(a.VariantAxis)).ToList();
     }
 
     /// <summary>
@@ -394,7 +396,11 @@ public class GenericCatalogDiscoverer(
                 return OperationResult<ContentDiscoveryResult>.CreateFailure(catalogResult);
             }
 
-            var catalog = catalogResult.Data!;
+            var catalog = catalogResult.Data;
+            if (catalog == null)
+            {
+                return OperationResult<ContentDiscoveryResult>.CreateFailure("Catalog data is null");
+            }
 
             // Dynamically hydrate upstream releases (e.g. TheSuperHackers latest release)
             await HydrateDynamicReleasesAsync(catalog, cancellationToken);
@@ -556,21 +562,20 @@ public class GenericCatalogDiscoverer(
         }
 
         // Also synchronize any ContentBundle dependencies targeting the hydrated sibling items
-        foreach (var bundle in catalog.Content.Where(c => c.ContentType == ContentType.ContentBundle && c.Releases != null))
+        var bundleDependencies = catalog.Content
+            .Where(c => c.ContentType == ContentType.ContentBundle && c.Releases != null)
+            .SelectMany(b => b.Releases!)
+            .Where(r => r.Dependencies != null)
+            .SelectMany(r => r.Dependencies!);
+
+        foreach (var dep in bundleDependencies)
         {
-            foreach (var release in bundle.Releases)
+            if (!string.IsNullOrWhiteSpace(dep.ContentId) &&
+                (hydratedItemIds.Contains(dep.ContentId) ||
+                 (dep.PublisherId?.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) == true &&
+                  dep.VersionConstraint?.Equals("latest", StringComparison.OrdinalIgnoreCase) == true)))
             {
-                if (release.Dependencies == null) continue;
-                foreach (var dep in release.Dependencies)
-                {
-                    if (!string.IsNullOrWhiteSpace(dep.ContentId) &&
-                        (hydratedItemIds.Contains(dep.ContentId) ||
-                         (dep.PublisherId?.Equals(PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase) == true &&
-                          dep.VersionConstraint?.Equals("latest", StringComparison.OrdinalIgnoreCase) == true)))
-                    {
-                        dep.VersionConstraint = $">={cleanTag}";
-                    }
-                }
+                dep.VersionConstraint = $">={cleanTag}";
             }
         }
     }

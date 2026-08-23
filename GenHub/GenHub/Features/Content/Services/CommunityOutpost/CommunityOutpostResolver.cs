@@ -194,7 +194,7 @@ public class CommunityOutpostResolver(
 
         if (TryParseDateVersion(trimmed, out var dateResult))
         {
-            return dateResult!;
+            return dateResult;
         }
 
         // Remove dots and leading zeros to get numeric version
@@ -207,7 +207,7 @@ public class CommunityOutpostResolver(
         return "0";
     }
 
-    private static bool TryParseDateVersion(string trimmed, out string? result)
+    private static bool TryParseDateVersion(string trimmed, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? result)
     {
         // Handle date versions like "2025-11-07" (YYYY-MM-DD)
         if (trimmed.Length == 10 && trimmed[4] == '-' && trimmed[7] == '-')

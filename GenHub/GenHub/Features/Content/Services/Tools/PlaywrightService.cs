@@ -414,6 +414,7 @@ public sealed class PlaywrightService(
     }
 
     /// <inheritdoc />
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CS-P1001:Calling GC methods manually may reduce performance", Justification = "Standard IDisposable pattern.")]
     public void Dispose()
     {
         if (_disposed)
@@ -426,6 +427,7 @@ public sealed class PlaywrightService(
     }
 
     /// <inheritdoc />
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CS-P1001:Calling GC methods manually may reduce performance", Justification = "Standard IAsyncDisposable pattern.")]
     public async ValueTask DisposeAsync()
     {
         if (_disposed)
@@ -582,17 +584,8 @@ public sealed class PlaywrightService(
 
     private static List<string> GetOrderedUniqueUrls(IReadOnlyList<string> urls)
     {
-        var orderedUnique = new List<string>(urls.Count);
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var url in urls)
-        {
-            if (!string.IsNullOrWhiteSpace(url) && seen.Add(url))
-            {
-                orderedUnique.Add(url);
-            }
-        }
-
-        return orderedUnique;
+        return urls.Where(url => !string.IsNullOrWhiteSpace(url) && seen.Add(url)).ToList();
     }
 
     /// <summary>
@@ -750,7 +743,7 @@ public sealed class PlaywrightService(
     {
         try
         {
-            var otherPages = _persistentContext!.Pages.Where(p => !p.IsClosed && p != page).ToList();
+            var otherPages = _persistentContext?.Pages.Where(p => !p.IsClosed && p != page).ToList() ?? [];
 
             if (_activePersistentSessions > 0)
             {
@@ -826,6 +819,7 @@ public sealed class PlaywrightService(
         _persistentProfileName = null;
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Browser automation download workflow requires sequential steps and error handling.")]
     private async Task<DownloadResult> DownloadFileCoreAsync(
         GenHub.Core.Models.Common.DownloadConfiguration configuration,
         bool usePersistentModDbProfile,
@@ -1246,7 +1240,7 @@ public sealed class PlaywrightService(
             return;
         }
 
-        List<IPage> pages;
+        List<IPage> pages = [];
         try
         {
             pages = [.. _persistentContext.Pages];

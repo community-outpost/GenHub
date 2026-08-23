@@ -26,6 +26,7 @@ namespace GenHub.Features.Downloads.Services;
 /// </remarks>
 /// <param name="manifestPool">The manifest pool to check for existing content.</param>
 /// <param name="logger">The logger for diagnostic output.</param>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Content state resolution inspects manifest pools, hash matches, sibling variants, and bundle hierarchies.")]
 public sealed partial class ContentStateService(
     IContentManifestPool manifestPool,
     ILogger<ContentStateService> logger) : IContentStateService

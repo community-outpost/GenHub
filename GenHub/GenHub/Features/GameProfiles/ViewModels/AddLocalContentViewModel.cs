@@ -27,6 +27,7 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 /// <param name="dialogService">Service for showing dialogs.</param>
 /// <param name="archivePayloadProcessor">Service for archive extraction and payload structure normalization.</param>
 /// <param name="logger">Logger instance.</param>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "ViewModel instance methods access CommunityToolkit MVVM generated properties.")]
 public partial class AddLocalContentViewModel(
     ILocalContentService localContentService,
     IContentStorageService? contentStorageService,

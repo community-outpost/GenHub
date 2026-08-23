@@ -28,6 +28,7 @@ namespace GenHub.Features.GameProfiles.Services;
 /// Service for managing content-to-profile operations including adding content,
 /// detecting conflicts, and creating profiles with pre-enabled content.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Profile content resolution manages manifest dependency graphs, variant conflict resolution, and workspace configuration.")]
 public sealed class ProfileContentService(
     IGameProfileManager profileManager,
     IContentManifestPool manifestPool,
@@ -890,12 +891,9 @@ public sealed class ProfileContentService(
             }
         }
 
-        foreach (var requestedId in requestedIds)
+        foreach (var requestedId in requestedIds.Where(requestedId => !enabledContentIds.Contains(requestedId, StringComparer.OrdinalIgnoreCase)))
         {
-            if (!enabledContentIds.Contains(requestedId, StringComparer.OrdinalIgnoreCase))
-            {
-                enabledContentIds.Add(requestedId);
-            }
+            enabledContentIds.Add(requestedId);
         }
 
         return (swappedContentId, swappedContentName, swappedContentType);

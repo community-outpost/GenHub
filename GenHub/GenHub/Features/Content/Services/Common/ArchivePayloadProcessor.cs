@@ -21,6 +21,7 @@ namespace GenHub.Features.Content.Services.Common;
 /// <summary>
 /// Service for safely extracting archives and normalizing payload directory structures for game workspaces.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Payload normalization handles diverse archive topologies, legacy SIM installers, NSIS installers, and directory hierarchies.")]
 public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : IArchivePayloadProcessor
 {
     private const int MaxNestedExtractionDepth = 5;
@@ -77,19 +78,12 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
                         var archivePath = archiveFiles[archiveIdx];
                         cancellationToken.ThrowIfCancellationRequested();
 
-                        try
-                        {
-                            EnsureValidArchivePayload(archivePath);
-                            logger.LogInformation("Extracting archive safely: {ArchivePath}", archivePath);
+                        EnsureValidArchivePayload(archivePath);
+                        logger.LogInformation("Extracting archive safely: {ArchivePath}", archivePath);
 
-                            ExtractSingleArchive(archivePath, extractedDirectory, progress, logger, cancellationToken);
-                            File.Delete(archivePath);
-                            logger.LogInformation("Extracted archive and removed archive source: {ArchivePath}", archivePath);
-                        }
-                        catch (Exception ex)
-                        {
-                            throw new InvalidDataException($"Failed to extract archive: {archivePath}", ex);
-                        }
+                        ExtractSingleArchive(archivePath, extractedDirectory, progress, logger, cancellationToken);
+                        File.Delete(archivePath);
+                        logger.LogInformation("Extracted archive and removed archive source: {ArchivePath}", archivePath);
                     }
                 }
 
@@ -778,6 +772,7 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Zip entry extraction requires stream coordinates, cancellation, and progress reporting.")]
     private static void ExtractSingleZipEntry(
         ZipArchiveEntry entry,
         string extractRoot,
@@ -1930,12 +1925,11 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
     {
         try
         {
-            foreach (var subDir in Directory.GetDirectories(rootDirectory, "*", SearchOption.AllDirectories).OrderByDescending(d => d.Length))
+            foreach (var subDir in Directory.GetDirectories(rootDirectory, "*", SearchOption.AllDirectories)
+                         .OrderByDescending(d => d.Length)
+                         .Where(subDir => Directory.Exists(subDir) && !Directory.EnumerateFileSystemEntries(subDir).Any()))
             {
-                if (Directory.Exists(subDir) && !Directory.EnumerateFileSystemEntries(subDir).Any())
-                {
-                    Directory.Delete(subDir);
-                }
+                Directory.Delete(subDir);
             }
         }
         catch

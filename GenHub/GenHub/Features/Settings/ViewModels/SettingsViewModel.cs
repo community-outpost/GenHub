@@ -412,21 +412,27 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
         foreach (var file in files)
         {
-            ProcessSingleLogFile(file, activeLogPath, activeLogFileName, todayUtcLogFileName, logger, ref deleted, ref locked, ref freed);
+            var (fileDeleted, fileLocked, fileFreed) = ProcessSingleLogFile(file, activeLogPath, activeLogFileName, todayUtcLogFileName, logger);
+            if (fileDeleted)
+            {
+                deleted++;
+                freed += fileFreed;
+            }
+            else if (fileLocked)
+            {
+                locked++;
+            }
         }
 
         return (deleted, locked, freed);
     }
 
-    private static void ProcessSingleLogFile(
+    private static (bool Deleted, bool Locked, long FreedBytes) ProcessSingleLogFile(
         string file,
         string activeLogPath,
         string activeLogFileName,
         string todayUtcLogFileName,
-        ILogger logger,
-        ref int deletedCount,
-        ref int lockedCount,
-        ref long freedBytes)
+        ILogger logger)
     {
         try
         {
@@ -446,13 +452,17 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 DeleteOrTruncateFile(file);
             }
 
-            deletedCount++;
-            freedBytes += length;
+            return (true, false, length);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException ex)
         {
-            lockedCount++;
             logger.LogWarning(ex, "Could not clear log file: {File}", file);
+            return (false, true, 0);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogWarning(ex, "Could not clear log file: {File}", file);
+            return (false, true, 0);
         }
     }
 
@@ -462,7 +472,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             File.Delete(file);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (IOException)
+        {
+            TruncateFileInPlace(file);
+        }
+        catch (UnauthorizedAccessException)
         {
             TruncateFileInPlace(file);
         }

@@ -39,6 +39,7 @@ namespace GenHub.Features.GameProfiles.Services;
 /// Facade for game profile launching operations, coordinating between multiple services
 /// to provide a simplified interface for launching game profiles.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Profile launcher orchestrates complex workspace reconciliation, CAS hardlinks, runtime wrappers, and pre/post-launch hooks.")]
 public class ProfileLauncherFacade(
     IGameProfileManager profileManager,
     IGameLauncher gameLauncher,
@@ -1982,7 +1983,12 @@ public class ProfileLauncherFacade(
             return null;
         }
 
-        foreach (var idString in profile.EnabledContentIds!)
+        if (profile.EnabledContentIds == null)
+        {
+            return null;
+        }
+
+        foreach (var idString in profile.EnabledContentIds)
         {
             if (!ManifestId.TryCreate(idString, out var id))
             {

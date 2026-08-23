@@ -307,7 +307,7 @@ public sealed class ImageCacheService
         using var ms = new MemoryStream();
         var buffer = new byte[81920];
         long totalRead = 0;
-        int read;
+        int read = 0;
 
         while ((read = await responseStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
         {
@@ -477,6 +477,9 @@ public sealed class ImageCacheService
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Bug", "S2583:Conditionally executed code should be reachable", Justification = "Required for C# compiler null safety.")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2583:Boolean expressions should not be gratuitous", Justification = "Required for C# compiler null safety.")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Image fetching handles retries, redirects, cache validation, and protocol normalization.")]
     private async Task<HttpResponseMessage?> FetchImageResponseAsync(string initialUrl)
     {
         var currentUrl = initialUrl;
@@ -525,14 +528,9 @@ public sealed class ImageCacheService
             break;
         }
 
-        if (response == null)
+        if (response == null || !response.IsSuccessStatusCode)
         {
-            return null;
-        }
-
-        if (!response.IsSuccessStatusCode)
-        {
-            response.Dispose();
+            response?.Dispose();
             return null;
         }
 

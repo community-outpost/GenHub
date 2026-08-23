@@ -206,7 +206,8 @@ public class ModDBResolver(
         // Extract screenshots from image sections
         var screenshots = parsedPage.Sections.OfType<Image>()
             .Where(img => !string.IsNullOrEmpty(img.FullSizeUrl))
-            .Select(img => img.FullSizeUrl!)
+            .Select(img => img.FullSizeUrl)
+            .OfType<string>()
             .ToList();
 
         // Use file's release date or fallback to context release date or current date

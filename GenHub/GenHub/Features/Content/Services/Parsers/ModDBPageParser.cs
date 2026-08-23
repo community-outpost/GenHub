@@ -20,6 +20,9 @@ namespace GenHub.Features.Content.Services.Parsers;
 /// <summary>
 /// Parser for ModDB pages that extracts rich content including files, videos, images, articles, reviews, and comments.
 /// </summary>
+[SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "HTML parser requires branching for various DOM structures across ModDB versions.")]
+[SuppressMessage("Minor Code Smell", "S1192:String literals should not be duplicated", Justification = "DOM selectors and URL fragments are scoped to specific parsing blocks.")]
+[SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Parser instance methods share logger and helper state.")]
 public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogger<ModDBPageParser> logger) : IWebPageParser
 {
     private const string ViewMediaText = "View media";
@@ -83,6 +86,14 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
             ModDBConstants.BrowserProfileName,
             () => FetchAndParseInternalAsync(url, cancellationToken),
             cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public Task<ParsedWebPage> ParseAsync(string url, string html, CancellationToken cancellationToken = default)
+    {
+        var browsingContext = BrowsingContext.New(Configuration.Default);
+        var document = browsingContext.OpenAsync(req => req.Content(html), cancellationToken).GetAwaiter().GetResult();
+        return Task.FromResult(ParseInternal(url, document));
     }
 
     /// <summary>
@@ -167,14 +178,6 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
         }
 
         return results;
-    }
-
-    /// <inheritdoc />
-    public Task<ParsedWebPage> ParseAsync(string url, string html, CancellationToken cancellationToken = default)
-    {
-        var browsingContext = BrowsingContext.New(Configuration.Default);
-        var document = browsingContext.OpenAsync(req => req.Content(html), cancellationToken).GetAwaiter().GetResult();
-        return Task.FromResult(ParseInternal(url, document));
     }
 
     /// <summary>
@@ -683,13 +686,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
             if (!string.IsNullOrEmpty(subHeadingText))
             {
                 var categoryKeywords = new[] { "Full Version", "Patch", "Demo", "Tool", "Addon", "Map", "Skin" };
-                foreach (var keyword in categoryKeywords)
-                {
-                    if (subHeadingText.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return keyword;
-                    }
-                }
+                return categoryKeywords.FirstOrDefault(keyword => subHeadingText.Contains(keyword, StringComparison.OrdinalIgnoreCase)) ?? category;
             }
         }
 
@@ -849,6 +846,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
                     md5Hash = content;
                     break;
                 default:
+                    // Ignore unrecognized metadata labels
                     break;
             }
         }
@@ -860,7 +858,8 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
     {
         if (content.Contains("bytes") && content.Contains('(') && content.Contains(')'))
         {
-            var bytesPart = content.Split('(').Last().Replace("bytes)", string.Empty).Replace(",", string.Empty).Trim();
+            var parts = content.Split('(');
+            var bytesPart = parts[^1].Replace("bytes)", string.Empty).Replace(",", string.Empty).Trim();
             if (long.TryParse(bytesPart, out var bytesVal))
             {
                 return bytesVal;
@@ -1406,15 +1405,7 @@ public partial class ModDBPageParser(IPlaywrightService playwrightService, ILogg
             "/cache/images/groups/", "/cache/images/members/", "icon.gif",
         };
 
-        foreach (var token in disallowedTokens)
-        {
-            if (src.Contains(token, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return disallowedTokens.Any(token => src.Contains(token, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool IsDisallowedAltText(string alt)
