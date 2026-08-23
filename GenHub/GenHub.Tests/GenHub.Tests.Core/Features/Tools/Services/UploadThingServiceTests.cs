@@ -246,6 +246,8 @@ public sealed class UploadThingServiceTests : IDisposable
     /// <summary>
     /// Verifies that DeleteFileAsync returns false when given empty or whitespace parameters.
     /// </summary>
+    /// <param name="key">The file key.</param>
+    /// <param name="token">The deletion authorization token.</param>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Theory]
     [InlineData("", "valid_token")]
