@@ -215,9 +215,7 @@ internal sealed class ManagedChromiumRuntime(
     private async Task<int> ExecuteInstallWithProgressAsync(Guid toastId, CancellationToken cancellationToken)
     {
         using var progressCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var progressTask = Task.Run(
-            () => RunProgressNotificationLoopAsync(toastId, progressCts.Token),
-            progressCts.Token);
+        var progressTask = Task.Run(() => RunProgressNotificationLoopAsync(toastId, progressCts.Token));
 
         try
         {
@@ -231,15 +229,11 @@ internal sealed class ManagedChromiumRuntime(
         }
         catch (OperationCanceledException)
         {
-            await progressCts.CancelAsync();
-            await progressTask;
             notificationService?.Dismiss(toastId);
             throw;
         }
         catch (Exception ex)
         {
-            await progressCts.CancelAsync();
-            await progressTask;
             notificationService?.Dismiss(toastId);
             notificationService?.ShowError(
                 ModDBConstants.ChromiumInstallFailedTitle,
@@ -252,7 +246,14 @@ internal sealed class ManagedChromiumRuntime(
         finally
         {
             await progressCts.CancelAsync();
-            await progressTask;
+            try
+            {
+                await progressTask;
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected on cancellation
+            }
         }
     }
 
