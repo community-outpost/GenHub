@@ -1,15 +1,18 @@
+using System;
 using System.Collections;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Templates;
 using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Layout;
 using CommunityToolkit.Mvvm.Input;
 
 namespace GenHub.Common.Controls;
 
 /// <summary>
-/// A layout control that provides a collapsible sidebar pane and a main content area.
+/// A layout control that provides a collapsible, resizable inline sidebar pane and a main content area.
 /// </summary>
 public class SidebarLayout : ContentControl
 {
@@ -17,7 +20,10 @@ public class SidebarLayout : ContentControl
     /// Defines the <see cref="IsPaneOpen"/> property.
     /// </summary>
     public static readonly StyledProperty<bool> IsPaneOpenProperty =
-        AvaloniaProperty.Register<SidebarLayout, bool>(nameof(IsPaneOpen), defaultValue: false);
+        AvaloniaProperty.Register<SidebarLayout, bool>(
+            nameof(IsPaneOpen),
+            defaultValue: true,
+            defaultBindingMode: Avalonia.Data.BindingMode.TwoWay);
 
     /// <summary>
     /// Defines the <see cref="PaneTitle"/> property.
@@ -29,7 +35,22 @@ public class SidebarLayout : ContentControl
     /// Defines the <see cref="OpenPaneLength"/> property.
     /// </summary>
     public static readonly StyledProperty<double> OpenPaneLengthProperty =
-        AvaloniaProperty.Register<SidebarLayout, double>(nameof(OpenPaneLength), 300);
+        AvaloniaProperty.Register<SidebarLayout, double>(
+            nameof(OpenPaneLength),
+            defaultValue: 220.0,
+            defaultBindingMode: Avalonia.Data.BindingMode.TwoWay);
+
+    /// <summary>
+    /// Defines the <see cref="MinPaneLength"/> property.
+    /// </summary>
+    public static readonly StyledProperty<double> MinPaneLengthProperty =
+        AvaloniaProperty.Register<SidebarLayout, double>(nameof(MinPaneLength), 140.0);
+
+    /// <summary>
+    /// Defines the <see cref="MaxPaneLength"/> property.
+    /// </summary>
+    public static readonly StyledProperty<double> MaxPaneLengthProperty =
+        AvaloniaProperty.Register<SidebarLayout, double>(nameof(MaxPaneLength), 360.0);
 
     /// <summary>
     /// Defines the <see cref="PaneHeader"/> property.
@@ -63,9 +84,19 @@ public class SidebarLayout : ContentControl
     public static readonly StyledProperty<IDataTemplate?> ItemTemplateProperty =
         AvaloniaProperty.Register<SidebarLayout, IDataTemplate?>(nameof(ItemTemplate));
 
-    private Panel? _triggerZone;
-    private Panel? _contentOverlay;
+    private ColumnDefinition? _sidebarColumn;
+    private ColumnDefinition? _splitterColumn;
     private Control? _sidebarPane;
+    private GridSplitter? _splitter;
+    private Control? _triggerZone;
+
+    static SidebarLayout()
+    {
+        IsPaneOpenProperty.Changed.AddClassHandler<SidebarLayout>((x, _) => x.OnIsPaneOpenChanged());
+        OpenPaneLengthProperty.Changed.AddClassHandler<SidebarLayout>((x, _) => x.OnOpenPaneLengthChanged());
+        MinPaneLengthProperty.Changed.AddClassHandler<SidebarLayout>((x, _) => x.OnMinMaxPaneLengthChanged());
+        MaxPaneLengthProperty.Changed.AddClassHandler<SidebarLayout>((x, _) => x.OnMinMaxPaneLengthChanged());
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SidebarLayout"/> class.
@@ -73,6 +104,8 @@ public class SidebarLayout : ContentControl
     public SidebarLayout()
     {
         ClosePaneCommand = new RelayCommand(() => IsPaneOpen = false);
+        OpenPaneCommand = new RelayCommand(() => IsPaneOpen = true);
+        TogglePaneCommand = new RelayCommand(() => IsPaneOpen = !IsPaneOpen);
     }
 
     /// <summary>
@@ -100,6 +133,24 @@ public class SidebarLayout : ContentControl
     {
         get => GetValue(OpenPaneLengthProperty);
         set => SetValue(OpenPaneLengthProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the minimum width of the sidebar pane when resizing.
+    /// </summary>
+    public double MinPaneLength
+    {
+        get => GetValue(MinPaneLengthProperty);
+        set => SetValue(MinPaneLengthProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the maximum width of the sidebar pane when resizing.
+    /// </summary>
+    public double MaxPaneLength
+    {
+        get => GetValue(MaxPaneLengthProperty);
+        set => SetValue(MaxPaneLengthProperty, value);
     }
 
     /// <summary>
@@ -152,6 +203,16 @@ public class SidebarLayout : ContentControl
     /// </summary>
     public IRelayCommand ClosePaneCommand { get; }
 
+    /// <summary>
+    /// Gets the command that opens the sidebar pane.
+    /// </summary>
+    public IRelayCommand OpenPaneCommand { get; }
+
+    /// <summary>
+    /// Gets the command that toggles the sidebar pane open or closed.
+    /// </summary>
+    public IRelayCommand TogglePaneCommand { get; }
+
     /// <inheritdoc/>
     protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
     {
@@ -160,38 +221,204 @@ public class SidebarLayout : ContentControl
         if (_triggerZone != null)
         {
             _triggerZone.PointerEntered -= OnTriggerZonePointerEntered;
-        }
-
-        if (_contentOverlay != null)
-        {
-            _contentOverlay.PointerPressed -= OnContentPointerPressed;
-            _contentOverlay.PointerEntered -= OnContentPointerEntered;
+            _triggerZone.PointerPressed -= OnTriggerZonePointerPressed;
         }
 
         if (_sidebarPane != null)
         {
-            _sidebarPane.PointerExited -= OnSidebarPanePointerExited;
+            _sidebarPane.SizeChanged -= OnSidebarPaneSizeChanged;
         }
 
-        _triggerZone = e.NameScope.Find<Panel>("PART_TriggerZone");
-        _contentOverlay = e.NameScope.Find<Panel>("PART_ContentOverlay");
+        if (_splitter != null)
+        {
+            _splitter.PointerCaptureLost -= OnSplitterDragCompleted;
+            _splitter.PointerReleased -= OnSplitterDragCompleted;
+        }
+
+        var rootGrid = e.NameScope.Find<Grid>("PART_RootGrid");
+        if (rootGrid != null && rootGrid.ColumnDefinitions.Count >= 2)
+        {
+            _sidebarColumn = rootGrid.ColumnDefinitions[0];
+            _splitterColumn = rootGrid.ColumnDefinitions[1];
+        }
+        else
+        {
+            _sidebarColumn = null;
+            _splitterColumn = null;
+        }
+
         _sidebarPane = e.NameScope.Find<Control>("PART_SidebarPane");
+        _splitter = e.NameScope.Find<GridSplitter>("PART_Splitter");
+        _triggerZone = e.NameScope.Find<Control>("PART_TriggerZone");
 
         if (_triggerZone != null)
         {
             _triggerZone.PointerEntered += OnTriggerZonePointerEntered;
-        }
-
-        if (_contentOverlay != null)
-        {
-            _contentOverlay.PointerPressed += OnContentPointerPressed;
-            _contentOverlay.PointerEntered += OnContentPointerEntered;
+            _triggerZone.PointerPressed += OnTriggerZonePointerPressed;
         }
 
         if (_sidebarPane != null)
         {
-            _sidebarPane.PointerExited += OnSidebarPanePointerExited;
+            _sidebarPane.SizeChanged += OnSidebarPaneSizeChanged;
         }
+
+        if (_splitter != null)
+        {
+            _splitter.PointerCaptureLost += OnSplitterDragCompleted;
+            _splitter.PointerReleased += OnSplitterDragCompleted;
+        }
+
+        UpdateLayoutState();
+    }
+
+    /// <inheritdoc/>
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+
+        if (_triggerZone != null)
+        {
+            _triggerZone.PointerEntered -= OnTriggerZonePointerEntered;
+            _triggerZone.PointerPressed -= OnTriggerZonePointerPressed;
+        }
+
+        if (_sidebarPane != null)
+        {
+            _sidebarPane.SizeChanged -= OnSidebarPaneSizeChanged;
+        }
+
+        if (_splitter != null)
+        {
+            _splitter.PointerCaptureLost -= OnSplitterDragCompleted;
+            _splitter.PointerReleased -= OnSplitterDragCompleted;
+        }
+
+        if (IsPaneOpen && _sidebarColumn != null && _sidebarColumn.Width.IsAbsolute && _sidebarColumn.Width.Value > 0)
+        {
+            OpenPaneLength = ClampPaneLength(_sidebarColumn.Width.Value, MinPaneLength, MaxPaneLength);
+        }
+    }
+
+    private static double ClampPaneLength(double value, double min, double max)
+    {
+        var resolvedMin = double.IsNaN(min) || double.IsInfinity(min) || min < 0 ? 0 : min;
+        var resolvedMax = double.IsNaN(max) || double.IsInfinity(max) || max < resolvedMin ? Math.Max(resolvedMin, 360.0) : max;
+
+        if (resolvedMin > resolvedMax)
+        {
+            (resolvedMin, resolvedMax) = (resolvedMax, resolvedMin);
+        }
+
+        var resolvedVal = double.IsNaN(value) || double.IsInfinity(value) ? 220.0 : value;
+        return Math.Clamp(resolvedVal, resolvedMin, resolvedMax);
+    }
+
+    private static void SetControlVisibility(Control? control, bool isVisible)
+    {
+        if (control != null)
+        {
+            control.IsVisible = isVisible;
+        }
+    }
+
+    private void OnIsPaneOpenChanged()
+    {
+        UpdateLayoutState();
+    }
+
+    private void OnOpenPaneLengthChanged()
+    {
+        if (IsPaneOpen && _sidebarColumn != null)
+        {
+            var clamped = ClampPaneLength(OpenPaneLength, MinPaneLength, MaxPaneLength);
+            if (Math.Abs(_sidebarColumn.Width.Value - clamped) > 0.5)
+            {
+                _sidebarColumn.Width = new GridLength(clamped, GridUnitType.Pixel);
+            }
+        }
+    }
+
+    private void OnMinMaxPaneLengthChanged()
+    {
+        if (IsPaneOpen && _sidebarColumn != null)
+        {
+            var min = Math.Min(MinPaneLength, MaxPaneLength);
+            var max = Math.Max(MinPaneLength, MaxPaneLength);
+            _sidebarColumn.MinWidth = min;
+            _sidebarColumn.MaxWidth = max;
+            var clamped = ClampPaneLength(OpenPaneLength, min, max);
+            _sidebarColumn.Width = new GridLength(clamped, GridUnitType.Pixel);
+        }
+    }
+
+    private void OnSidebarPaneSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (IsPaneOpen && _sidebarColumn != null && _sidebarPane != null && _sidebarPane.Bounds.Width > 0)
+        {
+            var clamped = ClampPaneLength(_sidebarPane.Bounds.Width, MinPaneLength, MaxPaneLength);
+            if (Math.Abs(OpenPaneLength - clamped) > 1.0)
+            {
+                OpenPaneLength = clamped;
+            }
+        }
+    }
+
+    private void OnSplitterDragCompleted(object? sender, RoutedEventArgs e)
+    {
+        if (IsPaneOpen && _sidebarColumn != null && _sidebarColumn.Width.IsAbsolute && _sidebarColumn.Width.Value > 0)
+        {
+            OpenPaneLength = ClampPaneLength(_sidebarColumn.Width.Value, MinPaneLength, MaxPaneLength);
+        }
+    }
+
+    private void UpdateLayoutState()
+    {
+        if (_sidebarColumn is null || _splitterColumn is null)
+        {
+            return;
+        }
+
+        if (IsPaneOpen)
+        {
+            ApplyOpenState(_sidebarColumn, _splitterColumn);
+        }
+        else
+        {
+            ApplyClosedState(_sidebarColumn, _splitterColumn);
+        }
+    }
+
+    private void ApplyOpenState(ColumnDefinition sidebarColumn, ColumnDefinition splitterColumn)
+    {
+        var min = Math.Min(MinPaneLength, MaxPaneLength);
+        var max = Math.Max(MinPaneLength, MaxPaneLength);
+        var length = ClampPaneLength(OpenPaneLength, min, max);
+
+        sidebarColumn.Width = new GridLength(length, GridUnitType.Pixel);
+        sidebarColumn.MinWidth = min;
+        sidebarColumn.MaxWidth = max;
+        splitterColumn.Width = new GridLength(4, GridUnitType.Pixel);
+
+        SetControlVisibility(_sidebarPane, true);
+        SetControlVisibility(_splitter, true);
+        SetControlVisibility(_triggerZone, false);
+    }
+
+    private void ApplyClosedState(ColumnDefinition sidebarColumn, ColumnDefinition splitterColumn)
+    {
+        if (sidebarColumn.Width.IsAbsolute && sidebarColumn.Width.Value > 0)
+        {
+            OpenPaneLength = ClampPaneLength(sidebarColumn.Width.Value, MinPaneLength, MaxPaneLength);
+        }
+
+        sidebarColumn.Width = new GridLength(0, GridUnitType.Pixel);
+        sidebarColumn.MinWidth = 0;
+        sidebarColumn.MaxWidth = 0;
+        splitterColumn.Width = new GridLength(0, GridUnitType.Pixel);
+
+        SetControlVisibility(_sidebarPane, false);
+        SetControlVisibility(_splitter, false);
+        SetControlVisibility(_triggerZone, true);
     }
 
     private void OnTriggerZonePointerEntered(object? sender, PointerEventArgs e)
@@ -199,26 +426,8 @@ public class SidebarLayout : ContentControl
         IsPaneOpen = true;
     }
 
-    private void OnSidebarPanePointerExited(object? sender, PointerEventArgs e)
+    private void OnTriggerZonePointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        // Only close if we are actually outside the pane bounds
-        // This simple check works for now; more robust hit testing could be added if needed
-        var point = e.GetPosition(_sidebarPane);
-        if (_sidebarPane != null &&
-            (point.X < 0 || point.X >= _sidebarPane.Bounds.Width ||
-             point.Y < 0 || point.Y >= _sidebarPane.Bounds.Height))
-        {
-            IsPaneOpen = false;
-        }
-    }
-
-    private void OnContentPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        IsPaneOpen = false;
-    }
-
-    private void OnContentPointerEntered(object? sender, PointerEventArgs e)
-    {
-        IsPaneOpen = false;
+        IsPaneOpen = true;
     }
 }

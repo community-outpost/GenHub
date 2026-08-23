@@ -166,6 +166,7 @@
                             ItemsSource="{Binding Publishers}"
                             SelectedItem="{Binding SelectedPublisher, Mode=TwoWay}"
                             IsPaneOpen="{Binding IsPaneOpen, Mode=TwoWay}"
+                            OpenPaneLength="{Binding OpenPaneLength, Mode=TwoWay}"
                             ItemTemplate="{StaticResource PublisherItemTemplate}">
 
         <controls:SidebarLayout.Resources>

@@ -87,6 +87,9 @@ public sealed partial class DownloadsBrowserViewModel(
     private bool _isPaneOpen = true;
 
     [ObservableProperty]
+    private double _openPaneLength = 220.0;
+
+    [ObservableProperty]
     private bool _isFilterPanelVisible;
 
     [ObservableProperty]

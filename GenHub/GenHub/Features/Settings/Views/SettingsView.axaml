@@ -3,9 +3,11 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:GenHub.Features.Settings.ViewModels"
+             xmlns:models="clr-namespace:GenHub.Features.Settings.Models"
              xmlns:theming="clr-namespace:GenHub.Core.Models.Theming;assembly=GenHub.Core"
              xmlns:converters="clr-namespace:GenHub.Infrastructure.Converters;assembly=GenHub"
              xmlns:controls="clr-namespace:GenHub.Infrastructure.Controls;assembly=GenHub"
+             xmlns:commonControls="clr-namespace:GenHub.Common.Controls"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
              x:Class="GenHub.Features.Settings.Views.SettingsView"
              x:DataType="vm:SettingsViewModel"
@@ -13,8 +15,18 @@
 
   <UserControl.Resources>
     <converters:NullableIntConverter x:Key="NullableIntConverter" />
+    <converters:NullableDoubleConverter x:Key="NullableDoubleConverter" />
     <converters:TrustLevelToColorConverter x:Key="TrustLevelToColorConverter" />
     <converters:ColorToBrushConverter x:Key="ColorToBrushConverter" />
+
+    <DataTemplate x:Key="SettingsSectionItemTemplate" DataType="models:SettingsSectionItem">
+      <Grid ColumnDefinitions="Auto,*" Margin="4,2">
+        <PathIcon Grid.Column="0" Data="{Binding IconData}" Width="15" Height="15"
+                  Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+        <TextBlock Grid.Column="1" Text="{Binding Title}" Foreground="{DynamicResource TextPrimary}"
+                   FontSize="13" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+      </Grid>
+    </DataTemplate>
   </UserControl.Resources>
 
   <UserControl.Styles>
@@ -150,6 +162,12 @@
     </Style>
   </UserControl.Styles>
 
+  <commonControls:SidebarLayout PaneTitle="Settings"
+                                ItemsSource="{Binding Sections}"
+                                SelectedItem="{Binding SelectedSection, Mode=TwoWay}"
+                                IsPaneOpen="{Binding IsPaneOpen, Mode=TwoWay}"
+                                OpenPaneLength="{Binding OpenPaneLength, Mode=TwoWay}"
+                                ItemTemplate="{StaticResource SettingsSectionItemTemplate}">
   <ScrollViewer Focusable="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
     <StackPanel Margin="32,24" Spacing="24" MaxWidth="840">
 
@@ -161,7 +179,7 @@
       </StackPanel>
 
       <!-- Game Settings -->
-      <Expander IsExpanded="False" HorizontalAlignment="Stretch">
+      <Expander x:Name="Expander_GameConfig" IsExpanded="False" HorizontalAlignment="Stretch">
         <Expander.Header>
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M7,5V19H17V5H7M7,3H17A2,2 0 0,1 19,5V19A2,2 0 0,1 17,21H7A2,2 0 0,1 5,19V5A2,2 0 0,1 7,3M9,7H15V9H9V7M9,11H15V13H9V11M9,15H15V17H9V15Z"
@@ -186,7 +204,7 @@
       </Expander>
 
       <!-- Download Settings -->
-      <Expander IsExpanded="False" HorizontalAlignment="Stretch">
+      <Expander x:Name="Expander_Downloads" IsExpanded="False" HorizontalAlignment="Stretch">
         <Expander.Header>
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"
@@ -263,7 +281,7 @@
       </Expander>
 
       <!-- Application Settings / Appearance -->
-      <Expander IsExpanded="False" HorizontalAlignment="Stretch">
+      <Expander x:Name="Expander_Appearance" IsExpanded="False" HorizontalAlignment="Stretch">
         <Expander.Header>
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
@@ -343,7 +361,7 @@
       </Expander>
 
       <!-- Data Directories -->
-      <Expander IsExpanded="False" HorizontalAlignment="Stretch">
+      <Expander x:Name="Expander_DataDirectories" IsExpanded="False" HorizontalAlignment="Stretch">
         <Expander.Header>
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M20,6H12L10,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8A2,2 0 0,0 20,6M20,18H4V8H20V18Z"
@@ -406,7 +424,7 @@
       </Expander>
 
       <!-- Logs Settings -->
-      <Expander IsExpanded="False" HorizontalAlignment="Stretch">
+      <Expander x:Name="Expander_Logs" IsExpanded="False" HorizontalAlignment="Stretch">
         <Expander.Header>
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M16.5,16.5L13.5,19.5L12,18L13.5,16.5L12,15L13.5,13.5L12,12L13.5,10.5L15,12L16.5,10.5L18,12L16.5,13.5L18,15L16.5,16.5Z"
@@ -452,7 +470,7 @@
       </Expander>
 
       <!-- Performance Settings -->
-      <Expander IsExpanded="False" HorizontalAlignment="Stretch">
+      <Expander x:Name="Expander_Performance" IsExpanded="False" HorizontalAlignment="Stretch">
         <Expander.Header>
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M13,3A9,9 0 0,0 4,12H1L4.89,16.89L4.96,17L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3Z"
@@ -475,7 +493,7 @@
       </Expander>
 
       <!-- Content-Addressable Storage (CAS) Settings -->
-      <Expander IsExpanded="False" HorizontalAlignment="Stretch">
+      <Expander x:Name="Expander_Cas" IsExpanded="False" HorizontalAlignment="Stretch">
         <Expander.Header>
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M2,6H6V18H2V6M9,6H13V18H9V6M16,6H20V18H16V6Z"
@@ -535,7 +553,7 @@
             <!-- Garbage Collection Settings -->
             <StackPanel Spacing="8">
               <CheckBox Content="Enable automatic garbage collection"
-                        IsChecked="{Binding EnableAutomaticGc}" />
+                         IsChecked="{Binding EnableAutomaticGc}" />
               <TextBlock Text="Automatically clean up unreferenced content to free disk space"
                          Classes="setting-description" Margin="24,0,0,0" />
             </StackPanel>
@@ -571,7 +589,7 @@
             <!-- Integrity Verification -->
             <StackPanel Spacing="8">
               <CheckBox Content="Verify file integrity during operations"
-                        IsChecked="{Binding CasVerifyIntegrity}" />
+                         IsChecked="{Binding CasVerifyIntegrity}" />
               <TextBlock Text="Check file hashes to ensure data integrity (recommended, slight performance impact)"
                          Classes="setting-description" Margin="24,0,0,0" />
             </StackPanel>
@@ -580,7 +598,7 @@
       </Expander>
 
       <!-- Content Directories -->
-      <Expander IsExpanded="False" HorizontalAlignment="Stretch">
+      <Expander x:Name="Expander_LocalContent" IsExpanded="False" HorizontalAlignment="Stretch">
         <Expander.Header>
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M19,20H5V4H7V7H17V4H19M12,2A1,1 0 0,1 13,3A1,1 0 0,1 12,4A1,1 0 0,1 11,3A1,1 0 0,1 12,2M19,2H17V2H7V2H5A2,2 0 0,0 3,4V20A2,2 0 0,0 5,22H19A2,2 0 0,0 21,20V4A2,2 0 0,0 19,2Z"
@@ -600,7 +618,7 @@
       </Expander>
 
       <!-- GitHub Discovery Repositories -->
-      <Expander IsExpanded="False" HorizontalAlignment="Stretch">
+      <Expander x:Name="Expander_GitHubDiscovery" IsExpanded="False" HorizontalAlignment="Stretch">
         <Expander.Header>
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M12,2A10,10 0 0,0 2,12C2,16.42 4.87,20.17 8.84,21.5C9.34,21.58 9.5,21.27 9.5,21C9.5,20.77 9.5,20.14 9.5,19.31C6.73,19.91 6.14,17.97 6.14,17.97C5.68,16.81 5.03,16.5 5.03,16.5C4.12,15.88 5.1,15.9 5.1,15.9C6.1,15.97 6.63,16.93 6.63,16.93C7.5,18.45 8.97,18 9.54,17.76C9.63,17.11 9.89,16.67 10.17,16.42C7.95,16.17 5.62,15.31 5.62,11.5C5.62,10.39 6,9.5 6.65,8.79C6.55,8.54 6.2,7.5 6.75,6.15C6.75,6.15 7.59,5.88 9.5,7.17C10.29,6.95 11.15,6.84 12,6.84C12.85,6.84 13.71,6.95 14.5,7.17C16.41,5.88 17.25,6.15 17.25,6.15C17.8,7.5 17.45,8.54 17.35,8.79C18,9.5 18.38,10.39 18.38,11.5C18.38,15.32 16.04,16.16 13.81,16.41C14.17,16.72 14.5,17.33 14.5,18.26C14.5,19.6 14.5,20.68 14.5,21C14.5,21.27 14.66,21.59 15.17,21.5C19.14,20.16 22,16.42 22,12A10,10 0 0,0 12,2Z"
@@ -620,7 +638,7 @@
       </Expander>
 
       <!-- Update Settings -->
-      <Expander IsExpanded="False" HorizontalAlignment="Stretch">
+      <Expander x:Name="Expander_Updates" IsExpanded="False" HorizontalAlignment="Stretch">
         <Expander.Header>
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.86,17.45 19.71,14H17.58C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"
@@ -655,7 +673,7 @@
             <!-- Auto Update Check -->
             <StackPanel Spacing="8">
               <CheckBox Content="Check for updates on startup"
-                        IsChecked="{Binding AutoCheckForUpdatesOnStartup}" />
+                         IsChecked="{Binding AutoCheckForUpdatesOnStartup}" />
               <TextBlock Text="Automatically check for GenHub updates when the application starts"
                          Classes="setting-description" Margin="24,0,0,0" />
             </StackPanel>
@@ -663,7 +681,7 @@
             <!-- Periodic Update Check -->
             <StackPanel Spacing="8">
               <CheckBox Content="Check for updates periodically"
-                        IsChecked="{Binding AutoCheckForUpdatesPeriodically}" />
+                         IsChecked="{Binding AutoCheckForUpdatesPeriodically}" />
               <TextBlock Text="Automatically check for updates in the background at regular intervals"
                          Classes="setting-description" Margin="24,0,0,0" />
             </StackPanel>
@@ -749,7 +767,7 @@
         </Border>
       </Expander>
       <!-- Subscriptions Settings -->
-      <Expander IsExpanded="False" HorizontalAlignment="Stretch">
+      <Expander x:Name="Expander_Subscriptions" IsExpanded="False" HorizontalAlignment="Stretch">
         <Expander.Header>
           <Grid ColumnDefinitions="*,Auto">
             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
@@ -824,7 +842,7 @@
       </Expander>
 
       <!-- Danger Zone -->
-      <Expander IsExpanded="False" HorizontalAlignment="Stretch" Margin="0,16,0,0">
+      <Expander x:Name="Expander_DangerZone" IsExpanded="False" HorizontalAlignment="Stretch" Margin="0,16,0,0">
         <Expander.Header>
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <PathIcon Data="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"
@@ -916,4 +934,5 @@
       </Border>
     </StackPanel>
   </ScrollViewer>
+</commonControls:SidebarLayout>
 </UserControl>

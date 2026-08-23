@@ -30,6 +30,7 @@ using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Providers;
 using GenHub.Core.Models.Theming;
 using GenHub.Features.AppUpdate.Interfaces;
+using GenHub.Features.Settings.Models;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -56,6 +57,25 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// Gets the available themes for selection in the UI.
     /// </summary>
     public IReadOnlyList<ColorTheme> AvailableThemes => _themeService?.AvailableThemes ?? ThemeConstants.AllThemes;
+
+    /// <summary>
+    /// Gets the list of available settings sections for sidebar navigation.
+    /// </summary>
+    public IReadOnlyList<SettingsSectionItem> Sections { get; } =
+    [
+        new(SettingsConstants.SectionGameConfig, "Game Configuration", "M7,5V19H17V5H7M7,3H17A2,2 0 0,1 19,5V19A2,2 0 0,1 17,21H7A2,2 0 0,1 5,19V5A2,2 0 0,1 7,3M9,7H15V9H9V7M9,11H15V13H9V11M9,15H15V17H9V15Z"),
+        new(SettingsConstants.SectionDownloads, "Downloads", "M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"),
+        new(SettingsConstants.SectionAppearance, "Appearance", "M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"),
+        new(SettingsConstants.SectionDataDirectories, "Data Directories", "M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z"),
+        new(SettingsConstants.SectionLogs, "Logs", "M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"),
+        new(SettingsConstants.SectionPerformance, "Performance", "M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z"),
+        new(SettingsConstants.SectionCas, "CAS Storage", "M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,14.21 20,12V9C20,11.21 16.42,13 12,13C7.58,13 4,11.21 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,19.21 20,17V14C20,16.21 16.42,18 12,18C7.58,18 4,16.21 4,14Z"),
+        new(SettingsConstants.SectionLocalContent, "Local Content", "M19,20H4C2.89,20 2,19.1 2,18V6C2,4.89 2.89,4 4,4H10L12,6H19A2,2 0 0,1 21,8H21L4,8V18L6.14,10H23.21L20.93,18.5C20.7,19.37 19.92,20 19,20Z"),
+        new(SettingsConstants.SectionGitHubDiscovery, "GitHub Discovery", "M12,2A10,10 0 0,0 2,12C2,16.42 4.87,20.17 8.84,21.5C9.34,21.58 9.5,21.27 9.5,21C9.5,20.77 9.5,20.14 9.5,19.31C6.73,19.91 6.14,17.97 6.14,17.97C5.68,16.81 5.03,16.5 5.03,16.5C4.12,15.88 5.1,15.9 5.1,15.9C6.1,15.97 6.63,16.93 6.63,16.93C7.5,18.45 8.97,18 9.54,17.76C9.63,17.11 9.89,16.67 10.17,16.42C7.95,16.17 5.62,15.31 5.62,11.5C5.62,10.39 6,9.5 6.65,8.79C6.55,8.54 6.2,7.5 6.75,6.15C6.75,6.15 7.59,5.88 9.5,7.17C10.29,6.95 11.15,6.84 12,6.84C12.85,6.84 13.71,6.95 14.5,7.17C16.41,5.88 17.25,6.15 17.25,6.15C17.8,7.5 17.45,8.54 17.35,8.79C18,9.5 18.38,10.39 18.38,11.5C18.38,15.32 16.04,16.16 13.81,16.41C14.17,16.72 14.5,17.33 14.5,18.26C14.5,19.6 14.5,20.68 14.5,21C14.5,21.27 14.66,21.59 15.17,21.5C19.14,20.16 22,16.42 22,12A10,10 0 0,0 12,2Z"),
+        new(SettingsConstants.SectionUpdates, "Updates", "M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.86,17.45 19.71,14H17.58C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"),
+        new(SettingsConstants.SectionSubscriptions, "Catalog Subscriptions", "M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5M12,4.15L6.04,7.5L12,10.85L17.96,7.5L12,4.15M5,15.91L11,19.29V12.58L5,9.21V15.91M19,15.91V9.21L13,12.58V19.29L19,15.91Z"),
+        new(SettingsConstants.SectionDangerZone, "Danger Zone", "M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"),
+    ];
 
     private readonly IUserSettingsService _userSettingsService;
     private readonly ICasService _casService;
@@ -84,6 +104,15 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private int _maxConcurrentDownloads = DownloadDefaults.MaxConcurrentDownloads;
     private double _downloadBufferSizeKB = DownloadDefaults.BufferSizeKB;
     private int _downloadTimeoutSeconds = DownloadDefaults.TimeoutSeconds;
+
+    [ObservableProperty]
+    private SettingsSectionItem? _selectedSection;
+
+    [ObservableProperty]
+    private bool _isPaneOpen = true;
+
+    [ObservableProperty]
+    private double _openPaneLength = 220.0;
 
     [ObservableProperty]
     private string _theme = ThemeConstants.DefaultTheme.Id;
