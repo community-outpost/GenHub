@@ -79,13 +79,13 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
     /// <param name="sectionId">The ID of the section to open.</param>
     public void OpenSection(string sectionId)
     {
-        SelectedModule = sectionId.Equals("faq", StringComparison.OrdinalIgnoreCase)
+        SelectedModule = string.Equals(sectionId, InfoConstants.SectionFaq, StringComparison.OrdinalIgnoreCase)
             ? InfoConstants.ModuleZeroHour
-            : sectionId.Equals("go-changelog", StringComparison.OrdinalIgnoreCase)
+            : string.Equals(sectionId, InfoConstants.SectionGoChangelog, StringComparison.OrdinalIgnoreCase)
                 ? InfoConstants.ModuleGeneralsOnline
                 : InfoConstants.ModuleGuide;
 
-        var targetSection = Sections.FirstOrDefault(s => s.Id.Equals(sectionId, StringComparison.OrdinalIgnoreCase));
+        var targetSection = Sections.FirstOrDefault(s => string.Equals(s.Id, sectionId, StringComparison.OrdinalIgnoreCase));
 
         if (targetSection != null)
         {
@@ -102,7 +102,7 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
 
                 // 1. Try Guide Context
                 genHubSection.SetModuleContext(GeneralsHubModule.Guide);
-                var guideSubSection = genHubSection.Sections.FirstOrDefault(s => s.Id.Equals(sectionId, StringComparison.OrdinalIgnoreCase));
+                var guideSubSection = genHubSection.Sections.FirstOrDefault(s => string.Equals(s.Id, sectionId, StringComparison.OrdinalIgnoreCase));
                 if (guideSubSection != null)
                 {
                     SelectedModule = InfoConstants.ModuleGuide;
@@ -114,7 +114,7 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
 
                 // 2. Try GeneralsOnline Context
                 genHubSection.SetModuleContext(GeneralsHubModule.GeneralsOnline);
-                var goSubSection = genHubSection.Sections.FirstOrDefault(s => s.Id.Equals(sectionId, StringComparison.OrdinalIgnoreCase));
+                var goSubSection = genHubSection.Sections.FirstOrDefault(s => string.Equals(s.Id, sectionId, StringComparison.OrdinalIgnoreCase));
                 if (goSubSection != null)
                 {
                     SelectedModule = InfoConstants.ModuleGeneralsOnline;

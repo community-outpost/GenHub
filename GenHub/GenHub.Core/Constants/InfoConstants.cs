@@ -35,6 +35,16 @@ public static class InfoConstants
     public const string ModuleGeneralsOnline = "GeneralsOnline";
 
     /// <summary>
+    /// Section ID for FAQ.
+    /// </summary>
+    public const string SectionFaq = "faq";
+
+    /// <summary>
+    /// Section ID for GeneralsOnline changelog.
+    /// </summary>
+    public const string SectionGoChangelog = "go-changelog";
+
+    /// <summary>
     /// The list of supported languages for the FAQ.
     /// </summary>
     public static readonly IReadOnlyList<string> SupportedFaqLanguages = new[]
