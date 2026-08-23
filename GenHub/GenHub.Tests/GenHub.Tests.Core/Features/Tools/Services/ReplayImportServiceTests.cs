@@ -113,7 +113,7 @@ public sealed class ReplayImportServiceTests : IDisposable
             {
                 File.WriteAllBytes(cfg.DestinationPath, "fake-replay-content"u8.ToArray());
             })
-            .ReturnsAsync(new DownloadResult { Success = true });
+            .ReturnsAsync(DownloadResult.CreateSuccess("test.rep", 100, TimeSpan.FromSeconds(1)));
 
         var urlParser = new Mock<IUrlParserService>();
         urlParser.Setup(u => u.IdentifySource(It.IsAny<string>())).Returns(ReplaySource.Strata);
