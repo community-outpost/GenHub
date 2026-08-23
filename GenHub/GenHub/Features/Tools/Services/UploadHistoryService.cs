@@ -273,8 +273,7 @@ public sealed class UploadHistoryService(
 
     private async Task DeleteRecordsFromCloudAsync(IEnumerable<UploadRecord> records)
     {
-        var eligibleRecords = records.Where(r => !string.IsNullOrEmpty(r.FileKey) && !string.IsNullOrEmpty(r.DeleteToken));
-        foreach (var record in eligibleRecords)
+        foreach (var record in records)
         {
             if (record.FileKey is not { Length: > 0 } fileKey || record.DeleteToken is not { Length: > 0 } deleteToken)
             {
