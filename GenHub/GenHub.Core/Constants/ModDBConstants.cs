@@ -59,6 +59,24 @@ public static class ModDBConstants
     /// <summary>Articles URL path segment.</summary>
     public const string ArticlesSegment = "/articles";
 
+    /// <summary>Games URL path segment.</summary>
+    public const string GamesSegment = "/games/";
+
+    /// <summary>News URL path segment.</summary>
+    public const string NewsSegment = "/news";
+
+    /// <summary>Tutorials URL path segment.</summary>
+    public const string TutorialsSegment = "/tutorials";
+
+    /// <summary>Videos URL path segment.</summary>
+    public const string VideosSegment = "/videos";
+
+    /// <summary>Images URL path segment.</summary>
+    public const string ImagesSegment = "/images";
+
+    /// <summary>Reviews URL path segment.</summary>
+    public const string ReviewsSegment = "/reviews";
+
     /// <summary>Placeholder blank gif image filename.</summary>
     public const string BlankGifFileName = "blank.gif";
 

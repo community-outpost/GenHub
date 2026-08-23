@@ -67,4 +67,92 @@ public sealed class ModDBDirectUrlSearchTests
         Assert.Equal("shockwave-1201-full", ModDBDiscoverer.ExtractModDBIdFromUrl("https://www.moddb.com/mods/shockwave/downloads/shockwave-1201-full"));
         Assert.Equal("contra-009", ModDBDiscoverer.ExtractModDBIdFromUrl("https://www.moddb.com/downloads/contra-009"));
     }
+
+    /// <summary>
+    /// Verifies that IsDetailPage correctly identifies single mod, file download, and addon URLs.
+    /// </summary>
+    /// <param name="url">The URL to evaluate.</param>
+    /// <param name="expected">Expected detail page determination.</param>
+    [Theory]
+    [InlineData("https://www.moddb.com/mods/rise-of-the-reds", true)]
+    [InlineData("https://www.moddb.com/mods/cc-shockwave", true)]
+    [InlineData("https://www.moddb.com/downloads/contra-009", true)]
+    [InlineData("https://www.moddb.com/addons/lemuria-2026-fixes", true)]
+    [InlineData("https://www.moddb.com/mods/rise-of-the-reds/downloads/rotr-patch-186-release", true)]
+    [InlineData("https://www.moddb.com/mods/shockwave/addons/some-map", true)]
+    [InlineData("https://www.moddb.com/games/cc-generals-zero-hour/downloads/genbigedit", true)]
+    [InlineData("https://www.moddb.com/games/cc-generals-zero-hour/addons/custom-map", true)]
+    [InlineData("https://www.moddb.com/games/cc-generals-zero-hour/mods/shockwave", true)]
+    [InlineData("https://www.moddb.com/mods/rise-of-the-reds/downloads", false)]
+    [InlineData("https://www.moddb.com/mods/rise-of-the-reds/addons", false)]
+    [InlineData("https://www.moddb.com/games/cc-generals-zero-hour/downloads", false)]
+    [InlineData("https://www.moddb.com/games/cc-generals-zero-hour/mods", false)]
+    [InlineData("https://www.moddb.com/games/cc-generals-zero-hour/addons", false)]
+    [InlineData("https://www.moddb.com/mods/cc-shockwave/news/zero-hour-community-anniversary", false)]
+    [InlineData("https://www.moddb.com/mods/rise-of-the-reds/articles/june-update", false)]
+    [InlineData("https://www.moddb.com/mods/cc-shockwave/tutorials/ai-tutorial", false)]
+    [InlineData("https://www.moddb.com/mods/cc-shockwave/videos/trailer", false)]
+    [InlineData("https://www.moddb.com/mods/cc-shockwave/images/screenshot", false)]
+    public void IsDetailPage_ClassifiesDetailVersusListingAndNonContentUrls(string url, bool expected)
+    {
+        // Act
+        var result = ModDBDiscoverer.IsDetailPage(url);
+
+        // Assert
+        Assert.Equal(expected, result);
+    }
+
+    /// <summary>
+    /// Verifies that IsNonContentUrl detects article, news, tutorial, media, and profile subpaths.
+    /// </summary>
+    /// <param name="url">The URL or relative path to check.</param>
+    /// <param name="expected">Expected non-content determination.</param>
+    [Theory]
+    [InlineData("https://www.moddb.com/mods/cc-shockwave/news/zero-hour-community-anniversary", true)]
+    [InlineData("/mods/rise-of-the-reds/news/june-update-time-to-spread-the-word", true)]
+    [InlineData("/mods/rise-of-the-reds/articles/june-update", true)]
+    [InlineData("/mods/cc-shockwave/tutorials/ai-tutorial", true)]
+    [InlineData("/mods/cc-shockwave/videos/some-video", true)]
+    [InlineData("/mods/cc-shockwave/images/some-image", true)]
+    [InlineData("/members/swr-productions", true)]
+    [InlineData("/company/swr-productions", true)]
+    [InlineData("https://www.moddb.com/mods/rise-of-the-reds", false)]
+    [InlineData("https://www.moddb.com/downloads/contra-009", false)]
+    [InlineData("/mods/rise-of-the-reds/downloads/rotr-patch-186-release", false)]
+    public void IsNonContentUrl_DetectsNonDownloadablePaths(string url, bool expected)
+    {
+        // Act
+        var result = ModDBDiscoverer.IsNonContentUrl(url);
+
+        // Assert
+        Assert.Equal(expected, result);
+    }
+
+    /// <summary>
+    /// Verifies that IsValidContentDetailUrl excludes articles, news, and media while allowing valid mod/download items.
+    /// </summary>
+    /// <param name="href">The relative or absolute link href.</param>
+    /// <param name="expected">Expected validity.</param>
+    [Theory]
+    [InlineData("/mods/cc-shockwave/news/zero-hour-community-anniversary", false)]
+    [InlineData("/mods/rise-of-the-reds/news/june-update-time-to-spread-the-word", false)]
+    [InlineData("/mods/rise-of-the-reds/articles", false)]
+    [InlineData("/mods/cc-shockwave/tutorials/ai-tutorial", false)]
+    [InlineData("/mods/cc-shockwave/videos/some-video", false)]
+    [InlineData("/mods/cc-shockwave/images/some-image", false)]
+    [InlineData("/members/swr-productions", false)]
+    [InlineData("/company/swr-productions", false)]
+    [InlineData("/mods/rise-of-the-reds", true)]
+    [InlineData("/mods/cc-shockwave", true)]
+    [InlineData("/mods/rise-of-the-reds/downloads/rotr-patch-186-release", true)]
+    [InlineData("/downloads/contra-009", true)]
+    [InlineData("/addons/some-map", true)]
+    public void IsValidContentDetailUrl_FiltersOutNonContentLinks(string href, bool expected)
+    {
+        // Act
+        var result = ModDBDiscoverer.IsValidContentDetailUrl(href);
+
+        // Assert
+        Assert.Equal(expected, result);
+    }
 }

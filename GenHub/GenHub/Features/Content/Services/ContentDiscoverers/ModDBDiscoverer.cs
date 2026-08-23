@@ -182,6 +182,197 @@ public partial class ModDBDiscoverer(
         return TryNormalizeRelativeModDBUrl(trimmed, out normalizedUrl);
     }
 
+    /// <summary>
+    /// Determines whether a ModDB URL is a detail page for a single mod, file download, or addon.
+    /// </summary>
+    /// <param name="url">The absolute ModDB URL.</param>
+    /// <returns><see langword="true"/> if the URL represents a single content detail page; otherwise, <see langword="false"/>.</returns>
+    internal static bool IsDetailPage(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        if (IsNonContentUrl(uri.AbsolutePath))
+        {
+            return false;
+        }
+
+        var segments = uri.AbsolutePath.TrimEnd('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length == 0)
+        {
+            return false;
+        }
+
+        // 1. Mod detail: /mods/{slug}
+        if (segments.Length == 2 && segments[0].Equals("mods", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // 2. Direct download detail: /downloads/{slug}
+        if (segments.Length == 2 && segments[0].Equals("downloads", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // 3. Direct addon detail: /addons/{slug}
+        if (segments.Length == 2 && segments[0].Equals("addons", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // 4. Mod-scoped download detail: /mods/{mod-slug}/downloads/{slug}
+        if (segments.Length == 4 &&
+            segments[0].Equals("mods", StringComparison.OrdinalIgnoreCase) &&
+            segments[2].Equals("downloads", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // 5. Mod-scoped addon detail: /mods/{mod-slug}/addons/{slug}
+        if (segments.Length == 4 &&
+            segments[0].Equals("mods", StringComparison.OrdinalIgnoreCase) &&
+            segments[2].Equals("addons", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // 6. Game-scoped download detail: /games/{game-slug}/downloads/{slug}
+        if (segments.Length == 4 &&
+            segments[0].Equals("games", StringComparison.OrdinalIgnoreCase) &&
+            segments[2].Equals("downloads", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // 7. Game-scoped addon detail: /games/{game-slug}/addons/{slug}
+        if (segments.Length == 4 &&
+            segments[0].Equals("games", StringComparison.OrdinalIgnoreCase) &&
+            segments[2].Equals("addons", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // 8. Game-scoped mod detail: /games/{game-slug}/mods/{slug}
+        if (segments.Length == 4 &&
+            segments[0].Equals("games", StringComparison.OrdinalIgnoreCase) &&
+            segments[2].Equals("mods", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Determines whether a URL or path points to a non-content section such as news, articles, tutorials, media, or profiles.
+    /// </summary>
+    /// <param name="urlOrPath">The relative or absolute URL string.</param>
+    /// <returns><see langword="true"/> if the URL contains non-downloadable sections; otherwise, <see langword="false"/>.</returns>
+    internal static bool IsNonContentUrl(string urlOrPath)
+    {
+        if (string.IsNullOrWhiteSpace(urlOrPath))
+        {
+            return true;
+        }
+
+        var path = urlOrPath;
+        if (Uri.TryCreate(urlOrPath, UriKind.Absolute, out var uri))
+        {
+            path = uri.AbsolutePath;
+        }
+
+        var segments = path.TrimEnd('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var nonContentKeywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "news",
+            "articles",
+            "tutorials",
+            "videos",
+            "images",
+            "reviews",
+            "forum",
+            "threads",
+            "features",
+            "blogs",
+            "members",
+            "company",
+            "groups",
+            "events",
+            "comments",
+            "polls",
+            "engines",
+            "jobs",
+            "hardware",
+            "register",
+            "login",
+        };
+
+        return segments.Any(seg => nonContentKeywords.Contains(seg));
+    }
+
+    /// <summary>
+    /// Checks if a relative or absolute URL extracted from a link points to a valid mod, download, or addon item.
+    /// </summary>
+    /// <param name="href">The href attribute value.</param>
+    /// <returns><see langword="true"/> if the link points to a valid mod, download, or addon; otherwise, <see langword="false"/>.</returns>
+    internal static bool IsValidContentDetailUrl(string? href)
+    {
+        if (string.IsNullOrWhiteSpace(href))
+        {
+            return false;
+        }
+
+        if (IsNonContentUrl(href))
+        {
+            return false;
+        }
+
+        var path = href;
+        if (Uri.TryCreate(href, UriKind.Absolute, out var uri))
+        {
+            path = uri.AbsolutePath;
+        }
+
+        var segments = path.TrimEnd('/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length == 0)
+        {
+            return false;
+        }
+
+        // Mod detail: /mods/{slug}
+        if (segments.Length == 2 && segments[0].Equals("mods", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // Download detail: /downloads/{slug} or /mods/{mod}/downloads/{slug} or /games/{game}/downloads/{slug}
+        if ((segments.Length == 2 && segments[0].Equals("downloads", StringComparison.OrdinalIgnoreCase)) ||
+            (segments.Length == 4 && segments[2].Equals("downloads", StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        // Addon detail: /addons/{slug} or /mods/{mod}/addons/{slug} or /games/{game}/addons/{slug}
+        if ((segments.Length == 2 && segments[0].Equals("addons", StringComparison.OrdinalIgnoreCase)) ||
+            (segments.Length == 4 && segments[2].Equals("addons", StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        // Game mod detail: /games/{game}/mods/{slug}
+        if (segments.Length == 4 &&
+            segments[0].Equals("games", StringComparison.OrdinalIgnoreCase) &&
+            segments[2].Equals("mods", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
     private static bool TryNormalizeHttpModDBUrl(string trimmed, [NotNullWhen(true)] out string? normalizedUrl)
     {
         normalizedUrl = null;
@@ -416,9 +607,11 @@ public partial class ModDBDiscoverer(
         var href = titleLink.GetAttribute("href");
         if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(href)) return null;
 
-        if (!href.Contains(ModDBConstants.ModsSegment) && !href.Contains(ModDBConstants.DownloadsSegment) && !href.Contains(ModDBConstants.AddonsSegment)) return null;
+        if (!IsValidContentDetailUrl(href)) return null;
 
-        var detailUrl = href.StartsWith("http") ? href : ModDBConstants.BaseUrl + href;
+        var detailUrl = href.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+            ? href
+            : $"{ModDBConstants.BaseUrl.TrimEnd('/')}/{(href.StartsWith('/') ? href.TrimStart('/') : href)}";
         return (title, detailUrl);
     }
 
@@ -674,7 +867,7 @@ public partial class ModDBDiscoverer(
             title = ExtractModDBIdFromUrl(url);
         }
 
-        var authorLink = document.QuerySelector("a[href*='/members/'], span.by a, span.author a, .subheading a");
+        var authorLink = document.QuerySelector("a[href*='/members/'], a[href*='/company/'], span.by a, span.author a, .subheading a, td.content.name span.author a");
         var author = authorLink?.TextContent?.Trim() ?? UnknownValue;
 
         var descEl = document.QuerySelector("meta[name='description']");
@@ -682,9 +875,13 @@ public partial class ModDBDiscoverer(
             ?? document.QuerySelector("p, div.summary, span.summary, #profiledescription, .description")?.TextContent?.Trim();
         var description = HtmlTextHelper.NormalizeHtml(descriptionText);
 
-        var iconEl = document.QuerySelector(".imagebox img, img.image, img.screenshot, div.image img, #profilemain img, meta[property='og:image']");
-        var rawIcon = iconEl?.GetAttribute("src") ?? iconEl?.GetAttribute("content") ?? string.Empty;
-        var iconUrl = !string.IsNullOrWhiteSpace(rawIcon) ? NormalizeRelativeUrl(rawIcon) : string.Empty;
+        var iconUrl = ExtractIconUrl(document.DocumentElement);
+        if (string.IsNullOrWhiteSpace(iconUrl))
+        {
+            var iconEl = document.QuerySelector(".imagebox img, img.image, img.screenshot, div.image img, #profilemain img, meta[property='og:image']");
+            var rawIcon = iconEl?.GetAttribute("src") ?? iconEl?.GetAttribute("content") ?? string.Empty;
+            iconUrl = !string.IsNullOrWhiteSpace(rawIcon) ? NormalizeRelativeUrl(rawIcon) : string.Empty;
+        }
 
         var categoryEl = document.QuerySelector(".category, .type, span.category, span.subheading");
         var category = categoryEl?.TextContent?.Trim();
@@ -1082,7 +1279,18 @@ public partial class ModDBDiscoverer(
 
             var section = DetermineSectionFromUrl(url);
 
-            // Check if this page is a listing page (has multiple list items)
+            // If the URL directly points to a single mod / addon / download detail page, parse it as a single item
+            if (IsDetailPage(url))
+            {
+                var singleItem = ParseSinglePageItem(document, url, gameType, section);
+                if (singleItem != null)
+                {
+                    logger.LogInformation("[ModDB] Discovered single item '{Name}' from direct detail URL: {Url}", singleItem.Name, url);
+                    return ([singleItem], false, keepPageOpenForVerification, false);
+                }
+            }
+
+            // If not a detail page or if it's a listing page (e.g. /downloads, /addons, /mods/{slug}/downloads), parse listing items
             var listingItems = ParseDocumentSearchResults(document, gameType, section);
             if (listingItems.Count > 0)
             {
@@ -1091,12 +1299,15 @@ public partial class ModDBDiscoverer(
                 return (listingItems, hasMore, keepPageOpenForVerification, false);
             }
 
-            // Otherwise, parse as a single mod / addon / download / article detail page
-            var singleItem = ParseSinglePageItem(document, url, gameType, section);
-            if (singleItem != null)
+            // Fallback: try parsing as single page item if not yet attempted
+            if (!IsDetailPage(url))
             {
-                logger.LogInformation("[ModDB] Discovered single item '{Name}' from direct URL: {Url}", singleItem.Name, url);
-                return ([singleItem], false, keepPageOpenForVerification, false);
+                var singleFallback = ParseSinglePageItem(document, url, gameType, section);
+                if (singleFallback != null)
+                {
+                    logger.LogInformation("[ModDB] Discovered single item '{Name}' from direct URL fallback: {Url}", singleFallback.Name, url);
+                    return ([singleFallback], false, keepPageOpenForVerification, false);
+                }
             }
 
             logger.LogWarning("[ModDB] Could not parse content item from direct URL: {Url}", url);
