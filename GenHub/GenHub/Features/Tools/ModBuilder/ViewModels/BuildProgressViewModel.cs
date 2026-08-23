@@ -12,8 +12,9 @@ namespace GenHub.Features.Tools.ModBuilder.ViewModels;
 /// <summary>
 /// ViewModel for build progress overlay with stage-by-stage visualization.
 /// </summary>
-public partial class BuildProgressViewModel : ObservableObject, IDisposable
+public sealed partial class BuildProgressViewModel : ObservableObject, IDisposable
 {
+    private const string StageStatusPending = "Pending";
     private readonly Stopwatch _stopwatch = new();
     private CancellationTokenSource? _cancellationTokenSource;
     private bool _disposed;
@@ -109,25 +110,25 @@ public partial class BuildProgressViewModel : ObservableObject, IDisposable
         {
             Title = "Scanning Files",
             Icon = "IconScanning",
-            Status = "Pending",
+            Status = StageStatusPending,
         });
         Stages.Add(new ProgressCardViewModel
         {
             Title = "Converting Assets",
             Icon = "IconConverting",
-            Status = "Pending",
+            Status = StageStatusPending,
         });
         Stages.Add(new ProgressCardViewModel
         {
             Title = "Caching Results",
             Icon = "IconCaching",
-            Status = "Pending",
+            Status = StageStatusPending,
         });
         Stages.Add(new ProgressCardViewModel
         {
             Title = "Creating Archives",
             Icon = "IconArchiving",
-            Status = "Pending",
+            Status = StageStatusPending,
         });
 
         // Start timer for elapsed time updates
