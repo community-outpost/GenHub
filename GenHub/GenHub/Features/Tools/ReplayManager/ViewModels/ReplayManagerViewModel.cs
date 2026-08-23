@@ -70,6 +70,14 @@ public partial class ReplayManagerViewModel(
     [ObservableProperty]
     private string statusMessage = "Ready";
 
+    [ObservableProperty]
+    private string searchText = string.Empty;
+
+    partial void OnSearchTextChanged(string value)
+    {
+        ApplyFilter();
+    }
+
     /// <summary>
     /// The name of the ZIP file to export or upload.
     /// </summary>
@@ -175,12 +183,7 @@ public partial class ReplayManagerViewModel(
                     }
                 }
 
-                // Update CurrentReplays by clearing and adding items (don't replace the reference!)
-                CurrentReplays.Clear();
-                foreach (var r in replays)
-                {
-                    CurrentReplays.Add(r);
-                }
+                ApplyFilter();
             });
 
             StatusMessage = $"Loaded {replays.Count} replays.";
@@ -911,17 +914,23 @@ public partial class ReplayManagerViewModel(
         }
     }
 
-    partial void OnSelectedTabChanged(GameType value)
+    private void ApplyFilter()
     {
-        // Update CurrentReplays to show the correct collection's items
+        var source = SelectedTab == GameType.Generals ? GeneralsReplays : ZeroHourReplays;
+        var filtered = string.IsNullOrWhiteSpace(SearchText)
+            ? (IEnumerable<ReplayFile>)source
+            : source.Where(r => r.FileName.Contains(SearchText, StringComparison.OrdinalIgnoreCase));
+
         CurrentReplays.Clear();
-        var sourceCollection = value == GameType.Generals ? GeneralsReplays : ZeroHourReplays;
-        foreach (var replay in sourceCollection)
+        foreach (var replay in filtered)
         {
             CurrentReplays.Add(replay);
         }
+    }
 
-        // Load replays for the new tab
+    partial void OnSelectedTabChanged(GameType value)
+    {
+        ApplyFilter();
         _ = LoadReplaysAsync();
     }
 }
