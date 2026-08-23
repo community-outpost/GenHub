@@ -110,9 +110,7 @@ public sealed class ReplayImportServiceTests : IDisposable
                 It.IsAny<IProgress<DownloadProgress>?>(),
                 It.IsAny<CancellationToken>()))
             .Callback<DownloadConfiguration, IProgress<DownloadProgress>?, CancellationToken>((cfg, _, _) =>
-            {
-                File.WriteAllBytes(cfg.DestinationPath, "fake-replay-content"u8.ToArray());
-            })
+                File.WriteAllBytes(cfg.DestinationPath, "fake-replay-content"u8.ToArray()))
             .ReturnsAsync(DownloadResult.CreateSuccess("test.rep", 100, TimeSpan.FromSeconds(1)));
 
         var urlParser = new Mock<IUrlParserService>();

@@ -1,4 +1,3 @@
-using GenHub.Core.Constants;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -6,6 +5,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Models.Common;
@@ -60,76 +60,28 @@ public sealed class ReplayImportService(
             for (int i = 0; i < directUrls.Count; i++)
             {
                 ct.ThrowIfCancellationRequested();
-                var directUrl = directUrls[i];
-                var tempPath = Path.Combine(Path.GetTempPath(), $"{ReplayManagerConstants.TempImportFilePrefix}{Guid.NewGuid()}.rep");
+                var fileIndex = i;
+                var totalFiles = directUrls.Count;
+                var downloadProgress = progress != null
+                    ? new Progress<DownloadProgress>(p =>
+                    {
+                        var overallProgress = (fileIndex + (p.Percentage / 100.0)) / totalFiles;
+                        progress.Report(overallProgress);
+                    })
+                    : null;
 
-                try
+                var success = await DownloadAndImportReplayUrlAsync(
+                    directUrls[i],
+                    userAgent,
+                    targetVersion,
+                    downloadProgress,
+                    importedFiles,
+                    errors,
+                    ct);
+
+                if (!success)
                 {
-                    var fileIndex = i;
-                    var totalFiles = directUrls.Count;
-                    var downloadProgress = progress != null
-                        ? new Progress<DownloadProgress>(p =>
-                        {
-                            var overallProgress = (fileIndex + (p.Percentage / 100.0)) / totalFiles;
-                            progress.Report(overallProgress);
-                        })
-                        : null;
-
-                    var downloadConfig = new DownloadConfiguration
-                    {
-                        Url = new Uri(directUrl),
-                        DestinationPath = tempPath,
-                        UserAgent = userAgent,
-                    };
-
-                    var result = await downloadService.DownloadFileAsync(downloadConfig, progress: downloadProgress, cancellationToken: ct);
-                    if (!result.Success)
-                    {
-                        errors.Add($"{ErrorMessages.DownloadFailed}: {directUrl}");
-                        skipped++;
-                        continue;
-                    }
-
-                    var isZip = IsZipFile(tempPath);
-                    var maxAllowedBytes = isZip ? ReplayManagerConstants.MaxUploadBytesPerPeriod : ReplayManagerConstants.MaxReplaySizeBytes;
-                    var info = new FileInfo(tempPath);
-                    if (info.Length > maxAllowedBytes)
-                    {
-                        errors.Add(string.Format(ErrorMessages.ReplayExceedsMaxSize, info.Length / 1024.0));
-                        skipped++;
-                        continue;
-                    }
-
-                    if (isZip)
-                    {
-                        logger.LogInformation(LogMessages.DetectedZipFile);
-                        var zipResult = await ImportFromZipAsync(tempPath, targetVersion, null, ct);
-                        importedFiles.AddRange(zipResult.ImportedFiles);
-                        errors.AddRange(zipResult.Errors);
-                        skipped += zipResult.FilesSkipped;
-                    }
-                    else
-                    {
-                        var importedFileName = ExtractFileName(new Uri(directUrl));
-                        using var stream = File.OpenRead(tempPath);
-                        var singleResult = await ImportFromStreamAsync(stream, importedFileName, targetVersion, ct);
-                        if (singleResult.Success)
-                        {
-                            importedFiles.AddRange(singleResult.ImportedFiles);
-                        }
-                        else
-                        {
-                            errors.AddRange(singleResult.Errors);
-                            skipped++;
-                        }
-                    }
-                }
-                finally
-                {
-                    if (File.Exists(tempPath))
-                    {
-                        File.Delete(tempPath);
-                    }
+                    skipped++;
                 }
             }
 
@@ -144,15 +96,81 @@ public sealed class ReplayImportService(
                 Errors = errors,
             };
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogInformation("Import from URL {Url} was cancelled", url);
+            logger.LogInformation(ex, "Import from URL {Url} was cancelled", url);
             throw;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to import from URL: {Url}", url);
             return new ImportResult { Success = false, FilesImported = 0, FilesSkipped = 0, Errors = [ex.Message] };
+        }
+    }
+
+    private async Task<bool> DownloadAndImportReplayUrlAsync(
+        string directUrl,
+        string userAgent,
+        GameType targetVersion,
+        IProgress<DownloadProgress>? downloadProgress,
+        List<string> importedFiles,
+        List<string> errors,
+        CancellationToken ct)
+    {
+        var tempPath = Path.Combine(Path.GetTempPath(), $"{ReplayManagerConstants.TempImportFilePrefix}{Guid.NewGuid()}.rep");
+
+        try
+        {
+            var downloadConfig = new DownloadConfiguration
+            {
+                Url = new Uri(directUrl),
+                DestinationPath = tempPath,
+                UserAgent = userAgent,
+            };
+
+            var result = await downloadService.DownloadFileAsync(downloadConfig, progress: downloadProgress, cancellationToken: ct);
+            if (!result.Success)
+            {
+                errors.Add($"{ErrorMessages.DownloadFailed}: {directUrl}");
+                return false;
+            }
+
+            var isZip = IsZipFile(tempPath);
+            var maxAllowedBytes = isZip ? ReplayManagerConstants.MaxUploadBytesPerPeriod : ReplayManagerConstants.MaxReplaySizeBytes;
+            var info = new FileInfo(tempPath);
+            if (info.Length > maxAllowedBytes)
+            {
+                errors.Add(string.Format(ErrorMessages.ReplayExceedsMaxSize, info.Length / 1024.0));
+                return false;
+            }
+
+            if (isZip)
+            {
+                logger.LogInformation(LogMessages.DetectedZipFile);
+                var zipResult = await ImportFromZipAsync(tempPath, targetVersion, null, ct);
+                importedFiles.AddRange(zipResult.ImportedFiles);
+                errors.AddRange(zipResult.Errors);
+                return zipResult.Success;
+            }
+
+            var importedFileName = ExtractFileName(new Uri(directUrl));
+            using var stream = File.OpenRead(tempPath);
+            var singleResult = await ImportFromStreamAsync(stream, importedFileName, targetVersion, ct);
+            if (singleResult.Success)
+            {
+                importedFiles.AddRange(singleResult.ImportedFiles);
+                return true;
+            }
+
+            errors.AddRange(singleResult.Errors);
+            return false;
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+            {
+                File.Delete(tempPath);
+            }
         }
     }
 
@@ -288,9 +306,9 @@ public sealed class ReplayImportService(
                 }
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogInformation("Import from ZIP {ZipPath} was cancelled", zipPath);
+            logger.LogInformation(ex, "Import from ZIP {ZipPath} was cancelled", zipPath);
             throw;
         }
         catch (Exception ex)
