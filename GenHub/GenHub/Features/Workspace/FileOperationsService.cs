@@ -195,18 +195,14 @@ public class FileOperationsService(
                 try
                 {
                     FileInfo sourceInfo = new(sourcePath);
-                    FileInfo destInfo = new(destinationPath)
-                    {
-                        // Timestamps
-                        CreationTime = sourceInfo.CreationTime,
-                        LastWriteTime = sourceInfo.LastWriteTime,
+                    File.SetCreationTime(destinationPath, sourceInfo.CreationTime);
+                    File.SetLastWriteTime(destinationPath, sourceInfo.LastWriteTime);
 
-                        // Attributes - avoid reparse/read-only/system flags
-                        Attributes = sourceInfo.Attributes
+                    var targetAttributes = sourceInfo.Attributes
                         & ~FileAttributes.ReparsePoint
                         & ~FileAttributes.ReadOnly
-                        & ~FileAttributes.System,
-                    };
+                        & ~FileAttributes.System;
+                    File.SetAttributes(destinationPath, targetAttributes);
                 }
                 catch (Exception attrEx)
                 {
