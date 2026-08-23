@@ -1240,7 +1240,7 @@ public sealed class PlaywrightService(
             return;
         }
 
-        List<IPage> pages = [];
+        List<IPage> pages;
         try
         {
             pages = [.. _persistentContext.Pages];

@@ -3487,7 +3487,7 @@ public partial class ContentDetailViewModel(
             releaseItem.SelectCommand = new RelayCommand(
                 () =>
                 {
-                    if (variantSearchResults?.TryGetValue(manifestId, out var swapSr) == true)
+                    if (variantSearchResults is not null && variantSearchResults.TryGetValue(manifestId, out var swapSr))
                     {
                         VariantSwap.Apply(searchResult, swapSr);
                         SelectedVariant = variant;
@@ -3499,7 +3499,7 @@ public partial class ContentDetailViewModel(
 
             releaseItem.DownloadCommand = new AsyncRelayCommand(async () =>
             {
-                if (variantSearchResults?.TryGetValue(manifestId, out var swapSr) == true)
+                if (variantSearchResults is not null && variantSearchResults.TryGetValue(manifestId, out var swapSr))
                 {
                     VariantSwap.Apply(searchResult, swapSr);
                     SelectedVariant = variant;
@@ -3510,7 +3510,7 @@ public partial class ContentDetailViewModel(
 
             releaseItem.AddToProfileCommand = new AsyncRelayCommand(async () =>
             {
-                if (variantSearchResults?.TryGetValue(manifestId, out var swapSr) == true)
+                if (variantSearchResults is not null && variantSearchResults.TryGetValue(manifestId, out var swapSr))
                 {
                     VariantSwap.Apply(searchResult, swapSr);
                     SelectedVariant = variant;

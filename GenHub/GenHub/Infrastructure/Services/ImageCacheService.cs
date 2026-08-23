@@ -477,15 +477,13 @@ public sealed class ImageCacheService
         }
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Bug", "S2583:Conditionally executed code should be reachable", Justification = "Required for C# compiler null safety.")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2583:Boolean expressions should not be gratuitous", Justification = "Required for C# compiler null safety.")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Critical Code Smell", "S3776:Cognitive Complexity of methods should not be too high", Justification = "Image fetching handles retries, redirects, cache validation, and protocol normalization.")]
     private async Task<HttpResponseMessage?> FetchImageResponseAsync(string initialUrl)
     {
         var currentUrl = initialUrl;
-        HttpResponseMessage? response = null;
+        var redirectCount = 0;
 
-        for (var redirectCount = 0; redirectCount <= ImageCacheConstants.MaxRedirects; redirectCount++)
+        while (true)
         {
             if (!IsSafeRemoteUrl(currentUrl, out var targetUri) || targetUri == null)
             {
@@ -505,13 +503,12 @@ public sealed class ImageCacheService
                 request.Headers.Referrer = new Uri(ModDBConstants.BaseUrl);
             }
 
-            response?.Dispose();
-            response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
 
             if ((int)response.StatusCode >= 300 && (int)response.StatusCode <= 399)
             {
                 var redirectLocation = response.Headers.Location;
-                if (redirectLocation == null)
+                if (redirectLocation == null || redirectCount >= ImageCacheConstants.MaxRedirects)
                 {
                     response.Dispose();
                     return null;
@@ -522,19 +519,19 @@ public sealed class ImageCacheService
                     : new Uri(targetUri, redirectLocation);
 
                 currentUrl = nextUri.ToString();
+                redirectCount++;
+                response.Dispose();
                 continue;
             }
 
-            break;
-        }
+            if (!response.IsSuccessStatusCode)
+            {
+                response.Dispose();
+                return null;
+            }
 
-        if (response == null || !response.IsSuccessStatusCode)
-        {
-            response?.Dispose();
-            return null;
+            return response;
         }
-
-        return response;
     }
 
     private async Task<Bitmap?> DownloadAndCacheAsync(string initialUrl, string diskPath)

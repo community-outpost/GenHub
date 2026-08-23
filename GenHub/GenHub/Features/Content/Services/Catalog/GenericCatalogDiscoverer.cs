@@ -137,7 +137,8 @@ public class GenericCatalogDiscoverer(
             .Where(a => a.VariantAxis != null)
             .GroupBy(a => a.VariantAxis, StringComparer.OrdinalIgnoreCase)
             .Where(g => g.Count() > 1)
-            .Select(g => g.Key!)
+            .Select(g => g.Key)
+            .OfType<string>()
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         if (multiAxes.Count == 0)
@@ -564,9 +565,9 @@ public class GenericCatalogDiscoverer(
         // Also synchronize any ContentBundle dependencies targeting the hydrated sibling items
         var bundleDependencies = catalog.Content
             .Where(c => c.ContentType == ContentType.ContentBundle && c.Releases != null)
-            .SelectMany(b => b.Releases!)
+            .SelectMany(b => b.Releases ?? [])
             .Where(r => r.Dependencies != null)
-            .SelectMany(r => r.Dependencies!);
+            .SelectMany(r => r.Dependencies ?? []);
 
         foreach (var dep in bundleDependencies)
         {

@@ -215,7 +215,7 @@ internal sealed class ManagedChromiumRuntime(
     private async Task<int> ExecuteInstallWithProgressAsync(Guid toastId, CancellationToken cancellationToken)
     {
         using var progressCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var progressTask = Task.Run(() => RunProgressNotificationLoopAsync(toastId, progressCts.Token));
+        var progressTask = Task.Run(() => RunProgressNotificationLoopAsync(toastId, progressCts.Token), CancellationToken.None);
 
         try
         {

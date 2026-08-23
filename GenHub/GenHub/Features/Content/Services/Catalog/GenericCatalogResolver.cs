@@ -213,12 +213,15 @@ public class GenericCatalogResolver(
             filename.Contains('?') ||
             filename.StartsWith("http", StringComparison.OrdinalIgnoreCase))
         {
+            var rawUrl = primaryArtifact.DownloadUrl;
+            var queryIndex = rawUrl.IndexOfAny(['?', '#']);
+            var cleanUrl = queryIndex >= 0 ? rawUrl[..queryIndex] : rawUrl;
             var extension = primaryArtifact.ContentType?.ToLowerInvariant() switch
             {
                 "application/zip" => ".zip",
                 "application/x-rar-compressed" => ".rar",
                 "application/x-7z-compressed" => ".7z",
-                _ => Path.GetExtension(primaryArtifact.DownloadUrl.Split('?', '#')[0]) is { Length: > 1 } urlExt
+                _ => Path.GetExtension(cleanUrl) is { Length: > 1 } urlExt
                     ? urlExt
                     : ".zip",
             };

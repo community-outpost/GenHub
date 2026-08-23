@@ -1926,8 +1926,8 @@ public class ArchivePayloadProcessor(ILogger<ArchivePayloadProcessor> logger) : 
         try
         {
             foreach (var subDir in Directory.GetDirectories(rootDirectory, "*", SearchOption.AllDirectories)
-                         .OrderByDescending(d => d.Length)
-                         .Where(subDir => Directory.Exists(subDir) && !Directory.EnumerateFileSystemEntries(subDir).Any()))
+                         .Where(subDir => Directory.Exists(subDir) && !Directory.EnumerateFileSystemEntries(subDir).Any())
+                         .OrderByDescending(d => d.Length))
             {
                 Directory.Delete(subDir);
             }
