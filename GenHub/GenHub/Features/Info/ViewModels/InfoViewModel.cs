@@ -101,19 +101,25 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
 
                 // 1. Try Guide Context
                 genHubSection.SetModuleContext(GeneralsHubModule.Guide);
-                if (genHubSection.Sections.Any(s => s.Id.Equals(sectionId, StringComparison.OrdinalIgnoreCase)))
+                var guideSubSection = genHubSection.Sections.FirstOrDefault(s => s.Id.Equals(sectionId, StringComparison.OrdinalIgnoreCase));
+                if (guideSubSection != null)
                 {
                     SelectedModule = InfoConstants.ModuleGuide;
-                    OpenSubSection(genHubSection, sectionId);
+                    SelectedSection = genHubSection;
+                    genHubSection.SelectedSection = guideSubSection;
+                    SelectedSidebarItem = guideSubSection;
                     return;
                 }
 
                 // 2. Try GeneralsOnline Context
                 genHubSection.SetModuleContext(GeneralsHubModule.GeneralsOnline);
-                if (genHubSection.Sections.Any(s => s.Id.Equals(sectionId, StringComparison.OrdinalIgnoreCase)))
+                var goSubSection = genHubSection.Sections.FirstOrDefault(s => s.Id.Equals(sectionId, StringComparison.OrdinalIgnoreCase));
+                if (goSubSection != null)
                 {
                     SelectedModule = InfoConstants.ModuleGeneralsOnline;
-                    OpenSubSection(genHubSection, sectionId);
+                    SelectedSection = genHubSection;
+                    genHubSection.SelectedSection = goSubSection;
+                    SelectedSidebarItem = goSubSection;
                     return;
                 }
 
@@ -122,12 +128,6 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
                 UpdateSidebarItems();
             }
         }
-    }
-
-    /// <inheritdoc/>
-    public void Receive(OpenInfoSectionMessage message)
-    {
-        OpenSection(message.Value);
     }
 
     /// <summary>
@@ -140,6 +140,12 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
         {
             await SelectedSection.InitializeAsync();
         }
+    }
+
+    /// <inheritdoc/>
+    public void Receive(OpenInfoSectionMessage message)
+    {
+        OpenSection(message.Value);
     }
 
     /// <inheritdoc/>
@@ -253,17 +259,6 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
         if (e.PropertyName == nameof(FaqSectionViewModel.SelectedCategory) && sender is FaqSectionViewModel faqSection)
         {
             SelectedSidebarItem = faqSection.SelectedCategory;
-        }
-    }
-
-    private void OpenSubSection(GenHubInfoSectionViewModel parent, string sectionId)
-    {
-        var target = parent.Sections.FirstOrDefault(s => s.Id.Equals(sectionId, StringComparison.OrdinalIgnoreCase));
-        if (target != null)
-        {
-            SelectedSection = parent;
-            parent.SelectedSection = target;
-            SelectedSidebarItem = target;
         }
     }
 }
