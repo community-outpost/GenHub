@@ -37,8 +37,8 @@ public sealed class ReplayImportService(
 
         try
         {
-            var directUrl = await urlParserService.GetDirectDownloadUrlAsync(url, ct);
-            if (string.IsNullOrEmpty(directUrl))
+            var directUrls = await urlParserService.GetDirectDownloadUrlsAsync(url, ct);
+            if (directUrls.Count == 0)
             {
                 return new ImportResult
                 {
@@ -49,71 +49,105 @@ public sealed class ReplayImportService(
                 };
             }
 
-            var tempPath = Path.Combine(Path.GetTempPath(), $"{ReplayManagerConstants.TempImportFilePrefix}{Guid.NewGuid()}.rep");
-            try
+            var importedFiles = new List<string>();
+            var errors = new List<string>();
+            int skipped = 0;
+            var source = urlParserService.IdentifySource(url);
+            var userAgent = (source == ReplaySource.GeneralsOnline || source == ReplaySource.GenTool || source == ReplaySource.Strata)
+                ? ApiConstants.BrowserUserAgent
+                : ApiConstants.DefaultUserAgent;
+
+            for (int i = 0; i < directUrls.Count; i++)
             {
-                var source = urlParserService.IdentifySource(url);
-                var userAgent = (source == ReplaySource.GeneralsOnline || source == ReplaySource.GenTool)
-                    ? ApiConstants.BrowserUserAgent
-                    : ApiConstants.DefaultUserAgent;
+                ct.ThrowIfCancellationRequested();
+                var directUrl = directUrls[i];
+                var tempPath = Path.Combine(Path.GetTempPath(), $"{ReplayManagerConstants.TempImportFilePrefix}{Guid.NewGuid()}.rep");
 
-                var downloadProgress = progress != null ? new Progress<DownloadProgress>(p => progress.Report(p.Percentage / 100.0)) : null;
-                var downloadConfig = new DownloadConfiguration
+                try
                 {
-                    Url = new Uri(directUrl),
-                    DestinationPath = tempPath,
-                    UserAgent = userAgent,
-                };
+                    var fileIndex = i;
+                    var totalFiles = directUrls.Count;
+                    var downloadProgress = progress != null
+                        ? new Progress<DownloadProgress>(p =>
+                        {
+                            var overallProgress = (fileIndex + (p.Percentage / 100.0)) / totalFiles;
+                            progress.Report(overallProgress);
+                        })
+                        : null;
 
-                var result = await downloadService.DownloadFileAsync(downloadConfig, progress: downloadProgress, cancellationToken: ct);
-
-                if (!result.Success)
-                {
-                    return new ImportResult
+                    var downloadConfig = new DownloadConfiguration
                     {
-                        Success = false,
-                        FilesImported = 0,
-                        FilesSkipped = 0,
-                        Errors = [ErrorMessages.DownloadFailed],
+                        Url = new Uri(directUrl),
+                        DestinationPath = tempPath,
+                        UserAgent = userAgent,
                     };
-                }
 
-                var isZip = IsZipFile(tempPath);
-                var maxAllowedBytes = isZip ? ReplayManagerConstants.MaxUploadBytesPerPeriod : ReplayManagerConstants.MaxReplaySizeBytes;
-                var info = new FileInfo(tempPath);
-                if (info.Length > maxAllowedBytes)
+                    var result = await downloadService.DownloadFileAsync(downloadConfig, progress: downloadProgress, cancellationToken: ct);
+                    if (!result.Success)
+                    {
+                        errors.Add($"{ErrorMessages.DownloadFailed}: {directUrl}");
+                        skipped++;
+                        continue;
+                    }
+
+                    var isZip = IsZipFile(tempPath);
+                    var maxAllowedBytes = isZip ? ReplayManagerConstants.MaxUploadBytesPerPeriod : ReplayManagerConstants.MaxReplaySizeBytes;
+                    var info = new FileInfo(tempPath);
+                    if (info.Length > maxAllowedBytes)
+                    {
+                        errors.Add(string.Format(ErrorMessages.ReplayExceedsMaxSize, info.Length / 1024.0));
+                        skipped++;
+                        continue;
+                    }
+
+                    if (isZip)
+                    {
+                        logger.LogInformation(LogMessages.DetectedZipFile);
+                        var zipResult = await ImportFromZipAsync(tempPath, targetVersion, null, ct);
+                        importedFiles.AddRange(zipResult.ImportedFiles);
+                        errors.AddRange(zipResult.Errors);
+                        skipped += zipResult.FilesSkipped;
+                    }
+                    else
+                    {
+                        var importedFileName = ExtractFileName(new Uri(directUrl));
+                        using var stream = File.OpenRead(tempPath);
+                        var singleResult = await ImportFromStreamAsync(stream, importedFileName, targetVersion, ct);
+                        if (singleResult.Success)
+                        {
+                            importedFiles.AddRange(singleResult.ImportedFiles);
+                        }
+                        else
+                        {
+                            errors.AddRange(singleResult.Errors);
+                            skipped++;
+                        }
+                    }
+                }
+                finally
                 {
                     if (File.Exists(tempPath))
                     {
                         File.Delete(tempPath);
                     }
-
-                    return new ImportResult
-                    {
-                        Success = false,
-                        FilesImported = 0,
-                        FilesSkipped = 0,
-                        Errors = [string.Format(ErrorMessages.ReplayExceedsMaxSize, info.Length / 1024.0)],
-                    };
                 }
-
-                if (isZip)
-                {
-                    logger.LogInformation(LogMessages.DetectedZipFile);
-                    return await ImportFromZipAsync(tempPath, targetVersion, progress, ct);
-                }
-
-                var importedFileName = ExtractFileName(new Uri(directUrl));
-                using var stream = File.OpenRead(tempPath);
-                return await ImportFromStreamAsync(stream, importedFileName, targetVersion, ct);
             }
-            finally
+
+            progress?.Report(1.0);
+
+            return new ImportResult
             {
-                if (File.Exists(tempPath))
-                {
-                    File.Delete(tempPath);
-                }
-            }
+                Success = importedFiles.Count > 0,
+                FilesImported = importedFiles.Count,
+                FilesSkipped = skipped,
+                ImportedFiles = importedFiles,
+                Errors = errors,
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation("Import from URL {Url} was cancelled", url);
+            throw;
         }
         catch (Exception ex)
         {

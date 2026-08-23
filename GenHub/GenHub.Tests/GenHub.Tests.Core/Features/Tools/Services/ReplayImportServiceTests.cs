@@ -94,6 +94,50 @@ public sealed class ReplayImportServiceTests : IDisposable
         Assert.Single(Directory.GetFiles(_replayDirectory));
     }
 
+    /// <summary>
+    /// Verifies that ImportFromUrlAsync imports all replays when multiple URLs are extracted from a match page.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportFromUrlAsync_WithMultipleExtractedUrls_ImportsAllFilesAsync()
+    {
+        var downloadService = new Mock<IDownloadService>();
+        downloadService.Setup(d => d.DownloadFileAsync(
+                It.IsAny<DownloadConfiguration>(),
+                It.IsAny<IProgress<DownloadProgress>?>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<DownloadConfiguration, IProgress<DownloadProgress>?, CancellationToken>((cfg, _, _) =>
+            {
+                File.WriteAllBytes(cfg.DestinationPath, "fake-replay-content"u8.ToArray());
+            })
+            .ReturnsAsync(new DownloadResult { Success = true });
+
+        var urlParser = new Mock<IUrlParserService>();
+        urlParser.Setup(u => u.IdentifySource(It.IsAny<string>())).Returns(ReplaySource.Strata);
+        urlParser.Setup(u => u.GetDirectDownloadUrlsAsync("https://strata.gamereplays.org/zh/match/3489856", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(
+            [
+                "https://matchdata.playgenerals.online/match_1_user_1_replay.rep",
+                "https://matchdata.playgenerals.online/match_1_user_2_replay.rep",
+            ]);
+
+        var directoryService = new Mock<IReplayDirectoryService>();
+        directoryService.Setup(d => d.GetReplayDirectory(It.IsAny<GameType>())).Returns(_replayDirectory);
+
+        var service = new ReplayImportService(
+            downloadService.Object,
+            directoryService.Object,
+            urlParser.Object,
+            new Mock<IZipValidationService>().Object,
+            NullLogger<ReplayImportService>.Instance);
+
+        var result = await service.ImportFromUrlAsync("https://strata.gamereplays.org/zh/match/3489856", GameType.ZeroHour);
+
+        Assert.True(result.Success);
+        Assert.Equal(2, result.FilesImported);
+        Assert.Equal(2, Directory.GetFiles(_replayDirectory).Length);
+    }
+
     private static void CreateZip(string zipPath, params string[] entryNames)
     {
         using var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create);

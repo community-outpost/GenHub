@@ -142,6 +142,18 @@ public static class ApiConstants
     /// </summary>
     public const string GeneralsOnlineViewMatchFragment = "playgenerals.online/viewmatch";
 
+    // GameReplays / Strata
+
+    /// <summary>
+    /// GameReplays Strata domain URL fragment for identification.
+    /// </summary>
+    public const string StrataUrlFragment = "strata.gamereplays.org";
+
+    /// <summary>
+    /// GameReplays domain URL fragment for identification.
+    /// </summary>
+    public const string GameReplaysDomainFragment = "gamereplays.org";
+
     /// <summary>
     /// Format string for GitHub API Workflow Runs endpoint (owner, repo).
     /// </summary>

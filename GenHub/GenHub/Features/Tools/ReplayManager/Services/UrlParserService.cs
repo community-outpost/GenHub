@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -23,7 +25,7 @@ public sealed partial class UrlParserService(HttpClient httpClient, ILogger<UrlP
             return ReplaySource.Unknown;
         }
 
-        // Check for raw Match ID (e.g., "151553")
+        // Check for raw match ID (e.g., "151553")
         if (long.TryParse(url, out _))
         {
             return ReplaySource.GeneralsOnline;
@@ -36,12 +38,18 @@ public sealed partial class UrlParserService(HttpClient httpClient, ILogger<UrlP
             return ReplaySource.UploadThing;
         }
 
-        if (url.Contains(ApiConstants.GeneralsOnlineViewMatchFragment))
+        if (url.Contains(ApiConstants.StrataUrlFragment, StringComparison.OrdinalIgnoreCase) ||
+            url.Contains(ApiConstants.GameReplaysDomainFragment, StringComparison.OrdinalIgnoreCase))
+        {
+            return ReplaySource.Strata;
+        }
+
+        if (url.Contains(ApiConstants.GeneralsOnlineViewMatchFragment, StringComparison.OrdinalIgnoreCase))
         {
             return ReplaySource.GeneralsOnline;
         }
 
-        if (url.Contains(ApiConstants.GenToolUrlFragment))
+        if (url.Contains(ApiConstants.GenToolUrlFragment, StringComparison.OrdinalIgnoreCase))
         {
             return ReplaySource.GenTool;
         }
@@ -64,6 +72,13 @@ public sealed partial class UrlParserService(HttpClient httpClient, ILogger<UrlP
     /// <inheritdoc />
     public async Task<string?> GetDirectDownloadUrlAsync(string url, CancellationToken ct = default)
     {
+        var urls = await GetDirectDownloadUrlsAsync(url, ct);
+        return urls.Count > 0 ? urls[0] : null;
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<string>> GetDirectDownloadUrlsAsync(string url, CancellationToken ct = default)
+    {
         var source = IdentifySource(url);
         logger.LogInformation(LogMessages.IdentifyingUrlSource, url, source);
 
@@ -71,17 +86,18 @@ public sealed partial class UrlParserService(HttpClient httpClient, ILogger<UrlP
         {
             return source switch
             {
-                ReplaySource.UploadThing => url, // UploadThing links are usually direct (utfs.io/f/...)
-                ReplaySource.DirectLink => url,
-                ReplaySource.GeneralsOnline => await ExtractGeneralsOnlineUrlAsync(url, ct),
-                ReplaySource.GenTool => await ExtractGenToolUrlAsync(url, ct),
-                _ => null,
+                ReplaySource.UploadThing => [url],
+                ReplaySource.DirectLink => [url],
+                ReplaySource.GeneralsOnline => await ExtractGeneralsOnlineUrlsAsync(url, ct),
+                ReplaySource.GenTool => await ExtractGenToolUrlsAsync(url, ct),
+                ReplaySource.Strata => await ExtractStrataUrlsAsync(url, ct),
+                _ => [],
             };
         }
         catch (Exception ex)
         {
             logger.LogError(ex, LogMessages.FailedToExtractDownloadUrl, url);
-            return null;
+            return [];
         }
     }
 
@@ -91,50 +107,100 @@ public sealed partial class UrlParserService(HttpClient httpClient, ILogger<UrlP
     [GeneratedRegex(RegexConstants.GenToolReplayPattern, RegexOptions.IgnoreCase)]
     private static partial Regex GenToolRegex();
 
-    private async Task<string?> ExtractGeneralsOnlineUrlAsync(string url, CancellationToken ct)
+    [GeneratedRegex(RegexConstants.StrataReplayPattern, RegexOptions.IgnoreCase)]
+    private static partial Regex StrataRegex();
+
+    private async Task<IReadOnlyList<string>> ExtractGeneralsOnlineUrlsAsync(string url, CancellationToken ct)
     {
-        // If the URL is just a number, treat it as a match ID
         if (long.TryParse(url, out long matchId))
         {
-            // Reconstruct: https://www.playgenerals.online/viewmatch?match=123
-            // Note: ApiConstants.GeneralsOnlineViewMatchFragment is "playgenerals.online/viewmatch"
-            // We use GeneralsOnlineConstants.WebsiteUrl which is "https://www.playgenerals.online"
             url = $"{GeneralsOnlineConstants.WebsiteUrl}/viewmatch?match={matchId}";
         }
 
-        // Example: https://www.playgenerals.online/viewmatch?match=354994
-        // Search for a link matching *_replay.rep
         var html = await httpClient.GetStringAsync(url, ct);
+        var matches = GeneralsOnlineRegex().Matches(html);
+        var results = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        // Regex to find matchdata link: https://matchdata.playgenerals.online/..._replay.rep
-        var match = GeneralsOnlineRegex().Match(html);
-        if (match.Success)
+        foreach (Match match in matches)
         {
-            return match.Value;
+            if (match.Success && !string.IsNullOrWhiteSpace(match.Value))
+            {
+                results.Add(match.Value);
+            }
         }
 
-        logger.LogWarning(LogMessages.CouldNotFindReplayLinkGeneralsOnline, url);
-        return null;
+        if (results.Count == 0)
+        {
+            logger.LogWarning(LogMessages.CouldNotFindReplayLinkGeneralsOnline, url);
+        }
+
+        return results.ToList();
     }
 
-    private async Task<string?> ExtractGenToolUrlAsync(string url, CancellationToken ct)
+    private async Task<IReadOnlyList<string>> ExtractGenToolUrlsAsync(string url, CancellationToken ct)
     {
         var html = await httpClient.GetStringAsync(url, ct);
-        var match = GenToolRegex().Match(html);
-        if (match.Success)
+        var matches = GenToolRegex().Matches(html);
+        var results = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var baseUri = new Uri(url);
+
+        foreach (Match match in matches)
         {
+            if (!match.Success)
+            {
+                continue;
+            }
+
             var relativeUrl = match.Groups[1].Value;
             if (Uri.IsWellFormedUriString(relativeUrl, UriKind.Absolute))
             {
-                return relativeUrl;
+                results.Add(relativeUrl);
             }
-
-            var baseUri = new Uri(url);
-            var absoluteUri = new Uri(baseUri, relativeUrl);
-            return absoluteUri.ToString();
+            else if (Uri.TryCreate(baseUri, relativeUrl, out var absoluteUri))
+            {
+                results.Add(absoluteUri.ToString());
+            }
         }
 
-        logger.LogWarning(LogMessages.CouldNotFindReplayLinkGenTool, url);
-        return null;
+        if (results.Count == 0)
+        {
+            logger.LogWarning(LogMessages.CouldNotFindReplayLinkGenTool, url);
+        }
+
+        return results.ToList();
+    }
+
+    private async Task<IReadOnlyList<string>> ExtractStrataUrlsAsync(string url, CancellationToken ct)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.UserAgent.ParseAdd(ApiConstants.BrowserUserAgent);
+        using var response = await httpClient.SendAsync(request, ct);
+        response.EnsureSuccessStatusCode();
+        var html = await response.Content.ReadAsStringAsync(ct);
+
+        var matches = StrataRegex().Matches(html);
+        var results = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var baseUri = new Uri(url);
+
+        foreach (Match match in matches)
+        {
+            var extracted = match.Groups["url"].Success ? match.Groups["url"].Value : match.Value;
+            if (string.IsNullOrWhiteSpace(extracted))
+            {
+                continue;
+            }
+
+            if (Uri.IsWellFormedUriString(extracted, UriKind.Absolute))
+            {
+                results.Add(extracted);
+            }
+            else if (Uri.TryCreate(baseUri, extracted, out var absoluteUri))
+            {
+                results.Add(absoluteUri.ToString());
+            }
+        }
+
+        logger.LogInformation("Extracted {Count} replay URLs from Strata match: {Url}", results.Count, url);
+        return results.ToList();
     }
 }

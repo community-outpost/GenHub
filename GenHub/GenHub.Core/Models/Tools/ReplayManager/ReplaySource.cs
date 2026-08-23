@@ -29,4 +29,9 @@ public enum ReplaySource
     /// Direct link to a .rep or .zip file.
     /// </summary>
     DirectLink,
+
+    /// <summary>
+    /// GameReplays Strata match platform.
+    /// </summary>
+    Strata,
 }

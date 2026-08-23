@@ -1,9 +1,13 @@
+using System.Net;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Tools.ReplayManager;
 using GenHub.Features.Tools.ReplayManager.Services;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
+using Moq.Protected;
 using Xunit;
 
 namespace GenHub.Tests.Core.Features.Tools.Services;
@@ -33,6 +37,9 @@ public sealed class UrlParserServiceTests
     [InlineData("https://50ea2z8yuk.ufs.sh/f/ZlHfBAzftgeLJxG1453BRquaUgnl90MjYIFymdAfOpCs67GN", ReplaySource.UploadThing)]
     [InlineData("https://ufs.sh/f/ZlHfBAzftgeLJxG1453BRquaUgnl90MjYIFymdAfOpCs67GN", ReplaySource.UploadThing)]
     [InlineData("https://utfs.io/f/legacy_uploadthing_key_123", ReplaySource.UploadThing)]
+    [InlineData("https://strata.gamereplays.org/zh/match/3489856", ReplaySource.Strata)]
+    [InlineData("https://strata.gamereplays.org/gen/match/12345", ReplaySource.Strata)]
+    [InlineData("https://gamereplays.org/zh/match/12345", ReplaySource.Strata)]
     [InlineData("https://www.playgenerals.online/viewmatch?match=12345", ReplaySource.GeneralsOnline)]
     [InlineData("12345", ReplaySource.GeneralsOnline)]
     [InlineData("https://gentool.net/data/zh/replay.rep", ReplaySource.GenTool)]
@@ -55,6 +62,7 @@ public sealed class UrlParserServiceTests
     [Theory]
     [InlineData("https://50ea2z8yuk.ufs.sh/f/key123", true)]
     [InlineData("https://utfs.io/f/key123", true)]
+    [InlineData("https://strata.gamereplays.org/zh/match/3489856", true)]
     [InlineData("https://example.com/replay.rep", true)]
     [InlineData("https://example.com/page.html", false)]
     public void IsValidReplayUrl_ReturnsExpectedValidity(string url, bool expectedValid)
@@ -75,5 +83,44 @@ public sealed class UrlParserServiceTests
     {
         var result = await _service.GetDirectDownloadUrlAsync(url);
         Assert.Equal(url, result);
+    }
+
+    /// <summary>
+    /// Verifies that GetDirectDownloadUrlsAsync extracts multiple replays from a Strata match HTML page.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetDirectDownloadUrlsAsync_WithStrataMatchPage_ExtractsAllReplaysAsync()
+    {
+        var mockHandler = new Mock<HttpMessageHandler>();
+        const string matchHtml = """
+            <html>
+                <body>
+                    <h2>Match #3489856</h2>
+                    <a href="https://matchdata.playgenerals.online/replays/2026/8/23/match_3489856/user_1/match_3489856_user_1_replay.rep">Player 1 Replay</a>
+                    <a href="https://matchdata.playgenerals.online/replays/2026/8/23/match_3489856/user_2/match_3489856_user_2_replay.rep">Player 2 Replay</a>
+                </body>
+            </html>
+            """;
+
+        mockHandler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent(matchHtml),
+            });
+
+        var client = new HttpClient(mockHandler.Object);
+        var service = new UrlParserService(client, NullLogger<UrlParserService>.Instance);
+
+        var result = await service.GetDirectDownloadUrlsAsync("https://strata.gamereplays.org/zh/match/3489856");
+
+        Assert.Equal(2, result.Count);
+        Assert.Contains("https://matchdata.playgenerals.online/replays/2026/8/23/match_3489856/user_1/match_3489856_user_1_replay.rep", result);
+        Assert.Contains("https://matchdata.playgenerals.online/replays/2026/8/23/match_3489856/user_2/match_3489856_user_2_replay.rep", result);
     }
 }
