@@ -52,7 +52,7 @@ public static class InstallationExtensions
             var files = directoryInfo.GetFiles();
             return files.Any(f => string.Equals(f.Name, fileName, StringComparison.OrdinalIgnoreCase));
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         {
             // If directory enumeration fails, fall back to false
             return false;
@@ -96,7 +96,7 @@ public static class InstallationExtensions
                 return true;
             }
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         {
             return false;
         }
