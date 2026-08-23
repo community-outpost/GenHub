@@ -450,4 +450,60 @@ public class GameInstallationServiceTests : IDisposable
             Directory.Delete(tempDir, true);
         }
     }
+
+    /// <summary>
+    /// Verifies that manifests with distinct source paths reconstruct into distinct installations.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetAllInstallationsAsync_ReconstructsInstallations_RespectingPathComparerAsync()
+    {
+        var tempDir1 = Path.Combine(Path.GetTempPath(), "GenHubPathTest_A_" + Guid.NewGuid().ToString("N"));
+        var tempDir2 = Path.Combine(Path.GetTempPath(), "GenHubPathTest_B_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir1);
+        Directory.CreateDirectory(tempDir2);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir1, "generals.exe"), string.Empty);
+            File.WriteAllText(Path.Combine(tempDir1, "INIZH.big"), string.Empty);
+            File.WriteAllText(Path.Combine(tempDir2, "generals.exe"), string.Empty);
+            File.WriteAllText(Path.Combine(tempDir2, "INIZH.big"), string.Empty);
+
+            _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([], TimeSpan.Zero));
+
+            var manifest1 = new ContentManifest
+            {
+                Id = "1.104.retail.gameinstallation.zerohour",
+                ContentType = GenHub.Core.Models.Enums.ContentType.GameInstallation,
+                TargetGame = GameType.ZeroHour,
+                Version = "1.04",
+                Metadata = new ContentMetadata { SourcePath = tempDir1 },
+            };
+
+            var manifest2 = new ContentManifest
+            {
+                Id = "1.104.retail.gameinstallation.zerohour",
+                ContentType = GenHub.Core.Models.Enums.ContentType.GameInstallation,
+                TargetGame = GameType.ZeroHour,
+                Version = "1.04",
+                Metadata = new ContentMetadata { SourcePath = tempDir2 },
+            };
+
+            _manifestPoolMock
+                .Setup(x => x.SearchManifestsAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([manifest1, manifest2]));
+
+            var result = await _service.GetAllInstallationsAsync();
+
+            Assert.True(result.Success);
+            Assert.NotNull(result.Data);
+            Assert.Equal(2, result.Data.Count);
+        }
+        finally
+        {
+            Directory.Delete(tempDir1, true);
+            Directory.Delete(tempDir2, true);
+        }
+    }
 }

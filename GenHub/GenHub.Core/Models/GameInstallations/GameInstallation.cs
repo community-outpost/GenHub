@@ -262,7 +262,7 @@ public class GameInstallation : IGameInstallation
             if (Directory.Exists(path))
             {
                 var directoryInfo = new DirectoryInfo(path);
-                if (directoryInfo.GetFiles("*.big").Any(f => f.Name.EndsWith("ZH.big", StringComparison.OrdinalIgnoreCase)))
+                if (directoryInfo.EnumerateFiles().Any(f => f.Name.EndsWith("ZH.big", StringComparison.OrdinalIgnoreCase)))
                 {
                     return true;
                 }
@@ -382,7 +382,8 @@ public class GameInstallation : IGameInstallation
                 Path.Combine(InstallationPath, "gensec.big").FileExistsCaseInsensitive() ||
                 Path.Combine(InstallationPath, GameClientConstants.SuperHackersGeneralsExecutable).FileExistsCaseInsensitive();
 
-            if (!isZhNamed || isStrictGeneralsOnlySignature)
+            var isZeroHour = isZhNamed || hasZhSignature;
+            if (!isZeroHour || isStrictGeneralsOnlySignature)
             {
                 HasGenerals = true;
                 GeneralsPath = InstallationPath;

@@ -140,7 +140,7 @@ public class GameInstallationTests
         try
         {
             File.WriteAllText(Path.Combine(tempDir, "generals.exe"), string.Empty);
-            File.WriteAllText(Path.Combine(tempDir, "INI.big"), string.Empty);
+            File.WriteAllText(Path.Combine(tempDir, "gensec.big"), string.Empty);
             File.WriteAllText(Path.Combine(tempDir, "INIZH.big"), string.Empty);
 
             var installation = new GameInstallation(tempDir, GameInstallationType.Retail, NullLogger<GameInstallation>.Instance);
@@ -380,9 +380,12 @@ public class GameInstallationTests
     /// <param name="archiveName">The localized Zero Hour archive filename.</param>
     [Theory]
     [InlineData("RussianZH.big")]
+    [InlineData("RussianZH.BIG")]
     [InlineData("GermanZH.big")]
+    [InlineData("GermanZH.Big")]
     [InlineData("FrenchZH.big")]
     [InlineData("AudioZH.big")]
+    [InlineData("MapsZH.BIG")]
     public void GameInstallation_Fetch_DetectsZeroHour_WhenLocalizedZhBigArchivePresent(string archiveName)
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "GenericRoot_" + Guid.NewGuid().ToString("N"));
@@ -397,6 +400,34 @@ public class GameInstallationTests
 
             Assert.True(installation.HasZeroHour);
             Assert.Equal(tempDir, installation.ZeroHourPath);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that Fetch identifies a generic directory containing both generic INI.big and a Zero Hour archive signature as Zero Hour only.
+    /// </summary>
+    [Fact]
+    public void GameInstallation_Fetch_DetectsOnlyZeroHour_WhenGenericRootContainsIniBigAndZhArchive()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenericRoot_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "generals.exe"), string.Empty);
+            File.WriteAllText(Path.Combine(tempDir, "INI.big"), string.Empty);
+            File.WriteAllText(Path.Combine(tempDir, "RussianZH.BIG"), string.Empty);
+
+            var installation = new GameInstallation(tempDir, GameInstallationType.Retail, NullLogger<GameInstallation>.Instance);
+            installation.Fetch();
+
+            Assert.True(installation.HasZeroHour);
+            Assert.Equal(tempDir, installation.ZeroHourPath);
+            Assert.False(installation.HasGenerals);
+            Assert.True(string.IsNullOrEmpty(installation.GeneralsPath));
         }
         finally
         {
@@ -452,6 +483,35 @@ public class GameInstallationTests
 
             Assert.True(installation.HasZeroHour);
             Assert.Equal(customZhDir, installation.ZeroHourPath);
+        }
+        finally
+        {
+            Directory.Delete(tempParent, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that Fetch preserves explicitly configured Generals paths even when a standard supported subdirectory also exists.
+    /// </summary>
+    [Fact]
+    public void GameInstallation_Fetch_PreservesExplicitlyConfiguredGeneralsPath_EvenWhenStandardSubdirectoriesExist()
+    {
+        var tempParent = Path.Combine(Path.GetTempPath(), "ExplicitGenSubdirTest_" + Guid.NewGuid().ToString("N"));
+        var customGenDir = Path.Combine(tempParent, "Generals_Custom");
+        var standardGenDir = Path.Combine(tempParent, GameClientConstants.GeneralsDirectoryName);
+        Directory.CreateDirectory(customGenDir);
+        Directory.CreateDirectory(standardGenDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(customGenDir, "generals.exe"), string.Empty);
+            File.WriteAllText(Path.Combine(standardGenDir, "generals.exe"), string.Empty);
+
+            var installation = new GameInstallation(tempParent, GameInstallationType.Retail, NullLogger<GameInstallation>.Instance);
+            installation.SetPaths(customGenDir, null);
+            installation.Fetch();
+
+            Assert.True(installation.HasGenerals);
+            Assert.Equal(customGenDir, installation.GeneralsPath);
         }
         finally
         {
