@@ -96,12 +96,7 @@ public sealed class ReplayImportService(
                 Errors = errors,
             };
         }
-        catch (OperationCanceledException ex)
-        {
-            logger.LogInformation(ex, "Import from URL {Url} was cancelled", url);
-            throw;
-        }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to import from URL: {Url}", url);
             return new ImportResult { Success = false, FilesImported = 0, FilesSkipped = 0, Errors = [ex.Message] };
@@ -306,12 +301,7 @@ public sealed class ReplayImportService(
                 }
             }
         }
-        catch (OperationCanceledException ex)
-        {
-            logger.LogInformation(ex, "Import from ZIP {ZipPath} was cancelled", zipPath);
-            throw;
-        }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, LogMessages.FailedToImportFromZip, zipPath);
             errors.Add(string.Format(ErrorMessages.FailedToProcessZip, ex.Message));
