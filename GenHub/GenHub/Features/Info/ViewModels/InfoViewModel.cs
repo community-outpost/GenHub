@@ -74,74 +74,61 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
     public ObservableCollection<IInfoSectionViewModel> Sections { get; }
 
     /// <summary>
+    /// Initializes the specified section asynchronously.
+    /// </summary>
+    /// <param name="section">The section to initialize.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    public static async Task InitializeAsync(IInfoSectionViewModel? section)
+    {
+        if (section != null)
+        {
+            await section.InitializeAsync();
+        }
+    }
+
+    /// <summary>
+    /// Resolves the module name corresponding to the specified section ID.
+    /// </summary>
+    /// <param name="sectionId">The section ID.</param>
+    /// <returns>The resolved module name.</returns>
+    public static string ResolveModuleForSection(string sectionId)
+    {
+        if (string.Equals(sectionId, InfoConstants.SectionFaq, StringComparison.OrdinalIgnoreCase))
+        {
+            return InfoConstants.ModuleZeroHour;
+        }
+
+        if (string.Equals(sectionId, InfoConstants.SectionGoChangelog, StringComparison.OrdinalIgnoreCase))
+        {
+            return InfoConstants.ModuleGeneralsOnline;
+        }
+
+        return InfoConstants.ModuleGuide;
+    }
+
+    /// <summary>
     /// Opens a specific section by ID, switching modules if necessary.
     /// </summary>
     /// <param name="sectionId">The ID of the section to open.</param>
     public void OpenSection(string sectionId)
     {
-        SelectedModule = string.Equals(sectionId, InfoConstants.SectionFaq, StringComparison.OrdinalIgnoreCase)
-            ? InfoConstants.ModuleZeroHour
-            : string.Equals(sectionId, InfoConstants.SectionGoChangelog, StringComparison.OrdinalIgnoreCase)
-                ? InfoConstants.ModuleGeneralsOnline
-                : InfoConstants.ModuleGuide;
+        SelectedModule = ResolveModuleForSection(sectionId);
 
         var targetSection = Sections.FirstOrDefault(s => string.Equals(s.Id, sectionId, StringComparison.OrdinalIgnoreCase));
-
         if (targetSection != null)
         {
             SelectedSection = targetSection;
+            return;
         }
-        else
-        {
-            var genHubSection = Sections.OfType<GenHubInfoSectionViewModel>().FirstOrDefault();
-            if (genHubSection != null)
-            {
-                var previousModule = string.Equals(SelectedModule, InfoConstants.ModuleGeneralsOnline, StringComparison.Ordinal)
-                    ? GeneralsHubModule.GeneralsOnline
-                    : GeneralsHubModule.Guide;
 
-                // 1. Try Guide Context
-                genHubSection.SetModuleContext(GeneralsHubModule.Guide);
-                var guideSubSection = genHubSection.Sections.FirstOrDefault(s => string.Equals(s.Id, sectionId, StringComparison.OrdinalIgnoreCase));
-                if (guideSubSection != null)
-                {
-                    SelectedModule = InfoConstants.ModuleGuide;
-                    SelectedSection = genHubSection;
-                    genHubSection.SelectedSection = guideSubSection;
-                    SelectedSidebarItem = guideSubSection;
-                    return;
-                }
-
-                // 2. Try GeneralsOnline Context
-                genHubSection.SetModuleContext(GeneralsHubModule.GeneralsOnline);
-                var goSubSection = genHubSection.Sections.FirstOrDefault(s => string.Equals(s.Id, sectionId, StringComparison.OrdinalIgnoreCase));
-                if (goSubSection != null)
-                {
-                    SelectedModule = InfoConstants.ModuleGeneralsOnline;
-                    SelectedSection = genHubSection;
-                    genHubSection.SelectedSection = goSubSection;
-                    SelectedSidebarItem = goSubSection;
-                    return;
-                }
-
-                // No match in either context; restore previous context
-                genHubSection.SetModuleContext(previousModule);
-                UpdateSidebarItems();
-            }
-        }
+        TryOpenSubSection(sectionId);
     }
 
     /// <summary>
     /// Initializes the view model and the selected section.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task InitializeAsync()
-    {
-        if (SelectedSection != null)
-        {
-            await SelectedSection.InitializeAsync();
-        }
-    }
+    public Task InitializeAsync() => InitializeAsync(SelectedSection);
 
     /// <inheritdoc/>
     public void Receive(OpenInfoSectionMessage message)
@@ -200,6 +187,44 @@ public sealed partial class InfoViewModel : ViewModelBase, IDisposable, IRecipie
                 faqSection.SelectedCategory = faqCategory;
             }
         }
+    }
+
+    private void TryOpenSubSection(string sectionId)
+    {
+        var genHubSection = Sections.OfType<GenHubInfoSectionViewModel>().FirstOrDefault();
+        if (genHubSection == null)
+        {
+            return;
+        }
+
+        var previousModule = string.Equals(SelectedModule, InfoConstants.ModuleGeneralsOnline, StringComparison.Ordinal)
+            ? GeneralsHubModule.GeneralsOnline
+            : GeneralsHubModule.Guide;
+
+        if (TryActivateSubSection(genHubSection, GeneralsHubModule.Guide, InfoConstants.ModuleGuide, sectionId) ||
+            TryActivateSubSection(genHubSection, GeneralsHubModule.GeneralsOnline, InfoConstants.ModuleGeneralsOnline, sectionId))
+        {
+            return;
+        }
+
+        genHubSection.SetModuleContext(previousModule);
+        UpdateSidebarItems();
+    }
+
+    private bool TryActivateSubSection(GenHubInfoSectionViewModel genHubSection, GeneralsHubModule module, string moduleName, string sectionId)
+    {
+        genHubSection.SetModuleContext(module);
+        var subSection = genHubSection.Sections.FirstOrDefault(s => string.Equals(s.Id, sectionId, StringComparison.OrdinalIgnoreCase));
+        if (subSection == null)
+        {
+            return false;
+        }
+
+        SelectedModule = moduleName;
+        SelectedSection = genHubSection;
+        genHubSection.SelectedSection = subSection;
+        SelectedSidebarItem = subSection;
+        return true;
     }
 
     private void UpdateSidebarItems()
