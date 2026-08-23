@@ -429,4 +429,33 @@ public class GameInstallationTests
             Directory.Delete(tempParent, true);
         }
     }
+
+    /// <summary>
+    /// Verifies that Fetch preserves explicitly configured paths even when a standard supported subdirectory also exists.
+    /// </summary>
+    [Fact]
+    public void GameInstallation_Fetch_PreservesExplicitlyConfiguredPaths_EvenWhenStandardSubdirectoriesExist()
+    {
+        var tempParent = Path.Combine(Path.GetTempPath(), "ExplicitSubdirTest_" + Guid.NewGuid().ToString("N"));
+        var customZhDir = Path.Combine(tempParent, "ZH_Custom");
+        var standardZhDir = Path.Combine(tempParent, GameClientConstants.ZeroHourDirectoryName);
+        Directory.CreateDirectory(customZhDir);
+        Directory.CreateDirectory(standardZhDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(customZhDir, "generals.exe"), string.Empty);
+            File.WriteAllText(Path.Combine(standardZhDir, "generals.exe"), string.Empty);
+
+            var installation = new GameInstallation(tempParent, GameInstallationType.Retail, NullLogger<GameInstallation>.Instance);
+            installation.SetPaths(null, customZhDir);
+            installation.Fetch();
+
+            Assert.True(installation.HasZeroHour);
+            Assert.Equal(customZhDir, installation.ZeroHourPath);
+        }
+        finally
+        {
+            Directory.Delete(tempParent, true);
+        }
+    }
 }

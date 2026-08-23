@@ -395,8 +395,55 @@ public class GameInstallationServiceTests : IDisposable
             Assert.True(result.Success);
             Assert.NotNull(result.Data);
             var install = Assert.Single(result.Data);
+            Assert.True(install.HasGenerals);
+            Assert.Equal(tempDir, install.GeneralsPath);
             Assert.True(install.HasZeroHour);
             Assert.Equal(tempDir, install.ZeroHourPath);
+        }
+        finally
+        {
+            Directory.Delete(tempDir, true);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that when TargetGame defaults to Generals (0) because it was omitted in JSON, a Zero Hour manifest ID only sets the Zero Hour path.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task GetAllInstallationsAsync_ReconstructsZeroHourInstallation_WhenTargetGameOmittedAsync()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GenHubZHManifestReconstruct_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "generals.exe"), string.Empty);
+            File.WriteAllText(Path.Combine(tempDir, "INIZH.big"), string.Empty);
+
+            _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([], TimeSpan.Zero));
+
+            // TargetGame is omitted / default(GameType) which equals GameType.Generals (0)
+            var zeroHourManifest = new ContentManifest
+            {
+                Id = "1.104.retail.gameinstallation.zerohour",
+                ContentType = GenHub.Core.Models.Enums.ContentType.GameInstallation,
+                Version = "1.04",
+                Metadata = new ContentMetadata { SourcePath = tempDir },
+            };
+
+            _manifestPoolMock
+                .Setup(x => x.SearchManifestsAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(OperationResult<IEnumerable<ContentManifest>>.CreateSuccess([zeroHourManifest]));
+
+            var result = await _service.GetAllInstallationsAsync();
+
+            Assert.True(result.Success);
+            Assert.NotNull(result.Data);
+            var install = Assert.Single(result.Data);
+            Assert.True(install.HasZeroHour);
+            Assert.Equal(tempDir, install.ZeroHourPath);
+            Assert.False(install.HasGenerals);
         }
         finally
         {

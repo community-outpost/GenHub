@@ -309,18 +309,21 @@ public class GameInstallation : IGameInstallation
             GameClientConstants.GeneralsRetailDirectoryName,
         ];
 
-        foreach (var subDir in generalsSubdirs)
+        if (!foundGenerals)
         {
-            if (InstallationPath.TryGetDirectoryCaseInsensitive(subDir, out var generalsPath))
+            foreach (var subDir in generalsSubdirs)
             {
-                var generalsExe = Path.Combine(generalsPath, GameClientConstants.GeneralsExecutable);
-                if (generalsExe.FileExistsCaseInsensitive())
+                if (InstallationPath.TryGetDirectoryCaseInsensitive(subDir, out var generalsPath))
                 {
-                    HasGenerals = true;
-                    GeneralsPath = generalsPath;
-                    foundGenerals = true;
-                    _logger?.LogDebug("Found Generals installation at {GeneralsPath}", GeneralsPath);
-                    break;
+                    var generalsExe = Path.Combine(generalsPath, GameClientConstants.GeneralsExecutable);
+                    if (generalsExe.FileExistsCaseInsensitive())
+                    {
+                        HasGenerals = true;
+                        GeneralsPath = generalsPath;
+                        foundGenerals = true;
+                        _logger?.LogDebug("Found Generals installation at {GeneralsPath}", GeneralsPath);
+                        break;
+                    }
                 }
             }
         }
@@ -334,18 +337,21 @@ public class GameInstallation : IGameInstallation
             GameClientConstants.ZeroHourDirectoryNameColonVariant,
         ];
 
-        foreach (var subDir in zhSubdirs)
+        if (!foundZeroHour)
         {
-            if (InstallationPath.TryGetDirectoryCaseInsensitive(subDir, out var zeroHourPath))
+            foreach (var subDir in zhSubdirs)
             {
-                var zeroHourExe = Path.Combine(zeroHourPath, GameClientConstants.ZeroHourExecutable);
-                if (zeroHourExe.FileExistsCaseInsensitive())
+                if (InstallationPath.TryGetDirectoryCaseInsensitive(subDir, out var zeroHourPath))
                 {
-                    HasZeroHour = true;
-                    ZeroHourPath = zeroHourPath;
-                    foundZeroHour = true;
-                    _logger?.LogDebug("Found Zero Hour installation at {ZeroHourPath}", ZeroHourPath);
-                    break;
+                    var zeroHourExe = Path.Combine(zeroHourPath, GameClientConstants.ZeroHourExecutable);
+                    if (zeroHourExe.FileExistsCaseInsensitive())
+                    {
+                        HasZeroHour = true;
+                        ZeroHourPath = zeroHourPath;
+                        foundZeroHour = true;
+                        _logger?.LogDebug("Found Zero Hour installation at {ZeroHourPath}", ZeroHourPath);
+                        break;
+                    }
                 }
             }
         }
