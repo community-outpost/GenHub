@@ -204,6 +204,52 @@ public class GameInstallation : IGameInstallation
         return possibleExes.Any(exe => Path.Combine(path, exe).FileExistsCaseInsensitive());
     }
 
+    private static bool HasRootExecutable(string path)
+    {
+        var possibleExes = new[]
+        {
+            GameClientConstants.GeneralsExecutable,
+            GameClientConstants.SuperHackersZeroHourExecutable,
+            GameClientConstants.GeneralsOnlineDefaultExecutable,
+            GameClientConstants.GeneralsOnline60HzExecutable,
+            GameClientConstants.SteamGameDatExecutable,
+        };
+
+        return possibleExes.Any(exe => Path.Combine(path, exe).FileExistsCaseInsensitive());
+    }
+
+    private static bool HasZeroHourArchiveOrDirectorySignature(string path)
+    {
+        if (Path.Combine(path, GameClientConstants.ZeroHourIniBig).FileExistsCaseInsensitive() ||
+            Path.Combine(path, GameClientConstants.ZeroHourPatchBig).FileExistsCaseInsensitive())
+        {
+            return true;
+        }
+
+        if (Path.Combine(path, GameClientConstants.SuperHackersZeroHourExecutable).FileExistsCaseInsensitive() ||
+            Path.Combine(path, GameClientConstants.GeneralsOnlineDefaultExecutable).FileExistsCaseInsensitive() ||
+            Path.Combine(path, GameClientConstants.GeneralsOnline60HzExecutable).FileExistsCaseInsensitive())
+        {
+            return true;
+        }
+
+        return path.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase) ||
+               path.Contains("ZeroHour", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool HasGeneralsArchiveSignature(string path)
+    {
+        return Path.Combine(path, GameClientConstants.GeneralsIniBig).FileExistsCaseInsensitive() ||
+               Path.Combine(path, GameClientConstants.GeneralsPatchBig).FileExistsCaseInsensitive();
+    }
+
+    private static bool IsZeroHourNamedDirectory(string path)
+    {
+        return path.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase) ||
+               path.Contains("ZeroHour", StringComparison.OrdinalIgnoreCase) ||
+               path.Contains("ZH", StringComparison.OrdinalIgnoreCase);
+    }
+
     private void FetchSubdirectoryInstallations(ref bool foundGenerals, ref bool foundZeroHour)
     {
         // Check strict subdirectories first (standard structure)
@@ -252,46 +298,12 @@ public class GameInstallation : IGameInstallation
 
     private void FetchRootInstallation(ref bool foundGenerals, ref bool foundZeroHour)
     {
-        if (foundGenerals && foundZeroHour)
+        if ((foundGenerals && foundZeroHour) || !HasRootExecutable(InstallationPath))
         {
             return;
         }
 
-        // Check the root path (common for manual installs, standalone zero hour folders, and repacks)
-        var rootGeneralsExe = Path.Combine(InstallationPath, GameClientConstants.GeneralsExecutable);
-        var rootGeneralsZhExe = Path.Combine(InstallationPath, GameClientConstants.SuperHackersZeroHourExecutable);
-        var rootGoZhExe = Path.Combine(InstallationPath, GameClientConstants.GeneralsOnlineDefaultExecutable);
-        var rootGo60Exe = Path.Combine(InstallationPath, GameClientConstants.GeneralsOnline60HzExecutable);
-        var rootGameDat = Path.Combine(InstallationPath, GameClientConstants.SteamGameDatExecutable);
-
-        bool hasExecutable = rootGeneralsExe.FileExistsCaseInsensitive() ||
-                             rootGeneralsZhExe.FileExistsCaseInsensitive() ||
-                             rootGoZhExe.FileExistsCaseInsensitive() ||
-                             rootGo60Exe.FileExistsCaseInsensitive() ||
-                             rootGameDat.FileExistsCaseInsensitive();
-
-        if (!hasExecutable)
-        {
-            return;
-        }
-
-        var rootIniZh = Path.Combine(InstallationPath, GameClientConstants.ZeroHourIniBig);
-        var rootPatchZh = Path.Combine(InstallationPath, GameClientConstants.ZeroHourPatchBig);
-        var rootIni = Path.Combine(InstallationPath, GameClientConstants.GeneralsIniBig);
-        var rootPatch = Path.Combine(InstallationPath, GameClientConstants.GeneralsPatchBig);
-
-        bool hasZhSignatures = rootIniZh.FileExistsCaseInsensitive() ||
-                               rootPatchZh.FileExistsCaseInsensitive() ||
-                               rootGeneralsZhExe.FileExistsCaseInsensitive() ||
-                               rootGoZhExe.FileExistsCaseInsensitive() ||
-                               rootGo60Exe.FileExistsCaseInsensitive() ||
-                               InstallationPath.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase) ||
-                               InstallationPath.Contains("ZeroHour", StringComparison.OrdinalIgnoreCase);
-
-        bool hasGeneralsSignatures = rootIni.FileExistsCaseInsensitive() ||
-                                     rootPatch.FileExistsCaseInsensitive();
-
-        if (!foundZeroHour && hasZhSignatures)
+        if (!foundZeroHour && HasZeroHourArchiveOrDirectorySignature(InstallationPath))
         {
             HasZeroHour = true;
             ZeroHourPath = InstallationPath;
@@ -299,7 +311,7 @@ public class GameInstallation : IGameInstallation
             _logger?.LogDebug("Found Zero Hour installation at root {ZeroHourPath}", ZeroHourPath);
         }
 
-        if (!foundGenerals && hasGeneralsSignatures)
+        if (!foundGenerals && HasGeneralsArchiveSignature(InstallationPath))
         {
             HasGenerals = true;
             GeneralsPath = InstallationPath;
@@ -307,25 +319,29 @@ public class GameInstallation : IGameInstallation
             _logger?.LogDebug("Found Generals installation at root {GeneralsPath}", GeneralsPath);
         }
 
-        // If neither specific archive signature matched, default based on path name or generic fallback
-        if (!foundGenerals && !foundZeroHour)
+        if (foundGenerals || foundZeroHour)
         {
-            if (InstallationPath.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase) ||
-                InstallationPath.Contains("ZeroHour", StringComparison.OrdinalIgnoreCase) ||
-                InstallationPath.Contains("ZH", StringComparison.OrdinalIgnoreCase))
-            {
-                HasZeroHour = true;
-                ZeroHourPath = InstallationPath;
-                foundZeroHour = true;
-                _logger?.LogDebug("Found Zero Hour installation at root based on directory name {ZeroHourPath}", ZeroHourPath);
-            }
-            else
-            {
-                HasGenerals = true;
-                GeneralsPath = InstallationPath;
-                foundGenerals = true;
-                _logger?.LogDebug("Found Generals installation at root {GeneralsPath}", GeneralsPath);
-            }
+            return;
+        }
+
+        AssignRootFallback(ref foundGenerals, ref foundZeroHour);
+    }
+
+    private void AssignRootFallback(ref bool foundGenerals, ref bool foundZeroHour)
+    {
+        if (IsZeroHourNamedDirectory(InstallationPath))
+        {
+            HasZeroHour = true;
+            ZeroHourPath = InstallationPath;
+            foundZeroHour = true;
+            _logger?.LogDebug("Found Zero Hour installation at root based on directory name {ZeroHourPath}", ZeroHourPath);
+        }
+        else
+        {
+            HasGenerals = true;
+            GeneralsPath = InstallationPath;
+            foundGenerals = true;
+            _logger?.LogDebug("Found Generals installation at root {GeneralsPath}", GeneralsPath);
         }
     }
-}
+}
