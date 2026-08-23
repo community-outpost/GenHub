@@ -250,11 +250,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             {
                 await FileOperations.CreateHardLinkAsync(targetPath, sourcePath, cancellationToken);
             }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception hardLinkEx)
+            catch (Exception hardLinkEx) when (hardLinkEx is not OperationCanceledException)
             {
                 Logger.LogWarning(hardLinkEx, "Hard link creation failed for {RelativePath}, attempting symlink fallback", file.RelativePath);
 
@@ -262,11 +258,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                 {
                     await FileOperations.CreateSymlinkAsync(targetPath, sourcePath, allowFallback: false, cancellationToken);
                 }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch (Exception symlinkEx)
+                catch (Exception symlinkEx) when (symlinkEx is not OperationCanceledException)
                 {
                     Logger.LogError(
                         symlinkEx,
@@ -284,11 +276,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             {
                 await FileOperations.CreateSymlinkAsync(targetPath, sourcePath, allowFallback: false, cancellationToken);
             }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception symlinkEx)
+            catch (Exception symlinkEx) when (symlinkEx is not OperationCanceledException)
             {
                 Logger.LogError(
                     symlinkEx,
@@ -395,10 +383,6 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             await FileOperations.CreateHardLinkAsync(destinationPath, sourcePath, cancellationToken);
             return (false, true, LinkOverheadBytes, false);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
         catch (IOException ioEx)
         {
             if (ioEx.Message.Contains("NOT_FOUND", StringComparison.OrdinalIgnoreCase) ||
@@ -415,11 +399,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                 await FileOperations.CreateSymlinkAsync(destinationPath, sourcePath, allowFallback: false, cancellationToken);
                 return (false, true, LinkOverheadBytes, false);
             }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception symlinkEx)
+            catch (Exception symlinkEx) when (symlinkEx is not OperationCanceledException)
             {
                 Logger.LogError(
                     symlinkEx,
@@ -448,11 +428,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             await FileOperations.CreateSymlinkAsync(destinationPath, sourcePath, allowFallback: false, cancellationToken);
             return (false, true, LinkOverheadBytes, false);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception symlinkEx)
+        catch (Exception symlinkEx) when (symlinkEx is not OperationCanceledException)
         {
             Logger.LogError(
                 symlinkEx,
