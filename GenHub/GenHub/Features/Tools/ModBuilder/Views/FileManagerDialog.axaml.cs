@@ -60,10 +60,5 @@ public partial class FileManagerDialog : Window
     {
         Close();
     }
-
-    private void OnCloseClicked(object? sender, RoutedEventArgs e)
-    {
-        Close();
-    }
 }
 

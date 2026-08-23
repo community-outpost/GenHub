@@ -35,8 +35,9 @@
           <ComboBox.ItemTemplate>
             <DataTemplate x:DataType="models:GameInstallationOption">
               <Grid ColumnDefinitions="Auto,*,Auto">
-                <Image Grid.Column="0" Source="{Binding IconPath}"
-                       Width="20" Height="20" Margin="0,0,8,0"/>
+                <Image Grid.Column="0" Source="{Binding IconPath, Converter={StaticResource StringToImageConverter}}"
+                       Width="20" Height="20" Margin="0,0,8,0"
+                       IsVisible="{Binding IconPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                 <TextBlock Grid.Column="1" Text="{Binding DisplayName}"
                            VerticalAlignment="Center" FontSize="12.5"
                            Foreground="{DynamicResource TextPrimary}"/>
