@@ -170,40 +170,22 @@ public partial class ModDBDiscoverer(
         }
 
         var trimmed = input.Trim();
+        if (TryNormalizeHttpModDBUrl(trimmed, out normalizedUrl) ||
+            TryNormalizeDomainModDBUrl(trimmed, out normalizedUrl))
+        {
+            return true;
+        }
+
+        return TryNormalizeRelativeModDBUrl(trimmed, out normalizedUrl);
+    }
+
+    private static bool TryNormalizeHttpModDBUrl(string trimmed, [NotNullWhen(true)] out string? normalizedUrl)
+    {
+        normalizedUrl = null;
         if (trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
             trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
         {
-            if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) &&
-                (uri.Host.Equals("moddb.com", StringComparison.OrdinalIgnoreCase) ||
-                 uri.Host.EndsWith(".moddb.com", StringComparison.OrdinalIgnoreCase)))
-            {
-                normalizedUrl = uri.AbsoluteUri;
-                return true;
-            }
-
-            return false;
-        }
-
-        if (trimmed.StartsWith("moddb.com", StringComparison.OrdinalIgnoreCase) ||
-            trimmed.StartsWith("www.moddb.com", StringComparison.OrdinalIgnoreCase))
-        {
-            if (Uri.TryCreate("https://" + trimmed, UriKind.Absolute, out var uri) &&
-                (uri.Host.Equals("moddb.com", StringComparison.OrdinalIgnoreCase) ||
-                 uri.Host.EndsWith(".moddb.com", StringComparison.OrdinalIgnoreCase)))
-            {
-                normalizedUrl = uri.AbsoluteUri;
-                return true;
-            }
-
-            return false;
-        }
-
-        if (trimmed.StartsWith("/mods/", StringComparison.OrdinalIgnoreCase) ||
-            trimmed.StartsWith("/games/", StringComparison.OrdinalIgnoreCase) ||
-            trimmed.StartsWith("/downloads/", StringComparison.OrdinalIgnoreCase) ||
-            trimmed.StartsWith("/addons/", StringComparison.OrdinalIgnoreCase))
-        {
-            if (Uri.TryCreate(ModDBConstants.BaseUrl.TrimEnd('/') + trimmed, UriKind.Absolute, out var uri))
+            if (Uri.TryCreate(trimmed, UriKind.Absolute, out var uri) && IsModDBHost(uri.Host))
             {
                 normalizedUrl = uri.AbsoluteUri;
                 return true;
@@ -211,6 +193,42 @@ public partial class ModDBDiscoverer(
         }
 
         return false;
+    }
+
+    private static bool TryNormalizeDomainModDBUrl(string trimmed, [NotNullWhen(true)] out string? normalizedUrl)
+    {
+        normalizedUrl = null;
+        if (trimmed.StartsWith("moddb.com", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("www.moddb.com", StringComparison.OrdinalIgnoreCase))
+        {
+            if (Uri.TryCreate("https://" + trimmed, UriKind.Absolute, out var uri) && IsModDBHost(uri.Host))
+            {
+                normalizedUrl = uri.AbsoluteUri;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryNormalizeRelativeModDBUrl(string trimmed, [NotNullWhen(true)] out string? normalizedUrl)
+    {
+        normalizedUrl = null;
+        var validPrefixes = new[] { "/mods/", "/games/", "/downloads/", "/addons/" };
+        if (validPrefixes.Any(p => trimmed.StartsWith(p, StringComparison.OrdinalIgnoreCase)) &&
+            Uri.TryCreate(ModDBConstants.BaseUrl.TrimEnd('/') + trimmed, UriKind.Absolute, out var uri))
+        {
+            normalizedUrl = uri.AbsoluteUri;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsModDBHost(string host)
+    {
+        return host.Equals("moddb.com", StringComparison.OrdinalIgnoreCase) ||
+               host.EndsWith(".moddb.com", StringComparison.OrdinalIgnoreCase);
     }
 
     private static List<ContentSearchResult> OrderDiscoveredResults(List<ContentSearchResult> results, ContentSearchQuery query)

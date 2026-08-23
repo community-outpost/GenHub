@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,6 +29,7 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <param name="profileContentService">The profile content service.</param>
 /// <param name="manifestPool">The content manifest pool.</param>
 /// <param name="notificationService">The notification service.</param>
+[SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Properties access CommunityToolkit MVVM generated instance properties.")]
 public sealed partial class ProfileSelectionViewModel(
     ILogger<ProfileSelectionViewModel> logger,
     IGameProfileManager profileManager,

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -40,6 +41,7 @@ namespace GenHub.Features.Content.Services;
 /// <param name="installationCasPoolService">The installation CAS pool selector.</param>
 /// <param name="factoryResolver">The publisher manifest factory resolver for post-processing.</param>
 /// <param name="deliverers">The content deliverers.</param>
+[SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ContentOrchestrator is the central composition root for all content discovery, resolution, validation, delivery, and storage services.")]
 public class ContentOrchestrator(
     ILogger<ContentOrchestrator> logger,
     IEnumerable<IContentProvider> providers,

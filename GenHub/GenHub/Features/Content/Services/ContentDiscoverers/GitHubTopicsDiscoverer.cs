@@ -449,9 +449,9 @@ public partial class GitHubTopicsDiscoverer(
 
     private static string ExtractVersionOrTokenVariant(string[] parts, string fallback)
     {
-        if (TryExtractVersionToken(parts, out var versionToken))
+        if (TryExtractVersionToken(parts, out var versionToken) && versionToken != null)
         {
-            return versionToken!;
+            return versionToken;
         }
 
         for (var i = parts.Length - 1; i >= 0; i--)

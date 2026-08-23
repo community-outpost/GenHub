@@ -1459,47 +1459,7 @@ public sealed partial class DownloadsBrowserViewModel(
 
             if (result.Success && result.Data != null)
             {
-                var manifest = result.Data;
-                logger.LogInformation("Successfully downloaded and stored content: {ManifestId}", manifest.Id.Value);
-
-                item.DownloadProgress = 100;
-                item.DownloadStatus = "Download complete!";
-
-                // Remember the pre-download catalog ID before rewriting SearchResult.Id so
-                // variant dropdown matching and ContentStateService session maps stay keyed
-                // by the stable catalog identity (parity with ContentDownloadCoordinator).
-                var originalContentId = item.SearchResult.Id ?? string.Empty;
-                if (item.SelectedVariant != null && !string.IsNullOrEmpty(item.SelectedVariant.ManifestId))
-                {
-                    originalContentId = item.SelectedVariant.ManifestId;
-                }
-
-                item.SearchResult.UpdateId(manifest.Id.Value);
-                item.MarkVariantDownloaded(originalContentId, manifest.Id.Value);
-
-                // Update the item's state to Downloaded so the UI switches from "Download" to "Add to Profile"
-                item.CurrentState = ContentState.Downloaded;
-                item.IsDownloaded = true;
-
-                // Notify ContentStateService that state has changed (catalog ID + manifest ID)
-                contentStateService.NotifyStateChanged(originalContentId, ContentState.Downloaded, manifest.Id.Value);
-
-                // Re-read every sibling so checkmarks stay accurate if acquisition produced
-                // a different on-disk identity than the catalog key (e.g. SuperHackers).
-                await item.RefreshVariantStatesAsync();
-
-                // Notify other components that content was acquired
-                try
-                {
-                    var message = new ContentAcquiredMessage(manifest);
-                    WeakReferenceMessenger.Default.Send(message);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Failed to send ContentAcquiredMessage");
-                }
-
-                notificationService.ShowSuccess("Download Complete", $"Downloaded {item.Name}");
+                await HandleSuccessfulAcquisitionAsync(item, result.Data);
             }
             else
             {
@@ -1526,6 +1486,50 @@ public sealed partial class DownloadsBrowserViewModel(
                 item.ClearInactiveDownloadStatus();
             }
         }
+    }
+
+    private async Task HandleSuccessfulAcquisitionAsync(ContentGridItemViewModel item, ContentManifest manifest)
+    {
+        logger.LogInformation("Successfully downloaded and stored content: {ManifestId}", manifest.Id.Value);
+
+        item.DownloadProgress = 100;
+        item.DownloadStatus = "Download complete!";
+
+        // Remember the pre-download catalog ID before rewriting SearchResult.Id so
+        // variant dropdown matching and ContentStateService session maps stay keyed
+        // by the stable catalog identity (parity with ContentDownloadCoordinator).
+        var originalContentId = item.SearchResult.Id ?? string.Empty;
+        if (item.SelectedVariant != null && !string.IsNullOrEmpty(item.SelectedVariant.ManifestId))
+        {
+            originalContentId = item.SelectedVariant.ManifestId;
+        }
+
+        item.SearchResult.UpdateId(manifest.Id.Value);
+        item.MarkVariantDownloaded(originalContentId, manifest.Id.Value);
+
+        // Update the item's state to Downloaded so the UI switches from "Download" to "Add to Profile"
+        item.CurrentState = ContentState.Downloaded;
+        item.IsDownloaded = true;
+
+        // Notify ContentStateService that state has changed (catalog ID + manifest ID)
+        contentStateService.NotifyStateChanged(originalContentId, ContentState.Downloaded, manifest.Id.Value);
+
+        // Re-read every sibling so checkmarks stay accurate if acquisition produced
+        // a different on-disk identity than the catalog key (e.g. SuperHackers).
+        await item.RefreshVariantStatesAsync();
+
+        // Notify other components that content was acquired
+        try
+        {
+            var message = new ContentAcquiredMessage(manifest);
+            WeakReferenceMessenger.Default.Send(message);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to send ContentAcquiredMessage");
+        }
+
+        notificationService.ShowSuccess("Download Complete", $"Downloaded {item.Name}");
     }
 
     /// <summary>

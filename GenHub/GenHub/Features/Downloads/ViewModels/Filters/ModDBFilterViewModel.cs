@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GenHub.Core.Constants;
@@ -11,6 +12,7 @@ namespace GenHub.Features.Downloads.ViewModels.Filters;
 /// <summary>
 /// Filter view model for ModDB publisher with section-based category, license, and timeframe filters.
 /// </summary>
+[SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Properties access CommunityToolkit MVVM generated instance properties.")]
 public partial class ModDBFilterViewModel : FilterPanelViewModelBase
 {
     [ObservableProperty]

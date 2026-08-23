@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -50,6 +51,8 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <param name="logger">The logger.</param>
 /// <param name="closeAction">Optional action to invoke when the view should close.</param>
 /// <param name="variantSearchResults">Optional map of sibling variant search results.</param>
+[SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "ContentDetailViewModel coordinates rich media, downloads, profile binding, and custom tabs.")]
+[SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Properties and methods access CommunityToolkit MVVM generated instance properties.")]
 public partial class ContentDetailViewModel(
     ContentSearchResult searchResult,
     IReadOnlyList<IWebPageParser> parsers,
@@ -1546,6 +1549,33 @@ public partial class ContentDetailViewModel(
             }
         }
 
+        UpdateContentTypeFromParsedPage(parsedPage);
+
+        // Update parsed content collections
+        Articles = parsedPage.Sections.OfType<Article>().ToObservableCollection() ?? [];
+        Videos = parsedPage.Sections.OfType<Video>().ToObservableCollection() ?? [];
+        Images = parsedPage.Sections.OfType<Image>().ToObservableCollection() ?? [];
+        Reviews = parsedPage.Sections.OfType<Review>().ToObservableCollection() ?? [];
+        Comments = FlattenComments(parsedPage.Sections.OfType<Comment>()).ToObservableCollection();
+
+        PopulateFilesFromParsedPage(parsedPage);
+
+        // Notify visibility properties
+        OnPropertyChanged(nameof(HasFiles));
+        OnPropertyChanged(nameof(ShowFilesTab));
+        OnPropertyChanged(nameof(HasImages));
+        OnPropertyChanged(nameof(HasVideos));
+        OnPropertyChanged(nameof(HasComments));
+        OnPropertyChanged(nameof(HasReviews));
+        OnPropertyChanged(nameof(HasMedia));
+        OnPropertyChanged(nameof(HasCommunity));
+        OnPropertyChanged(nameof(HasReleases));
+        OnPropertyChanged(nameof(HasAddons));
+        OnPropertyChanged(nameof(AddonsCount));
+    }
+
+    private void UpdateContentTypeFromParsedPage(ParsedWebPage parsedPage)
+    {
         var detailedPrimaryFile = parsedPage.Sections.OfType<DownloadableFile>().FirstOrDefault();
         if (detailedPrimaryFile != null && !string.IsNullOrWhiteSpace(detailedPrimaryFile.Category))
         {
@@ -1561,14 +1591,10 @@ public partial class ContentDetailViewModel(
         {
             SelectedContentType = ContentType.Mod;
         }
+    }
 
-        // Update parsed content collections
-        Articles = parsedPage.Sections.OfType<Article>().ToObservableCollection() ?? [];
-        Videos = parsedPage.Sections.OfType<Video>().ToObservableCollection() ?? [];
-        Images = parsedPage.Sections.OfType<Image>().ToObservableCollection() ?? [];
-        Reviews = parsedPage.Sections.OfType<Review>().ToObservableCollection() ?? [];
-        Comments = FlattenComments(parsedPage.Sections.OfType<Comment>()).ToObservableCollection();
-
+    private void PopulateFilesFromParsedPage(ParsedWebPage parsedPage)
+    {
         if (parsedPage.Sections.Any(s => s is DownloadableFile))
         {
             Files = parsedPage.Sections.OfType<DownloadableFile>()
@@ -1593,19 +1619,6 @@ public partial class ContentDetailViewModel(
         {
             Files = [];
         }
-
-        // Notify visibility properties
-        OnPropertyChanged(nameof(HasFiles));
-        OnPropertyChanged(nameof(ShowFilesTab));
-        OnPropertyChanged(nameof(HasImages));
-        OnPropertyChanged(nameof(HasVideos));
-        OnPropertyChanged(nameof(HasComments));
-        OnPropertyChanged(nameof(HasReviews));
-        OnPropertyChanged(nameof(HasMedia));
-        OnPropertyChanged(nameof(HasCommunity));
-        OnPropertyChanged(nameof(HasReleases));
-        OnPropertyChanged(nameof(HasAddons));
-        OnPropertyChanged(nameof(AddonsCount));
     }
 
     /// <summary>
@@ -2682,9 +2695,9 @@ public partial class ContentDetailViewModel(
                 notificationService.ShowError("Download failed", errorMsg);
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            logger.LogInformation("Download cancelled for: {Name}", targetContent.Name);
+            logger.LogInformation(ex, "Download cancelled for: {Name}", targetContent.Name);
             DownloadStatusMessage = "Download cancelled";
         }
         catch (Exception ex)
@@ -4088,52 +4101,36 @@ public partial class ContentDetailViewModel(
 
         if (!string.IsNullOrEmpty(searchSourceUrl) || !string.IsNullOrEmpty(searchDownloadUrl))
         {
-            var matchByUrl = releases.FirstOrDefault(r =>
-            {
-                var detailsUrl = r.DetailsUrl?.TrimEnd('/');
-                var downloadUrl = r.DownloadUrl?.TrimEnd('/');
-                var fileDetailsUrl = r.File?.DetailsUrl?.TrimEnd('/');
-                var fileDownloadUrl = r.File?.DownloadUrl?.TrimEnd('/');
-
-                return (!string.IsNullOrEmpty(searchSourceUrl) &&
-                        (string.Equals(detailsUrl, searchSourceUrl, StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(downloadUrl, searchSourceUrl, StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(fileDetailsUrl, searchSourceUrl, StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(fileDownloadUrl, searchSourceUrl, StringComparison.OrdinalIgnoreCase))) ||
-                       (!string.IsNullOrEmpty(searchDownloadUrl) &&
-                        (string.Equals(downloadUrl, searchDownloadUrl, StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(detailsUrl, searchDownloadUrl, StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(fileDownloadUrl, searchDownloadUrl, StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(fileDetailsUrl, searchDownloadUrl, StringComparison.OrdinalIgnoreCase)));
-            });
-
+            var matchByUrl = releases.FirstOrDefault(r => MatchesReleaseUrl(r, searchSourceUrl, searchDownloadUrl));
             if (matchByUrl != null)
             {
                 return matchByUrl;
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(searchResult.Name))
-        {
-            var trimmedSearchName = searchResult.Name.Trim();
-            var exactMatch = releases.FirstOrDefault(r =>
-                string.Equals(r.Name?.Trim(), trimmedSearchName, StringComparison.OrdinalIgnoreCase));
-            if (exactMatch != null)
-            {
-                return exactMatch;
-            }
+        return FindMatchingReleaseByName(releases);
+    }
 
-            var partialMatch = releases.FirstOrDefault(r =>
+    private bool MatchesReleaseUrl(ReleaseItemViewModel r, string? searchSourceUrl, string? searchDownloadUrl)
+    {
+        var urls = new[] { r.DetailsUrl?.TrimEnd('/'), r.DownloadUrl?.TrimEnd('/'), r.File?.DetailsUrl?.TrimEnd('/'), r.File?.DownloadUrl?.TrimEnd('/') };
+        return (!string.IsNullOrEmpty(searchSourceUrl) && urls.Any(u => string.Equals(u, searchSourceUrl, StringComparison.OrdinalIgnoreCase))) ||
+               (!string.IsNullOrEmpty(searchDownloadUrl) && urls.Any(u => string.Equals(u, searchDownloadUrl, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private ReleaseItemViewModel? FindMatchingReleaseByName(IReadOnlyList<ReleaseItemViewModel> releases)
+    {
+        if (string.IsNullOrWhiteSpace(searchResult.Name))
+        {
+            return null;
+        }
+
+        var trimmedSearchName = searchResult.Name.Trim();
+        return releases.FirstOrDefault(r => string.Equals(r.Name?.Trim(), trimmedSearchName, StringComparison.OrdinalIgnoreCase))
+            ?? releases.FirstOrDefault(r =>
                 !string.IsNullOrWhiteSpace(r.Name) &&
                 (trimmedSearchName.Contains(r.Name.Trim(), StringComparison.OrdinalIgnoreCase) ||
                  r.Name.Trim().Contains(trimmedSearchName, StringComparison.OrdinalIgnoreCase)));
-            if (partialMatch != null)
-            {
-                return partialMatch;
-            }
-        }
-
-        return null;
     }
 
     private AddonItemViewModel? FindMatchingAddonForSearchResult(IReadOnlyList<AddonItemViewModel> addons)
@@ -4148,51 +4145,35 @@ public partial class ContentDetailViewModel(
 
         if (!string.IsNullOrEmpty(searchSourceUrl) || !string.IsNullOrEmpty(searchDownloadUrl))
         {
-            var matchByUrl = addons.FirstOrDefault(a =>
-            {
-                var detailsUrl = a.DetailsUrl?.TrimEnd('/');
-                var downloadUrl = a.DownloadUrl?.TrimEnd('/');
-                var fileDetailsUrl = a.File?.DetailsUrl?.TrimEnd('/');
-                var fileDownloadUrl = a.File?.DownloadUrl?.TrimEnd('/');
-
-                return (!string.IsNullOrEmpty(searchSourceUrl) &&
-                        (string.Equals(detailsUrl, searchSourceUrl, StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(downloadUrl, searchSourceUrl, StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(fileDetailsUrl, searchSourceUrl, StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(fileDownloadUrl, searchSourceUrl, StringComparison.OrdinalIgnoreCase))) ||
-                       (!string.IsNullOrEmpty(searchDownloadUrl) &&
-                        (string.Equals(downloadUrl, searchDownloadUrl, StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(detailsUrl, searchDownloadUrl, StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(fileDownloadUrl, searchDownloadUrl, StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(fileDetailsUrl, searchDownloadUrl, StringComparison.OrdinalIgnoreCase)));
-            });
-
+            var matchByUrl = addons.FirstOrDefault(a => MatchesAddonUrl(a, searchSourceUrl, searchDownloadUrl));
             if (matchByUrl != null)
             {
                 return matchByUrl;
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(searchResult.Name))
-        {
-            var trimmedSearchName = searchResult.Name.Trim();
-            var exactMatch = addons.FirstOrDefault(a =>
-                string.Equals(a.Name?.Trim(), trimmedSearchName, StringComparison.OrdinalIgnoreCase));
-            if (exactMatch != null)
-            {
-                return exactMatch;
-            }
+        return FindMatchingAddonByName(addons);
+    }
 
-            var partialMatch = addons.FirstOrDefault(a =>
+    private bool MatchesAddonUrl(AddonItemViewModel a, string? searchSourceUrl, string? searchDownloadUrl)
+    {
+        var urls = new[] { a.DetailsUrl?.TrimEnd('/'), a.DownloadUrl?.TrimEnd('/'), a.File?.DetailsUrl?.TrimEnd('/'), a.File?.DownloadUrl?.TrimEnd('/') };
+        return (!string.IsNullOrEmpty(searchSourceUrl) && urls.Any(u => string.Equals(u, searchSourceUrl, StringComparison.OrdinalIgnoreCase))) ||
+               (!string.IsNullOrEmpty(searchDownloadUrl) && urls.Any(u => string.Equals(u, searchDownloadUrl, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private AddonItemViewModel? FindMatchingAddonByName(IReadOnlyList<AddonItemViewModel> addons)
+    {
+        if (string.IsNullOrWhiteSpace(searchResult.Name))
+        {
+            return null;
+        }
+
+        var trimmedSearchName = searchResult.Name.Trim();
+        return addons.FirstOrDefault(a => string.Equals(a.Name?.Trim(), trimmedSearchName, StringComparison.OrdinalIgnoreCase))
+            ?? addons.FirstOrDefault(a =>
                 !string.IsNullOrWhiteSpace(a.Name) &&
                 (trimmedSearchName.Contains(a.Name.Trim(), StringComparison.OrdinalIgnoreCase) ||
                  a.Name.Trim().Contains(trimmedSearchName, StringComparison.OrdinalIgnoreCase)));
-            if (partialMatch != null)
-            {
-                return partialMatch;
-            }
-        }
-
-        return null;
     }
 }

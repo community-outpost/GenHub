@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -17,6 +18,7 @@ namespace GenHub.Features.Downloads.ViewModels;
 /// <summary>
 /// Generic base view model for downloadable rows (releases, addons, custom publisher content) with expandable details.
 /// </summary>
+[SuppressMessage("Major Code Smell", "S2325:Methods and properties that don't access instance data should be static", Justification = "Properties access CommunityToolkit MVVM generated instance properties.")]
 public abstract partial class DownloadableItemViewModel : ObservableObject, IDownloadableRowViewModel
 {
     /// <summary>

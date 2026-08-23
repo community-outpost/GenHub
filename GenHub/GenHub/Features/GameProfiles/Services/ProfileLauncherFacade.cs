@@ -242,64 +242,21 @@ public class ProfileLauncherFacade(
 
             var profile = profileResult.Data!;
 
-            // Try to resolve or rebind the installation if it's stale
-            var resolvedInstallationResult = await ResolveOrRebindInstallationAsync(profile, cancellationToken);
-            if (resolvedInstallationResult.Failed)
+            var installationResolution = await ResolveInstallationForProfileAsync(profile, profileId, cancellationToken);
+            if (installationResolution.Failed || installationResolution.Data == null)
             {
-                return ProfileOperationResult<WorkspaceInfo>.CreateFailure(resolvedInstallationResult.FirstError ?? CouldNotResolveGameInstallationMessage);
+                return ProfileOperationResult<WorkspaceInfo>.CreateFailure(installationResolution.FirstError ?? "Failed to resolve installation");
             }
 
-            var resolvedInstallation = resolvedInstallationResult.Data;
-            if (resolvedInstallation == null)
+            var resolvedInstallation = installationResolution.Data;
+
+            var manifestsResolution = await ResolveAndVerifyManifestsAsync(profile, cancellationToken);
+            if (manifestsResolution.Failed || manifestsResolution.Data == null)
             {
-                return ProfileOperationResult<WorkspaceInfo>.CreateFailure("Resolved installation data is null");
+                return ProfileOperationResult<WorkspaceInfo>.CreateFailure(manifestsResolution.FirstError ?? "Failed to resolve manifests");
             }
 
-            // Update the profile with the resolved installation if it changed
-            if (resolvedInstallation.Id != profile.GameInstallationId)
-            {
-                var updateRequest = new UpdateProfileRequest
-                {
-                    GameInstallationId = resolvedInstallation.Id,
-                };
-                var updateResult = await profileManager.UpdateProfileAsync(profileId, updateRequest, cancellationToken);
-                if (updateResult.Success)
-                {
-                    profile.GameInstallationId = resolvedInstallation.Id;
-                    logger.LogInformation("Rebound profile {ProfileId} to installation {InstallationId} during workspace preparation", profileId, resolvedInstallation.Id);
-                }
-            }
-
-            // Build list of manifests from enabled content IDs only
-            var manifests = new List<ContentManifest>();
-
-            // Resolve dependencies recursively
-            var resolutionResult = await dependencyResolver.ResolveDependenciesWithManifestsAsync(profile.EnabledContentIds ?? Enumerable.Empty<string>(), cancellationToken);
-            if (!resolutionResult.Success)
-            {
-                return ProfileOperationResult<WorkspaceInfo>.CreateFailure(string.Join(", ", resolutionResult.Errors));
-            }
-
-            // Check for missing dependencies (can occur even on success-with-warnings)
-            if (resolutionResult.MissingContentIds?.Any() == true)
-            {
-                return ProfileOperationResult<WorkspaceInfo>.CreateFailure(
-                    $"Missing or invalid content IDs: {string.Join(", ", resolutionResult.MissingContentIds)}");
-            }
-
-            manifests = [.. resolutionResult.ResolvedManifests];
-
-            // CAS preflight check - verify all CAS content is available before workspace preparation.
-            // This prevents late failure and ensures early error detection.
-            logger.LogDebug("[Workspace] Running CAS preflight check for {ManifestCount} manifests", manifests.Count);
-            var casCheckResult = await VerifyCasContentAvailabilityAsync(manifests, cancellationToken);
-            if (!casCheckResult.Success)
-            {
-                logger.LogError("[Workspace] CAS preflight check failed: {Error}", casCheckResult.FirstError);
-                return ProfileOperationResult<WorkspaceInfo>.CreateFailure(casCheckResult.FirstError ?? "Required content is not available in CAS");
-            }
-
-            logger.LogDebug("[Workspace] CAS preflight check passed");
+            var manifests = manifestsResolution.Data;
 
             // Resolve source paths for all manifests
             var manifestSourcePaths = await ResolveManifestSourcePathsAsync(manifests, profile, cancellationToken);
@@ -1729,6 +1686,67 @@ public class ProfileLauncherFacade(
         }
 
         return match;
+    }
+
+    private async Task<ProfileOperationResult<Core.Models.GameInstallations.GameInstallation>> ResolveInstallationForProfileAsync(
+        GameProfile profile,
+        string profileId,
+        CancellationToken cancellationToken)
+    {
+        var resolvedInstallationResult = await ResolveOrRebindInstallationAsync(profile, cancellationToken);
+        if (resolvedInstallationResult.Failed)
+        {
+            return ProfileOperationResult<Core.Models.GameInstallations.GameInstallation>.CreateFailure(resolvedInstallationResult.FirstError ?? CouldNotResolveGameInstallationMessage);
+        }
+
+        var resolvedInstallation = resolvedInstallationResult.Data;
+        if (resolvedInstallation == null || string.IsNullOrEmpty(resolvedInstallation.InstallationPath))
+        {
+            return ProfileOperationResult<Core.Models.GameInstallations.GameInstallation>.CreateFailure("Resolved installation has no valid installation path");
+        }
+
+        if (resolvedInstallation.Id != profile.GameInstallationId)
+        {
+            var updateRequest = new UpdateProfileRequest { GameInstallationId = resolvedInstallation.Id };
+            var updateResult = await profileManager.UpdateProfileAsync(profileId, updateRequest, cancellationToken);
+            if (updateResult.Success)
+            {
+                profile.GameInstallationId = resolvedInstallation.Id;
+                logger.LogInformation("Rebound profile {ProfileId} to installation {InstallationId} during workspace preparation", profileId, resolvedInstallation.Id);
+            }
+        }
+
+        return ProfileOperationResult<Core.Models.GameInstallations.GameInstallation>.CreateSuccess(resolvedInstallation);
+    }
+
+    private async Task<ProfileOperationResult<List<ContentManifest>>> ResolveAndVerifyManifestsAsync(
+        GameProfile profile,
+        CancellationToken cancellationToken)
+    {
+        var resolutionResult = await dependencyResolver.ResolveDependenciesWithManifestsAsync(profile.EnabledContentIds ?? Enumerable.Empty<string>(), cancellationToken);
+        if (!resolutionResult.Success)
+        {
+            return ProfileOperationResult<List<ContentManifest>>.CreateFailure(string.Join(", ", resolutionResult.Errors));
+        }
+
+        if (resolutionResult.MissingContentIds?.Any() == true)
+        {
+            return ProfileOperationResult<List<ContentManifest>>.CreateFailure(
+                $"Missing or invalid content IDs: {string.Join(", ", resolutionResult.MissingContentIds)}");
+        }
+
+        var manifests = resolutionResult.ResolvedManifests.ToList();
+
+        logger.LogDebug("[Workspace] Running CAS preflight check for {ManifestCount} manifests", manifests.Count);
+        var casCheckResult = await VerifyCasContentAvailabilityAsync(manifests, cancellationToken);
+        if (!casCheckResult.Success)
+        {
+            logger.LogError("[Workspace] CAS preflight check failed: {Error}", casCheckResult.FirstError);
+            return ProfileOperationResult<List<ContentManifest>>.CreateFailure(casCheckResult.FirstError ?? "Required content is not available in CAS");
+        }
+
+        logger.LogDebug("[Workspace] CAS preflight check passed");
+        return ProfileOperationResult<List<ContentManifest>>.CreateSuccess(manifests);
     }
 
     /// <summary>

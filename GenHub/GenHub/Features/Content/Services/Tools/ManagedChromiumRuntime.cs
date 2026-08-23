@@ -34,7 +34,7 @@ internal sealed class ManagedChromiumRuntime(
     /// </summary>
     internal const string DriverPathEnvironmentVariable = "PLAYWRIGHT_DRIVER_PATH";
 
-    private static string? _cachedDriverPath;
+    private string? _cachedDriverPath;
 
     /// <summary>
     /// Configures Playwright to resolve browsers only from GenHub's managed runtime directory.
@@ -142,6 +142,36 @@ internal sealed class ManagedChromiumRuntime(
             if (File.Exists(candidate))
             {
                 return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private static string? FindDriverPath()
+    {
+        var platformFolder = GetPlatformFolder();
+        var nodeBinaryName = OperatingSystem.IsWindows() ? "node.exe" : "node";
+
+        var searchDirectories = new[]
+        {
+            AppContext.BaseDirectory,
+            AppDomain.CurrentDomain.BaseDirectory,
+            Path.GetDirectoryName(typeof(ManagedChromiumRuntime).Assembly.Location) ?? string.Empty,
+            Path.GetDirectoryName(Environment.ProcessPath) ?? string.Empty,
+        };
+
+        foreach (var dir in searchDirectories)
+        {
+            if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir))
+            {
+                continue;
+            }
+
+            var driver = TryFindDriverInDirectory(dir, platformFolder, nodeBinaryName);
+            if (driver != null)
+            {
+                return driver;
             }
         }
 
@@ -308,35 +338,5 @@ internal sealed class ManagedChromiumRuntime(
         {
             logger.LogWarning("Could not resolve Playwright driver node executable in any standard directory");
         }
-    }
-
-    private string? FindDriverPath()
-    {
-        var platformFolder = GetPlatformFolder();
-        var nodeBinaryName = OperatingSystem.IsWindows() ? "node.exe" : "node";
-
-        var searchDirectories = new[]
-        {
-            AppContext.BaseDirectory,
-            AppDomain.CurrentDomain.BaseDirectory,
-            Path.GetDirectoryName(typeof(ManagedChromiumRuntime).Assembly.Location) ?? string.Empty,
-            Path.GetDirectoryName(Environment.ProcessPath) ?? string.Empty,
-        };
-
-        foreach (var dir in searchDirectories)
-        {
-            if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(dir))
-            {
-                continue;
-            }
-
-            var driver = TryFindDriverInDirectory(dir, platformFolder, nodeBinaryName);
-            if (driver != null)
-            {
-                return driver;
-            }
-        }
-
-        return null;
     }
 }

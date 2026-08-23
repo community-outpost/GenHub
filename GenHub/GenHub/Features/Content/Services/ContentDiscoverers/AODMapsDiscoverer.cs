@@ -550,7 +550,7 @@ public partial class AODMapsDiscoverer(
                 catch (HttpRequestException ex)
                 {
                     // 404 or similar: we ran past the last site page — not an error.
-                    logger.LogInformation("AODMaps site page {SitePage} not available ({Message}); stopping pagination", sitePage, ex.Message);
+                    logger.LogInformation(ex, "AODMaps site page {SitePage} not available ({Message}); stopping pagination", sitePage, ex.Message);
                     break;
                 }
 
