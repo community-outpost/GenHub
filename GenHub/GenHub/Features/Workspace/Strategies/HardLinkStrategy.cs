@@ -250,6 +250,10 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             {
                 await FileOperations.CreateHardLinkAsync(targetPath, sourcePath, cancellationToken);
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception hardLinkEx)
             {
                 Logger.LogWarning(hardLinkEx, "Hard link creation failed for {RelativePath}, attempting symlink fallback", file.RelativePath);
@@ -258,6 +262,10 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                 {
                     await FileOperations.CreateSymlinkAsync(targetPath, sourcePath, allowFallback: false, cancellationToken);
                 }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
                 catch (Exception symlinkEx)
                 {
                     Logger.LogError(
@@ -265,9 +273,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                         "Both hard link and symlink creation failed for {RelativePath}. Refusing to copy to prevent disk overhead.",
                         file.RelativePath);
 
-                    throw new UnauthorizedAccessException(
-                        $"Failed to create hard link or symbolic link for '{file.RelativePath}'. {WorkspaceConstants.ZeroCopyElevationGuidance}",
-                        symlinkEx);
+                    throw WrapLinkException(file.RelativePath, symlinkEx);
                 }
             }
         }
@@ -278,6 +284,10 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             {
                 await FileOperations.CreateSymlinkAsync(targetPath, sourcePath, allowFallback: false, cancellationToken);
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception symlinkEx)
             {
                 Logger.LogError(
@@ -285,9 +295,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                     "Cross-volume symlink creation failed for {RelativePath}. Refusing to copy to prevent disk overhead.",
                     file.RelativePath);
 
-                throw new UnauthorizedAccessException(
-                    $"Failed to create symbolic link across volumes for '{file.RelativePath}'. {WorkspaceConstants.ZeroCopyElevationGuidance}",
-                    symlinkEx);
+                throw WrapLinkException(file.RelativePath, symlinkEx, isCrossVolume: true);
             }
         }
     }
@@ -299,6 +307,20 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         // We need to find the manifest that contains this file
         var manifest = configuration.Manifests.FirstOrDefault(m => m.Files.Contains(file)) ?? throw new InvalidOperationException($"Could not find manifest containing file {file.RelativePath}");
         await ProcessLocalFileAsync(file, manifest, targetPath, configuration, cancellationToken);
+    }
+
+    private static Exception WrapLinkException(string relativePath, Exception ex, bool isCrossVolume = false)
+    {
+        if (ex is OperationCanceledException)
+        {
+            return ex;
+        }
+
+        var message = isCrossVolume
+            ? $"Failed to create symbolic link across volumes for '{relativePath}'. {WorkspaceConstants.ZeroCopyElevationGuidance}"
+            : $"Failed to create hard link or symbolic link for '{relativePath}'. {WorkspaceConstants.ZeroCopyElevationGuidance}";
+
+        return new UnauthorizedAccessException(message, ex);
     }
 
     private async Task<(bool HardLinked, long BytesProcessed)> ProcessCasFileAsync(
@@ -373,6 +395,10 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             await FileOperations.CreateHardLinkAsync(destinationPath, sourcePath, cancellationToken);
             return (false, true, LinkOverheadBytes, false);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (IOException ioEx)
         {
             if (ioEx.Message.Contains("NOT_FOUND", StringComparison.OrdinalIgnoreCase) ||
@@ -389,6 +415,10 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                 await FileOperations.CreateSymlinkAsync(destinationPath, sourcePath, allowFallback: false, cancellationToken);
                 return (false, true, LinkOverheadBytes, false);
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception symlinkEx)
             {
                 Logger.LogError(
@@ -396,9 +426,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                     "Both hard link and symlink creation failed for {RelativePath}. Refusing to copy to prevent disk overhead.",
                     file.RelativePath);
 
-                throw new UnauthorizedAccessException(
-                    $"Failed to create hard link or symbolic link for '{file.RelativePath}'. {WorkspaceConstants.ZeroCopyElevationGuidance}",
-                    symlinkEx);
+                throw WrapLinkException(file.RelativePath, symlinkEx);
             }
         }
     }
@@ -420,6 +448,10 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
             await FileOperations.CreateSymlinkAsync(destinationPath, sourcePath, allowFallback: false, cancellationToken);
             return (false, true, LinkOverheadBytes, false);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception symlinkEx)
         {
             Logger.LogError(
@@ -427,9 +459,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                 "Cross-volume symlink creation failed for {RelativePath}. Refusing to copy to prevent disk overhead.",
                 file.RelativePath);
 
-            throw new UnauthorizedAccessException(
-                $"Failed to create symbolic link across volumes for '{file.RelativePath}'. {WorkspaceConstants.ZeroCopyElevationGuidance}",
-                symlinkEx);
+            throw WrapLinkException(file.RelativePath, symlinkEx, isCrossVolume: true);
         }
     }
 }
