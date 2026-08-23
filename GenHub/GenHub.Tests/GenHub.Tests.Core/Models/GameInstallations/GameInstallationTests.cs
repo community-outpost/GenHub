@@ -179,4 +179,30 @@ public class GameInstallationTests
             Directory.Delete(tempDir, true);
         }
     }
+
+    /// <summary>
+    /// Verifies that Fetch does not misclassify a vanilla Generals installation when parent path contains ZH text.
+    /// </summary>
+    [Fact]
+    public void GameInstallation_Fetch_DoesNotMisclassifyGenerals_WhenParentPathContainsZh()
+    {
+        var parentDir = Path.Combine(Path.GetTempPath(), "ZH_Tools_" + Guid.NewGuid().ToString("N"));
+        var generalsDir = Path.Combine(parentDir, "Generals");
+        Directory.CreateDirectory(generalsDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(generalsDir, "generals.exe"), string.Empty);
+
+            var installation = new GameInstallation(generalsDir, GameInstallationType.Retail, NullLogger<GameInstallation>.Instance);
+            installation.Fetch();
+
+            Assert.True(installation.HasGenerals);
+            Assert.Equal(generalsDir, installation.GeneralsPath);
+            Assert.False(installation.HasZeroHour);
+        }
+        finally
+        {
+            Directory.Delete(parentDir, true);
+        }
+    }
 }

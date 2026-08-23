@@ -233,8 +233,9 @@ public class GameInstallation : IGameInstallation
             return true;
         }
 
-        return path.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase) ||
-               path.Contains("ZeroHour", StringComparison.OrdinalIgnoreCase);
+        var folderName = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        return folderName.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase) ||
+               folderName.Contains("ZeroHour", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool HasGeneralsArchiveSignature(string path)
@@ -245,9 +246,15 @@ public class GameInstallation : IGameInstallation
 
     private static bool IsZeroHourNamedDirectory(string path)
     {
-        return path.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase) ||
-               path.Contains("ZeroHour", StringComparison.OrdinalIgnoreCase) ||
-               path.Contains("ZH", StringComparison.OrdinalIgnoreCase);
+        var folderName = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+
+        return folderName.Contains("Zero Hour", StringComparison.OrdinalIgnoreCase) ||
+               folderName.Contains("ZeroHour", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(folderName, "ZH", StringComparison.OrdinalIgnoreCase) ||
+               folderName.StartsWith("ZH_", StringComparison.OrdinalIgnoreCase) ||
+               folderName.EndsWith("_ZH", StringComparison.OrdinalIgnoreCase) ||
+               folderName.StartsWith("ZH-", StringComparison.OrdinalIgnoreCase) ||
+               folderName.EndsWith("-ZH", StringComparison.OrdinalIgnoreCase);
     }
 
     private void FetchSubdirectoryInstallations(ref bool foundGenerals, ref bool foundZeroHour)
