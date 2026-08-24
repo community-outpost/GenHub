@@ -883,14 +883,37 @@ public class GameSettingsViewModelTests
             Id = "tsh-profile",
             Name = "TSH Profile",
             GameClient = new GameClient { GameType = GameType.ZeroHour },
-            TshGameWindowTransitionSpeedMultiplier = 15.0f,
+            TshGameWindowTransitionSpeedMultiplier = 5.25f,
         };
 
         // Act
         await _viewModel.InitializeForProfileAsync("tsh-profile", profile);
 
         // Assert
-        Assert.Equal(15.0f, _viewModel.TshGameWindowTransitionSpeedMultiplier);
+        Assert.Equal(5.25f, _viewModel.TshGameWindowTransitionSpeedMultiplier);
+    }
+
+    /// <summary>
+    /// Should clamp GameWindowTransitionSpeedMultiplier when initializing with out-of-range value.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeForProfileAsync_Should_ClampGameWindowTransitionSpeedMultiplier_WhenOutOfRangeAsync()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            Id = "tsh-profile",
+            Name = "TSH Profile",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+            TshGameWindowTransitionSpeedMultiplier = 50.0f,
+        };
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("tsh-profile", profile);
+
+        // Assert
+        Assert.Equal(10.0f, _viewModel.TshGameWindowTransitionSpeedMultiplier);
     }
 
     /// <summary>
@@ -914,7 +937,7 @@ public class GameSettingsViewModelTests
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         await _viewModel.InitializeForProfileAsync("tsh-profile", profile);
-        _viewModel.TshGameWindowTransitionSpeedMultiplier = 8.5f;
+        _viewModel.TshGameWindowTransitionSpeedMultiplier = 8.55f;
 
         // Act
         await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
@@ -924,8 +947,8 @@ public class GameSettingsViewModelTests
         Assert.NotNull(savedOptions);
         Assert.True(savedOptions.AdditionalSections.TryGetValue("TheSuperHackers", out var tsh));
         Assert.True(tsh.TryGetValue("GameWindowTransitionSpeedMultiplier", out var speed));
-        Assert.Equal("8.5", speed);
-        Assert.Equal(8.5f, request.TshGameWindowTransitionSpeedMultiplier);
+        Assert.Equal("8.55", speed);
+        Assert.Equal(8.55f, request.TshGameWindowTransitionSpeedMultiplier);
     }
 
     private static GameProfile CreateGeneralsOnlineProfile()

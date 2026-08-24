@@ -397,4 +397,37 @@ public class GameSettingsMapperTests
         // Assert
         Assert.Null(profile.TshGameWindowTransitionSpeedMultiplier);
     }
+
+    /// <summary>
+    /// Verifies that NormalizeTransitionSpeedMultiplier clamps out-of-range values and rejects non-finite values.
+    /// </summary>
+    [Fact]
+    public void NormalizeTransitionSpeedMultiplier_ShouldClampAndFilterCorrectly()
+    {
+        Assert.Null(GameSettingsMapper.NormalizeTransitionSpeedMultiplier(null));
+        Assert.Null(GameSettingsMapper.NormalizeTransitionSpeedMultiplier(float.NaN));
+        Assert.Null(GameSettingsMapper.NormalizeTransitionSpeedMultiplier(float.PositiveInfinity));
+        Assert.Null(GameSettingsMapper.NormalizeTransitionSpeedMultiplier(float.NegativeInfinity));
+        Assert.Equal(1.0f, GameSettingsMapper.NormalizeTransitionSpeedMultiplier(0.5f));
+        Assert.Equal(10.0f, GameSettingsMapper.NormalizeTransitionSpeedMultiplier(50.0f));
+        Assert.Equal(1.05f, GameSettingsMapper.NormalizeTransitionSpeedMultiplier(1.05f));
+    }
+
+    /// <summary>
+    /// Verifies that ApplyToOptions clamps out-of-range transition speed multiplier before writing to dictionary.
+    /// </summary>
+    [Fact]
+    public void ApplyToOptions_ShouldClampTransitionSpeedMultiplier()
+    {
+        var profile = new GameProfile
+        {
+            TshGameWindowTransitionSpeedMultiplier = 99.0f,
+        };
+        var options = new IniOptions();
+
+        GameSettingsMapper.ApplyToOptions(profile, options);
+
+        Assert.True(options.AdditionalSections.TryGetValue("TheSuperHackers", out var tshDict));
+        Assert.Equal("10", tshDict["GameWindowTransitionSpeedMultiplier"]);
+    }
 }

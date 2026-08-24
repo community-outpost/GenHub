@@ -792,7 +792,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             ["CursorCaptureEnabledInFullscreenMenu"] = BoolToString(settings.CursorCaptureEnabledInFullscreenMenu),
             ["CursorCaptureEnabledInWindowedGame"] = BoolToString(settings.CursorCaptureEnabledInWindowedGame),
             ["CursorCaptureEnabledInWindowedMenu"] = BoolToString(settings.CursorCaptureEnabledInWindowedMenu),
-            ["GameWindowTransitionSpeedMultiplier"] = settings.GameWindowTransitionSpeedMultiplier.ToString(CultureInfo.InvariantCulture),
+            ["GameWindowTransitionSpeedMultiplier"] = (GameSettingsMapper.NormalizeTransitionSpeedMultiplier(settings.GameWindowTransitionSpeedMultiplier) ?? GameSettingsTheSuperHackersConstants.DefaultGameWindowTransitionSpeedMultiplier).ToString(CultureInfo.InvariantCulture),
             ["MoneyTransactionVolume"] = settings.MoneyTransactionVolume.ToString(),
             ["NetworkLatencyFontSize"] = settings.NetworkLatencyFontSize.ToString(),
             ["PlayerObserverEnabled"] = BoolToString(settings.PlayerObserverEnabled),

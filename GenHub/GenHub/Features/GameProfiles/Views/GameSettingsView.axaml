@@ -321,8 +321,8 @@
                             </Grid>
                             <Grid ColumnDefinitions="140,*,Auto">
                                 <TextBlock Text="Transition Speed" VerticalAlignment="Center" />
-                                <Slider Grid.Column="1" Value="{Binding TshGameWindowTransitionSpeedMultiplier}" Minimum="1.0" Maximum="10.0" TickFrequency="0.1" IsSnapToTickEnabled="True" SmallChange="0.1" LargeChange="1.0" VerticalAlignment="Center" Margin="0,0,12,0" />
-                                <NumericUpDown Grid.Column="2" Value="{Binding TshGameWindowTransitionSpeedMultiplier}" Minimum="1.0" Maximum="10.0" Increment="0.1" FormatString="F1" Classes="slider-input" />
+                                <Slider Grid.Column="1" Value="{Binding TshGameWindowTransitionSpeedMultiplier}" Minimum="1.0" Maximum="10.0" TickFrequency="0.05" IsSnapToTickEnabled="True" SmallChange="0.05" LargeChange="0.5" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                <NumericUpDown Grid.Column="2" Value="{Binding TshGameWindowTransitionSpeedMultiplier}" Minimum="1.0" Maximum="10.0" Increment="0.05" FormatString="F2" Classes="slider-input" />
                             </Grid>
                         </StackPanel>
                     </StackPanel>

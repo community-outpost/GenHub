@@ -527,6 +527,24 @@ public static class GameSettingsMapper
     }
 
     /// <summary>
+    /// Normalizes and clamps a transition speed multiplier value to the supported range.
+    /// </summary>
+    /// <param name="value">The float value.</param>
+    /// <returns>The clamped float multiplier if finite and non-null; otherwise, null.</returns>
+    public static float? NormalizeTransitionSpeedMultiplier(float? value)
+    {
+        if (value.HasValue && float.IsFinite(value.Value))
+        {
+            return Math.Clamp(
+                value.Value,
+                GameSettingsTheSuperHackersConstants.MinGameWindowTransitionSpeedMultiplier,
+                GameSettingsTheSuperHackersConstants.MaxGameWindowTransitionSpeedMultiplier);
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Parses and clamps the GameWindowTransitionSpeedMultiplier from a raw string value.
     /// </summary>
     /// <param name="value">The raw string value.</param>
@@ -538,13 +556,9 @@ public static class GameSettingsMapper
             return null;
         }
 
-        if (float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var speed) &&
-            float.IsFinite(speed))
+        if (float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var speed))
         {
-            return Math.Clamp(
-                speed,
-                GameSettingsTheSuperHackersConstants.MinGameWindowTransitionSpeedMultiplier,
-                GameSettingsTheSuperHackersConstants.MaxGameWindowTransitionSpeedMultiplier);
+            return NormalizeTransitionSpeedMultiplier(speed);
         }
 
         return null;
@@ -719,7 +733,10 @@ public static class GameSettingsMapper
         if (profile.TshCursorCaptureEnabledInWindowedMenu.HasValue) settings.CursorCaptureEnabledInWindowedMenu = profile.TshCursorCaptureEnabledInWindowedMenu.Value;
         if (profile.TshScreenEdgeScrollEnabledInFullscreenApp.HasValue) settings.ScreenEdgeScrollEnabledInFullscreenApp = profile.TshScreenEdgeScrollEnabledInFullscreenApp.Value;
         if (profile.TshScreenEdgeScrollEnabledInWindowedApp.HasValue) settings.ScreenEdgeScrollEnabledInWindowedApp = profile.TshScreenEdgeScrollEnabledInWindowedApp.Value;
-        if (profile.TshGameWindowTransitionSpeedMultiplier.HasValue) settings.GameWindowTransitionSpeedMultiplier = profile.TshGameWindowTransitionSpeedMultiplier.Value;
+        if (NormalizeTransitionSpeedMultiplier(profile.TshGameWindowTransitionSpeedMultiplier) is { } speedMult)
+        {
+            settings.GameWindowTransitionSpeedMultiplier = speedMult;
+        }
     }
 
     private static void ApplyVideoResolutionAndQualityToOptions(GameProfile profile, IniOptions options, ILogger? logger)
@@ -985,7 +1002,10 @@ public static class GameSettingsMapper
         if (profile.TshScreenEdgeScrollEnabledInFullscreenApp.HasValue) tshDict["ScreenEdgeScrollEnabledInFullscreenApp"] = BoolToString(profile.TshScreenEdgeScrollEnabledInFullscreenApp.Value);
         if (profile.TshScreenEdgeScrollEnabledInWindowedApp.HasValue) tshDict["ScreenEdgeScrollEnabledInWindowedApp"] = BoolToString(profile.TshScreenEdgeScrollEnabledInWindowedApp.Value);
         if (profile.TshMoneyTransactionVolume.HasValue) tshDict["MoneyTransactionVolume"] = profile.TshMoneyTransactionVolume.Value.ToString();
-        if (profile.TshGameWindowTransitionSpeedMultiplier.HasValue) tshDict["GameWindowTransitionSpeedMultiplier"] = profile.TshGameWindowTransitionSpeedMultiplier.Value.ToString(CultureInfo.InvariantCulture);
+        if (NormalizeTransitionSpeedMultiplier(profile.TshGameWindowTransitionSpeedMultiplier) is { } speedMultiplier)
+        {
+            tshDict["GameWindowTransitionSpeedMultiplier"] = speedMultiplier.ToString(CultureInfo.InvariantCulture);
+        }
     }
 
     private static void PatchVideoSettings(GameProfile profile, CreateProfileRequest request)

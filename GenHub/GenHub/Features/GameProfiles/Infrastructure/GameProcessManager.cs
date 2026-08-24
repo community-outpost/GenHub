@@ -828,6 +828,8 @@ public class GameProcessManager(
                 await Task.Delay(ProcessConstants.SpawnedChildPollIntervalMs, cancellationToken);
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (spawnedProcess != null)
             {
                 logger.LogInformation(
