@@ -668,44 +668,11 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                 "Found {Count} GameInstallation manifests, reconstructing installations",
                 searchResult.Data.Count());
 
-            // Group manifests by installation path (multiple manifests per installation: Generals + Zero Hour)
-            var manifestsByPath = searchResult.Data
-                .Where(m =>
-                {
-                    var hasPath = !string.IsNullOrEmpty(m.Metadata.SourcePath);
-                    if (!hasPath)
-                    {
-                        logger.LogDebug("Skipping manifest {Id} - no SourcePath in metadata", m.Id);
-                    }
-
-                    return hasPath;
-                })
-                .GroupBy(m => m.Metadata.SourcePath!, StringComparer.OrdinalIgnoreCase);
+            var manifestsByPath = GroupManifestsBySourcePath(searchResult.Data);
 
             foreach (var group in manifestsByPath)
             {
-                var sourcePath = group.Key;
-
-                // Determine installation type from the first manifest ID
-                var firstManifest = group.First();
-                var installationType = ExtractInstallationTypeFromManifestId(firstManifest.Id);
-
-                // Create GameInstallation object
-                var installation = new GameInstallation(sourcePath, installationType)
-                {
-                    Id = Guid.NewGuid().ToString(), // Generate new ID
-                    DetectedAt = DateTime.UtcNow,
-                };
-
-                // Populate Generals/ZeroHour paths
-                installation.Fetch();
-
-                installations.Add(installation);
-
-                logger.LogInformation(
-                    "Reconstructed {InstallationType} installation from manifests: {Path}",
-                    installationType,
-                    sourcePath);
+                installations.Add(ReconstructInstallation(group));
             }
 
             logger.LogInformation(
@@ -721,6 +688,44 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
         }
 
         return installations;
+    }
+
+    private IEnumerable<IGrouping<string, ContentManifest>> GroupManifestsBySourcePath(IEnumerable<ContentManifest> manifests)
+    {
+        return manifests
+            .Where(m =>
+            {
+                var hasPath = !string.IsNullOrEmpty(m.Metadata.SourcePath);
+                if (!hasPath)
+                {
+                    logger.LogDebug("Skipping manifest {Id} - no SourcePath in metadata", m.Id);
+                }
+
+                return hasPath;
+            })
+            .GroupBy(m => m.Metadata.SourcePath!, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private GameInstallation ReconstructInstallation(IGrouping<string, ContentManifest> group)
+    {
+        var sourcePath = group.Key;
+        var firstManifest = group.First();
+        var installationType = ExtractInstallationTypeFromManifestId(firstManifest.Id);
+
+        var installation = new GameInstallation(sourcePath, installationType)
+        {
+            Id = Guid.NewGuid().ToString(),
+            DetectedAt = DateTime.UtcNow,
+        };
+
+        installation.Fetch();
+
+        logger.LogInformation(
+            "Reconstructed {InstallationType} installation from manifests: {Path}",
+            installationType,
+            sourcePath);
+
+        return installation;
     }
 
     /// <summary>

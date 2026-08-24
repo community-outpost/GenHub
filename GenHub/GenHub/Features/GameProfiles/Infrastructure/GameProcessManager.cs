@@ -812,10 +812,20 @@ public class GameProcessManager(
                 ? configuration.ExpectedChildProcessName
                 : Path.GetFileNameWithoutExtension(configuration.ExecutablePath);
 
-            var spawnedProcess = FindAdoptableGameProcess(
-                executableName,
-                configuration.WorkingDirectory ?? Path.GetDirectoryName(configuration.ExecutablePath)!,
-                launcherStartTime);
+            var workingDir = configuration.WorkingDirectory ?? Path.GetDirectoryName(configuration.ExecutablePath)!;
+            var deadline = DateTime.UtcNow + TimeSpan.FromMilliseconds(ProcessConstants.LauncherExitGracePeriodMs);
+
+            Process? spawnedProcess = null;
+            while (true)
+            {
+                spawnedProcess = FindAdoptableGameProcess(executableName, workingDir, launcherStartTime);
+                if (spawnedProcess != null || DateTime.UtcNow >= deadline)
+                {
+                    break;
+                }
+
+                Thread.Sleep(ProcessConstants.SpawnedChildPollIntervalMs);
+            }
 
             if (spawnedProcess != null)
             {
