@@ -535,7 +535,7 @@ Resolution=1024 768
     }
 
     /// <summary>
-    /// Should parse GameWindowTransitionSpeedMultiplier when reading TheSuperHackers settings from Options.ini.
+    /// Should parse GameWindowTransitionSpeedMultiplier correctly from Options.ini.
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
     [Fact]
@@ -543,7 +543,7 @@ Resolution=1024 768
     {
         // Arrange
         var content = @"[TheSuperHackers]
-GameWindowTransitionSpeedMultiplier=12.5
+GameWindowTransitionSpeedMultiplier=7.5
 MoneyTransactionVolume=60
 ";
         var tempFile = Path.GetTempFileName();
@@ -562,7 +562,7 @@ MoneyTransactionVolume=60
 
             // Assert
             Assert.True(result.Success, result.FirstError);
-            Assert.Equal(12.5f, result.Data!.GameWindowTransitionSpeedMultiplier);
+            Assert.Equal(7.5f, result.Data!.GameWindowTransitionSpeedMultiplier);
             Assert.Equal(60, result.Data!.MoneyTransactionVolume);
         }
         finally
@@ -590,7 +590,7 @@ MoneyTransactionVolume=60
         {
             var settings = new TheSuperHackersSettings
             {
-                GameWindowTransitionSpeedMultiplier = 25.0f,
+                GameWindowTransitionSpeedMultiplier = 8.5f,
                 MoneyTransactionVolume = 75,
             };
 
@@ -601,7 +601,7 @@ MoneyTransactionVolume=60
             // Assert
             Assert.True(saveResult.Success, saveResult.FirstError);
             Assert.True(loadResult.Success, loadResult.FirstError);
-            Assert.Equal(25.0f, loadResult.Data!.GameWindowTransitionSpeedMultiplier);
+            Assert.Equal(8.5f, loadResult.Data!.GameWindowTransitionSpeedMultiplier);
             Assert.Equal(75, loadResult.Data!.MoneyTransactionVolume);
         }
         finally
