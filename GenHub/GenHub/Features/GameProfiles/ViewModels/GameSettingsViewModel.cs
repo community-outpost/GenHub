@@ -551,7 +551,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             TshScreenEdgeScrollEnabledInFullscreenApp = TshScreenEdgeScrollEnabledInFullscreenApp,
             TshScreenEdgeScrollEnabledInWindowedApp = TshScreenEdgeScrollEnabledInWindowedApp,
             TshMoneyTransactionVolume = TshMoneyTransactionVolume,
-            TshGameWindowTransitionSpeedMultiplier = TshGameWindowTransitionSpeedMultiplier,
+            TshGameWindowTransitionSpeedMultiplier = GameSettingsMapper.NormalizeTransitionSpeedMultiplier(TshGameWindowTransitionSpeedMultiplier) ?? GameSettingsTheSuperHackersConstants.DefaultGameWindowTransitionSpeedMultiplier,
 
             // GeneralsOnline settings
             GoShowFps = GoShowFps,
@@ -862,7 +862,10 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         if (profile.TshScreenEdgeScrollEnabledInFullscreenApp.HasValue) TshScreenEdgeScrollEnabledInFullscreenApp = profile.TshScreenEdgeScrollEnabledInFullscreenApp.Value;
         if (profile.TshScreenEdgeScrollEnabledInWindowedApp.HasValue) TshScreenEdgeScrollEnabledInWindowedApp = profile.TshScreenEdgeScrollEnabledInWindowedApp.Value;
         if (profile.TshMoneyTransactionVolume.HasValue) TshMoneyTransactionVolume = profile.TshMoneyTransactionVolume.Value;
-        if (profile.TshGameWindowTransitionSpeedMultiplier.HasValue) TshGameWindowTransitionSpeedMultiplier = profile.TshGameWindowTransitionSpeedMultiplier.Value;
+        if (GameSettingsMapper.NormalizeTransitionSpeedMultiplier(profile.TshGameWindowTransitionSpeedMultiplier) is { } speedVal)
+        {
+            TshGameWindowTransitionSpeedMultiplier = speedVal;
+        }
     }
 
     private void LoadGeneralsOnlineSettingsFromProfile(Core.Models.GameProfile.GameProfile profile)
@@ -1332,7 +1335,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         tshDict["ScreenEdgeScrollEnabledInFullscreenApp"] = BoolToString(TshScreenEdgeScrollEnabledInFullscreenApp);
         tshDict["ScreenEdgeScrollEnabledInWindowedApp"] = BoolToString(TshScreenEdgeScrollEnabledInWindowedApp);
         tshDict["MoneyTransactionVolume"] = TshMoneyTransactionVolume.ToString();
-        tshDict["GameWindowTransitionSpeedMultiplier"] = TshGameWindowTransitionSpeedMultiplier.ToString(CultureInfo.InvariantCulture);
+        tshDict["GameWindowTransitionSpeedMultiplier"] = (GameSettingsMapper.NormalizeTransitionSpeedMultiplier(TshGameWindowTransitionSpeedMultiplier) ?? GameSettingsTheSuperHackersConstants.DefaultGameWindowTransitionSpeedMultiplier).ToString(CultureInfo.InvariantCulture);
 
         return options;
     }

@@ -47,6 +47,6 @@ public class TheSuperHackersSettings
     /// <summary>Gets or sets the font size for system time display (0 to disable).</summary>
     public int SystemTimeFontSize { get; set; } = 8;
 
-    /// <summary>Gets or sets the game window transition speed multiplier (1.0 to 1000.0).</summary>
+    /// <summary>Gets or sets the game window transition speed multiplier (1.0 to 10.0).</summary>
     public float GameWindowTransitionSpeedMultiplier { get; set; } = GameSettingsTheSuperHackersConstants.DefaultGameWindowTransitionSpeedMultiplier;
 }
