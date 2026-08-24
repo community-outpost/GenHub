@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameSettings;
@@ -772,14 +773,13 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         if (values.TryGetValue("SystemTimeFontSize", out var sysTimeFont) && int.TryParse(sysTimeFont, out var stf))
             settings.SystemTimeFontSize = stf;
 
-        if (values.TryGetValue("GameWindowTransitionSpeedMultiplier", out var speedMult) &&
-            float.TryParse(speedMult, NumberStyles.Float, CultureInfo.InvariantCulture, out var gwt) &&
-            float.IsFinite(gwt))
+        if (values.TryGetValue("GameWindowTransitionSpeedMultiplier", out var speedMult))
         {
-            settings.GameWindowTransitionSpeedMultiplier = Math.Clamp(
-                gwt,
-                GameSettingsTheSuperHackersConstants.MinGameWindowTransitionSpeedMultiplier,
-                GameSettingsTheSuperHackersConstants.MaxGameWindowTransitionSpeedMultiplier);
+            var parsed = GameSettingsMapper.ParseTransitionSpeedMultiplier(speedMult);
+            if (parsed.HasValue)
+            {
+                settings.GameWindowTransitionSpeedMultiplier = parsed.Value;
+            }
         }
     }
 

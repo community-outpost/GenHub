@@ -353,7 +353,7 @@ public class GameSettingsMapperTests
     /// <param name="expected">The expected clamped float multiplier value.</param>
     [Theory]
     [InlineData("0.2", 1.0f)]
-    [InlineData("5000.0", 1000.0f)]
+    [InlineData("5000.0", 10.0f)]
     [InlineData("-10.0", 1.0f)]
     public void ApplyFromOptions_ClampsOutOfRangeTransitionSpeedMultiplier(string input, float expected)
     {

@@ -526,6 +526,30 @@ public static class GameSettingsMapper
         target.VideoSkipEALogo = source.VideoSkipEALogo;
     }
 
+    /// <summary>
+    /// Parses and clamps the GameWindowTransitionSpeedMultiplier from a raw string value.
+    /// </summary>
+    /// <param name="value">The raw string value.</param>
+    /// <returns>The clamped float multiplier if valid; otherwise, null.</returns>
+    public static float? ParseTransitionSpeedMultiplier(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        if (float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var speed) &&
+            float.IsFinite(speed))
+        {
+            return Math.Clamp(
+                speed,
+                GameSettingsTheSuperHackersConstants.MinGameWindowTransitionSpeedMultiplier,
+                GameSettingsTheSuperHackersConstants.MaxGameWindowTransitionSpeedMultiplier);
+        }
+
+        return null;
+    }
+
     private static void ApplyVideoFromOptions(IniOptions options, GameProfile profile)
     {
         profile.VideoResolutionWidth = options.Video.ResolutionWidth;
@@ -622,20 +646,6 @@ public static class GameSettingsMapper
                 profile.TshGameWindowTransitionSpeedMultiplier = parsed.Value;
             }
         }
-    }
-
-    private static float? ParseTransitionSpeedMultiplier(string value)
-    {
-        if (float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var speed) &&
-            float.IsFinite(speed))
-        {
-            return Math.Clamp(
-                speed,
-                GameSettingsTheSuperHackersConstants.MinGameWindowTransitionSpeedMultiplier,
-                GameSettingsTheSuperHackersConstants.MaxGameWindowTransitionSpeedMultiplier);
-        }
-
-        return null;
     }
 
     private static void ApplyAudioFromOptions(IniOptions options, GameProfile profile)

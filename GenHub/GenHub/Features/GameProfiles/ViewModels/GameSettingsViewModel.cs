@@ -11,6 +11,7 @@ using CommunityToolkit.Mvvm.Input;
 using GenHub.Common.ViewModels;
 using GenHub.Core.Constants;
 using GenHub.Core.Extensions;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameSettings;
@@ -1224,14 +1225,13 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         if (tsh.TryGetValue("ShowMoneyPerMinute", out var smpm)) TshShowMoneyPerMinute = ParseBool(smpm);
         if (tsh.TryGetValue("PlayerObserverEnabled", out var poe)) TshPlayerObserverEnabled = ParseBool(poe);
         if (tsh.TryGetValue("MoneyTransactionVolume", out var mtv) && int.TryParse(mtv, out var mtvVal)) TshMoneyTransactionVolume = mtvVal;
-        if (tsh.TryGetValue("GameWindowTransitionSpeedMultiplier", out var gwt) &&
-            float.TryParse(gwt, NumberStyles.Float, CultureInfo.InvariantCulture, out var gwtVal) &&
-            float.IsFinite(gwtVal))
+        if (tsh.TryGetValue("GameWindowTransitionSpeedMultiplier", out var gwt))
         {
-            TshGameWindowTransitionSpeedMultiplier = Math.Clamp(
-                gwtVal,
-                GameSettingsTheSuperHackersConstants.MinGameWindowTransitionSpeedMultiplier,
-                GameSettingsTheSuperHackersConstants.MaxGameWindowTransitionSpeedMultiplier);
+            var parsed = GameSettingsMapper.ParseTransitionSpeedMultiplier(gwt);
+            if (parsed.HasValue)
+            {
+                TshGameWindowTransitionSpeedMultiplier = parsed.Value;
+            }
         }
     }
 
