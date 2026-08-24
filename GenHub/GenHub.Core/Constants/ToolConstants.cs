@@ -9,6 +9,46 @@ namespace GenHub.Core.Constants;
 public static class ToolConstants
 {
     /// <summary>
+    /// Mock path separator indicator for demo environments on Windows.
+    /// </summary>
+    public const string WindowsMockPathSegment = "\\Mock\\";
+
+    /// <summary>
+    /// Mock path separator indicator for demo environments on Unix.
+    /// </summary>
+    public const string UnixMockPathSegment = "/Mock/";
+
+    /// <summary>
+    /// Notification title for delete failure.
+    /// </summary>
+    public const string DeleteFailedTitle = "Delete Failed";
+
+    /// <summary>
+    /// Default upload buffer size in bytes (8 KB).
+    /// </summary>
+    public const int DefaultUploadBufferSize = 8 * 1024;
+
+    /// <summary>
+    /// Number of bytes in one megabyte.
+    /// </summary>
+    public const double BytesPerMegabyte = 1024.0 * 1024.0;
+
+    /// <summary>
+    /// Upload progress stage percentage threshold for compression stage.
+    /// </summary>
+    public const int UploadStageCompressionThresholdPercent = 25;
+
+    /// <summary>
+    /// Upload progress stage percentage threshold for cloud upload stage.
+    /// </summary>
+    public const int UploadStageCloudThresholdPercent = 88;
+
+    /// <summary>
+    /// Upload progress stage percentage threshold for completion stage.
+    /// </summary>
+    public const int UploadStageCompletePercent = 100;
+
+    /// <summary>
     /// Mock sharing URLs for demo tool services.
     /// </summary>
     public static class MockUrls

@@ -171,7 +171,7 @@ public sealed class MapExportService(
             return (mapList[0].FullPath, false, progress);
         }
 
-        var tempZip = Path.Combine(Path.GetTempPath(), $"genhub_maps_{Guid.NewGuid()}.zip");
+        var tempZip = Path.Combine(Path.GetTempPath(), $"{MapManagerConstants.TempShareFilePrefix}{Guid.NewGuid()}{FileTypes.ZipFileExtension}");
         var zipProgress = progress != null ? new Progress<double>(p => progress.Report(p * 0.25)) : null;
         var uploadProgress = progress != null ? new Progress<double>(p => progress.Report(0.25 + (p * 0.75))) : null;
 

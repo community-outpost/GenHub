@@ -370,11 +370,25 @@ public partial class MapManagerViewModel : ObservableObject
         path.Contains(MapManagerConstants.WindowsMockPathSegment, StringComparison.OrdinalIgnoreCase) ||
         path.Contains(MapManagerConstants.UnixMockPathSegment, StringComparison.OrdinalIgnoreCase);
 
+    private static string SanitizeFileName(string fileName)
+    {
+        var invalidChars = Path.GetInvalidFileNameChars();
+        return string.Concat(fileName.Where(c => !invalidChars.Contains(c)));
+    }
+
     private static string GetUniqueZipDestinationPath(string directory, string rawZipName)
     {
-        var safeZipName = rawZipName.EndsWith(Path.GetExtension(MapManagerConstants.ZipFilePattern), StringComparison.OrdinalIgnoreCase)
-            ? rawZipName
-            : rawZipName + Path.GetExtension(MapManagerConstants.ZipFilePattern);
+        var safeZipName = SanitizeFileName(rawZipName);
+        if (string.IsNullOrWhiteSpace(safeZipName))
+        {
+            safeZipName = MapManagerConstants.DefaultZipName;
+        }
+
+        var zipExtension = Path.GetExtension(MapManagerConstants.ZipFilePattern);
+        if (!safeZipName.EndsWith(zipExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            safeZipName += zipExtension;
+        }
 
         return PathHelper.GetUniqueNumberedPath(Path.Combine(directory, safeZipName));
     }

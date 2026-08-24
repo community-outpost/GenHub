@@ -167,7 +167,12 @@ const verifyHmacSignature = async (payload: string, signature: string, secret: s
   );
 
   const normalizedSig = signature.replaceAll("-", "+").replaceAll("_", "/");
-  const rawSig = Uint8Array.from(atob(normalizedSig), (c) => c.codePointAt(0) ?? 0);
+  let rawSig: Uint8Array;
+  try {
+    rawSig = Uint8Array.from(atob(normalizedSig), (c) => c.codePointAt(0) ?? 0);
+  } catch {
+    return false;
+  }
 
   return crypto.subtle.verify("HMAC", hmacKey, rawSig, new TextEncoder().encode(payload));
 };
@@ -376,12 +381,17 @@ const createUploadSuccessResponse = async (
 };
 
 const handleDirectUpload = async (request: Request, env: Env): Promise<Response> => {
+  const maxSizeBytes = parseMaxSizeBytes(env.MAX_FILE_SIZE_BYTES);
+  const declaredLength = Number(request.headers.get("content-length") ?? "");
+  if (Number.isSafeInteger(declaredLength) && declaredLength > maxSizeBytes) {
+    return new Response(JSON.stringify({ error: `File exceeds max limit of ${maxSizeBytes} bytes` }), { status: 413, headers: CORS_HEADERS });
+  }
+
   const file = await extractFileFromRequest(request);
   if (file === null) {
     return new Response(JSON.stringify({ error: "Missing file payload in request" }), { status: 400, headers: CORS_HEADERS });
   }
 
-  const maxSizeBytes = parseMaxSizeBytes(env.MAX_FILE_SIZE_BYTES);
   const validationError = validateUploadFile(file.name, file.size, maxSizeBytes);
   if (validationError !== null) {
     return new Response(JSON.stringify({ error: validationError }), { status: 400, headers: CORS_HEADERS });

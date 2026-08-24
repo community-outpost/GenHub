@@ -737,8 +737,7 @@ public partial class ReplayManagerViewModel(
 
     private async Task<bool> ValidateUploadLimitsAsync(long totalSizeBytes)
     {
-        const long MaxReplayUploadSize = 10 * 1024 * 1024; // 10MB
-        if (totalSizeBytes > MaxReplayUploadSize)
+        if (totalSizeBytes > ReplayManagerConstants.MaxUploadBytesPerPeriod)
         {
             notificationService.ShowError(
                "File Too Large",

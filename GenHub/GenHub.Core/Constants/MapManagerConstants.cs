@@ -111,19 +111,24 @@ public static class MapManagerConstants
     public const string ToolDescription = "Manage, import, and share custom maps. Create MapPacks for easy profile switching.";
 
     /// <summary>
+    /// Prefix for temporary share archives created for uploads.
+    /// </summary>
+    public const string TempShareFilePrefix = "genhub_maps_";
+
+    /// <summary>
     /// Mock path separator indicator for demo environments on Windows.
     /// </summary>
-    public const string WindowsMockPathSegment = "\\Mock\\";
+    public const string WindowsMockPathSegment = ToolConstants.WindowsMockPathSegment;
 
     /// <summary>
     /// Mock path separator indicator for demo environments on Unix.
     /// </summary>
-    public const string UnixMockPathSegment = "/Mock/";
+    public const string UnixMockPathSegment = ToolConstants.UnixMockPathSegment;
 
     /// <summary>
     /// Notification title for delete failure.
     /// </summary>
-    public const string DeleteFailedTitle = "Delete Failed";
+    public const string DeleteFailedTitle = ToolConstants.DeleteFailedTitle;
 
     /// <summary>
     /// Category identifier for map uploads.

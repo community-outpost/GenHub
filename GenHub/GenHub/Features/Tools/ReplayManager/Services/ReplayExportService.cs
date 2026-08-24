@@ -120,7 +120,7 @@ public sealed class ReplayExportService(
         IProgress<double>? progress,
         CancellationToken ct)
     {
-        if (replayList.Count == 1 && replayList[0].FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+        if (replayList.Count == 1 && replayList[0].FileName.EndsWith(FileTypes.ZipFileExtension, StringComparison.OrdinalIgnoreCase))
         {
             var (isValid, errorMessage) = zipValidationService.ValidateZip(replayList[0].FullPath);
             if (!isValid)
@@ -132,7 +132,7 @@ public sealed class ReplayExportService(
             return (replayList[0].FullPath, false, progress);
         }
 
-        var tempZip = Path.Combine(Path.GetTempPath(), $"{ReplayManagerConstants.TempShareFilePrefix}{Guid.NewGuid()}.zip");
+        var tempZip = Path.Combine(Path.GetTempPath(), $"{ReplayManagerConstants.TempShareFilePrefix}{Guid.NewGuid()}{FileTypes.ZipFileExtension}");
         var zipProgress = progress != null ? new Progress<double>(p => progress.Report(p * 0.25)) : null;
         var uploadProgress = progress != null ? new Progress<double>(p => progress.Report(0.25 + (p * 0.75))) : null;
 

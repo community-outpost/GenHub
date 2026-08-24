@@ -70,11 +70,7 @@ public sealed class UploadThingService(
 
             return new UploadResult(result.PublicUrl, result.FileKey, result.DeleteToken);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Exception occurred during file upload");
             return null;
@@ -112,11 +108,7 @@ public sealed class UploadThingService(
 
             return isSuccess;
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Exception occurred while deleting file {Key}", fileKey);
             return false;

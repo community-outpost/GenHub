@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 
 namespace GenHub.Features.Tools.Services;
 
@@ -14,8 +15,11 @@ public sealed class ProgressableStreamContent(
     Stream content,
     long totalBytes,
     IProgress<double>? progress = null,
-    int bufferSize = 8 * 1024) : HttpContent
+    int bufferSize = ToolConstants.DefaultUploadBufferSize) : HttpContent
 {
+    private readonly int _effectiveBufferSize = bufferSize > 0
+        ? bufferSize
+        : throw new ArgumentOutOfRangeException(nameof(bufferSize), bufferSize, "Buffer size must be greater than zero.");
     private const double MinProgressFraction = 0.01;
     private const double MaxProgressFraction = 0.99;
 
@@ -30,7 +34,7 @@ public sealed class ProgressableStreamContent(
     {
         ArgumentNullException.ThrowIfNull(stream);
 
-        var buffer = new byte[bufferSize];
+        var buffer = new byte[_effectiveBufferSize];
         long uploadedBytes = 0;
 
         if (content.CanSeek)

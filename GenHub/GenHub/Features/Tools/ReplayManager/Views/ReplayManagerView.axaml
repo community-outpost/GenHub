@@ -151,7 +151,7 @@
         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="16">
           <material:MaterialIcon Kind="TrayArrowDown" Width="64" Height="64" Foreground="{DynamicResource AccentLightBrush}" HorizontalAlignment="Center"/>
           <TextBlock Text="Drop replays or ZIPs to import" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center"/>
-          <TextBlock Text="Single .rep files or ZIP archives only (max 1MB)" FontSize="12" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center"/>
+          <TextBlock Text="Single .rep files or ZIP archives only (max 10MB)" FontSize="12" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center"/>
         </StackPanel>
       </Border>
 

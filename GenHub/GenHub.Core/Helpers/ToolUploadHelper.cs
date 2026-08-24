@@ -1,4 +1,5 @@
 using System;
+using GenHub.Core.Constants;
 
 namespace GenHub.Core.Helpers;
 
@@ -16,17 +17,17 @@ public static class ToolUploadHelper
     /// <returns>A formatted status string.</returns>
     public static string FormatUploadStageMessage(string entityName, bool isZip, int percent)
     {
-        if (!isZip && percent < 25)
+        if (!isZip && percent < ToolConstants.UploadStageCompressionThresholdPercent)
         {
             return $"Compressing {entityName}... {percent}%";
         }
 
-        if (percent < 88)
+        if (percent < ToolConstants.UploadStageCloudThresholdPercent)
         {
             return $"Uploading to cloud... {percent}%";
         }
 
-        if (percent < 100)
+        if (percent < ToolConstants.UploadStageCompletePercent)
         {
             return $"Finalizing cloud upload... {percent}%";
         }
@@ -43,9 +44,9 @@ public static class ToolUploadHelper
     /// <returns>A human-readable error description.</returns>
     public static string FormatUploadLimitExceededMessage(long totalSizeBytes, long usedBytes, long limitBytes)
     {
-        var remainingMb = Math.Max(0, (limitBytes - usedBytes) / (1024.0 * 1024.0));
-        var fileMb = totalSizeBytes / (1024.0 * 1024.0);
-        var limitMb = limitBytes / (1024.0 * 1024.0);
+        var remainingMb = Math.Max(0, (limitBytes - usedBytes) / ToolConstants.BytesPerMegabyte);
+        var fileMb = totalSizeBytes / ToolConstants.BytesPerMegabyte;
+        var limitMb = limitBytes / ToolConstants.BytesPerMegabyte;
 
         return $"Upload limit exceeded. You have {remainingMb:F1} MB remaining of your {limitMb:F0} MB limit. This file requires {fileMb:F1} MB.";
     }

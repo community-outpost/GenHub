@@ -174,22 +174,18 @@ public static class PathHelper
     }
 
     /// <summary>
-    /// Opens the Windows File Explorer and selects the specified file, or ignores if not supported.
+    /// Opens the native file explorer and selects the specified file or folder, or ignores if not supported.
     /// </summary>
     /// <param name="filePath">The absolute path to the file to reveal.</param>
     public static void RevealInExplorer(string filePath)
     {
         try
         {
-            var windowsDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
-            var explorerPath = string.IsNullOrEmpty(windowsDir) ? "explorer.exe" : Path.Combine(windowsDir, "explorer.exe");
-            var startInfo = new ProcessStartInfo
+            var startInfo = CreateRevealStartInfo(filePath);
+            if (startInfo != null)
             {
-                FileName = explorerPath,
-                Arguments = $"/select,\"{filePath}\"",
-                UseShellExecute = false,
-            };
-            Process.Start(startInfo);
+                Process.Start(startInfo);
+            }
         }
         catch (Win32Exception)
         {
@@ -207,6 +203,53 @@ public static class PathHelper
         {
             /* Ignore explorer errors */
         }
+    }
+
+    private static ProcessStartInfo? CreateRevealStartInfo(string filePath)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            var windowsDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            var explorerPath = string.IsNullOrEmpty(windowsDir) ? "explorer.exe" : Path.Combine(windowsDir, "explorer.exe");
+            var info = new ProcessStartInfo
+            {
+                FileName = explorerPath,
+                UseShellExecute = false,
+            };
+            info.ArgumentList.Add($"/select,{filePath}");
+            return info;
+        }
+
+        if (OperatingSystem.IsMacOS())
+        {
+            var info = new ProcessStartInfo
+            {
+                FileName = "open",
+                UseShellExecute = false,
+            };
+            info.ArgumentList.Add("-R");
+            info.ArgumentList.Add(filePath);
+            return info;
+        }
+
+        if (OperatingSystem.IsLinux())
+        {
+            var targetDir = File.Exists(filePath) ? Path.GetDirectoryName(filePath) : filePath;
+            if (string.IsNullOrEmpty(targetDir))
+            {
+                return null;
+            }
+
+            var info = new ProcessStartInfo
+            {
+                FileName = "xdg-open",
+                UseShellExecute = false,
+            };
+            info.ArgumentList.Add(targetDir);
+            return info;
+        }
+
+        return null;
     }
 
     private static bool IsContained(string normalizedRoot, string normalizedTarget)

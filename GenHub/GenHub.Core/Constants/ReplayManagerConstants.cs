@@ -48,7 +48,7 @@ public static class ReplayManagerConstants
     /// <summary>
     /// Notification title for delete failure.
     /// </summary>
-    public const string DeleteFailedTitle = "Delete Failed";
+    public const string DeleteFailedTitle = ToolConstants.DeleteFailedTitle;
 
     /// <summary>
     /// Category identifier for replay uploads.
@@ -58,10 +58,10 @@ public static class ReplayManagerConstants
     /// <summary>
     /// Mock path separator indicator for demo environments on Windows.
     /// </summary>
-    public const string WindowsMockPathSegment = "\\Mock\\";
+    public const string WindowsMockPathSegment = ToolConstants.WindowsMockPathSegment;
 
     /// <summary>
     /// Mock path separator indicator for demo environments on Unix.
     /// </summary>
-    public const string UnixMockPathSegment = "/Mock/";
+    public const string UnixMockPathSegment = ToolConstants.UnixMockPathSegment;
 }

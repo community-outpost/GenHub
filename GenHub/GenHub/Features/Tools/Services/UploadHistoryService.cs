@@ -209,22 +209,29 @@ public sealed class UploadHistoryService(
     /// <inheritdoc />
     public async Task ClearHistoryAsync(bool deleteFromCloud = true, string? category = null)
     {
-        List<UploadRecord> recordsToDelete = [];
+        List<UploadRecord> candidateRecords;
         lock (FileLock)
         {
             var history = LoadHistoryInternal();
-            recordsToDelete = history.Where(r => MatchesCategory(r, category)).ToList();
+            candidateRecords = history.Where(r => MatchesCategory(r, category)).ToList();
         }
+
+        HashSet<UploadRecord> recordsToRemove;
 
         if (deleteFromCloud)
         {
-            await DeleteRecordsFromCloudAsync(recordsToDelete);
+            recordsToRemove = await DeleteRecordsFromCloudAsync(candidateRecords);
+        }
+        else
+        {
+            recordsToRemove = [.. candidateRecords];
         }
 
         lock (FileLock)
         {
             var history = LoadHistoryInternal();
-            var removed = history.RemoveAll(r => MatchesCategory(r, category));
+            var targetUrls = recordsToRemove.Where(r => !string.IsNullOrEmpty(r.Url)).Select(r => r.Url!).ToHashSet();
+            var removed = history.RemoveAll(r => (r.Url != null && targetUrls.Contains(r.Url)) || recordsToRemove.Contains(r));
             if (removed > 0)
             {
                 SaveHistoryInternal(history);
@@ -271,19 +278,26 @@ public sealed class UploadHistoryService(
         return string.Equals(inferred, category, StringComparison.OrdinalIgnoreCase);
     }
 
-    private async Task DeleteRecordsFromCloudAsync(IEnumerable<UploadRecord> records)
+    private async Task<HashSet<UploadRecord>> DeleteRecordsFromCloudAsync(IEnumerable<UploadRecord> records)
     {
+        var successfullyDeleted = new HashSet<UploadRecord>();
+
         foreach (var record in records)
         {
             if (record.FileKey is not { Length: > 0 } fileKey || record.DeleteToken is not { Length: > 0 } deleteToken)
             {
+                successfullyDeleted.Add(record);
                 continue;
             }
 
             try
             {
                 var deleted = await uploadThingService.DeleteFileAsync(fileKey, deleteToken);
-                if (!deleted)
+                if (deleted)
+                {
+                    successfullyDeleted.Add(record);
+                }
+                else
                 {
                     logger.LogWarning(
                         "Failed to delete file {Key} from cloud storage during clear history.",
@@ -295,6 +309,8 @@ public sealed class UploadHistoryService(
                 logger.LogWarning(ex, "Timeout or cancellation occurred while deleting file {Key} from cloud during clear history", fileKey);
             }
         }
+
+        return successfullyDeleted;
     }
 
     private List<UploadRecord> LoadHistoryInternal()

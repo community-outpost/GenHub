@@ -70,7 +70,7 @@ public sealed class ReplayImportService(
                     })
                     : null;
 
-                var success = await DownloadAndImportReplayUrlAsync(
+                var skippedCount = await DownloadAndImportReplayUrlAsync(
                     directUrls[i],
                     userAgent,
                     targetVersion,
@@ -79,10 +79,7 @@ public sealed class ReplayImportService(
                     errors,
                     ct);
 
-                if (!success)
-                {
-                    skipped++;
-                }
+                skipped += skippedCount;
             }
 
             progress?.Report(1.0);
@@ -103,7 +100,7 @@ public sealed class ReplayImportService(
         }
     }
 
-    private async Task<bool> DownloadAndImportReplayUrlAsync(
+    private async Task<int> DownloadAndImportReplayUrlAsync(
         string directUrl,
         string userAgent,
         GameType targetVersion,
@@ -112,7 +109,7 @@ public sealed class ReplayImportService(
         List<string> errors,
         CancellationToken ct)
     {
-        var tempPath = Path.Combine(Path.GetTempPath(), $"{ReplayManagerConstants.TempImportFilePrefix}{Guid.NewGuid()}.rep");
+        var tempPath = Path.Combine(Path.GetTempPath(), $"{ReplayManagerConstants.TempImportFilePrefix}{Guid.NewGuid()}{FileTypes.ReplayFileExtension}");
 
         try
         {
@@ -127,7 +124,7 @@ public sealed class ReplayImportService(
             if (!result.Success)
             {
                 errors.Add($"{ErrorMessages.DownloadFailed}: {directUrl}");
-                return false;
+                return 1;
             }
 
             var isZip = IsZipFile(tempPath);
@@ -136,7 +133,7 @@ public sealed class ReplayImportService(
             if (info.Length > maxAllowedBytes)
             {
                 errors.Add(string.Format(ErrorMessages.ReplayExceedsMaxSize, info.Length / 1024.0));
-                return false;
+                return 1;
             }
 
             if (isZip)
@@ -145,7 +142,7 @@ public sealed class ReplayImportService(
                 var zipResult = await ImportFromZipAsync(tempPath, targetVersion, null, ct);
                 importedFiles.AddRange(zipResult.ImportedFiles);
                 errors.AddRange(zipResult.Errors);
-                return zipResult.Success;
+                return zipResult.FilesSkipped;
             }
 
             var importedFileName = ExtractFileName(new Uri(directUrl));
@@ -154,11 +151,11 @@ public sealed class ReplayImportService(
             if (singleResult.Success)
             {
                 importedFiles.AddRange(singleResult.ImportedFiles);
-                return true;
+                return singleResult.FilesSkipped;
             }
 
             errors.AddRange(singleResult.Errors);
-            return false;
+            return 1;
         }
         finally
         {
