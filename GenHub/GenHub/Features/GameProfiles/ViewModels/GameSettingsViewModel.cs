@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -321,6 +322,9 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
     [ObservableProperty]
     private int _tshMoneyTransactionVolume = GameSettingsTheSuperHackersConstants.DefaultMoneyTransactionVolume;
 
+    [ObservableProperty]
+    private float _tshGameWindowTransitionSpeedMultiplier = GameSettingsTheSuperHackersConstants.DefaultGameWindowTransitionSpeedMultiplier;
+
     // ===== GeneralsOnline Client Settings =====
     [ObservableProperty]
     private bool _goShowFps;
@@ -546,6 +550,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
             TshScreenEdgeScrollEnabledInFullscreenApp = TshScreenEdgeScrollEnabledInFullscreenApp,
             TshScreenEdgeScrollEnabledInWindowedApp = TshScreenEdgeScrollEnabledInWindowedApp,
             TshMoneyTransactionVolume = TshMoneyTransactionVolume,
+            TshGameWindowTransitionSpeedMultiplier = TshGameWindowTransitionSpeedMultiplier,
 
             // GeneralsOnline settings
             GoShowFps = GoShowFps,
@@ -856,6 +861,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         if (profile.TshScreenEdgeScrollEnabledInFullscreenApp.HasValue) TshScreenEdgeScrollEnabledInFullscreenApp = profile.TshScreenEdgeScrollEnabledInFullscreenApp.Value;
         if (profile.TshScreenEdgeScrollEnabledInWindowedApp.HasValue) TshScreenEdgeScrollEnabledInWindowedApp = profile.TshScreenEdgeScrollEnabledInWindowedApp.Value;
         if (profile.TshMoneyTransactionVolume.HasValue) TshMoneyTransactionVolume = profile.TshMoneyTransactionVolume.Value;
+        if (profile.TshGameWindowTransitionSpeedMultiplier.HasValue) TshGameWindowTransitionSpeedMultiplier = profile.TshGameWindowTransitionSpeedMultiplier.Value;
     }
 
     private void LoadGeneralsOnlineSettingsFromProfile(Core.Models.GameProfile.GameProfile profile)
@@ -1218,6 +1224,9 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         if (tsh.TryGetValue("ShowMoneyPerMinute", out var smpm)) TshShowMoneyPerMinute = ParseBool(smpm);
         if (tsh.TryGetValue("PlayerObserverEnabled", out var poe)) TshPlayerObserverEnabled = ParseBool(poe);
         if (tsh.TryGetValue("MoneyTransactionVolume", out var mtv) && int.TryParse(mtv, out var mtvVal)) TshMoneyTransactionVolume = mtvVal;
+        if (tsh.TryGetValue("GameWindowTransitionSpeedMultiplier", out var gwt) &&
+            float.TryParse(gwt, NumberStyles.Float, CultureInfo.InvariantCulture, out var gwtVal))
+            TshGameWindowTransitionSpeedMultiplier = gwtVal;
     }
 
     private void ApplyTshUiCursorProperties(Dictionary<string, string> tsh)
@@ -1283,6 +1292,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         options.Video.AdditionalProperties["GameTimeFontSize"] = GameTimeFontSize.ToString();
         options.Video.AdditionalProperties["LanguageFilter"] = BoolToString(LanguageFilter);
         options.Video.AdditionalProperties["SendDelay"] = BoolToString(SendDelay);
+        options.Video.AdditionalProperties["GameWindowTransitionSpeedMultiplier"] = TshGameWindowTransitionSpeedMultiplier.ToString(CultureInfo.InvariantCulture);
 
         options.Video.ExtraAnimations = ExtraAnimations;
         options.Video.Gamma = Gamma;
@@ -1317,6 +1327,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         tshDict["ScreenEdgeScrollEnabledInFullscreenApp"] = BoolToString(TshScreenEdgeScrollEnabledInFullscreenApp);
         tshDict["ScreenEdgeScrollEnabledInWindowedApp"] = BoolToString(TshScreenEdgeScrollEnabledInWindowedApp);
         tshDict["MoneyTransactionVolume"] = TshMoneyTransactionVolume.ToString();
+        tshDict["GameWindowTransitionSpeedMultiplier"] = TshGameWindowTransitionSpeedMultiplier.ToString(CultureInfo.InvariantCulture);
 
         return options;
     }
