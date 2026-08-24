@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Security;
@@ -223,6 +224,7 @@ public static class PathHelper
         }
     }
 
+    [SuppressMessage("Security", "S4036:Make sure the executable exists, and provide an absolute path or configure PATH securely", Justification = "Resolves standard desktop launch utilities (open, xdg-open) from PATH across heterogeneous Unix distributions.")]
     private static ProcessStartInfo? CreateRevealStartInfo(string filePath)
     {
         if (string.IsNullOrWhiteSpace(filePath))
@@ -255,9 +257,19 @@ public static class PathHelper
 
         if (OperatingSystem.IsLinux())
         {
-            var targetDir = File.Exists(filePath)
-                ? Path.GetDirectoryName(filePath)
-                : (Directory.Exists(filePath) ? filePath : null);
+            string? targetDir;
+            if (File.Exists(filePath))
+            {
+                targetDir = Path.GetDirectoryName(filePath);
+            }
+            else if (Directory.Exists(filePath))
+            {
+                targetDir = filePath;
+            }
+            else
+            {
+                targetDir = null;
+            }
 
             if (string.IsNullOrEmpty(targetDir))
             {
