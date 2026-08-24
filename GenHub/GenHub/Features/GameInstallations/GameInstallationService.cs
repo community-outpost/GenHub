@@ -688,11 +688,15 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
 
                     return hasPath;
                 })
-                .GroupBy(m => m.Metadata.SourcePath!, PathHelper.PathComparer);
+                .GroupBy(m => m.Metadata.SourcePath, PathHelper.PathComparer);
 
             foreach (var group in manifestsByPath)
             {
                 var sourcePath = group.Key;
+                if (string.IsNullOrEmpty(sourcePath))
+                {
+                    continue;
+                }
 
                 // Determine installation type from the first manifest ID
                 var firstManifest = group.First();

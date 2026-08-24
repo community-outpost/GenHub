@@ -119,7 +119,7 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
                 {
                     if (file.SourceType == Core.Models.Enums.ContentSourceType.ContentAddressable && !string.IsNullOrEmpty(file.Hash))
                     {
-                        var (linked, bytes) = await ProcessCasFileAsync(file, manifest, destinationPath, sameVolume, cancellationToken);
+                        var (linked, bytes) = await ProcessCasFileAsync(file, manifest, destinationPath, cancellationToken);
                         if (linked)
                         {
                             linkedFiles++;
@@ -294,7 +294,6 @@ public sealed class HardLinkStrategy(IFileOperationsService fileOperations, ILog
         ManifestFile file,
         ContentManifest manifest,
         string destinationPath,
-        bool sameVolume,
         CancellationToken cancellationToken)
     {
         await CreateCasLinkAsync(file.Hash!, destinationPath, manifest.ContentType, cancellationToken);
