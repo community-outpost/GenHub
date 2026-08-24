@@ -858,12 +858,6 @@ public class GameSettingsViewModelTests
     [Fact]
     public void ApplyOptionsToViewModel_Should_UpdateSelectedPreset_WhenResolutionMatches()
     {
-        // Arrange
-        var options = new IniOptions
-        {
-            Video = new VideoSettings { ResolutionWidth = 1920, ResolutionHeight = 1080 },
-        };
-
         // Act - Simulate loading options
         _viewModel.ResolutionWidth = 1920;
         _viewModel.ResolutionHeight = 1080;
