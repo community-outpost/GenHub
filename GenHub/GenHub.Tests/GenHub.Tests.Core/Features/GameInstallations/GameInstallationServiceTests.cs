@@ -506,4 +506,41 @@ public class GameInstallationServiceTests : IDisposable
             Directory.Delete(tempDir2, true);
         }
     }
+
+    /// <summary>
+    /// Verifies that installations with paths differing only by case are handled according to platform path comparison semantics.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task AddInstallationToCacheAsync_HandlesCaseDistinctPaths_AccordingToPlatformPathComparisonAsync()
+    {
+        var basePath = Path.Combine(Path.GetTempPath(), "GenHubCaseTest_" + Guid.NewGuid().ToString("N"));
+        var path1 = Path.Combine(basePath, "zh");
+        var path2 = Path.Combine(basePath, "ZH");
+
+        var install1 = new GameInstallation(path1, GameInstallationType.Steam);
+        var install2 = new GameInstallation(path2, GameInstallationType.Retail);
+
+        _orchestratorMock.Setup(x => x.DetectAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DetectionResult<GameInstallation>.CreateSuccess([], TimeSpan.Zero));
+
+        var addResult1 = await _service.AddInstallationToCacheAsync(install1);
+        var addResult2 = await _service.AddInstallationToCacheAsync(install2);
+
+        Assert.True(addResult1.Success);
+        Assert.True(addResult2.Success);
+
+        var allResult = await _service.GetAllInstallationsAsync();
+        Assert.True(allResult.Success);
+        Assert.NotNull(allResult.Data);
+
+        if (OperatingSystem.IsWindows())
+        {
+            Assert.Single(allResult.Data);
+        }
+        else
+        {
+            Assert.Equal(2, allResult.Data.Count);
+        }
+    }
 }

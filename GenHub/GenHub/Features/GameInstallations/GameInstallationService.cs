@@ -140,7 +140,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                 // Check if installation already exists (by ID or path)
                 var existing = installationsList.FirstOrDefault(i =>
                     i.Id == installation.Id ||
-                    i.InstallationPath.Equals(installation.InstallationPath, StringComparison.OrdinalIgnoreCase));
+                    PathHelper.AreSamePath(i.InstallationPath, installation.InstallationPath));
 
                 if (existing != null)
                 {
@@ -832,7 +832,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                 foreach (var manifestInstall in manifestInstallations)
                 {
                     var existingByPath = installations.FirstOrDefault(i =>
-                        i.InstallationPath.Equals(manifestInstall.InstallationPath, StringComparison.OrdinalIgnoreCase));
+                        PathHelper.AreSamePath(i.InstallationPath, manifestInstall.InstallationPath));
 
                     if (existingByPath == null)
                     {
