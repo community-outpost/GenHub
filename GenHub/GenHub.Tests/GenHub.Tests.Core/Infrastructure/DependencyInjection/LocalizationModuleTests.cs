@@ -1,5 +1,7 @@
+using System.Globalization;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Infrastructure.DependencyInjection;
+using GenHub.Tests.Core.Collections;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -8,8 +10,21 @@ namespace GenHub.Tests.Core.Infrastructure.DependencyInjection;
 /// <summary>
 /// Tests localization dependency injection registration.
 /// </summary>
-public sealed class LocalizationModuleTests
+[Collection(LocalizationCultureCollection.Name)]
+public sealed class LocalizationModuleTests : IDisposable
 {
+    private readonly CultureInfo? _originalDefaultUiCulture = CultureInfo.DefaultThreadCurrentUICulture;
+    private readonly CultureInfo _originalThreadUiCulture = CultureInfo.CurrentUICulture;
+
+    /// <summary>
+    /// Restores process-wide UI culture defaults changed by localization resolution.
+    /// </summary>
+    public void Dispose()
+    {
+        CultureInfo.CurrentUICulture = _originalThreadUiCulture;
+        CultureInfo.DefaultThreadCurrentUICulture = _originalDefaultUiCulture;
+    }
+
     /// <summary>
     /// Verifies that localization resolves as one shared service with embedded English resources.
     /// </summary>

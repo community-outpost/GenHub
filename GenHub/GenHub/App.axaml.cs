@@ -49,6 +49,7 @@ public partial class App : Application
     /// </summary>
     public override void Initialize()
     {
+        Resources[LocalizationConstants.ResourceServiceKey] = _localizationService;
         AvaloniaXamlLoader.Load(this);
         Resources[LocalizationConstants.ResourceServiceKey] = _localizationService;
     }

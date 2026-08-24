@@ -62,7 +62,7 @@ Reference the markup namespace and bind the property to a key:
 </UserControl>
 ```
 
-The extension binds through the application-scoped localization service. When `SetCulture` succeeds, all localized indexer bindings are notified and refresh without recreating the view or restarting GenHub.
+The extension binds through the application-scoped localization service. When `SetCulture` changes the active culture, all localized indexer bindings are notified and refresh without recreating the view or restarting GenHub.
 
 ## View models and services
 
@@ -85,6 +85,8 @@ if (result.Failed)
 
 Culture switching is synchronous because it performs no long-running I/O. Do not wrap it in `Task.Run`, block on a task, or introduce a reactive package solely for change notification.
 
+The selected language is applied to `CurrentUICulture` and `DefaultThreadCurrentUICulture` for resource lookup. It does not replace `CurrentCulture`, so changing the UI language cannot silently alter unrelated regional number, date, parsing, or serialization behavior. Format arguments passed to `GetString` use the selected localization culture.
+
 ## Adding coverage
 
 Every localization change should test the behavior it introduces. At minimum:
@@ -93,4 +95,5 @@ Every localization change should test the behavior it introduces. At minimum:
 - an omitted translated key falls back to English;
 - placeholders format correctly in the active culture;
 - an unavailable culture fails without changing the current culture;
-- a successful culture change refreshes live bindings.
+- a successful culture change refreshes live bindings;
+- an invalid satellite assembly is ignored without aborting discovery of other languages.

@@ -21,4 +21,10 @@
   <data name="Greeting" xml:space="preserve">
     <value>Hello</value>
   </data>
+  <data name="MalformedGreeting" xml:space="preserve">
+    <value>Hello, {0</value>
+  </data>
+  <data name="Settings.Appearance.Title" xml:space="preserve">
+    <value>Appearance</value>
+  </data>
 </root>

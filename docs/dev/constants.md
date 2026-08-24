@@ -74,7 +74,7 @@ Constants used by the application localization foundation.
 | Constant | Value | Description |
 | --- | --- | --- |
 | `DefaultCultureName` | `"en"` | Neutral culture embedded in the main application assembly |
-| `IndexerPropertyName` | `"Item[]"` | Change-notification name used to refresh all localized indexer bindings |
+| `IndexerPropertyName` | `"Item"` | Avalonia change-notification name used to refresh localized indexer bindings |
 | `ResourceServiceKey` | `"LocalizationService"` | Application resource key used by the Avalonia markup extension |
 | `StringResourceBaseName` | `"GenHub.Resources.Localization.Strings"` | Fully qualified .NET resource base name |
 | `SatelliteAssemblySuffix` | `".resources.dll"` | Standard suffix used to identify satellite assemblies |

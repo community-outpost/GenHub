@@ -18,4 +18,7 @@
   <data name="Greeting" xml:space="preserve">
     <value>Bonjour</value>
   </data>
+  <data name="Settings.Appearance.Title" xml:space="preserve">
+    <value>Apparence</value>
+  </data>
 </root>

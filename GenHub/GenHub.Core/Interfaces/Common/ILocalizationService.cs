@@ -16,7 +16,7 @@ public interface ILocalizationService : INotifyPropertyChanged
     IReadOnlyList<CultureInfo> AvailableCultures { get; }
 
     /// <summary>
-    /// Gets the culture currently used for localized strings and culture-aware formatting.
+    /// Gets the culture used for resource lookup and formatting performed by <see cref="GetString"/>.
     /// </summary>
     CultureInfo CurrentCulture { get; }
 
@@ -33,7 +33,7 @@ public interface ILocalizationService : INotifyPropertyChanged
     /// <param name="key">The resource key to resolve.</param>
     /// <param name="arguments">Optional format arguments.</param>
     /// <returns>The localized value, its English fallback, or the key when no resource exists.</returns>
-    string GetString(string key, params object[] arguments);
+    string GetString(string key, params object?[] arguments);
 
     /// <summary>
     /// Changes the active culture when it has a deployed translation.

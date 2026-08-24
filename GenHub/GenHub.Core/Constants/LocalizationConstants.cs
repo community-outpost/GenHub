@@ -13,7 +13,7 @@ public static class LocalizationConstants
     /// <summary>
     /// The property name used to notify bindings that all indexer values changed.
     /// </summary>
-    public const string IndexerPropertyName = "Item[]";
+    public const string IndexerPropertyName = "Item";
 
     /// <summary>
     /// The application resource key used to expose the localization service to XAML.
