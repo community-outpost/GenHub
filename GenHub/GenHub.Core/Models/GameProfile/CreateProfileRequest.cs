@@ -209,6 +209,9 @@ public class CreateProfileRequest
     /// <summary>Gets or sets the money transaction volume (TSH).</summary>
     public int? TshMoneyTransactionVolume { get; set; }
 
+    /// <summary>Gets or sets the game window transition speed multiplier (TSH, 1.0 to 1000.0).</summary>
+    public float? TshGameWindowTransitionSpeedMultiplier { get; set; }
+
     // ===== GeneralsOnline Settings =====
 
     /// <summary>Gets or sets a value indicating whether to show FPS (GO).</summary>

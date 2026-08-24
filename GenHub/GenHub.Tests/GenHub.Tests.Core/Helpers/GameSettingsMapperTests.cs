@@ -228,4 +228,121 @@ public class GameSettingsMapperTests
         Assert.False(settings.ScreenEdgeScrollEnabledInFullscreenApp);
         Assert.True(settings.ScreenEdgeScrollEnabledInWindowedApp);
     }
+
+    /// <summary>
+    /// Verifies that TshGameWindowTransitionSpeedMultiplier is correctly mapped to TheSuperHackers section.
+    /// </summary>
+    [Fact]
+    public void ApplyToOptions_TshGameWindowTransitionSpeedMultiplier_MapsToTheSuperHackersSection()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            TshGameWindowTransitionSpeedMultiplier = 2.5f,
+        };
+        var options = new IniOptions();
+
+        // Act
+        GameSettingsMapper.ApplyToOptions(profile, options);
+
+        // Assert
+        Assert.True(options.AdditionalSections.TryGetValue("TheSuperHackers", out var tsh));
+        Assert.True(tsh.TryGetValue("GameWindowTransitionSpeedMultiplier", out var speed));
+        Assert.Equal("2.5", speed);
+    }
+
+    /// <summary>
+    /// Verifies that GameWindowTransitionSpeedMultiplier is loaded from hierarchical options.
+    /// </summary>
+    [Fact]
+    public void ApplyFromOptions_HierarchicalSection_MapsGameWindowTransitionSpeedMultiplier()
+    {
+        // Arrange
+        var options = new IniOptions();
+        options.AdditionalSections["TheSuperHackers"] = new Dictionary<string, string>
+        {
+            ["GameWindowTransitionSpeedMultiplier"] = "3.75",
+        };
+        var profile = new GameProfile();
+
+        // Act
+        GameSettingsMapper.ApplyFromOptions(options, profile);
+
+        // Assert
+        Assert.Equal(3.75f, profile.TshGameWindowTransitionSpeedMultiplier);
+    }
+
+    /// <summary>
+    /// Verifies that GameWindowTransitionSpeedMultiplier is loaded from flat root video properties.
+    /// </summary>
+    [Fact]
+    public void ApplyFromOptions_FlatProperties_MapsGameWindowTransitionSpeedMultiplier()
+    {
+        // Arrange
+        var options = new IniOptions();
+        options.Video.AdditionalProperties["GameWindowTransitionSpeedMultiplier"] = "5.0";
+        var profile = new GameProfile();
+
+        // Act
+        GameSettingsMapper.ApplyFromOptions(options, profile);
+
+        // Assert
+        Assert.Equal(5.0f, profile.TshGameWindowTransitionSpeedMultiplier);
+    }
+
+    /// <summary>
+    /// Verifies that GameWindowTransitionSpeedMultiplier maps to and from GeneralsOnlineSettings.
+    /// </summary>
+    [Fact]
+    public void ApplyToAndFromGeneralsOnlineSettings_GameWindowTransitionSpeedMultiplier_RoundTrips()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            TshGameWindowTransitionSpeedMultiplier = 10.0f,
+        };
+        var settings = new GeneralsOnlineSettings();
+
+        // Act
+        GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
+
+        // Assert
+        Assert.Equal(10.0f, settings.GameWindowTransitionSpeedMultiplier);
+
+        // Act back
+        var targetProfile = new GameProfile();
+        GameSettingsMapper.ApplyFromGeneralsOnlineSettings(settings, targetProfile);
+
+        // Assert back
+        Assert.Equal(10.0f, targetProfile.TshGameWindowTransitionSpeedMultiplier);
+    }
+
+    /// <summary>
+    /// Verifies that PopulateGameProfile and UpdateFromRequest preserve GameWindowTransitionSpeedMultiplier.
+    /// </summary>
+    [Fact]
+    public void PopulateAndUpdate_PreservesGameWindowTransitionSpeedMultiplier()
+    {
+        // Arrange
+        var createRequest = new CreateProfileRequest
+        {
+            Name = "TestProfile",
+            TshGameWindowTransitionSpeedMultiplier = 4.2f,
+        };
+        var profile = new GameProfile();
+
+        // Act
+        GameSettingsMapper.PopulateGameProfile(profile, createRequest);
+
+        // Assert
+        Assert.Equal(4.2f, profile.TshGameWindowTransitionSpeedMultiplier);
+
+        // Update
+        var updateRequest = new UpdateProfileRequest
+        {
+            TshGameWindowTransitionSpeedMultiplier = 8.4f,
+        };
+        GameSettingsMapper.UpdateFromRequest(profile, updateRequest);
+        Assert.Equal(8.4f, profile.TshGameWindowTransitionSpeedMultiplier);
+    }
 }

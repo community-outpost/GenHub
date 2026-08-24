@@ -534,6 +534,82 @@ Resolution=1024 768
         }
     }
 
+    /// <summary>
+    /// Should parse GameWindowTransitionSpeedMultiplier when reading TheSuperHackers settings from Options.ini.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task LoadTheSuperHackersSettingsAsync_Should_ParseGameWindowTransitionSpeedMultiplierAsync()
+    {
+        // Arrange
+        var content = @"[TheSuperHackers]
+GameWindowTransitionSpeedMultiplier=12.5
+MoneyTransactionVolume=60
+";
+        var tempFile = Path.GetTempFileName();
+        await File.WriteAllTextAsync(tempFile, content);
+
+        var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
+        {
+            CallBase = true,
+        };
+        mockService.Setup(x => x.GetOptionsFilePath(It.IsAny<GameType>())).Returns(tempFile);
+
+        try
+        {
+            // Act
+            var result = await mockService.Object.LoadTheSuperHackersSettingsAsync(GameType.ZeroHour);
+
+            // Assert
+            Assert.True(result.Success, result.FirstError);
+            Assert.Equal(12.5f, result.Data!.GameWindowTransitionSpeedMultiplier);
+            Assert.Equal(60, result.Data!.MoneyTransactionVolume);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    /// <summary>
+    /// Should save and preserve GameWindowTransitionSpeedMultiplier across round-trips.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveTheSuperHackersSettingsAsync_Should_SerializeGameWindowTransitionSpeedMultiplierAsync()
+    {
+        // Arrange
+        var tempFile = Path.GetTempFileName();
+        var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)
+        {
+            CallBase = true,
+        };
+        mockService.Setup(x => x.GetOptionsFilePath(It.IsAny<GameType>())).Returns(tempFile);
+
+        try
+        {
+            var settings = new TheSuperHackersSettings
+            {
+                GameWindowTransitionSpeedMultiplier = 25.0f,
+                MoneyTransactionVolume = 75,
+            };
+
+            // Act
+            var saveResult = await mockService.Object.SaveTheSuperHackersSettingsAsync(GameType.ZeroHour, settings);
+            var loadResult = await mockService.Object.LoadTheSuperHackersSettingsAsync(GameType.ZeroHour);
+
+            // Assert
+            Assert.True(saveResult.Success, saveResult.FirstError);
+            Assert.True(loadResult.Success, loadResult.FirstError);
+            Assert.Equal(25.0f, loadResult.Data!.GameWindowTransitionSpeedMultiplier);
+            Assert.Equal(75, loadResult.Data!.MoneyTransactionVolume);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
     private GameSettingsService CreateServiceWritingGeneralsOnlineSettingsTo(string settingsPath)
     {
         var mockService = new Mock<GameSettingsService>(MockBehavior.Loose, _loggerMock.Object, _pathProviderMock.Object)

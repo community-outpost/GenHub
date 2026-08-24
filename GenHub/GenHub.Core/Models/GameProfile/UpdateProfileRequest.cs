@@ -289,6 +289,9 @@ public class UpdateProfileRequest
     /// <summary>Gets or sets the font size for system time display (TSH, 0 to disable).</summary>
     public int? TshSystemTimeFontSize { get; set; }
 
+    /// <summary>Gets or sets the game window transition speed multiplier (TSH, 1.0 to 1000.0).</summary>
+    public float? TshGameWindowTransitionSpeedMultiplier { get; set; }
+
     // ===== GeneralsOnline Client Settings =====
 
     /// <summary>Gets or sets a value indicating whether to show FPS counter (GO).</summary>

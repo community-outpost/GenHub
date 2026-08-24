@@ -1,3 +1,4 @@
+using System.Globalization;
 using GenHub.Core.Constants;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameProfile;
@@ -83,6 +84,7 @@ public static class GameSettingsMapper
         profile.TshCursorCaptureEnabledInWindowedMenu = settings.CursorCaptureEnabledInWindowedMenu;
         profile.TshScreenEdgeScrollEnabledInFullscreenApp = settings.ScreenEdgeScrollEnabledInFullscreenApp;
         profile.TshScreenEdgeScrollEnabledInWindowedApp = settings.ScreenEdgeScrollEnabledInWindowedApp;
+        profile.TshGameWindowTransitionSpeedMultiplier = settings.GameWindowTransitionSpeedMultiplier;
     }
 
     /// <summary>
@@ -164,6 +166,7 @@ public static class GameSettingsMapper
         profile.TshScreenEdgeScrollEnabledInFullscreenApp = request.TshScreenEdgeScrollEnabledInFullscreenApp;
         profile.TshScreenEdgeScrollEnabledInWindowedApp = request.TshScreenEdgeScrollEnabledInWindowedApp;
         profile.TshMoneyTransactionVolume = request.TshMoneyTransactionVolume;
+        profile.TshGameWindowTransitionSpeedMultiplier = request.TshGameWindowTransitionSpeedMultiplier;
 
         // GeneralsOnline settings
         profile.GoShowFps = request.GoShowFps;
@@ -258,6 +261,7 @@ public static class GameSettingsMapper
         profile.TshScreenEdgeScrollEnabledInFullscreenApp = request.TshScreenEdgeScrollEnabledInFullscreenApp;
         profile.TshScreenEdgeScrollEnabledInWindowedApp = request.TshScreenEdgeScrollEnabledInWindowedApp;
         profile.TshMoneyTransactionVolume = request.TshMoneyTransactionVolume;
+        profile.TshGameWindowTransitionSpeedMultiplier = request.TshGameWindowTransitionSpeedMultiplier;
 
         // GeneralsOnline settings
         profile.GoShowFps = request.GoShowFps;
@@ -392,6 +396,7 @@ public static class GameSettingsMapper
         target.TshScreenEdgeScrollEnabledInFullscreenApp = source.TshScreenEdgeScrollEnabledInFullscreenApp;
         target.TshScreenEdgeScrollEnabledInWindowedApp = source.TshScreenEdgeScrollEnabledInWindowedApp;
         target.TshMoneyTransactionVolume = source.TshMoneyTransactionVolume;
+        target.TshGameWindowTransitionSpeedMultiplier = source.TshGameWindowTransitionSpeedMultiplier;
 
         target.GoShowFps = source.GoShowFps;
         target.GoShowPing = source.GoShowPing;
@@ -484,6 +489,7 @@ public static class GameSettingsMapper
         target.TshScreenEdgeScrollEnabledInFullscreenApp = source.TshScreenEdgeScrollEnabledInFullscreenApp;
         target.TshScreenEdgeScrollEnabledInWindowedApp = source.TshScreenEdgeScrollEnabledInWindowedApp;
         target.TshMoneyTransactionVolume = source.TshMoneyTransactionVolume;
+        target.TshGameWindowTransitionSpeedMultiplier = source.TshGameWindowTransitionSpeedMultiplier;
 
         target.GoShowFps = source.GoShowFps;
         target.GoShowPing = source.GoShowPing;
@@ -578,6 +584,9 @@ public static class GameSettingsMapper
             profile.VideoDynamicLOD = ParseBool(dynLOD);
         if (options.Video.AdditionalProperties.TryGetValue("MaxParticleCount", out var particles) && int.TryParse(particles, out var particleVal))
             profile.VideoMaxParticleCount = particleVal;
+        if (options.Video.AdditionalProperties.TryGetValue("GameWindowTransitionSpeedMultiplier", out var speed) &&
+            float.TryParse(speed, NumberStyles.Float, CultureInfo.InvariantCulture, out var speedVal))
+            profile.TshGameWindowTransitionSpeedMultiplier = speedVal;
     }
 
     private static void ApplyTshHierarchicalSettingsFromOptions(IniOptions options, GameProfile profile)
@@ -594,6 +603,9 @@ public static class GameSettingsMapper
                 profile.VideoDynamicLOD = ParseBool(dynLODTsh);
             if (tsh.TryGetValue("MaxParticleCount", out var particlesTsh) && int.TryParse(particlesTsh, out var particlesTshVal))
                 profile.VideoMaxParticleCount = particlesTshVal;
+            if (tsh.TryGetValue("GameWindowTransitionSpeedMultiplier", out var speedTsh) &&
+                float.TryParse(speedTsh, NumberStyles.Float, CultureInfo.InvariantCulture, out var speedTshVal))
+                profile.TshGameWindowTransitionSpeedMultiplier = speedTshVal;
         }
     }
 
@@ -668,6 +680,7 @@ public static class GameSettingsMapper
         if (profile.TshCursorCaptureEnabledInWindowedMenu.HasValue) settings.CursorCaptureEnabledInWindowedMenu = profile.TshCursorCaptureEnabledInWindowedMenu.Value;
         if (profile.TshScreenEdgeScrollEnabledInFullscreenApp.HasValue) settings.ScreenEdgeScrollEnabledInFullscreenApp = profile.TshScreenEdgeScrollEnabledInFullscreenApp.Value;
         if (profile.TshScreenEdgeScrollEnabledInWindowedApp.HasValue) settings.ScreenEdgeScrollEnabledInWindowedApp = profile.TshScreenEdgeScrollEnabledInWindowedApp.Value;
+        if (profile.TshGameWindowTransitionSpeedMultiplier.HasValue) settings.GameWindowTransitionSpeedMultiplier = profile.TshGameWindowTransitionSpeedMultiplier.Value;
     }
 
     private static void ApplyVideoResolutionAndQualityToOptions(GameProfile profile, IniOptions options, ILogger? logger)
@@ -918,6 +931,7 @@ public static class GameSettingsMapper
         if (profile.TshScreenEdgeScrollEnabledInFullscreenApp.HasValue) tshDict["ScreenEdgeScrollEnabledInFullscreenApp"] = BoolToString(profile.TshScreenEdgeScrollEnabledInFullscreenApp.Value);
         if (profile.TshScreenEdgeScrollEnabledInWindowedApp.HasValue) tshDict["ScreenEdgeScrollEnabledInWindowedApp"] = BoolToString(profile.TshScreenEdgeScrollEnabledInWindowedApp.Value);
         if (profile.TshMoneyTransactionVolume.HasValue) tshDict["MoneyTransactionVolume"] = profile.TshMoneyTransactionVolume.Value.ToString();
+        if (profile.TshGameWindowTransitionSpeedMultiplier.HasValue) tshDict["GameWindowTransitionSpeedMultiplier"] = profile.TshGameWindowTransitionSpeedMultiplier.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
         if (tshDict.Count > 0)
         {
@@ -966,6 +980,7 @@ public static class GameSettingsMapper
         profile.TshScreenEdgeScrollEnabledInFullscreenApp = request.TshScreenEdgeScrollEnabledInFullscreenApp ?? profile.TshScreenEdgeScrollEnabledInFullscreenApp;
         profile.TshScreenEdgeScrollEnabledInWindowedApp = request.TshScreenEdgeScrollEnabledInWindowedApp ?? profile.TshScreenEdgeScrollEnabledInWindowedApp;
         profile.TshMoneyTransactionVolume = request.TshMoneyTransactionVolume ?? profile.TshMoneyTransactionVolume;
+        profile.TshGameWindowTransitionSpeedMultiplier = request.TshGameWindowTransitionSpeedMultiplier ?? profile.TshGameWindowTransitionSpeedMultiplier;
     }
 
     private static void PatchGeneralsOnlineSettings(GameProfile profile, CreateProfileRequest request)
@@ -1048,6 +1063,7 @@ public static class GameSettingsMapper
         profile.TshScreenEdgeScrollEnabledInFullscreenApp = request.TshScreenEdgeScrollEnabledInFullscreenApp ?? profile.TshScreenEdgeScrollEnabledInFullscreenApp;
         profile.TshScreenEdgeScrollEnabledInWindowedApp = request.TshScreenEdgeScrollEnabledInWindowedApp ?? profile.TshScreenEdgeScrollEnabledInWindowedApp;
         profile.TshMoneyTransactionVolume = request.TshMoneyTransactionVolume ?? profile.TshMoneyTransactionVolume;
+        profile.TshGameWindowTransitionSpeedMultiplier = request.TshGameWindowTransitionSpeedMultiplier ?? profile.TshGameWindowTransitionSpeedMultiplier;
     }
 
     private static void UpdateGeneralsOnlineFromRequest(GameProfile profile, UpdateProfileRequest request)

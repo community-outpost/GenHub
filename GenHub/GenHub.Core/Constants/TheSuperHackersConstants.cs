@@ -44,4 +44,19 @@ public static class TheSuperHackersConstants
     /// Default font size for system time display.
     /// </summary>
     public const int DefaultSystemTimeFontSize = 8;
+
+    /// <summary>
+    /// Minimum game window transition speed multiplier value.
+    /// </summary>
+    public const float MinGameWindowTransitionSpeedMultiplier = 1.0f;
+
+    /// <summary>
+    /// Maximum game window transition speed multiplier value.
+    /// </summary>
+    public const float MaxGameWindowTransitionSpeedMultiplier = 1000.0f;
+
+    /// <summary>
+    /// Default game window transition speed multiplier value.
+    /// </summary>
+    public const float DefaultGameWindowTransitionSpeedMultiplier = 1.0f;
 }

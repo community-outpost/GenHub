@@ -92,4 +92,19 @@ public static class GameSettingsTheSuperHackersConstants
     /// Absent from the engine's ScreenEdgeScrollMode_Default.
     /// </summary>
     public const bool DefaultScreenEdgeScrollEnabledInWindowedApp = false;
+
+    /// <summary>
+    /// Minimum game window transition speed multiplier value.
+    /// </summary>
+    public const float MinGameWindowTransitionSpeedMultiplier = 1.0f;
+
+    /// <summary>
+    /// Maximum game window transition speed multiplier value.
+    /// </summary>
+    public const float MaxGameWindowTransitionSpeedMultiplier = 1000.0f;
+
+    /// <summary>
+    /// Default game window transition speed multiplier value.
+    /// </summary>
+    public const float DefaultGameWindowTransitionSpeedMultiplier = 1.0f;
 }
