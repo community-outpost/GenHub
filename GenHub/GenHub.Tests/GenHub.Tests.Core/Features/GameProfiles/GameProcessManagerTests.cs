@@ -281,6 +281,58 @@ public class GameProcessManagerTests
     }
 
     /// <summary>
+    /// When the launcher exits immediately with code 0 and the subsequent adoption poll loop is cancelled,
+    /// the operation must throw OperationCanceledException and clean up any resources.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task StartProcessAsync_WhenImmediateExitPollIsCancelled_ThrowsOperationCanceledExceptionAsync()
+    {
+        // Arrange
+        var tempScript = OperatingSystem.IsWindows()
+            ? Path.Combine(Path.GetTempPath(), $"genhub_exit0_{Guid.NewGuid():N}.bat")
+            : Path.Combine(Path.GetTempPath(), $"genhub_exit0_{Guid.NewGuid():N}.sh");
+
+        var scriptContent = OperatingSystem.IsWindows() ? "@exit 0\n" : "#!/bin/sh\nexit 0\n";
+        await File.WriteAllTextAsync(tempScript, scriptContent);
+
+        if (!OperatingSystem.IsWindows())
+        {
+            using var chmod = System.Diagnostics.Process.Start("chmod", ["+x", tempScript]);
+            chmod?.WaitForExit();
+        }
+
+        try
+        {
+            var config = new GameLaunchConfiguration
+            {
+                ExecutablePath = tempScript,
+                ExpectedChildProcessName = "non_existent_game_process",
+            };
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
+
+            // Act & Assert
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                () => _processManager.StartProcessAsync(config, cts.Token));
+        }
+        finally
+        {
+            if (File.Exists(tempScript))
+            {
+                try
+                {
+                    File.Delete(tempScript);
+                }
+                catch
+                {
+                    // Best effort.
+                }
+            }
+        }
+    }
+
+    /// <summary>
     /// Tests that StartProcessAsync handles invalid executable path.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
