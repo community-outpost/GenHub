@@ -48,10 +48,12 @@ public class AppLifecycleTests
         var services = new ServiceCollection();
         var mockUserSettingsService = new Mock<IUserSettingsService>();
         var mockConfigurationProvider = new Mock<IConfigurationProviderService>();
+        var mockLocalizationService = new Mock<ILocalizationService>();
         var mockProfileLauncherFacade = new Mock<IProfileLauncherFacade>();
 
         services.AddSingleton(typeof(IUserSettingsService), mockUserSettingsService.Object);
         services.AddSingleton(typeof(IConfigurationProviderService), mockConfigurationProvider.Object);
+        services.AddSingleton(typeof(ILocalizationService), mockLocalizationService.Object);
         services.AddSingleton(typeof(IProfileLauncherFacade), mockProfileLauncherFacade.Object);
 
         var serviceProvider = services.BuildServiceProvider();

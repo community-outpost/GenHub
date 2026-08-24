@@ -67,6 +67,20 @@ Application-wide constants for GenHub.
 
 ---
 
+## LocalizationConstants Class
+
+Constants used by the application localization foundation.
+
+| Constant | Value | Description |
+| --- | --- | --- |
+| `DefaultCultureName` | `"en"` | Neutral culture embedded in the main application assembly |
+| `IndexerPropertyName` | `"Item[]"` | Change-notification name used to refresh all localized indexer bindings |
+| `ResourceServiceKey` | `"LocalizationService"` | Application resource key used by the Avalonia markup extension |
+| `StringResourceBaseName` | `"GenHub.Resources.Localization.Strings"` | Fully qualified .NET resource base name |
+| `SatelliteAssemblySuffix` | `".resources.dll"` | Standard suffix used to identify satellite assemblies |
+
+---
+
 ## AppUpdateConstants Class
 
 Constants related to application updates and Velopack.
