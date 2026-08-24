@@ -324,6 +324,40 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
         return GameInstallationType.Unknown;
     }
 
+    private static bool ContainsGeneralsManifest(IEnumerable<ContentManifest> manifests) =>
+        manifests.Any(m =>
+            m.Id.Value.Contains(".gameinstallation.generals", StringComparison.OrdinalIgnoreCase) ||
+            (!m.Id.Value.Contains(".gameinstallation.zerohour", StringComparison.OrdinalIgnoreCase) && m.TargetGame == GameType.Generals));
+
+    private static bool ContainsZeroHourManifest(IEnumerable<ContentManifest> manifests) =>
+        manifests.Any(m =>
+            m.Id.Value.Contains(".gameinstallation.zerohour", StringComparison.OrdinalIgnoreCase) ||
+            (!m.Id.Value.Contains(".gameinstallation.generals", StringComparison.OrdinalIgnoreCase) && m.TargetGame == GameType.ZeroHour));
+
+    private static GameInstallation ReconstructInstallationFromManifests(
+        string sourcePath,
+        IReadOnlyList<ContentManifest> manifests)
+    {
+        var firstManifest = manifests[0];
+        var installationType = ExtractInstallationTypeFromManifestId(firstManifest.Id);
+
+        var installation = new GameInstallation(sourcePath, installationType)
+        {
+            Id = Guid.NewGuid().ToString(),
+            DetectedAt = DateTime.UtcNow,
+        };
+
+        var hasGeneralsManifest = ContainsGeneralsManifest(manifests);
+        var hasZeroHourManifest = ContainsZeroHourManifest(manifests);
+
+        installation.SetPaths(
+            hasGeneralsManifest ? sourcePath : null,
+            hasZeroHourManifest ? sourcePath : null);
+
+        installation.Fetch();
+        return installation;
+    }
+
     /// <summary>
     /// Attempts to load game clients from existing manifests in the pool.
     /// </summary>
@@ -698,37 +732,18 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                     continue;
                 }
 
-                // Determine installation type from the first manifest ID
-                var firstManifest = group.First();
-                var installationType = ExtractInstallationTypeFromManifestId(firstManifest.Id);
-
-                // Create GameInstallation object
-                var installation = new GameInstallation(sourcePath, installationType)
+                var groupManifests = group.ToList();
+                if (groupManifests.Count == 0)
                 {
-                    Id = Guid.NewGuid().ToString(), // Generate new ID
-                    DetectedAt = DateTime.UtcNow,
-                };
+                    continue;
+                }
 
-                // Seed game capabilities from existing manifests (canonical manifest ID takes precedence over enum default)
-                var hasGeneralsManifest = group.Any(m =>
-                    m.Id.Value.Contains(".gameinstallation.generals", StringComparison.OrdinalIgnoreCase) ||
-                    (!m.Id.Value.Contains(".gameinstallation.zerohour", StringComparison.OrdinalIgnoreCase) && m.TargetGame == GameType.Generals));
-                var hasZeroHourManifest = group.Any(m =>
-                    m.Id.Value.Contains(".gameinstallation.zerohour", StringComparison.OrdinalIgnoreCase) ||
-                    (!m.Id.Value.Contains(".gameinstallation.generals", StringComparison.OrdinalIgnoreCase) && m.TargetGame == GameType.ZeroHour));
-
-                installation.SetPaths(
-                    hasGeneralsManifest ? sourcePath : null,
-                    hasZeroHourManifest ? sourcePath : null);
-
-                // Populate Generals/ZeroHour paths
-                installation.Fetch();
-
+                var installation = ReconstructInstallationFromManifests(sourcePath, groupManifests);
                 installations.Add(installation);
 
                 logger.LogInformation(
                     "Reconstructed {InstallationType} installation from manifests: {Path}",
-                    installationType,
+                    installation.InstallationType,
                     sourcePath);
             }
 
