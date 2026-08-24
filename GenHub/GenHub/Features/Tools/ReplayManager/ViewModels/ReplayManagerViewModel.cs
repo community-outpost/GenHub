@@ -250,19 +250,18 @@ public partial class ReplayManagerViewModel(
         }
     }
 
-    private static string SanitizeFileName(string fileName)
-    {
-        var invalidChars = Path.GetInvalidFileNameChars();
-        return string.Concat(fileName.Where(c => !invalidChars.Contains(c)));
-    }
-
     private static bool IsDemoPath(string path) =>
         path.Contains(ReplayManagerConstants.WindowsMockPathSegment, StringComparison.OrdinalIgnoreCase) ||
         path.Contains(ReplayManagerConstants.UnixMockPathSegment, StringComparison.OrdinalIgnoreCase);
 
     private static string GetUniqueZipDestinationPath(string directory, string rawZipName)
     {
-        var safeZipName = SanitizeFileName(rawZipName);
+        var safeZipName = PathHelper.SanitizeFileName(rawZipName);
+        if (string.IsNullOrWhiteSpace(safeZipName))
+        {
+            safeZipName = "replays.zip";
+        }
+
         if (!safeZipName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
         {
             safeZipName += ".zip";

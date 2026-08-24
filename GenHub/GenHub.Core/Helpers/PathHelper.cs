@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Security;
 using GenHub.Core.Constants;
 
@@ -175,6 +176,22 @@ public static class PathHelper
     }
 
     /// <summary>
+    /// Sanitizes a file name by removing invalid filesystem characters.
+    /// </summary>
+    /// <param name="fileName">The file name to sanitize.</param>
+    /// <returns>The sanitized file name.</returns>
+    public static string SanitizeFileName(string fileName)
+    {
+        if (string.IsNullOrEmpty(fileName))
+        {
+            return string.Empty;
+        }
+
+        var invalidChars = Path.GetInvalidFileNameChars();
+        return string.Concat(fileName.Where(c => !invalidChars.Contains(c))).Trim();
+    }
+
+    /// <summary>
     /// Opens the native file explorer and selects the specified file or folder, or ignores if not supported.
     /// </summary>
     /// <param name="filePath">The absolute path to the file to reveal.</param>
@@ -208,6 +225,11 @@ public static class PathHelper
 
     private static ProcessStartInfo? CreateRevealStartInfo(string filePath)
     {
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            return null;
+        }
+
         if (OperatingSystem.IsWindows())
         {
             var info = new ProcessStartInfo
@@ -233,7 +255,10 @@ public static class PathHelper
 
         if (OperatingSystem.IsLinux())
         {
-            var targetDir = File.Exists(filePath) ? Path.GetDirectoryName(filePath) : filePath;
+            var targetDir = File.Exists(filePath)
+                ? Path.GetDirectoryName(filePath)
+                : (Directory.Exists(filePath) ? filePath : null);
+
             if (string.IsNullOrEmpty(targetDir))
             {
                 return null;

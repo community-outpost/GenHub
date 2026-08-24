@@ -44,9 +44,10 @@ public static class ToolUploadHelper
     /// <returns>A human-readable error description.</returns>
     public static string FormatUploadLimitExceededMessage(long totalSizeBytes, long usedBytes, long limitBytes)
     {
-        var remainingMb = Math.Max(0, (limitBytes - usedBytes) / ToolConstants.BytesPerMegabyte);
-        var fileMb = totalSizeBytes / ToolConstants.BytesPerMegabyte;
-        var limitMb = limitBytes / ToolConstants.BytesPerMegabyte;
+        var bytesPerMb = (double)ConversionConstants.BytesPerMegabyte;
+        var remainingMb = Math.Max(0, (limitBytes - usedBytes) / bytesPerMb);
+        var fileMb = totalSizeBytes / bytesPerMb;
+        var limitMb = limitBytes / bytesPerMb;
 
         return $"Upload limit exceeded. You have {remainingMb:F1} MB remaining of your {limitMb:F0} MB limit. This file requires {fileMb:F1} MB.";
     }

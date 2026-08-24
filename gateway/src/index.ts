@@ -385,10 +385,14 @@ const isLengthExceeded = (request: Request, maxSizeBytes: number): boolean => {
   return Number.isSafeInteger(declaredLength) && declaredLength > maxSizeBytes;
 };
 
+type ValidatedUploadFileResult =
+  | { file: File; errorResponse?: undefined }
+  | { file?: undefined; errorResponse: Response };
+
 const resolveValidatedUploadFile = async (
   request: Request,
   maxSizeBytes: number
-): Promise<{ file?: File; errorResponse?: Response }> => {
+): Promise<ValidatedUploadFileResult> => {
   if (isLengthExceeded(request, maxSizeBytes)) {
     return { errorResponse: new Response(JSON.stringify({ error: `File exceeds max limit of ${maxSizeBytes} bytes` }), { status: 413, headers: CORS_HEADERS }) };
   }
@@ -408,12 +412,12 @@ const resolveValidatedUploadFile = async (
 
 const handleDirectUpload = async (request: Request, env: Env): Promise<Response> => {
   const maxSizeBytes = parseMaxSizeBytes(env.MAX_FILE_SIZE_BYTES);
-  const { file, errorResponse } = await resolveValidatedUploadFile(request, maxSizeBytes);
-  if (errorResponse !== undefined) {
-    return errorResponse;
+  const result = await resolveValidatedUploadFile(request, maxSizeBytes);
+  if (result.errorResponse !== undefined) {
+    return result.errorResponse;
   }
 
-  const uploaded = await executeUpload(file as File, env.UPLOADTHING_TOKEN);
+  const uploaded = await executeUpload(result.file, env.UPLOADTHING_TOKEN);
   if (uploaded === null) {
     return new Response(JSON.stringify({ error: "Storage provider upload failed" }), { status: 502, headers: CORS_HEADERS });
   }

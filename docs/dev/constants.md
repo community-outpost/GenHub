@@ -1535,6 +1535,13 @@ Constants for The Super Hackers content discovery and manifest creation.
 
 Constants for tool plugin metadata and configuration.
 
+### MockUrls Subclass
+
+| Constant             | Value                                 | Description                                 |
+| -------------------- | ------------------------------------- | ------------------------------------------- |
+| `MockReplayUploadUrl`| `"https://example.com/share/1234"`    | Mock upload URL for replays                 |
+| `MockMapUploadUrl`   | `"https://example.com/maps/123"`      | Mock upload URL for maps                    |
+
 ### ReplayManager Subclass
 
 Constants specific to the Replay Manager tool plugin.
@@ -1549,6 +1556,18 @@ Constants specific to the Replay Manager tool plugin.
 | `Tags`       | `["replays", "file-management", "sharing"]`| Tags associated with the Replay Manager tool     |
 | `IconPath`   | `"Assets/Icons/replay.png"`                | Icon path for the Replay Manager tool (placeholder) |
 | `IsBundled`  | `true`                                     | Whether the tool is bundled with the application |
+
+### Root Constants
+
+| Constant                               | Value         | Description                                                            |
+| -------------------------------------- | ------------- | ---------------------------------------------------------------------- |
+| `WindowsMockPathSegment`               | `"\\Mock\\"`  | Mock path separator indicator for demo environments on Windows         |
+| `UnixMockPathSegment`                  | `"/Mock/"`    | Mock path separator indicator for demo environments on Unix            |
+| `DeleteFailedTitle`                    | `"Delete Failed"` | Notification title for delete failure                              |
+| `DefaultUploadBufferSize`              | `8192` (8 KB) | Default upload buffer size in bytes                                    |
+| `UploadStageCompressionThresholdPercent` | `25`        | Upload progress stage percentage threshold for compression stage       |
+| `UploadStageCloudThresholdPercent`     | `88`          | Upload progress stage percentage threshold for cloud upload stage     |
+| `UploadStageCompletePercent`           | `100`         | Upload progress stage percentage threshold for completion stage       |
 
 ### Usage Example
 

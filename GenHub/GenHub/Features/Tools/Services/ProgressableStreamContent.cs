@@ -17,11 +17,11 @@ public sealed class ProgressableStreamContent(
     IProgress<double>? progress = null,
     int bufferSize = ToolConstants.DefaultUploadBufferSize) : HttpContent
 {
+    private const double MinProgressFraction = 0.01;
+    private const double MaxProgressFraction = 0.99;
     private readonly int _effectiveBufferSize = bufferSize > 0
         ? bufferSize
         : throw new ArgumentOutOfRangeException(nameof(bufferSize), bufferSize, "Buffer size must be greater than zero.");
-    private const double MinProgressFraction = 0.01;
-    private const double MaxProgressFraction = 0.99;
 
     /// <inheritdoc />
     protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)

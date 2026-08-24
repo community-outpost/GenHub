@@ -19,6 +19,16 @@ public static class PlatformConstants
     public const string WindowsExplorerSelectArgument = "/select,\"{0}\"";
 
     /// <summary>
+    /// macOS open command executable name.
+    /// </summary>
+    public const string MacOSOpenExecutable = "open";
+
+    /// <summary>
+    /// Linux xdg-open command executable name.
+    /// </summary>
+    public const string LinuxXdgOpenExecutable = "xdg-open";
+
+    /// <summary>
     /// Gets the absolute path to the Windows Explorer executable.
     /// </summary>
     public static string WindowsExplorerPath
@@ -31,14 +41,4 @@ public static class PlatformConstants
                 : Path.Combine(windowsDir, WindowsExplorerExecutable);
         }
     }
-
-    /// <summary>
-    /// macOS open command executable absolute path.
-    /// </summary>
-    public const string MacOSOpenExecutable = "/usr/bin/open";
-
-    /// <summary>
-    /// Linux xdg-open command executable absolute path.
-    /// </summary>
-    public const string LinuxXdgOpenExecutable = "/usr/bin/xdg-open";
 }
