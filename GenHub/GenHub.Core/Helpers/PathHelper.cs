@@ -209,11 +209,9 @@ public static class PathHelper
     {
         if (OperatingSystem.IsWindows())
         {
-            var windowsDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
-            var explorerPath = string.IsNullOrEmpty(windowsDir) ? "explorer.exe" : Path.Combine(windowsDir, "explorer.exe");
             var info = new ProcessStartInfo
             {
-                FileName = explorerPath,
+                FileName = PlatformConstants.WindowsExplorerPath,
                 UseShellExecute = false,
             };
             info.ArgumentList.Add($"/select,{filePath}");
@@ -224,7 +222,7 @@ public static class PathHelper
         {
             var info = new ProcessStartInfo
             {
-                FileName = "open",
+                FileName = PlatformConstants.MacOSOpenExecutable,
                 UseShellExecute = false,
             };
             info.ArgumentList.Add("-R");
@@ -242,7 +240,7 @@ public static class PathHelper
 
             var info = new ProcessStartInfo
             {
-                FileName = "xdg-open",
+                FileName = PlatformConstants.LinuxXdgOpenExecutable,
                 UseShellExecute = false,
             };
             info.ArgumentList.Add(targetDir);

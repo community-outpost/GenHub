@@ -209,28 +209,21 @@ public sealed class UploadHistoryService(
     /// <inheritdoc />
     public async Task ClearHistoryAsync(bool deleteFromCloud = true, string? category = null)
     {
-        List<UploadRecord> candidateRecords;
+        List<UploadRecord> candidateRecords = [];
         lock (FileLock)
         {
             var history = LoadHistoryInternal();
             candidateRecords = history.Where(r => MatchesCategory(r, category)).ToList();
         }
 
-        HashSet<UploadRecord> recordsToRemove;
-
-        if (deleteFromCloud)
-        {
-            recordsToRemove = await DeleteRecordsFromCloudAsync(candidateRecords);
-        }
-        else
-        {
-            recordsToRemove = [.. candidateRecords];
-        }
+        var recordsToRemove = deleteFromCloud
+            ? await DeleteRecordsFromCloudAsync(candidateRecords)
+            : candidateRecords.ToHashSet();
 
         lock (FileLock)
         {
             var history = LoadHistoryInternal();
-            var targetUrls = recordsToRemove.Where(r => !string.IsNullOrEmpty(r.Url)).Select(r => r.Url!).ToHashSet();
+            var targetUrls = recordsToRemove.Select(r => r.Url).Where(u => !string.IsNullOrEmpty(u)).OfType<string>().ToHashSet();
             var removed = history.RemoveAll(r => (r.Url != null && targetUrls.Contains(r.Url)) || recordsToRemove.Contains(r));
             if (removed > 0)
             {

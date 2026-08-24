@@ -31,4 +31,14 @@ public static class PlatformConstants
                 : Path.Combine(windowsDir, WindowsExplorerExecutable);
         }
     }
+
+    /// <summary>
+    /// macOS open command executable absolute path.
+    /// </summary>
+    public const string MacOSOpenExecutable = "/usr/bin/open";
+
+    /// <summary>
+    /// Linux xdg-open command executable absolute path.
+    /// </summary>
+    public const string LinuxXdgOpenExecutable = "/usr/bin/xdg-open";
 }

@@ -380,24 +380,40 @@ const createUploadSuccessResponse = async (
   );
 };
 
-const handleDirectUpload = async (request: Request, env: Env): Promise<Response> => {
-  const maxSizeBytes = parseMaxSizeBytes(env.MAX_FILE_SIZE_BYTES);
+const isLengthExceeded = (request: Request, maxSizeBytes: number): boolean => {
   const declaredLength = Number(request.headers.get("content-length") ?? "");
-  if (Number.isSafeInteger(declaredLength) && declaredLength > maxSizeBytes) {
-    return new Response(JSON.stringify({ error: `File exceeds max limit of ${maxSizeBytes} bytes` }), { status: 413, headers: CORS_HEADERS });
+  return Number.isSafeInteger(declaredLength) && declaredLength > maxSizeBytes;
+};
+
+const resolveValidatedUploadFile = async (
+  request: Request,
+  maxSizeBytes: number
+): Promise<{ file?: File; errorResponse?: Response }> => {
+  if (isLengthExceeded(request, maxSizeBytes)) {
+    return { errorResponse: new Response(JSON.stringify({ error: `File exceeds max limit of ${maxSizeBytes} bytes` }), { status: 413, headers: CORS_HEADERS }) };
   }
 
   const file = await extractFileFromRequest(request);
   if (file === null) {
-    return new Response(JSON.stringify({ error: "Missing file payload in request" }), { status: 400, headers: CORS_HEADERS });
+    return { errorResponse: new Response(JSON.stringify({ error: "Missing file payload in request" }), { status: 400, headers: CORS_HEADERS }) };
   }
 
   const validationError = validateUploadFile(file.name, file.size, maxSizeBytes);
   if (validationError !== null) {
-    return new Response(JSON.stringify({ error: validationError }), { status: 400, headers: CORS_HEADERS });
+    return { errorResponse: new Response(JSON.stringify({ error: validationError }), { status: 400, headers: CORS_HEADERS }) };
   }
 
-  const uploaded = await executeUpload(file, env.UPLOADTHING_TOKEN);
+  return { file };
+};
+
+const handleDirectUpload = async (request: Request, env: Env): Promise<Response> => {
+  const maxSizeBytes = parseMaxSizeBytes(env.MAX_FILE_SIZE_BYTES);
+  const { file, errorResponse } = await resolveValidatedUploadFile(request, maxSizeBytes);
+  if (errorResponse !== undefined) {
+    return errorResponse;
+  }
+
+  const uploaded = await executeUpload(file as File, env.UPLOADTHING_TOKEN);
   if (uploaded === null) {
     return new Response(JSON.stringify({ error: "Storage provider upload failed" }), { status: 502, headers: CORS_HEADERS });
   }
