@@ -1225,8 +1225,14 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         if (tsh.TryGetValue("PlayerObserverEnabled", out var poe)) TshPlayerObserverEnabled = ParseBool(poe);
         if (tsh.TryGetValue("MoneyTransactionVolume", out var mtv) && int.TryParse(mtv, out var mtvVal)) TshMoneyTransactionVolume = mtvVal;
         if (tsh.TryGetValue("GameWindowTransitionSpeedMultiplier", out var gwt) &&
-            float.TryParse(gwt, NumberStyles.Float, CultureInfo.InvariantCulture, out var gwtVal))
-            TshGameWindowTransitionSpeedMultiplier = gwtVal;
+            float.TryParse(gwt, NumberStyles.Float, CultureInfo.InvariantCulture, out var gwtVal) &&
+            float.IsFinite(gwtVal))
+        {
+            TshGameWindowTransitionSpeedMultiplier = Math.Clamp(
+                gwtVal,
+                GameSettingsTheSuperHackersConstants.MinGameWindowTransitionSpeedMultiplier,
+                GameSettingsTheSuperHackersConstants.MaxGameWindowTransitionSpeedMultiplier);
+        }
     }
 
     private void ApplyTshUiCursorProperties(Dictionary<string, string> tsh)
@@ -1292,7 +1298,6 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         options.Video.AdditionalProperties["GameTimeFontSize"] = GameTimeFontSize.ToString();
         options.Video.AdditionalProperties["LanguageFilter"] = BoolToString(LanguageFilter);
         options.Video.AdditionalProperties["SendDelay"] = BoolToString(SendDelay);
-        options.Video.AdditionalProperties["GameWindowTransitionSpeedMultiplier"] = TshGameWindowTransitionSpeedMultiplier.ToString(CultureInfo.InvariantCulture);
 
         options.Video.ExtraAnimations = ExtraAnimations;
         options.Video.Gamma = Gamma;

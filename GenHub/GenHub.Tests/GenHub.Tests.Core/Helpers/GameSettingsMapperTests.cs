@@ -345,4 +345,56 @@ public class GameSettingsMapperTests
         GameSettingsMapper.UpdateFromRequest(profile, updateRequest);
         Assert.Equal(8.4f, profile.TshGameWindowTransitionSpeedMultiplier);
     }
+
+    /// <summary>
+    /// Verifies that out-of-range values are clamped to Min/Max and NaN/Infinity values are ignored.
+    /// </summary>
+    /// <param name="input">The raw string input value from Options.ini.</param>
+    /// <param name="expected">The expected clamped float multiplier value.</param>
+    [Theory]
+    [InlineData("0.2", 1.0f)]
+    [InlineData("5000.0", 1000.0f)]
+    [InlineData("-10.0", 1.0f)]
+    public void ApplyFromOptions_ClampsOutOfRangeTransitionSpeedMultiplier(string input, float expected)
+    {
+        // Arrange
+        var options = new IniOptions();
+        options.AdditionalSections["TheSuperHackers"] = new Dictionary<string, string>
+        {
+            ["GameWindowTransitionSpeedMultiplier"] = input,
+        };
+        var profile = new GameProfile();
+
+        // Act
+        GameSettingsMapper.ApplyFromOptions(options, profile);
+
+        // Assert
+        Assert.Equal(expected, profile.TshGameWindowTransitionSpeedMultiplier);
+    }
+
+    /// <summary>
+    /// Verifies that non-finite values (NaN, Infinity) are ignored and do not corrupt profile settings.
+    /// </summary>
+    /// <param name="input">The raw non-finite or invalid string input value.</param>
+    [Theory]
+    [InlineData("NaN")]
+    [InlineData("Infinity")]
+    [InlineData("-Infinity")]
+    [InlineData("invalid_float")]
+    public void ApplyFromOptions_IgnoresNonFiniteTransitionSpeedMultiplier(string input)
+    {
+        // Arrange
+        var options = new IniOptions();
+        options.AdditionalSections["TheSuperHackers"] = new Dictionary<string, string>
+        {
+            ["GameWindowTransitionSpeedMultiplier"] = input,
+        };
+        var profile = new GameProfile();
+
+        // Act
+        GameSettingsMapper.ApplyFromOptions(options, profile);
+
+        // Assert
+        Assert.Null(profile.TshGameWindowTransitionSpeedMultiplier);
+    }
 }

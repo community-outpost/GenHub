@@ -773,8 +773,14 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             settings.SystemTimeFontSize = stf;
 
         if (values.TryGetValue("GameWindowTransitionSpeedMultiplier", out var speedMult) &&
-            float.TryParse(speedMult, NumberStyles.Float, CultureInfo.InvariantCulture, out var gwt))
-            settings.GameWindowTransitionSpeedMultiplier = gwt;
+            float.TryParse(speedMult, NumberStyles.Float, CultureInfo.InvariantCulture, out var gwt) &&
+            float.IsFinite(gwt))
+        {
+            settings.GameWindowTransitionSpeedMultiplier = Math.Clamp(
+                gwt,
+                GameSettingsTheSuperHackersConstants.MinGameWindowTransitionSpeedMultiplier,
+                GameSettingsTheSuperHackersConstants.MaxGameWindowTransitionSpeedMultiplier);
+        }
     }
 
     private static Dictionary<string, string> SerializeTheSuperHackersSettings(TheSuperHackersSettings settings)
