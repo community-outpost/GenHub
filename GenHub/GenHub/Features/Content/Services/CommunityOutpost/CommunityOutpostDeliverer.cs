@@ -530,6 +530,69 @@ public class CommunityOutpostDeliverer(
     }
 
     /// <summary>
+    /// Resolves the destination BIG filename for a given variant directory.
+    /// </summary>
+    private static string? ResolveHotkeyVariantOutputFileName(string directoryPath)
+    {
+        var segments = directoryPath.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries);
+        var isZH = segments.Any(segment => segment.Equals("ZH", StringComparison.OrdinalIgnoreCase));
+        var isCCG = segments.Any(segment => segment.Equals("CCG", StringComparison.OrdinalIgnoreCase));
+        var dirName = Path.GetFileName(directoryPath);
+
+        if (isZH)
+        {
+            if (dirName.EndsWith("EN", StringComparison.OrdinalIgnoreCase))
+            {
+                return "!HotkeysLeikezeENZH.big";
+            }
+
+            if (dirName.EndsWith("DE", StringComparison.OrdinalIgnoreCase))
+            {
+                return "!HotkeysLeikezeDEZH.big";
+            }
+
+            if (dirName.EndsWith("RU", StringComparison.OrdinalIgnoreCase))
+            {
+                return "!HotkeysLeikezeRUZH.big";
+            }
+
+            return "!HotkeysLeikezeZH.big";
+        }
+
+        if (isCCG)
+        {
+            return dirName.EndsWith("EN", StringComparison.OrdinalIgnoreCase)
+                ? "!HotkeysLeikezeEN.big"
+                : "!HotkeysLeikezeCCG.big";
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Repacks a single variant directory into a target BIG file inside packDir.
+    /// </summary>
+    private async Task RepackSingleVariantDirectoryAsync(
+        string sourceDir,
+        string packDir,
+        string outputFileName,
+        CancellationToken cancellationToken)
+    {
+        var destinationPath = Path.Combine(packDir, outputFileName);
+        logger.LogInformation("Packing hotkey variant from {Source} into {OutputFilename}", sourceDir, outputFileName);
+
+        var compressedImageCount = Directory.GetFiles(sourceDir, "*.avif", SearchOption.AllDirectories).Length
+            + Directory.GetFiles(sourceDir, "*.webp", SearchOption.AllDirectories).Length;
+        if (compressedImageCount > 0)
+        {
+            var convertedCount = await avifConverter.ConvertDirectoryAsync(sourceDir, cancellationToken);
+            logger.LogInformation("Converted {Converted} compressed image files to TGA in {Source}", convertedCount, sourceDir);
+        }
+
+        await BigFilePacker.PackAsync(sourceDir, destinationPath);
+    }
+
+    /// <summary>
     /// Repacks multi-variant hotkeys by packing each language/game subdirectory into its target BIG file.
     /// </summary>
     private async Task RepackMultiVariantHotkeysAsync(
@@ -546,7 +609,8 @@ public class CommunityOutpostDeliverer(
             return;
         }
 
-        var packDir = Path.Combine(Directory.GetParent(extractPath)!.FullName, "packed_variants");
+        var parentDir = Directory.GetParent(extractPath)?.FullName ?? extractPath;
+        var packDir = Path.Combine(parentDir, "packed_variants");
         Directory.CreateDirectory(packDir);
 
         try
@@ -557,81 +621,28 @@ public class CommunityOutpostDeliverer(
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                // If the directory already contains .big files (e.g., in test setups), copy them directly
                 var existingBigs = Directory.GetFiles(bigDir, "*.big", SearchOption.TopDirectoryOnly);
                 if (existingBigs.Length > 0)
                 {
                     foreach (var existing in existingBigs)
                     {
-                        var destFile = Path.Combine(packDir, Path.GetFileName(existing));
-                        File.Copy(existing, destFile, overwrite: true);
+                        File.Copy(existing, Path.Combine(packDir, Path.GetFileName(existing)), overwrite: true);
                         repackedCount++;
                     }
 
                     continue;
                 }
 
-                var isZH = bigDir.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                    .Any(segment => segment.Equals("ZH", StringComparison.OrdinalIgnoreCase));
-                var isCCG = bigDir.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                    .Any(segment => segment.Equals("CCG", StringComparison.OrdinalIgnoreCase));
-
-                string? outputFileName = null;
-                var dirName = Path.GetFileName(bigDir);
-
-                if (isZH)
-                {
-                    if (dirName.EndsWith("EN", StringComparison.OrdinalIgnoreCase))
-                    {
-                        outputFileName = "!HotkeysLeikezeENZH.big";
-                    }
-                    else if (dirName.EndsWith("DE", StringComparison.OrdinalIgnoreCase))
-                    {
-                        outputFileName = "!HotkeysLeikezeDEZH.big";
-                    }
-                    else if (dirName.EndsWith("RU", StringComparison.OrdinalIgnoreCase))
-                    {
-                        outputFileName = "!HotkeysLeikezeRUZH.big";
-                    }
-                    else
-                    {
-                        outputFileName = "!HotkeysLeikezeZH.big";
-                    }
-                }
-                else if (isCCG)
-                {
-                    if (dirName.EndsWith("EN", StringComparison.OrdinalIgnoreCase))
-                    {
-                        outputFileName = "!HotkeysLeikezeEN.big";
-                    }
-                    else
-                    {
-                        outputFileName = "!HotkeysLeikezeCCG.big";
-                    }
-                }
-
+                var outputFileName = ResolveHotkeyVariantOutputFileName(bigDir);
                 if (!string.IsNullOrEmpty(outputFileName))
                 {
-                    var destinationPath = Path.Combine(packDir, outputFileName);
-                    logger.LogInformation("Packing hotkey variant from {Source} into {OutputFilename}", bigDir, outputFileName);
-
-                    // Convert compressed image files (AVIF, WebP) to TGA format before packing
-                    var compressedImageCount = Directory.GetFiles(bigDir, "*.avif", SearchOption.AllDirectories).Length
-                        + Directory.GetFiles(bigDir, "*.webp", SearchOption.AllDirectories).Length;
-                    if (compressedImageCount > 0)
-                    {
-                        var convertedCount = await avifConverter.ConvertDirectoryAsync(bigDir, cancellationToken);
-                        logger.LogInformation("Converted {Converted} compressed image files to TGA in {Source}", convertedCount, bigDir);
-                    }
-
-                    await BigFilePacker.PackAsync(bigDir, destinationPath);
+                    await RepackSingleVariantDirectoryAsync(bigDir, packDir, outputFileName, cancellationToken);
                     repackedCount++;
                 }
             }
 
             if (repackedCount > 0)
             {
-                // Reset extract directory and move packed variant files
                 try
                 {
                     if (Directory.Exists(extractPath))

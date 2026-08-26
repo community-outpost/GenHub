@@ -546,7 +546,7 @@ public class CommunityOutpostManifestFactory(
         }
     }
 
-    private HashSet<string> CollectDependencyBigFiles(GenPatcherContentMetadata contentMetadata, GameType targetGame)
+    private static HashSet<string> CollectDependencyBigFiles(GenPatcherContentMetadata contentMetadata, GameType targetGame)
     {
         var dependencyBigFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var dependency in contentMetadata.GetDependencies()
