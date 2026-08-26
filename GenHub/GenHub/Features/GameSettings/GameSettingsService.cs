@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security;
@@ -8,6 +9,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.GameSettings;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameSettings;
@@ -423,7 +425,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
         var theSuperHackersKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "CursorCaptureEnabledInWindowedMenu", "CursorCaptureEnabledInWindowedGame", "DrawScrollAnchor", "DynamicLOD",
-            "GameTimeFontSize", "LanguageFilter", "MaxParticleCount",
+            "GameTimeFontSize", GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, "LanguageFilter", "MaxParticleCount",
             "MoneyTransactionVolume", "MoveScrollAnchor", "NetworkLatencyFontSize",
             "PlayerObserverEnabled", "RenderFpsFontSize", "ResolutionFontAdjustment",
             "Retaliation", "ScreenEdgeScrollEnabledInFullscreenApp",
@@ -770,6 +772,15 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
 
         if (values.TryGetValue("SystemTimeFontSize", out var sysTimeFont) && int.TryParse(sysTimeFont, out var stf))
             settings.SystemTimeFontSize = stf;
+
+        if (values.TryGetValue(GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, out var speedMult))
+        {
+            var parsed = GameSettingsMapper.ParseTransitionSpeedMultiplier(speedMult);
+            if (parsed.HasValue)
+            {
+                settings.GameWindowTransitionSpeedMultiplier = parsed.Value;
+            }
+        }
     }
 
     private static Dictionary<string, string> SerializeTheSuperHackersSettings(TheSuperHackersSettings settings)
@@ -781,6 +792,7 @@ public class GameSettingsService(ILogger<GameSettingsService> logger, IGamePathP
             ["CursorCaptureEnabledInFullscreenMenu"] = BoolToString(settings.CursorCaptureEnabledInFullscreenMenu),
             ["CursorCaptureEnabledInWindowedGame"] = BoolToString(settings.CursorCaptureEnabledInWindowedGame),
             ["CursorCaptureEnabledInWindowedMenu"] = BoolToString(settings.CursorCaptureEnabledInWindowedMenu),
+            [GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey] = (GameSettingsMapper.NormalizeTransitionSpeedMultiplier(settings.GameWindowTransitionSpeedMultiplier) ?? GameSettingsTheSuperHackersConstants.DefaultGameWindowTransitionSpeedMultiplier).ToString(CultureInfo.InvariantCulture),
             ["MoneyTransactionVolume"] = settings.MoneyTransactionVolume.ToString(),
             ["NetworkLatencyFontSize"] = settings.NetworkLatencyFontSize.ToString(),
             ["PlayerObserverEnabled"] = BoolToString(settings.PlayerObserverEnabled),

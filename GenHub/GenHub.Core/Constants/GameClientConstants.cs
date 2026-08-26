@@ -21,7 +21,7 @@ public static class GameClientConstants
     /// <summary>Steam game.dat executable (primary for Steam installations, avoids launcher stubs).</summary>
     public const string SteamGameDatExecutable = "game.dat";
 
-    /// <summary>Contra mod executable filename.</summary>
+    /// <summary>Contra modded client executable filename.</summary>
     public const string ContraExecutable = "generals.ctr";
 
     // ===== SuperHackers Client Detection =====

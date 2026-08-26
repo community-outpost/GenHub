@@ -389,6 +389,14 @@ public class StrategyTests : IDisposable
         Assert.False(result.IsPrepared);
         Assert.NotEmpty(result.ValidationIssues);
         _fileOps.Verify(
+            service => service.LinkFromCasAsync(
+                Hash,
+                It.IsAny<string>(),
+                false,
+                ManifestContentType.GameClient,
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        _fileOps.Verify(
             service => service.CopyFromCasAsync(
                 It.IsAny<string>(),
                 It.IsAny<string>(),

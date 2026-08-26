@@ -685,6 +685,7 @@ Constants related to game client detection and management.
 | -------------------- | ---------------- | ----------------------------- |
 | `GeneralsExecutable` | `"generals.exe"` | Generals executable filename  |
 | `ZeroHourExecutable` | `"game.exe"`     | Zero Hour executable filename |
+| `ContraExecutable`   | `"generals.ctr"` | Contra modded client executable filename |
 
 ### SuperHackers Client Detection
 

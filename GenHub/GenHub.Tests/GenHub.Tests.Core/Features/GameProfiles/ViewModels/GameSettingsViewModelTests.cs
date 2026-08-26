@@ -858,12 +858,6 @@ public class GameSettingsViewModelTests
     [Fact]
     public void ApplyOptionsToViewModel_Should_UpdateSelectedPreset_WhenResolutionMatches()
     {
-        // Arrange
-        var options = new IniOptions
-        {
-            Video = new VideoSettings { ResolutionWidth = 1920, ResolutionHeight = 1080 },
-        };
-
         // Act - Simulate loading options
         _viewModel.ResolutionWidth = 1920;
         _viewModel.ResolutionHeight = 1080;
@@ -874,6 +868,87 @@ public class GameSettingsViewModelTests
 
         // Assert
         Assert.Equal("1920x1080", _viewModel.SelectedResolutionPreset);
+    }
+
+    /// <summary>
+    /// Should load GameWindowTransitionSpeedMultiplier from profile when initializing.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeForProfileAsync_Should_LoadGameWindowTransitionSpeedMultiplier_FromProfileAsync()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            Id = "tsh-profile",
+            Name = "TSH Profile",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+            TshGameWindowTransitionSpeedMultiplier = 3.25f,
+        };
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("tsh-profile", profile);
+
+        // Assert
+        Assert.Equal(3.25f, _viewModel.TshGameWindowTransitionSpeedMultiplier);
+    }
+
+    /// <summary>
+    /// Should clamp GameWindowTransitionSpeedMultiplier when initializing with out-of-range value.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task InitializeForProfileAsync_Should_ClampGameWindowTransitionSpeedMultiplier_WhenOutOfRangeAsync()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            Id = "tsh-profile",
+            Name = "TSH Profile",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+            TshGameWindowTransitionSpeedMultiplier = 50.0f,
+        };
+
+        // Act
+        await _viewModel.InitializeForProfileAsync("tsh-profile", profile);
+
+        // Assert
+        Assert.Equal(4.0f, _viewModel.TshGameWindowTransitionSpeedMultiplier);
+    }
+
+    /// <summary>
+    /// Should save GameWindowTransitionSpeedMultiplier to Options.ini and profile request.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [Fact]
+    public async Task SaveSettings_Should_SaveGameWindowTransitionSpeedMultiplier_ToOptionsAsync()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            Id = "tsh-profile",
+            Name = "TSH Profile",
+            GameClient = new GameClient { GameType = GameType.ZeroHour },
+        };
+        IniOptions? savedOptions = null;
+
+        _gameSettingsServiceMock.Setup(x => x.SaveOptionsAsync(It.IsAny<GameType>(), It.IsAny<IniOptions>()))
+            .Callback<GameType, IniOptions>((_, opt) => savedOptions = opt)
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        await _viewModel.InitializeForProfileAsync("tsh-profile", profile);
+        _viewModel.TshGameWindowTransitionSpeedMultiplier = 3.55f;
+
+        // Act
+        await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
+        var request = _viewModel.GetProfileSettings();
+
+        // Assert
+        Assert.NotNull(savedOptions);
+        Assert.True(savedOptions.AdditionalSections.TryGetValue("TheSuperHackers", out var tsh));
+        Assert.True(tsh.TryGetValue("GameWindowTransitionSpeedMultiplier", out var speed));
+        Assert.Equal("3.55", speed);
+        Assert.Equal(3.55f, request.TshGameWindowTransitionSpeedMultiplier);
     }
 
     private static GameProfile CreateGeneralsOnlineProfile()

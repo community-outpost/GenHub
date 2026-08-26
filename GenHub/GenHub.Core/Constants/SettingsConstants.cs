@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace GenHub.Core.Constants;
 
 /// <summary>

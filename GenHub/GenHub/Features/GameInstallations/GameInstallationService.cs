@@ -142,7 +142,7 @@ public class GameInstallationService(
                 // Check if installation already exists (by ID or path)
                 var existing = installationsList.FirstOrDefault(i =>
                     i.Id == installation.Id ||
-                    i.InstallationPath.Equals(installation.InstallationPath, StringComparison.OrdinalIgnoreCase));
+                    PathHelper.AreSamePath(i.InstallationPath, installation.InstallationPath));
 
                 if (existing != null)
                 {
@@ -324,6 +324,40 @@ public class GameInstallationService(
             return GameInstallationType.Lutris;
 
         return GameInstallationType.Unknown;
+    }
+
+    private static bool ContainsGeneralsManifest(IEnumerable<ContentManifest> manifests) =>
+        manifests.Any(m =>
+            m.Id.Value.Contains(".gameinstallation.generals", StringComparison.OrdinalIgnoreCase) ||
+            (!m.Id.Value.Contains(".gameinstallation.zerohour", StringComparison.OrdinalIgnoreCase) && m.TargetGame == GameType.Generals));
+
+    private static bool ContainsZeroHourManifest(IEnumerable<ContentManifest> manifests) =>
+        manifests.Any(m =>
+            m.Id.Value.Contains(".gameinstallation.zerohour", StringComparison.OrdinalIgnoreCase) ||
+            (!m.Id.Value.Contains(".gameinstallation.generals", StringComparison.OrdinalIgnoreCase) && m.TargetGame == GameType.ZeroHour));
+
+    private static GameInstallation ReconstructInstallationFromManifests(
+        string sourcePath,
+        IReadOnlyList<ContentManifest> manifests)
+    {
+        var firstManifest = manifests[0];
+        var installationType = ExtractInstallationTypeFromManifestId(firstManifest.Id);
+
+        var installation = new GameInstallation(sourcePath, installationType)
+        {
+            Id = Guid.NewGuid().ToString(),
+            DetectedAt = DateTime.UtcNow,
+        };
+
+        var hasGeneralsManifest = ContainsGeneralsManifest(manifests);
+        var hasZeroHourManifest = ContainsZeroHourManifest(manifests);
+
+        installation.SetPaths(
+            hasGeneralsManifest ? sourcePath : null,
+            hasZeroHourManifest ? sourcePath : null);
+
+        installation.Fetch();
+        return installation;
     }
 
     /// <summary>
@@ -712,38 +746,18 @@ public class GameInstallationService(
                     continue;
                 }
 
-                // Determine installation type from the first manifest ID
-                var firstManifest = group.First();
-                var installationType = ExtractInstallationTypeFromManifestId(firstManifest.Id);
-
-                // Create GameInstallation object
-                var installation = new GameInstallation(sourcePath, installationType)
+                var groupManifests = group.ToList();
+                if (groupManifests.Count == 0)
                 {
-                    Id = Guid.NewGuid().ToString(), // Generate new ID
-                    DetectedAt = DateTime.UtcNow,
-                };
+                    continue;
+                }
 
-                // Seed game capabilities from existing manifests (canonical ID takes precedence over TargetGame)
-                var hasGeneralsManifest = group.Any(m =>
-                    m.Id.Value.Contains(".gameinstallation.generals", StringComparison.OrdinalIgnoreCase) ||
-                    (m.TargetGame == GameType.Generals && !m.Id.Value.Contains(".gameinstallation.zerohour", StringComparison.OrdinalIgnoreCase)));
-
-                var hasZeroHourManifest = group.Any(m =>
-                    m.Id.Value.Contains(".gameinstallation.zerohour", StringComparison.OrdinalIgnoreCase) ||
-                    (m.TargetGame == GameType.ZeroHour && !m.Id.Value.Contains(".gameinstallation.generals", StringComparison.OrdinalIgnoreCase)));
-
-                installation.SetPaths(
-                    hasGeneralsManifest ? sourcePath : null,
-                    hasZeroHourManifest ? sourcePath : null);
-
-                // Populate Generals/ZeroHour paths
-                installation.Fetch();
-
+                var installation = ReconstructInstallationFromManifests(sourcePath, groupManifests);
                 installations.Add(installation);
 
                 logger.LogInformation(
                     "Reconstructed {InstallationType} installation from manifests: {Path}",
-                    installationType,
+                    installation.InstallationType,
                     sourcePath);
             }
 
@@ -839,7 +853,7 @@ public class GameInstallationService(
         foreach (var manifestInstall in manifestInstallations)
         {
             var existingByPath = installations.FirstOrDefault(i =>
-                i.InstallationPath.Equals(manifestInstall.InstallationPath, StringComparison.OrdinalIgnoreCase));
+                PathHelper.AreSamePath(i.InstallationPath, manifestInstall.InstallationPath));
 
             if (existingByPath == null)
             {

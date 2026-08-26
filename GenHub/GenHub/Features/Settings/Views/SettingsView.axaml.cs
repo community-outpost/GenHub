@@ -41,6 +41,10 @@ public partial class SettingsView : UserControl
             vm.IsViewVisible = true;
             vm.LoadSubscriptionsCommand.Execute(null);
             HookViewModel(vm);
+            if (vm.SelectedSection != null)
+            {
+                ScrollToSection(vm.SelectedSection);
+            }
         }
     }
 

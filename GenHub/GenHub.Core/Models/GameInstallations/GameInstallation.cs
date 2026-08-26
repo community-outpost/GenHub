@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using GenHub.Core.Constants;
@@ -335,9 +336,12 @@ public class GameInstallation(
         }
     }
 
-    private bool TryFindSubdirectoryInstallation(ReadOnlySpan<string> candidateSubdirs, string executableName, out string matchingPath)
+    private bool TryFindSubdirectoryInstallation(
+        ReadOnlySpan<string> candidateSubdirectories,
+        string executableName,
+        [NotNullWhen(true)] out string? matchingPath)
     {
-        foreach (var subDir in candidateSubdirs)
+        foreach (var subDir in candidateSubdirectories)
         {
             if (InstallationPath.TryGetDirectoryCaseInsensitive(subDir, out var candidatePath))
             {
@@ -350,7 +354,7 @@ public class GameInstallation(
             }
         }
 
-        matchingPath = string.Empty;
+        matchingPath = null;
         return false;
     }
 
@@ -379,7 +383,8 @@ public class GameInstallation(
                 Path.Combine(InstallationPath, GameClientConstants.GeneralsSecurityBig).FileExistsCaseInsensitive() ||
                 Path.Combine(InstallationPath, GameClientConstants.SuperHackersGeneralsExecutable).FileExistsCaseInsensitive();
 
-            if (!isZhNamed || isStrictGeneralsOnlySignature)
+            var isZeroHour = isZhNamed || hasZhSignature;
+            if (!isZeroHour || isStrictGeneralsOnlySignature)
             {
                 HasGenerals = true;
                 GeneralsPath = InstallationPath;

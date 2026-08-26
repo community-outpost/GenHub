@@ -25,7 +25,7 @@ public static class InfoConstants
     public const string QuickstartSectionId = "quickstart";
 
     /// <summary>
-    /// Module name for the GenHub Guide.
+    /// Module name for GenHub Guide.
     /// </summary>
     public const string ModuleGuide = "GenHub Guide";
 
@@ -38,6 +38,16 @@ public static class InfoConstants
     /// Module name for GeneralsOnline.
     /// </summary>
     public const string ModuleGeneralsOnline = "GeneralsOnline";
+
+    /// <summary>
+    /// Section ID for FAQ.
+    /// </summary>
+    public const string SectionFaq = "faq";
+
+    /// <summary>
+    /// Section ID for GeneralsOnline changelog.
+    /// </summary>
+    public const string SectionGoChangelog = "go-changelog";
 
     /// <summary>
     /// The list of supported languages for the FAQ.

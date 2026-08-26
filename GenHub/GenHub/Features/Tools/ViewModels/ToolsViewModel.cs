@@ -7,6 +7,7 @@ using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools;
 using Microsoft.Extensions.Logging;
 
@@ -54,7 +55,7 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
     private bool _isPaneOpen = true;
 
     [ObservableProperty]
-    private double _openPaneLength = 220.0;
+    private double _openPaneLength = SidebarConstants.DefaultOpenPaneLength;
 
     [ObservableProperty]
     private bool _isDetailsDialogOpen = false;
