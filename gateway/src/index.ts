@@ -190,7 +190,7 @@ const verifyHmacSignature = async (payload: string, signature: string, secret: s
 
 const isValidExtension = (name: string): boolean => {
   const lower = name.toLowerCase();
-  if (lower.endsWith(".zip")) {
+  if (lower.endsWith(".zip") || lower.endsWith(".ghprofile") || lower.endsWith(".map")) {
     return true;
   }
   return lower.endsWith(".rep");
@@ -227,7 +227,7 @@ const validateUploadFile = (fileName: string, fileSize: number, maxSizeBytes: nu
   }
 
   if (!isValidExtension(sanitized)) {
-    return "Only .zip and .rep archives permitted";
+    return "Only .zip, .ghprofile, .map, and .rep archives permitted";
   }
   return null;
 };
