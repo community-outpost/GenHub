@@ -202,12 +202,10 @@ public sealed class ReplayDirectoryService(
     {
         ArgumentNullException.ThrowIfNull(replay);
 
-        if (replay.MatchedClient == null && replay.Metadata?.FormattedExeCrc != null)
+        if (replay.MatchedClient == null && replay.Metadata?.FormattedExeCrc != null &&
+            crcMappingRegistry.TryGetEntry(replay.Metadata.FormattedExeCrc, replay.Metadata.FormattedIniCrc ?? string.Empty, out var resolvedMatch))
         {
-            if (crcMappingRegistry.TryGetEntry(replay.Metadata.FormattedExeCrc, replay.Metadata.FormattedIniCrc ?? string.Empty, out var resolvedMatch))
-            {
-                replay.MatchedClient = resolvedMatch;
-            }
+            replay.MatchedClient = resolvedMatch;
         }
 
         if (replay.MatchedClient == null)
@@ -226,11 +224,7 @@ public sealed class ReplayDirectoryService(
             var existingProfilesResult = await profileManager.GetAllProfilesAsync(ct);
             if (existingProfilesResult.Success && existingProfilesResult.Data != null)
             {
-                var existing = existingProfilesResult.Data.FirstOrDefault(p =>
-                    p.GameClient?.GameType == replay.GameVersion &&
-                    (string.Equals(p.GameClient?.Id, replay.MatchedClient.ManifestId, StringComparison.OrdinalIgnoreCase) ||
-                     (p.EnabledContentIds != null && p.EnabledContentIds.Contains(replay.MatchedClient.ManifestId))));
-
+                var existing = FindMatchingProfile(existingProfilesResult.Data, replay.GameVersion, replay.MatchedClient.ManifestId);
                 if (existing != null)
                 {
                     replay.MatchingProfileId = existing.Id;
@@ -248,43 +242,8 @@ public sealed class ReplayDirectoryService(
                     $"No game installation found on this system for {replay.GameVersion}. Please ensure Generals or Zero Hour is installed.");
             }
 
-            var installation = installationsResult.Data.FirstOrDefault(i =>
-                (replay.GameVersion == GameType.Generals && i.HasGenerals) ||
-                (replay.GameVersion == GameType.ZeroHour && i.HasZeroHour))
-                ?? installationsResult.Data.First();
-
-            var clientName = replay.MatchedClient.Description ?? $"{replay.MatchedClient.Publisher} {replay.MatchedClient.Version}";
-            var profileName = $"{clientName} (Replay: {Path.GetFileNameWithoutExtension(replay.FileName)})";
-
-            var targetClient = replay.GameVersion == GameType.Generals ? installation.GeneralsClient : installation.ZeroHourClient;
-            var targetPath = replay.GameVersion == GameType.Generals ? installation.GeneralsPath : installation.ZeroHourPath;
-            var exeName = replay.GameVersion == GameType.Generals ? "generals.exe" : "generalszh.exe";
-            var workingDir = !string.IsNullOrEmpty(targetPath) ? targetPath : installation.InstallationPath;
-            var exePath = targetClient?.ExecutablePath ?? (!string.IsNullOrEmpty(workingDir) ? Path.Combine(workingDir, exeName) : string.Empty);
-
-            var gameClient = new GameClient
-            {
-                Id = replay.MatchedClient.ManifestId,
-                Name = clientName,
-                Version = replay.MatchedClient.Version,
-                GameType = replay.GameVersion,
-                PublisherType = replay.MatchedClient.Publisher,
-                InstallationId = installation.Id,
-                ExecutablePath = exePath,
-                WorkingDirectory = workingDir,
-            };
-
-            var request = new CreateProfileRequest
-            {
-                Name = profileName,
-                Description = $"Profile configured for {clientName} (Exe: {replay.Metadata?.FormattedExeCrc}, INI: {replay.Metadata?.FormattedIniCrc})",
-                GameInstallationId = installation.Id,
-                GameClientId = replay.MatchedClient.ManifestId,
-                GameClient = gameClient,
-                EnabledContentIds = [replay.MatchedClient.ManifestId],
-                WorkspaceStrategy = WorkspaceStrategy.SymlinkOnly,
-                UseSteamLaunch = installation.InstallationType == GameInstallationType.Steam,
-            };
+            var installation = ResolveInstallation(installationsResult.Data, replay.GameVersion);
+            var request = BuildCreateProfileRequest(replay, installation);
 
             var createResult = await profileManager.CreateProfileAsync(request, ct);
             if (createResult.Success && createResult.Data != null)
@@ -292,7 +251,7 @@ public sealed class ReplayDirectoryService(
                 replay.MatchingProfileId = createResult.Data.Id;
                 replay.MatchingProfileName = createResult.Data.Name;
                 replay.CompatibilityStatus = ReplayCompatibilityStatus.Compatible;
-                logger.LogInformation("Successfully created profile '{ProfileName}' for replay '{ReplayFile}'", profileName, replay.FileName);
+                logger.LogInformation("Successfully created profile '{ProfileName}' for replay '{ReplayFile}'", request.Name, replay.FileName);
                 return createResult;
             }
 
@@ -347,6 +306,58 @@ public sealed class ReplayDirectoryService(
         }
     }
 
+    private static GameProfile? FindMatchingProfile(IEnumerable<GameProfile> profiles, GameType gameVersion, string manifestId)
+    {
+        return profiles.FirstOrDefault(p =>
+            p.GameClient?.GameType == gameVersion &&
+            (string.Equals(p.GameClient?.Id, manifestId, StringComparison.OrdinalIgnoreCase) ||
+             (p.EnabledContentIds != null && p.EnabledContentIds.Contains(manifestId))));
+    }
+
+    private static GameInstallation ResolveInstallation(IReadOnlyList<GameInstallation> installations, GameType gameVersion)
+    {
+        return installations.FirstOrDefault(i =>
+            (gameVersion == GameType.Generals && i.HasGenerals) ||
+            (gameVersion == GameType.ZeroHour && i.HasZeroHour))
+            ?? installations[0];
+    }
+
+    private static CreateProfileRequest BuildCreateProfileRequest(ReplayFile replay, GameInstallation installation)
+    {
+        var clientName = replay.MatchedClient?.Description ?? $"{replay.MatchedClient?.Publisher} {replay.MatchedClient?.Version}";
+        var profileName = $"{clientName} (Replay: {Path.GetFileNameWithoutExtension(replay.FileName)})";
+
+        var targetClient = replay.GameVersion == GameType.Generals ? installation.GeneralsClient : installation.ZeroHourClient;
+        var targetPath = replay.GameVersion == GameType.Generals ? installation.GeneralsPath : installation.ZeroHourPath;
+        var exeName = replay.GameVersion == GameType.Generals ? "generals.exe" : "generalszh.exe";
+        var workingDir = !string.IsNullOrEmpty(targetPath) ? targetPath : installation.InstallationPath;
+        var exePath = targetClient?.ExecutablePath ?? (!string.IsNullOrEmpty(workingDir) ? Path.Combine(workingDir, exeName) : string.Empty);
+
+        var gameClient = new GameClient
+        {
+            Id = replay.MatchedClient!.ManifestId,
+            Name = clientName,
+            Version = replay.MatchedClient.Version,
+            GameType = replay.GameVersion,
+            PublisherType = replay.MatchedClient.Publisher,
+            InstallationId = installation.Id,
+            ExecutablePath = exePath,
+            WorkingDirectory = workingDir,
+        };
+
+        return new CreateProfileRequest
+        {
+            Name = profileName,
+            Description = $"Profile configured for {clientName} (Exe: {replay.Metadata?.FormattedExeCrc}, INI: {replay.Metadata?.FormattedIniCrc})",
+            GameInstallationId = installation.Id,
+            GameClientId = replay.MatchedClient.ManifestId,
+            GameClient = gameClient,
+            EnabledContentIds = [replay.MatchedClient.ManifestId],
+            WorkspaceStrategy = WorkspaceStrategy.SymlinkOnly,
+            UseSteamLaunch = installation.InstallationType == GameInstallationType.Steam,
+        };
+    }
+
     private void ResolveCompatibility(ReplayFile replay, HashSet<string> acquiredIds, IReadOnlyList<GameProfile> profiles)
     {
         if (replay.Metadata == null)
@@ -369,11 +380,7 @@ public sealed class ReplayDirectoryService(
             replay.MatchedClient = match;
 
             // Check if an existing profile matches this game client / manifest
-            var matchingProfile = profiles.FirstOrDefault(p =>
-                p.GameClient?.GameType == replay.GameVersion &&
-                (string.Equals(p.GameClient?.Id, match.ManifestId, StringComparison.OrdinalIgnoreCase) ||
-                 (p.EnabledContentIds != null && p.EnabledContentIds.Contains(match.ManifestId))));
-
+            var matchingProfile = FindMatchingProfile(profiles, replay.GameVersion, match.ManifestId);
             if (matchingProfile != null)
             {
                 replay.MatchingProfileId = matchingProfile.Id;

@@ -242,28 +242,68 @@ public sealed class ReplayDirectoryServiceTests
         };
 
         // Compatible state
-        replay.CompatibilityStatus = ReplayCompatibilityStatus.Compatible;
-        replay.MatchingProfileName = "ZH SuperHackers";
-        Assert.Equal("Ready to Play", replay.CompatibilityBadgeText);
-        Assert.Contains("ZH SuperHackers", replay.CompatibilityTooltip);
+        var compatibleReplay = new ReplayFile
+        {
+            FileName = "Test.rep",
+            FullPath = "/path/Test.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            CompatibilityStatus = ReplayCompatibilityStatus.Compatible,
+            MatchingProfileName = "ZH SuperHackers",
+        };
+        Assert.Equal("Ready to Play", compatibleReplay.CompatibilityBadgeText);
+        Assert.Contains("ZH SuperHackers", compatibleReplay.CompatibilityTooltip);
 
         // RequiresProfile state
-        replay.CompatibilityStatus = ReplayCompatibilityStatus.RequiresProfile;
-        Assert.Equal("Profile Needed", replay.CompatibilityBadgeText);
-        Assert.Contains("Click 'Create Profile'", replay.CompatibilityTooltip);
+        var requiresProfileReplay = new ReplayFile
+        {
+            FileName = "Test.rep",
+            FullPath = "/path/Test.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            CompatibilityStatus = ReplayCompatibilityStatus.RequiresProfile,
+        };
+        Assert.Equal("Profile Needed", requiresProfileReplay.CompatibilityBadgeText);
+        Assert.Contains("Click 'Create Profile'", requiresProfileReplay.CompatibilityTooltip);
 
         // Downloadable state
-        replay.CompatibilityStatus = ReplayCompatibilityStatus.Downloadable;
-        Assert.Equal("Download Required", replay.CompatibilityBadgeText);
-        Assert.Contains("available on CDN", replay.CompatibilityTooltip);
+        var downloadableReplay = new ReplayFile
+        {
+            FileName = "Test.rep",
+            FullPath = "/path/Test.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            CompatibilityStatus = ReplayCompatibilityStatus.Downloadable,
+        };
+        Assert.Equal("Download Required", downloadableReplay.CompatibilityBadgeText);
+        Assert.Contains("available on CDN", downloadableReplay.CompatibilityTooltip);
 
         // Orphaned state
-        replay.CompatibilityStatus = ReplayCompatibilityStatus.Orphaned;
-        Assert.Equal("Mismatch Risk", replay.CompatibilityBadgeText);
-        Assert.Contains("mismatch", replay.CompatibilityTooltip, StringComparison.OrdinalIgnoreCase);
+        var orphanedReplay = new ReplayFile
+        {
+            FileName = "Test.rep",
+            FullPath = "/path/Test.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            CompatibilityStatus = ReplayCompatibilityStatus.Orphaned,
+        };
+        Assert.Equal("Mismatch Risk", orphanedReplay.CompatibilityBadgeText);
+        Assert.Contains("mismatch", orphanedReplay.CompatibilityTooltip, StringComparison.OrdinalIgnoreCase);
 
         // Unknown state
-        replay.CompatibilityStatus = ReplayCompatibilityStatus.Unknown;
-        Assert.Equal("Unknown", replay.CompatibilityBadgeText);
+        var unknownReplay = new ReplayFile
+        {
+            FileName = "Test.rep",
+            FullPath = "/path/Test.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            CompatibilityStatus = ReplayCompatibilityStatus.Unknown,
+        };
+        Assert.Equal("Unknown", unknownReplay.CompatibilityBadgeText);
     }
 }
