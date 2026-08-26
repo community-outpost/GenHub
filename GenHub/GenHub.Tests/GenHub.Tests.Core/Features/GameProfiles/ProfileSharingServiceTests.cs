@@ -664,6 +664,79 @@ public class ProfileSharingServiceTests
     }
 
     /// <summary>
+    /// Verifies that when a shared manifest dependency has unpacked files without direct download URLs
+    /// (e.g. ModDB, CnCLabs, AoDMaps), the service invokes ContentOrchestrator to discover and acquire the package.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ImportSharedProfileAsync_Should_AcquireViaContentOrchestrator_WhenFilesLackDownloadUrlsAsync()
+    {
+        // Arrange
+        const string manifestId = "1.0.moddb.mod.contra009";
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = ProfileSharingConstants.DefaultSchemaVersion,
+            Profile = new SharedProfileMetadata { Name = "Contra Profile", GameType = GameType.ZeroHour },
+            RequiredManifests =
+            [
+                new SharedManifestDependency
+                {
+                    ManifestId = manifestId,
+                    DisplayName = "Contra 009 Final",
+                    Version = "0.09",
+                    ContentType = ContentType.Mod,
+                    Publisher = "ModDB",
+                    PublisherType = PublisherTypeConstants.ModDB,
+                    Files =
+                    [
+                        new ManifestFile { RelativePath = "Contra.big", Size = 500_000_000, Hash = "abc123" },
+                        new ManifestFile { RelativePath = "!contra009.ini", Size = 100_000, Hash = "def456" },
+                    ],
+                },
+            ],
+        };
+
+        var installation = new GameInstallation("/games/zh", GameInstallationType.Retail)
+        {
+            Id = "inst-1",
+            HasZeroHour = true,
+            AvailableGameClients = [new GameClient { Id = "c1", Name = "Zero Hour", GameType = GameType.ZeroHour }],
+        };
+
+        var searchResult = new ContentSearchResult
+        {
+            Id = manifestId,
+            Name = "Contra 009 Final",
+            ProviderName = "ModDB",
+            ContentType = ContentType.Mod,
+        };
+
+        _installationServiceMock.Setup(i => i.GetInstallationAsync("inst-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(installation));
+        _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync(manifestId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        _contentOrchestratorMock.Setup(o => o.SearchAsync(It.Is<ContentSearchQuery>(q => q.SearchTerm == "Contra 009 Final"), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([searchResult]));
+        _contentOrchestratorMock.Setup(o => o.AcquireContentAsync(searchResult, It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest>.CreateSuccess(new ContentManifest { Id = ManifestId.Create(manifestId) }));
+
+        var request = new SharedProfileImportRequest
+        {
+            Package = package,
+            ProfileName = "Contra Imported",
+            GameInstallationId = "inst-1",
+        };
+
+        // Act
+        var result = await _service.ImportSharedProfileAsync(request);
+
+        // Assert
+        Assert.True(result.Success);
+        _contentOrchestratorMock.Verify(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()), Times.Once);
+        _contentOrchestratorMock.Verify(o => o.AcquireContentAsync(searchResult, It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
     /// Verifies that machine-specific artwork paths are stripped when a profile is packaged for sharing.
     /// </summary>
     /// <returns>A task representing the test.</returns>

@@ -847,7 +847,10 @@ public class ProfileSharingService(
                 return OperationResult<bool>.CreateFailure($"Invalid manifest ID '{dependency.ManifestId}'.");
             }
 
-            if (dependency.Files?.Count > 0)
+            // Direct per-file download is only possible when files exist and each file has a direct download URL.
+            // Extracted CAS packages (e.g. ModDB, CnCLabs, AoDMaps) don't carry individual file download URLs
+            // and must be acquired via the content orchestrator provider/resolver pipeline.
+            if (dependency.Files?.Count > 0 && dependency.Files.All(f => !string.IsNullOrWhiteSpace(f.DownloadUrl)))
             {
                 return await DownloadAndRegisterManifestFilesAsync(dependency, validatedManifestId, cancellationToken);
             }
@@ -1012,7 +1015,9 @@ public class ProfileSharingService(
 
         if (searchResult.Success && searchResult.Data != null)
         {
-            var match = searchResult.Data.FirstOrDefault(r => r.Id.Equals(dependency.ManifestId, StringComparison.OrdinalIgnoreCase));
+            var match = searchResult.Data.FirstOrDefault(r =>
+                r.Id.Equals(dependency.ManifestId, StringComparison.OrdinalIgnoreCase) ||
+                r.Name.Equals(dependency.DisplayName, StringComparison.OrdinalIgnoreCase));
             if (match != null)
             {
                 var acquireRes = await contentOrchestrator.AcquireContentAsync(match, progress, cancellationToken);
