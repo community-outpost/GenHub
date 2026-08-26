@@ -69,6 +69,175 @@ public class ProfileSharingService(
             ConnectToValidatedAddressAsync(ValidatedHostAddresses, context, token),
     });
 
+    /// <inheritdoc/>
+    public async Task<OperationResult<string>> ExportProfileToUriAsync(string profileId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(profileId))
+            {
+                return OperationResult<string>.CreateFailure("Profile identifier cannot be empty.");
+            }
+
+            var packageResult = await BuildPackageFromProfileIdAsync(profileId, cancellationToken);
+            if (!packageResult.Success || packageResult.Data == null)
+            {
+                return OperationResult<string>.CreateFailure(packageResult.Errors);
+            }
+
+            var json = JsonSerializer.Serialize(packageResult.Data, JsonOptions);
+            var encodedPayload = ProfileSharingCompressionHelper.CompressAndEncode(json);
+
+            if (encodedPayload.Length > ProfileSharingConstants.MaxInlinePayloadLength)
+            {
+                logger.LogWarning("Exported profile {ProfileId} payload ({Length} chars) exceeds inline limit.", profileId, encodedPayload.Length);
+            }
+
+            string shareUri = $"{CommandLineConstants.ProfileImportUriPrefix}?{CommandLineConstants.DataQueryParam}{encodedPayload}";
+            return OperationResult<string>.CreateSuccess(shareUri);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Unexpected error generating share URI for profile {ProfileId}.", profileId);
+            return OperationResult<string>.CreateFailure($"Failed to generate share URI: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<string>> ExportProfileToFileAsync(string profileId, string destinationPath, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(profileId))
+            {
+                return OperationResult<string>.CreateFailure("Profile identifier cannot be empty.");
+            }
+
+            if (string.IsNullOrWhiteSpace(destinationPath))
+            {
+                return OperationResult<string>.CreateFailure("Destination file path cannot be empty.");
+            }
+
+            var packageResult = await BuildPackageFromProfileIdAsync(profileId, cancellationToken);
+            if (!packageResult.Success || packageResult.Data == null)
+            {
+                return OperationResult<string>.CreateFailure(packageResult.Errors);
+            }
+
+            var json = JsonSerializer.Serialize(packageResult.Data, JsonOptions);
+            var directory = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            await File.WriteAllTextAsync(destinationPath, json, cancellationToken);
+            logger.LogInformation("Exported profile {ProfileId} to file: {DestinationPath}", profileId, destinationPath);
+            return OperationResult<string>.CreateSuccess(destinationPath);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Unexpected error exporting profile {ProfileId} to file {DestinationPath}.", profileId, destinationPath);
+            return OperationResult<string>.CreateFailure($"Failed to export profile to file: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<SharedProfileInspectionResult>> InspectSharedProfileAsync(string shareUriOrJsonOrPath, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(shareUriOrJsonOrPath))
+            {
+                return OperationResult<SharedProfileInspectionResult>.CreateFailure("Shared profile payload or link cannot be empty.");
+            }
+
+            var resolveResult = await ResolvePayloadJsonAsync(shareUriOrJsonOrPath, cancellationToken);
+            if (!resolveResult.Success || resolveResult.Data == null)
+            {
+                return OperationResult<SharedProfileInspectionResult>.CreateFailure(resolveResult.Errors);
+            }
+
+            var packageResult = DeserializeSharedPackage(resolveResult.Data);
+            if (!packageResult.Success || packageResult.Data == null)
+            {
+                return OperationResult<SharedProfileInspectionResult>.CreateFailure(packageResult.Errors);
+            }
+
+            return await InspectFromPackageAsync(packageResult.Data, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Unexpected error inspecting shared profile package.");
+            return OperationResult<SharedProfileInspectionResult>.CreateFailure($"Failed to inspect shared profile: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<OperationResult<GameProfile>> ImportSharedProfileAsync(SharedProfileImportRequest request, IProgress<ContentAcquisitionProgress>? progress = null, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var validation = ValidateImportRequest(request);
+            if (!validation.Success)
+            {
+                return OperationResult<GameProfile>.CreateFailure(validation.Errors);
+            }
+
+            var package = request.Package!;
+            var selectedInstallation = await ResolveSelectedInstallationAsync(request.GameInstallationId, cancellationToken);
+
+            var compatibilityResult = ValidateClientCompatibility(selectedInstallation, package);
+            if (!compatibilityResult.Success)
+            {
+                return OperationResult<GameProfile>.CreateFailure(compatibilityResult.Errors);
+            }
+
+            var dependenciesResult = await AcquireAllDependenciesAsync(package, progress, cancellationToken);
+            if (!dependenciesResult.Success || dependenciesResult.Data == null)
+            {
+                return OperationResult<GameProfile>.CreateFailure(dependenciesResult.Errors);
+            }
+
+            var gameClient = ResolveGameClient(selectedInstallation, package);
+            var newProfile = BuildImportedProfile(request, selectedInstallation, gameClient, dependenciesResult.Data);
+
+            var saveResult = await profileRepository.SaveProfileAsync(newProfile, cancellationToken);
+            if (!saveResult.Success || saveResult.Data == null)
+            {
+                return OperationResult<GameProfile>.CreateFailure(saveResult.Errors);
+            }
+
+            logger.LogInformation("Successfully imported profile: {ProfileName} ({ProfileId})", newProfile.Name, newProfile.Id);
+            WeakReferenceMessenger.Default.Send(new ProfileCreatedMessage(saveResult.Data));
+            return OperationResult<GameProfile>.CreateSuccess(saveResult.Data);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Unexpected error during profile import.");
+            return OperationResult<GameProfile>.CreateFailure($"Failed to import profile: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
+    public string GenerateDiscordMarkdown(GameProfile profile, string shareUri)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+        ArgumentNullException.ThrowIfNull(shareUri);
+
+        string gameTypeName = profile.GameClient?.GameType.ToString() ?? "Game";
+        string version = string.IsNullOrWhiteSpace(profile.GameClient?.Version) ? profile.Version : profile.GameClient.Version;
+        string headerInfo = $"{gameTypeName} {version}".Trim();
+        string desc = string.IsNullOrWhiteSpace(profile.Description) ? "Custom game configuration for GenHub" : profile.Description;
+
+        return string.Format(
+            ProfileSharingConstants.DiscordMarkdownTemplate,
+            profile.Name,
+            headerInfo,
+            desc,
+            shareUri);
+    }
+
     private static bool IsPublicIpAddress(IPAddress ip)
     {
         if (IPAddress.IsLoopback(ip) || ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || ip.IsIPv6Multicast)
@@ -375,240 +544,6 @@ public class ProfileSharingService(
         if (overrides.TryGetValue(nameof(profile.GoShowPing), out var goPingObj) && goPingObj is JsonElement goPingElem) profile.GoShowPing = goPingElem.GetBoolean();
         if (overrides.TryGetValue(nameof(profile.GoShowPlayerRanks), out var goRanksObj) && goRanksObj is JsonElement goRanksElem) profile.GoShowPlayerRanks = goRanksElem.GetBoolean();
         if (overrides.TryGetValue(nameof(profile.GoRenderFpsLimit), out var goFpsLimitObj) && goFpsLimitObj is JsonElement goFpsLimitElem && goFpsLimitElem.TryGetInt32(out var fpsLimit)) profile.GoRenderFpsLimit = fpsLimit;
-    }
-
-    /// <inheritdoc/>
-    public async Task<OperationResult<string>> ExportProfileToUriAsync(string profileId, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(profileId))
-            {
-                return OperationResult<string>.CreateFailure("Profile identifier cannot be empty.");
-            }
-
-            var packageResult = await BuildPackageFromProfileIdAsync(profileId, cancellationToken);
-            if (!packageResult.Success || packageResult.Data == null)
-            {
-                return OperationResult<string>.CreateFailure(packageResult.Errors);
-            }
-
-            var json = JsonSerializer.Serialize(packageResult.Data, JsonOptions);
-            var encodedPayload = ProfileSharingCompressionHelper.CompressAndEncode(json);
-
-            if (encodedPayload.Length > ProfileSharingConstants.MaxInlinePayloadLength)
-            {
-                logger.LogWarning("Exported profile {ProfileId} payload ({Length} chars) exceeds inline limit.", profileId, encodedPayload.Length);
-            }
-
-            string shareUri = $"{CommandLineConstants.ProfileImportUriPrefix}?{CommandLineConstants.DataQueryParam}{encodedPayload}";
-            return OperationResult<string>.CreateSuccess(shareUri);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Unexpected error generating share URI for profile {ProfileId}.", profileId);
-            return OperationResult<string>.CreateFailure($"Failed to generate share URI: {ex.Message}");
-        }
-    }
-
-    /// <inheritdoc/>
-    public async Task<OperationResult<string>> ExportProfileToFileAsync(string profileId, string destinationPath, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(profileId))
-            {
-                return OperationResult<string>.CreateFailure("Profile identifier cannot be empty.");
-            }
-
-            if (string.IsNullOrWhiteSpace(destinationPath))
-            {
-                return OperationResult<string>.CreateFailure("Destination file path cannot be empty.");
-            }
-
-            var packageResult = await BuildPackageFromProfileIdAsync(profileId, cancellationToken);
-            if (!packageResult.Success || packageResult.Data == null)
-            {
-                return OperationResult<string>.CreateFailure(packageResult.Errors);
-            }
-
-            var json = JsonSerializer.Serialize(packageResult.Data, JsonOptions);
-            var directory = Path.GetDirectoryName(destinationPath);
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            await File.WriteAllTextAsync(destinationPath, json, cancellationToken);
-            logger.LogInformation("Exported profile {ProfileId} to file: {DestinationPath}", profileId, destinationPath);
-            return OperationResult<string>.CreateSuccess(destinationPath);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Unexpected error exporting profile {ProfileId} to file {DestinationPath}.", profileId, destinationPath);
-            return OperationResult<string>.CreateFailure($"Failed to export profile to file: {ex.Message}");
-        }
-    }
-
-    /// <inheritdoc/>
-    public async Task<OperationResult<string>> ExportProfileToJsonAsync(string profileId, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(profileId))
-            {
-                return OperationResult<string>.CreateFailure("Profile identifier cannot be empty.");
-            }
-
-            var packageResult = await BuildPackageFromProfileIdAsync(profileId, cancellationToken);
-            if (!packageResult.Success || packageResult.Data == null)
-            {
-                return OperationResult<string>.CreateFailure(packageResult.Errors);
-            }
-
-            var json = JsonSerializer.Serialize(packageResult.Data, JsonOptions);
-            return OperationResult<string>.CreateSuccess(json);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Unexpected error exporting profile {ProfileId} to JSON.", profileId);
-            return OperationResult<string>.CreateFailure($"Failed to export profile to JSON: {ex.Message}");
-        }
-    }
-
-    /// <inheritdoc/>
-    public async Task<OperationResult<SharedProfileInspectionResult>> InspectSharedProfileAsync(
-        string shareUriOrJsonOrPath,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(shareUriOrJsonOrPath))
-            {
-                return OperationResult<SharedProfileInspectionResult>.CreateFailure("Shared profile payload or path cannot be empty.");
-            }
-
-            var rawJsonResult = await ResolvePayloadJsonAsync(shareUriOrJsonOrPath, cancellationToken);
-            if (!rawJsonResult.Success || string.IsNullOrEmpty(rawJsonResult.Data))
-            {
-                return OperationResult<SharedProfileInspectionResult>.CreateFailure(rawJsonResult.Errors);
-            }
-
-            var packageResult = DeserializeSharedPackage(rawJsonResult.Data);
-            if (!packageResult.Success || packageResult.Data == null)
-            {
-                return OperationResult<SharedProfileInspectionResult>.CreateFailure(packageResult.Errors);
-            }
-
-            var package = packageResult.Data;
-            _ = ProfileSharingCompressionHelper.SanitizeCommandLineArguments(package.Profile.CommandLineArguments, out var securityWarnings);
-
-            var manifestDiffResult = await DiffManifestsAgainstPoolAsync(package, cancellationToken);
-            if (!manifestDiffResult.Success || manifestDiffResult.Data == null)
-            {
-                return OperationResult<SharedProfileInspectionResult>.CreateFailure(manifestDiffResult.Errors);
-            }
-
-            var manifestSummary = manifestDiffResult.Data;
-            var (compatibleInstallations, matchedInstallationId) = await FindCompatibleInstallationsAsync(package.Profile.GameType, cancellationToken);
-            var (suggestedName, hasNameConflict) = await DetermineSuggestedProfileNameAsync(package.Profile.Name, cancellationToken);
-
-            var result = new SharedProfileInspectionResult
-            {
-                ProfileMetadata = package.Profile,
-                Manifests = manifestSummary.Manifests,
-                TotalDownloadBytesRequired = manifestSummary.TotalMissingDownloadBytes,
-                CachedManifestCount = manifestSummary.CachedCount,
-                MissingManifestCount = manifestSummary.MissingCount,
-                HasValidGameInstallation = compatibleInstallations.Count > 0,
-                MatchedGameInstallationId = matchedInstallationId,
-                CompatibleInstallations = compatibleInstallations,
-                HasNameConflict = hasNameConflict,
-                SuggestedProfileName = suggestedName,
-                SecurityWarnings = securityWarnings,
-                Package = package,
-            };
-
-            return OperationResult<SharedProfileInspectionResult>.CreateSuccess(result);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Unexpected error during profile inspection.");
-            return OperationResult<SharedProfileInspectionResult>.CreateFailure($"Failed to inspect shared profile: {ex.Message}");
-        }
-    }
-
-    /// <inheritdoc/>
-    public async Task<OperationResult<GameProfile>> ImportSharedProfileAsync(
-        SharedProfileImportRequest request,
-        IProgress<ContentAcquisitionProgress>? progress = null,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var validationResult = ValidateImportRequest(request);
-            if (!validationResult.Success)
-            {
-                return OperationResult<GameProfile>.CreateFailure(validationResult.Errors);
-            }
-
-            var package = request.Package;
-            var selectedInstallation = await ResolveSelectedInstallationAsync(request.GameInstallationId, cancellationToken);
-            if (selectedInstallation == null)
-            {
-                return OperationResult<GameProfile>.CreateFailure(
-                    "No compatible game installation is available. Install a matching game before importing this profile.");
-            }
-
-            var compatibilityResult = ValidateClientCompatibility(selectedInstallation, package);
-            if (!compatibilityResult.Success)
-            {
-                return OperationResult<GameProfile>.CreateFailure(compatibilityResult.Errors);
-            }
-
-            var dependenciesResult = await AcquireAllDependenciesAsync(package, progress, cancellationToken);
-            if (!dependenciesResult.Success || dependenciesResult.Data == null)
-            {
-                return OperationResult<GameProfile>.CreateFailure(dependenciesResult.Errors);
-            }
-
-            var gameClient = ResolveGameClient(selectedInstallation, package);
-            var newProfile = BuildImportedProfile(request, selectedInstallation, gameClient, dependenciesResult.Data);
-
-            var saveResult = await profileRepository.SaveProfileAsync(newProfile, cancellationToken);
-            if (!saveResult.Success || saveResult.Data == null)
-            {
-                return OperationResult<GameProfile>.CreateFailure(saveResult.Errors);
-            }
-
-            logger.LogInformation("Successfully imported profile: {ProfileName} ({ProfileId})", newProfile.Name, newProfile.Id);
-            WeakReferenceMessenger.Default.Send(new ProfileCreatedMessage(saveResult.Data));
-            return OperationResult<GameProfile>.CreateSuccess(saveResult.Data);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Unexpected error during profile import.");
-            return OperationResult<GameProfile>.CreateFailure($"Failed to import profile: {ex.Message}");
-        }
-    }
-
-    /// <inheritdoc/>
-    public string GenerateDiscordMarkdown(GameProfile profile, string shareUri)
-    {
-        ArgumentNullException.ThrowIfNull(profile);
-        ArgumentNullException.ThrowIfNull(shareUri);
-
-        string gameTypeName = profile.GameClient?.GameType.ToString() ?? "Game";
-        string version = string.IsNullOrWhiteSpace(profile.GameClient?.Version) ? profile.Version : profile.GameClient.Version;
-        string headerInfo = $"{gameTypeName} {version}".Trim();
-        string desc = string.IsNullOrWhiteSpace(profile.Description) ? "Custom game configuration for GenHub" : profile.Description;
-
-        return string.Format(
-            ProfileSharingConstants.DiscordMarkdownTemplate,
-            profile.Name,
-            headerInfo,
-            desc,
-            shareUri);
     }
 
     private async Task<GameInstallation?> ResolveSelectedInstallationAsync(string? installationId, CancellationToken cancellationToken)
