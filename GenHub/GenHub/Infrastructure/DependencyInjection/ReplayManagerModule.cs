@@ -10,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace GenHub.Infrastructure.DependencyInjection;
 
 /// <summary>
-/// Dependency injection module for the Replay Manager tool.
+/// Dependency injection module for the Replay Manager tool and CRC mapping infrastructure.
 /// </summary>
 public static class ReplayManagerModule
 {
@@ -22,7 +22,6 @@ public static class ReplayManagerModule
     public static IServiceCollection AddReplayManagerServices(this IServiceCollection services)
     {
         // Register HttpClient for UrlParserService with proper headers
-        // This also registers UrlParserService as a transient service with the typed HttpClient
         services.AddHttpClient<UrlParserService>(client =>
         {
             client.DefaultRequestHeaders.Add("User-Agent", ApiConstants.BrowserUserAgent);
@@ -31,10 +30,21 @@ public static class ReplayManagerModule
             client.Timeout = TimeSpan.FromSeconds(30);
         });
 
-        // Bind interface to the typed-client registration so the browser User-Agent is preserved.
-        // A plain AddTransient<IUrlParserService, UrlParserService> would bypass the typed client
-        // and inject the default, unconfigured HttpClient instead.
         services.AddTransient<IUrlParserService>(sp => sp.GetRequiredService<UrlParserService>());
+
+        // Register HttpClient for CrcCatalogUpdateService
+        services.AddHttpClient<CrcCatalogUpdateService>(client =>
+        {
+            client.DefaultRequestHeaders.Add("User-Agent", ApiConstants.BrowserUserAgent);
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+
+        // CRC Mapping Registry & Header Parser
+        services.AddSingleton<ICrcMappingRegistry, CrcMappingRegistry>();
+        services.AddSingleton<IReplayHeaderParser, ReplayHeaderParser>();
+
+        // Hosted background catalog update service
+        services.AddHostedService<CrcCatalogUpdateService>(sp => sp.GetRequiredService<CrcCatalogUpdateService>());
 
         // Services
         services.AddSingleton<IReplayDirectoryService, ReplayDirectoryService>();
