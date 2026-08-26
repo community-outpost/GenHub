@@ -255,7 +255,7 @@ public class GameProfile : IGameProfile
     /// <summary>Gets or sets the font size for system time display (TSH, 0 to disable).</summary>
     public int? TshSystemTimeFontSize { get; set; }
 
-    /// <summary>Gets or sets the game window transition speed multiplier (TSH, 1.0 to 10.0).</summary>
+    /// <summary>Gets or sets the game window transition speed multiplier (TSH, 1.0 to 4.0).</summary>
     public float? TshGameWindowTransitionSpeedMultiplier { get; set; }
 
     // ===== GeneralsOnline Client Settings =====

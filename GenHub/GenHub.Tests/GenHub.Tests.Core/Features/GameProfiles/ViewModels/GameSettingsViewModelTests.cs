@@ -883,14 +883,14 @@ public class GameSettingsViewModelTests
             Id = "tsh-profile",
             Name = "TSH Profile",
             GameClient = new GameClient { GameType = GameType.ZeroHour },
-            TshGameWindowTransitionSpeedMultiplier = 5.25f,
+            TshGameWindowTransitionSpeedMultiplier = 3.25f,
         };
 
         // Act
         await _viewModel.InitializeForProfileAsync("tsh-profile", profile);
 
         // Assert
-        Assert.Equal(5.25f, _viewModel.TshGameWindowTransitionSpeedMultiplier);
+        Assert.Equal(3.25f, _viewModel.TshGameWindowTransitionSpeedMultiplier);
     }
 
     /// <summary>
@@ -913,7 +913,7 @@ public class GameSettingsViewModelTests
         await _viewModel.InitializeForProfileAsync("tsh-profile", profile);
 
         // Assert
-        Assert.Equal(10.0f, _viewModel.TshGameWindowTransitionSpeedMultiplier);
+        Assert.Equal(4.0f, _viewModel.TshGameWindowTransitionSpeedMultiplier);
     }
 
     /// <summary>
@@ -937,7 +937,7 @@ public class GameSettingsViewModelTests
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
 
         await _viewModel.InitializeForProfileAsync("tsh-profile", profile);
-        _viewModel.TshGameWindowTransitionSpeedMultiplier = 8.55f;
+        _viewModel.TshGameWindowTransitionSpeedMultiplier = 3.55f;
 
         // Act
         await _viewModel.SaveSettingsCommand.ExecuteAsync(null);
@@ -947,8 +947,8 @@ public class GameSettingsViewModelTests
         Assert.NotNull(savedOptions);
         Assert.True(savedOptions.AdditionalSections.TryGetValue("TheSuperHackers", out var tsh));
         Assert.True(tsh.TryGetValue("GameWindowTransitionSpeedMultiplier", out var speed));
-        Assert.Equal("8.55", speed);
-        Assert.Equal(8.55f, request.TshGameWindowTransitionSpeedMultiplier);
+        Assert.Equal("3.55", speed);
+        Assert.Equal(3.55f, request.TshGameWindowTransitionSpeedMultiplier);
     }
 
     private static GameProfile CreateGeneralsOnlineProfile()
