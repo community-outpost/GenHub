@@ -530,6 +530,148 @@ public class CommunityOutpostDeliverer(
     }
 
     /// <summary>
+    /// Repacks multi-variant hotkeys by packing each language/game subdirectory into its target BIG file.
+    /// </summary>
+    private async Task RepackMultiVariantHotkeysAsync(
+        string extractPath,
+        GenPatcherContentMetadata metadata,
+        CancellationToken cancellationToken)
+    {
+        logger.LogInformation("Repacking multi-variant hotkeys for {ContentCode}", metadata.ContentCode);
+
+        var bigDirectories = Directory.GetDirectories(extractPath, "BIG*", SearchOption.AllDirectories);
+        if (bigDirectories.Length == 0)
+        {
+            logger.LogDebug("No BIG directories found for multi-variant hotkeys {ContentCode}", metadata.ContentCode);
+            return;
+        }
+
+        var packDir = Path.Combine(Directory.GetParent(extractPath)!.FullName, "packed_variants");
+        Directory.CreateDirectory(packDir);
+
+        try
+        {
+            var repackedCount = 0;
+
+            foreach (var bigDir in bigDirectories)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                // If the directory already contains .big files (e.g., in test setups), copy them directly
+                var existingBigs = Directory.GetFiles(bigDir, "*.big", SearchOption.TopDirectoryOnly);
+                if (existingBigs.Length > 0)
+                {
+                    foreach (var existing in existingBigs)
+                    {
+                        var destFile = Path.Combine(packDir, Path.GetFileName(existing));
+                        File.Copy(existing, destFile, overwrite: true);
+                        repackedCount++;
+                    }
+
+                    continue;
+                }
+
+                var isZH = bigDir.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                    .Any(segment => segment.Equals("ZH", StringComparison.OrdinalIgnoreCase));
+                var isCCG = bigDir.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                    .Any(segment => segment.Equals("CCG", StringComparison.OrdinalIgnoreCase));
+
+                string? outputFileName = null;
+                var dirName = Path.GetFileName(bigDir);
+
+                if (isZH)
+                {
+                    if (dirName.EndsWith("EN", StringComparison.OrdinalIgnoreCase))
+                    {
+                        outputFileName = "!HotkeysLeikezeENZH.big";
+                    }
+                    else if (dirName.EndsWith("DE", StringComparison.OrdinalIgnoreCase))
+                    {
+                        outputFileName = "!HotkeysLeikezeDEZH.big";
+                    }
+                    else if (dirName.EndsWith("RU", StringComparison.OrdinalIgnoreCase))
+                    {
+                        outputFileName = "!HotkeysLeikezeRUZH.big";
+                    }
+                    else
+                    {
+                        outputFileName = "!HotkeysLeikezeZH.big";
+                    }
+                }
+                else if (isCCG)
+                {
+                    if (dirName.EndsWith("EN", StringComparison.OrdinalIgnoreCase))
+                    {
+                        outputFileName = "!HotkeysLeikezeEN.big";
+                    }
+                    else
+                    {
+                        outputFileName = "!HotkeysLeikezeCCG.big";
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(outputFileName))
+                {
+                    var destinationPath = Path.Combine(packDir, outputFileName);
+                    logger.LogInformation("Packing hotkey variant from {Source} into {OutputFilename}", bigDir, outputFileName);
+
+                    // Convert compressed image files (AVIF, WebP) to TGA format before packing
+                    var compressedImageCount = Directory.GetFiles(bigDir, "*.avif", SearchOption.AllDirectories).Length
+                        + Directory.GetFiles(bigDir, "*.webp", SearchOption.AllDirectories).Length;
+                    if (compressedImageCount > 0)
+                    {
+                        var convertedCount = await avifConverter.ConvertDirectoryAsync(bigDir, cancellationToken);
+                        logger.LogInformation("Converted {Converted} compressed image files to TGA in {Source}", convertedCount, bigDir);
+                    }
+
+                    await BigFilePacker.PackAsync(bigDir, destinationPath);
+                    repackedCount++;
+                }
+            }
+
+            if (repackedCount > 0)
+            {
+                // Reset extract directory and move packed variant files
+                try
+                {
+                    if (Directory.Exists(extractPath))
+                    {
+                        Directory.Delete(extractPath, true);
+                    }
+
+                    Directory.CreateDirectory(extractPath);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to reset extract path {ExtractPath} during variant repacking", extractPath);
+                    throw new IOException($"Failed to prepare extraction directory: {ex.Message}", ex);
+                }
+
+                foreach (var packedFile in Directory.GetFiles(packDir, "*.big"))
+                {
+                    File.Move(packedFile, Path.Combine(extractPath, Path.GetFileName(packedFile)));
+                }
+
+                logger.LogInformation("Successfully repacked {Count} hotkey variant BIG files", repackedCount);
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(packDir))
+            {
+                try
+                {
+                    Directory.Delete(packDir, true);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to cleanup temporary variant pack directory {PackDir}", packDir);
+                }
+            }
+        }
+    }
+
+    /// <summary>
     /// Repacks extracted content into a single .big file if required by metadata.
     /// </summary>
     private async Task RepackContentIfNeededAsync(
@@ -540,16 +682,28 @@ public class CommunityOutpostDeliverer(
         var contentCode = GetContentCodeFromManifest(manifest);
         var metadata = GenPatcherContentRegistry.GetMetadata(contentCode);
 
-        if (metadata.RequiresRepacking && !string.IsNullOrEmpty(metadata.OutputFilename))
+        if (metadata.RequiresRepacking)
         {
+            // Multi-variant hotkeys repack each variant language/game subdirectory
+            if (metadata.Category == GenPatcherContentCategory.Hotkeys && metadata.SupportsVariants)
+            {
+                await RepackMultiVariantHotkeysAsync(extractPath, metadata, cancellationToken);
+                return;
+            }
+
             // Variant-based output filenames (e.g., 340_ControlBarPro{variant}ZH.big)
             // must be handled later when a specific variant is selected.
-            if (metadata.OutputFilename.Contains("{variant}", StringComparison.OrdinalIgnoreCase))
+            if (metadata.OutputFilename?.Contains("{variant}", StringComparison.OrdinalIgnoreCase) == true)
             {
                 logger.LogDebug(
                     "Skipping repack at delivery stage for {ContentCode} because output filename is variant-based: {OutputFilename}",
                     contentCode,
                     metadata.OutputFilename);
+                return;
+            }
+
+            if (string.IsNullOrEmpty(metadata.OutputFilename))
+            {
                 return;
             }
 

@@ -372,7 +372,10 @@ public class CommunityOutpostManifestFactory(
             logger.LogDebug("Found {FileCount} files in extracted directory", allFiles.Length);
 
             var fileEntries = new List<ManifestFile>();
-            var dependencyBigFiles = CollectDependencyBigFiles(contentMetadata);
+            var targetGame = (variant != null && variant.TargetGame.HasValue)
+                ? variant.TargetGame.Value
+                : originalManifest.TargetGame;
+            var dependencyBigFiles = CollectDependencyBigFiles(contentMetadata, targetGame);
 
             var alwaysIncludeFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (contentMetadata.Category == GenPatcherContentCategory.ControlBar)
@@ -543,7 +546,7 @@ public class CommunityOutpostManifestFactory(
         }
     }
 
-    private HashSet<string> CollectDependencyBigFiles(GenPatcherContentMetadata contentMetadata)
+    private HashSet<string> CollectDependencyBigFiles(GenPatcherContentMetadata contentMetadata, GameType targetGame)
     {
         var dependencyBigFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var dependency in contentMetadata.GetDependencies()
@@ -555,6 +558,11 @@ public class CommunityOutpostManifestFactory(
             {
                 var depCode = depId[(lastDot + 1)..];
                 var depMetadata = GenPatcherContentRegistry.GetMetadata(depCode);
+                if (depMetadata.TargetGame != GameType.Unknown && depMetadata.TargetGame != targetGame)
+                {
+                    continue;
+                }
+
                 if (!string.IsNullOrEmpty(depMetadata.OutputFilename))
                 {
                     dependencyBigFiles.Add(depMetadata.OutputFilename);

@@ -158,8 +158,8 @@ public class GenPatcherDependencyBuilderTests
     [Theory]
     [InlineData("hlen")]
     [InlineData("hlde")]
-    [InlineData("ewba")]
-    [InlineData("ewbi")]
+    [InlineData("hleg")]
+    [InlineData("hlei")]
     public void GetDependencies_Hotkeys_RequiresZeroHour104(string contentCode)
     {
         // Arrange
@@ -275,7 +275,7 @@ public class GenPatcherDependencyBuilderTests
         Assert.DoesNotContain("hleg", conflicts); // Should not conflict with itself
         Assert.Contains("hlde", conflicts);
         Assert.Contains("hlei", conflicts);
-        Assert.Contains("ewba", conflicts);
+        Assert.DoesNotContain("ewba", conflicts);
     }
 
     /// <summary>

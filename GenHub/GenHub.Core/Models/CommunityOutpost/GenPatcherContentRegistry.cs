@@ -47,6 +47,7 @@ public static class GenPatcherContentRegistry
     [
         new ContentVariant { Id = "zerohour-en", Name = "Leikeze's Hotkeys (EN)", VariantType = "language", Value = "en", TargetGame = GameType.ZeroHour, IncludePatterns = ["*ENZH.big"], IsDefault = true },
         new ContentVariant { Id = "zerohour-de", Name = "Leikeze's Hotkeys (DE)", VariantType = "language", Value = "de", TargetGame = GameType.ZeroHour, IncludePatterns = ["*DEZH.big"], IsDefault = false },
+        new ContentVariant { Id = "zerohour-ru", Name = "Leikeze's Hotkeys (RU)", VariantType = "language", Value = "ru", TargetGame = GameType.ZeroHour, IncludePatterns = ["*RUZH.big"], IsDefault = false },
         new ContentVariant { Id = "generals-en", Name = "Leikeze's Hotkeys [Generals] (EN)", VariantType = "language", Value = "en", TargetGame = GameType.Generals, IncludePatterns = ["!HotkeysLeikezeEN.big"], IsDefault = false },
     ];
 
@@ -193,31 +194,29 @@ public static class GenPatcherContentRegistry
             InstallTarget = ContentInstallTarget.Workspace,
         },
 
-        // Hotkeys
+        // World Builder Tools
         ["ewba"] = new GenPatcherContentMetadata
         {
             ContentCode = "ewba",
-            DisplayName = "Easy Win Hotkeys (Advanced)",
-            Description = "Advanced hotkey configuration for competitive play.",
+            DisplayName = "Enhanced World Builder (Advanced)",
+            Description = "Advanced World Builder editor with additional tools, molds, and scripts.",
             ContentType = ContentType.Addon,
             TargetGame = GameType.ZeroHour,
-            Category = GenPatcherContentCategory.Hotkeys,
+            Category = GenPatcherContentCategory.Tools,
             InstallTarget = ContentInstallTarget.Workspace,
-            RequiresRepacking = true,
-            OutputFilename = "!HotkeysEasyWinAdvancedZH.big",
         },
         ["ewbi"] = new GenPatcherContentMetadata
         {
             ContentCode = "ewbi",
-            DisplayName = "Easy Win Hotkeys (International)",
-            Description = "Standard hotkey layout optimized for non-English keyboards.",
+            DisplayName = "Enhanced World Builder (International)",
+            Description = "World Builder editor version 2.2 for international installations.",
             ContentType = ContentType.Addon,
             TargetGame = GameType.ZeroHour,
-            Category = GenPatcherContentCategory.Hotkeys,
+            Category = GenPatcherContentCategory.Tools,
             InstallTarget = ContentInstallTarget.Workspace,
-            RequiresRepacking = true,
-            OutputFilename = "!HotkeysEasyWinInternationalZH.big",
         },
+
+        // Hotkeys
         ["hlde"] = new GenPatcherContentMetadata
         {
             ContentCode = "hlde",
@@ -254,7 +253,7 @@ public static class GenPatcherContentRegistry
             Category = GenPatcherContentCategory.Hotkeys,
             InstallTarget = ContentInstallTarget.Workspace,
             RequiresRepacking = true,
-            OutputFilename = "!HotkeysLeikezeZH.big",
+            OutputFilename = "!HotkeysLeikeze{variant}.big",
             SupportsVariants = true,
             Variants = HleiVariants,
         },
