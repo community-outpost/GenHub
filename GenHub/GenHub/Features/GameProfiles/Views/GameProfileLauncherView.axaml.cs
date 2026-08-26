@@ -22,6 +22,11 @@ public partial class GameProfileLauncherView : UserControl
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
     }
 
+    private static void OnDragOver(object? sender, DragEventArgs e)
+    {
+        e.DragEffects = e.Data.Contains(DataFormats.Files) ? DragDropEffects.Copy : DragDropEffects.None;
+    }
+
     private void InitializeComponent()
     {
         Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
@@ -41,11 +46,6 @@ public partial class GameProfileLauncherView : UserControl
         {
             vm.StartHeaderTimerCommand.Execute(null);
         }
-    }
-
-    private static void OnDragOver(object? sender, DragEventArgs e)
-    {
-        e.DragEffects = e.Data.Contains(DataFormats.Files) ? DragDropEffects.Copy : DragDropEffects.None;
     }
 
     private async void OnDrop(object? sender, DragEventArgs e)

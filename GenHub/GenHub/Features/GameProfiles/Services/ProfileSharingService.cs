@@ -69,6 +69,314 @@ public class ProfileSharingService(
             ConnectToValidatedAddressAsync(ValidatedHostAddresses, context, token),
     });
 
+    private static bool IsPublicIpAddress(IPAddress ip)
+    {
+        if (IPAddress.IsLoopback(ip) || ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || ip.IsIPv6Multicast)
+        {
+            return false;
+        }
+
+        if (ip.AddressFamily != AddressFamily.InterNetwork)
+        {
+            return true;
+        }
+
+        byte[] bytes = ip.GetAddressBytes();
+        return !IsPrivateOrReservedIpv4(bytes);
+    }
+
+    private static bool IsPrivateOrReservedIpv4(byte[] bytes)
+    {
+        return bytes[0] == 10 ||
+               (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) ||
+               (bytes[0] == 192 && bytes[1] == 168) ||
+               (bytes[0] == 169 && bytes[1] == 254) ||
+               bytes[0] == 127 ||
+               bytes[0] == 0;
+    }
+
+    private static async ValueTask<Stream> ConnectToValidatedAddressAsync(
+        ConcurrentDictionary<string, HashSet<IPAddress>> validatedHosts,
+        SocketsHttpConnectionContext context,
+        CancellationToken cancellationToken)
+    {
+        string host = context.DnsEndPoint.Host;
+
+        // Reject hosts that were never cleared by the SSRF guard, and pin the connection
+        // to an address observed during validation so a rebinding DNS answer cannot reroute it.
+        if (!validatedHosts.TryGetValue(host, out var allowedAddresses))
+        {
+            throw new IOException($"Host '{host}' was not validated before connecting.");
+        }
+
+        var hostEntry = await Dns.GetHostEntryAsync(host, cancellationToken);
+        var candidate = hostEntry.AddressList.FirstOrDefault(allowedAddresses.Contains);
+        if (candidate is null)
+        {
+            throw new IOException($"DNS resolution for '{host}' returned no previously validated addresses.");
+        }
+
+        var socket = new Socket(candidate.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
+        {
+            NoDelay = true,
+        };
+
+        await socket.ConnectAsync(candidate, context.DnsEndPoint.Port, cancellationToken);
+        return new NetworkStream(socket, ownsSocket: true);
+    }
+
+    private static Dictionary<string, object?> ExtractSettingsOverridesFromProfile(GameProfile profile)
+    {
+        var dict = new Dictionary<string, object?>();
+        ExtractVideoSettingsOverrides(profile, dict);
+        ExtractTshSettingsOverrides(profile, dict);
+        ExtractGoSettingsOverrides(profile, dict);
+        return dict;
+    }
+
+    private static void ExtractVideoSettingsOverrides(GameProfile profile, Dictionary<string, object?> dict)
+    {
+        if (profile.VideoResolutionWidth.HasValue) dict[nameof(profile.VideoResolutionWidth)] = profile.VideoResolutionWidth.Value;
+        if (profile.VideoResolutionHeight.HasValue) dict[nameof(profile.VideoResolutionHeight)] = profile.VideoResolutionHeight.Value;
+        if (profile.VideoWindowed.HasValue) dict[nameof(profile.VideoWindowed)] = profile.VideoWindowed.Value;
+        if (profile.VideoTextureQuality.HasValue) dict[nameof(profile.VideoTextureQuality)] = profile.VideoTextureQuality.Value.ToString();
+        if (profile.EnableVideoShadows.HasValue) dict[nameof(profile.EnableVideoShadows)] = profile.EnableVideoShadows.Value;
+        if (profile.AudioSoundVolume.HasValue) dict[nameof(profile.AudioSoundVolume)] = profile.AudioSoundVolume.Value;
+        if (profile.AudioMusicVolume.HasValue) dict[nameof(profile.AudioMusicVolume)] = profile.AudioMusicVolume.Value;
+        if (profile.AudioSpeechVolume.HasValue) dict[nameof(profile.AudioSpeechVolume)] = profile.AudioSpeechVolume.Value;
+    }
+
+    private static void ExtractTshSettingsOverrides(GameProfile profile, Dictionary<string, object?> dict)
+    {
+        if (profile.TshArchiveReplays.HasValue) dict[nameof(profile.TshArchiveReplays)] = profile.TshArchiveReplays.Value;
+        if (profile.TshRenderFpsFontSize.HasValue) dict[nameof(profile.TshRenderFpsFontSize)] = profile.TshRenderFpsFontSize.Value;
+        if (profile.TshNetworkLatencyFontSize.HasValue) dict[nameof(profile.TshNetworkLatencyFontSize)] = profile.TshNetworkLatencyFontSize.Value;
+        if (profile.TshSystemTimeFontSize.HasValue) dict[nameof(profile.TshSystemTimeFontSize)] = profile.TshSystemTimeFontSize.Value;
+    }
+
+    private static void ExtractGoSettingsOverrides(GameProfile profile, Dictionary<string, object?> dict)
+    {
+        if (profile.GoShowFps.HasValue) dict[nameof(profile.GoShowFps)] = profile.GoShowFps.Value;
+        if (profile.GoShowPing.HasValue) dict[nameof(profile.GoShowPing)] = profile.GoShowPing.Value;
+        if (profile.GoShowPlayerRanks.HasValue) dict[nameof(profile.GoShowPlayerRanks)] = profile.GoShowPlayerRanks.Value;
+        if (profile.GoRenderFpsLimit.HasValue) dict[nameof(profile.GoRenderFpsLimit)] = profile.GoRenderFpsLimit.Value;
+    }
+
+    private static OperationResult<bool> ValidateImportRequest(SharedProfileImportRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (string.IsNullOrWhiteSpace(request.ProfileName) || request.ProfileName.Length > ProfileSharingConstants.MaxProfileNameLength)
+        {
+            return OperationResult<bool>.CreateFailure($"Profile name must be between 1 and {ProfileSharingConstants.MaxProfileNameLength} characters.");
+        }
+
+        if (request.Package?.Profile == null)
+        {
+            return OperationResult<bool>.CreateFailure("Invalid package in import request.");
+        }
+
+        if (request.Package.SchemaVersion != ProfileSharingConstants.DefaultSchemaVersion)
+        {
+            return OperationResult<bool>.CreateFailure($"Unsupported package schema version {request.Package.SchemaVersion}. Expected version {ProfileSharingConstants.DefaultSchemaVersion}.");
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static OperationResult<bool> ValidateClientCompatibility(GameInstallation? installation, SharedGameProfilePackage package)
+    {
+        if (installation == null || package.Profile.GameClientManifestId == null)
+        {
+            return OperationResult<bool>.CreateSuccess(true);
+        }
+
+        var matchedClient = installation.AvailableGameClients.FirstOrDefault(c => c.Id == package.Profile.GameClientManifestId);
+        if (matchedClient is { } client && client.GameType != package.Profile.GameType)
+        {
+            return OperationResult<bool>.CreateFailure($"Client '{client.Name}' game type ({client.GameType}) does not match shared profile game type ({package.Profile.GameType}).");
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static GameClient? ResolveGameClient(GameInstallation? installation, SharedGameProfilePackage package)
+    {
+        if (installation != null)
+        {
+            var matched = installation.AvailableGameClients.FirstOrDefault(c => c.Id == package.Profile.GameClientManifestId)
+                ?? installation.AvailableGameClients.FirstOrDefault(c => c.GameType == package.Profile.GameType)
+                ?? installation.AvailableGameClients.FirstOrDefault();
+
+            if (matched != null)
+            {
+                return matched;
+            }
+        }
+
+        if (package.Profile.GameClientManifestId != null)
+        {
+            return new GameClient
+            {
+                Id = package.Profile.GameClientManifestId,
+                Name = package.Profile.Name,
+                Version = package.Profile.GameVersion,
+                GameType = package.Profile.GameType,
+                ExecutablePath = string.Empty,
+            };
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Removes machine-specific artwork paths before a profile is packaged for sharing.
+    /// Local absolute paths, UNC paths, URLs, and traversal segments are stripped to
+    /// avoid leaking exporter filesystem details to recipients.
+    /// </summary>
+    private static string? SanitizeShareableArtworkPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        string trimmed = path.Trim();
+
+        bool isWindowsDrive = (OperatingSystem.IsWindows() && trimmed.Length >= 2 && char.IsLetter(trimmed[0]) && trimmed[1] == ':') ||
+            (trimmed.Length >= 3 && char.IsLetter(trimmed[0]) && trimmed[1] == ':' && (trimmed[2] == '/' || trimmed[2] == '\\'));
+        bool isRooted = Path.IsPathRooted(trimmed) ||
+            isWindowsDrive ||
+            trimmed.StartsWith('/') ||
+            trimmed.StartsWith('\\');
+
+        bool isShareable = !isRooted &&
+            !trimmed.Contains("://", StringComparison.Ordinal) &&
+            !trimmed.Contains("..", StringComparison.Ordinal);
+
+        return isShareable ? trimmed : null;
+    }
+
+    private static async Task<bool> IsSafeRemoteUriAsync(Uri uri, CancellationToken cancellationToken)
+    {
+        if (uri.Scheme != Uri.UriSchemeHttps || string.IsNullOrEmpty(uri.DnsSafeHost))
+        {
+            return false;
+        }
+
+        try
+        {
+            var hostEntry = await Dns.GetHostEntryAsync(uri.DnsSafeHost, cancellationToken);
+            var publicAddresses = new HashSet<IPAddress>();
+
+            foreach (var ip in hostEntry.AddressList)
+            {
+                if (!IsPublicIpAddress(ip))
+                {
+                    return false;
+                }
+
+                publicAddresses.Add(ip);
+            }
+
+            if (publicAddresses.Count == 0)
+            {
+                return false;
+            }
+
+            ValidatedHostAddresses[uri.DnsSafeHost] = publicAddresses;
+            return true;
+        }
+        catch (SocketException)
+        {
+            return false;
+        }
+    }
+
+    private static async Task<OperationResult<string>> ResolvePayloadFromLocalFileAsync(string input, CancellationToken cancellationToken)
+    {
+        if (!File.Exists(input))
+        {
+            return OperationResult<string>.CreateFailure($"Specified profile file does not exist: {input}");
+        }
+
+        var fileInfo = new FileInfo(input);
+        if (fileInfo.Length > ProfileSharingConstants.MaxProfileFileBytes)
+        {
+            return OperationResult<string>.CreateFailure($"Profile file size exceeds maximum limit ({ProfileSharingConstants.MaxProfileFileBytes} bytes).");
+        }
+
+        var fileContent = await File.ReadAllTextAsync(input, cancellationToken);
+        if (fileContent.TrimStart().StartsWith('{'))
+        {
+            return OperationResult<string>.CreateSuccess(fileContent);
+        }
+
+        var decompressed = await ProfileSharingCompressionHelper.DecodeAndDecompressAsync(fileContent.Trim(), cancellationToken);
+        return OperationResult<string>.CreateSuccess(decompressed);
+    }
+
+    private static async Task<OperationResult<string>> ResolvePayloadFromRawOrCompressedAsync(string input, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var decompressed = await ProfileSharingCompressionHelper.DecodeAndDecompressAsync(input, cancellationToken);
+            return OperationResult<string>.CreateSuccess(decompressed);
+        }
+        catch (Exception ex)
+        {
+            return OperationResult<string>.CreateFailure($"Unable to parse shared profile payload: {ex.Message}");
+        }
+    }
+
+    private static void ApplySettingsOverridesToProfile(GameProfile profile, Dictionary<string, object?> overrides)
+    {
+        ApplyVideoSettingsOverrides(profile, overrides);
+        ApplyAudioSettingsOverrides(profile, overrides);
+        ApplyTshSettingsOverrides(profile, overrides);
+        ApplyGoSettingsOverrides(profile, overrides);
+    }
+
+    private static void ApplyVideoSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
+    {
+        if (overrides.TryGetValue(nameof(profile.VideoResolutionWidth), out var widthObj) && widthObj is JsonElement widthElem && widthElem.TryGetInt32(out var width)) profile.VideoResolutionWidth = width;
+        if (overrides.TryGetValue(nameof(profile.VideoResolutionHeight), out var heightObj) && heightObj is JsonElement heightElem && heightElem.TryGetInt32(out var height)) profile.VideoResolutionHeight = height;
+        if (overrides.TryGetValue(nameof(profile.VideoWindowed), out var winObj) && winObj is JsonElement winElem) profile.VideoWindowed = winElem.GetBoolean();
+        if (overrides.TryGetValue(nameof(profile.EnableVideoShadows), out var shadowsObj) && shadowsObj is JsonElement shadowsElem) profile.EnableVideoShadows = shadowsElem.GetBoolean();
+
+        // Texture quality round-trips as a string enum name written during export.
+        if (overrides.TryGetValue(nameof(profile.VideoTextureQuality), out var textureObj)
+            && textureObj is JsonElement textureElem
+            && textureElem.ValueKind == JsonValueKind.String
+            && Enum.TryParse(textureElem.GetString(), ignoreCase: true, out TextureQuality textureQuality))
+        {
+            profile.VideoTextureQuality = textureQuality;
+        }
+    }
+
+    private static void ApplyAudioSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
+    {
+        if (overrides.TryGetValue(nameof(profile.AudioSoundVolume), out var soundObj) && soundObj is JsonElement soundElem && soundElem.TryGetInt32(out var sound)) profile.AudioSoundVolume = sound;
+        if (overrides.TryGetValue(nameof(profile.AudioMusicVolume), out var musicObj) && musicObj is JsonElement musicElem && musicElem.TryGetInt32(out var music)) profile.AudioMusicVolume = music;
+        if (overrides.TryGetValue(nameof(profile.AudioSpeechVolume), out var speechObj) && speechObj is JsonElement speechElem && speechElem.TryGetInt32(out var speech)) profile.AudioSpeechVolume = speech;
+    }
+
+    private static void ApplyTshSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
+    {
+        if (overrides.TryGetValue(nameof(profile.TshArchiveReplays), out var tshReplayObj) && tshReplayObj is JsonElement tshReplayElem) profile.TshArchiveReplays = tshReplayElem.GetBoolean();
+        if (overrides.TryGetValue(nameof(profile.TshRenderFpsFontSize), out var tshFpsObj) && tshFpsObj is JsonElement tshFpsElem && tshFpsElem.TryGetInt32(out var fpsSize)) profile.TshRenderFpsFontSize = fpsSize;
+        if (overrides.TryGetValue(nameof(profile.TshNetworkLatencyFontSize), out var tshLatObj) && tshLatObj is JsonElement tshLatElem && tshLatElem.TryGetInt32(out var latSize)) profile.TshNetworkLatencyFontSize = latSize;
+        if (overrides.TryGetValue(nameof(profile.TshSystemTimeFontSize), out var tshTimeObj) && tshTimeObj is JsonElement tshTimeElem && tshTimeElem.TryGetInt32(out var timeSize)) profile.TshSystemTimeFontSize = timeSize;
+    }
+
+    private static void ApplyGoSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
+    {
+        if (overrides.TryGetValue(nameof(profile.GoShowFps), out var goFpsObj) && goFpsObj is JsonElement goFpsElem) profile.GoShowFps = goFpsElem.GetBoolean();
+        if (overrides.TryGetValue(nameof(profile.GoShowPing), out var goPingObj) && goPingObj is JsonElement goPingElem) profile.GoShowPing = goPingElem.GetBoolean();
+        if (overrides.TryGetValue(nameof(profile.GoShowPlayerRanks), out var goRanksObj) && goRanksObj is JsonElement goRanksElem) profile.GoShowPlayerRanks = goRanksElem.GetBoolean();
+        if (overrides.TryGetValue(nameof(profile.GoRenderFpsLimit), out var goFpsLimitObj) && goFpsLimitObj is JsonElement goFpsLimitElem && goFpsLimitElem.TryGetInt32(out var fpsLimit)) profile.GoRenderFpsLimit = fpsLimit;
+    }
+
     /// <inheritdoc/>
     public async Task<OperationResult<string>> ExportProfileToUriAsync(string profileId, CancellationToken cancellationToken = default)
     {
@@ -301,230 +609,6 @@ public class ProfileSharingService(
             headerInfo,
             desc,
             shareUri);
-    }
-
-    private static bool IsPublicIpAddress(IPAddress ip)
-    {
-        if (IPAddress.IsLoopback(ip) || ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || ip.IsIPv6Multicast)
-        {
-            return false;
-        }
-
-        if (ip.AddressFamily != AddressFamily.InterNetwork)
-        {
-            return true;
-        }
-
-        byte[] bytes = ip.GetAddressBytes();
-        return !IsPrivateOrReservedIpv4(bytes);
-    }
-
-    private static bool IsPrivateOrReservedIpv4(byte[] bytes)
-    {
-        return bytes[0] == 10 ||
-               (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) ||
-               (bytes[0] == 192 && bytes[1] == 168) ||
-               (bytes[0] == 169 && bytes[1] == 254) ||
-               bytes[0] == 127 ||
-               bytes[0] == 0;
-    }
-
-    private static async ValueTask<Stream> ConnectToValidatedAddressAsync(
-        ConcurrentDictionary<string, HashSet<IPAddress>> validatedHosts,
-        SocketsHttpConnectionContext context,
-        CancellationToken cancellationToken)
-    {
-        string host = context.DnsEndPoint.Host;
-
-        // Reject hosts that were never cleared by the SSRF guard, and pin the connection
-        // to an address observed during validation so a rebinding DNS answer cannot reroute it.
-        if (!validatedHosts.TryGetValue(host, out var allowedAddresses))
-        {
-            throw new IOException($"Host '{host}' was not validated before connecting.");
-        }
-
-        var hostEntry = await Dns.GetHostEntryAsync(host, cancellationToken);
-        var candidate = hostEntry.AddressList.FirstOrDefault(allowedAddresses.Contains);
-        if (candidate is null)
-        {
-            throw new IOException($"DNS resolution for '{host}' returned no previously validated addresses.");
-        }
-
-        var socket = new Socket(candidate.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
-        {
-            NoDelay = true,
-        };
-
-        await socket.ConnectAsync(candidate, context.DnsEndPoint.Port, cancellationToken);
-        return new NetworkStream(socket, ownsSocket: true);
-    }
-
-    private static Dictionary<string, object?> ExtractSettingsOverridesFromProfile(GameProfile profile)
-    {
-        var dict = new Dictionary<string, object?>();
-        ExtractVideoSettingsOverrides(profile, dict);
-        ExtractTshSettingsOverrides(profile, dict);
-        ExtractGoSettingsOverrides(profile, dict);
-        return dict;
-    }
-
-    private static void ExtractVideoSettingsOverrides(GameProfile profile, Dictionary<string, object?> dict)
-    {
-        if (profile.VideoResolutionWidth.HasValue) dict[nameof(profile.VideoResolutionWidth)] = profile.VideoResolutionWidth.Value;
-        if (profile.VideoResolutionHeight.HasValue) dict[nameof(profile.VideoResolutionHeight)] = profile.VideoResolutionHeight.Value;
-        if (profile.VideoWindowed.HasValue) dict[nameof(profile.VideoWindowed)] = profile.VideoWindowed.Value;
-        if (profile.VideoTextureQuality.HasValue) dict[nameof(profile.VideoTextureQuality)] = profile.VideoTextureQuality.Value.ToString();
-        if (profile.EnableVideoShadows.HasValue) dict[nameof(profile.EnableVideoShadows)] = profile.EnableVideoShadows.Value;
-        if (profile.AudioSoundVolume.HasValue) dict[nameof(profile.AudioSoundVolume)] = profile.AudioSoundVolume.Value;
-        if (profile.AudioMusicVolume.HasValue) dict[nameof(profile.AudioMusicVolume)] = profile.AudioMusicVolume.Value;
-        if (profile.AudioSpeechVolume.HasValue) dict[nameof(profile.AudioSpeechVolume)] = profile.AudioSpeechVolume.Value;
-    }
-
-    private static void ExtractTshSettingsOverrides(GameProfile profile, Dictionary<string, object?> dict)
-    {
-        if (profile.TshArchiveReplays.HasValue) dict[nameof(profile.TshArchiveReplays)] = profile.TshArchiveReplays.Value;
-        if (profile.TshRenderFpsFontSize.HasValue) dict[nameof(profile.TshRenderFpsFontSize)] = profile.TshRenderFpsFontSize.Value;
-        if (profile.TshNetworkLatencyFontSize.HasValue) dict[nameof(profile.TshNetworkLatencyFontSize)] = profile.TshNetworkLatencyFontSize.Value;
-        if (profile.TshSystemTimeFontSize.HasValue) dict[nameof(profile.TshSystemTimeFontSize)] = profile.TshSystemTimeFontSize.Value;
-    }
-
-    private static void ExtractGoSettingsOverrides(GameProfile profile, Dictionary<string, object?> dict)
-    {
-        if (profile.GoShowFps.HasValue) dict[nameof(profile.GoShowFps)] = profile.GoShowFps.Value;
-        if (profile.GoShowPing.HasValue) dict[nameof(profile.GoShowPing)] = profile.GoShowPing.Value;
-        if (profile.GoShowPlayerRanks.HasValue) dict[nameof(profile.GoShowPlayerRanks)] = profile.GoShowPlayerRanks.Value;
-        if (profile.GoRenderFpsLimit.HasValue) dict[nameof(profile.GoRenderFpsLimit)] = profile.GoRenderFpsLimit.Value;
-    }
-
-    private static OperationResult<bool> ValidateImportRequest(SharedProfileImportRequest request)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-
-        if (string.IsNullOrWhiteSpace(request.ProfileName) || request.ProfileName.Length > ProfileSharingConstants.MaxProfileNameLength)
-        {
-            return OperationResult<bool>.CreateFailure($"Profile name must be between 1 and {ProfileSharingConstants.MaxProfileNameLength} characters.");
-        }
-
-        if (request.Package?.Profile == null)
-        {
-            return OperationResult<bool>.CreateFailure("Invalid package in import request.");
-        }
-
-        if (request.Package.SchemaVersion != ProfileSharingConstants.DefaultSchemaVersion)
-        {
-            return OperationResult<bool>.CreateFailure($"Unsupported package schema version {request.Package.SchemaVersion}. Expected version {ProfileSharingConstants.DefaultSchemaVersion}.");
-        }
-
-        return OperationResult<bool>.CreateSuccess(true);
-    }
-
-    private static OperationResult<bool> ValidateClientCompatibility(GameInstallation? installation, SharedGameProfilePackage package)
-    {
-        if (installation == null || package.Profile.GameClientManifestId == null)
-        {
-            return OperationResult<bool>.CreateSuccess(true);
-        }
-
-        var matchedClient = installation.AvailableGameClients.FirstOrDefault(c => c.Id == package.Profile.GameClientManifestId);
-        if (matchedClient is { } client && client.GameType != package.Profile.GameType)
-        {
-            return OperationResult<bool>.CreateFailure($"Client '{client.Name}' game type ({client.GameType}) does not match shared profile game type ({package.Profile.GameType}).");
-        }
-
-        return OperationResult<bool>.CreateSuccess(true);
-    }
-
-    private static GameClient? ResolveGameClient(GameInstallation? installation, SharedGameProfilePackage package)
-    {
-        if (installation != null)
-        {
-            var matched = installation.AvailableGameClients.FirstOrDefault(c => c.Id == package.Profile.GameClientManifestId)
-                ?? installation.AvailableGameClients.FirstOrDefault(c => c.GameType == package.Profile.GameType)
-                ?? installation.AvailableGameClients.FirstOrDefault();
-
-            if (matched != null)
-            {
-                return matched;
-            }
-        }
-
-        if (package.Profile.GameClientManifestId != null)
-        {
-            return new GameClient
-            {
-                Id = package.Profile.GameClientManifestId,
-                Name = package.Profile.Name,
-                Version = package.Profile.GameVersion,
-                GameType = package.Profile.GameType,
-                ExecutablePath = string.Empty,
-            };
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Removes machine-specific artwork paths before a profile is packaged for sharing.
-    /// Local absolute paths, UNC paths, URLs, and traversal segments are stripped to
-    /// avoid leaking exporter filesystem details to recipients.
-    /// </summary>
-    private static string? SanitizeShareableArtworkPath(string? path)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-        {
-            return null;
-        }
-
-        string trimmed = path.Trim();
-
-        bool isWindowsDrive = (OperatingSystem.IsWindows() && trimmed.Length >= 2 && char.IsLetter(trimmed[0]) && trimmed[1] == ':') ||
-            (trimmed.Length >= 3 && char.IsLetter(trimmed[0]) && trimmed[1] == ':' && (trimmed[2] == '/' || trimmed[2] == '\\'));
-        bool isRooted = Path.IsPathRooted(trimmed) ||
-            isWindowsDrive ||
-            trimmed.StartsWith('/') ||
-            trimmed.StartsWith('\\');
-
-        bool isShareable = !isRooted &&
-            !trimmed.Contains("://", StringComparison.Ordinal) &&
-            !trimmed.Contains("..", StringComparison.Ordinal);
-
-        return isShareable ? trimmed : null;
-    }
-
-    private static async Task<bool> IsSafeRemoteUriAsync(Uri uri, CancellationToken cancellationToken)
-    {
-        if (uri.Scheme != Uri.UriSchemeHttps || string.IsNullOrEmpty(uri.DnsSafeHost))
-        {
-            return false;
-        }
-
-        try
-        {
-            var hostEntry = await Dns.GetHostEntryAsync(uri.DnsSafeHost, cancellationToken);
-            var publicAddresses = new HashSet<IPAddress>();
-
-            foreach (var ip in hostEntry.AddressList)
-            {
-                if (!IsPublicIpAddress(ip))
-                {
-                    return false;
-                }
-
-                publicAddresses.Add(ip);
-            }
-
-            if (publicAddresses.Count == 0)
-            {
-                return false;
-            }
-
-            ValidatedHostAddresses[uri.DnsSafeHost] = publicAddresses;
-            return true;
-        }
-        catch (SocketException)
-        {
-            return false;
-        }
     }
 
     private async Task<GameInstallation?> ResolveSelectedInstallationAsync(string? installationId, CancellationToken cancellationToken)
@@ -796,42 +880,6 @@ public class ProfileSharingService(
         return OperationResult<string>.CreateFailure($"Unsupported or malformed genhub:// sharing URI: {input}");
     }
 
-    private static async Task<OperationResult<string>> ResolvePayloadFromLocalFileAsync(string input, CancellationToken cancellationToken)
-    {
-        if (!File.Exists(input))
-        {
-            return OperationResult<string>.CreateFailure($"Specified profile file does not exist: {input}");
-        }
-
-        var fileInfo = new FileInfo(input);
-        if (fileInfo.Length > ProfileSharingConstants.MaxProfileFileBytes)
-        {
-            return OperationResult<string>.CreateFailure($"Profile file size exceeds maximum limit ({ProfileSharingConstants.MaxProfileFileBytes} bytes).");
-        }
-
-        var fileContent = await File.ReadAllTextAsync(input, cancellationToken);
-        if (fileContent.TrimStart().StartsWith('{'))
-        {
-            return OperationResult<string>.CreateSuccess(fileContent);
-        }
-
-        var decompressed = await ProfileSharingCompressionHelper.DecodeAndDecompressAsync(fileContent.Trim(), cancellationToken);
-        return OperationResult<string>.CreateSuccess(decompressed);
-    }
-
-    private static async Task<OperationResult<string>> ResolvePayloadFromRawOrCompressedAsync(string input, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var decompressed = await ProfileSharingCompressionHelper.DecodeAndDecompressAsync(input, cancellationToken);
-            return OperationResult<string>.CreateSuccess(decompressed);
-        }
-        catch (Exception ex)
-        {
-            return OperationResult<string>.CreateFailure($"Unable to parse shared profile payload: {ex.Message}");
-        }
-    }
-
     private async Task<OperationResult<string>> FetchRemotePayloadWithLimitAsync(Uri profileUri, CancellationToken cancellationToken)
     {
         using var response = await safeHttpClient.GetAsync(profileUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
@@ -1058,54 +1106,6 @@ public class ProfileSharingService(
             dependency.ManifestId);
         return OperationResult<bool>.CreateFailure(
             $"Dependency '{dependency.DisplayName}' ({dependency.ManifestId}) was not found in the local cache or any connected content source.");
-    }
-
-    private static void ApplySettingsOverridesToProfile(GameProfile profile, Dictionary<string, object?> overrides)
-    {
-        ApplyVideoSettingsOverrides(profile, overrides);
-        ApplyAudioSettingsOverrides(profile, overrides);
-        ApplyTshSettingsOverrides(profile, overrides);
-        ApplyGoSettingsOverrides(profile, overrides);
-    }
-
-    private static void ApplyVideoSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
-    {
-        if (overrides.TryGetValue(nameof(profile.VideoResolutionWidth), out var widthObj) && widthObj is JsonElement widthElem && widthElem.TryGetInt32(out var width)) profile.VideoResolutionWidth = width;
-        if (overrides.TryGetValue(nameof(profile.VideoResolutionHeight), out var heightObj) && heightObj is JsonElement heightElem && heightElem.TryGetInt32(out var height)) profile.VideoResolutionHeight = height;
-        if (overrides.TryGetValue(nameof(profile.VideoWindowed), out var winObj) && winObj is JsonElement winElem) profile.VideoWindowed = winElem.GetBoolean();
-        if (overrides.TryGetValue(nameof(profile.EnableVideoShadows), out var shadowsObj) && shadowsObj is JsonElement shadowsElem) profile.EnableVideoShadows = shadowsElem.GetBoolean();
-
-        // Texture quality round-trips as a string enum name written during export.
-        if (overrides.TryGetValue(nameof(profile.VideoTextureQuality), out var textureObj)
-            && textureObj is JsonElement textureElem
-            && textureElem.ValueKind == JsonValueKind.String
-            && Enum.TryParse(textureElem.GetString(), ignoreCase: true, out TextureQuality textureQuality))
-        {
-            profile.VideoTextureQuality = textureQuality;
-        }
-    }
-
-    private static void ApplyAudioSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
-    {
-        if (overrides.TryGetValue(nameof(profile.AudioSoundVolume), out var soundObj) && soundObj is JsonElement soundElem && soundElem.TryGetInt32(out var sound)) profile.AudioSoundVolume = sound;
-        if (overrides.TryGetValue(nameof(profile.AudioMusicVolume), out var musicObj) && musicObj is JsonElement musicElem && musicElem.TryGetInt32(out var music)) profile.AudioMusicVolume = music;
-        if (overrides.TryGetValue(nameof(profile.AudioSpeechVolume), out var speechObj) && speechObj is JsonElement speechElem && speechElem.TryGetInt32(out var speech)) profile.AudioSpeechVolume = speech;
-    }
-
-    private static void ApplyTshSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
-    {
-        if (overrides.TryGetValue(nameof(profile.TshArchiveReplays), out var tshReplayObj) && tshReplayObj is JsonElement tshReplayElem) profile.TshArchiveReplays = tshReplayElem.GetBoolean();
-        if (overrides.TryGetValue(nameof(profile.TshRenderFpsFontSize), out var tshFpsObj) && tshFpsObj is JsonElement tshFpsElem && tshFpsElem.TryGetInt32(out var fpsSize)) profile.TshRenderFpsFontSize = fpsSize;
-        if (overrides.TryGetValue(nameof(profile.TshNetworkLatencyFontSize), out var tshLatObj) && tshLatObj is JsonElement tshLatElem && tshLatElem.TryGetInt32(out var latSize)) profile.TshNetworkLatencyFontSize = latSize;
-        if (overrides.TryGetValue(nameof(profile.TshSystemTimeFontSize), out var tshTimeObj) && tshTimeObj is JsonElement tshTimeElem && tshTimeElem.TryGetInt32(out var timeSize)) profile.TshSystemTimeFontSize = timeSize;
-    }
-
-    private static void ApplyGoSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
-    {
-        if (overrides.TryGetValue(nameof(profile.GoShowFps), out var goFpsObj) && goFpsObj is JsonElement goFpsElem) profile.GoShowFps = goFpsElem.GetBoolean();
-        if (overrides.TryGetValue(nameof(profile.GoShowPing), out var goPingObj) && goPingObj is JsonElement goPingElem) profile.GoShowPing = goPingElem.GetBoolean();
-        if (overrides.TryGetValue(nameof(profile.GoShowPlayerRanks), out var goRanksObj) && goRanksObj is JsonElement goRanksElem) profile.GoShowPlayerRanks = goRanksElem.GetBoolean();
-        if (overrides.TryGetValue(nameof(profile.GoRenderFpsLimit), out var goFpsLimitObj) && goFpsLimitObj is JsonElement goFpsLimitElem && goFpsLimitElem.TryGetInt32(out var fpsLimit)) profile.GoRenderFpsLimit = fpsLimit;
     }
 
     private OperationResult<SharedGameProfilePackage> DeserializeSharedPackage(string json)

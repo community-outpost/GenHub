@@ -78,6 +78,16 @@ public partial class ShareProfileDialogViewModel : ViewModelBase
         DiscordMarkdown = profileSharingService.GenerateDiscordMarkdown(profile, shareUri);
     }
 
+    private static TopLevel? GetMainWindowTopLevel()
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } mainWindow })
+        {
+            return TopLevel.GetTopLevel(mainWindow);
+        }
+
+        return null;
+    }
+
     [RelayCommand]
     private async Task CopyUriAsync()
     {
@@ -160,16 +170,6 @@ public partial class ShareProfileDialogViewModel : ViewModelBase
             _logger.LogError(ex, "Failed to export profile file.");
             ShowStatus("Failed to export profile file.");
         }
-    }
-
-    private static TopLevel? GetMainWindowTopLevel()
-    {
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } mainWindow })
-        {
-            return TopLevel.GetTopLevel(mainWindow);
-        }
-
-        return null;
     }
 
     private FilePickerSaveOptions CreateExportFilePickerOptions()
