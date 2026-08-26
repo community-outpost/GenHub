@@ -94,7 +94,7 @@ public class ProfileSharingServiceTests
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
-        Assert.StartsWith("genhub://profile/import?data=", result.Data, StringComparison.OrdinalIgnoreCase);
+        Assert.StartsWith($"{CommandLineConstants.ProfileImportUriPrefix}?{CommandLineConstants.DataQueryParam}", result.Data, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -190,7 +190,7 @@ public class ProfileSharingServiceTests
 
         var json = JsonSerializer.Serialize(package, TestJsonOptions);
         var encoded = ProfileSharingCompressionHelper.CompressAndEncode(json);
-        var uri = $"genhub://profile/import?data={encoded}";
+        var uri = $"{CommandLineConstants.ProfileImportUriPrefix}?{CommandLineConstants.DataQueryParam}{encoded}";
 
         _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync("1.0.community.mod.cachedmod", It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
@@ -313,7 +313,7 @@ public class ProfileSharingServiceTests
             Description = "Play with 144Hz limit and widescreen support",
             GameClient = new GameClient { Name = "Generals", Version = "1.08", GameType = GameType.Generals },
         };
-        var shareUri = "genhub://profile/import?data=TEST_PAYLOAD";
+        var shareUri = $"{CommandLineConstants.ProfileImportUriPrefix}?{CommandLineConstants.DataQueryParam}TEST_PAYLOAD";
 
         // Act
         var markdown = _service.GenerateDiscordMarkdown(profile, shareUri);
@@ -406,28 +406,28 @@ public class ProfileSharingServiceTests
     }
 
     /// <summary>
-    /// Verifies that exporting a profile excludes any local GameInstallation manifests from required manifests.
+    /// Verifies that GameInstallation manifests are excluded from exported package RequiredManifests.
     /// </summary>
     /// <returns>A task representing the test.</returns>
     [Fact]
-    public async Task ExportProfile_Should_ExcludeGameInstallationManifests_FromRequiredManifestsAsync()
+    public async Task ExportProfile_Should_FilterOutGameInstallationManifestsAsync()
     {
         // Arrange
-        var profile = CreateTestProfile("profile-export-filter", "Shockwave Generals");
+        var profile = CreateTestProfile("profile-export-filter", "Filter Test");
         profile.EnabledContentIds =
         [
+            "1.0.generalsonline.gameclient.generalsonline",
             "1.104.steam.gameinstallation.zerohour",
-            "1.0.generalsonline.gameclient.generalsonline"
         ];
 
         _profileRepositoryMock.Setup(r => r.LoadProfileAsync("profile-export-filter", It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
 
-        var gameClientManifest = CreateTestManifest("1.0.generalsonline.gameclient.generalsonline", "Generals Online", ContentType.GameClient);
-        _manifestPoolMock.Setup(m => m.GetManifestAsync("1.0.generalsonline.gameclient.generalsonline", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(gameClientManifest));
+        var clientManifest = CreateTestManifest("1.0.generalsonline.gameclient.generalsonline", "Generals Online", ContentType.GameClient);
+        var installManifest = CreateTestManifest("1.104.steam.gameinstallation.zerohour", "Zero Hour", ContentType.GameInstallation);
 
-        var installManifest = CreateTestManifest("1.104.steam.gameinstallation.zerohour", "Steam Zero Hour", ContentType.GameInstallation);
+        _manifestPoolMock.Setup(m => m.GetManifestAsync("1.0.generalsonline.gameclient.generalsonline", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(clientManifest));
         _manifestPoolMock.Setup(m => m.GetManifestAsync("1.104.steam.gameinstallation.zerohour", It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(installManifest));
 
@@ -438,12 +438,13 @@ public class ProfileSharingServiceTests
         Assert.True(uriResult.Success);
         Assert.NotNull(uriResult.Data);
 
-        var dataParam = uriResult.Data.Replace("genhub://profile/import?data=", string.Empty);
+        var dataParam = uriResult.Data.Replace($"{CommandLineConstants.ProfileImportUriPrefix}?{CommandLineConstants.DataQueryParam}", string.Empty);
         var json = ProfileSharingCompressionHelper.DecodeAndDecompress(dataParam);
         var package = JsonSerializer.Deserialize<SharedGameProfilePackage>(json, TestJsonOptions);
 
         Assert.NotNull(package);
         Assert.Single(package.RequiredManifests);
+
         Assert.Equal("1.0.generalsonline.gameclient.generalsonline", package.RequiredManifests[0].ManifestId);
         Assert.DoesNotContain(package.RequiredManifests, m => m.ManifestId == "1.104.steam.gameinstallation.zerohour");
     }
@@ -758,7 +759,7 @@ public class ProfileSharingServiceTests
         Assert.True(uriResult.Success);
         Assert.NotNull(uriResult.Data);
 
-        var dataParam = uriResult.Data.Replace("genhub://profile/import?data=", string.Empty);
+        var dataParam = uriResult.Data.Replace($"{CommandLineConstants.ProfileImportUriPrefix}?{CommandLineConstants.DataQueryParam}", string.Empty);
         var json = ProfileSharingCompressionHelper.DecodeAndDecompress(dataParam);
         var package = JsonSerializer.Deserialize<SharedGameProfilePackage>(json, TestJsonOptions);
 
@@ -789,7 +790,7 @@ public class ProfileSharingServiceTests
         Assert.True(uriResult.Success);
         Assert.NotNull(uriResult.Data);
 
-        var dataParam = uriResult.Data.Replace("genhub://profile/import?data=", string.Empty);
+        var dataParam = uriResult.Data.Replace($"{CommandLineConstants.ProfileImportUriPrefix}?{CommandLineConstants.DataQueryParam}", string.Empty);
         var json = ProfileSharingCompressionHelper.DecodeAndDecompress(dataParam);
         var package = JsonSerializer.Deserialize<SharedGameProfilePackage>(json, TestJsonOptions);
 

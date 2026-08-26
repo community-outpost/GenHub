@@ -902,7 +902,7 @@ public partial class GameProfileSettingsViewModel
             return;
         }
 
-        if (_profileSharingService == null)
+        if (_profileSharingService == null || _gameProfileManager == null)
         {
             _localNotificationService.ShowError("Error", "Profile sharing service is not available.");
             return;
@@ -919,7 +919,7 @@ public partial class GameProfileSettingsViewModel
                 return;
             }
 
-            var profileResult = await _gameProfileManager!.GetProfileAsync(CurrentProfileId);
+            var profileResult = await _gameProfileManager.GetProfileAsync(CurrentProfileId);
             if (!profileResult.Success || profileResult.Data == null)
             {
                 _localNotificationService.ShowError("Share Failed", "Failed to load profile details.");
@@ -931,7 +931,7 @@ public partial class GameProfileSettingsViewModel
                 profileResult.Data,
                 uriResult.Data,
                 _profileSharingService,
-                (ILogger)_logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ShareProfileDialogViewModel>.Instance);
+                (ILogger?)_logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ShareProfileDialogViewModel>.Instance);
 
             var dialog = new Views.ShareProfileDialogWindow
             {

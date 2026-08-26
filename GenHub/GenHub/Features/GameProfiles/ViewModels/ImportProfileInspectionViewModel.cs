@@ -237,7 +237,6 @@ public partial class ImportProfileInspectionViewModel : ObservableObject
             CurrentOperationName = "Starting import...";
             ImportProgressPercentage = 0;
 
-            _importCts?.Dispose();
             _importCts = new CancellationTokenSource();
 
             var progress = new Progress<ContentAcquisitionProgress>(p =>
@@ -268,9 +267,9 @@ public partial class ImportProfileInspectionViewModel : ObservableObject
                 SetError(result.FirstError ?? "Failed to import profile.");
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            _logger.LogInformation("Profile import was cancelled by user.");
+            _logger.LogInformation(ex, "Profile import was cancelled by user.");
             SetError("Import cancelled.");
         }
         catch (Exception ex)

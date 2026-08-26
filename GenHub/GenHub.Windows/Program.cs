@@ -49,59 +49,9 @@ public class Program
         using var bootstrapLoggerFactory = LoggingModule.CreateBootstrapLoggerFactory();
         var bootstrapLogger = bootstrapLoggerFactory.CreateLogger<Program>();
 
-        // Extract profile ID from args if present (for IPC forwarding)
-        var profileId = CommandLineParser.ExtractProfileId(args);
-
-        // Extract genhub://subscribe?url=... target (catalog JSON today; definition URL later)
-        var subscriptionUrl = CommandLineParser.ExtractSubscriptionUrl(args);
-
-        // Extract profile share URI or .ghprofile path if present
-        var profileShareUri = CommandLineParser.ExtractProfileShareUri(args);
-
-        // Check for multi-instance mode (useful for debugging with multiple instances)
-        bool multiInstance = args.Contains("--multi-instance", StringComparer.OrdinalIgnoreCase) ||
-                             args.Contains("-m", StringComparer.OrdinalIgnoreCase) ||
-                             Environment.GetEnvironmentVariable("GENHUB_MULTI_INSTANCE") == "1";
-
-        if (!multiInstance)
+        if (TryForwardToExistingInstance(args, bootstrapLogger, bootstrapLoggerFactory))
         {
-            // Initialize single-instance manager
-            _singleInstanceManager = new SingleInstanceManager(bootstrapLoggerFactory.CreateLogger<SingleInstanceManager>());
-
-            if (!_singleInstanceManager.IsFirstInstance)
-            {
-                // Forward launch command to primary instance if we have a profile ID
-                if (!string.IsNullOrEmpty(profileId))
-                {
-                    bootstrapLogger.LogInformation("Forwarding launch-profile command to primary instance: {ProfileId}", profileId);
-                    SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.LaunchProfilePrefix}{profileId}");
-                }
-
-                // Forward subscribe so the running UI can show the confirmation dialog
-                if (!string.IsNullOrEmpty(subscriptionUrl))
-                {
-                    bootstrapLogger.LogInformation("Forwarding subscribe command to primary instance: {Url}", subscriptionUrl);
-                    SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.SubscribePrefix}{subscriptionUrl}");
-                }
-
-                // Forward import-profile so the running UI can show the inspection window
-                if (!string.IsNullOrEmpty(profileShareUri))
-                {
-                    bootstrapLogger.LogInformation("Forwarding import-profile command to primary instance");
-                    SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.ImportProfilePrefix}{profileShareUri}");
-                }
-
-                // Focus the existing instance
-                SingleInstanceManager.FocusPrimaryInstance();
-
-                // Exit this secondary instance
-                _singleInstanceManager.Dispose();
-                return;
-            }
-        }
-        else
-        {
-            bootstrapLogger.LogInformation("Multi-instance mode enabled - skipping single-instance check");
+            return;
         }
 
         // Register the genhub:// URI scheme with Windows so clicked links open this executable.
@@ -157,4 +107,52 @@ public class Program
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace();
+
+    private static bool TryForwardToExistingInstance(string[] args, ILogger bootstrapLogger, ILoggerFactory bootstrapLoggerFactory)
+    {
+        bool multiInstance = args.Contains("--multi-instance", StringComparer.OrdinalIgnoreCase) ||
+                             args.Contains("-m", StringComparer.OrdinalIgnoreCase) ||
+                             Environment.GetEnvironmentVariable("GENHUB_MULTI_INSTANCE") == "1";
+
+        if (multiInstance)
+        {
+            bootstrapLogger.LogInformation("Multi-instance mode enabled - skipping single-instance check");
+            return false;
+        }
+
+        _singleInstanceManager = new SingleInstanceManager(bootstrapLoggerFactory.CreateLogger<SingleInstanceManager>());
+        if (_singleInstanceManager.IsFirstInstance)
+        {
+            return false;
+        }
+
+        ForwardCommandLineCommands(args, bootstrapLogger);
+        SingleInstanceManager.FocusPrimaryInstance();
+        _singleInstanceManager.Dispose();
+        return true;
+    }
+
+    private static void ForwardCommandLineCommands(string[] args, ILogger bootstrapLogger)
+    {
+        var profileId = CommandLineParser.ExtractProfileId(args);
+        if (!string.IsNullOrEmpty(profileId))
+        {
+            bootstrapLogger.LogInformation("Forwarding launch-profile command to primary instance: {ProfileId}", profileId);
+            SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.LaunchProfilePrefix}{profileId}");
+        }
+
+        var subscriptionUrl = CommandLineParser.ExtractSubscriptionUrl(args);
+        if (!string.IsNullOrEmpty(subscriptionUrl))
+        {
+            bootstrapLogger.LogInformation("Forwarding subscribe command to primary instance: {Url}", subscriptionUrl);
+            SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.SubscribePrefix}{subscriptionUrl}");
+        }
+
+        var profileShareUri = CommandLineParser.ExtractProfileShareUri(args);
+        if (!string.IsNullOrEmpty(profileShareUri))
+        {
+            bootstrapLogger.LogInformation("Forwarding import-profile command to primary instance");
+            SingleInstanceManager.SendCommandToPrimaryInstance($"{IpcCommands.ImportProfilePrefix}{profileShareUri}");
+        }
+    }
 }

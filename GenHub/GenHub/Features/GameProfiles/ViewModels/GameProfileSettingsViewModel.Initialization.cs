@@ -139,6 +139,14 @@ public partial class GameProfileSettingsViewModel
             OnPropertyChanged(nameof(CanShareProfile));
             _logger?.LogInformation("InitializeForProfileAsync called with profileId: {ProfileId}", profileId);
 
+            if (_gameProfileManager == null)
+            {
+                _logger?.LogWarning("GameProfileManager is null; cannot load profile {ProfileId}", profileId);
+                StatusMessage = "Failed to load profile";
+                LoadingError = true;
+                return;
+            }
+
             var profileResult = await _gameProfileManager.GetProfileAsync(profileId);
             if (!profileResult.Success || profileResult.Data == null)
             {

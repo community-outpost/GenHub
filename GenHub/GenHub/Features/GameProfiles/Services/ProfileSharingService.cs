@@ -310,18 +310,23 @@ public class ProfileSharingService(
             return false;
         }
 
-        byte[] bytes = ip.GetAddressBytes();
-        if (ip.AddressFamily == AddressFamily.InterNetwork)
+        if (ip.AddressFamily != AddressFamily.InterNetwork)
         {
-            if (bytes[0] == 10) return false;
-            if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) return false;
-            if (bytes[0] == 192 && bytes[1] == 168) return false;
-            if (bytes[0] == 169 && bytes[1] == 254) return false;
-            if (bytes[0] == 127) return false;
-            if (bytes[0] == 0) return false;
+            return true;
         }
 
-        return true;
+        byte[] bytes = ip.GetAddressBytes();
+        return !IsPrivateOrReservedIpv4(bytes);
+    }
+
+    private static bool IsPrivateOrReservedIpv4(byte[] bytes)
+    {
+        return bytes[0] == 10 ||
+               (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) ||
+               (bytes[0] == 192 && bytes[1] == 168) ||
+               (bytes[0] == 169 && bytes[1] == 254) ||
+               bytes[0] == 127 ||
+               bytes[0] == 0;
     }
 
     private static async ValueTask<Stream> ConnectToValidatedAddressAsync(
@@ -357,8 +362,14 @@ public class ProfileSharingService(
     private static Dictionary<string, object?> ExtractSettingsOverridesFromProfile(GameProfile profile)
     {
         var dict = new Dictionary<string, object?>();
+        ExtractVideoSettingsOverrides(profile, dict);
+        ExtractTshSettingsOverrides(profile, dict);
+        ExtractGoSettingsOverrides(profile, dict);
+        return dict;
+    }
 
-        // Video settings
+    private static void ExtractVideoSettingsOverrides(GameProfile profile, Dictionary<string, object?> dict)
+    {
         if (profile.VideoResolutionWidth.HasValue) dict[nameof(profile.VideoResolutionWidth)] = profile.VideoResolutionWidth.Value;
         if (profile.VideoResolutionHeight.HasValue) dict[nameof(profile.VideoResolutionHeight)] = profile.VideoResolutionHeight.Value;
         if (profile.VideoWindowed.HasValue) dict[nameof(profile.VideoWindowed)] = profile.VideoWindowed.Value;
@@ -367,20 +378,22 @@ public class ProfileSharingService(
         if (profile.AudioSoundVolume.HasValue) dict[nameof(profile.AudioSoundVolume)] = profile.AudioSoundVolume.Value;
         if (profile.AudioMusicVolume.HasValue) dict[nameof(profile.AudioMusicVolume)] = profile.AudioMusicVolume.Value;
         if (profile.AudioSpeechVolume.HasValue) dict[nameof(profile.AudioSpeechVolume)] = profile.AudioSpeechVolume.Value;
+    }
 
-        // TSH settings
+    private static void ExtractTshSettingsOverrides(GameProfile profile, Dictionary<string, object?> dict)
+    {
         if (profile.TshArchiveReplays.HasValue) dict[nameof(profile.TshArchiveReplays)] = profile.TshArchiveReplays.Value;
         if (profile.TshRenderFpsFontSize.HasValue) dict[nameof(profile.TshRenderFpsFontSize)] = profile.TshRenderFpsFontSize.Value;
         if (profile.TshNetworkLatencyFontSize.HasValue) dict[nameof(profile.TshNetworkLatencyFontSize)] = profile.TshNetworkLatencyFontSize.Value;
         if (profile.TshSystemTimeFontSize.HasValue) dict[nameof(profile.TshSystemTimeFontSize)] = profile.TshSystemTimeFontSize.Value;
+    }
 
-        // GO settings
+    private static void ExtractGoSettingsOverrides(GameProfile profile, Dictionary<string, object?> dict)
+    {
         if (profile.GoShowFps.HasValue) dict[nameof(profile.GoShowFps)] = profile.GoShowFps.Value;
         if (profile.GoShowPing.HasValue) dict[nameof(profile.GoShowPing)] = profile.GoShowPing.Value;
         if (profile.GoShowPlayerRanks.HasValue) dict[nameof(profile.GoShowPlayerRanks)] = profile.GoShowPlayerRanks.Value;
         if (profile.GoRenderFpsLimit.HasValue) dict[nameof(profile.GoRenderFpsLimit)] = profile.GoRenderFpsLimit.Value;
-
-        return dict;
     }
 
     private static OperationResult<bool> ValidateImportRequest(SharedProfileImportRequest request)
@@ -478,7 +491,7 @@ public class ProfileSharingService(
         return isShareable ? trimmed : null;
     }
 
-    private async Task<bool> IsSafeRemoteUriAsync(Uri uri, CancellationToken cancellationToken)
+    private static async Task<bool> IsSafeRemoteUriAsync(Uri uri, CancellationToken cancellationToken)
     {
         if (uri.Scheme != Uri.UriSchemeHttps || string.IsNullOrEmpty(uri.DnsSafeHost))
         {
@@ -720,83 +733,94 @@ public class ProfileSharingService(
     {
         string input = shareUriOrJsonOrPath.Trim();
 
-        // Check if URI scheme format
         if (input.StartsWith(CommandLineConstants.UriScheme, StringComparison.OrdinalIgnoreCase))
         {
-            if (input.StartsWith(CommandLineConstants.ProfileImportUriPrefix, StringComparison.OrdinalIgnoreCase))
-            {
-                int dataParamIdx = input.IndexOf(CommandLineConstants.DataQueryParam, StringComparison.OrdinalIgnoreCase);
-                if (dataParamIdx != -1)
-                {
-                    string encoded = input[(dataParamIdx + CommandLineConstants.DataQueryParam.Length)..];
-                    int nextParamIdx = encoded.IndexOf('&');
-                    if (nextParamIdx != -1)
-                    {
-                        encoded = encoded[..nextParamIdx];
-                    }
-
-                    if (encoded.Length > ProfileSharingConstants.MaxInlinePayloadLength)
-                    {
-                        return OperationResult<string>.CreateFailure($"Inline payload length ({encoded.Length}) exceeds maximum permitted size.");
-                    }
-
-                    string decompressed = await ProfileSharingCompressionHelper.DecodeAndDecompressAsync(encoded, cancellationToken);
-                    return OperationResult<string>.CreateSuccess(decompressed);
-                }
-
-                int urlParamIdx = input.IndexOf(CommandLineConstants.UrlQueryParam, StringComparison.OrdinalIgnoreCase);
-                if (urlParamIdx != -1)
-                {
-                    string url = Uri.UnescapeDataString(input[(urlParamIdx + CommandLineConstants.UrlQueryParam.Length)..]);
-                    int nextParamIdx = url.IndexOf('&');
-                    if (nextParamIdx != -1)
-                    {
-                        url = url[..nextParamIdx];
-                    }
-
-                    if (!Uri.TryCreate(url, UriKind.Absolute, out var profileUri) || !await IsSafeRemoteUriAsync(profileUri, cancellationToken))
-                    {
-                        return OperationResult<string>.CreateFailure($"Remote URL '{url}' is blocked by security policies.");
-                    }
-
-                    return await FetchRemotePayloadWithLimitAsync(profileUri, cancellationToken);
-                }
-            }
-
-            return OperationResult<string>.CreateFailure($"Unsupported or malformed genhub:// sharing URI: {input}");
+            return await ResolvePayloadFromUriAsync(input, cancellationToken);
         }
 
-        // Check if local file path
         if (File.Exists(input) || input.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase))
         {
-            if (!File.Exists(input))
-            {
-                return OperationResult<string>.CreateFailure($"Specified profile file does not exist: {input}");
-            }
-
-            var fileInfo = new FileInfo(input);
-            if (fileInfo.Length > ProfileSharingConstants.MaxProfileFileBytes)
-            {
-                return OperationResult<string>.CreateFailure($"Profile file size exceeds maximum limit ({ProfileSharingConstants.MaxProfileFileBytes} bytes).");
-            }
-
-            var fileContent = await File.ReadAllTextAsync(input, cancellationToken);
-            if (fileContent.TrimStart().StartsWith('{'))
-            {
-                return OperationResult<string>.CreateSuccess(fileContent);
-            }
-
-            var decompressed = await ProfileSharingCompressionHelper.DecodeAndDecompressAsync(fileContent.Trim(), cancellationToken);
-            return OperationResult<string>.CreateSuccess(decompressed);
+            return await ResolvePayloadFromLocalFileAsync(input, cancellationToken);
         }
 
-        // Check if raw JSON string
         if (input.StartsWith('{'))
         {
             return OperationResult<string>.CreateSuccess(input);
         }
 
-        // Try direct Base64Url decompress
+        return await ResolvePayloadFromRawOrCompressedAsync(input, cancellationToken);
+    }
+
+    private async Task<OperationResult<string>> ResolvePayloadFromUriAsync(string input, CancellationToken cancellationToken)
+    {
+        if (input.StartsWith(CommandLineConstants.ProfileImportUriPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            int dataParamIdx = input.IndexOf(CommandLineConstants.DataQueryParam, StringComparison.OrdinalIgnoreCase);
+            if (dataParamIdx != -1)
+            {
+                string encoded = input[(dataParamIdx + CommandLineConstants.DataQueryParam.Length)..];
+                int nextParamIdx = encoded.IndexOf('&');
+                if (nextParamIdx != -1)
+                {
+                    encoded = encoded[..nextParamIdx];
+                }
+
+                if (encoded.Length > ProfileSharingConstants.MaxInlinePayloadLength)
+                {
+                    return OperationResult<string>.CreateFailure($"Inline payload length ({encoded.Length}) exceeds maximum permitted size.");
+                }
+
+                string decompressed = await ProfileSharingCompressionHelper.DecodeAndDecompressAsync(encoded, cancellationToken);
+                return OperationResult<string>.CreateSuccess(decompressed);
+            }
+
+            int urlParamIdx = input.IndexOf(CommandLineConstants.UrlQueryParam, StringComparison.OrdinalIgnoreCase);
+            if (urlParamIdx != -1)
+            {
+                string url = Uri.UnescapeDataString(input[(urlParamIdx + CommandLineConstants.UrlQueryParam.Length)..]);
+                int nextParamIdx = url.IndexOf('&');
+                if (nextParamIdx != -1)
+                {
+                    url = url[..nextParamIdx];
+                }
+
+                if (!Uri.TryCreate(url, UriKind.Absolute, out var profileUri) || !await IsSafeRemoteUriAsync(profileUri, cancellationToken))
+                {
+                    return OperationResult<string>.CreateFailure($"Remote URL '{url}' is blocked by security policies.");
+                }
+
+                return await FetchRemotePayloadWithLimitAsync(profileUri, cancellationToken);
+            }
+        }
+
+        return OperationResult<string>.CreateFailure($"Unsupported or malformed genhub:// sharing URI: {input}");
+    }
+
+    private static async Task<OperationResult<string>> ResolvePayloadFromLocalFileAsync(string input, CancellationToken cancellationToken)
+    {
+        if (!File.Exists(input))
+        {
+            return OperationResult<string>.CreateFailure($"Specified profile file does not exist: {input}");
+        }
+
+        var fileInfo = new FileInfo(input);
+        if (fileInfo.Length > ProfileSharingConstants.MaxProfileFileBytes)
+        {
+            return OperationResult<string>.CreateFailure($"Profile file size exceeds maximum limit ({ProfileSharingConstants.MaxProfileFileBytes} bytes).");
+        }
+
+        var fileContent = await File.ReadAllTextAsync(input, cancellationToken);
+        if (fileContent.TrimStart().StartsWith('{'))
+        {
+            return OperationResult<string>.CreateSuccess(fileContent);
+        }
+
+        var decompressed = await ProfileSharingCompressionHelper.DecodeAndDecompressAsync(fileContent.Trim(), cancellationToken);
+        return OperationResult<string>.CreateSuccess(decompressed);
+    }
+
+    private static async Task<OperationResult<string>> ResolvePayloadFromRawOrCompressedAsync(string input, CancellationToken cancellationToken)
+    {
         try
         {
             var decompressed = await ProfileSharingCompressionHelper.DecodeAndDecompressAsync(input, cancellationToken);
@@ -886,12 +910,12 @@ public class ProfileSharingService(
                     Name = dependency.Publisher ?? "Community",
                     PublisherType = dependency.PublisherType ?? PublisherTypeConstants.Unknown,
                 },
-                Files = [.. dependency.Files!],
+                Files = [.. dependency.Files],
             };
 
             var canonicalStagingPrefix = Path.GetFullPath(stagingDir) + Path.DirectorySeparatorChar;
 
-            foreach (var file in dependency.Files!)
+            foreach (var file in dependency.Files)
             {
                 var downloadResult = await DownloadAndVerifyFileAsync(file, stagingDir, canonicalStagingPrefix, cancellationToken);
                 if (!downloadResult.Success)
@@ -1036,7 +1060,7 @@ public class ProfileSharingService(
             $"Dependency '{dependency.DisplayName}' ({dependency.ManifestId}) was not found in the local cache or any connected content source.");
     }
 
-    private void ApplySettingsOverridesToProfile(GameProfile profile, Dictionary<string, object?> overrides)
+    private static void ApplySettingsOverridesToProfile(GameProfile profile, Dictionary<string, object?> overrides)
     {
         ApplyVideoSettingsOverrides(profile, overrides);
         ApplyAudioSettingsOverrides(profile, overrides);
@@ -1044,7 +1068,7 @@ public class ProfileSharingService(
         ApplyGoSettingsOverrides(profile, overrides);
     }
 
-    private void ApplyVideoSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
+    private static void ApplyVideoSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
     {
         if (overrides.TryGetValue(nameof(profile.VideoResolutionWidth), out var widthObj) && widthObj is JsonElement widthElem && widthElem.TryGetInt32(out var width)) profile.VideoResolutionWidth = width;
         if (overrides.TryGetValue(nameof(profile.VideoResolutionHeight), out var heightObj) && heightObj is JsonElement heightElem && heightElem.TryGetInt32(out var height)) profile.VideoResolutionHeight = height;
@@ -1061,14 +1085,14 @@ public class ProfileSharingService(
         }
     }
 
-    private void ApplyAudioSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
+    private static void ApplyAudioSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
     {
         if (overrides.TryGetValue(nameof(profile.AudioSoundVolume), out var soundObj) && soundObj is JsonElement soundElem && soundElem.TryGetInt32(out var sound)) profile.AudioSoundVolume = sound;
         if (overrides.TryGetValue(nameof(profile.AudioMusicVolume), out var musicObj) && musicObj is JsonElement musicElem && musicElem.TryGetInt32(out var music)) profile.AudioMusicVolume = music;
         if (overrides.TryGetValue(nameof(profile.AudioSpeechVolume), out var speechObj) && speechObj is JsonElement speechElem && speechElem.TryGetInt32(out var speech)) profile.AudioSpeechVolume = speech;
     }
 
-    private void ApplyTshSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
+    private static void ApplyTshSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
     {
         if (overrides.TryGetValue(nameof(profile.TshArchiveReplays), out var tshReplayObj) && tshReplayObj is JsonElement tshReplayElem) profile.TshArchiveReplays = tshReplayElem.GetBoolean();
         if (overrides.TryGetValue(nameof(profile.TshRenderFpsFontSize), out var tshFpsObj) && tshFpsObj is JsonElement tshFpsElem && tshFpsElem.TryGetInt32(out var fpsSize)) profile.TshRenderFpsFontSize = fpsSize;
@@ -1076,7 +1100,7 @@ public class ProfileSharingService(
         if (overrides.TryGetValue(nameof(profile.TshSystemTimeFontSize), out var tshTimeObj) && tshTimeObj is JsonElement tshTimeElem && tshTimeElem.TryGetInt32(out var timeSize)) profile.TshSystemTimeFontSize = timeSize;
     }
 
-    private void ApplyGoSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
+    private static void ApplyGoSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
     {
         if (overrides.TryGetValue(nameof(profile.GoShowFps), out var goFpsObj) && goFpsObj is JsonElement goFpsElem) profile.GoShowFps = goFpsElem.GetBoolean();
         if (overrides.TryGetValue(nameof(profile.GoShowPing), out var goPingObj) && goPingObj is JsonElement goPingElem) profile.GoShowPing = goPingElem.GetBoolean();

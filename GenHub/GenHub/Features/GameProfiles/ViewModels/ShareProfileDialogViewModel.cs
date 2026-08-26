@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -130,47 +131,28 @@ public partial class ShareProfileDialogViewModel : ViewModelBase
     {
         try
         {
-            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
-                desktop.MainWindow != null)
+            var topLevel = GetMainWindowTopLevel();
+            if (topLevel?.StorageProvider == null)
             {
-                var topLevel = TopLevel.GetTopLevel(desktop.MainWindow);
-                if (topLevel?.StorageProvider != null)
-                {
-                    string safeProfileName = string.Join("_", ProfileName.Split(Path.GetInvalidFileNameChars(), StringSplitOptions.RemoveEmptyEntries)).Replace(' ', '_');
-                    if (string.IsNullOrWhiteSpace(safeProfileName))
-                    {
-                        safeProfileName = "profile";
-                    }
+                return;
+            }
 
-                    var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-                    {
-                        Title = "Export Game Profile Package",
-                        SuggestedFileName = $"{safeProfileName}{ProfileSharingConstants.ProfileFileExtension}",
-                        DefaultExtension = ProfileSharingConstants.ProfileFileExtension.TrimStart('.'),
-                        FileTypeChoices =
-                        [
-                            new FilePickerFileType(ProfileSharingConstants.ProfileFileTypeDisplayName)
-                            {
-                                Patterns = [ProfileSharingConstants.ProfileFilePattern],
-                            },
-                        ],
-                    });
+            var file = await topLevel.StorageProvider.SaveFilePickerAsync(CreateExportFilePickerOptions());
+            if (file == null)
+            {
+                return;
+            }
 
-                    if (file != null)
-                    {
-                        var destination = file.Path.LocalPath;
-                        var result = await _profileSharingService.ExportProfileToFileAsync(_profileId, destination);
-                        if (result.Success)
-                        {
-                            ShowStatus("Profile package exported successfully!");
-                            _logger.LogInformation("Exported profile {ProfileName} to {Path}", ProfileName, destination);
-                        }
-                        else
-                        {
-                            ShowStatus($"Export failed: {result.FirstError}");
-                        }
-                    }
-                }
+            var destination = file.Path.LocalPath;
+            var result = await _profileSharingService.ExportProfileToFileAsync(_profileId, destination);
+            if (result.Success)
+            {
+                ShowStatus("Profile package exported successfully!");
+                _logger.LogInformation("Exported profile {ProfileName} to {Path}", ProfileName, destination);
+            }
+            else
+            {
+                ShowStatus($"Export failed: {result.FirstError}");
             }
         }
         catch (Exception ex)
@@ -178,6 +160,39 @@ public partial class ShareProfileDialogViewModel : ViewModelBase
             _logger.LogError(ex, "Failed to export profile file.");
             ShowStatus("Failed to export profile file.");
         }
+    }
+
+    private static TopLevel? GetMainWindowTopLevel()
+    {
+        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: { } mainWindow })
+        {
+            return TopLevel.GetTopLevel(mainWindow);
+        }
+
+        return null;
+    }
+
+    private FilePickerSaveOptions CreateExportFilePickerOptions()
+    {
+        string safeProfileName = string.Join("_", ProfileName.Split(Path.GetInvalidFileNameChars(), StringSplitOptions.RemoveEmptyEntries)).Replace(' ', '_');
+        if (string.IsNullOrWhiteSpace(safeProfileName))
+        {
+            safeProfileName = "profile";
+        }
+
+        return new FilePickerSaveOptions
+        {
+            Title = "Export Game Profile Package",
+            SuggestedFileName = $"{safeProfileName}{ProfileSharingConstants.ProfileFileExtension}",
+            DefaultExtension = ProfileSharingConstants.ProfileFileExtension.TrimStart('.'),
+            FileTypeChoices =
+            [
+                new FilePickerFileType(ProfileSharingConstants.ProfileFileTypeDisplayName)
+                {
+                    Patterns = [ProfileSharingConstants.ProfileFilePattern],
+                },
+            ],
+        };
     }
 
     [RelayCommand]

@@ -104,7 +104,7 @@ public static class ProfileSharingCompressionHelper
                 throw new InvalidDataException("Decompressed profile package exceeds maximum allowed size.");
             }
 
-            outputStream.Write(buffer, 0, bytesRead);
+            await outputStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
         }
 
         return Encoding.UTF8.GetString(outputStream.ToArray());

@@ -56,8 +56,7 @@ public partial class GameProfileLauncherViewModel(
     ISetupWizardService setupWizardService,
     IDialogService dialogService,
     ILogger<GameProfileLauncherViewModel> logger,
-    ILogger<ImportProfileInspectionViewModel>? inspectionViewModelLogger = null,
-    ILogger<ShareProfileDialogViewModel>? shareDialogViewModelLogger = null,
+    ILoggerFactory? loggerFactory = null,
     IProfileSharingService? profileSharingService = null) : ViewModelBase,
     IRecipient<ProfileCreatedMessage>,
     IRecipient<ProfileUpdatedMessage>,
@@ -65,11 +64,6 @@ public partial class GameProfileLauncherViewModel(
 {
     private readonly SemaphoreSlim _launchSemaphore = new(1, 1);
     private readonly SemaphoreSlim _importDialogSemaphore = new(1, 1);
-    private readonly ILogger<ImportProfileInspectionViewModel> inspectionLogger = inspectionViewModelLogger
-        ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ImportProfileInspectionViewModel>.Instance;
-
-    private readonly ILogger<ShareProfileDialogViewModel> shareDialogLogger = shareDialogViewModelLogger
-        ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ShareProfileDialogViewModel>.Instance;
 
     private readonly System.Timers.Timer _headerCollapseTimer = new(TimeIntervals.HeaderCollapseDelayMs);
     private readonly System.Timers.Timer _headerExpansionTimer = new(TimeIntervals.HeaderExpansionDelayMs);
@@ -388,7 +382,7 @@ public partial class GameProfileLauncherViewModel(
                 inspectResult.Data,
                 profileSharingService,
                 notificationService,
-                inspectionLogger);
+                loggerFactory?.CreateLogger<ImportProfileInspectionViewModel>() ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ImportProfileInspectionViewModel>.Instance);
 
             var dialog = new Views.ImportProfileInspectionWindow
             {
@@ -1865,7 +1859,7 @@ public partial class GameProfileLauncherViewModel(
                 profileResult.Data,
                 uriResult.Data,
                 profileSharingService,
-                shareDialogLogger);
+                loggerFactory?.CreateLogger<ShareProfileDialogViewModel>() ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ShareProfileDialogViewModel>.Instance);
 
             var dialog = new Views.ShareProfileDialogWindow
             {
