@@ -1,8 +1,10 @@
 using System;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.Services;
 using GenHub.Features.Tools.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace GenHub.Infrastructure.DependencyInjection;
 
@@ -23,6 +25,8 @@ public static class UploadThingModule
             client.Timeout = TimeSpan.FromMinutes(2);
             client.DefaultRequestHeaders.UserAgent.ParseAdd(ApiConstants.DefaultUserAgent);
         });
+
+        services.TryAddSingleton<IUploadHistoryService, UploadHistoryService>();
 
         return services;
     }
