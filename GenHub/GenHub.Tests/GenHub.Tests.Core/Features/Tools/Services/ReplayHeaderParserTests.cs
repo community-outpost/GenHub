@@ -21,7 +21,7 @@ public sealed class ReplayHeaderParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ParseHeaderAsync_ValidReplayStream_ExtractsMetadataSuccessfully()
+    public async Task ParseHeaderAsync_ValidReplayStream_ExtractsMetadataSuccessfullyAsync()
     {
         // Construct valid GENREP stream
         using var stream = new MemoryStream();
@@ -85,7 +85,7 @@ public sealed class ReplayHeaderParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ParseHeaderAsync_InvalidMagic_ReturnsFailure()
+    public async Task ParseHeaderAsync_InvalidMagic_ReturnsFailureAsync()
     {
         using var stream = new MemoryStream(Encoding.ASCII.GetBytes("INVALID_HEADER_DATA_STREAM_TEST_LONG_ENOUGH"));
 
@@ -100,7 +100,7 @@ public sealed class ReplayHeaderParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ParseHeaderAsync_TooShort_ReturnsFailure()
+    public async Task ParseHeaderAsync_TooShort_ReturnsFailureAsync()
     {
         using var stream = new MemoryStream(new byte[10]);
 
@@ -115,7 +115,7 @@ public sealed class ReplayHeaderParserTests
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task ParseHeaderAsync_NonExistentFile_ReturnsFailure()
+    public async Task ParseHeaderAsync_NonExistentFile_ReturnsFailureAsync()
     {
         var result = await _parser.ParseHeaderAsync("/non/existent/path/replay.rep");
 
