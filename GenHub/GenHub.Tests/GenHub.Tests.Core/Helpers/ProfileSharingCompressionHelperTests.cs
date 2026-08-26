@@ -89,6 +89,29 @@ public class ProfileSharingCompressionHelperTests
     }
 
     /// <summary>
+    /// Verifies that quote, percent, and control characters are stripped and reported as security warnings.
+    /// </summary>
+    [Fact]
+    public void SanitizeCommandLineArguments_Should_Strip_QuotesPercentAndControlCharacters()
+    {
+        // Arrange
+        var dangerousArgs = "-win \"-mod\" %APPDATA% -log\u0009tail\u000Afile";
+
+        // Act
+        var sanitized = ProfileSharingCompressionHelper.SanitizeCommandLineArguments(dangerousArgs, out var warnings);
+
+        // Assert
+        Assert.DoesNotContain("\"", sanitized);
+        Assert.DoesNotContain("'", sanitized);
+        Assert.DoesNotContain("%", sanitized);
+        Assert.DoesNotContain("\u0009", sanitized);
+        Assert.DoesNotContain("\u000A", sanitized);
+        Assert.Contains("-win -mod APPDATA -logtailfile", sanitized);
+        Assert.Contains(warnings, w => w.Contains("Quote and percent characters"));
+        Assert.Contains(warnings, w => w.Contains("Control characters"));
+    }
+
+    /// <summary>
     /// Verifies that empty or null arguments produce empty string and no warnings.
     /// </summary>
     /// <param name="input">The input command line string.</param>

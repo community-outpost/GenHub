@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -110,7 +111,8 @@ public static class ProfileSharingCompressionHelper
     }
 
     /// <summary>
-    /// Sanitizes command-line arguments to prevent command injection and unauthorized flags.
+    /// Sanitizes command-line arguments to prevent command injection, environment variable
+    /// expansion, argument splitting via control characters, and quote-based flag injection.
     /// </summary>
     /// <param name="arguments">The raw command line arguments string from the shared package.</param>
     /// <param name="warnings">Output list of warnings if potentially unsafe characters were sanitized.</param>
@@ -123,24 +125,52 @@ public static class ProfileSharingCompressionHelper
             return string.Empty;
         }
 
-        string sanitized = arguments;
-        bool hasDangerousChars = false;
+        bool removedShellCharacters = false;
+        bool removedQuotesOrPercent = false;
+        bool removedControlCharacters = false;
 
-        foreach (char dangerousChar in DangerousArgumentCharacters)
+        char[] buffer = new char[arguments.Length];
+        int length = 0;
+
+        foreach (char current in arguments)
         {
-            if (sanitized.Contains(dangerousChar))
+            if (DangerousArgumentCharacters.Contains(current))
             {
-                hasDangerousChars = true;
-                sanitized = sanitized.Replace(dangerousChar.ToString(), string.Empty);
+                removedShellCharacters = true;
+                continue;
             }
+
+            if (current is '"' or '\'' or '%')
+            {
+                removedQuotesOrPercent = true;
+                continue;
+            }
+
+            if (char.IsControl(current))
+            {
+                removedControlCharacters = true;
+                continue;
+            }
+
+            buffer[length++] = current;
         }
 
-        if (hasDangerousChars)
+        if (removedShellCharacters)
         {
             warnings.Add("Disallowed special command characters (| & ; > < ` $) were removed from launch arguments.");
         }
 
-        return sanitized.Trim();
+        if (removedQuotesOrPercent)
+        {
+            warnings.Add("Quote and percent characters were removed from launch arguments.");
+        }
+
+        if (removedControlCharacters)
+        {
+            warnings.Add("Control characters were removed from launch arguments.");
+        }
+
+        return new string(buffer, 0, length).Trim();
     }
 
     /// <summary>

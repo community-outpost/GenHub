@@ -124,7 +124,8 @@ public partial class ImportProfileInspectionViewModel : ObservableObject
             return path;
         }
 
-        if (Path.IsPathRooted(path) || path.StartsWith(@"\\", StringComparison.Ordinal) || path.Contains("://", StringComparison.Ordinal))
+        if (Path.IsPathRooted(path) || path.StartsWith(@"\\", StringComparison.Ordinal) ||
+            path.Contains("://", StringComparison.Ordinal) || path.Contains("..", StringComparison.Ordinal))
         {
             return null;
         }
@@ -236,6 +237,7 @@ public partial class ImportProfileInspectionViewModel : ObservableObject
             CurrentOperationName = "Starting import...";
             ImportProgressPercentage = 0;
 
+            _importCts?.Dispose();
             _importCts = new CancellationTokenSource();
 
             var progress = new Progress<ContentAcquisitionProgress>(p =>
@@ -286,6 +288,8 @@ public partial class ImportProfileInspectionViewModel : ObservableObject
     private void Cancel()
     {
         _importCts?.Cancel();
+        _importCts?.Dispose();
+        _importCts = null;
         CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 

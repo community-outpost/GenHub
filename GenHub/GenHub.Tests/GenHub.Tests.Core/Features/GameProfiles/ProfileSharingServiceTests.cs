@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -14,6 +13,7 @@ using GenHub.Core.Interfaces.Content;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
+using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameInstallations;
@@ -21,6 +21,7 @@ using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.GameProfiles;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Results.Content;
 using GenHub.Features.Content.Services.Publishers;
 using GenHub.Features.GameProfiles.Services;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -49,7 +50,6 @@ public class ProfileSharingServiceTests
     private readonly Mock<IGameInstallationService> _installationServiceMock = new();
     private readonly Mock<IContentOrchestrator> _contentOrchestratorMock = new();
     private readonly PublisherManifestFactoryResolver _factoryResolver;
-    private readonly HttpClient _httpClient = new();
     private readonly ProfileSharingService _service;
 
     /// <summary>
@@ -69,7 +69,6 @@ public class ProfileSharingServiceTests
             _installationServiceMock.Object,
             _contentOrchestratorMock.Object,
             _factoryResolver,
-            _httpClient,
             NullLogger<ProfileSharingService>.Instance);
     }
 
@@ -578,6 +577,121 @@ public class ProfileSharingServiceTests
         Assert.NotNull(savedProfile);
         Assert.Contains("1.0.community.mod.testmod", savedProfile.EnabledContentIds);
         Assert.Contains(savedProfile.EnabledContentIds, id => id.Contains(".steam.gameinstallation.zerohour", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Verifies that importing fails when no game installation can be resolved for the request.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ImportSharedProfileAsync_Should_ReturnFailure_WhenNoInstallationResolvedAsync()
+    {
+        // Arrange
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = ProfileSharingConstants.DefaultSchemaVersion,
+            Profile = new SharedProfileMetadata { Name = "No Install Profile", GameType = GameType.ZeroHour },
+            RequiredManifests = [],
+        };
+        var request = new SharedProfileImportRequest
+        {
+            Package = package,
+            ProfileName = "My Imported Profile",
+            GameInstallationId = null,
+        };
+
+        // Act
+        var result = await _service.ImportSharedProfileAsync(request);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("No compatible game installation", result.FirstError);
+    }
+
+    /// <summary>
+    /// Verifies that acquiring a missing dependency with no embedded files and no matching
+    /// remote content fails instead of silently registering an empty placeholder manifest.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ImportSharedProfileAsync_Should_Fail_WhenDependencyCannotBeAcquiredAsync()
+    {
+        // Arrange
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = ProfileSharingConstants.DefaultSchemaVersion,
+            Profile = new SharedProfileMetadata { Name = "Missing Dep Profile", GameType = GameType.ZeroHour },
+            RequiredManifests =
+            [
+                new SharedManifestDependency
+                {
+                    ManifestId = "1.0.community.mod.ghostmod",
+                    DisplayName = "Ghost Mod",
+                    Version = "1.0",
+                    ContentType = ContentType.Mod,
+                },
+            ],
+        };
+
+        var installation = new GameInstallation("/games/zh", GameInstallationType.Retail)
+        {
+            Id = "inst-1",
+            HasZeroHour = true,
+            AvailableGameClients = [new GameClient { Id = "c1", Name = "Zero Hour", GameType = GameType.ZeroHour }],
+        };
+
+        _installationServiceMock.Setup(i => i.GetInstallationAsync("inst-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(installation));
+        _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync("1.0.community.mod.ghostmod", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+        _contentOrchestratorMock.Setup(o => o.SearchAsync(It.IsAny<ContentSearchQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IEnumerable<ContentSearchResult>>.CreateSuccess([]));
+
+        var request = new SharedProfileImportRequest
+        {
+            Package = package,
+            ProfileName = "My Imported Profile",
+            GameInstallationId = "inst-1",
+        };
+
+        // Act
+        var result = await _service.ImportSharedProfileAsync(request);
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("Ghost Mod", result.FirstError);
+        _manifestPoolMock.Verify(m => m.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that machine-specific artwork paths are stripped when a profile is packaged for sharing.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ExportProfile_Should_StripLocalArtworkPaths_FromSharedPackageAsync()
+    {
+        // Arrange
+        var profile = CreateTestProfile("profile-artwork", "Artwork Profile");
+        profile.IconPath = @"C:\Users\someone\Pictures\icon.png";
+        profile.CoverPath = "covers/relative-cover.png";
+
+        _profileRepositoryMock.Setup(r => r.LoadProfileAsync("profile-artwork", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        // Act
+        var uriResult = await _service.ExportProfileToUriAsync("profile-artwork");
+
+        // Assert
+        Assert.True(uriResult.Success);
+        Assert.NotNull(uriResult.Data);
+
+        var dataParam = uriResult.Data.Replace("genhub://profile/import?data=", string.Empty);
+        var json = ProfileSharingCompressionHelper.DecodeAndDecompress(dataParam);
+        var package = JsonSerializer.Deserialize<SharedGameProfilePackage>(json, TestJsonOptions);
+
+        Assert.NotNull(package);
+        Assert.Null(package.Profile.IconPath);
+        Assert.Equal("covers/relative-cover.png", package.Profile.CoverPath);
     }
 
     private static GameProfile CreateTestProfile(string id, string name)

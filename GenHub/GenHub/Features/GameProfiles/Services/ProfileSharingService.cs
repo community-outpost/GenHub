@@ -1,10 +1,13 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -38,7 +41,6 @@ public class ProfileSharingService(
     IGameInstallationService installationService,
     IContentOrchestrator contentOrchestrator,
     PublisherManifestFactoryResolver publisherManifestFactoryResolver,
-    HttpClient httpClient,
     ILogger<ProfileSharingService> logger) : IProfileSharingService
 {
     private sealed record ManifestInspectionSummary(
@@ -55,6 +57,17 @@ public class ProfileSharingService(
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         Converters = { new JsonStringEnumConverter() },
     };
+
+    // Hosts validated by the SSRF guard, mapped to the public IP addresses observed at validation time.
+    // Static because connections are pinned through a shared handler; entries are refreshed on every validation.
+    private static readonly ConcurrentDictionary<string, HashSet<IPAddress>> ValidatedHostAddresses = new(StringComparer.OrdinalIgnoreCase);
+
+    // HTTP client whose connections are pinned to previously validated addresses, defeating DNS rebinding.
+    private readonly HttpClient safeHttpClient = new(new SocketsHttpHandler
+    {
+        ConnectCallback = (context, token) =>
+            ConnectToValidatedAddressAsync(ValidatedHostAddresses, context, token),
+    });
 
     /// <inheritdoc/>
     public async Task<OperationResult<string>> ExportProfileToUriAsync(string profileId, CancellationToken cancellationToken = default)
@@ -233,6 +246,11 @@ public class ProfileSharingService(
 
             var package = request.Package;
             var selectedInstallation = await ResolveSelectedInstallationAsync(request.GameInstallationId, cancellationToken);
+            if (selectedInstallation == null)
+            {
+                return OperationResult<GameProfile>.CreateFailure(
+                    "No compatible game installation is available. Install a matching game before importing this profile.");
+            }
 
             var compatibilityResult = ValidateClientCompatibility(selectedInstallation, package);
             if (!compatibilityResult.Success)
@@ -285,41 +303,55 @@ public class ProfileSharingService(
             shareUri);
     }
 
-    private static async Task<bool> IsSafeRemoteUriAsync(Uri uri, CancellationToken cancellationToken)
+    private static bool IsPublicIpAddress(IPAddress ip)
     {
-        if (uri.Scheme != Uri.UriSchemeHttps)
+        if (IPAddress.IsLoopback(ip) || ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || ip.IsIPv6Multicast)
         {
             return false;
         }
 
-        try
+        byte[] bytes = ip.GetAddressBytes();
+        if (ip.AddressFamily == AddressFamily.InterNetwork)
         {
-            var hostEntry = await Dns.GetHostEntryAsync(uri.DnsSafeHost, cancellationToken);
-            foreach (var ip in hostEntry.AddressList)
-            {
-                if (IPAddress.IsLoopback(ip) || ip.IsIPv6LinkLocal || ip.IsIPv6SiteLocal || ip.IsIPv6Multicast)
-                {
-                    return false;
-                }
-
-                byte[] bytes = ip.GetAddressBytes();
-                if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
-                {
-                    if (bytes[0] == 10) return false;
-                    if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) return false;
-                    if (bytes[0] == 192 && bytes[1] == 168) return false;
-                    if (bytes[0] == 169 && bytes[1] == 254) return false;
-                    if (bytes[0] == 127) return false;
-                    if (bytes[0] == 0) return false;
-                }
-            }
-
-            return true;
+            if (bytes[0] == 10) return false;
+            if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) return false;
+            if (bytes[0] == 192 && bytes[1] == 168) return false;
+            if (bytes[0] == 169 && bytes[1] == 254) return false;
+            if (bytes[0] == 127) return false;
+            if (bytes[0] == 0) return false;
         }
-        catch
+
+        return true;
+    }
+
+    private static async ValueTask<Stream> ConnectToValidatedAddressAsync(
+        ConcurrentDictionary<string, HashSet<IPAddress>> validatedHosts,
+        SocketsHttpConnectionContext context,
+        CancellationToken cancellationToken)
+    {
+        string host = context.DnsEndPoint.Host;
+
+        // Reject hosts that were never cleared by the SSRF guard, and pin the connection
+        // to an address observed during validation so a rebinding DNS answer cannot reroute it.
+        if (!validatedHosts.TryGetValue(host, out var allowedAddresses))
         {
-            return false;
+            throw new IOException($"Host '{host}' was not validated before connecting.");
         }
+
+        var hostEntry = await Dns.GetHostEntryAsync(host, cancellationToken);
+        var candidate = hostEntry.AddressList.FirstOrDefault(allowedAddresses.Contains);
+        if (candidate is null)
+        {
+            throw new IOException($"DNS resolution for '{host}' returned no previously validated addresses.");
+        }
+
+        var socket = new Socket(candidate.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
+        {
+            NoDelay = true,
+        };
+
+        await socket.ConnectAsync(candidate, context.DnsEndPoint.Port, cancellationToken);
+        return new NetworkStream(socket, ownsSocket: true);
     }
 
     private static Dictionary<string, object?> ExtractSettingsOverridesFromProfile(GameProfile profile)
@@ -416,6 +448,62 @@ public class ProfileSharingService(
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Removes machine-specific artwork paths before a profile is packaged for sharing.
+    /// Local absolute paths, UNC paths, URLs, and traversal segments are stripped to
+    /// avoid leaking exporter filesystem details to recipients.
+    /// </summary>
+    private static string? SanitizeShareableArtworkPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        bool isShareable = !Path.IsPathRooted(path) &&
+            !path.StartsWith(@"\\", StringComparison.Ordinal) &&
+            !path.Contains("://", StringComparison.Ordinal) &&
+            !path.Contains("..", StringComparison.Ordinal);
+
+        return isShareable ? path : null;
+    }
+
+    private async Task<bool> IsSafeRemoteUriAsync(Uri uri, CancellationToken cancellationToken)
+    {
+        if (uri.Scheme != Uri.UriSchemeHttps || string.IsNullOrEmpty(uri.DnsSafeHost))
+        {
+            return false;
+        }
+
+        try
+        {
+            var hostEntry = await Dns.GetHostEntryAsync(uri.DnsSafeHost, cancellationToken);
+            var publicAddresses = new HashSet<IPAddress>();
+
+            foreach (var ip in hostEntry.AddressList)
+            {
+                if (!IsPublicIpAddress(ip))
+                {
+                    return false;
+                }
+
+                publicAddresses.Add(ip);
+            }
+
+            if (publicAddresses.Count == 0)
+            {
+                return false;
+            }
+
+            ValidatedHostAddresses[uri.DnsSafeHost] = publicAddresses;
+            return true;
+        }
+        catch (SocketException)
+        {
+            return false;
+        }
     }
 
     private async Task<GameInstallation?> ResolveSelectedInstallationAsync(string? installationId, CancellationToken cancellationToken)
@@ -518,8 +606,8 @@ public class ProfileSharingService(
             Name = request.ProfileName,
             Description = package.Profile.Description,
             ThemeColor = package.Profile.ThemeColor ?? "#1976D2",
-            IconPath = package.Profile.IconPath,
-            CoverPath = package.Profile.CoverPath,
+            IconPath = SanitizeShareableArtworkPath(package.Profile.IconPath),
+            CoverPath = SanitizeShareableArtworkPath(package.Profile.CoverPath),
             GameInstallationId = request.GameInstallationId,
             GameClient = gameClient,
             WorkspaceStrategy = package.Profile.WorkspaceStrategy,
@@ -568,7 +656,6 @@ public class ProfileSharingService(
                     ContentType = manifest.ContentType,
                     Publisher = manifest.Publisher?.Name,
                     PublisherType = manifest.Publisher?.PublisherType,
-                    ManifestUrl = manifest.Publisher?.ContentIndexUrl,
                     DownloadSize = manifest.Files?.Sum(f => f.Size) ?? 0,
                     IsCachedLocally = true,
                     Files = manifest.Files ?? [],
@@ -605,8 +692,8 @@ public class ProfileSharingService(
                 Name = profile.Name,
                 Description = profile.Description ?? string.Empty,
                 ThemeColor = profile.ThemeColor,
-                IconPath = profile.IconPath,
-                CoverPath = profile.CoverPath,
+                IconPath = SanitizeShareableArtworkPath(profile.IconPath),
+                CoverPath = SanitizeShareableArtworkPath(profile.CoverPath),
                 GameType = profile.GameClient?.GameType ?? GameType.ZeroHour,
                 GameVersion = profile.Version,
                 GameClientManifestId = profile.GameClient?.Id,
@@ -664,8 +751,7 @@ public class ProfileSharingService(
                         return OperationResult<string>.CreateFailure($"Remote URL '{url}' is blocked by security policies.");
                     }
 
-                    var response = await httpClient.GetStringAsync(url, cancellationToken);
-                    return OperationResult<string>.CreateSuccess(response);
+                    return await FetchRemotePayloadWithLimitAsync(profileUri, cancellationToken);
                 }
             }
 
@@ -714,6 +800,33 @@ public class ProfileSharingService(
         }
     }
 
+    private async Task<OperationResult<string>> FetchRemotePayloadWithLimitAsync(Uri profileUri, CancellationToken cancellationToken)
+    {
+        using var response = await safeHttpClient.GetAsync(profileUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var buffered = new MemoryStream();
+
+        byte[] buffer = new byte[8192];
+        int bytesRead;
+        long totalBytes = 0;
+
+        while ((bytesRead = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
+        {
+            totalBytes += bytesRead;
+            if (totalBytes > ProfileSharingConstants.MaxDecompressedPayloadBytes)
+            {
+                return OperationResult<string>.CreateFailure(
+                    $"Remote profile payload exceeds maximum allowed size ({ProfileSharingConstants.MaxDecompressedPayloadBytes} bytes).");
+            }
+
+            await buffered.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+        }
+
+        return OperationResult<string>.CreateSuccess(Encoding.UTF8.GetString(buffered.ToArray()));
+    }
+
     private async Task<OperationResult<bool>> AcquireMissingManifestAsync(
         SharedManifestDependency dependency,
         IProgress<ContentAcquisitionProgress>? progress,
@@ -731,7 +844,7 @@ public class ProfileSharingService(
                 return await DownloadAndRegisterManifestFilesAsync(dependency, validatedManifestId, cancellationToken);
             }
 
-            return await SearchAndAcquireFallbackManifestAsync(dependency, validatedManifestId, progress, cancellationToken);
+            return await SearchAndAcquireFallbackManifestAsync(dependency, progress, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -841,7 +954,7 @@ public class ProfileSharingService(
             return OperationResult<bool>.CreateFailure($"Unsafe download URL blocked: {file.DownloadUrl}");
         }
 
-        using var response = await httpClient.GetAsync(fileDownloadUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        using var response = await safeHttpClient.GetAsync(fileDownloadUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         response.EnsureSuccessStatusCode();
 
         using var sha256 = SHA256.Create();
@@ -877,7 +990,6 @@ public class ProfileSharingService(
 
     private async Task<OperationResult<bool>> SearchAndAcquireFallbackManifestAsync(
         SharedManifestDependency dependency,
-        ManifestId validatedManifestId,
         IProgress<ContentAcquisitionProgress>? progress,
         CancellationToken cancellationToken)
     {
@@ -903,21 +1015,12 @@ public class ProfileSharingService(
             }
         }
 
-        var fallbackManifest = new ContentManifest
-        {
-            Id = validatedManifestId,
-            Name = dependency.DisplayName,
-            Version = dependency.Version,
-            ContentType = dependency.ContentType,
-            Publisher = new PublisherInfo
-            {
-                Name = dependency.Publisher ?? "Community",
-                PublisherType = dependency.PublisherType ?? PublisherTypeConstants.Unknown,
-            },
-        };
-
-        await manifestPool.AddManifestAsync(fallbackManifest, cancellationToken);
-        return OperationResult<bool>.CreateSuccess(true);
+        logger.LogWarning(
+            "Dependency '{DisplayName}' ({ManifestId}) could not be acquired from any connected content source.",
+            dependency.DisplayName,
+            dependency.ManifestId);
+        return OperationResult<bool>.CreateFailure(
+            $"Dependency '{dependency.DisplayName}' ({dependency.ManifestId}) was not found in the local cache or any connected content source.");
     }
 
     private void ApplySettingsOverridesToProfile(GameProfile profile, Dictionary<string, object?> overrides)
@@ -934,6 +1037,15 @@ public class ProfileSharingService(
         if (overrides.TryGetValue(nameof(profile.VideoResolutionHeight), out var heightObj) && heightObj is JsonElement heightElem && heightElem.TryGetInt32(out var height)) profile.VideoResolutionHeight = height;
         if (overrides.TryGetValue(nameof(profile.VideoWindowed), out var winObj) && winObj is JsonElement winElem) profile.VideoWindowed = winElem.GetBoolean();
         if (overrides.TryGetValue(nameof(profile.EnableVideoShadows), out var shadowsObj) && shadowsObj is JsonElement shadowsElem) profile.EnableVideoShadows = shadowsElem.GetBoolean();
+
+        // Texture quality round-trips as a string enum name written during export.
+        if (overrides.TryGetValue(nameof(profile.VideoTextureQuality), out var textureObj) && textureObj is JsonElement textureElem && textureElem.ValueKind == JsonValueKind.String)
+        {
+            if (Enum.TryParse(textureElem.GetString(), ignoreCase: true, out TextureQuality textureQuality))
+            {
+                profile.VideoTextureQuality = textureQuality;
+            }
+        }
     }
 
     private void ApplyAudioSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
@@ -948,6 +1060,7 @@ public class ProfileSharingService(
         if (overrides.TryGetValue(nameof(profile.TshArchiveReplays), out var tshReplayObj) && tshReplayObj is JsonElement tshReplayElem) profile.TshArchiveReplays = tshReplayElem.GetBoolean();
         if (overrides.TryGetValue(nameof(profile.TshRenderFpsFontSize), out var tshFpsObj) && tshFpsObj is JsonElement tshFpsElem && tshFpsElem.TryGetInt32(out var fpsSize)) profile.TshRenderFpsFontSize = fpsSize;
         if (overrides.TryGetValue(nameof(profile.TshNetworkLatencyFontSize), out var tshLatObj) && tshLatObj is JsonElement tshLatElem && tshLatElem.TryGetInt32(out var latSize)) profile.TshNetworkLatencyFontSize = latSize;
+        if (overrides.TryGetValue(nameof(profile.TshSystemTimeFontSize), out var tshTimeObj) && tshTimeObj is JsonElement tshTimeElem && tshTimeElem.TryGetInt32(out var timeSize)) profile.TshSystemTimeFontSize = timeSize;
     }
 
     private void ApplyGoSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
@@ -1027,7 +1140,6 @@ public class ProfileSharingService(
                 ContentType = reqManifest.ContentType,
                 Publisher = reqManifest.Publisher,
                 PublisherType = reqManifest.PublisherType,
-                ManifestUrl = reqManifest.ManifestUrl,
                 DownloadSize = reqManifest.DownloadSize,
                 IsCachedLocally = isCached,
                 Files = reqManifest.Files,

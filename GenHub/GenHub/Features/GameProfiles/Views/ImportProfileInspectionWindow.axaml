@@ -25,6 +25,38 @@
         <conv:StringToImageConverter x:Key="StringToImageConverter" />
         <conv:ContentTypeDisplayConverter x:Key="ContentTypeDisplayConverter" />
         <conv:FileSizeConverter x:Key="FileSizeConverter" />
+        <SolidColorBrush x:Key="SuccessGreenFill" Color="#2500E676" />
+        <SolidColorBrush x:Key="SuccessGreenFillSoft" Color="#2000E676" />
+        <SolidColorBrush x:Key="InfoBlueFillSoft" Color="#2000B0FF" />
+        <SolidColorBrush x:Key="DangerRedFill" Color="#25EF4444" />
+        <SolidColorBrush x:Key="WarningAmberFillSoft" Color="#20FFA000" />
+        <SolidColorBrush x:Key="PurpleFillMedium" Color="#305E35B1" />
+        <Color x:Key="OverlayWhite50Color">#80FFFFFF</Color>
+        <Color x:Key="OverlayWhite12Color">#20FFFFFF</Color>
+        <Color x:Key="OverlayWhite02Color">#05FFFFFF</Color>
+        <SolidColorBrush x:Key="FillWhite08" Color="#15FFFFFF" />
+        <SolidColorBrush x:Key="FillWhite14" Color="#25FFFFFF" />
+        <SolidColorBrush x:Key="BorderWhite19" Color="#30FFFFFF" />
+        <SolidColorBrush x:Key="FillWhite09" Color="#18FFFFFF" />
+        <SolidColorBrush x:Key="FillWhite07" Color="#12FFFFFF" />
+        <SolidColorBrush x:Key="FillWhite05" Color="#0CFFFFFF" />
+        <SolidColorBrush x:Key="BorderWhite31" Color="#50FFFFFF" />
+        <SolidColorBrush x:Key="BorderWhite25" Color="#40FFFFFF" />
+        <SolidColorBrush x:Key="ShadowBlack12" Color="#20000000" />
+        <SolidColorBrush x:Key="ScrimBlack86" Color="#DD000000" />
+        <SolidColorBrush x:Key="SuccessGreen" Color="#00E676" />
+        <SolidColorBrush x:Key="InfoBlue" Color="#00B0FF" />
+        <SolidColorBrush x:Key="WarningAmber" Color="#FFA000" />
+        <SolidColorBrush x:Key="DangerRed" Color="#EF4444" />
+        <SolidColorBrush x:Key="PurpleDeep" Color="#5E35B1" />
+        <SolidColorBrush x:Key="PurpleTextLight" Color="#D1C4E9" />
+        <SolidColorBrush x:Key="TextPrimary" Color="#E0E0E0" />
+        <SolidColorBrush x:Key="TextPlaceholder" Color="#CCCCCC" />
+        <SolidColorBrush x:Key="TextTertiary" Color="#AAAAAA" />
+        <SolidColorBrush x:Key="TextMuted" Color="#888888" />
+        <SolidColorBrush x:Key="TextDisabled" Color="#777777" />
+        <Color x:Key="DialogSurfaceColor">#0A0A0A</Color>
+    
     </Window.Resources>
 
     <Grid Margin="16">
@@ -36,9 +68,9 @@
 
             <Border.BorderBrush>
                 <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                    <GradientStop Color="#80FFFFFF" Offset="0" />
-                    <GradientStop Color="#20FFFFFF" Offset="0.5" />
-                    <GradientStop Color="#05FFFFFF" Offset="1" />
+                    <GradientStop Color="{StaticResource OverlayWhite50Color}" Offset="0" />
+                    <GradientStop Color="{StaticResource OverlayWhite12Color}" Offset="0.5" />
+                    <GradientStop Color="{StaticResource OverlayWhite02Color}" Offset="1" />
                 </LinearGradientBrush>
             </Border.BorderBrush>
 
@@ -48,7 +80,7 @@
                     <ExperimentalAcrylicBorder.Material>
                         <ExperimentalAcrylicMaterial
                             BackgroundSource="Digger"
-                            TintColor="#0A0A0A"
+                            TintColor="{StaticResource DialogSurfaceColor}"
                             TintOpacity="0.96"
                             MaterialOpacity="0.88" />
                     </ExperimentalAcrylicBorder.Material>
@@ -79,7 +111,7 @@
                             </StackPanel>
                             <TextBlock Text="Review the included content manifests, target client version, and required downloads before importing."
                                        FontSize="12"
-                                       Foreground="#888888" />
+                                       Foreground="{StaticResource TextMuted}" />
                         </StackPanel>
 
                         <!-- Close Button -->
@@ -87,8 +119,8 @@
                                 Command="{Binding CancelCommand}"
                                 Width="30" Height="30"
                                 CornerRadius="15"
-                                Background="#15FFFFFF"
-                                Foreground="#AAAAAA"
+                                Background="{StaticResource FillWhite08}"
+                                Foreground="{StaticResource TextTertiary}"
                                 Padding="0"
                                 HorizontalContentAlignment="Center"
                                 VerticalContentAlignment="Center"
@@ -103,8 +135,8 @@
                         <StackPanel Spacing="16">
 
                             <!-- Error Alert -->
-                            <Border Background="#25EF4444"
-                                    BorderBrush="#EF4444"
+                            <Border Background="{StaticResource DangerRedFill}"
+                                    BorderBrush="{StaticResource DangerRed}"
                                     BorderThickness="1"
                                     CornerRadius="8"
                                     Padding="14,10"
@@ -112,10 +144,10 @@
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <PathIcon Data="M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
                                               Width="16" Height="16"
-                                              Foreground="#EF4444"
+                                              Foreground="{StaticResource DangerRed}"
                                               VerticalAlignment="Center" />
                                     <TextBlock Text="{Binding ErrorMessage}"
-                                               Foreground="#EF4444"
+                                               Foreground="{StaticResource DangerRed}"
                                                FontSize="12"
                                                FontWeight="SemiBold"
                                                TextWrapping="Wrap" />
@@ -123,8 +155,8 @@
                             </Border>
 
                             <!-- Hero Card: Profile Summary -->
-                            <Border Background="#12FFFFFF"
-                                    BorderBrush="#25FFFFFF"
+                            <Border Background="{StaticResource FillWhite07}"
+                                    BorderBrush="{StaticResource FillWhite14}"
                                     BorderThickness="1"
                                     CornerRadius="12"
                                     Padding="16">
@@ -133,7 +165,7 @@
                                     <Border Grid.Column="0"
                                             Width="80" Height="80"
                                             CornerRadius="10"
-                                            Background="#20000000"
+                                            Background="{StaticResource ShadowBlack12}"
                                             BorderBrush="{Binding ThemeColor, Converter={StaticResource ColorToBrushConverter}}"
                                             BorderThickness="1.5"
                                             ClipToBounds="True"
@@ -145,13 +177,13 @@
                                     <!-- Details -->
                                     <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
                                         <StackPanel Spacing="4">
-                                            <TextBlock Text="Profile Name:" FontSize="11" Foreground="#AAAAAA" />
+                                            <TextBlock Text="Profile Name:" FontSize="11" Foreground="{StaticResource TextTertiary}" />
                                             <TextBox Text="{Binding ProfileName, Mode=TwoWay}"
                                                      Height="36"
                                                      Padding="10,0"
                                                      VerticalContentAlignment="Center"
-                                                     Background="#18FFFFFF"
-                                                     BorderBrush="#40FFFFFF"
+                                                     Background="{StaticResource FillWhite09}"
+                                                     BorderBrush="{StaticResource BorderWhite25}"
                                                      CornerRadius="6"
                                                      Foreground="White"
                                                      FontWeight="SemiBold"
@@ -159,11 +191,11 @@
                                         </StackPanel>
 
                                         <WrapPanel Margin="0,4,0,0">
-                                            <Border Background="#25FFFFFF" CornerRadius="4" Padding="6,2" Margin="0,0,6,0">
-                                                <TextBlock Text="{Binding GameVersion}" FontSize="11" Foreground="#E0E0E0" FontWeight="SemiBold" />
+                                            <Border Background="{StaticResource FillWhite14}" CornerRadius="4" Padding="6,2" Margin="0,0,6,0">
+                                                <TextBlock Text="{Binding GameVersion}" FontSize="11" Foreground="{StaticResource TextPrimary}" FontWeight="SemiBold" />
                                             </Border>
-                                            <Border Background="#2500E676" CornerRadius="4" Padding="6,2" Margin="0,0,6,0" IsVisible="{Binding HasNameConflict}">
-                                                <TextBlock Text="Name Auto-Renamed" FontSize="11" Foreground="#00E676" FontWeight="SemiBold" />
+                                            <Border Background="{StaticResource SuccessGreenFill}" CornerRadius="4" Padding="6,2" Margin="0,0,6,0" IsVisible="{Binding HasNameConflict}">
+                                                <TextBlock Text="Name Auto-Renamed" FontSize="11" Foreground="{StaticResource SuccessGreen}" FontWeight="SemiBold" />
                                             </Border>
                                         </WrapPanel>
                                     </StackPanel>
@@ -171,8 +203,8 @@
                             </Border>
 
                             <!-- Security Warnings Card -->
-                            <Border Background="#20FFA000"
-                                    BorderBrush="#FFA000"
+                            <Border Background="{StaticResource WarningAmberFillSoft}"
+                                    BorderBrush="{StaticResource WarningAmber}"
                                     BorderThickness="1"
                                     CornerRadius="10"
                                     Padding="14,10"
@@ -181,16 +213,16 @@
                                     <StackPanel Orientation="Horizontal" Spacing="8">
                                         <PathIcon Data="M12,2L1,21H23L12,2M12,6L19.53,19H4.47L12,6M11,10V14H13V10H11M11,16V18H13V16H11Z"
                                                   Width="16" Height="16"
-                                                  Foreground="#FFA000" />
+                                                  Foreground="{StaticResource WarningAmber}" />
                                         <TextBlock Text="Security &amp; Sanitization Guardrails"
-                                                   Foreground="#FFA000"
+                                                   Foreground="{StaticResource WarningAmber}"
                                                    FontSize="12"
                                                    FontWeight="Bold" />
                                     </StackPanel>
                                     <ItemsControl ItemsSource="{Binding SecurityWarnings}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <TextBlock Text="{Binding}" Foreground="#E0E0E0" FontSize="11" Margin="24,2,0,0" />
+                                                <TextBlock Text="{Binding}" Foreground="{StaticResource TextPrimary}" FontSize="11" Margin="24,2,0,0" />
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
@@ -198,8 +230,8 @@
                             </Border>
 
                             <!-- Content Manifests Breakdown -->
-                            <Border Background="#12FFFFFF"
-                                    BorderBrush="#25FFFFFF"
+                            <Border Background="{StaticResource FillWhite07}"
+                                    BorderBrush="{StaticResource FillWhite14}"
                                     BorderThickness="1"
                                     CornerRadius="12"
                                     Padding="16">
@@ -209,20 +241,20 @@
                                                    Text="CONTENT &amp; MOD MANIFESTS BREAKDOWN"
                                                    FontSize="12"
                                                    FontWeight="Bold"
-                                                   Foreground="#AAAAAA"
+                                                   Foreground="{StaticResource TextTertiary}"
                                                    LetterSpacing="0.5" />
                                         <TextBlock Grid.Column="1"
                                                    Text="{Binding Manifests.Count, StringFormat='{}({0} items)'}"
                                                    FontSize="12"
-                                                   Foreground="#777777" />
+                                                   Foreground="{StaticResource TextDisabled}" />
                                     </Grid>
 
                                     <!-- Manifest Items -->
                                     <ItemsControl ItemsSource="{Binding Manifests}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border Background="#0CFFFFFF"
-                                                        BorderBrush="#18FFFFFF"
+                                                <Border Background="{StaticResource FillWhite05}"
+                                                        BorderBrush="{StaticResource FillWhite09}"
                                                         BorderThickness="1"
                                                         CornerRadius="8"
                                                         Padding="12,8"
@@ -230,8 +262,8 @@
                                                     <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                                                         <!-- Content Type Badge -->
                                                         <Border Grid.Column="0"
-                                                                Background="#305E35B1"
-                                                                BorderBrush="#5E35B1"
+                                                                Background="{StaticResource PurpleFillMedium}"
+                                                                BorderBrush="{StaticResource PurpleDeep}"
                                                                 BorderThickness="1"
                                                                 CornerRadius="4"
                                                                 Padding="6,2"
@@ -240,7 +272,7 @@
                                                             <TextBlock Text="{Binding ContentType, Converter={StaticResource ContentTypeDisplayConverter}}"
                                                                        FontSize="10"
                                                                        FontWeight="SemiBold"
-                                                                       Foreground="#D1C4E9" />
+                                                                       Foreground="{StaticResource PurpleTextLight}" />
                                                         </Border>
 
                                                         <!-- Name and Publisher -->
@@ -251,21 +283,21 @@
                                                                        Foreground="White" />
                                                             <TextBlock Text="{Binding Publisher, StringFormat='{}Publisher: {0}'}"
                                                                        FontSize="10"
-                                                                       Foreground="#888888" />
+                                                                       Foreground="{StaticResource TextMuted}" />
                                                         </StackPanel>
 
                                                         <!-- Version -->
                                                         <TextBlock Grid.Column="2"
                                                                    Text="{Binding Version}"
                                                                    FontSize="11"
-                                                                   Foreground="#AAAAAA"
+                                                                   Foreground="{StaticResource TextTertiary}"
                                                                    VerticalAlignment="Center"
                                                                    Margin="12,0" />
 
                                                         <!-- Status Badge -->
                                                         <Panel Grid.Column="3" VerticalAlignment="Center">
-                                                            <Border Background="#2000E676"
-                                                                    BorderBrush="#00E676"
+                                                            <Border Background="{StaticResource SuccessGreenFillSoft}"
+                                                                    BorderBrush="{StaticResource SuccessGreen}"
                                                                     BorderThickness="1"
                                                                     CornerRadius="6"
                                                                     Padding="8,3"
@@ -273,12 +305,12 @@
                                                                 <TextBlock Text="✅ CACHED"
                                                                            FontSize="10"
                                                                            FontWeight="Bold"
-                                                                           Foreground="#00E676"
+                                                                           Foreground="{StaticResource SuccessGreen}"
                                                                            VerticalAlignment="Center"
                                                                            HorizontalAlignment="Center" />
                                                             </Border>
-                                                            <Border Background="#2000B0FF"
-                                                                    BorderBrush="#00B0FF"
+                                                            <Border Background="{StaticResource InfoBlueFillSoft}"
+                                                                    BorderBrush="{StaticResource InfoBlue}"
                                                                     BorderThickness="1"
                                                                     CornerRadius="6"
                                                                     Padding="8,3"
@@ -286,7 +318,7 @@
                                                                 <TextBlock Text="{Binding DownloadSize, Converter={StaticResource FileSizeConverter}, StringFormat='{}⬇ {0}'}"
                                                                            FontSize="10"
                                                                            FontWeight="Bold"
-                                                                           Foreground="#00B0FF"
+                                                                           Foreground="{StaticResource InfoBlue}"
                                                                            VerticalAlignment="Center"
                                                                            HorizontalAlignment="Center" />
                                                             </Border>
@@ -300,8 +332,8 @@
                             </Border>
 
                             <!-- Settings Summary & Target Installation -->
-                            <Border Background="#12FFFFFF"
-                                    BorderBrush="#25FFFFFF"
+                            <Border Background="{StaticResource FillWhite07}"
+                                    BorderBrush="{StaticResource FillWhite14}"
                                     BorderThickness="1"
                                     CornerRadius="12"
                                     Padding="16">
@@ -309,12 +341,12 @@
                                     <TextBlock Text="TARGET INSTALLATION &amp; LAUNCH OPTIONS"
                                                FontSize="12"
                                                FontWeight="Bold"
-                                               Foreground="#AAAAAA"
+                                               Foreground="{StaticResource TextTertiary}"
                                                LetterSpacing="0.5" />
 
                                     <!-- Installation Selector -->
                                     <StackPanel Spacing="6">
-                                        <TextBlock Text="Target Game Installation:" FontSize="11" Foreground="#AAAAAA" />
+                                        <TextBlock Text="Target Game Installation:" FontSize="11" Foreground="{StaticResource TextTertiary}" />
                                         <ComboBox ItemsSource="{Binding CompatibleInstallations}"
                                                   SelectedItem="{Binding SelectedInstallation, Mode=TwoWay}"
                                                   HorizontalAlignment="Stretch"
@@ -327,18 +359,18 @@
                                         </ComboBox>
                                         <TextBlock Text="⚠️ No compatible installation found for this game client."
                                                    FontSize="11"
-                                                   Foreground="#EF4444"
+                                                   Foreground="{StaticResource DangerRed}"
                                                    IsVisible="{Binding !HasValidGameInstallation}" />
                                     </StackPanel>
 
                                     <!-- Launch Arguments -->
                                     <StackPanel Spacing="4" IsVisible="{Binding CommandLineArguments, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                        <TextBlock Text="Launch Arguments:" FontSize="11" Foreground="#AAAAAA" />
-                                        <Border Background="#15FFFFFF" CornerRadius="6" Padding="10,6">
+                                        <TextBlock Text="Launch Arguments:" FontSize="11" Foreground="{StaticResource TextTertiary}" />
+                                        <Border Background="{StaticResource FillWhite08}" CornerRadius="6" Padding="10,6">
                                              <TextBlock Text="{Binding CommandLineArguments}"
                                                         FontSize="11"
                                                         FontFamily="Monospace"
-                                                        Foreground="#E0E0E0" />
+                                                        Foreground="{StaticResource TextPrimary}" />
                                         </Border>
                                     </StackPanel>
 
@@ -346,7 +378,7 @@
                                     <CheckBox IsChecked="{Binding IncludeGameSettings, Mode=TwoWay}"
                                               Content="Apply video resolution and audio configuration overrides"
                                               FontSize="12"
-                                              Foreground="#CCCCCC" />
+                                              Foreground="{StaticResource TextPlaceholder}" />
                                 </StackPanel>
                             </Border>
 
@@ -365,7 +397,7 @@
                             <TextBlock Text="All required content is already cached locally."
                                        FontSize="12"
                                        FontWeight="SemiBold"
-                                       Foreground="#00E676"
+                                       Foreground="{StaticResource SuccessGreen}"
                                        IsVisible="{Binding !HasMissingDownloads}" />
                         </StackPanel>
 
@@ -375,8 +407,8 @@
                                 Content="Cancel"
                                 Width="90" Height="40"
                                 Margin="0,0,12,0"
-                                Background="#15FFFFFF"
-                                BorderBrush="#30FFFFFF"
+                                Background="{StaticResource FillWhite08}"
+                                BorderBrush="{StaticResource BorderWhite19}"
                                 BorderThickness="1"
                                 Foreground="White"
                                 CornerRadius="8"
@@ -386,8 +418,8 @@
                                 Cursor="Hand">
                             <Button.Styles>
                                 <Style Selector="Button:pointerover">
-                                    <Setter Property="Background" Value="#25FFFFFF" />
-                                    <Setter Property="BorderBrush" Value="#50FFFFFF" />
+                                    <Setter Property="Background" Value="{StaticResource FillWhite14}" />
+                                    <Setter Property="BorderBrush" Value="{StaticResource BorderWhite31}" />
                                 </Style>
                                 <Style Selector="Button:pressed">
                                     <Setter Property="RenderTransform" Value="scale(0.98)" />
@@ -444,7 +476,7 @@
 
                     <!-- Acquisition Progress Overlay -->
                     <Border Grid.RowSpan="3"
-                            Background="#DD000000"
+                            Background="{StaticResource ScrimBlack86}"
                             CornerRadius="16"
                             IsVisible="{Binding IsImporting}"
                             ZIndex="1000">
@@ -461,7 +493,7 @@
                                            FontWeight="SemiBold"
                                            HorizontalAlignment="Center" />
                                 <TextBlock Text="{Binding ImportProgressPercentage, StringFormat='{}{0}% complete'}"
-                                           Foreground="#888888"
+                                           Foreground="{StaticResource TextMuted}"
                                            FontSize="11"
                                            HorizontalAlignment="Center" />
                             </StackPanel>

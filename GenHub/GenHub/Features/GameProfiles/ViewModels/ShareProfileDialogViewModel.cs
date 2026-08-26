@@ -20,7 +20,7 @@ namespace GenHub.Features.GameProfiles.ViewModels;
 public partial class ShareProfileDialogViewModel : ViewModelBase
 {
     private readonly IProfileSharingService _profileSharingService;
-    private readonly ILogger<ShareProfileDialogViewModel> _logger;
+    private readonly ILogger _logger;
     private readonly string _profileId;
 
     [ObservableProperty]
@@ -62,7 +62,7 @@ public partial class ShareProfileDialogViewModel : ViewModelBase
         GameProfile profile,
         string shareUri,
         IProfileSharingService profileSharingService,
-        ILogger<ShareProfileDialogViewModel> logger)
+        ILogger logger)
     {
         _profileId = profileId ?? throw new ArgumentNullException(nameof(profileId));
         _profileSharingService = profileSharingService ?? throw new ArgumentNullException(nameof(profileSharingService));

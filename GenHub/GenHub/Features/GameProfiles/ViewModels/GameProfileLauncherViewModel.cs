@@ -56,12 +56,21 @@ public partial class GameProfileLauncherViewModel(
     ISetupWizardService setupWizardService,
     IDialogService dialogService,
     ILogger<GameProfileLauncherViewModel> logger,
+    ILogger<ImportProfileInspectionViewModel>? inspectionViewModelLogger = null,
+    ILogger<ShareProfileDialogViewModel>? shareDialogViewModelLogger = null,
     IProfileSharingService? profileSharingService = null) : ViewModelBase,
     IRecipient<ProfileCreatedMessage>,
     IRecipient<ProfileUpdatedMessage>,
     IRecipient<ProfileListUpdatedMessage>
 {
     private readonly SemaphoreSlim _launchSemaphore = new(1, 1);
+    private readonly SemaphoreSlim _importDialogSemaphore = new(1, 1);
+    private readonly ILogger<ImportProfileInspectionViewModel> inspectionLogger = inspectionViewModelLogger
+        ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ImportProfileInspectionViewModel>.Instance;
+
+    private readonly ILogger<ShareProfileDialogViewModel> shareDialogLogger = shareDialogViewModelLogger
+        ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ShareProfileDialogViewModel>.Instance;
+
     private readonly System.Timers.Timer _headerCollapseTimer = new(TimeIntervals.HeaderCollapseDelayMs);
     private readonly System.Timers.Timer _headerExpansionTimer = new(TimeIntervals.HeaderExpansionDelayMs);
     private bool _isHovering;
@@ -353,6 +362,13 @@ public partial class GameProfileLauncherViewModel(
             return;
         }
 
+        if (!await _importDialogSemaphore.WaitAsync(0))
+        {
+            logger.LogWarning("Profile import dialog is already active. Ignoring concurrent request.");
+            notificationService.ShowWarning("Import In Progress", "A profile import dialog is already open.");
+            return;
+        }
+
         try
         {
             logger.LogInformation("Inspecting shared profile for import from: {Path}", shareUriOrPath);
@@ -372,7 +388,7 @@ public partial class GameProfileLauncherViewModel(
                 inspectResult.Data,
                 profileSharingService,
                 notificationService,
-                Microsoft.Extensions.Logging.Abstractions.NullLogger<ImportProfileInspectionViewModel>.Instance);
+                inspectionLogger);
 
             var dialog = new Views.ImportProfileInspectionWindow
             {
@@ -392,6 +408,10 @@ public partial class GameProfileLauncherViewModel(
         {
             logger.LogError(ex, "Error importing profile from {Path}", shareUriOrPath);
             notificationService.ShowError("Import Error", $"An error occurred during profile import: {ex.Message}");
+        }
+        finally
+        {
+            _importDialogSemaphore.Release();
         }
     }
 
@@ -1845,7 +1865,7 @@ public partial class GameProfileLauncherViewModel(
                 profileResult.Data,
                 uriResult.Data,
                 profileSharingService,
-                Microsoft.Extensions.Logging.Abstractions.NullLogger<ShareProfileDialogViewModel>.Instance);
+                shareDialogLogger);
 
             var dialog = new Views.ShareProfileDialogWindow
             {

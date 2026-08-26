@@ -37,8 +37,7 @@ public partial class MainWindow : Window
             foreach (var file in files)
             {
                 if (file?.Path?.LocalPath is { } path &&
-                    (path.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase) ||
-                     path.EndsWith(".json", StringComparison.OrdinalIgnoreCase)))
+                    path.EndsWith(ProfileSharingConstants.ProfileFileExtension, StringComparison.OrdinalIgnoreCase))
                 {
                     await mainVm.GameProfilesViewModel.ImportProfileFromFileOrUriAsync(path);
                     break;

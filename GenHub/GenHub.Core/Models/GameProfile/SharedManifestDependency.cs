@@ -40,11 +40,6 @@ public sealed class SharedManifestDependency
     public string? PublisherType { get; init; }
 
     /// <summary>
-    /// Gets the remote manifest metadata URL if hosted externally.
-    /// </summary>
-    public string? ManifestUrl { get; init; }
-
-    /// <summary>
     /// Gets the download size in bytes.
     /// </summary>
     public long DownloadSize { get; init; }
