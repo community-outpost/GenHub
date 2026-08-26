@@ -153,9 +153,9 @@ public sealed class CrcCatalogUpdateService(
                     File.Delete(tempFilePath);
                 }
             }
-            catch
+            catch (Exception cleanupEx) when (cleanupEx is IOException or UnauthorizedAccessException)
             {
-                // Discard cleanup errors
+                logger.LogDebug(cleanupEx, "Failed to clean up temporary CRC catalog file {Path}", tempFilePath);
             }
         }
     }
