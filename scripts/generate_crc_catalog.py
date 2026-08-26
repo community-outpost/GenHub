@@ -7,11 +7,13 @@ Crawls TheSuperHackers (GitHub Releases) and GeneralsOnline (CDN) to build and u
 import argparse
 import datetime
 import hashlib
+import io
 import json
 import os
 import re
 import sys
 import urllib.request
+import zipfile
 import zlib
 
 SUPERHACKERS_REPO = "TheSuperHackers/GeneralsGameCode"
@@ -70,7 +72,47 @@ def normalize_hex(val: str) -> str:
     return f"0x{val.upper()}"
 
 
-def crawl_superhackers_releases(token: str | None = None) -> list[dict]:
+def compute_buffer_crc(data: bytes) -> str:
+    """Computes CRC-32 for raw binary data and formats as uppercase hex string."""
+    return f"0x{zlib.crc32(data) & 0xFFFFFFFF:08X}"
+
+
+def compute_buffer_sha256(data: bytes) -> str:
+    """Computes SHA-256 for raw binary data."""
+    return hashlib.sha256(data).hexdigest()
+
+
+def inspect_archive_binary(download_url: str, binary_patterns: list[str]) -> tuple[str, str, str]:
+    """Downloads archive into memory and extracts CRC32, SHA256, and INI CRC."""
+    req = urllib.request.Request(download_url, headers={"User-Agent": "GenHub-Replay-Crawler"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            archive_data = resp.read()
+
+        with zipfile.ZipFile(io.BytesIO(archive_data)) as zf:
+            exe_crc = ""
+            sha256 = ""
+            ini_crc = ""
+
+            for name in zf.namelist():
+                lower_name = name.lower()
+                for pattern in binary_patterns:
+                    if pattern in lower_name and lower_name.endswith(".exe"):
+                        binary_bytes = zf.read(name)
+                        exe_crc = compute_buffer_crc(binary_bytes)
+                        sha256 = compute_buffer_sha256(binary_bytes)
+                        break
+                if "mapcachego.ini" in lower_name or "generals.ini" in lower_name:
+                    ini_bytes = zf.read(name)
+                    ini_crc = compute_buffer_crc(ini_bytes)
+
+            return exe_crc, sha256, ini_crc
+    except Exception as e:
+        print(f"Warning: could not inspect archive {download_url}: {e}", file=sys.stderr)
+        return "", "", ""
+
+
+def crawl_superhackers_releases(token: str | None = None, inspect_binaries: bool = False) -> list[dict]:
     """Fetches and maps releases from TheSuperHackers repository on GitHub."""
     url = f"https://api.github.com/repos/{SUPERHACKERS_REPO}/releases?per_page=100"
     headers = {"User-Agent": "GenHub-Replay-Crawler"}
@@ -88,7 +130,6 @@ def crawl_superhackers_releases(token: str | None = None) -> list[dict]:
     entries = []
     for rel in releases:
         tag = rel.get("tag_name", "")
-        # Match weekly tags (e.g., weekly-2026-08-21)
         m = re.match(r"weekly-(\d{4}-\d{2}-\d{2})", tag)
         if not m:
             continue
@@ -102,11 +143,26 @@ def crawl_superhackers_releases(token: str | None = None) -> list[dict]:
                 game_type = "ZeroHour" if "zh" in name.lower() else "Generals"
                 manifest_type = "zerohour" if game_type == "ZeroHour" else "generals"
                 manifest_id = f"1.{version_num}.superhackers.gameclient.{manifest_type}"
+                default_ini = "0x76B251A3" if game_type == "ZeroHour" else "0x323577BD"
+
+                exe_crc = ""
+                sha256 = ""
+                ini_crc = default_ini
+
+                if inspect_binaries and download_url:
+                    target_bin = ["generalszh.exe"] if game_type == "ZeroHour" else ["generals.exe"]
+                    c_exe, c_sha, c_ini = inspect_archive_binary(download_url, target_bin)
+                    if c_exe:
+                        exe_crc = c_exe
+                    if c_sha:
+                        sha256 = c_sha
+                    if c_ini:
+                        ini_crc = c_ini
 
                 entry = {
-                    "exeCrc": "",
-                    "iniCrc": "0x76B251A3" if game_type == "ZeroHour" else "0x323577BD",
-                    "sha256": "",
+                    "exeCrc": exe_crc,
+                    "iniCrc": ini_crc,
+                    "sha256": sha256,
                     "manifestId": manifest_id,
                     "publisher": "superhackers",
                     "gameType": game_type,
@@ -120,14 +176,50 @@ def crawl_superhackers_releases(token: str | None = None) -> list[dict]:
     return entries
 
 
-def compute_buffer_crc(data: bytes) -> str:
-    """Computes CRC-32 for raw binary data and formats as hex string."""
-    return f"0x{zlib.crc32(data) & 0xFFFFFFFF:08X}"
+def crawl_generalsonline_releases(inspect_binaries: bool = False) -> list[dict]:
+    """Probes and maps portable releases from the GeneralsOnline CDN."""
+    known_dates = ["021326", "032926", "042826", "060526", "062026", "081326"]
+    entries = []
 
+    for date_code in known_dates:
+        for qfe in range(1, 10):
+            for is_eac in [False, True]:
+                suffix = f"_QFE{qfe}_EAC" if is_eac else f"_QFE{qfe}"
+                zip_name = f"GeneralsOnline_portable_{date_code}{suffix}.zip"
+                url = f"{GENERALSONLINE_CDN}/{zip_name}"
 
-def compute_buffer_sha256(data: bytes) -> str:
-    """Computes SHA-256 for raw binary data."""
-    return hashlib.sha256(data).hexdigest()
+                manifest_type = "eac.zerohour" if is_eac else "zerohour"
+                manifest_id = f"1.{date_code}{qfe}.generalsonline.gameclient.{manifest_type}"
+                version_str = f"{date_code}{suffix}"
+
+                exe_crc = ""
+                sha256 = ""
+                ini_crc = "0x5CB7992C"
+
+                if inspect_binaries:
+                    c_exe, c_sha, c_ini = inspect_archive_binary(url, ["generalsonlinezh_60.exe", "generalsonlinezh.exe"])
+                    if not c_exe:
+                        continue
+                    exe_crc = c_exe
+                    sha256 = c_sha
+                    if c_ini:
+                        ini_crc = c_ini
+
+                entry = {
+                    "exeCrc": exe_crc,
+                    "iniCrc": ini_crc,
+                    "sha256": sha256,
+                    "manifestId": manifest_id,
+                    "publisher": "generalsonline",
+                    "gameType": "ZeroHour",
+                    "version": version_str,
+                    "buildDate": f"2026-{date_code[:2]}-{date_code[2:4]}",
+                    "description": f"GeneralsOnline {version_str} portable release",
+                    "cdnUrl": url,
+                }
+                entries.append(entry)
+
+    return entries
 
 
 def merge_catalogs(existing: list[dict], crawled: list[dict]) -> list[dict]:
@@ -146,8 +238,11 @@ def merge_catalogs(existing: list[dict], crawled: list[dict]) -> list[dict]:
                 existing_entry["exeCrc"] = normalize_hex(item["exeCrc"])
             if not existing_entry.get("sha256") and item.get("sha256"):
                 existing_entry["sha256"] = item["sha256"]
+            if not existing_entry.get("iniCrc") and item.get("iniCrc"):
+                existing_entry["iniCrc"] = normalize_hex(item["iniCrc"])
         else:
-            by_manifest[m_id] = item
+            if item.get("exeCrc"):
+                by_manifest[m_id] = item
 
     return list(by_manifest.values())
 
@@ -189,7 +284,7 @@ def validate_catalog(catalog: dict) -> bool:
     return valid
 
 
-def build_catalog(output_path: str = DEFAULT_OUTPUT_PATH, crawl: bool = False) -> dict:
+def build_catalog(output_path: str = DEFAULT_OUTPUT_PATH, crawl: bool = False, inspect_binaries: bool = False) -> dict:
     """Builds and writes the complete CRC catalog."""
     existing_mappings = list(BASELINE_ENTRIES)
 
@@ -203,9 +298,13 @@ def build_catalog(output_path: str = DEFAULT_OUTPUT_PATH, crawl: bool = False) -
             print(f"Warning: could not read existing catalog: {e}", file=sys.stderr)
 
     if crawl:
-        crawled = crawl_superhackers_releases()
-        if crawled:
-            existing_mappings = merge_catalogs(existing_mappings, crawled)
+        sh_crawled = crawl_superhackers_releases(inspect_binaries=inspect_binaries)
+        if sh_crawled:
+            existing_mappings = merge_catalogs(existing_mappings, sh_crawled)
+
+        go_crawled = crawl_generalsonline_releases(inspect_binaries=inspect_binaries)
+        if go_crawled:
+            existing_mappings = merge_catalogs(existing_mappings, go_crawled)
 
     catalog = {
         "schemaVersion": 1,
@@ -227,6 +326,7 @@ def main():
     parser = argparse.ArgumentParser(description="GenHub GameClient CRC Catalog Generator")
     parser.add_argument("--output", "-o", default=DEFAULT_OUTPUT_PATH, help="Output path for crc-mapping.json")
     parser.add_argument("--crawl", action="store_true", help="Crawl upstream sources for latest releases")
+    parser.add_argument("--inspect-binaries", action="store_true", help="Download archives and calculate CRC32/SHA256 from binaries")
     parser.add_argument("--validate", action="store_true", help="Validate existing catalog")
 
     args = parser.parse_args()
@@ -243,7 +343,7 @@ def main():
         else:
             sys.exit(1)
 
-    build_catalog(output_path=args.output, crawl=args.crawl)
+    build_catalog(output_path=args.output, crawl=args.crawl, inspect_binaries=args.inspect_binaries)
 
 
 if __name__ == "__main__":
