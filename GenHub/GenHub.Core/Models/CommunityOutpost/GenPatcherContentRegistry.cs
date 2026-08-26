@@ -11,6 +11,14 @@ namespace GenHub.Core.Models.CommunityOutpost;
 /// </summary>
 public static class GenPatcherContentRegistry
 {
+    private const string ResolutionVariantType = "resolution";
+    private const string LanguageVariantType = "language";
+    private const string Pattern720 = "*720*";
+    private const string Pattern900 = "*900*";
+    private const string Pattern1080 = "*1080*";
+    private const string Pattern1440 = "*1440*";
+    private const string Pattern2160 = "*2160*";
+
     /// <summary>
     /// Language code mappings for patch suffixes.
     /// </summary>
@@ -28,19 +36,16 @@ public static class GenPatcherContentRegistry
         ['2'] = ("de-alt", "German (Alternate)"),
     };
 
-    private const string ResolutionVariantType = "resolution";
-    private const string LanguageVariantType = "language";
-
     /// <summary>
     /// Shared resolution variants for high-resolution control bars.
     /// </summary>
     private static readonly List<ContentVariant> ResolutionVariants =
     [
-        new ContentVariant { Id = "720p", Name = "720p", VariantType = ResolutionVariantType, Value = "720", IncludePatterns = ["*720*"], ExcludePatterns = ["*900*", "*1080*", "*1440*", "*2160*"], IsDefault = false },
-        new ContentVariant { Id = "900p", Name = "900p", VariantType = ResolutionVariantType, Value = "900", IncludePatterns = ["*900*"], ExcludePatterns = ["*720*", "*1080*", "*1440*", "*2160*"], IsDefault = false },
-        new ContentVariant { Id = "1080p", Name = "1080p (Recommended)", VariantType = ResolutionVariantType, Value = "1080", IncludePatterns = ["*1080*"], ExcludePatterns = ["*720*", "*900*", "*1440*", "*2160*"], IsDefault = true },
-        new ContentVariant { Id = "1440p", Name = "1440p (2K)", VariantType = ResolutionVariantType, Value = "1440", IncludePatterns = ["*1440*"], ExcludePatterns = ["*720*", "*900*", "*1080*", "*2160*"], IsDefault = false },
-        new ContentVariant { Id = "2160p", Name = "2160p (4K)", VariantType = ResolutionVariantType, Value = "2160", IncludePatterns = ["*2160*"], ExcludePatterns = ["*720*", "*900*", "*1080*", "*1440*"], IsDefault = false },
+        new ContentVariant { Id = "720p", Name = "720p", VariantType = ResolutionVariantType, Value = "720", IncludePatterns = [Pattern720], ExcludePatterns = [Pattern900, Pattern1080, Pattern1440, Pattern2160], IsDefault = false },
+        new ContentVariant { Id = "900p", Name = "900p", VariantType = ResolutionVariantType, Value = "900", IncludePatterns = [Pattern900], ExcludePatterns = [Pattern720, Pattern1080, Pattern1440, Pattern2160], IsDefault = false },
+        new ContentVariant { Id = "1080p", Name = "1080p (Recommended)", VariantType = ResolutionVariantType, Value = "1080", IncludePatterns = [Pattern1080], ExcludePatterns = [Pattern720, Pattern900, Pattern1440, Pattern2160], IsDefault = true },
+        new ContentVariant { Id = "1440p", Name = "1440p (2K)", VariantType = ResolutionVariantType, Value = "1440", IncludePatterns = [Pattern1440], ExcludePatterns = [Pattern720, Pattern900, Pattern1080, Pattern2160], IsDefault = false },
+        new ContentVariant { Id = "2160p", Name = "2160p (4K)", VariantType = ResolutionVariantType, Value = "2160", IncludePatterns = [Pattern2160], ExcludePatterns = [Pattern720, Pattern900, Pattern1080, Pattern1440], IsDefault = false },
     ];
 
     /// <summary>
