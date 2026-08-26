@@ -155,7 +155,7 @@ public abstract class BasePackageDeploymentFix(
             }
 
             var extractedFilePath = Path.Combine(extractDir, fileName);
-            using var entryStream = entry.OpenEntryStream();
+            await using var entryStream = await entry.OpenEntryStreamAsync();
             expandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(
                 entryStream,
                 extractedFilePath,

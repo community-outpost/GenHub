@@ -224,11 +224,9 @@ public class GenToolFix(ILogger<GenToolFix> logger, IHttpClientFactory httpClien
         }
 
         var extractedDllPath = Path.Combine(tempExtractDir, D3D8Dll);
-        using (var entryStream = d3d8Entry.OpenEntryStream())
-        await using (var fs = new FileStream(extractedDllPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
-        {
-            await entryStream.CopyToAsync(fs, ct);
-        }
+        await using var entryStream = await d3d8Entry.OpenEntryStreamAsync();
+        await using var fs = new FileStream(extractedDllPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true);
+        await entryStream.CopyToAsync(fs, ct);
 
         var dllValidation = await DownloadSecurityValidator.ValidateAndLockFileAsync(
             extractedDllPath,
