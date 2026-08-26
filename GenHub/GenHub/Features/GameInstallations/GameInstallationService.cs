@@ -140,7 +140,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                 // Check if installation already exists (by ID or path)
                 var existing = installationsList.FirstOrDefault(i =>
                     i.Id == installation.Id ||
-                    i.InstallationPath.Equals(installation.InstallationPath, StringComparison.OrdinalIgnoreCase));
+                    PathHelper.AreSamePath(i.InstallationPath, installation.InstallationPath));
 
                 if (existing != null)
                 {
@@ -324,6 +324,40 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
         return GameInstallationType.Unknown;
     }
 
+    private static bool ContainsGeneralsManifest(IEnumerable<ContentManifest> manifests) =>
+        manifests.Any(m =>
+            m.Id.Value.Contains(".gameinstallation.generals", StringComparison.OrdinalIgnoreCase) ||
+            (!m.Id.Value.Contains(".gameinstallation.zerohour", StringComparison.OrdinalIgnoreCase) && m.TargetGame == GameType.Generals));
+
+    private static bool ContainsZeroHourManifest(IEnumerable<ContentManifest> manifests) =>
+        manifests.Any(m =>
+            m.Id.Value.Contains(".gameinstallation.zerohour", StringComparison.OrdinalIgnoreCase) ||
+            (!m.Id.Value.Contains(".gameinstallation.generals", StringComparison.OrdinalIgnoreCase) && m.TargetGame == GameType.ZeroHour));
+
+    private static GameInstallation ReconstructInstallationFromManifests(
+        string sourcePath,
+        IReadOnlyList<ContentManifest> manifests)
+    {
+        var firstManifest = manifests[0];
+        var installationType = ExtractInstallationTypeFromManifestId(firstManifest.Id);
+
+        var installation = new GameInstallation(sourcePath, installationType)
+        {
+            Id = Guid.NewGuid().ToString(),
+            DetectedAt = DateTime.UtcNow,
+        };
+
+        var hasGeneralsManifest = ContainsGeneralsManifest(manifests);
+        var hasZeroHourManifest = ContainsZeroHourManifest(manifests);
+
+        installation.SetPaths(
+            hasGeneralsManifest ? sourcePath : null,
+            hasZeroHourManifest ? sourcePath : null);
+
+        installation.Fetch();
+        return installation;
+    }
+
     /// <summary>
     /// Attempts to load game clients from existing manifests in the pool.
     /// </summary>
@@ -389,6 +423,14 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                         "No manifest found for ZeroHour in installation {Id} - will trigger detection",
                         installation.Id);
                 }
+            }
+
+            if (clients.Count == 0 && Directory.Exists(installation.InstallationPath))
+            {
+                needsDetection = true;
+                logger.LogDebug(
+                    "No clients loaded from manifests for installation {Id} - will trigger detection",
+                    installation.Id);
             }
 
             if (clients.Count > 0)
@@ -680,31 +722,28 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
 
                     return hasPath;
                 })
-                .GroupBy(m => m.Metadata.SourcePath!, StringComparer.OrdinalIgnoreCase);
+                .GroupBy(m => m.Metadata.SourcePath, PathHelper.PathComparer);
 
             foreach (var group in manifestsByPath)
             {
                 var sourcePath = group.Key;
-
-                // Determine installation type from the first manifest ID
-                var firstManifest = group.First();
-                var installationType = ExtractInstallationTypeFromManifestId(firstManifest.Id);
-
-                // Create GameInstallation object
-                var installation = new GameInstallation(sourcePath, installationType)
+                if (string.IsNullOrEmpty(sourcePath))
                 {
-                    Id = Guid.NewGuid().ToString(), // Generate new ID
-                    DetectedAt = DateTime.UtcNow,
-                };
+                    continue;
+                }
 
-                // Populate Generals/ZeroHour paths
-                installation.Fetch();
+                var groupManifests = group.ToList();
+                if (groupManifests.Count == 0)
+                {
+                    continue;
+                }
 
+                var installation = ReconstructInstallationFromManifests(sourcePath, groupManifests);
                 installations.Add(installation);
 
                 logger.LogInformation(
                     "Reconstructed {InstallationType} installation from manifests: {Path}",
-                    installationType,
+                    installation.InstallationType,
                     sourcePath);
             }
 
@@ -793,7 +832,7 @@ IInstallationPathResolver? pathResolver = null) : IGameInstallationService, IDis
                 foreach (var manifestInstall in manifestInstallations)
                 {
                     var existingByPath = installations.FirstOrDefault(i =>
-                        i.InstallationPath.Equals(manifestInstall.InstallationPath, StringComparison.OrdinalIgnoreCase));
+                        PathHelper.AreSamePath(i.InstallationPath, manifestInstall.InstallationPath));
 
                     if (existingByPath == null)
                     {

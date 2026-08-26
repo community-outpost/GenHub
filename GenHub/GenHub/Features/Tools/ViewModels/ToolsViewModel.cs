@@ -8,6 +8,7 @@ using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Tools;
 using GenHub.Core.Messages;
 using Microsoft.Extensions.Logging;
@@ -55,12 +56,8 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
     [ObservableProperty]
     private bool _isPaneOpen = true;
 
-    // We'll add commands to explicitly Open and Close the pane.
-    [RelayCommand]
-    private void OpenPane() => IsPaneOpen = true;
-
-    [RelayCommand]
-    private void ClosePane() => IsPaneOpen = false;
+    [ObservableProperty]
+    private double _openPaneLength = SidebarConstants.DefaultOpenPaneLength;
 
     [ObservableProperty]
     private bool _isDetailsDialogOpen = false;
@@ -135,6 +132,25 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
             IsLoading = false;
         }
     }
+
+    private static async Task AutoHideStatusAsync(Action onHide, System.Threading.CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(3000, cancellationToken);
+            onHide();
+        }
+        catch (OperationCanceledException)
+        {
+            // Timer was cancelled, ignore
+        }
+    }
+
+    [RelayCommand]
+    private void OpenPane() => IsPaneOpen = true;
+
+    [RelayCommand]
+    private void ClosePane() => IsPaneOpen = false;
 
     /// <summary>
     /// Adds a new tool plugin from a file.
@@ -416,24 +432,8 @@ public partial class ToolsViewModel(IToolManager toolService, ILogger<ToolsViewM
         IsStatusInfo = type == MessageType.Info;
         IsStatusVisible = true;
 
-        // Auto-hide after 3 seconds
         var cts = new System.Threading.CancellationTokenSource();
         _statusHideCts = cts;
-
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await Task.Delay(3000, cts.Token);
-                if (!cts.Token.IsCancellationRequested)
-                {
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() => IsStatusVisible = false);
-                }
-            }
-            catch (TaskCanceledException)
-            {
-                // Timer was cancelled, ignore
-            }
-        });
+        _ = AutoHideStatusAsync(() => IsStatusVisible = false, cts.Token);
     }
 }

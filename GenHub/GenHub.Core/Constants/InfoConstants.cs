@@ -20,6 +20,31 @@ public static class InfoConstants
     public const string FaqDefaultLanguage = "en";
 
     /// <summary>
+    /// Module name for GenHub Guide.
+    /// </summary>
+    public const string ModuleGuide = "GenHub Guide";
+
+    /// <summary>
+    /// Module name for Zero Hour.
+    /// </summary>
+    public const string ModuleZeroHour = "Zero Hour";
+
+    /// <summary>
+    /// Module name for GeneralsOnline.
+    /// </summary>
+    public const string ModuleGeneralsOnline = "GeneralsOnline";
+
+    /// <summary>
+    /// Section ID for FAQ.
+    /// </summary>
+    public const string SectionFaq = "faq";
+
+    /// <summary>
+    /// Section ID for GeneralsOnline changelog.
+    /// </summary>
+    public const string SectionGoChangelog = "go-changelog";
+
+    /// <summary>
     /// The list of supported languages for the FAQ.
     /// </summary>
     public static readonly IReadOnlyList<string> SupportedFaqLanguages = new[]

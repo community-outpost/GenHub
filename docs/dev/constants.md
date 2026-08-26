@@ -207,6 +207,22 @@ Configuration key constants for `appsettings.json` and environment variables.
 Constants related to workspace management and configuration.
 
 - `DefaultWorkspaceStrategy`: The default workspace strategy to use when none is specified (`WorkspaceStrategy.HardLink`)
+- `ZeroCopyElevationGuidance`: Guidance message appended to errors when zero-copy hard links or symlinks cannot be created (`"To use zero-copy workspaces without copying game files, ensure GenHub has permission to create links (on Windows, enable Developer Mode or run as Administrator)."`)
+
+---
+
+## CommandLineConstants Class
+
+Constants for command line arguments and URI schemes.
+
+| Constant                    | Value                 | Description                                                |
+| --------------------------- | --------------------- | ---------------------------------------------------------- |
+| `LaunchProfileArg`          | `"--launch-profile"`  | Command-line argument used to request launching a profile  |
+| `LaunchProfileInlinePrefix` | `"--launch-profile="` | Prefix for inline profile launching                        |
+| `UriScheme`                 | `"genhub://"`         | URI scheme used for protocol handling                      |
+| `SubscribeCommand`          | `"subscribe"`         | Command for subscribing to a catalog via URI               |
+| `SubscribeUriPrefix`        | `"genhub://subscribe"`| Full prefix for subscription URI                           |
+| `SubscribeUrlParam`         | `"?url="`             | Query parameter name for the catalog URL                   |
 
 ---
 
@@ -669,6 +685,7 @@ Constants related to game client detection and management.
 | -------------------- | ---------------- | ----------------------------- |
 | `GeneralsExecutable` | `"generals.exe"` | Generals executable filename  |
 | `ZeroHourExecutable` | `"game.exe"`     | Zero Hour executable filename |
+| `ContraExecutable`   | `"generals.ctr"` | Contra modded client executable filename |
 
 ### SuperHackers Client Detection
 
@@ -686,6 +703,15 @@ Constants related to game client detection and management.
 | `ZeroHourDirectoryNameAmpersandHyphen` | `"Command & Conquer Generals - Zero Hour"`  | Zero Hour directory name with ampersand and hyphen (Steam standard) |
 | `ZeroHourDirectoryNameColonVariant`    | `"Command & Conquer: Generals - Zero Hour"` | Zero Hour directory name with colon variant |
 | `ZeroHourDirectoryNameAbbreviated`     | `"C&C Generals Zero Hour"`                  | Zero Hour directory name abbreviated form |
+
+### Core Game Archives
+
+| Constant            | Value          | Description                              |
+| ------------------- | -------------- | ---------------------------------------- |
+| `ZeroHourIniBig`    | `"INIZH.big"`  | Primary Zero Hour INI archive filename   |
+| `ZeroHourPatchBig`  | `"PatchZH.big"`| Primary Zero Hour Patch archive filename |
+| `GeneralsIniBig`    | `"INI.big"`    | Primary Generals Vanilla INI archive     |
+| `GeneralsPatchBig`  | `"Patch.big"`  | Primary Generals Vanilla Patch archive   |
 
 ### GeneralsOnline Client Detection
 
