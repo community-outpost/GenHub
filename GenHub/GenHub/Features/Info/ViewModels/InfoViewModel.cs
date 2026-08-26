@@ -133,20 +133,32 @@ public partial class InfoViewModel : ViewModelBase, IDisposable, IRecipient<Open
     /// <inheritdoc/>
     public void Dispose()
     {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases unmanaged and optionally managed resources.
+    /// </summary>
+    /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
+    protected virtual void Dispose(bool disposing)
+    {
         if (_disposed)
         {
             return;
         }
 
-        WeakReferenceMessenger.Default.UnregisterAll(this);
-        var faqSection = Sections.OfType<FaqSectionViewModel>().FirstOrDefault();
-        if (faqSection != null)
+        if (disposing)
         {
-            faqSection.PropertyChanged -= OnFaqSectionPropertyChanged;
+            WeakReferenceMessenger.Default.UnregisterAll(this);
+            var faqSection = Sections.OfType<FaqSectionViewModel>().FirstOrDefault();
+            if (faqSection != null)
+            {
+                faqSection.PropertyChanged -= OnFaqSectionPropertyChanged;
+            }
         }
 
         _disposed = true;
-        GC.SuppressFinalize(this);
     }
 
     partial void OnSelectedModuleChanged(string value)
