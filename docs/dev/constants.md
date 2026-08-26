@@ -1590,6 +1590,43 @@ var metadata = new ToolMetadata
 
 ---
 
+## PlatformConstants Class
+
+Platform-specific executable names and arguments used for shell operations and file reveals.
+
+| Constant                       | Value                                 | Description                                                                 |
+| ------------------------------ | ------------------------------------- | --------------------------------------------------------------------------- |
+| `WindowsExplorerExecutable`    | `"explorer.exe"`                      | Windows Explorer executable name                                            |
+| `WindowsExplorerSelectArgument`| `"/select,\"{0}\""`                   | Windows Explorer select argument format                                     |
+| `MacOSOpenExecutable`          | `"open"`                              | macOS open command executable name (resolved via PATH)                      |
+| `LinuxXdgOpenExecutable`       | `"xdg-open"`                          | Linux xdg-open command executable name (resolved via PATH)                  |
+| `WindowsExplorerPath`          | Dynamic property                      | Resolves absolute path to Windows Explorer via Windows directory with fallback |
+
+---
+
+## ReplayManagerConstants Class
+
+Constants specifically for the Replay Manager feature.
+
+| Constant                       | Value                                 | Description                                                                 |
+| ------------------------------ | ------------------------------------- | --------------------------------------------------------------------------- |
+| `MaxReplaySizeBytes`           | `1048576` (1MB)                       | Maximum size for a single replay file                                       |
+| `MaxZipEntries`                | `100`                                 | Maximum allowed entries in a replay ZIP archive                             |
+| `MaxAggregateUncompressedBytes`| `52428800` (50MB)                     | Maximum aggregate uncompressed bytes for replay ZIP archives                |
+| `MaxCompressionRatio`          | `50.0`                                | Maximum compression ratio allowed for replay ZIP archives                   |
+| `MaxUploadBytesPerPeriod`      | `10485760` (10MB)                     | Maximum upload bytes per period                                             |
+| `TempImportFilePrefix`         | `"genhub_import_"`                    | Prefix for temporary import files                                           |
+| `TempShareFilePrefix`          | `"genhub_share_"`                     | Prefix for temporary share files                                            |
+| `DefaultImportedReplayFileName`| `"imported_replay.rep"`               | Default file name for imported replays                                      |
+| `ZipFilePattern`               | `"*.zip"`                             | File pattern for replay ZIP archives                                        |
+| `DefaultZipName`               | `"replays"`                           | Default name for exported replay ZIP files                                  |
+| `DeleteFailedTitle`            | `"Delete Failed"`                     | Notification title for delete failure                                       |
+| `UploadCategory`               | `"replays"`                           | Category identifier for replay uploads                                      |
+| `WindowsMockPathSegment`       | `"\\Mock\\"`                          | Mock path separator indicator for demo environments on Windows              |
+| `UnixMockPathSegment`          | `"/Mock/"`                            | Mock path separator indicator for demo environments on Unix                 |
+
+---
+
 ## MapManagerConstants Class
 
 Constants specifically for the Map Manager feature.

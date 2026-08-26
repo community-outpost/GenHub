@@ -224,10 +224,10 @@ public sealed class PathHelperTests
     }
 
     /// <summary>
-    /// Verifies that SanitizeFileName removes invalid filesystem characters and trims whitespace.
+    /// Verifies that SanitizeFileName removes invalid filesystem characters, trims whitespace and trailing dots, and prefixes Windows reserved device names.
     /// </summary>
     [Fact]
-    public void SanitizeFileName_RemovesInvalidCharacters()
+    public void SanitizeFileName_RemovesInvalidCharactersAndHandlesEdgeCases()
     {
         var invalidChars = new string(Path.GetInvalidFileNameChars());
         var input = $"  valid{invalidChars}file name.txt  ";
@@ -235,6 +235,10 @@ public sealed class PathHelperTests
 
         Assert.Equal("validfile name.txt", sanitized);
         Assert.Equal(string.Empty, PathHelper.SanitizeFileName(string.Empty));
+        Assert.Equal("trailing", PathHelper.SanitizeFileName("trailing...."));
+        Assert.Equal("_CON.zip", PathHelper.SanitizeFileName("CON.zip"));
+        Assert.Equal("_nul", PathHelper.SanitizeFileName("nul"));
+        Assert.Equal("_com1.txt", PathHelper.SanitizeFileName("com1.txt"));
     }
 
     /// <summary>

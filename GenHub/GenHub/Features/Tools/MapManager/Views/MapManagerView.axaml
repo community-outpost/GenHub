@@ -450,7 +450,7 @@
     </Style>
 
     <!-- Button styles -->
-    <Style Selector="Button.Primary">
+    <Style Selector="Button.Primary, ToggleButton.Primary">
       <Setter Property="Background" Value="{DynamicResource PrimaryButtonBackground}" />
       <Setter Property="Foreground" Value="White" />
       <Setter Property="FontWeight" Value="SemiBold" />
@@ -463,7 +463,7 @@
         </Transitions>
       </Setter>
     </Style>
-    <Style Selector="Button.Primary:pointerover">
+    <Style Selector="Button.Primary:pointerover, ToggleButton.Primary:pointerover">
       <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
     </Style>
 
@@ -502,6 +502,7 @@
     </Style>
     <Style Selector="ToggleButton.Primary:checked">
       <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
+      <Setter Property="Foreground" Value="White" />
     </Style>
 
     <Style Selector="Button.Danger:pointerover">

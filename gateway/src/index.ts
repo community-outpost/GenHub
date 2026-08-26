@@ -411,13 +411,23 @@ const createUploadSuccessResponse = async (
   );
 };
 
+const MULTIPART_SLACK_BYTES = 1024;
+
 const isLengthExceeded = (request: Request, maxSizeBytes: number): boolean => {
-  const declaredLength = Number(request.headers.get("content-length") ?? "");
-  return Number.isSafeInteger(declaredLength) && declaredLength > maxSizeBytes;
+  const raw = request.headers.get("content-length");
+  if (raw === null || raw.trim().length === 0) {
+    return false;
+  }
+  const declaredLength = Number(raw);
+  return Number.isSafeInteger(declaredLength) && declaredLength > maxSizeBytes + MULTIPART_SLACK_BYTES;
 };
 
 const hasDeclaredContentLength = (request: Request): boolean => {
-  const declaredLength = Number(request.headers.get("content-length") ?? "");
+  const raw = request.headers.get("content-length");
+  if (raw === null || raw.trim().length === 0) {
+    return false;
+  }
+  const declaredLength = Number(raw);
   return Number.isSafeInteger(declaredLength) && declaredLength >= 0;
 };
 

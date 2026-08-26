@@ -46,6 +46,16 @@ public static class ReplayManagerConstants
     public const string DefaultImportedReplayFileName = "imported_replay.rep";
 
     /// <summary>
+    /// File pattern for replay ZIP archives.
+    /// </summary>
+    public const string ZipFilePattern = "*.zip";
+
+    /// <summary>
+    /// Default name for exported replay ZIP files.
+    /// </summary>
+    public const string DefaultZipName = "replays";
+
+    /// <summary>
     /// Notification title for delete failure.
     /// </summary>
     public const string DeleteFailedTitle = ToolConstants.DeleteFailedTitle;

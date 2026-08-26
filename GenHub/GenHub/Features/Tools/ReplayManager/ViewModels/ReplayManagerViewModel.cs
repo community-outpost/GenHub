@@ -82,7 +82,7 @@ public partial class ReplayManagerViewModel(
     /// The name of the ZIP file to export or upload.
     /// </summary>
     [ObservableProperty]
-    private string zipName = "replays.zip";
+    private string zipName = ReplayManagerConstants.DefaultZipName;
 
     /// <summary>
     /// Whether the upload history flyout is open.
@@ -259,12 +259,13 @@ public partial class ReplayManagerViewModel(
         var safeZipName = PathHelper.SanitizeFileName(rawZipName);
         if (string.IsNullOrWhiteSpace(safeZipName))
         {
-            safeZipName = "replays.zip";
+            safeZipName = ReplayManagerConstants.DefaultZipName;
         }
 
-        if (!safeZipName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+        var zipExtension = Path.GetExtension(ReplayManagerConstants.ZipFilePattern);
+        if (!safeZipName.EndsWith(zipExtension, StringComparison.OrdinalIgnoreCase))
         {
-            safeZipName += ".zip";
+            safeZipName += zipExtension;
         }
 
         return PathHelper.GetUniqueNumberedPath(Path.Combine(directory, safeZipName));
@@ -803,7 +804,7 @@ public partial class ReplayManagerViewModel(
             await clipboard.SetTextAsync(uploadResult.PublicUrl);
         }
 
-        var fileName = SelectedReplays.Count == 1 ? SelectedReplays[0].FileName : "replays.zip";
+        var fileName = SelectedReplays.Count == 1 ? SelectedReplays[0].FileName : $"{ReplayManagerConstants.DefaultZipName}.zip";
         uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash, ReplayManagerConstants.UploadCategory);
 
         if (IsHistoryOpen)

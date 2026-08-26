@@ -155,7 +155,7 @@
         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="16">
           <PathIcon Data="{StaticResource ToolIcon.TrayArrowDown}" Width="64" Height="64" Foreground="{DynamicResource AccentLightBrush}" HorizontalAlignment="Center"/>
           <TextBlock Text="Drop replays or ZIPs to import" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center"/>
-          <TextBlock Text="Single .rep files or ZIP archives only (max 10MB)" FontSize="12" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center"/>
+          <TextBlock Text="Single .rep files or ZIP archives only" FontSize="12" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center"/>
         </StackPanel>
       </Border>
 
@@ -341,7 +341,7 @@
     </Style>
 
     <!-- Button styles -->
-    <Style Selector="Button.Primary">
+    <Style Selector="Button.Primary, ToggleButton.Primary">
       <Setter Property="Background" Value="{DynamicResource PrimaryButtonBackground}" />
       <Setter Property="Foreground" Value="White" />
       <Setter Property="FontWeight" Value="SemiBold" />
@@ -354,7 +354,7 @@
         </Transitions>
       </Setter>
     </Style>
-    <Style Selector="Button.Primary:pointerover">
+    <Style Selector="Button.Primary:pointerover, ToggleButton.Primary:pointerover">
       <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
     </Style>
 
@@ -397,6 +397,7 @@
 
     <Style Selector="ToggleButton.Primary:checked">
       <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
+      <Setter Property="Foreground" Value="White" />
     </Style>
 
     <Style Selector="Button.icon-subtle">

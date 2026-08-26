@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -14,6 +15,13 @@ namespace GenHub.Core.Helpers;
 /// </summary>
 public static class PathHelper
 {
+    private static readonly HashSet<string> ReservedDeviceNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "CON", "PRN", "AUX", "NUL",
+        "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+        "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    };
+
     /// <summary>
     /// Gets the string comparison to use when comparing filesystem paths. Windows paths
     /// are compared case-insensitively; other platforms use conservative case-sensitive semantics.
@@ -177,7 +185,7 @@ public static class PathHelper
     }
 
     /// <summary>
-    /// Sanitizes a file name by removing invalid filesystem characters.
+    /// Sanitizes a file name by removing invalid filesystem characters, trimming trailing dots and whitespace, and prefixing Windows reserved device names.
     /// </summary>
     /// <param name="fileName">The file name to sanitize.</param>
     /// <returns>The sanitized file name.</returns>
@@ -189,7 +197,19 @@ public static class PathHelper
         }
 
         var invalidChars = Path.GetInvalidFileNameChars();
-        return string.Concat(fileName.Where(c => !invalidChars.Contains(c))).Trim();
+        var sanitized = string.Concat(fileName.Where(c => !invalidChars.Contains(c))).Trim().TrimEnd('.');
+        if (string.IsNullOrEmpty(sanitized))
+        {
+            return string.Empty;
+        }
+
+        var nameWithoutExtension = Path.GetFileNameWithoutExtension(sanitized);
+        if (ReservedDeviceNames.Contains(nameWithoutExtension))
+        {
+            sanitized = $"_{sanitized}";
+        }
+
+        return sanitized;
     }
 
     /// <summary>

@@ -397,7 +397,7 @@ public sealed class ReplayImportService(
                 var zipResult = await ImportFromZipAsync(tempPath, targetVersion, null, ct);
                 importedFiles.AddRange(zipResult.ImportedFiles);
                 errors.AddRange(zipResult.Errors);
-                return zipResult.FilesSkipped;
+                return Math.Max(zipResult.FilesSkipped, zipResult.Success ? 0 : 1);
             }
 
             var importedFileName = ExtractFileName(new Uri(directUrl));
