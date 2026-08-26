@@ -1,7 +1,11 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Text.Json;
+using System.Threading;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Models.Tools.ReplayManager;
 
@@ -10,39 +14,66 @@ namespace GenHub.Features.Tools.ReplayManager.Services;
 /// <summary>
 /// In-memory thread-safe registry mapping CRC pairs, executable CRCs, and SHA-256 hashes
 /// to known game client versions and distribution metadata.
+/// Preloaded on startup with embedded gameclient catalog.
 /// </summary>
 public sealed class CrcMappingRegistry : ICrcMappingRegistry
 {
-    private readonly ConcurrentDictionary<string, CrcMappingEntry> _entriesByCrcPair = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, CrcMappingEntry> _entriesByExeCrc = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, CrcMappingEntry> _entriesBySha256 = new(StringComparer.OrdinalIgnoreCase);
+    private sealed record RegistryState(
+        ImmutableDictionary<string, CrcMappingEntry> PairMap,
+        ImmutableDictionary<string, CrcMappingEntry> ExeMap,
+        ImmutableDictionary<string, CrcMappingEntry> ShaMap,
+        ImmutableList<CrcMappingEntry> AllEntries);
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
+    };
+
+    private RegistryState _state;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CrcMappingRegistry"/> class,
+    /// preloading the embedded CRC catalog.
+    /// </summary>
+    public CrcMappingRegistry()
+    {
+        _state = new RegistryState(
+            ImmutableDictionary<string, CrcMappingEntry>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
+            ImmutableDictionary<string, CrcMappingEntry>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
+            ImmutableDictionary<string, CrcMappingEntry>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
+            ImmutableList<CrcMappingEntry>.Empty);
+
+        PreloadEmbeddedCatalog();
+    }
 
     /// <inheritdoc />
     public bool TryGetEntry(string exeCrc, string iniCrc, out CrcMappingEntry? entry)
     {
-        var key = CreateCrcPairKey(exeCrc, iniCrc);
-        if (_entriesByCrcPair.TryGetValue(key, out var found))
+        var state = _state;
+        if (!string.IsNullOrWhiteSpace(iniCrc))
         {
-            entry = found;
-            return true;
+            var key = CreateCrcPairKey(exeCrc, iniCrc);
+            if (state.PairMap.TryGetValue(key, out var foundPair))
+            {
+                entry = foundPair;
+                return true;
+            }
+
+            entry = null;
+            return false;
         }
 
-        // Fallback: match by exeCRC alone if exact pair not found
-        if (TryGetEntryByExeCrc(exeCrc, out var exeFound))
-        {
-            entry = exeFound;
-            return true;
-        }
-
-        entry = null;
-        return false;
+        // If iniCrc was not provided, match by exeCrc alone
+        return TryGetEntryByExeCrc(exeCrc, out entry);
     }
 
     /// <inheritdoc />
     public bool TryGetEntryByExeCrc(string exeCrc, out CrcMappingEntry? entry)
     {
+        var state = _state;
         var normalized = NormalizeHex(exeCrc);
-        if (_entriesByExeCrc.TryGetValue(normalized, out var found))
+        if (state.ExeMap.TryGetValue(normalized, out var found))
         {
             entry = found;
             return true;
@@ -61,8 +92,9 @@ public sealed class CrcMappingRegistry : ICrcMappingRegistry
             return false;
         }
 
+        var state = _state;
         var normalized = sha256.Trim();
-        if (_entriesBySha256.TryGetValue(normalized, out var found))
+        if (state.ShaMap.TryGetValue(normalized, out var found))
         {
             entry = found;
             return true;
@@ -75,7 +107,7 @@ public sealed class CrcMappingRegistry : ICrcMappingRegistry
     /// <inheritdoc />
     public IReadOnlyList<CrcMappingEntry> GetAllEntries()
     {
-        return _entriesByCrcPair.Values.Distinct().ToList().AsReadOnly();
+        return _state.AllEntries;
     }
 
     /// <inheritdoc />
@@ -83,14 +115,37 @@ public sealed class CrcMappingRegistry : ICrcMappingRegistry
     {
         ArgumentNullException.ThrowIfNull(catalog);
 
-        _entriesByCrcPair.Clear();
-        _entriesByExeCrc.Clear();
-        _entriesBySha256.Clear();
+        var pairBuilder = ImmutableDictionary.CreateBuilder<string, CrcMappingEntry>(StringComparer.OrdinalIgnoreCase);
+        var exeBuilder = ImmutableDictionary.CreateBuilder<string, CrcMappingEntry>(StringComparer.OrdinalIgnoreCase);
+        var shaBuilder = ImmutableDictionary.CreateBuilder<string, CrcMappingEntry>(StringComparer.OrdinalIgnoreCase);
+        var allList = new List<CrcMappingEntry>();
 
         foreach (var entry in catalog.Mappings)
         {
-            RegisterEntry(entry);
+            var pairKey = CreateCrcPairKey(entry.ExeCrc, entry.IniCrc);
+            pairBuilder[pairKey] = entry;
+
+            var normalizedExe = NormalizeHex(entry.ExeCrc);
+            if (!string.IsNullOrEmpty(normalizedExe))
+            {
+                exeBuilder[normalizedExe] = entry;
+            }
+
+            if (!string.IsNullOrWhiteSpace(entry.Sha256))
+            {
+                shaBuilder[entry.Sha256.Trim()] = entry;
+            }
+
+            allList.Add(entry);
         }
+
+        var newState = new RegistryState(
+            pairBuilder.ToImmutable(),
+            exeBuilder.ToImmutable(),
+            shaBuilder.ToImmutable(),
+            allList.ToImmutableList());
+
+        Interlocked.Exchange(ref _state, newState);
     }
 
     /// <inheritdoc />
@@ -98,18 +153,22 @@ public sealed class CrcMappingRegistry : ICrcMappingRegistry
     {
         ArgumentNullException.ThrowIfNull(entry);
 
-        var key = CreateCrcPairKey(entry.ExeCrc, entry.IniCrc);
-        _entriesByCrcPair[key] = entry;
-
-        var normalizedExeCrc = NormalizeHex(entry.ExeCrc);
-        if (!string.IsNullOrEmpty(normalizedExeCrc))
+        while (true)
         {
-            _entriesByExeCrc[normalizedExeCrc] = entry;
-        }
+            var current = _state;
+            var pairKey = CreateCrcPairKey(entry.ExeCrc, entry.IniCrc);
+            var normalizedExe = NormalizeHex(entry.ExeCrc);
 
-        if (!string.IsNullOrWhiteSpace(entry.Sha256))
-        {
-            _entriesBySha256[entry.Sha256.Trim()] = entry;
+            var pairMap = current.PairMap.SetItem(pairKey, entry);
+            var exeMap = !string.IsNullOrEmpty(normalizedExe) ? current.ExeMap.SetItem(normalizedExe, entry) : current.ExeMap;
+            var shaMap = !string.IsNullOrWhiteSpace(entry.Sha256) ? current.ShaMap.SetItem(entry.Sha256.Trim(), entry) : current.ShaMap;
+            var allEntries = current.AllEntries.Add(entry);
+
+            var next = new RegistryState(pairMap, exeMap, shaMap, allEntries);
+            if (Interlocked.CompareExchange(ref _state, next, current) == current)
+            {
+                break;
+            }
         }
     }
 
@@ -132,5 +191,36 @@ public sealed class CrcMappingRegistry : ICrcMappingRegistry
         }
 
         return trimmed.ToUpperInvariant();
+    }
+
+    private void PreloadEmbeddedCatalog()
+    {
+        try
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            var resourceName = assembly.GetManifestResourceNames()
+                .FirstOrDefault(n => n.EndsWith("crc-mapping.json", StringComparison.OrdinalIgnoreCase));
+
+            if (resourceName == null)
+            {
+                return;
+            }
+
+            using var stream = assembly.GetManifestResourceStream(resourceName);
+            if (stream == null)
+            {
+                return;
+            }
+
+            var catalog = JsonSerializer.Deserialize<CrcCatalog>(stream, JsonOptions);
+            if (catalog != null && catalog.Mappings.Count > 0)
+            {
+                LoadCatalog(catalog);
+            }
+        }
+        catch
+        {
+            // Embedded catalog is best-effort on assembly initialization
+        }
     }
 }

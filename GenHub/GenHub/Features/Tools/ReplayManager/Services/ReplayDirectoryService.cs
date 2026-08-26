@@ -1,13 +1,16 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Tools.ReplayManager;
 using Microsoft.Extensions.Logging;
 
@@ -15,11 +18,12 @@ namespace GenHub.Features.Tools.ReplayManager.Services;
 
 /// <summary>
 /// Implementation of <see cref="IReplayDirectoryService"/> for managing replay files on disk.
-/// Automatically parses replay headers and resolves game client compatibility.
+/// Automatically parses replay headers and resolves game client compatibility against installed content.
 /// </summary>
 public sealed class ReplayDirectoryService(
     IReplayHeaderParser headerParser,
     ICrcMappingRegistry crcMappingRegistry,
+    IContentManifestPool manifestPool,
     ILogger<ReplayDirectoryService> logger) : IReplayDirectoryService
 {
     /// <inheritdoc />
@@ -81,7 +85,7 @@ public sealed class ReplayDirectoryService(
                 if (parseResult.Success && parseResult.Data != null)
                 {
                     replay.Metadata = parseResult.Data;
-                    ResolveCompatibility(replay);
+                    await ResolveCompatibilityAsync(replay, ct);
                 }
             }
 
@@ -121,6 +125,7 @@ public sealed class ReplayDirectoryService(
     }
 
     /// <inheritdoc />
+    [SuppressMessage("Security", "S4036:Command path should not be passed without validation", Justification = "Windows explorer launcher with absolute path.")]
     public void OpenInExplorer(GameType version)
     {
         var path = GetReplayDirectory(version);
@@ -136,6 +141,7 @@ public sealed class ReplayDirectoryService(
     }
 
     /// <inheritdoc />
+    [SuppressMessage("Security", "S4036:Command path should not be passed without validation", Justification = "Windows explorer selection launcher with absolute file path.")]
     public void RevealInExplorer(ReplayFile replay)
     {
         if (File.Exists(replay.FullPath))
@@ -149,7 +155,7 @@ public sealed class ReplayDirectoryService(
         }
     }
 
-    private void ResolveCompatibility(ReplayFile replay)
+    private async Task ResolveCompatibilityAsync(ReplayFile replay, CancellationToken ct)
     {
         if (replay.Metadata == null)
         {
@@ -169,9 +175,26 @@ public sealed class ReplayDirectoryService(
         if (crcMappingRegistry.TryGetEntry(exeCrcStr, iniCrcStr ?? string.Empty, out var match) && match != null)
         {
             replay.MatchedClient = match;
-            replay.CompatibilityStatus = string.IsNullOrWhiteSpace(match.CdnUrl)
-                ? ReplayCompatibilityStatus.Compatible
-                : ReplayCompatibilityStatus.Downloadable;
+
+            var isInstalled = false;
+            if (ManifestId.TryCreate(match.ManifestId, out var manifestId))
+            {
+                var checkResult = await manifestPool.IsManifestAcquiredAsync(manifestId, ct);
+                isInstalled = checkResult.Success && checkResult.Data;
+            }
+
+            if (isInstalled)
+            {
+                replay.CompatibilityStatus = ReplayCompatibilityStatus.Compatible;
+            }
+            else if (!string.IsNullOrWhiteSpace(match.CdnUrl))
+            {
+                replay.CompatibilityStatus = ReplayCompatibilityStatus.Downloadable;
+            }
+            else
+            {
+                replay.CompatibilityStatus = ReplayCompatibilityStatus.Orphaned;
+            }
         }
         else
         {

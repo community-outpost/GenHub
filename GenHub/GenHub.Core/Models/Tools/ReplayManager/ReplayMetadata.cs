@@ -14,6 +14,11 @@ public sealed class ReplayMetadata
     public string? MapName { get; init; }
 
     /// <summary>
+    /// Gets the replay title or description embedded in the header.
+    /// </summary>
+    public string? Title { get; init; }
+
+    /// <summary>
     /// Gets the list of players.
     /// </summary>
     public IReadOnlyList<string>? Players { get; init; }

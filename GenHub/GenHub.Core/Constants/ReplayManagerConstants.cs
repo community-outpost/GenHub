@@ -55,6 +55,7 @@ public static class ReplayManagerConstants
     /// <summary>
     /// Default GitHub Gist URL providing the live CRC mapping catalog.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Official GenHub Gist endpoint for community gameclient CRC catalog.")]
     public const string DefaultCrcCatalogGistUrl = "https://gist.githubusercontent.com/undead2146/99bda56e85a579204dd7cad277547779/raw/crc-mapping.json";
 
     /// <summary>
