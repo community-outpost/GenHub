@@ -1556,6 +1556,7 @@ public partial class GameProfileLauncherViewModel(
                 TshScreenEdgeScrollEnabledInWindowedApp = sourceProfile.TshScreenEdgeScrollEnabledInWindowedApp,
                 TshShowMoneyPerMinute = sourceProfile.TshShowMoneyPerMinute,
                 TshSystemTimeFontSize = sourceProfile.TshSystemTimeFontSize,
+                TshGameWindowTransitionSpeedMultiplier = sourceProfile.TshGameWindowTransitionSpeedMultiplier,
 
                 // GeneralsOnline Settings
                 GoShowFps = sourceProfile.GoShowFps,

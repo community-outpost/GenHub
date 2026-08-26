@@ -100,7 +100,8 @@ public static class GameProfileExtensions
                profile.TshCursorCaptureEnabledInWindowedMenu.HasValue ||
                profile.TshScreenEdgeScrollEnabledInFullscreenApp.HasValue ||
                profile.TshScreenEdgeScrollEnabledInWindowedApp.HasValue ||
-               profile.TshMoneyTransactionVolume.HasValue;
+               profile.TshMoneyTransactionVolume.HasValue ||
+               profile.TshGameWindowTransitionSpeedMultiplier.HasValue;
     }
 
     private static bool HasCustomGeneralsOnlineSettings(GameProfile profile)

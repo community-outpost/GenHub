@@ -790,32 +790,52 @@ public class GameProcessManager(
         return processStartInfo;
     }
 
-    private async Task<OperationResult<GameProcessInfo>?> TryAdoptSpawnedProcessAsync(
+    private async Task<OperationResult<GameProcessInfo>> HandleImmediateProcessExitAsync(
         Process process,
         GameLaunchConfiguration configuration,
         DateTime? launcherStartTime,
+        BoundedErrorBuffer capturedErrors,
         CancellationToken cancellationToken)
     {
-        logger.LogDebug(
-            "[Process] Launcher process {ProcessId} exited with code 0 - attempting to find spawned game process",
-            process.Id);
+        // Adoption is not gated on Windows: a Wine or Proton wrapper forks and exits the same way,
+        // and adoption only accepts a candidate that carries the name, started at or after this
+        // launcher, is inside the recency window, and runs from the workspace directory. If the
+        // engine really did exit, nothing satisfies that and the launch still fails loudly.
+        if (process.ExitCode == ProcessConstants.ExitCodeSuccess)
+        {
+            logger.LogInformation(
+                "[Process] Launcher process {ProcessId} exited with code 0 - attempting to find spawned game process",
+                process.Id);
 
-        var executableName = !string.IsNullOrWhiteSpace(configuration.ExpectedChildProcessName)
-            ? configuration.ExpectedChildProcessName
-            : Path.GetFileNameWithoutExtension(configuration.ExecutablePath);
+            var executableName = !string.IsNullOrWhiteSpace(configuration.ExpectedChildProcessName)
+                ? configuration.ExpectedChildProcessName
+                : Path.GetFileNameWithoutExtension(configuration.ExecutablePath);
 
-        var workingDirectory = configuration.WorkingDirectory ?? Path.GetDirectoryName(configuration.ExecutablePath) ?? string.Empty;
-        Process? spawnedProcess = null;
+            var spawnedProcess = await PollForSpawnedGameProcessAsync(configuration, executableName, launcherStartTime, cancellationToken);
+            if (spawnedProcess != null)
+            {
+                var spawnedProcessInfo = AdoptSpawnedProcess(process, spawnedProcess, configuration, executableName);
+                return OperationResult<GameProcessInfo>.CreateSuccess(spawnedProcessInfo);
+            }
+        }
+
+        return HandleFailedProcessExit(process, capturedErrors);
+    }
+
+    private async Task<Process?> PollForSpawnedGameProcessAsync(
+        GameLaunchConfiguration configuration,
+        string executableName,
+        DateTime? launcherStartTime,
+        CancellationToken cancellationToken)
+    {
+        var workingDir = configuration.WorkingDirectory ?? Path.GetDirectoryName(configuration.ExecutablePath) ?? string.Empty;
         var deadline = DateTime.UtcNow + TimeSpan.FromMilliseconds(ProcessConstants.LauncherExitGracePeriodMs);
 
-        while (launcherStartTime.HasValue)
+        Process? spawnedProcess = null;
+        while (!cancellationToken.IsCancellationRequested && DateTime.UtcNow < deadline)
         {
-            spawnedProcess = FindAdoptableGameProcess(
-                executableName,
-                workingDirectory,
-                launcherStartTime);
-
-            if (spawnedProcess != null || DateTime.UtcNow >= deadline)
+            spawnedProcess = FindAdoptableGameProcess(executableName, workingDir, launcherStartTime);
+            if (spawnedProcess != null)
             {
                 break;
             }
@@ -823,18 +843,53 @@ public class GameProcessManager(
             await Task.Delay(ProcessConstants.SpawnedChildPollIntervalMs, cancellationToken);
         }
 
-        if (spawnedProcess == null)
+        if (cancellationToken.IsCancellationRequested)
         {
-            return null;
+            if (spawnedProcess != null)
+            {
+                CleanupSpawnedProcessUponCancellation(spawnedProcess);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
         }
 
+        return spawnedProcess;
+    }
+
+    private void CleanupSpawnedProcessUponCancellation(Process spawnedProcess)
+    {
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                if (!spawnedProcess.HasExited)
+                {
+                    spawnedProcess.Kill(entireProcessTree: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "[Process] Ignored exception while terminating adopted process upon cancellation");
+            }
+            finally
+            {
+                spawnedProcess.Dispose();
+            }
+        });
+    }
+
+    private GameProcessInfo AdoptSpawnedProcess(
+        Process launcherProcess,
+        Process spawnedProcess,
+        GameLaunchConfiguration configuration,
+        string executableName)
+    {
         logger.LogInformation(
             "[Process] Found spawned game process {ProcessId} for executable {ExecutableName}",
             spawnedProcess.Id,
             executableName);
 
-        process.Dispose();
-
+        launcherProcess.Dispose();
         _managedProcesses[spawnedProcess.Id] = spawnedProcess;
 
         try
@@ -848,40 +903,21 @@ public class GameProcessManager(
         }
 
         var spawnedProcessInfo = BuildProcessInfo(spawnedProcess, configuration.ExecutablePath);
-
         logger.LogInformation("Started game process {ProcessId} for executable {ExecutablePath}", spawnedProcess.Id, configuration.ExecutablePath);
-        return OperationResult<GameProcessInfo>.CreateSuccess(spawnedProcessInfo);
+        return spawnedProcessInfo;
     }
 
-    private async Task<OperationResult<GameProcessInfo>> HandleImmediateProcessExitAsync(
+    private OperationResult<GameProcessInfo> HandleFailedProcessExit(
         Process process,
-        GameLaunchConfiguration configuration,
-        DateTime? launcherStartTime,
-        BoundedErrorBuffer capturedErrors,
-        CancellationToken cancellationToken)
+        BoundedErrorBuffer capturedErrors)
     {
         var exitCode = process.ExitCode;
-
-        // Adoption is not gated on Windows: a Wine or Proton wrapper forks and exits the same way,
-        // and adoption only accepts a candidate that carries the name, started at or after this
-        // launcher, is inside the recency window, and runs from the workspace directory. If the
-        // engine really did exit, nothing satisfies that and the launch still fails loudly.
-        if (exitCode == ProcessConstants.ExitCodeSuccess)
-        {
-            var adoptionResult = await TryAdoptSpawnedProcessAsync(process, configuration, launcherStartTime, cancellationToken);
-            if (adoptionResult != null)
-            {
-                return adoptionResult;
-            }
-        }
-
         logger.LogWarning("Process {ProcessId} exited immediately with code {ExitCode}", process.Id, exitCode);
 
         DrainStandardError(process, capturedErrors);
         process.Dispose();
 
         var stderrTail = capturedErrors.ToString();
-
         if (exitCode != 0)
         {
             var detail = string.IsNullOrWhiteSpace(stderrTail)
@@ -898,7 +934,6 @@ public class GameProcessManager(
         }
 
         var suffix = string.IsNullOrWhiteSpace(stderrTail) ? string.Empty : $" {stderrTail}";
-
         logger.LogError(
             "[Process] Process exited immediately with code 0 and no spawned process was found. Output: {Output}",
             string.IsNullOrWhiteSpace(stderrTail) ? "No output was captured." : stderrTail);
