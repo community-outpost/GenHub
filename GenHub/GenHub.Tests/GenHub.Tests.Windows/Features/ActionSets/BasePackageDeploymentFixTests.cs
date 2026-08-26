@@ -172,20 +172,7 @@ public sealed class BasePackageDeploymentFixTests : IDisposable
         var extractDir = Path.Combine(_testDirectory, "extract_valid");
         Directory.CreateDirectory(extractDir);
 
-        using (var zipArchive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
-        {
-            var entry1 = zipArchive.CreateEntry("file1.dat");
-            await using (var stream1 = entry1.Open())
-            {
-                await stream1.WriteAsync(new byte[1024]);
-            }
-
-            var entry2 = zipArchive.CreateEntry("file2.dat");
-            await using (var stream2 = entry2.Open())
-            {
-                await stream2.WriteAsync(new byte[2048]);
-            }
-        }
+        await CreateValidMultiEntryZipAsync(archivePath);
 
         using var archive = ArchiveFactory.OpenArchive(archivePath);
         var extracted = await TestPackageDeploymentFix.PublicExtractArchiveEntriesAsync(archive, extractDir);
@@ -207,29 +194,7 @@ public sealed class BasePackageDeploymentFixTests : IDisposable
         var extractDir = Path.Combine(_testDirectory, "extract_exceeded");
         Directory.CreateDirectory(extractDir);
 
-        // Create two entries each of 110 MB (total 220 MB decompressed), exceeding 200 MB aggregate budget.
-        // Zero-filled bytes compress to a few kilobytes in the ZIP archive.
-        var chunk = new byte[1024 * 1024];
-        using (var zipArchive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
-        {
-            var entry1 = zipArchive.CreateEntry("entry1.dat", CompressionLevel.Optimal);
-            await using (var stream1 = entry1.Open())
-            {
-                for (var i = 0; i < 110; i++)
-                {
-                    await stream1.WriteAsync(chunk);
-                }
-            }
-
-            var entry2 = zipArchive.CreateEntry("entry2.dat", CompressionLevel.Optimal);
-            await using (var stream2 = entry2.Open())
-            {
-                for (var i = 0; i < 110; i++)
-                {
-                    await stream2.WriteAsync(chunk);
-                }
-            }
-        }
+        await CreateOversizedMultiEntryZipAsync(archivePath);
 
         using var archive = ArchiveFactory.OpenArchive(archivePath);
         var act = () => TestPackageDeploymentFix.PublicExtractArchiveEntriesAsync(archive, extractDir);
@@ -239,6 +204,45 @@ public sealed class BasePackageDeploymentFixTests : IDisposable
         // Entry 1 was within the remaining budget and completed, whereas entry 2 exceeded the budget and was cleaned up.
         File.Exists(Path.Combine(extractDir, "entry1.dat")).Should().BeTrue();
         File.Exists(Path.Combine(extractDir, "entry2.dat")).Should().BeFalse();
+    }
+
+    private static async Task CreateValidMultiEntryZipAsync(string archivePath)
+    {
+        using var zipArchive = ZipFile.Open(archivePath, ZipArchiveMode.Create);
+        var entry1 = zipArchive.CreateEntry("file1.dat");
+        await using (var stream1 = entry1.Open())
+        {
+            await stream1.WriteAsync(new byte[1024]);
+        }
+
+        var entry2 = zipArchive.CreateEntry("file2.dat");
+        await using (var stream2 = entry2.Open())
+        {
+            await stream2.WriteAsync(new byte[2048]);
+        }
+    }
+
+    private static async Task CreateOversizedMultiEntryZipAsync(string archivePath)
+    {
+        var chunk = new byte[1024 * 1024];
+        using var zipArchive = ZipFile.Open(archivePath, ZipArchiveMode.Create);
+        var entry1 = zipArchive.CreateEntry("entry1.dat", CompressionLevel.Optimal);
+        await using (var stream1 = entry1.Open())
+        {
+            for (var i = 0; i < 110; i++)
+            {
+                await stream1.WriteAsync(chunk);
+            }
+        }
+
+        var entry2 = zipArchive.CreateEntry("entry2.dat", CompressionLevel.Optimal);
+        await using (var stream2 = entry2.Open())
+        {
+            for (var i = 0; i < 110; i++)
+            {
+                await stream2.WriteAsync(chunk);
+            }
+        }
     }
 
     private sealed class TestPackageDeploymentFix(
