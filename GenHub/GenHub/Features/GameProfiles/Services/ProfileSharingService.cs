@@ -143,6 +143,32 @@ public class ProfileSharingService(
     }
 
     /// <inheritdoc/>
+    public async Task<OperationResult<string>> ExportProfileToJsonAsync(string profileId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(profileId))
+            {
+                return OperationResult<string>.CreateFailure("Profile identifier cannot be empty.");
+            }
+
+            var packageResult = await BuildPackageFromProfileIdAsync(profileId, cancellationToken);
+            if (!packageResult.Success || packageResult.Data == null)
+            {
+                return OperationResult<string>.CreateFailure(packageResult.Errors);
+            }
+
+            var json = JsonSerializer.Serialize(packageResult.Data, JsonOptions);
+            return OperationResult<string>.CreateSuccess(json);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Unexpected error exporting profile {ProfileId} to JSON.", profileId);
+            return OperationResult<string>.CreateFailure($"Failed to export profile to JSON: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc/>
     public async Task<OperationResult<SharedProfileInspectionResult>> InspectSharedProfileAsync(string shareUriOrJsonOrPath, CancellationToken cancellationToken = default)
     {
         try
