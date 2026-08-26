@@ -40,7 +40,7 @@
       "cdnUrl": null
     },
     {
-      "exeCrc": "0X27533BB0",
+      "exeCrc": "0x27533BB0",
       "iniCrc": "0x76B251A3",
       "sha256": "c83190642cb1da042873f40d5a2a30aca1b475a1163f90b18ffa07adf7dfe556",
       "manifestId": "1.20260821.superhackers.gameclient.zerohour",
@@ -52,7 +52,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-08-21/generalszh-weekly-2026-08-21.zip"
     },
     {
-      "exeCrc": "0X3A41EC79",
+      "exeCrc": "0x3A41EC79",
       "iniCrc": "0x76B251A3",
       "sha256": "0093c7a0563e8da21c210bedabcab50ce2ab374fe32c9f1b2252af3f0c0b7658",
       "manifestId": "1.20260821.superhackers.gameclient.generals",
@@ -64,7 +64,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-08-21/generals-weekly-2026-08-21.zip"
     },
     {
-      "exeCrc": "0X3FAD8A07",
+      "exeCrc": "0x3FAD8A07",
       "iniCrc": "0x76B251A3",
       "sha256": "54119b7d557c28f28b437b22d5b38649f1c12c1ea02ddafb21a930e89a838d3c",
       "manifestId": "1.20260814.superhackers.gameclient.zerohour",
@@ -76,7 +76,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-08-14/generalszh-weekly-2026-08-14.zip"
     },
     {
-      "exeCrc": "0X9CF8CA0C",
+      "exeCrc": "0x9CF8CA0C",
       "iniCrc": "0x76B251A3",
       "sha256": "157e23b5f94e2ed47394b2c3f7599c39f63a092324957fe645c768a2d97f726c",
       "manifestId": "1.20260814.superhackers.gameclient.generals",
@@ -88,7 +88,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-08-14/generals-weekly-2026-08-14.zip"
     },
     {
-      "exeCrc": "0X2C396408",
+      "exeCrc": "0x2C396408",
       "iniCrc": "0x76B251A3",
       "sha256": "1f221859f7731208fac15813f555706a138009cc27882f4f023ad07a4005e855",
       "manifestId": "1.20260807.superhackers.gameclient.zerohour",
@@ -100,7 +100,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-08-07/generalszh-weekly-2026-08-07.zip"
     },
     {
-      "exeCrc": "0XD02E6D44",
+      "exeCrc": "0xD02E6D44",
       "iniCrc": "0x76B251A3",
       "sha256": "c9391e71ec42f3742fa49f62a7e1c2d23c3eaca5c2e0e9486fefacc7197d11af",
       "manifestId": "1.20260807.superhackers.gameclient.generals",
@@ -112,7 +112,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-08-07/generals-weekly-2026-08-07.zip"
     },
     {
-      "exeCrc": "0X12DC0CF1",
+      "exeCrc": "0x12DC0CF1",
       "iniCrc": "0x76B251A3",
       "sha256": "6325797d716c65bdc5cf6ef39d9c3f64b69a7d76dde551af8755550dc2b7fd2c",
       "manifestId": "1.20260731.superhackers.gameclient.zerohour",
@@ -124,7 +124,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-07-31/generalszh-weekly-2026-07-31.zip"
     },
     {
-      "exeCrc": "0XB46E61DA",
+      "exeCrc": "0xB46E61DA",
       "iniCrc": "0x76B251A3",
       "sha256": "9349e2e325543d0f4de395cd414fa6cb377cb8a4ab4d2e70e27f399dff8d6e9c",
       "manifestId": "1.20260731.superhackers.gameclient.generals",
@@ -136,7 +136,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-07-31/generals-weekly-2026-07-31.zip"
     },
     {
-      "exeCrc": "0X9D45C069",
+      "exeCrc": "0x9D45C069",
       "iniCrc": "0x76B251A3",
       "sha256": "a042e6035cbabc4e3735ed3edfd8e6b0129a5f308d651aa87747eaee18fee0c1",
       "manifestId": "1.20260724.superhackers.gameclient.zerohour",
@@ -148,7 +148,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-07-24/generalszh-weekly-2026-07-24.zip"
     },
     {
-      "exeCrc": "0X50471FD6",
+      "exeCrc": "0x50471FD6",
       "iniCrc": "0x76B251A3",
       "sha256": "2035f056a90eca38db3652eecfe7df3cf175fc7030f45eba4ecb056a21bb40aa",
       "manifestId": "1.20260724.superhackers.gameclient.generals",
@@ -160,7 +160,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-07-24/generals-weekly-2026-07-24.zip"
     },
     {
-      "exeCrc": "0X0847D62A",
+      "exeCrc": "0x0847D62A",
       "iniCrc": "0x76B251A3",
       "sha256": "0d38ec80942ac791b5aec6012c37cc8be287b5c19cb31e84e211c223db50eb1a",
       "manifestId": "1.20260717.superhackers.gameclient.zerohour",
@@ -172,7 +172,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-07-17/generalszh-weekly-2026-07-17.zip"
     },
     {
-      "exeCrc": "0X0E4B87FF",
+      "exeCrc": "0x0E4B87FF",
       "iniCrc": "0x76B251A3",
       "sha256": "b0025635e5c4431bb8024ccb57eab79a9fc26a3c385c9feab8b744e69e2eecc3",
       "manifestId": "1.20260717.superhackers.gameclient.generals",
@@ -184,7 +184,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-07-17/generals-weekly-2026-07-17.zip"
     },
     {
-      "exeCrc": "0XEBB61CD4",
+      "exeCrc": "0xEBB61CD4",
       "iniCrc": "0x76B251A3",
       "sha256": "a4c0f764da3bc5c71388c9d8c56f7d3e50f65c82b437a69510cbdd58fd5d8b4d",
       "manifestId": "1.20260710.superhackers.gameclient.zerohour",
@@ -196,7 +196,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-07-10/generalszh-weekly-2026-07-10.zip"
     },
     {
-      "exeCrc": "0X5F18E248",
+      "exeCrc": "0x5F18E248",
       "iniCrc": "0x76B251A3",
       "sha256": "74f281f01efab615787e7485598d18af8b0ea3aba8db30efaf6edd79b4c5c014",
       "manifestId": "1.20260710.superhackers.gameclient.generals",
@@ -208,7 +208,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-07-10/generals-weekly-2026-07-10.zip"
     },
     {
-      "exeCrc": "0X58D8AC9F",
+      "exeCrc": "0x58D8AC9F",
       "iniCrc": "0x76B251A3",
       "sha256": "b1dda6f03bf86c0351971093bf01a76ff2c29690ffb64fb291e44103badfee90",
       "manifestId": "1.20260703.superhackers.gameclient.zerohour",
@@ -220,7 +220,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-07-03/generalszh-weekly-2026-07-03.zip"
     },
     {
-      "exeCrc": "0XBF8CDF69",
+      "exeCrc": "0xBF8CDF69",
       "iniCrc": "0x76B251A3",
       "sha256": "ced9935bf4b4b7eb5585a5713a4c9b88bbc4173a776cfe55476867c13d096e9b",
       "manifestId": "1.20260703.superhackers.gameclient.generals",
@@ -232,7 +232,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-07-03/generals-weekly-2026-07-03.zip"
     },
     {
-      "exeCrc": "0XADD40BF7",
+      "exeCrc": "0xADD40BF7",
       "iniCrc": "0x76B251A3",
       "sha256": "bad7945738121c1065cec0005d4c876cbe7a6e6310569c640491d3b68a7b1cda",
       "manifestId": "1.20260626.superhackers.gameclient.zerohour",
@@ -244,7 +244,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-06-26/generalszh-weekly-2026-06-26.zip"
     },
     {
-      "exeCrc": "0X91EF7EB6",
+      "exeCrc": "0x91EF7EB6",
       "iniCrc": "0x76B251A3",
       "sha256": "cfe92229d8c8de4e07ffdbe970429c80a113709cc934dc7a2a70b6aef2683cdb",
       "manifestId": "1.20260626.superhackers.gameclient.generals",
@@ -256,7 +256,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-06-26/generals-weekly-2026-06-26.zip"
     },
     {
-      "exeCrc": "0X8A41F1F3",
+      "exeCrc": "0x8A41F1F3",
       "iniCrc": "0x76B251A3",
       "sha256": "5dba3e39842cb87558cbf3d4303ab8fa0ea70773aa97badb66ee6afcd67a5b3f",
       "manifestId": "1.20260619.superhackers.gameclient.zerohour",
@@ -268,7 +268,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-06-19/generalszh-weekly-2026-06-19.zip"
     },
     {
-      "exeCrc": "0X422889F6",
+      "exeCrc": "0x422889F6",
       "iniCrc": "0x76B251A3",
       "sha256": "345376b29d3b51b4e35f0cc5abacc0f27a88ea573fb465980d83f030a70a39b6",
       "manifestId": "1.20260619.superhackers.gameclient.generals",
@@ -280,7 +280,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-06-19/generals-weekly-2026-06-19.zip"
     },
     {
-      "exeCrc": "0X4D3DBA7B",
+      "exeCrc": "0x4D3DBA7B",
       "iniCrc": "0x76B251A3",
       "sha256": "ed8a9950ca9904ada538bbb0e8b8a5509f3d5ffb6f4b08b05f9953ae168f2cae",
       "manifestId": "1.20260612.superhackers.gameclient.zerohour",
@@ -292,7 +292,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-06-12/generalszh-weekly-2026-06-12.zip"
     },
     {
-      "exeCrc": "0X73EBF219",
+      "exeCrc": "0x73EBF219",
       "iniCrc": "0x76B251A3",
       "sha256": "1678227d2cfc4ed2cc1476ab27713b6543f6de6915a23ea255df7eaffd3d3613",
       "manifestId": "1.20260612.superhackers.gameclient.generals",
@@ -304,7 +304,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-06-12/generals-weekly-2026-06-12.zip"
     },
     {
-      "exeCrc": "0XE6B487A9",
+      "exeCrc": "0xE6B487A9",
       "iniCrc": "0x76B251A3",
       "sha256": "43fd41b50c451eacec4f671ba04fea7c89c908ba69d380652c6c56b522c5b704",
       "manifestId": "1.20260605.superhackers.gameclient.zerohour",
@@ -316,7 +316,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-06-05/generalszh-weekly-2026-06-05.zip"
     },
     {
-      "exeCrc": "0X859311C9",
+      "exeCrc": "0x859311C9",
       "iniCrc": "0x76B251A3",
       "sha256": "b3ce94d21dba30aa4bd89b225bff8b7942a14147e5b06d1ede75b300e6a2b865",
       "manifestId": "1.20260605.superhackers.gameclient.generals",
@@ -328,7 +328,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-06-05/generals-weekly-2026-06-05.zip"
     },
     {
-      "exeCrc": "0XA7C78127",
+      "exeCrc": "0xA7C78127",
       "iniCrc": "0x76B251A3",
       "sha256": "e8b3eec48968944807d34cdb0f33b581c6edd075e2addb6ab6b4cc8e46860891",
       "manifestId": "1.20260529.superhackers.gameclient.zerohour",
@@ -340,7 +340,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-05-29/generalszh-weekly-2026-05-29.zip"
     },
     {
-      "exeCrc": "0X3D3DED53",
+      "exeCrc": "0x3D3DED53",
       "iniCrc": "0x76B251A3",
       "sha256": "6ee54d69b2af8ce95df54745854098b24c268f5fcfb66b844b93d718bf0a6fe6",
       "manifestId": "1.20260529.superhackers.gameclient.generals",
@@ -352,7 +352,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-05-29/generals-weekly-2026-05-29.zip"
     },
     {
-      "exeCrc": "0XB32E8E50",
+      "exeCrc": "0xB32E8E50",
       "iniCrc": "0x76B251A3",
       "sha256": "2c3cd995c4a8e4f32712bd7511b98e59cb83b838151f66ffffdec407e8481799",
       "manifestId": "1.20260522.superhackers.gameclient.zerohour",
@@ -364,7 +364,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-05-22/generalszh-weekly-2026-05-22.zip"
     },
     {
-      "exeCrc": "0X7287D298",
+      "exeCrc": "0x7287D298",
       "iniCrc": "0x76B251A3",
       "sha256": "4299a1baf77c0b9c00bdd618136b080df870a3c9636b73d875d7ffcdf714a067",
       "manifestId": "1.20260522.superhackers.gameclient.generals",
@@ -376,7 +376,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-05-22/generals-weekly-2026-05-22.zip"
     },
     {
-      "exeCrc": "0X2B7E120D",
+      "exeCrc": "0x2B7E120D",
       "iniCrc": "0x76B251A3",
       "sha256": "19db4f48c69e01898401a8f29e68e536499d16f9b83af2333ec0f8b061766f65",
       "manifestId": "1.20260515.superhackers.gameclient.zerohour",
@@ -388,7 +388,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-05-15/generalszh-weekly-2026-05-15.zip"
     },
     {
-      "exeCrc": "0X0BE81865",
+      "exeCrc": "0x0BE81865",
       "iniCrc": "0x76B251A3",
       "sha256": "eb829f10d52d5bd3ad8466c8bcb3c7a4e4413e6c672affb4e0c67a7adf804aa6",
       "manifestId": "1.20260515.superhackers.gameclient.generals",
@@ -400,7 +400,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-05-15/generals-weekly-2026-05-15.zip"
     },
     {
-      "exeCrc": "0X8D6E0B56",
+      "exeCrc": "0x8D6E0B56",
       "iniCrc": "0x76B251A3",
       "sha256": "dc8c640479ec12e8d230732c7f162d199560931a9c736979b11bab7eca80e533",
       "manifestId": "1.20260508.superhackers.gameclient.zerohour",
@@ -412,7 +412,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-05-08/generalszh-weekly-2026-05-08.zip"
     },
     {
-      "exeCrc": "0XFBE57CF9",
+      "exeCrc": "0xFBE57CF9",
       "iniCrc": "0x76B251A3",
       "sha256": "e8ce75e7caaf7db84f0b43a670ab9c5948ee0ca86bb55a9f24cc6ab2365ea1e7",
       "manifestId": "1.20260508.superhackers.gameclient.generals",
@@ -424,7 +424,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-05-08/generals-weekly-2026-05-08.zip"
     },
     {
-      "exeCrc": "0X4CAA0F2F",
+      "exeCrc": "0x4CAA0F2F",
       "iniCrc": "0x76B251A3",
       "sha256": "f8bea321b9a77f16eedcbdb9977b19b49cc7508d978734ba934074e04781cfda",
       "manifestId": "1.20260501.superhackers.gameclient.zerohour",
@@ -436,7 +436,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-05-01/generalszh-weekly-2026-05-01.zip"
     },
     {
-      "exeCrc": "0X60BDF691",
+      "exeCrc": "0x60BDF691",
       "iniCrc": "0x76B251A3",
       "sha256": "aa6f761583f30f83d3e1805ce570ff9f917b00fb285435904ee7ad91d7273b70",
       "manifestId": "1.20260501.superhackers.gameclient.generals",
@@ -448,7 +448,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-05-01/generals-weekly-2026-05-01.zip"
     },
     {
-      "exeCrc": "0X2C1C4264",
+      "exeCrc": "0x2C1C4264",
       "iniCrc": "0x76B251A3",
       "sha256": "e527e54a5f914b4ffdece7e8040401e18fe5f1f060c03278d853a23f552af1a6",
       "manifestId": "1.20260424.superhackers.gameclient.zerohour",
@@ -460,7 +460,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-04-24/generalszh-weekly-2026-04-24.zip"
     },
     {
-      "exeCrc": "0X8B744469",
+      "exeCrc": "0x8B744469",
       "iniCrc": "0x76B251A3",
       "sha256": "2d87a105f6a4685716c98f5e7277d7bf08f1cbf887e07037c815268ca6ce9505",
       "manifestId": "1.20260424.superhackers.gameclient.generals",
@@ -472,7 +472,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-04-24/generals-weekly-2026-04-24.zip"
     },
     {
-      "exeCrc": "0X0320893A",
+      "exeCrc": "0x0320893A",
       "iniCrc": "0x76B251A3",
       "sha256": "02bd236ccbe76f0bef52d0ae1253d09b70aa7f6b1b8e5372aa658c765329fa82",
       "manifestId": "1.20260417.superhackers.gameclient.zerohour",
@@ -484,7 +484,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-04-17/generalszh-weekly-2026-04-17.zip"
     },
     {
-      "exeCrc": "0X234F4F8F",
+      "exeCrc": "0x234F4F8F",
       "iniCrc": "0x76B251A3",
       "sha256": "a7a13b54d7171dec6ad18263d713468dcb411b72c5d200be13d8faee5a52318e",
       "manifestId": "1.20260417.superhackers.gameclient.generals",
@@ -496,7 +496,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-04-17/generals-weekly-2026-04-17.zip"
     },
     {
-      "exeCrc": "0X4034BB50",
+      "exeCrc": "0x4034BB50",
       "iniCrc": "0x76B251A3",
       "sha256": "dbc4606540d8651232e1b608f97861355991f73b00c1347fd22215fba73199b5",
       "manifestId": "1.20260410.superhackers.gameclient.zerohour",
@@ -508,7 +508,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-04-10/generalszh-weekly-2026-04-10.zip"
     },
     {
-      "exeCrc": "0XD29E13D3",
+      "exeCrc": "0xD29E13D3",
       "iniCrc": "0x76B251A3",
       "sha256": "b000182c5451ddbd41410388d6c5c8840ae7445038eb57640fd21d3939d73a33",
       "manifestId": "1.20260410.superhackers.gameclient.generals",
@@ -520,7 +520,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-04-10/generals-weekly-2026-04-10.zip"
     },
     {
-      "exeCrc": "0X361C6184",
+      "exeCrc": "0x361C6184",
       "iniCrc": "0x76B251A3",
       "sha256": "3f508092ce4c410a967e46a27490c141be4d1260fe9fdd81f1317051bd8c1cbd",
       "manifestId": "1.20260403.superhackers.gameclient.zerohour",
@@ -532,7 +532,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-04-03/generalszh-weekly-2026-04-03.zip"
     },
     {
-      "exeCrc": "0X10852A5F",
+      "exeCrc": "0x10852A5F",
       "iniCrc": "0x76B251A3",
       "sha256": "6172bf66c112b6511934ed30c7f2c95c700aef7a48d1f3428ca093a7464ffbf8",
       "manifestId": "1.20260403.superhackers.gameclient.generals",
@@ -544,7 +544,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-04-03/generals-weekly-2026-04-03.zip"
     },
     {
-      "exeCrc": "0XACC81A3C",
+      "exeCrc": "0xACC81A3C",
       "iniCrc": "0x76B251A3",
       "sha256": "9a828401bc00122c333154bb4dca8a17e65276d4b96e5cd414ceb61d0ad49ddd",
       "manifestId": "1.20260327.superhackers.gameclient.zerohour",
@@ -556,7 +556,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-03-27/generalszh-weekly-2026-03-27.zip"
     },
     {
-      "exeCrc": "0X42B3760A",
+      "exeCrc": "0x42B3760A",
       "iniCrc": "0x76B251A3",
       "sha256": "12ecb0a588ed7a91a2abfca0ed0fec8db4e0f70cd75384c52294ba1d69e722a4",
       "manifestId": "1.20260327.superhackers.gameclient.generals",
@@ -568,7 +568,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-03-27/generals-weekly-2026-03-27.zip"
     },
     {
-      "exeCrc": "0X3F3407B9",
+      "exeCrc": "0x3F3407B9",
       "iniCrc": "0x76B251A3",
       "sha256": "382628f03ac09563b1f3122be038642022b2ee915ebf79b55c505b97eba329c5",
       "manifestId": "1.20260320.superhackers.gameclient.zerohour",
@@ -580,7 +580,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-03-20/generalszh-weekly-2026-03-20.zip"
     },
     {
-      "exeCrc": "0X7FDA37C1",
+      "exeCrc": "0x7FDA37C1",
       "iniCrc": "0x76B251A3",
       "sha256": "d5efc389d9dd56f85f498fd7706fe62c1d739109143ad6e2a61c15300ab3e5a3",
       "manifestId": "1.20260320.superhackers.gameclient.generals",
@@ -592,7 +592,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-03-20/generals-weekly-2026-03-20.zip"
     },
     {
-      "exeCrc": "0X81753245",
+      "exeCrc": "0x81753245",
       "iniCrc": "0x76B251A3",
       "sha256": "070802a26f3b03ef34893ba4220283bd63ac2da9935fe31506c9098e610b8d42",
       "manifestId": "1.20260313.superhackers.gameclient.zerohour",
@@ -604,7 +604,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-03-13/generalszh-weekly-2026-03-13.zip"
     },
     {
-      "exeCrc": "0X303BA59C",
+      "exeCrc": "0x303BA59C",
       "iniCrc": "0x76B251A3",
       "sha256": "adeeaa7856313cb952c9867e4e3209637fb70e1e36b0683817cad2e6386525f6",
       "manifestId": "1.20260313.superhackers.gameclient.generals",
@@ -616,7 +616,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-03-13/generals-weekly-2026-03-13.zip"
     },
     {
-      "exeCrc": "0XFAA1E0BD",
+      "exeCrc": "0xFAA1E0BD",
       "iniCrc": "0x76B251A3",
       "sha256": "2f1b6c87008b51c4abad2526acee3575bcac01c5441b3691b30a84fad5ab7ce4",
       "manifestId": "1.20260306.superhackers.gameclient.zerohour",
@@ -628,7 +628,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-03-06/generalszh-weekly-2026-03-06.zip"
     },
     {
-      "exeCrc": "0XD11CD699",
+      "exeCrc": "0xD11CD699",
       "iniCrc": "0x76B251A3",
       "sha256": "8057d19b74d0808acbd9fdcccc38c3a58aefa9d008627159b4fffda297499586",
       "manifestId": "1.20260306.superhackers.gameclient.generals",
@@ -640,7 +640,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-03-06/generals-weekly-2026-03-06.zip"
     },
     {
-      "exeCrc": "0X191F0274",
+      "exeCrc": "0x191F0274",
       "iniCrc": "0x76B251A3",
       "sha256": "87b6d3728f8cf41a5148f6345df46bd2cca11109d4b97d643e200446b62cdc71",
       "manifestId": "1.20260227.superhackers.gameclient.zerohour",
@@ -652,7 +652,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-02-27/generalszh-weekly-2026-02-27.zip"
     },
     {
-      "exeCrc": "0X908A6DCC",
+      "exeCrc": "0x908A6DCC",
       "iniCrc": "0x76B251A3",
       "sha256": "3efdfb9fbe3080799ce1e6c7e2345dba11fd55f0d8c80c337447cb55bebdd23c",
       "manifestId": "1.20260227.superhackers.gameclient.generals",
@@ -664,7 +664,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-02-27/generals-weekly-2026-02-27.zip"
     },
     {
-      "exeCrc": "0XCFACBBC6",
+      "exeCrc": "0xCFACBBC6",
       "iniCrc": "0x76B251A3",
       "sha256": "972ad760c539ea1e4ecd04e4e5dd37440ee6325a13ffe543806f1b60047aba5c",
       "manifestId": "1.20260220.superhackers.gameclient.zerohour",
@@ -676,7 +676,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-02-20/generalszh-weekly-2026-02-20.zip"
     },
     {
-      "exeCrc": "0XA91306C0",
+      "exeCrc": "0xA91306C0",
       "iniCrc": "0x76B251A3",
       "sha256": "51ad1f93aef6cde263511cd05f2495c6e4e335fc44e28423a094fc7b14079f1f",
       "manifestId": "1.20260220.superhackers.gameclient.generals",
@@ -688,7 +688,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-02-20/generals-weekly-2026-02-20.zip"
     },
     {
-      "exeCrc": "0XD23089FE",
+      "exeCrc": "0xD23089FE",
       "iniCrc": "0x76B251A3",
       "sha256": "93ca05e14ad28299235a6b0269f471ebaec6297016352ad6b885b1ecc070fa93",
       "manifestId": "1.20260213.superhackers.gameclient.zerohour",
@@ -700,7 +700,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-02-13/generalszh-weekly-2026-02-13.zip"
     },
     {
-      "exeCrc": "0X510C14DF",
+      "exeCrc": "0x510C14DF",
       "iniCrc": "0x76B251A3",
       "sha256": "3f75455403680b33299b569eb5b2bca507b0a55d7f179b3e06f96966df422e4b",
       "manifestId": "1.20260213.superhackers.gameclient.generals",
@@ -712,7 +712,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-02-13/generals-weekly-2026-02-13.zip"
     },
     {
-      "exeCrc": "0X861F8E99",
+      "exeCrc": "0x861F8E99",
       "iniCrc": "0x76B251A3",
       "sha256": "79da1a228d9b1ef2551492d181cb6ea4d5e1e591f9c5463a60ff3569b5b882d8",
       "manifestId": "1.20260206.superhackers.gameclient.zerohour",
@@ -724,7 +724,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-02-06/generalszh-weekly-2026-02-06.zip"
     },
     {
-      "exeCrc": "0XF207527A",
+      "exeCrc": "0xF207527A",
       "iniCrc": "0x76B251A3",
       "sha256": "46e6bbf77462a7d7f452865d16ab96c762501ceecd39221d12f3e335401a7240",
       "manifestId": "1.20260206.superhackers.gameclient.generals",
@@ -736,7 +736,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-02-06/generals-weekly-2026-02-06.zip"
     },
     {
-      "exeCrc": "0X443BFDCD",
+      "exeCrc": "0x443BFDCD",
       "iniCrc": "0x76B251A3",
       "sha256": "db8f5281801bae6edc04038ac88131688dfb86ef250f18d8c8f032eb34fbfbc2",
       "manifestId": "1.20260130.superhackers.gameclient.zerohour",
@@ -748,7 +748,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-01-30/generalszh-weekly-2026-01-30.zip"
     },
     {
-      "exeCrc": "0XBD03F1E7",
+      "exeCrc": "0xBD03F1E7",
       "iniCrc": "0x76B251A3",
       "sha256": "65b00424d417fd1a1d15532a7a38a8752d377f3c3e052109def5baf02e36c726",
       "manifestId": "1.20260130.superhackers.gameclient.generals",
@@ -760,7 +760,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-01-30/generals-weekly-2026-01-30.zip"
     },
     {
-      "exeCrc": "0XDF5FAEF4",
+      "exeCrc": "0xDF5FAEF4",
       "iniCrc": "0x76B251A3",
       "sha256": "531b39cf8bf46bf0a9cacbbe47f5be8ece328f7d463b40d172d11278fe3acfa0",
       "manifestId": "1.20260123.superhackers.gameclient.zerohour",
@@ -772,7 +772,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-01-23/generalszh-weekly-2026-01-23.zip"
     },
     {
-      "exeCrc": "0XA51BB3D4",
+      "exeCrc": "0xA51BB3D4",
       "iniCrc": "0x76B251A3",
       "sha256": "730a7c1c88ec6561327955fb39c84d4d0ae51e42a35f518f7ec9963a042d605d",
       "manifestId": "1.20260123.superhackers.gameclient.generals",
@@ -784,7 +784,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-01-23/generals-weekly-2026-01-23.zip"
     },
     {
-      "exeCrc": "0X58BB6FAE",
+      "exeCrc": "0x58BB6FAE",
       "iniCrc": "0x76B251A3",
       "sha256": "b8e8d4fe31cf580c61a00af0262cecc1b7d91d3aa5b77c39ffdf3424bfdaa285",
       "manifestId": "1.20260116.superhackers.gameclient.zerohour",
@@ -796,7 +796,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-01-16/generalszh-weekly-2026-01-16.zip"
     },
     {
-      "exeCrc": "0XDD90BC3C",
+      "exeCrc": "0xDD90BC3C",
       "iniCrc": "0x76B251A3",
       "sha256": "8983f46ef91c807e28f9170b9e4d27fcfded2278b2f3b87a1c7c9b402819dfa5",
       "manifestId": "1.20260116.superhackers.gameclient.generals",
@@ -808,7 +808,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-01-16/generals-weekly-2026-01-16.zip"
     },
     {
-      "exeCrc": "0XB203192F",
+      "exeCrc": "0xB203192F",
       "iniCrc": "0x76B251A3",
       "sha256": "84deefbb4453c02223bfeb8d075584214996b646f7ff6dbfb0983dce49b3cbf7",
       "manifestId": "1.20260109.superhackers.gameclient.zerohour",
@@ -820,7 +820,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-01-09/generalszh-weekly-2026-01-09.zip"
     },
     {
-      "exeCrc": "0X4A0EE890",
+      "exeCrc": "0x4A0EE890",
       "iniCrc": "0x76B251A3",
       "sha256": "23f2952dcb31db6e4154f3b55ee01a2fe41023f160d9a27bbfbb8cdc815994d1",
       "manifestId": "1.20260109.superhackers.gameclient.generals",
@@ -832,7 +832,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-01-09/generals-weekly-2026-01-09.zip"
     },
     {
-      "exeCrc": "0X12A0DC0D",
+      "exeCrc": "0x12A0DC0D",
       "iniCrc": "0x76B251A3",
       "sha256": "89362eb98391840f51ffc1ac7636d249f02685c3e2c05998b508e2bf84cfb8ee",
       "manifestId": "1.20260102.superhackers.gameclient.zerohour",
@@ -844,7 +844,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-01-02/generalszh-weekly-2026-01-02.zip"
     },
     {
-      "exeCrc": "0X072150E9",
+      "exeCrc": "0x072150E9",
       "iniCrc": "0x76B251A3",
       "sha256": "831ebabfb36c7c6c5716e04448d5a396acc7a1f5239c34b319bb7cad27fd3661",
       "manifestId": "1.20260102.superhackers.gameclient.generals",
@@ -856,7 +856,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2026-01-02/generals-weekly-2026-01-02.zip"
     },
     {
-      "exeCrc": "0XE908B2C0",
+      "exeCrc": "0xE908B2C0",
       "iniCrc": "0x76B251A3",
       "sha256": "faca49a8082162ec9eb1d5bb0e7b249752ac78de7546c589ae1356eae8ba9f51",
       "manifestId": "1.20251226.superhackers.gameclient.zerohour",
@@ -868,7 +868,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-12-26/generalszh-weekly-2025-12-26.zip"
     },
     {
-      "exeCrc": "0XDC16B349",
+      "exeCrc": "0xDC16B349",
       "iniCrc": "0x76B251A3",
       "sha256": "4c29b75e3e1d72f5b558a4c78821e38df68c29c78b873732ac328503dc555504",
       "manifestId": "1.20251226.superhackers.gameclient.generals",
@@ -880,7 +880,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-12-26/generals-weekly-2025-12-26.zip"
     },
     {
-      "exeCrc": "0XCAD87303",
+      "exeCrc": "0xCAD87303",
       "iniCrc": "0x76B251A3",
       "sha256": "65786282195dd0ebc753f0c112fd55b90b19d589f3c0162bfed15e5ff0607188",
       "manifestId": "1.20251219.superhackers.gameclient.zerohour",
@@ -892,7 +892,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-12-19/generalszh-weekly-2025-12-19.zip"
     },
     {
-      "exeCrc": "0X9B92E237",
+      "exeCrc": "0x9B92E237",
       "iniCrc": "0x76B251A3",
       "sha256": "41777019babf9867b78829b973932ac50216b10d18e2aaf0c0c4e8efcd45955a",
       "manifestId": "1.20251219.superhackers.gameclient.generals",
@@ -904,7 +904,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-12-19/generals-weekly-2025-12-19.zip"
     },
     {
-      "exeCrc": "0XB458BF4B",
+      "exeCrc": "0xB458BF4B",
       "iniCrc": "0x76B251A3",
       "sha256": "b182456078ddab33dee612aca950eff25ebcb95e723f38316286834c2a96f62f",
       "manifestId": "1.20251212.superhackers.gameclient.zerohour",
@@ -916,7 +916,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-12-12/generalszh-weekly-2025-12-12.zip"
     },
     {
-      "exeCrc": "0X17C4927C",
+      "exeCrc": "0x17C4927C",
       "iniCrc": "0x76B251A3",
       "sha256": "143768c1f965998fc26a842adbb36ad05837dfefe4b6ca39133343d9ea0b421f",
       "manifestId": "1.20251212.superhackers.gameclient.generals",
@@ -928,7 +928,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-12-12/generals-weekly-2025-12-12.zip"
     },
     {
-      "exeCrc": "0X98506B95",
+      "exeCrc": "0x98506B95",
       "iniCrc": "0x76B251A3",
       "sha256": "b7bc80a49a63ce64a24a3a478fae82efb8852647fd43f7c133d7cd07ba2174f3",
       "manifestId": "1.20251205.superhackers.gameclient.zerohour",
@@ -940,7 +940,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-12-05/generalszh-weekly-2025-12-05.zip"
     },
     {
-      "exeCrc": "0X66F78F96",
+      "exeCrc": "0x66F78F96",
       "iniCrc": "0x76B251A3",
       "sha256": "901d3db8a74c098390dc282e80549f59f854dd3fd2659f7e7b5942bfed4d8f9a",
       "manifestId": "1.20251205.superhackers.gameclient.generals",
@@ -952,7 +952,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-12-05/generals-weekly-2025-12-05.zip"
     },
     {
-      "exeCrc": "0X33007820",
+      "exeCrc": "0x33007820",
       "iniCrc": "0x76B251A3",
       "sha256": "3d80792685d51165950fdd3c4b2fa6b859cfec99b705c8f32aec9412f7eaabbe",
       "manifestId": "1.20251128.superhackers.gameclient.zerohour",
@@ -964,7 +964,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-11-28/generalszh-weekly-2025-11-28.zip"
     },
     {
-      "exeCrc": "0XA584B1D1",
+      "exeCrc": "0xA584B1D1",
       "iniCrc": "0x76B251A3",
       "sha256": "fdc811d905d4ac7c6dcaafc2a5da69265b2abaddcb1e7a6310e2f26babda7c5c",
       "manifestId": "1.20251128.superhackers.gameclient.generals",
@@ -976,7 +976,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-11-28/generals-weekly-2025-11-28.zip"
     },
     {
-      "exeCrc": "0X6F23B567",
+      "exeCrc": "0x6F23B567",
       "iniCrc": "0x76B251A3",
       "sha256": "5d8bd681371b99a42f7ea175efc99541e1edc80350cbffba818083a3a6d71685",
       "manifestId": "1.20251121.superhackers.gameclient.zerohour",
@@ -988,7 +988,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-11-21/generalszh-weekly-2025-11-21.zip"
     },
     {
-      "exeCrc": "0XC9A0ACF1",
+      "exeCrc": "0xC9A0ACF1",
       "iniCrc": "0x76B251A3",
       "sha256": "76b7ef0f7aa82aceab65075c34953a1d25f265b0e767892b98b4b257d52678cc",
       "manifestId": "1.20251121.superhackers.gameclient.generals",
@@ -1000,7 +1000,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-11-21/generals-weekly-2025-11-21.zip"
     },
     {
-      "exeCrc": "0XB424545C",
+      "exeCrc": "0xB424545C",
       "iniCrc": "0x76B251A3",
       "sha256": "caa4b73ab46abb605a25c4ab96adf1db8fba42c327339930682a2a47c7a30da1",
       "manifestId": "1.20251114.superhackers.gameclient.zerohour",
@@ -1012,7 +1012,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-11-14/generalszh-weekly-2025-11-14.zip"
     },
     {
-      "exeCrc": "0X65A0435D",
+      "exeCrc": "0x65A0435D",
       "iniCrc": "0x76B251A3",
       "sha256": "16454c62210360f2122357c61a9d908214e5a3df71297d3e7c2b8a085d261172",
       "manifestId": "1.20251114.superhackers.gameclient.generals",
@@ -1024,7 +1024,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-11-14/generals-weekly-2025-11-14.zip"
     },
     {
-      "exeCrc": "0X729B801F",
+      "exeCrc": "0x729B801F",
       "iniCrc": "0x76B251A3",
       "sha256": "004d1250f3806a7cecff631a696218b30611179579b0ff969e1a0fced2f931be",
       "manifestId": "1.20251107.superhackers.gameclient.zerohour",
@@ -1036,7 +1036,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-11-07/generalszh-weekly-2025-11-07.zip"
     },
     {
-      "exeCrc": "0X69F4A530",
+      "exeCrc": "0x69F4A530",
       "iniCrc": "0x76B251A3",
       "sha256": "95997d4e56e4ad425c009c8fc7394a62e81196b668c2c59b3c5c5b1ab85675b0",
       "manifestId": "1.20251107.superhackers.gameclient.generals",
@@ -1048,7 +1048,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-11-07/generals-weekly-2025-11-07.zip"
     },
     {
-      "exeCrc": "0XA258C3B2",
+      "exeCrc": "0xA258C3B2",
       "iniCrc": "0x76B251A3",
       "sha256": "b549c40996c10f4a5291dc4898e086a3b57d249299740e2ad4ae64f8bfc45875",
       "manifestId": "1.20251031.superhackers.gameclient.zerohour",
@@ -1060,7 +1060,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-10-31/generalszh-weekly-2025-10-31.zip"
     },
     {
-      "exeCrc": "0X1B53DD63",
+      "exeCrc": "0x1B53DD63",
       "iniCrc": "0x76B251A3",
       "sha256": "a6d34309695c16f48ec6ed4b8e71c5a577a963dfbf19c492e9c9f744931aaef5",
       "manifestId": "1.20251031.superhackers.gameclient.generals",
@@ -1072,7 +1072,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-10-31/generals-weekly-2025-10-31.zip"
     },
     {
-      "exeCrc": "0XDC77B196",
+      "exeCrc": "0xDC77B196",
       "iniCrc": "0x76B251A3",
       "sha256": "c4bc2da2cea4e372f0e38a404a050efd49939cead45171ca5ceef61e22cb674a",
       "manifestId": "1.20251024.superhackers.gameclient.zerohour",
@@ -1084,7 +1084,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-10-24/generalszh-weekly-2025-10-24.zip"
     },
     {
-      "exeCrc": "0X5F4C0FCB",
+      "exeCrc": "0x5F4C0FCB",
       "iniCrc": "0x76B251A3",
       "sha256": "f85418298c2d6403fa1cc3f1f81f9f1fdbf752620228ec89f1a4bbfcf5db0758",
       "manifestId": "1.20251024.superhackers.gameclient.generals",
@@ -1096,7 +1096,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-10-24/generals-weekly-2025-10-24.zip"
     },
     {
-      "exeCrc": "0X83D91F3D",
+      "exeCrc": "0x83D91F3D",
       "iniCrc": "0x76B251A3",
       "sha256": "3b7b182870ca10802deb699db12f9d1ca4ee3f8861948f8efa5ae6f1df197041",
       "manifestId": "1.20251017.superhackers.gameclient.zerohour",
@@ -1108,7 +1108,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-10-17/generalszh-weekly-2025-10-17.zip"
     },
     {
-      "exeCrc": "0XBE5C4267",
+      "exeCrc": "0xBE5C4267",
       "iniCrc": "0x76B251A3",
       "sha256": "9fc5e3e74695f31616bdf91cff826aecd2ce7ca30cf12169e61c497fb8d288dd",
       "manifestId": "1.20251017.superhackers.gameclient.generals",
@@ -1120,7 +1120,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-10-17/generals-weekly-2025-10-17.zip"
     },
     {
-      "exeCrc": "0X4D51EF5D",
+      "exeCrc": "0x4D51EF5D",
       "iniCrc": "0x76B251A3",
       "sha256": "d086805b33f114bca3e4ddf0bfb797fa25619a92dd4b5e9f910e4b9dfc00c87d",
       "manifestId": "1.20251010.superhackers.gameclient.zerohour",
@@ -1132,7 +1132,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-10-10/generalszh-weekly-2025-10-10.zip"
     },
     {
-      "exeCrc": "0XE5E03B21",
+      "exeCrc": "0xE5E03B21",
       "iniCrc": "0x76B251A3",
       "sha256": "066be8e310b0a18d878ec984fe7dada1cb67a197f8d254cc28da311d6c2f583d",
       "manifestId": "1.20251010.superhackers.gameclient.generals",
@@ -1144,7 +1144,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-10-10/generals-weekly-2025-10-10.zip"
     },
     {
-      "exeCrc": "0X337C1548",
+      "exeCrc": "0x337C1548",
       "iniCrc": "0x76B251A3",
       "sha256": "e37d1ad28ba6f4bca768710c760800e4f784f9bd1285ba7659dc32e3ca0810a7",
       "manifestId": "1.20251003.superhackers.gameclient.zerohour",
@@ -1156,7 +1156,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-10-03/generalszh-weekly-2025-10-03.zip"
     },
     {
-      "exeCrc": "0XBB050736",
+      "exeCrc": "0xBB050736",
       "iniCrc": "0x76B251A3",
       "sha256": "04c4af29cb0a23941df4f94780c8426558d304e58bded6508531bc10047f31fe",
       "manifestId": "1.20251003.superhackers.gameclient.generals",
@@ -1168,7 +1168,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-10-03/generals-weekly-2025-10-03.zip"
     },
     {
-      "exeCrc": "0XA3D60101",
+      "exeCrc": "0xA3D60101",
       "iniCrc": "0x76B251A3",
       "sha256": "c2639860fd4cfb35ee10d48440164bc0edea29b8bd1b945427e899817f4516f3",
       "manifestId": "1.20250926.superhackers.gameclient.zerohour",
@@ -1180,7 +1180,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-09-26/generalszh-weekly-2025-09-26.zip"
     },
     {
-      "exeCrc": "0X75CE385D",
+      "exeCrc": "0x75CE385D",
       "iniCrc": "0x76B251A3",
       "sha256": "8c310c7f713f286cc50bb526a1209a23b7750e6df6004bc9f95fb9427aa8a719",
       "manifestId": "1.20250926.superhackers.gameclient.generals",
@@ -1192,7 +1192,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-09-26/generals-weekly-2025-09-26.zip"
     },
     {
-      "exeCrc": "0X413AFCA8",
+      "exeCrc": "0x413AFCA8",
       "iniCrc": "0x76B251A3",
       "sha256": "aa2ba20b8e6691bac9c80e57827a6baa6abb0a4230f19d49aed9272f54b87bc1",
       "manifestId": "1.20250922.superhackers.gameclient.zerohour",
@@ -1204,7 +1204,7 @@
       "cdnUrl": "https://github.com/TheSuperHackers/GeneralsGameCode/releases/download/weekly-2025-09-22/generalszh-weekly-2025-09-22.zip"
     },
     {
-      "exeCrc": "0X41E829CA",
+      "exeCrc": "0x41E829CA",
       "iniCrc": "0x76B251A3",
       "sha256": "ce30a351dcb59ec8761174b95a329a22b4b659c629bc806df89439ccd6475913",
       "manifestId": "1.20250922.superhackers.gameclient.generals",
@@ -1327,7 +1327,7 @@
       "exeCrc": "0x8C5D22B2",
       "iniCrc": "0x5CB7992C",
       "sha256": "e6a06b31ac07f840d2abc27fbe638f846477c3ae6c37f3c2f737f98b8fae407b",
-      "manifestId": "1.428262.generalsonline.gameclient.zerohour",
+      "manifestId": "1.428262.generalsonline.gameclient.eac.zerohour",
       "publisher": "generalsonline",
       "gameType": "ZeroHour",
       "version": "042826_QFE2_EAC",

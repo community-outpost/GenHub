@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Threading;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Models.Tools.ReplayManager;
+using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Tools.ReplayManager.Services;
 
@@ -16,7 +17,7 @@ namespace GenHub.Features.Tools.ReplayManager.Services;
 /// to known game client versions and distribution metadata.
 /// Preloaded on startup with embedded gameclient catalog.
 /// </summary>
-public sealed class CrcMappingRegistry : ICrcMappingRegistry
+public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = null) : ICrcMappingRegistry
 {
     private sealed record RegistryState(
         ImmutableDictionary<string, CrcMappingEntry> PairMap,
@@ -30,21 +31,14 @@ public sealed class CrcMappingRegistry : ICrcMappingRegistry
         ReadCommentHandling = JsonCommentHandling.Skip,
     };
 
-    private RegistryState _state;
+    private RegistryState _state = InitializeRegistryState(logger);
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="CrcMappingRegistry"/> class,
-    /// preloading the embedded CRC catalog.
+    /// Initializes a new instance of the <see cref="CrcMappingRegistry"/> class with no logger.
     /// </summary>
     public CrcMappingRegistry()
+        : this(null)
     {
-        _state = new RegistryState(
-            ImmutableDictionary<string, CrcMappingEntry>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
-            ImmutableDictionary<string, CrcMappingEntry>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
-            ImmutableDictionary<string, CrcMappingEntry>.Empty.WithComparers(StringComparer.OrdinalIgnoreCase),
-            ImmutableList<CrcMappingEntry>.Empty);
-
-        PreloadEmbeddedCatalog();
     }
 
     /// <inheritdoc />
@@ -193,34 +187,58 @@ public sealed class CrcMappingRegistry : ICrcMappingRegistry
         return trimmed.ToUpperInvariant();
     }
 
-    private void PreloadEmbeddedCatalog()
+    private static RegistryState InitializeRegistryState(ILogger<CrcMappingRegistry>? logger)
     {
+        var pairBuilder = ImmutableDictionary.CreateBuilder<string, CrcMappingEntry>(StringComparer.OrdinalIgnoreCase);
+        var exeBuilder = ImmutableDictionary.CreateBuilder<string, CrcMappingEntry>(StringComparer.OrdinalIgnoreCase);
+        var shaBuilder = ImmutableDictionary.CreateBuilder<string, CrcMappingEntry>(StringComparer.OrdinalIgnoreCase);
+        var allList = new List<CrcMappingEntry>();
+
         try
         {
-            var assembly = Assembly.GetExecutingAssembly();
+            var assembly = typeof(CrcMappingRegistry).Assembly;
             var resourceName = assembly.GetManifestResourceNames()
                 .FirstOrDefault(n => n.EndsWith("crc-mapping.json", StringComparison.OrdinalIgnoreCase));
 
-            if (resourceName == null)
+            if (resourceName != null)
             {
-                return;
-            }
+                using var stream = assembly.GetManifestResourceStream(resourceName);
+                if (stream != null)
+                {
+                    var catalog = JsonSerializer.Deserialize<CrcCatalog>(stream, JsonOptions);
+                    if (catalog != null)
+                    {
+                        foreach (var entry in catalog.Mappings)
+                        {
+                            var pairKey = CreateCrcPairKey(entry.ExeCrc, entry.IniCrc);
+                            pairBuilder[pairKey] = entry;
 
-            using var stream = assembly.GetManifestResourceStream(resourceName);
-            if (stream == null)
-            {
-                return;
-            }
+                            var normalizedExe = NormalizeHex(entry.ExeCrc);
+                            if (!string.IsNullOrEmpty(normalizedExe))
+                            {
+                                exeBuilder[normalizedExe] = entry;
+                            }
 
-            var catalog = JsonSerializer.Deserialize<CrcCatalog>(stream, JsonOptions);
-            if (catalog != null && catalog.Mappings.Count > 0)
-            {
-                LoadCatalog(catalog);
+                            if (!string.IsNullOrWhiteSpace(entry.Sha256))
+                            {
+                                shaBuilder[entry.Sha256.Trim()] = entry;
+                            }
+
+                            allList.Add(entry);
+                        }
+                    }
+                }
             }
         }
-        catch
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException or IOException)
         {
-            // Embedded catalog is best-effort on assembly initialization
+            logger?.LogWarning(ex, "Failed to preload embedded CRC mapping catalog.");
         }
+
+        return new RegistryState(
+            pairBuilder.ToImmutable(),
+            exeBuilder.ToImmutable(),
+            shaBuilder.ToImmutable(),
+            allList.ToImmutableList());
     }
 }
