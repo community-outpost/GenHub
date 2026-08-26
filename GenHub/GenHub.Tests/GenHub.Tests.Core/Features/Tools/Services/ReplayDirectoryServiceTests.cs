@@ -217,30 +217,6 @@ public sealed class ReplayDirectoryServiceTests
     [Fact]
     public void ReplayFile_CompatibilityBadgeAndTooltip_ReflectsStatusAccurately()
     {
-        var replay = new ReplayFile
-        {
-            FileName = "Test.rep",
-            FullPath = "/path/Test.rep",
-            SizeInBytes = 2048,
-            LastModified = DateTime.UtcNow,
-            GameVersion = GameType.ZeroHour,
-            Metadata = new ReplayMetadata
-            {
-                ExeCrc = 0x27533BB0,
-                IniCrc = 0x76B251A3,
-            },
-            MatchedClient = new CrcMappingEntry
-            {
-                ExeCrc = "0x27533BB0",
-                IniCrc = "0x76B251A3",
-                ManifestId = "1.20260821.superhackers.gameclient.zerohour",
-                Publisher = "superhackers",
-                GameType = "ZeroHour",
-                Version = "2026-08-21",
-                Description = "SuperHackers 2026-08-21",
-            },
-        };
-
         // Compatible state
         var compatibleReplay = new ReplayFile
         {

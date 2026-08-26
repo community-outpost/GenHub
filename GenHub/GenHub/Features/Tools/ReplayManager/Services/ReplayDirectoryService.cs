@@ -311,7 +311,7 @@ public sealed class ReplayDirectoryService(
         return profiles.FirstOrDefault(p =>
             p.GameClient?.GameType == gameVersion &&
             (string.Equals(p.GameClient?.Id, manifestId, StringComparison.OrdinalIgnoreCase) ||
-             (p.EnabledContentIds != null && p.EnabledContentIds.Contains(manifestId))));
+             p.EnabledContentIds?.Contains(manifestId) == true));
     }
 
     private static GameInstallation ResolveInstallation(IReadOnlyList<GameInstallation> installations, GameType gameVersion)
