@@ -100,72 +100,6 @@ public sealed class ReplayImportService(
         }
     }
 
-    private async Task<int> DownloadAndImportReplayUrlAsync(
-        string directUrl,
-        string userAgent,
-        GameType targetVersion,
-        IProgress<DownloadProgress>? downloadProgress,
-        List<string> importedFiles,
-        List<string> errors,
-        CancellationToken ct)
-    {
-        var tempPath = Path.Combine(Path.GetTempPath(), $"{ReplayManagerConstants.TempImportFilePrefix}{Guid.NewGuid()}{FileTypes.ReplayFileExtension}");
-
-        try
-        {
-            var downloadConfig = new DownloadConfiguration
-            {
-                Url = new Uri(directUrl),
-                DestinationPath = tempPath,
-                UserAgent = userAgent,
-            };
-
-            var result = await downloadService.DownloadFileAsync(downloadConfig, progress: downloadProgress, cancellationToken: ct);
-            if (!result.Success)
-            {
-                errors.Add($"{ErrorMessages.DownloadFailed}: {directUrl}");
-                return 1;
-            }
-
-            var isZip = IsZipFile(tempPath);
-            var maxAllowedBytes = isZip ? ReplayManagerConstants.MaxUploadBytesPerPeriod : ReplayManagerConstants.MaxReplaySizeBytes;
-            var info = new FileInfo(tempPath);
-            if (info.Length > maxAllowedBytes)
-            {
-                errors.Add(string.Format(ErrorMessages.ReplayExceedsMaxSize, info.Length / 1024.0));
-                return 1;
-            }
-
-            if (isZip)
-            {
-                logger.LogInformation(LogMessages.DetectedZipFile);
-                var zipResult = await ImportFromZipAsync(tempPath, targetVersion, null, ct);
-                importedFiles.AddRange(zipResult.ImportedFiles);
-                errors.AddRange(zipResult.Errors);
-                return zipResult.FilesSkipped;
-            }
-
-            var importedFileName = ExtractFileName(new Uri(directUrl));
-            using var stream = File.OpenRead(tempPath);
-            var singleResult = await ImportFromStreamAsync(stream, importedFileName, targetVersion, ct);
-            if (singleResult.Success)
-            {
-                importedFiles.AddRange(singleResult.ImportedFiles);
-                return singleResult.FilesSkipped;
-            }
-
-            errors.AddRange(singleResult.Errors);
-            return 1;
-        }
-        finally
-        {
-            if (File.Exists(tempPath))
-            {
-                File.Delete(tempPath);
-            }
-        }
-    }
-
     /// <inheritdoc />
     public async Task<ImportResult> ImportFromFilesAsync(
         IEnumerable<string> filePaths,
@@ -418,6 +352,72 @@ public sealed class ReplayImportService(
         catch
         {
             return ReplayManagerConstants.DefaultImportedReplayFileName;
+        }
+    }
+
+    private async Task<int> DownloadAndImportReplayUrlAsync(
+        string directUrl,
+        string userAgent,
+        GameType targetVersion,
+        IProgress<DownloadProgress>? downloadProgress,
+        List<string> importedFiles,
+        List<string> errors,
+        CancellationToken ct)
+    {
+        var tempPath = Path.Combine(Path.GetTempPath(), $"{ReplayManagerConstants.TempImportFilePrefix}{Guid.NewGuid()}{FileTypes.ReplayFileExtension}");
+
+        try
+        {
+            var downloadConfig = new DownloadConfiguration
+            {
+                Url = new Uri(directUrl),
+                DestinationPath = tempPath,
+                UserAgent = userAgent,
+            };
+
+            var result = await downloadService.DownloadFileAsync(downloadConfig, progress: downloadProgress, cancellationToken: ct);
+            if (!result.Success)
+            {
+                errors.Add($"{ErrorMessages.DownloadFailed}: {directUrl}");
+                return 1;
+            }
+
+            var isZip = IsZipFile(tempPath);
+            var maxAllowedBytes = isZip ? ReplayManagerConstants.MaxUploadBytesPerPeriod : ReplayManagerConstants.MaxReplaySizeBytes;
+            var info = new FileInfo(tempPath);
+            if (info.Length > maxAllowedBytes)
+            {
+                errors.Add(string.Format(ErrorMessages.ReplayExceedsMaxSize, info.Length / 1024.0));
+                return 1;
+            }
+
+            if (isZip)
+            {
+                logger.LogInformation(LogMessages.DetectedZipFile);
+                var zipResult = await ImportFromZipAsync(tempPath, targetVersion, null, ct);
+                importedFiles.AddRange(zipResult.ImportedFiles);
+                errors.AddRange(zipResult.Errors);
+                return zipResult.FilesSkipped;
+            }
+
+            var importedFileName = ExtractFileName(new Uri(directUrl));
+            using var stream = File.OpenRead(tempPath);
+            var singleResult = await ImportFromStreamAsync(stream, importedFileName, targetVersion, ct);
+            if (singleResult.Success)
+            {
+                importedFiles.AddRange(singleResult.ImportedFiles);
+                return singleResult.FilesSkipped;
+            }
+
+            errors.AddRange(singleResult.Errors);
+            return 1;
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+            {
+                File.Delete(tempPath);
+            }
         }
     }
 }

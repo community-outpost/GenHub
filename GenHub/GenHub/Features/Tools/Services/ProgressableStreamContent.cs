@@ -19,9 +19,6 @@ public sealed class ProgressableStreamContent(
 {
     private const double MinProgressFraction = 0.01;
     private const double MaxProgressFraction = 0.99;
-    private readonly int _effectiveBufferSize = bufferSize > 0
-        ? bufferSize
-        : throw new ArgumentOutOfRangeException(nameof(bufferSize), bufferSize, "Buffer size must be greater than zero.");
 
     /// <inheritdoc />
     protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
@@ -33,8 +30,9 @@ public sealed class ProgressableStreamContent(
     protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(stream);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(bufferSize);
 
-        var buffer = new byte[_effectiveBufferSize];
+        var buffer = new byte[bufferSize];
         long uploadedBytes = 0;
 
         if (content.CanSeek)

@@ -3,6 +3,7 @@ using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
@@ -70,7 +71,7 @@ public sealed class UploadThingService(
 
             return new UploadResult(result.PublicUrl, result.FileKey, result.DeleteToken);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when ((ex is HttpRequestException or IOException or UnauthorizedAccessException or JsonException or InvalidOperationException) && ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Exception occurred during file upload");
             return null;
@@ -108,7 +109,7 @@ public sealed class UploadThingService(
 
             return isSuccess;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when ((ex is HttpRequestException or JsonException or InvalidOperationException) && ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Exception occurred while deleting file {Key}", fileKey);
             return false;

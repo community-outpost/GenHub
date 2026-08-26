@@ -68,12 +68,17 @@ const parseDeleteBody = (body: { fileKey?: unknown; deleteToken?: unknown }): De
   return { fileKey, deleteToken };
 };
 
+const sanitizeFileName = (fileName: string): string => {
+  const baseName = fileName.replaceAll("\\", "/").split("/").pop() ?? "";
+  return baseName.replaceAll(/[\u0000-\u001F\u007F]/g, "").trim();
+};
+
 const validateDeletePayload = (payload: DeletePayload): string | null => {
-  if (payload.fileKey.length === 0) {
-    return "Missing fileKey";
+  if (payload.fileKey.length === 0 || payload.fileKey.length > 512) {
+    return "Missing or invalid fileKey";
   }
-  if (payload.deleteToken.length === 0) {
-    return "Missing deleteToken";
+  if (payload.deleteToken.length === 0 || payload.deleteToken.length > 1024) {
+    return "Missing or invalid deleteToken";
   }
   return null;
 };
@@ -122,7 +127,7 @@ const extractTokenParts = (
   }
   const payload = deleteToken.substring(0, dotIdx);
   const signature = deleteToken.substring(dotIdx + 1);
-  const colonIdx = payload.indexOf(":");
+  const colonIdx = payload.lastIndexOf(":");
   if (colonIdx === -1) {
     return null;
   }
@@ -166,7 +171,11 @@ const verifyHmacSignature = async (payload: string, signature: string, secret: s
     ["verify"]
   );
 
-  const normalizedSig = signature.replaceAll("-", "+").replaceAll("_", "/");
+  let normalizedSig = signature.replaceAll("-", "+").replaceAll("_", "/");
+  while (normalizedSig.length % 4 !== 0) {
+    normalizedSig += "=";
+  }
+
   let rawSig: Uint8Array;
   try {
     rawSig = Uint8Array.from(atob(normalizedSig), (c) => c.codePointAt(0) ?? 0);
@@ -186,7 +195,8 @@ const isValidExtension = (name: string): boolean => {
 };
 
 const validateUploadFile = (fileName: string, fileSize: number, maxSizeBytes: number): string | null => {
-  if (fileName.length === 0) {
+  const sanitized = sanitizeFileName(fileName);
+  if (sanitized.length === 0 || sanitized === "." || sanitized === "..") {
     return "Invalid file name";
   }
   if (fileSize <= 0) {
@@ -195,7 +205,7 @@ const validateUploadFile = (fileName: string, fileSize: number, maxSizeBytes: nu
   if (fileSize > maxSizeBytes) {
     return `File exceeds max limit of ${maxSizeBytes} bytes`;
   }
-  if (!isValidExtension(fileName)) {
+  if (!isValidExtension(sanitized)) {
     return "Only .zip and .rep archives permitted";
   }
   return null;
@@ -215,7 +225,7 @@ const extractFileFromForm = (formData: FormData): File | null => {
 const parseMultipartFilename = (headerText: string): string => {
   const match = FILENAME_REGEX.exec(headerText);
   if (match?.[1]) {
-    return match[1].trim().replaceAll('"', "");
+    return sanitizeFileName(match[1].trim().replaceAll('"', ""));
   }
   return "upload.zip";
 };
@@ -286,11 +296,11 @@ const extractFileFromFormData = async (request: Request): Promise<File | null> =
 const getDirectFileName = (request: Request): string | null => {
   const headerName = request.headers.get("x-filename");
   if (typeof headerName === "string" && headerName.length > 0) {
-    return headerName;
+    return sanitizeFileName(headerName);
   }
   const paramName = new URL(request.url).searchParams.get("filename");
   if (typeof paramName === "string" && paramName.length > 0) {
-    return paramName;
+    return sanitizeFileName(paramName);
   }
   return null;
 };
@@ -385,6 +395,11 @@ const isLengthExceeded = (request: Request, maxSizeBytes: number): boolean => {
   return Number.isSafeInteger(declaredLength) && declaredLength > maxSizeBytes;
 };
 
+const hasDeclaredContentLength = (request: Request): boolean => {
+  const declaredLength = Number(request.headers.get("content-length") ?? "");
+  return Number.isSafeInteger(declaredLength) && declaredLength >= 0;
+};
+
 type ValidatedUploadFileResult =
   | { file: File; errorResponse?: undefined }
   | { file?: undefined; errorResponse: Response };
@@ -393,6 +408,10 @@ const resolveValidatedUploadFile = async (
   request: Request,
   maxSizeBytes: number
 ): Promise<ValidatedUploadFileResult> => {
+  if (!hasDeclaredContentLength(request)) {
+    return { errorResponse: new Response(JSON.stringify({ error: "Content-Length header required" }), { status: 411, headers: CORS_HEADERS }) };
+  }
+
   if (isLengthExceeded(request, maxSizeBytes)) {
     return { errorResponse: new Response(JSON.stringify({ error: `File exceeds max limit of ${maxSizeBytes} bytes` }), { status: 413, headers: CORS_HEADERS }) };
   }
@@ -478,7 +497,8 @@ const handleDeleteUpload = async (request: Request, env: Env): Promise<Response>
 
     return new Response(JSON.stringify({ success: true }), { status: 200, headers: CORS_HEADERS });
   } catch (err: unknown) {
-    return new Response(JSON.stringify({ error: "Delete failed", message: getErrorMessage(err) }), {
+    console.error("Delete failed:", getErrorMessage(err));
+    return new Response(JSON.stringify({ error: "Delete failed" }), {
       status: 500,
       headers: CORS_HEADERS,
     });
@@ -526,7 +546,8 @@ export default {
         return res;
       }
     } catch (err: unknown) {
-      return new Response(JSON.stringify({ error: "Internal error", message: getErrorMessage(err) }), {
+      console.error("Internal error:", getErrorMessage(err));
+      return new Response(JSON.stringify({ error: "Internal error" }), {
         status: 500,
         headers: CORS_HEADERS,
       });
