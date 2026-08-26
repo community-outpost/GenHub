@@ -1228,7 +1228,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         if (tsh.TryGetValue("ShowMoneyPerMinute", out var smpm)) TshShowMoneyPerMinute = ParseBool(smpm);
         if (tsh.TryGetValue("PlayerObserverEnabled", out var poe)) TshPlayerObserverEnabled = ParseBool(poe);
         if (tsh.TryGetValue("MoneyTransactionVolume", out var mtv) && int.TryParse(mtv, out var mtvVal)) TshMoneyTransactionVolume = mtvVal;
-        if (tsh.TryGetValue("GameWindowTransitionSpeedMultiplier", out var gwt))
+        if (tsh.TryGetValue(GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, out var gwt))
         {
             var parsed = GameSettingsMapper.ParseTransitionSpeedMultiplier(gwt);
             if (parsed.HasValue)
@@ -1335,7 +1335,7 @@ public partial class GameSettingsViewModel(IGameSettingsService gameSettingsServ
         tshDict["ScreenEdgeScrollEnabledInFullscreenApp"] = BoolToString(TshScreenEdgeScrollEnabledInFullscreenApp);
         tshDict["ScreenEdgeScrollEnabledInWindowedApp"] = BoolToString(TshScreenEdgeScrollEnabledInWindowedApp);
         tshDict["MoneyTransactionVolume"] = TshMoneyTransactionVolume.ToString();
-        tshDict["GameWindowTransitionSpeedMultiplier"] = (GameSettingsMapper.NormalizeTransitionSpeedMultiplier(TshGameWindowTransitionSpeedMultiplier) ?? GameSettingsTheSuperHackersConstants.DefaultGameWindowTransitionSpeedMultiplier).ToString(CultureInfo.InvariantCulture);
+        tshDict[GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey] = (GameSettingsMapper.NormalizeTransitionSpeedMultiplier(TshGameWindowTransitionSpeedMultiplier) ?? GameSettingsTheSuperHackersConstants.DefaultGameWindowTransitionSpeedMultiplier).ToString(CultureInfo.InvariantCulture);
 
         return options;
     }

@@ -807,10 +807,14 @@ public class GameProcessManager(
                 "[Process] Launcher process {ProcessId} exited with code 0 - attempting to find spawned game process",
                 process.Id);
 
-            var spawnedProcess = await PollForSpawnedGameProcessAsync(configuration, launcherStartTime, cancellationToken);
+            var executableName = !string.IsNullOrWhiteSpace(configuration.ExpectedChildProcessName)
+                ? configuration.ExpectedChildProcessName
+                : Path.GetFileNameWithoutExtension(configuration.ExecutablePath);
+
+            var spawnedProcess = await PollForSpawnedGameProcessAsync(configuration, executableName, launcherStartTime, cancellationToken);
             if (spawnedProcess != null)
             {
-                var spawnedProcessInfo = AdoptSpawnedProcess(process, spawnedProcess, configuration);
+                var spawnedProcessInfo = AdoptSpawnedProcess(process, spawnedProcess, configuration, executableName);
                 return OperationResult<GameProcessInfo>.CreateSuccess(spawnedProcessInfo);
             }
         }
@@ -820,13 +824,10 @@ public class GameProcessManager(
 
     private async Task<Process?> PollForSpawnedGameProcessAsync(
         GameLaunchConfiguration configuration,
+        string executableName,
         DateTime? launcherStartTime,
         CancellationToken cancellationToken)
     {
-        var executableName = !string.IsNullOrWhiteSpace(configuration.ExpectedChildProcessName)
-            ? configuration.ExpectedChildProcessName
-            : Path.GetFileNameWithoutExtension(configuration.ExecutablePath);
-
         var workingDir = configuration.WorkingDirectory ?? Path.GetDirectoryName(configuration.ExecutablePath) ?? string.Empty;
         var deadline = DateTime.UtcNow + TimeSpan.FromMilliseconds(ProcessConstants.LauncherExitGracePeriodMs);
 
@@ -857,32 +858,32 @@ public class GameProcessManager(
 
     private void CleanupSpawnedProcessUponCancellation(Process spawnedProcess)
     {
-        try
+        _ = Task.Run(() =>
         {
-            if (!spawnedProcess.HasExited)
+            try
             {
-                spawnedProcess.Kill(entireProcessTree: true);
+                if (!spawnedProcess.HasExited)
+                {
+                    spawnedProcess.Kill(entireProcessTree: true);
+                }
             }
-        }
-        catch (Exception ex)
-        {
-            logger.LogDebug(ex, "[Process] Ignored exception while terminating adopted process upon cancellation");
-        }
-        finally
-        {
-            spawnedProcess.Dispose();
-        }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "[Process] Ignored exception while terminating adopted process upon cancellation");
+            }
+            finally
+            {
+                spawnedProcess.Dispose();
+            }
+        });
     }
 
     private GameProcessInfo AdoptSpawnedProcess(
         Process launcherProcess,
         Process spawnedProcess,
-        GameLaunchConfiguration configuration)
+        GameLaunchConfiguration configuration,
+        string executableName)
     {
-        var executableName = !string.IsNullOrWhiteSpace(configuration.ExpectedChildProcessName)
-            ? configuration.ExpectedChildProcessName
-            : Path.GetFileNameWithoutExtension(configuration.ExecutablePath);
-
         logger.LogInformation(
             "[Process] Found spawned game process {ProcessId} for executable {ExecutableName}",
             spawnedProcess.Id,

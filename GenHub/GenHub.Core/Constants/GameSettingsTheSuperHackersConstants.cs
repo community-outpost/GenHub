@@ -94,6 +94,11 @@ public static class GameSettingsTheSuperHackersConstants
     public const bool DefaultScreenEdgeScrollEnabledInWindowedApp = false;
 
     /// <summary>
+    /// Configuration key for game window transition speed multiplier.
+    /// </summary>
+    public const string GameWindowTransitionSpeedMultiplierKey = "GameWindowTransitionSpeedMultiplier";
+
+    /// <summary>
     /// Minimum game window transition speed multiplier value.
     /// </summary>
     public const float MinGameWindowTransitionSpeedMultiplier = 1.0f;

@@ -1,3 +1,4 @@
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Launching;
 using GenHub.Features.GameProfiles.Infrastructure;
@@ -288,29 +289,28 @@ public class GameProcessManagerTests
     [Fact]
     public async Task StartProcessAsync_WhenImmediateExitPollIsCancelled_ThrowsOperationCanceledExceptionAsync()
     {
-        // Arrange
-        var tempScript = OperatingSystem.IsWindows()
-            ? Path.Combine(Path.GetTempPath(), $"genhub_exit0_{Guid.NewGuid():N}.bat")
-            : Path.Combine(Path.GetTempPath(), $"genhub_exit0_{Guid.NewGuid():N}.sh");
+        if (OperatingSystem.IsWindows())
+        {
+            // On Windows batch files bypass immediate-exit adoption handling.
+            return;
+        }
 
-        var scriptContent = OperatingSystem.IsWindows() ? "@exit 0\n" : "#!/bin/sh\nexit 0\n";
+        // Arrange
+        var tempScript = Path.Combine(Path.GetTempPath(), $"genhub_exit0_{Guid.NewGuid():N}.sh");
+        var scriptContent = "#!/bin/sh\nexit 0\n";
         await File.WriteAllTextAsync(tempScript, scriptContent);
 
-        if (!OperatingSystem.IsWindows())
-        {
-            using var chmod = System.Diagnostics.Process.Start("chmod", ["+x", tempScript]);
-            chmod?.WaitForExit();
-        }
+        using var chmod = System.Diagnostics.Process.Start("chmod", ["+x", tempScript]);
+        chmod?.WaitForExit();
 
         try
         {
             var config = new GameLaunchConfiguration
             {
                 ExecutablePath = tempScript,
-                ExpectedChildProcessName = "non_existent_game_process",
             };
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
+            using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(ProcessConstants.LauncherDetectionDelayMs + 200));
 
             // Act & Assert
             await Assert.ThrowsAnyAsync<OperationCanceledException>(

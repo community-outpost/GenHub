@@ -622,7 +622,7 @@ public static class GameSettingsMapper
             profile.VideoDynamicLOD = ParseBool(dynLOD);
         if (options.Video.AdditionalProperties.TryGetValue("MaxParticleCount", out var particles) && int.TryParse(particles, out var particleVal))
             profile.VideoMaxParticleCount = particleVal;
-        if (options.Video.AdditionalProperties.TryGetValue("GameWindowTransitionSpeedMultiplier", out var speed))
+        if (options.Video.AdditionalProperties.TryGetValue(GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, out var speed))
         {
             var parsed = ParseTransitionSpeedMultiplier(speed);
             if (parsed.HasValue)
@@ -652,7 +652,7 @@ public static class GameSettingsMapper
             profile.VideoDynamicLOD = ParseBool(dynLODTsh);
         if (tsh.TryGetValue("MaxParticleCount", out var particlesTsh) && int.TryParse(particlesTsh, out var particlesTshVal))
             profile.VideoMaxParticleCount = particlesTshVal;
-        if (tsh.TryGetValue("GameWindowTransitionSpeedMultiplier", out var speedTsh))
+        if (tsh.TryGetValue(GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey, out var speedTsh))
         {
             var parsed = ParseTransitionSpeedMultiplier(speedTsh);
             if (parsed.HasValue)
@@ -1004,7 +1004,7 @@ public static class GameSettingsMapper
         if (profile.TshMoneyTransactionVolume.HasValue) tshDict["MoneyTransactionVolume"] = profile.TshMoneyTransactionVolume.Value.ToString();
         if (NormalizeTransitionSpeedMultiplier(profile.TshGameWindowTransitionSpeedMultiplier) is { } speedMultiplier)
         {
-            tshDict["GameWindowTransitionSpeedMultiplier"] = speedMultiplier.ToString(CultureInfo.InvariantCulture);
+            tshDict[GameSettingsTheSuperHackersConstants.GameWindowTransitionSpeedMultiplierKey] = speedMultiplier.ToString(CultureInfo.InvariantCulture);
         }
     }
 
