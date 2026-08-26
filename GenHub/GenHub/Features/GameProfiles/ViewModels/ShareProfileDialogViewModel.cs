@@ -136,11 +136,17 @@ public partial class ShareProfileDialogViewModel : ViewModelBase
                 var topLevel = TopLevel.GetTopLevel(desktop.MainWindow);
                 if (topLevel?.StorageProvider != null)
                 {
+                    string safeProfileName = string.Join("_", ProfileName.Split(Path.GetInvalidFileNameChars(), StringSplitOptions.RemoveEmptyEntries)).Replace(' ', '_');
+                    if (string.IsNullOrWhiteSpace(safeProfileName))
+                    {
+                        safeProfileName = "profile";
+                    }
+
                     var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
                     {
                         Title = "Export Game Profile Package",
-                        SuggestedFileName = $"{ProfileName.Replace(' ', '_')}{ProfileSharingConstants.ProfileFileExtension}",
-                        DefaultExtension = ProfileSharingConstants.ProfileFileExtension,
+                        SuggestedFileName = $"{safeProfileName}{ProfileSharingConstants.ProfileFileExtension}",
+                        DefaultExtension = ProfileSharingConstants.ProfileFileExtension.TrimStart('.'),
                         FileTypeChoices =
                         [
                             new FilePickerFileType(ProfileSharingConstants.ProfileFileTypeDisplayName)

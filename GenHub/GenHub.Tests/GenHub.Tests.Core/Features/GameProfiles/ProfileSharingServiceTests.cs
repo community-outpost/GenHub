@@ -694,6 +694,37 @@ public class ProfileSharingServiceTests
         Assert.Equal("covers/relative-cover.png", package.Profile.CoverPath);
     }
 
+    /// <summary>
+    /// Verifies that Unix absolute, UNC, and traversal artwork paths are stripped from shared packages.
+    /// </summary>
+    /// <returns>A task representing the test.</returns>
+    [Fact]
+    public async Task ExportProfile_Should_StripUnixAndTraversalArtworkPaths_FromSharedPackageAsync()
+    {
+        // Arrange
+        var profile = CreateTestProfile("profile-artwork-unix", "Artwork Profile Unix");
+        profile.IconPath = "/home/user/pictures/icon.png";
+        profile.CoverPath = "../traversal/cover.png";
+
+        _profileRepositoryMock.Setup(r => r.LoadProfileAsync("profile-artwork-unix", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        // Act
+        var uriResult = await _service.ExportProfileToUriAsync("profile-artwork-unix");
+
+        // Assert
+        Assert.True(uriResult.Success);
+        Assert.NotNull(uriResult.Data);
+
+        var dataParam = uriResult.Data.Replace("genhub://profile/import?data=", string.Empty);
+        var json = ProfileSharingCompressionHelper.DecodeAndDecompress(dataParam);
+        var package = JsonSerializer.Deserialize<SharedGameProfilePackage>(json, TestJsonOptions);
+
+        Assert.NotNull(package);
+        Assert.Null(package.Profile.IconPath);
+        Assert.Null(package.Profile.CoverPath);
+    }
+
     private static GameProfile CreateTestProfile(string id, string name)
     {
         return new GameProfile
