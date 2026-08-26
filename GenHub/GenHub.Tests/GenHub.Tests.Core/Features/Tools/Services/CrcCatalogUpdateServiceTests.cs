@@ -47,7 +47,7 @@ public sealed class CrcCatalogUpdateServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckForUpdatesAsync_SuccessfulRemoteFetch_UpdatesRegistryAndCache()
+    public async Task CheckForUpdatesAsync_SuccessfulRemoteFetch_UpdatesRegistryAndCacheAsync()
     {
         var catalog = new CrcCatalog
         {
@@ -111,7 +111,7 @@ public sealed class CrcCatalogUpdateServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CheckForUpdatesAsync_RemoteFails_LoadsLocalFallback()
+    public async Task CheckForUpdatesAsync_RemoteFails_LoadsLocalFallbackAsync()
     {
         // Pre-seed local fallback
         var localCatalog = new CrcCatalog

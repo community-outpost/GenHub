@@ -86,12 +86,11 @@ def compute_buffer_sha256(data: bytes) -> str:
 
 def check_url_exists(url: str, timeout: int = 5) -> bool:
     """Checks whether a remote URL exists using a HEAD request."""
-    req = urllib.request.Request(url, headers={"User-Agent": "GenHub-Replay-Crawler"})
-    req.get_method = lambda: "HEAD"
+    req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "GenHub-Replay-Crawler"})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.status == 200
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError):
+    except (urllib.error.URLError, urllib.error.HTTPError, OSError):
         return False
 
 
@@ -120,24 +119,36 @@ def inspect_archive_binary(download_url: str, binary_patterns: list[str]) -> tup
                     ini_crc = compute_buffer_crc(ini_bytes)
 
             return exe_crc, sha256, ini_crc
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, zipfile.BadZipFile, OSError) as e:
+    except (urllib.error.URLError, urllib.error.HTTPError, zipfile.BadZipFile, OSError) as e:
         print(f"Warning: could not inspect archive {download_url}: {e}", file=sys.stderr)
         return "", "", ""
 
 
 def crawl_superhackers_releases(token: str | None = None, inspect_binaries: bool = False) -> list[dict]:
-    """Fetches and maps releases from TheSuperHackers repository on GitHub."""
-    url = f"https://api.github.com/repos/{SUPERHACKERS_REPO}/releases?per_page=100"
+    """Fetches and maps releases from TheSuperHackers repository on GitHub across all pages (2025, 2026, etc.)."""
     headers = {"User-Agent": "GenHub-Replay-Crawler"}
     if token:
         headers["Authorization"] = f"token {token}"
 
-    req = urllib.request.Request(url, headers=headers)
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            releases = json.loads(resp.read().decode("utf-8"))
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError, json.JSONDecodeError) as e:
-        print(f"Warning: could not reach GitHub API ({e}). Falling back to cached catalog.", file=sys.stderr)
+    releases = []
+    page = 1
+    while True:
+        url = f"https://api.github.com/repos/{SUPERHACKERS_REPO}/releases?per_page=100&page={page}"
+        req = urllib.request.Request(url, headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                page_data = json.loads(resp.read().decode("utf-8"))
+            if not page_data or not isinstance(page_data, list):
+                break
+            releases.extend(page_data)
+            if len(page_data) < 100:
+                break
+            page += 1
+        except (urllib.error.URLError, urllib.error.HTTPError, OSError, json.JSONDecodeError) as e:
+            print(f"Warning: could not reach GitHub API page {page} ({e}). Falling back to cached catalog.", file=sys.stderr)
+            break
+
+    if not releases:
         return []
 
     entries = []
@@ -189,34 +200,55 @@ def crawl_superhackers_releases(token: str | None = None, inspect_binaries: bool
     return entries
 
 
-def crawl_generalsonline_releases(inspect_binaries: bool = False) -> list[dict]:
-    """Probes and maps portable releases from the GeneralsOnline CDN."""
+def crawl_generalsonline_releases(inspect_binaries: bool = False, start_year: int = 2025, end_year: int = 2026) -> list[dict]:
+    """Probes and maps portable releases from the GeneralsOnline CDN across 2025, 2026, and all QFE variants."""
     known_dates = ["021326", "032926", "042826", "060526", "062026", "081326"]
-    candidates = []
+    date_set = set(known_dates)
 
-    for date_code in known_dates:
+    # Generate all candidate date codes MMDDYY from start_year-01-01 to end_year-12-31
+    try:
+        curr_date = datetime.date(start_year, 1, 1)
+        target_end = min(datetime.date(end_year, 12, 31), datetime.date.today() + datetime.timedelta(days=7))
+        while curr_date <= target_end:
+            date_set.add(curr_date.strftime("%m%d%y"))
+            curr_date += datetime.timedelta(days=1)
+    except OSError:
+        pass
+
+    candidates = []
+    for date_code in sorted(date_set):
+        # 1. Base portable release (no QFE)
+        for is_eac in (False, True):
+            suffix = "_EAC" if is_eac else ""
+            zip_name = f"GeneralsOnline_portable_{date_code}{suffix}.zip"
+            url = f"{GENERALSONLINE_CDN}/{zip_name}"
+            manifest_type = "eac.zerohour" if is_eac else "zerohour"
+            manifest_id = f"1.{date_code}0.generalsonline.gameclient.{manifest_type}"
+            version_str = f"{date_code}{suffix}"
+            candidates.append((date_code, version_str, manifest_id, url))
+
+        # 2. QFE releases (QFE1 through QFE9)
         for qfe in range(1, 10):
-            for is_eac in [False, True]:
+            for is_eac in (False, True):
                 suffix = f"_QFE{qfe}_EAC" if is_eac else f"_QFE{qfe}"
                 zip_name = f"GeneralsOnline_portable_{date_code}{suffix}.zip"
                 url = f"{GENERALSONLINE_CDN}/{zip_name}"
-
                 manifest_type = "eac.zerohour" if is_eac else "zerohour"
                 manifest_id = f"1.{date_code}{qfe}.generalsonline.gameclient.{manifest_type}"
                 version_str = f"{date_code}{suffix}"
                 candidates.append((date_code, version_str, manifest_id, url))
 
-    # Probe URLs concurrently
+    # Probe candidate URLs concurrently
     valid_candidates = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
         future_to_cand = {executor.submit(check_url_exists, cand[3]): cand for cand in candidates}
         for future in concurrent.futures.as_completed(future_to_cand):
             cand = future_to_cand[future]
             try:
                 if future.result():
                     valid_candidates.append(cand)
-            except Exception:
-                pass
+            except (urllib.error.URLError, urllib.error.HTTPError, OSError) as e:
+                print(f"Warning: error probing candidate {cand[3]}: {e}", file=sys.stderr)
 
     entries = []
     for date_code, version_str, manifest_id, url in valid_candidates:
@@ -233,6 +265,11 @@ def crawl_generalsonline_releases(inspect_binaries: bool = False) -> list[dict]:
             if c_ini:
                 ini_crc = c_ini
 
+        year = f"20{date_code[4:6]}" if len(date_code) == 6 else "2026"
+        month = date_code[0:2] if len(date_code) == 6 else "01"
+        day = date_code[2:4] if len(date_code) == 6 else "01"
+        build_date = f"{year}-{month}-{day}"
+
         entry = {
             "exeCrc": exe_crc,
             "iniCrc": ini_crc,
@@ -241,7 +278,7 @@ def crawl_generalsonline_releases(inspect_binaries: bool = False) -> list[dict]:
             "publisher": "generalsonline",
             "gameType": "ZeroHour",
             "version": version_str,
-            "buildDate": f"2026-{date_code[:2]}-{date_code[2:4]}",
+            "buildDate": build_date,
             "description": f"GeneralsOnline {version_str} portable release",
             "cdnUrl": url,
         }
