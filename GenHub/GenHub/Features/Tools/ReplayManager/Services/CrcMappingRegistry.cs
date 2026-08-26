@@ -156,7 +156,14 @@ public sealed class CrcMappingRegistry(ILogger<CrcMappingRegistry>? logger = nul
             var pairMap = current.PairMap.SetItem(pairKey, entry);
             var exeMap = !string.IsNullOrEmpty(normalizedExe) ? current.ExeMap.SetItem(normalizedExe, entry) : current.ExeMap;
             var shaMap = !string.IsNullOrWhiteSpace(entry.Sha256) ? current.ShaMap.SetItem(entry.Sha256.Trim(), entry) : current.ShaMap;
-            var allEntries = current.AllEntries.Add(entry);
+
+            var existingIndex = current.AllEntries.FindIndex(e =>
+                string.Equals(e.ManifestId, entry.ManifestId, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(CreateCrcPairKey(e.ExeCrc, e.IniCrc), pairKey, StringComparison.OrdinalIgnoreCase));
+
+            var allEntries = existingIndex >= 0
+                ? current.AllEntries.SetItem(existingIndex, entry)
+                : current.AllEntries.Add(entry);
 
             var next = new RegistryState(pairMap, exeMap, shaMap, allEntries);
             if (Interlocked.CompareExchange(ref _state, next, current) == current)
