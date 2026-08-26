@@ -99,4 +99,24 @@ public static class CommandLineConstants
     /// Command-line argument prefix for inline shared profile importing.
     /// </summary>
     public const string ImportProfileInlinePrefix = "--import-profile=";
+
+    /// <summary>
+    /// Command-line argument used to allow running multiple instances concurrently.
+    /// </summary>
+    public const string MultiInstanceArg = "--multi-instance";
+
+    /// <summary>
+    /// Short command-line argument used to allow running multiple instances concurrently.
+    /// </summary>
+    public const string MultiInstanceShortArg = "-m";
+
+    /// <summary>
+    /// Environment variable name to allow running multiple instances concurrently.
+    /// </summary>
+    public const string MultiInstanceEnvVar = "GENHUB_MULTI_INSTANCE";
+
+    /// <summary>
+    /// Environment variable value representing enabled multi-instance mode.
+    /// </summary>
+    public const string MultiInstanceEnvEnabledValue = "1";
 }

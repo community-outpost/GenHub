@@ -931,7 +931,7 @@ public partial class GameProfileSettingsViewModel
                 profileResult.Data,
                 uriResult.Data,
                 _profileSharingService,
-                (ILogger?)_logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ShareProfileDialogViewModel>.Instance);
+                _loggerFactory?.CreateLogger<ShareProfileDialogViewModel>() ?? NullLogger<ShareProfileDialogViewModel>.Instance);
 
             var dialog = new Views.ShareProfileDialogWindow
             {

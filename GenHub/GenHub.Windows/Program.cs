@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using Avalonia;
 using DotNetEnv;
 using GenHub.Core.Constants;
@@ -6,8 +8,6 @@ using GenHub.Infrastructure.DependencyInjection;
 using GenHub.Windows.Infrastructure.DependencyInjection;
 using GenHub.Windows.Infrastructure.SingleInstance;
 using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Linq;
 using Microsoft.Extensions.Logging;
 using Velopack;
 
@@ -110,9 +110,9 @@ public class Program
 
     private static bool TryForwardToExistingInstance(string[] args, ILogger bootstrapLogger, ILoggerFactory bootstrapLoggerFactory)
     {
-        bool multiInstance = args.Contains("--multi-instance", StringComparer.OrdinalIgnoreCase) ||
-                             args.Contains("-m", StringComparer.OrdinalIgnoreCase) ||
-                             Environment.GetEnvironmentVariable("GENHUB_MULTI_INSTANCE") == "1";
+        bool multiInstance = args.Contains(CommandLineConstants.MultiInstanceArg, StringComparer.OrdinalIgnoreCase) ||
+                             args.Contains(CommandLineConstants.MultiInstanceShortArg, StringComparer.OrdinalIgnoreCase) ||
+                             Environment.GetEnvironmentVariable(CommandLineConstants.MultiInstanceEnvVar) == CommandLineConstants.MultiInstanceEnvEnabledValue;
 
         if (multiInstance)
         {

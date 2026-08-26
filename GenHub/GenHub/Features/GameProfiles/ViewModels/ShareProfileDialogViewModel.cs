@@ -93,16 +93,12 @@ public partial class ShareProfileDialogViewModel : ViewModelBase
     {
         try
         {
-            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
-                desktop.MainWindow != null)
+            var topLevel = GetMainWindowTopLevel();
+            if (topLevel?.Clipboard != null)
             {
-                var topLevel = TopLevel.GetTopLevel(desktop.MainWindow);
-                if (topLevel?.Clipboard != null)
-                {
-                    await topLevel.Clipboard.SetTextAsync(ShareUri);
-                    ShowStatus("Share link copied to clipboard!");
-                    _logger.LogInformation("Copied share URI to clipboard for profile {ProfileName}", ProfileName);
-                }
+                await topLevel.Clipboard.SetTextAsync(ShareUri);
+                ShowStatus("Share link copied to clipboard!");
+                _logger.LogInformation("Copied share URI to clipboard for profile {ProfileName}", ProfileName);
             }
         }
         catch (Exception ex)
@@ -117,16 +113,12 @@ public partial class ShareProfileDialogViewModel : ViewModelBase
     {
         try
         {
-            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop &&
-                desktop.MainWindow != null)
+            var topLevel = GetMainWindowTopLevel();
+            if (topLevel?.Clipboard != null)
             {
-                var topLevel = TopLevel.GetTopLevel(desktop.MainWindow);
-                if (topLevel?.Clipboard != null)
-                {
-                    await topLevel.Clipboard.SetTextAsync(DiscordMarkdown);
-                    ShowStatus("Discord markdown invite copied to clipboard!");
-                    _logger.LogInformation("Copied Discord markdown to clipboard for profile {ProfileName}", ProfileName);
-                }
+                await topLevel.Clipboard.SetTextAsync(DiscordMarkdown);
+                ShowStatus("Discord markdown invite copied to clipboard!");
+                _logger.LogInformation("Copied Discord markdown to clipboard for profile {ProfileName}", ProfileName);
             }
         }
         catch (Exception ex)

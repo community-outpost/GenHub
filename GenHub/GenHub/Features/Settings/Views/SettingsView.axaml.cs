@@ -126,7 +126,7 @@ public partial class SettingsView : UserControl
             SettingsConstants.SectionLocalContent => "Expander_LocalContent",
             SettingsConstants.SectionGitHubDiscovery => "Expander_GitHubDiscovery",
             SettingsConstants.SectionUpdates => "Expander_Updates",
-            SettingsConstants.SectionCloudUploads => "Expander_CloudUploads",
+            SettingsConstants.SectionCloudUploads => SettingsConstants.ExpanderCloudUploads,
             SettingsConstants.SectionDangerZone => "Expander_DangerZone",
             _ => null,
         };
@@ -136,7 +136,7 @@ public partial class SettingsView : UserControl
             return;
         }
 
-        var expander = this.FindControl<Expander>(expanderName);
+        var expander = FindControl<Expander>(expanderName);
         if (expander != null)
         {
             expander.IsExpanded = true;

@@ -61,6 +61,11 @@ public static class SettingsConstants
     public const string SectionCloudUploads = "cloud-uploads";
 
     /// <summary>
+    /// Expander control name for Cloud Storage &amp; Uploads in SettingsView.
+    /// </summary>
+    public const string ExpanderCloudUploads = "Expander_CloudUploads";
+
+    /// <summary>
     /// Section ID for Danger Zone.
     /// </summary>
     public const string SectionDangerZone = "danger-zone";

@@ -285,6 +285,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _themeService = themeService;
         _gitHubTokenStorage = gitHubTokenStorage;
         _uploadHistoryService = uploadHistoryService;
+        ActiveUploads = new(_activeUploads);
 
         LoadSettings();
         _ = RefreshUploadsAsync();
@@ -1798,10 +1799,12 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
+    private readonly ObservableCollection<UploadHistoryItem> _activeUploads = [];
+
     /// <summary>
     /// Gets the list of active upload records across all tools and shared profiles.
     /// </summary>
-    public ObservableCollection<UploadHistoryItem> ActiveUploads { get; } = [];
+    public ReadOnlyObservableCollection<UploadHistoryItem> ActiveUploads { get; }
 
     [ObservableProperty]
     private string _uploadQuotaText = "0.0 MB / 10.0 MB Used (0%)";
@@ -1832,15 +1835,15 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             var usage = await _uploadHistoryService.GetUsageInfoAsync();
             var items = (await _uploadHistoryService.GetUploadHistoryAsync()).ToList();
 
-            ActiveUploads.Clear();
+            _activeUploads.Clear();
             foreach (var item in items.OrderByDescending(i => i.Timestamp))
             {
-                ActiveUploads.Add(item);
+                _activeUploads.Add(item);
             }
 
             HasUploads = ActiveUploads.Count > 0;
-            double usedMb = usage.UsedBytes / (1024.0 * 1024.0);
-            double limitMb = usage.LimitBytes / (1024.0 * 1024.0);
+            double usedMb = usage.UsedBytes / (double)ConversionConstants.BytesPerMegabyte;
+            double limitMb = usage.LimitBytes / (double)ConversionConstants.BytesPerMegabyte;
             UploadQuotaPercent = usage.LimitBytes > 0
                 ? Math.Clamp((double)usage.UsedBytes / usage.LimitBytes * 100.0, 0.0, 100.0)
                 : 0.0;
@@ -1857,9 +1860,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Deletes an upload record and removes the hosted file from cloud storage.
+    /// Removes an upload record from local upload history.
     /// </summary>
-    /// <param name="item">The upload history item to delete.</param>
+    /// <param name="item">The upload history item to remove.</param>
     [RelayCommand]
     private async Task DeleteUploadAsync(UploadHistoryItem? item)
     {

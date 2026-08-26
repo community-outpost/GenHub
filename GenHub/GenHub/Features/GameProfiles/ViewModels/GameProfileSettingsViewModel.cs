@@ -212,6 +212,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     private readonly IProfileSharingService? _profileSharingService;
     private readonly ILogger<GameProfileSettingsViewModel>? _logger;
     private readonly ILogger<GameSettingsViewModel>? _gameSettingsLogger;
+    private readonly ILoggerFactory? _loggerFactory;
     private readonly NotificationService _localNotificationService = new(NullLogger<NotificationService>.Instance);
 
     /// <summary>
@@ -255,6 +256,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
     /// <param name="logger">The logger for this view model.</param>
     /// <param name="gameSettingsLogger">The logger for the game settings view model.</param>
     /// <param name="profileSharingService">The profile sharing service.</param>
+    /// <param name="loggerFactory">Optional logger factory for creating child view model loggers.</param>
     public GameProfileSettingsViewModel(
         IGameProfileManager? gameProfileManager,
         IGameSettingsService? gameSettingsService,
@@ -269,7 +271,8 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         IDialogService? dialogService,
         ILogger<GameProfileSettingsViewModel>? logger,
         ILogger<GameSettingsViewModel>? gameSettingsLogger,
-        IProfileSharingService? profileSharingService = null)
+        IProfileSharingService? profileSharingService = null,
+        ILoggerFactory? loggerFactory = null)
     {
         _gameProfileManager = gameProfileManager;
         _gameSettingsService = gameSettingsService;
@@ -285,6 +288,7 @@ public partial class GameProfileSettingsViewModel : ViewModelBase,
         _logger = logger;
         _gameSettingsLogger = gameSettingsLogger;
         _profileSharingService = profileSharingService;
+        _loggerFactory = loggerFactory;
 
         NotificationManager = new NotificationManagerViewModel(
             _localNotificationService,

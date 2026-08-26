@@ -477,8 +477,9 @@ public class ProfileSharingService(
 
         string trimmed = path.Trim();
 
-        bool isWindowsDrive = (OperatingSystem.IsWindows() && trimmed.Length >= 2 && char.IsLetter(trimmed[0]) && trimmed[1] == ':') ||
-            (trimmed.Length >= 3 && char.IsLetter(trimmed[0]) && trimmed[1] == ':' && (trimmed[2] == '/' || trimmed[2] == '\\'));
+        bool isWindowsDrive = OperatingSystem.IsWindows() &&
+            ((trimmed.Length >= 2 && char.IsLetter(trimmed[0]) && trimmed[1] == ':') ||
+             (trimmed.Length >= 3 && char.IsLetter(trimmed[0]) && trimmed[1] == ':' && (trimmed[2] == '/' || trimmed[2] == '\\')));
         bool isRooted = Path.IsPathRooted(trimmed) ||
             isWindowsDrive ||
             trimmed.StartsWith('/') ||
@@ -546,8 +547,15 @@ public class ProfileSharingService(
             return OperationResult<string>.CreateSuccess(fileContent);
         }
 
-        var decompressed = await ProfileSharingCompressionHelper.DecodeAndDecompressAsync(fileContent.Trim(), cancellationToken);
-        return OperationResult<string>.CreateSuccess(decompressed);
+        try
+        {
+            var decompressed = await ProfileSharingCompressionHelper.DecodeAndDecompressAsync(fileContent.Trim(), cancellationToken);
+            return OperationResult<string>.CreateSuccess(decompressed);
+        }
+        catch (Exception ex) when (ex is FormatException or InvalidDataException or ArgumentException)
+        {
+            return OperationResult<string>.CreateFailure($"Unable to parse shared profile file '{input}': {ex.Message}");
+        }
     }
 
     private static async Task<OperationResult<string>> ResolvePayloadFromRawOrCompressedAsync(string input, CancellationToken cancellationToken)
@@ -575,8 +583,8 @@ public class ProfileSharingService(
     {
         if (overrides.TryGetValue(nameof(profile.VideoResolutionWidth), out var widthObj) && widthObj is JsonElement widthElem && widthElem.TryGetInt32(out var width)) profile.VideoResolutionWidth = width;
         if (overrides.TryGetValue(nameof(profile.VideoResolutionHeight), out var heightObj) && heightObj is JsonElement heightElem && heightElem.TryGetInt32(out var height)) profile.VideoResolutionHeight = height;
-        if (overrides.TryGetValue(nameof(profile.VideoWindowed), out var winObj) && winObj is JsonElement winElem) profile.VideoWindowed = winElem.GetBoolean();
-        if (overrides.TryGetValue(nameof(profile.EnableVideoShadows), out var shadowsObj) && shadowsObj is JsonElement shadowsElem) profile.EnableVideoShadows = shadowsElem.GetBoolean();
+        if (TryReadBoolean(overrides, nameof(profile.VideoWindowed), out var windowed)) profile.VideoWindowed = windowed;
+        if (TryReadBoolean(overrides, nameof(profile.EnableVideoShadows), out var shadows)) profile.EnableVideoShadows = shadows;
 
         // Texture quality round-trips as a string enum name written during export.
         if (overrides.TryGetValue(nameof(profile.VideoTextureQuality), out var textureObj)
@@ -597,7 +605,7 @@ public class ProfileSharingService(
 
     private static void ApplyTshSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
     {
-        if (overrides.TryGetValue(nameof(profile.TshArchiveReplays), out var tshReplayObj) && tshReplayObj is JsonElement tshReplayElem) profile.TshArchiveReplays = tshReplayElem.GetBoolean();
+        if (TryReadBoolean(overrides, nameof(profile.TshArchiveReplays), out var tshArchiveReplays)) profile.TshArchiveReplays = tshArchiveReplays;
         if (overrides.TryGetValue(nameof(profile.TshRenderFpsFontSize), out var tshFpsObj) && tshFpsObj is JsonElement tshFpsElem && tshFpsElem.TryGetInt32(out var fpsSize)) profile.TshRenderFpsFontSize = fpsSize;
         if (overrides.TryGetValue(nameof(profile.TshNetworkLatencyFontSize), out var tshLatObj) && tshLatObj is JsonElement tshLatElem && tshLatElem.TryGetInt32(out var latSize)) profile.TshNetworkLatencyFontSize = latSize;
         if (overrides.TryGetValue(nameof(profile.TshSystemTimeFontSize), out var tshTimeObj) && tshTimeObj is JsonElement tshTimeElem && tshTimeElem.TryGetInt32(out var timeSize)) profile.TshSystemTimeFontSize = timeSize;
@@ -605,10 +613,34 @@ public class ProfileSharingService(
 
     private static void ApplyGoSettingsOverrides(GameProfile profile, Dictionary<string, object?> overrides)
     {
-        if (overrides.TryGetValue(nameof(profile.GoShowFps), out var goFpsObj) && goFpsObj is JsonElement goFpsElem) profile.GoShowFps = goFpsElem.GetBoolean();
-        if (overrides.TryGetValue(nameof(profile.GoShowPing), out var goPingObj) && goPingObj is JsonElement goPingElem) profile.GoShowPing = goPingElem.GetBoolean();
-        if (overrides.TryGetValue(nameof(profile.GoShowPlayerRanks), out var goRanksObj) && goRanksObj is JsonElement goRanksElem) profile.GoShowPlayerRanks = goRanksElem.GetBoolean();
+        if (TryReadBoolean(overrides, nameof(profile.GoShowFps), out var showFps)) profile.GoShowFps = showFps;
+        if (TryReadBoolean(overrides, nameof(profile.GoShowPing), out var showPing)) profile.GoShowPing = showPing;
+        if (TryReadBoolean(overrides, nameof(profile.GoShowPlayerRanks), out var showPlayerRanks)) profile.GoShowPlayerRanks = showPlayerRanks;
         if (overrides.TryGetValue(nameof(profile.GoRenderFpsLimit), out var goFpsLimitObj) && goFpsLimitObj is JsonElement goFpsLimitElem && goFpsLimitElem.TryGetInt32(out var fpsLimit)) profile.GoRenderFpsLimit = fpsLimit;
+    }
+
+    private static bool TryReadBoolean(Dictionary<string, object?> overrides, string key, out bool value)
+    {
+        value = false;
+        if (!overrides.TryGetValue(key, out var raw) || raw is null)
+        {
+            return false;
+        }
+
+        switch (raw)
+        {
+            case bool b:
+                value = b;
+                return true;
+            case JsonElement { ValueKind: JsonValueKind.True }:
+                value = true;
+                return true;
+            case JsonElement { ValueKind: JsonValueKind.False }:
+                value = false;
+                return true;
+            default:
+                return false;
+        }
     }
 
     private async Task<GameInstallation?> ResolveSelectedInstallationAsync(string? installationId, CancellationToken cancellationToken)
@@ -837,47 +869,65 @@ public class ProfileSharingService(
 
     private async Task<OperationResult<string>> ResolvePayloadFromUriAsync(string input, CancellationToken cancellationToken)
     {
-        if (input.StartsWith(CommandLineConstants.ProfileImportUriPrefix, StringComparison.OrdinalIgnoreCase))
+        if (input.StartsWith(CommandLineConstants.ProfileImportUriPrefix, StringComparison.OrdinalIgnoreCase) ||
+            input.StartsWith(CommandLineConstants.ProfileViewUriPrefix, StringComparison.OrdinalIgnoreCase))
         {
             int dataParamIdx = input.IndexOf(CommandLineConstants.DataQueryParam, StringComparison.OrdinalIgnoreCase);
             if (dataParamIdx != -1)
             {
-                string encoded = input[(dataParamIdx + CommandLineConstants.DataQueryParam.Length)..];
-                int nextParamIdx = encoded.IndexOf('&');
-                if (nextParamIdx != -1)
-                {
-                    encoded = encoded[..nextParamIdx];
-                }
-
-                if (encoded.Length > ProfileSharingConstants.MaxInlinePayloadLength)
-                {
-                    return OperationResult<string>.CreateFailure($"Inline payload length ({encoded.Length}) exceeds maximum permitted size.");
-                }
-
-                string decompressed = await ProfileSharingCompressionHelper.DecodeAndDecompressAsync(encoded, cancellationToken);
-                return OperationResult<string>.CreateSuccess(decompressed);
+                return await ResolveInlinePayloadAsync(input, dataParamIdx, cancellationToken);
             }
 
             int urlParamIdx = input.IndexOf(CommandLineConstants.UrlQueryParam, StringComparison.OrdinalIgnoreCase);
             if (urlParamIdx != -1)
             {
-                string url = Uri.UnescapeDataString(input[(urlParamIdx + CommandLineConstants.UrlQueryParam.Length)..]);
-                int nextParamIdx = url.IndexOf('&');
-                if (nextParamIdx != -1)
-                {
-                    url = url[..nextParamIdx];
-                }
-
-                if (!Uri.TryCreate(url, UriKind.Absolute, out var profileUri) || !await IsSafeRemoteUriAsync(profileUri, cancellationToken))
-                {
-                    return OperationResult<string>.CreateFailure($"Remote URL '{url}' is blocked by security policies.");
-                }
-
-                return await FetchRemotePayloadWithLimitAsync(profileUri, cancellationToken);
+                return await ResolveRemotePayloadAsync(input, urlParamIdx, cancellationToken);
             }
         }
 
         return OperationResult<string>.CreateFailure($"Unsupported or malformed genhub:// sharing URI: {input}");
+    }
+
+    private static async Task<OperationResult<string>> ResolveInlinePayloadAsync(string input, int dataParamIdx, CancellationToken cancellationToken)
+    {
+        string encoded = input[(dataParamIdx + CommandLineConstants.DataQueryParam.Length)..];
+        int nextParamIdx = encoded.IndexOf('&');
+        if (nextParamIdx != -1)
+        {
+            encoded = encoded[..nextParamIdx];
+        }
+
+        if (encoded.Length > ProfileSharingConstants.MaxInlinePayloadLength)
+        {
+            return OperationResult<string>.CreateFailure($"Inline payload length ({encoded.Length}) exceeds maximum permitted size.");
+        }
+
+        try
+        {
+            string decompressed = await ProfileSharingCompressionHelper.DecodeAndDecompressAsync(encoded, cancellationToken);
+            return OperationResult<string>.CreateSuccess(decompressed);
+        }
+        catch (Exception ex) when (ex is FormatException or InvalidDataException or ArgumentException)
+        {
+            return OperationResult<string>.CreateFailure($"Unable to parse inline shared profile payload: {ex.Message}");
+        }
+    }
+
+    private async Task<OperationResult<string>> ResolveRemotePayloadAsync(string input, int urlParamIdx, CancellationToken cancellationToken)
+    {
+        string url = Uri.UnescapeDataString(input[(urlParamIdx + CommandLineConstants.UrlQueryParam.Length)..]);
+        int nextParamIdx = url.IndexOf('&');
+        if (nextParamIdx != -1)
+        {
+            url = url[..nextParamIdx];
+        }
+
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var profileUri) || !await IsSafeRemoteUriAsync(profileUri, cancellationToken))
+        {
+            return OperationResult<string>.CreateFailure($"Remote URL '{url}' is blocked by security policies.");
+        }
+
+        return await FetchRemotePayloadWithLimitAsync(profileUri, cancellationToken);
     }
 
     private async Task<OperationResult<string>> FetchRemotePayloadWithLimitAsync(Uri profileUri, CancellationToken cancellationToken)

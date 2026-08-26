@@ -1,4 +1,5 @@
 using System;
+using GenHub.Core.Constants;
 
 namespace GenHub.Core.Models.Common;
 
@@ -22,8 +23,8 @@ public record UploadHistoryItem(
     /// </summary>
     public string FormattedSize => SizeBytes switch
     {
-        >= 1024 * 1024 => $"{SizeBytes / (1024.0 * 1024.0):F1} MB",
-        >= 1024 => $"{SizeBytes / 1024.0:F1} KB",
+        >= ConversionConstants.BytesPerMegabyte => $"{SizeBytes / (double)ConversionConstants.BytesPerMegabyte:F1} MB",
+        >= ConversionConstants.BytesPerKilobyte => $"{SizeBytes / (double)ConversionConstants.BytesPerKilobyte:F1} KB",
         _ => $"{SizeBytes} B",
     };
 

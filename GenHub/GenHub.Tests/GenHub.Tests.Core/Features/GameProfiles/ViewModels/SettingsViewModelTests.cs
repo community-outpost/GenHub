@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameInstallations;
@@ -20,6 +24,7 @@ using GenHub.Features.AppUpdate.Interfaces;
 using GenHub.Features.Settings.ViewModels;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Xunit;
 
 namespace GenHub.Tests.Core.Features.GameProfiles.ViewModels;
 
@@ -782,14 +787,14 @@ public class SettingsViewModelTests
         var mockUploadHistoryService = new Mock<IUploadHistoryService>();
         var items = new List<UploadHistoryItem>
         {
-            new(DateTime.UtcNow, 2 * 1024 * 1024, "https://uploadthing.com/f/map1.zip", "DesertStorm.zip"),
-            new(DateTime.UtcNow, 3 * 1024 * 1024, "https://uploadthing.com/f/rep1.rep", "FinalMatch.rep"),
+            new(DateTime.UtcNow, 2 * ConversionConstants.BytesPerMegabyte, string.Format(CultureInfo.InvariantCulture, ApiConstants.UploadThingPublicUrlFormat, "map1.zip"), "DesertStorm.zip"),
+            new(DateTime.UtcNow, 3 * ConversionConstants.BytesPerMegabyte, string.Format(CultureInfo.InvariantCulture, ApiConstants.UploadThingPublicUrlFormat, "rep1.rep"), "FinalMatch.rep"),
         };
 
         mockUploadHistoryService.Setup(s => s.GetUploadHistoryAsync())
             .ReturnsAsync(items);
         mockUploadHistoryService.Setup(s => s.GetUsageInfoAsync())
-            .ReturnsAsync(new UsageInfo(5 * 1024 * 1024, 10 * 1024 * 1024, DateTime.UtcNow.AddDays(30)));
+            .ReturnsAsync(new UsageInfo(5 * ConversionConstants.BytesPerMegabyte, 10 * ConversionConstants.BytesPerMegabyte, DateTime.UtcNow.AddDays(30)));
 
         var viewModel = new SettingsViewModel(
             _mockConfigService.Object,
@@ -826,14 +831,14 @@ public class SettingsViewModelTests
     {
         // Arrange
         var mockUploadHistoryService = new Mock<IUploadHistoryService>();
-        var itemToDelete = new UploadHistoryItem(DateTime.UtcNow, 1024 * 1024, "https://uploadthing.com/f/map.zip", "Map.zip");
+        var itemToDelete = new UploadHistoryItem(DateTime.UtcNow, ConversionConstants.BytesPerMegabyte, string.Format(CultureInfo.InvariantCulture, ApiConstants.UploadThingPublicUrlFormat, "map.zip"), "Map.zip");
 
         mockUploadHistoryService.Setup(s => s.RemoveHistoryItemAsync(itemToDelete.Url))
             .Returns(Task.CompletedTask);
         mockUploadHistoryService.Setup(s => s.GetUploadHistoryAsync())
             .ReturnsAsync(new List<UploadHistoryItem>());
         mockUploadHistoryService.Setup(s => s.GetUsageInfoAsync())
-            .ReturnsAsync(new UsageInfo(0, 10 * 1024 * 1024, DateTime.UtcNow.AddDays(30)));
+            .ReturnsAsync(new UsageInfo(0, 10 * ConversionConstants.BytesPerMegabyte, DateTime.UtcNow.AddDays(30)));
 
         var viewModel = new SettingsViewModel(
             _mockConfigService.Object,
