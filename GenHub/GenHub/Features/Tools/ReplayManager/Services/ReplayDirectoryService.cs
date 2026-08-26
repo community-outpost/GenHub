@@ -7,10 +7,17 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.GameInstallations;
+using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Manifest;
 using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameClients;
+using GenHub.Core.Models.GameInstallations;
+using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.ReplayManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -19,7 +26,7 @@ namespace GenHub.Features.Tools.ReplayManager.Services;
 
 /// <summary>
 /// Implementation of <see cref="IReplayDirectoryService"/> for managing replay files on disk.
-/// Automatically parses replay headers and resolves game client compatibility against installed content.
+/// Automatically parses replay headers and resolves game client and profile compatibility against installed content.
 /// </summary>
 public sealed class ReplayDirectoryService(
     IReplayHeaderParser headerParser,
@@ -67,22 +74,37 @@ public sealed class ReplayDirectoryService(
             .ToList();
 
         var acquiredIds = new HashSet<string>(StringComparer.Ordinal);
+        var existingProfiles = new List<GameProfile>();
+
         try
         {
             using var scope = scopeFactory.CreateScope();
-            var manifestPool = scope.ServiceProvider.GetRequiredService<IContentManifestPool>();
-            var manifestsResult = await manifestPool.GetAllManifestsAsync(ct);
-            if (manifestsResult.Success && manifestsResult.Data != null)
+            var manifestPool = scope.ServiceProvider.GetService<IContentManifestPool>();
+            if (manifestPool != null)
             {
-                foreach (var manifest in manifestsResult.Data)
+                var manifestsResult = await manifestPool.GetAllManifestsAsync(ct);
+                if (manifestsResult.Success && manifestsResult.Data != null)
                 {
-                    acquiredIds.Add(manifest.Id.Value);
+                    foreach (var manifest in manifestsResult.Data)
+                    {
+                        acquiredIds.Add(manifest.Id.Value);
+                    }
+                }
+            }
+
+            var profileManager = scope.ServiceProvider.GetService<IGameProfileManager>();
+            if (profileManager != null)
+            {
+                var profilesResult = await profileManager.GetAllProfilesAsync(ct);
+                if (profilesResult.Success && profilesResult.Data != null)
+                {
+                    existingProfiles.AddRange(profilesResult.Data);
                 }
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.LogWarning(ex, "Failed to retrieve acquired manifests for replay compatibility matching.");
+            logger.LogWarning(ex, "Failed to retrieve acquired manifests or profiles for replay compatibility matching.");
         }
 
         var replayFiles = new List<ReplayFile>();
@@ -105,7 +127,7 @@ public sealed class ReplayDirectoryService(
                 if (parseResult.Success && parseResult.Data != null)
                 {
                     replay.Metadata = parseResult.Data;
-                    ResolveCompatibility(replay, acquiredIds);
+                    ResolveCompatibility(replay, acquiredIds, existingProfiles);
                 }
             }
 
@@ -175,7 +197,157 @@ public sealed class ReplayDirectoryService(
         }
     }
 
-    private void ResolveCompatibility(ReplayFile replay, HashSet<string> acquiredIds)
+    /// <inheritdoc />
+    public async Task<ProfileOperationResult<GameProfile>> CreateProfileForReplayAsync(ReplayFile replay, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(replay);
+
+        if (replay.MatchedClient == null && replay.Metadata?.FormattedExeCrc != null)
+        {
+            if (crcMappingRegistry.TryGetEntry(replay.Metadata.FormattedExeCrc, replay.Metadata.FormattedIniCrc ?? string.Empty, out var resolvedMatch))
+            {
+                replay.MatchedClient = resolvedMatch;
+            }
+        }
+
+        if (replay.MatchedClient == null)
+        {
+            return ProfileOperationResult<GameProfile>.CreateFailure(
+                $"Cannot create profile for replay '{replay.FileName}': Exe CRC {replay.Metadata?.FormattedExeCrc ?? "N/A"} / INI CRC {replay.Metadata?.FormattedIniCrc ?? "N/A"} is not mapped to any known game client.");
+        }
+
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var profileManager = scope.ServiceProvider.GetRequiredService<IGameProfileManager>();
+            var installationService = scope.ServiceProvider.GetRequiredService<IGameInstallationService>();
+
+            // Check if matching profile already exists
+            var existingProfilesResult = await profileManager.GetAllProfilesAsync(ct);
+            if (existingProfilesResult.Success && existingProfilesResult.Data != null)
+            {
+                var existing = existingProfilesResult.Data.FirstOrDefault(p =>
+                    p.GameClient?.GameType == replay.GameVersion &&
+                    (string.Equals(p.GameClient?.Id, replay.MatchedClient.ManifestId, StringComparison.OrdinalIgnoreCase) ||
+                     (p.EnabledContentIds != null && p.EnabledContentIds.Contains(replay.MatchedClient.ManifestId))));
+
+                if (existing != null)
+                {
+                    replay.MatchingProfileId = existing.Id;
+                    replay.MatchingProfileName = existing.Name;
+                    replay.CompatibilityStatus = ReplayCompatibilityStatus.Compatible;
+                    return ProfileOperationResult<GameProfile>.CreateSuccess(existing);
+                }
+            }
+
+            // Retrieve available installations
+            var installationsResult = await installationService.GetAllInstallationsAsync(ct);
+            if (!installationsResult.Success || installationsResult.Data == null || installationsResult.Data.Count == 0)
+            {
+                return ProfileOperationResult<GameProfile>.CreateFailure(
+                    $"No game installation found on this system for {replay.GameVersion}. Please ensure Generals or Zero Hour is installed.");
+            }
+
+            var installation = installationsResult.Data.FirstOrDefault(i =>
+                (replay.GameVersion == GameType.Generals && i.HasGenerals) ||
+                (replay.GameVersion == GameType.ZeroHour && i.HasZeroHour))
+                ?? installationsResult.Data.First();
+
+            var clientName = replay.MatchedClient.Description ?? $"{replay.MatchedClient.Publisher} {replay.MatchedClient.Version}";
+            var profileName = $"{clientName} (Replay: {Path.GetFileNameWithoutExtension(replay.FileName)})";
+
+            var targetClient = replay.GameVersion == GameType.Generals ? installation.GeneralsClient : installation.ZeroHourClient;
+            var targetPath = replay.GameVersion == GameType.Generals ? installation.GeneralsPath : installation.ZeroHourPath;
+            var exeName = replay.GameVersion == GameType.Generals ? "generals.exe" : "generalszh.exe";
+            var workingDir = !string.IsNullOrEmpty(targetPath) ? targetPath : installation.InstallationPath;
+            var exePath = targetClient?.ExecutablePath ?? (!string.IsNullOrEmpty(workingDir) ? Path.Combine(workingDir, exeName) : string.Empty);
+
+            var gameClient = new GameClient
+            {
+                Id = replay.MatchedClient.ManifestId,
+                Name = clientName,
+                Version = replay.MatchedClient.Version,
+                GameType = replay.GameVersion,
+                PublisherType = replay.MatchedClient.Publisher,
+                InstallationId = installation.Id,
+                ExecutablePath = exePath,
+                WorkingDirectory = workingDir,
+            };
+
+            var request = new CreateProfileRequest
+            {
+                Name = profileName,
+                Description = $"Profile configured for {clientName} (Exe: {replay.Metadata?.FormattedExeCrc}, INI: {replay.Metadata?.FormattedIniCrc})",
+                GameInstallationId = installation.Id,
+                GameClientId = replay.MatchedClient.ManifestId,
+                GameClient = gameClient,
+                EnabledContentIds = [replay.MatchedClient.ManifestId],
+                WorkspaceStrategy = WorkspaceStrategy.SymlinkOnly,
+                UseSteamLaunch = installation.InstallationType == GameInstallationType.Steam,
+            };
+
+            var createResult = await profileManager.CreateProfileAsync(request, ct);
+            if (createResult.Success && createResult.Data != null)
+            {
+                replay.MatchingProfileId = createResult.Data.Id;
+                replay.MatchingProfileName = createResult.Data.Name;
+                replay.CompatibilityStatus = ReplayCompatibilityStatus.Compatible;
+                logger.LogInformation("Successfully created profile '{ProfileName}' for replay '{ReplayFile}'", profileName, replay.FileName);
+                return createResult;
+            }
+
+            return ProfileOperationResult<GameProfile>.CreateFailure(
+                createResult.FirstError ?? "Failed to create game profile for replay.");
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Exception creating profile for replay '{ReplayFile}'", replay.FileName);
+            return ProfileOperationResult<GameProfile>.CreateFailure($"Error creating profile: {ex.Message}");
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<ProfileOperationResult<GameLaunchInfo>> LaunchReplayAsync(ReplayFile replay, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(replay);
+
+        if (string.IsNullOrEmpty(replay.MatchingProfileId))
+        {
+            var createResult = await CreateProfileForReplayAsync(replay, ct);
+            if (!createResult.Success || createResult.Data == null)
+            {
+                return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
+                    createResult.FirstError ?? "Failed to create or find a matching profile for this replay.");
+            }
+        }
+
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var launcherFacade = scope.ServiceProvider.GetRequiredService<IProfileLauncherFacade>();
+
+            var launchResult = await launcherFacade.LaunchProfileAsync(
+                replay.MatchingProfileId!,
+                skipUserDataCleanup: false,
+                cancellationToken: ct);
+
+            if (launchResult.Success)
+            {
+                logger.LogInformation("Successfully launched profile '{ProfileId}' for replay '{ReplayFile}'", replay.MatchingProfileId, replay.FileName);
+                return launchResult;
+            }
+
+            return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
+                launchResult.FirstError ?? "Failed to launch game profile.");
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Exception launching profile '{ProfileId}' for replay '{ReplayFile}'", replay.MatchingProfileId, replay.FileName);
+            return ProfileOperationResult<GameLaunchInfo>.CreateFailure($"Launch failed: {ex.Message}");
+        }
+    }
+
+    private void ResolveCompatibility(ReplayFile replay, HashSet<string> acquiredIds, IReadOnlyList<GameProfile> profiles)
     {
         if (replay.Metadata == null)
         {
@@ -196,11 +368,25 @@ public sealed class ReplayDirectoryService(
         {
             replay.MatchedClient = match;
 
-            var isInstalled = !string.IsNullOrEmpty(match.ManifestId) && acquiredIds.Contains(match.ManifestId);
+            // Check if an existing profile matches this game client / manifest
+            var matchingProfile = profiles.FirstOrDefault(p =>
+                p.GameClient?.GameType == replay.GameVersion &&
+                (string.Equals(p.GameClient?.Id, match.ManifestId, StringComparison.OrdinalIgnoreCase) ||
+                 (p.EnabledContentIds != null && p.EnabledContentIds.Contains(match.ManifestId))));
 
+            if (matchingProfile != null)
+            {
+                replay.MatchingProfileId = matchingProfile.Id;
+                replay.MatchingProfileName = matchingProfile.Name;
+                replay.CompatibilityStatus = ReplayCompatibilityStatus.Compatible;
+                return;
+            }
+
+            // No profile configured yet. Check if the manifest is installed / acquired
+            var isInstalled = !string.IsNullOrEmpty(match.ManifestId) && acquiredIds.Contains(match.ManifestId);
             if (isInstalled)
             {
-                replay.CompatibilityStatus = ReplayCompatibilityStatus.Compatible;
+                replay.CompatibilityStatus = ReplayCompatibilityStatus.RequiresProfile;
             }
             else if (!string.IsNullOrWhiteSpace(match.CdnUrl))
             {
@@ -213,6 +399,8 @@ public sealed class ReplayDirectoryService(
         }
         else
         {
+            // Neither exact pair nor known match exists -> replay will mismatch as no compatible CRC was found
+            replay.MatchedClient = null;
             replay.CompatibilityStatus = ReplayCompatibilityStatus.Orphaned;
         }
     }
