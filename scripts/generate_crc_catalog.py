@@ -138,10 +138,11 @@ def crawl_superhackers_releases(token: str | None = None, inspect_binaries: bool
         try:
             with urllib.request.urlopen(req, timeout=15) as resp:
                 page_data = json.loads(resp.read().decode("utf-8"))
+                link_header = resp.headers.get("Link", "")
             if not page_data or not isinstance(page_data, list):
                 break
             releases.extend(page_data)
-            if len(page_data) < 100:
+            if 'rel="next"' not in link_header:
                 break
             page += 1
         except (urllib.error.URLError, urllib.error.HTTPError, OSError, json.JSONDecodeError) as e:
@@ -212,7 +213,7 @@ def crawl_generalsonline_releases(inspect_binaries: bool = False, start_year: in
         while curr_date <= target_end:
             date_set.add(curr_date.strftime("%m%d%y"))
             curr_date += datetime.timedelta(days=1)
-    except OSError:
+    except (ValueError, OverflowError):
         pass
 
     candidates = []
@@ -265,9 +266,9 @@ def crawl_generalsonline_releases(inspect_binaries: bool = False, start_year: in
             if c_ini:
                 ini_crc = c_ini
 
-        year = f"20{date_code[4:6]}" if len(date_code) == 6 else "2026"
-        month = date_code[0:2] if len(date_code) == 6 else "01"
-        day = date_code[2:4] if len(date_code) == 6 else "01"
+        year = f"20{date_code[4:6]}"
+        month = date_code[0:2]
+        day = date_code[2:4]
         build_date = f"{year}-{month}-{day}"
 
         entry = {
