@@ -1840,9 +1840,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
             HasUploads = ActiveUploads.Count > 0;
             double usedMb = usage.UsedBytes / (1024.0 * 1024.0);
-            double maxMb = usage.MaxBytes / (1024.0 * 1024.0);
-            UploadQuotaPercent = Math.Clamp(usage.UsagePercentage, 0.0, 100.0);
-            UploadQuotaText = $"{usedMb:F1} MB / {maxMb:F1} MB Used ({UploadQuotaPercent:F0}%)";
+            double limitMb = usage.LimitBytes / (1024.0 * 1024.0);
+            UploadQuotaPercent = usage.LimitBytes > 0
+                ? Math.Clamp((double)usage.UsedBytes / usage.LimitBytes * 100.0, 0.0, 100.0)
+                : 0.0;
+            UploadQuotaText = $"{usedMb:F1} MB / {limitMb:F1} MB Used ({UploadQuotaPercent:F0}%)";
         }
         catch (Exception ex)
         {
@@ -1868,27 +1870,19 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
         try
         {
-            var success = await _uploadHistoryService.RemoveHistoryItemAsync(item.Url, deleteFromCloud: true);
-            if (success)
-            {
-                _notificationService.ShowSuccess("Upload Deleted", $"Removed {item.FileName} from cloud storage.");
-            }
-            else
-            {
-                _notificationService.ShowWarning("Warning", $"Removed {item.FileName} locally; cloud file could not be deleted.");
-            }
-
+            await _uploadHistoryService.RemoveHistoryItemAsync(item.Url);
+            _notificationService.ShowSuccess("Upload Removed", $"Removed {item.FileName} from upload history.");
             await RefreshUploadsAsync();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to delete upload {Url}", item.Url);
-            _notificationService.ShowError("Error", "Failed to delete uploaded file.");
+            _notificationService.ShowError("Error", "Failed to remove upload history record.");
         }
     }
 
     /// <summary>
-    /// Clears all upload history and removes hosted files from cloud storage.
+    /// Clears all upload history records.
     /// </summary>
     [RelayCommand]
     private async Task ClearAllUploadsAsync()
@@ -1900,7 +1894,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
         try
         {
-            await _uploadHistoryService.ClearHistoryAsync(deleteFromCloud: true);
+            await _uploadHistoryService.ClearHistoryAsync();
             _notificationService.ShowSuccess("Uploads Cleared", "Purged all active upload records.");
             await RefreshUploadsAsync();
         }

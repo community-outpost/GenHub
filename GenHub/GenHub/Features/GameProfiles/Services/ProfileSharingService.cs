@@ -169,49 +169,88 @@ public class ProfileSharingService(
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult<SharedProfileInspectionResult>> InspectSharedProfileAsync(string shareUriOrJsonOrPath, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<SharedProfileInspectionResult>> InspectSharedProfileAsync(
+        string shareUriOrJsonOrPath,
+        CancellationToken cancellationToken = default)
     {
         try
         {
             if (string.IsNullOrWhiteSpace(shareUriOrJsonOrPath))
             {
-                return OperationResult<SharedProfileInspectionResult>.CreateFailure("Shared profile payload or link cannot be empty.");
+                return OperationResult<SharedProfileInspectionResult>.CreateFailure("Shared profile payload or path cannot be empty.");
             }
 
-            var resolveResult = await ResolvePayloadJsonAsync(shareUriOrJsonOrPath, cancellationToken);
-            if (!resolveResult.Success || resolveResult.Data == null)
+            var rawJsonResult = await ResolvePayloadJsonAsync(shareUriOrJsonOrPath, cancellationToken);
+            if (!rawJsonResult.Success || string.IsNullOrEmpty(rawJsonResult.Data))
             {
-                return OperationResult<SharedProfileInspectionResult>.CreateFailure(resolveResult.Errors);
+                return OperationResult<SharedProfileInspectionResult>.CreateFailure(rawJsonResult.Errors);
             }
 
-            var packageResult = DeserializeSharedPackage(resolveResult.Data);
+            var packageResult = DeserializeSharedPackage(rawJsonResult.Data);
             if (!packageResult.Success || packageResult.Data == null)
             {
                 return OperationResult<SharedProfileInspectionResult>.CreateFailure(packageResult.Errors);
             }
 
-            return await InspectFromPackageAsync(packageResult.Data, cancellationToken);
+            var package = packageResult.Data;
+            _ = ProfileSharingCompressionHelper.SanitizeCommandLineArguments(package.Profile.CommandLineArguments, out var securityWarnings);
+
+            var manifestDiffResult = await DiffManifestsAgainstPoolAsync(package, cancellationToken);
+            if (!manifestDiffResult.Success || manifestDiffResult.Data == null)
+            {
+                return OperationResult<SharedProfileInspectionResult>.CreateFailure(manifestDiffResult.Errors);
+            }
+
+            var manifestSummary = manifestDiffResult.Data;
+            var (compatibleInstallations, matchedInstallationId) = await FindCompatibleInstallationsAsync(package.Profile.GameType, cancellationToken);
+            var (suggestedName, hasNameConflict) = await DetermineSuggestedProfileNameAsync(package.Profile.Name, cancellationToken);
+
+            var result = new SharedProfileInspectionResult
+            {
+                ProfileMetadata = package.Profile,
+                Manifests = manifestSummary.Manifests,
+                TotalDownloadBytesRequired = manifestSummary.TotalMissingDownloadBytes,
+                CachedManifestCount = manifestSummary.CachedCount,
+                MissingManifestCount = manifestSummary.MissingCount,
+                HasValidGameInstallation = compatibleInstallations.Count > 0,
+                MatchedGameInstallationId = matchedInstallationId,
+                CompatibleInstallations = compatibleInstallations,
+                HasNameConflict = hasNameConflict,
+                SuggestedProfileName = suggestedName,
+                SecurityWarnings = securityWarnings,
+                Package = package,
+            };
+
+            return OperationResult<SharedProfileInspectionResult>.CreateSuccess(result);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unexpected error inspecting shared profile package.");
+            logger.LogError(ex, "Unexpected error during profile inspection.");
             return OperationResult<SharedProfileInspectionResult>.CreateFailure($"Failed to inspect shared profile: {ex.Message}");
         }
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult<GameProfile>> ImportSharedProfileAsync(SharedProfileImportRequest request, IProgress<ContentAcquisitionProgress>? progress = null, CancellationToken cancellationToken = default)
+    public async Task<OperationResult<GameProfile>> ImportSharedProfileAsync(
+        SharedProfileImportRequest request,
+        IProgress<ContentAcquisitionProgress>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
-            var validation = ValidateImportRequest(request);
-            if (!validation.Success)
+            var validationResult = ValidateImportRequest(request);
+            if (!validationResult.Success)
             {
-                return OperationResult<GameProfile>.CreateFailure(validation.Errors);
+                return OperationResult<GameProfile>.CreateFailure(validationResult.Errors);
             }
 
-            var package = request.Package!;
+            var package = request.Package;
             var selectedInstallation = await ResolveSelectedInstallationAsync(request.GameInstallationId, cancellationToken);
+            if (selectedInstallation == null)
+            {
+                return OperationResult<GameProfile>.CreateFailure(
+                    "No compatible game installation is available. Install a matching game before importing this profile.");
+            }
 
             var compatibilityResult = ValidateClientCompatibility(selectedInstallation, package);
             if (!compatibilityResult.Success)
@@ -571,6 +610,7 @@ public class ProfileSharingService(
         if (overrides.TryGetValue(nameof(profile.GoShowPlayerRanks), out var goRanksObj) && goRanksObj is JsonElement goRanksElem) profile.GoShowPlayerRanks = goRanksElem.GetBoolean();
         if (overrides.TryGetValue(nameof(profile.GoRenderFpsLimit), out var goFpsLimitObj) && goFpsLimitObj is JsonElement goFpsLimitElem && goFpsLimitElem.TryGetInt32(out var fpsLimit)) profile.GoRenderFpsLimit = fpsLimit;
     }
+
 
     private async Task<GameInstallation?> ResolveSelectedInstallationAsync(string? installationId, CancellationToken cancellationToken)
     {

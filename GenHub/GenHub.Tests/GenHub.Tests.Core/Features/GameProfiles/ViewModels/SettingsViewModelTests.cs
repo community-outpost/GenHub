@@ -782,14 +782,14 @@ public class SettingsViewModelTests
         var mockUploadHistoryService = new Mock<IUploadHistoryService>();
         var items = new List<UploadHistoryItem>
         {
-            new(DateTime.UtcNow, 2 * 1024 * 1024, "https://uploadthing.com/f/map1.zip", "DesertStorm.zip", "maps"),
-            new(DateTime.UtcNow, 3 * 1024 * 1024, "https://uploadthing.com/f/rep1.rep", "FinalMatch.rep", "replays"),
+            new(DateTime.UtcNow, 2 * 1024 * 1024, "https://uploadthing.com/f/map1.zip", "DesertStorm.zip"),
+            new(DateTime.UtcNow, 3 * 1024 * 1024, "https://uploadthing.com/f/rep1.rep", "FinalMatch.rep"),
         };
 
-        mockUploadHistoryService.Setup(s => s.GetUploadHistoryAsync(It.IsAny<string?>()))
+        mockUploadHistoryService.Setup(s => s.GetUploadHistoryAsync())
             .ReturnsAsync(items);
         mockUploadHistoryService.Setup(s => s.GetUsageInfoAsync())
-            .ReturnsAsync(new UsageInfo(5 * 1024 * 1024, 10 * 1024 * 1024, 5 * 1024 * 1024, 50.0));
+            .ReturnsAsync(new UsageInfo(5 * 1024 * 1024, 10 * 1024 * 1024, DateTime.UtcNow.AddDays(30)));
 
         var viewModel = new SettingsViewModel(
             _mockConfigService.Object,
@@ -826,14 +826,14 @@ public class SettingsViewModelTests
     {
         // Arrange
         var mockUploadHistoryService = new Mock<IUploadHistoryService>();
-        var itemToDelete = new UploadHistoryItem(DateTime.UtcNow, 1024 * 1024, "https://uploadthing.com/f/map.zip", "Map.zip", "maps");
+        var itemToDelete = new UploadHistoryItem(DateTime.UtcNow, 1024 * 1024, "https://uploadthing.com/f/map.zip", "Map.zip");
 
-        mockUploadHistoryService.Setup(s => s.RemoveHistoryItemAsync(itemToDelete.Url, true))
-            .ReturnsAsync(true);
-        mockUploadHistoryService.Setup(s => s.GetUploadHistoryAsync(It.IsAny<string?>()))
+        mockUploadHistoryService.Setup(s => s.RemoveHistoryItemAsync(itemToDelete.Url))
+            .Returns(Task.CompletedTask);
+        mockUploadHistoryService.Setup(s => s.GetUploadHistoryAsync())
             .ReturnsAsync(new List<UploadHistoryItem>());
         mockUploadHistoryService.Setup(s => s.GetUsageInfoAsync())
-            .ReturnsAsync(new UsageInfo(0, 10 * 1024 * 1024, 10 * 1024 * 1024, 0.0));
+            .ReturnsAsync(new UsageInfo(0, 10 * 1024 * 1024, DateTime.UtcNow.AddDays(30)));
 
         var viewModel = new SettingsViewModel(
             _mockConfigService.Object,
@@ -855,7 +855,7 @@ public class SettingsViewModelTests
         await viewModel.DeleteUploadCommand.ExecuteAsync(itemToDelete);
 
         // Assert
-        mockUploadHistoryService.Verify(s => s.RemoveHistoryItemAsync(itemToDelete.Url, true), Times.Once);
+        mockUploadHistoryService.Verify(s => s.RemoveHistoryItemAsync(itemToDelete.Url), Times.Once);
         Assert.False(viewModel.HasUploads);
         Assert.Empty(viewModel.ActiveUploads);
     }
@@ -870,12 +870,12 @@ public class SettingsViewModelTests
         // Arrange
         var mockUploadHistoryService = new Mock<IUploadHistoryService>();
 
-        mockUploadHistoryService.Setup(s => s.ClearHistoryAsync(true, null))
+        mockUploadHistoryService.Setup(s => s.ClearHistoryAsync())
             .Returns(Task.CompletedTask);
-        mockUploadHistoryService.Setup(s => s.GetUploadHistoryAsync(It.IsAny<string?>()))
+        mockUploadHistoryService.Setup(s => s.GetUploadHistoryAsync())
             .ReturnsAsync(new List<UploadHistoryItem>());
         mockUploadHistoryService.Setup(s => s.GetUsageInfoAsync())
-            .ReturnsAsync(new UsageInfo(0, 10 * 1024 * 1024, 10 * 1024 * 1024, 0.0));
+            .ReturnsAsync(new UsageInfo(0, 10 * 1024 * 1024, DateTime.UtcNow.AddDays(30)));
 
         var viewModel = new SettingsViewModel(
             _mockConfigService.Object,
@@ -897,7 +897,7 @@ public class SettingsViewModelTests
         await viewModel.ClearAllUploadsCommand.ExecuteAsync(null);
 
         // Assert
-        mockUploadHistoryService.Verify(s => s.ClearHistoryAsync(true, null), Times.Once);
+        mockUploadHistoryService.Verify(s => s.ClearHistoryAsync(), Times.Once);
         Assert.False(viewModel.HasUploads);
     }
 
