@@ -143,6 +143,7 @@ public abstract class BasePackageDeploymentFix(
         CancellationToken ct)
     {
         var extractedFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        long expandedBytes = 0;
 
         foreach (var entry in archive.Entries.Where(e => !e.IsDirectory && e.Key != null))
         {
@@ -156,12 +157,12 @@ public abstract class BasePackageDeploymentFix(
             var extractedFilePath = Path.Combine(extractDir, fileName);
             await using (var entryStream = entry.OpenEntryStream())
             {
-                await BoundedArchiveExtractor.CopyEntryToFileAsync(
+                expandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(
                     entryStream,
                     extractedFilePath,
                     fileName,
                     ActionSetConstants.Validation.MaximumAddonPackageSizeBytes,
-                    ActionSetConstants.Validation.MaximumAddonPackageSizeBytes,
+                    ActionSetConstants.Validation.MaximumAddonPackageSizeBytes - expandedBytes,
                     overwrite: true,
                     cancellationToken: ct);
             }

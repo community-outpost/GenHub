@@ -3,16 +3,19 @@ namespace GenHub.Tests.Windows.Features.ActionSets;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using GenHub.Core.Exceptions;
 using GenHub.Core.Features.ActionSets;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameInstallations;
 using GenHub.Windows.Features.ActionSets.Fixes;
 using Microsoft.Extensions.Logging;
 using Moq;
+using SharpCompress.Archives;
 using Xunit;
 
 /// <summary>
@@ -157,6 +160,87 @@ public sealed class BasePackageDeploymentFixTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Verifies that ExtractArchiveEntriesAsync successfully extracts multiple entries when their
+    /// cumulative decompressed size is within the allowed aggregate package size budget.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the test operation.</returns>
+    [Fact]
+    public async Task ExtractArchiveEntriesAsync_WhenEntriesAreWithinAggregateBudget_ExtractsAllEntriesSuccessfullyAsync()
+    {
+        var archivePath = Path.Combine(_testDirectory, "valid_multi_entry.zip");
+        var extractDir = Path.Combine(_testDirectory, "extract_valid");
+        Directory.CreateDirectory(extractDir);
+
+        using (var zipArchive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
+        {
+            var entry1 = zipArchive.CreateEntry("file1.dat");
+            await using (var stream1 = entry1.Open())
+            {
+                await stream1.WriteAsync(new byte[1024]);
+            }
+
+            var entry2 = zipArchive.CreateEntry("file2.dat");
+            await using (var stream2 = entry2.Open())
+            {
+                await stream2.WriteAsync(new byte[2048]);
+            }
+        }
+
+        using var archive = ArchiveFactory.OpenArchive(archivePath);
+        var extracted = await TestPackageDeploymentFix.PublicExtractArchiveEntriesAsync(archive, extractDir);
+
+        extracted.Should().HaveCount(2);
+        File.Exists(Path.Combine(extractDir, "file1.dat")).Should().BeTrue();
+        File.Exists(Path.Combine(extractDir, "file2.dat")).Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Verifies that ExtractArchiveEntriesAsync tracks cumulative extracted bytes across entries and throws
+    /// <see cref="ArchiveExpansionLimitExceededException"/> when the multi-entry total exceeds the aggregate budget.
+    /// </summary>
+    /// <returns>A <see cref="Task"/> representing the test operation.</returns>
+    [Fact]
+    public async Task ExtractArchiveEntriesAsync_WhenCumulativeSizeExceedsAggregateBudget_ThrowsArchiveExpansionLimitExceededExceptionAsync()
+    {
+        var archivePath = Path.Combine(_testDirectory, "multi_entry_exceeding_budget.zip");
+        var extractDir = Path.Combine(_testDirectory, "extract_exceeded");
+        Directory.CreateDirectory(extractDir);
+
+        // Create two entries each of 110 MB (total 220 MB decompressed), exceeding 200 MB aggregate budget.
+        // Zero-filled bytes compress to a few kilobytes in the ZIP archive.
+        var chunk = new byte[1024 * 1024];
+        using (var zipArchive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
+        {
+            var entry1 = zipArchive.CreateEntry("entry1.dat", CompressionLevel.Optimal);
+            await using (var stream1 = entry1.Open())
+            {
+                for (var i = 0; i < 110; i++)
+                {
+                    await stream1.WriteAsync(chunk);
+                }
+            }
+
+            var entry2 = zipArchive.CreateEntry("entry2.dat", CompressionLevel.Optimal);
+            await using (var stream2 = entry2.Open())
+            {
+                for (var i = 0; i < 110; i++)
+                {
+                    await stream2.WriteAsync(chunk);
+                }
+            }
+        }
+
+        using var archive = ArchiveFactory.OpenArchive(archivePath);
+        var act = () => TestPackageDeploymentFix.PublicExtractArchiveEntriesAsync(archive, extractDir);
+
+        await act.Should().ThrowAsync<ArchiveExpansionLimitExceededException>();
+
+        // Entry 1 was within the remaining budget and completed, whereas entry 2 exceeded the budget and was cleaned up.
+        File.Exists(Path.Combine(extractDir, "entry1.dat")).Should().BeTrue();
+        File.Exists(Path.Combine(extractDir, "entry2.dat")).Should().BeFalse();
+    }
+
     private sealed class TestPackageDeploymentFix(
         ILogger logger,
         IHttpClientFactory httpClientFactory,
@@ -180,6 +264,11 @@ public sealed class BasePackageDeploymentFixTests : IDisposable
         protected override string ExpectedSha256 => "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
 
         protected override IReadOnlyList<string> DownloadUrls => ["https://example.com/test.zip"];
+
+        public static Task<Dictionary<string, string>> PublicExtractArchiveEntriesAsync(
+            IArchive archive,
+            string extractDir,
+            CancellationToken ct = default) => ExtractArchiveEntriesAsync(archive, extractDir, ct);
 
         public override Task<bool> IsApplicableAsync(GameInstallation installation, CancellationToken ct = default) => Task.FromResult(true);
 
