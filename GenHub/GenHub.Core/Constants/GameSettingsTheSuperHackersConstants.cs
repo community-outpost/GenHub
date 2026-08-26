@@ -101,7 +101,7 @@ public static class GameSettingsTheSuperHackersConstants
     /// <summary>
     /// Maximum game window transition speed multiplier value.
     /// </summary>
-    public const float MaxGameWindowTransitionSpeedMultiplier = 10.0f;
+    public const float MaxGameWindowTransitionSpeedMultiplier = 4.0f;
 
     /// <summary>
     /// Default game window transition speed multiplier value.

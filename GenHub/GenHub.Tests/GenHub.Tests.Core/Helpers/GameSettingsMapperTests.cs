@@ -280,18 +280,18 @@ public class GameSettingsMapperTests
     {
         // Arrange
         var options = new IniOptions();
-        options.Video.AdditionalProperties["GameWindowTransitionSpeedMultiplier"] = "5.0";
+        options.Video.AdditionalProperties["GameWindowTransitionSpeedMultiplier"] = "3.0";
         var profile = new GameProfile();
 
         // Act
         GameSettingsMapper.ApplyFromOptions(options, profile);
 
         // Assert
-        Assert.Equal(5.0f, profile.TshGameWindowTransitionSpeedMultiplier);
+        Assert.Equal(3.0f, profile.TshGameWindowTransitionSpeedMultiplier);
     }
 
     /// <summary>
-    /// Verifies that GameWindowTransitionSpeedMultiplier maps to and from GeneralsOnlineSettings.
+    /// Verifies that ApplyToGeneralsOnlineSettings and ApplyFromGeneralsOnlineSettings preserve GameWindowTransitionSpeedMultiplier.
     /// </summary>
     [Fact]
     public void ApplyToAndFromGeneralsOnlineSettings_GameWindowTransitionSpeedMultiplier_RoundTrips()
@@ -299,7 +299,7 @@ public class GameSettingsMapperTests
         // Arrange
         var profile = new GameProfile
         {
-            TshGameWindowTransitionSpeedMultiplier = 10.0f,
+            TshGameWindowTransitionSpeedMultiplier = 4.0f,
         };
         var settings = new GeneralsOnlineSettings();
 
@@ -307,14 +307,14 @@ public class GameSettingsMapperTests
         GameSettingsMapper.ApplyToGeneralsOnlineSettings(profile, settings);
 
         // Assert
-        Assert.Equal(10.0f, settings.GameWindowTransitionSpeedMultiplier);
+        Assert.Equal(4.0f, settings.GameWindowTransitionSpeedMultiplier);
 
         // Act back
         var targetProfile = new GameProfile();
         GameSettingsMapper.ApplyFromGeneralsOnlineSettings(settings, targetProfile);
 
         // Assert back
-        Assert.Equal(10.0f, targetProfile.TshGameWindowTransitionSpeedMultiplier);
+        Assert.Equal(4.0f, targetProfile.TshGameWindowTransitionSpeedMultiplier);
     }
 
     /// <summary>
@@ -327,7 +327,7 @@ public class GameSettingsMapperTests
         var createRequest = new CreateProfileRequest
         {
             Name = "TestProfile",
-            TshGameWindowTransitionSpeedMultiplier = 4.2f,
+            TshGameWindowTransitionSpeedMultiplier = 2.2f,
         };
         var profile = new GameProfile();
 
@@ -335,15 +335,15 @@ public class GameSettingsMapperTests
         GameSettingsMapper.PopulateGameProfile(profile, createRequest);
 
         // Assert
-        Assert.Equal(4.2f, profile.TshGameWindowTransitionSpeedMultiplier);
+        Assert.Equal(2.2f, profile.TshGameWindowTransitionSpeedMultiplier);
 
         // Update
         var updateRequest = new UpdateProfileRequest
         {
-            TshGameWindowTransitionSpeedMultiplier = 8.4f,
+            TshGameWindowTransitionSpeedMultiplier = 3.4f,
         };
         GameSettingsMapper.UpdateFromRequest(profile, updateRequest);
-        Assert.Equal(8.4f, profile.TshGameWindowTransitionSpeedMultiplier);
+        Assert.Equal(3.4f, profile.TshGameWindowTransitionSpeedMultiplier);
     }
 
     /// <summary>
@@ -353,7 +353,7 @@ public class GameSettingsMapperTests
     /// <param name="expected">The expected clamped float multiplier value.</param>
     [Theory]
     [InlineData("0.2", 1.0f)]
-    [InlineData("5000.0", 10.0f)]
+    [InlineData("5000.0", 4.0f)]
     [InlineData("-10.0", 1.0f)]
     public void ApplyFromOptions_ClampsOutOfRangeTransitionSpeedMultiplier(string input, float expected)
     {
@@ -409,7 +409,7 @@ public class GameSettingsMapperTests
         Assert.Null(GameSettingsMapper.NormalizeTransitionSpeedMultiplier(float.PositiveInfinity));
         Assert.Null(GameSettingsMapper.NormalizeTransitionSpeedMultiplier(float.NegativeInfinity));
         Assert.Equal(1.0f, GameSettingsMapper.NormalizeTransitionSpeedMultiplier(0.5f));
-        Assert.Equal(10.0f, GameSettingsMapper.NormalizeTransitionSpeedMultiplier(50.0f));
+        Assert.Equal(4.0f, GameSettingsMapper.NormalizeTransitionSpeedMultiplier(50.0f));
         Assert.Equal(1.05f, GameSettingsMapper.NormalizeTransitionSpeedMultiplier(1.05f));
     }
 
@@ -428,6 +428,6 @@ public class GameSettingsMapperTests
         GameSettingsMapper.ApplyToOptions(profile, options);
 
         Assert.True(options.AdditionalSections.TryGetValue("TheSuperHackers", out var tshDict));
-        Assert.Equal("10", tshDict["GameWindowTransitionSpeedMultiplier"]);
+        Assert.Equal("4", tshDict["GameWindowTransitionSpeedMultiplier"]);
     }
 }
