@@ -1,13 +1,16 @@
-using GenHub.Core.Models.Enums;
-using GenHub.Core.Models.Tools.ReplayManager;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Models.Enums;
+using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.Launching;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Tools.ReplayManager;
 
 namespace GenHub.Core.Interfaces.Tools.ReplayManager;
 
 /// <summary>
-/// Manages replay directory operations.
+/// Manages replay directory operations, compatibility resolution, profile generation, and game replay execution.
 /// </summary>
 public interface IReplayDirectoryService
 {
@@ -51,4 +54,20 @@ public interface IReplayDirectoryService
     /// </summary>
     /// <param name="replay">The replay file to reveal.</param>
     void RevealInExplorer(ReplayFile replay);
+
+    /// <summary>
+    /// Creates a dedicated game profile configured with the exact game client and INI settings matching the replay.
+    /// </summary>
+    /// <param name="replay">The replay file to create a profile for.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The operation result containing the created profile.</returns>
+    Task<ProfileOperationResult<GameProfile>> CreateProfileForReplayAsync(ReplayFile replay, CancellationToken ct = default);
+
+    /// <summary>
+    /// Launches the game with the profile matching the specified replay.
+    /// </summary>
+    /// <param name="replay">The replay file to launch.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The operation result containing the launch information.</returns>
+    Task<ProfileOperationResult<GameLaunchInfo>> LaunchReplayAsync(ReplayFile replay, CancellationToken ct = default);
 }

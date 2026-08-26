@@ -50,9 +50,47 @@ public sealed class ReplayFile : IExportableFile
     public CrcMappingEntry? MatchedClient { get; set; }
 
     /// <summary>
+    /// Gets or sets the unique identifier of the matching game profile if one is configured and ready.
+    /// </summary>
+    public string? MatchingProfileId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the display name of the matching game profile if one is configured and ready.
+    /// </summary>
+    public string? MatchingProfileName { get; set; }
+
+    /// <summary>
     /// Gets the formatted file size string.
     /// </summary>
     public string FormattedSize => FormatFileSize(SizeInBytes);
+
+    /// <summary>
+    /// Gets the user-friendly compatibility status badge text.
+    /// </summary>
+    public string CompatibilityBadgeText => CompatibilityStatus switch
+    {
+        ReplayCompatibilityStatus.Compatible => "Ready to Play",
+        ReplayCompatibilityStatus.RequiresProfile => "Profile Needed",
+        ReplayCompatibilityStatus.Downloadable => "Download Required",
+        ReplayCompatibilityStatus.Orphaned => "Mismatch Risk",
+        _ => "Unknown",
+    };
+
+    /// <summary>
+    /// Gets the user-friendly compatibility status tooltip describing the state and CRC details.
+    /// </summary>
+    public string CompatibilityTooltip => CompatibilityStatus switch
+    {
+        ReplayCompatibilityStatus.Compatible =>
+            $"Compatible with profile '{MatchingProfileName ?? MatchedClient?.Description ?? "Unknown"}'. Exe CRC: {Metadata?.FormattedExeCrc ?? "N/A"}, INI CRC: {Metadata?.FormattedIniCrc ?? "N/A"}.",
+        ReplayCompatibilityStatus.RequiresProfile =>
+            $"Game client '{MatchedClient?.Description ?? "Unknown"}' is installed. Click 'Create Profile' to configure and play this replay.",
+        ReplayCompatibilityStatus.Downloadable =>
+            $"Game client '{MatchedClient?.Description ?? "Unknown"}' is known and available on CDN. Profile creation will acquire the client.",
+        ReplayCompatibilityStatus.Orphaned =>
+            $"Exe CRC {Metadata?.FormattedExeCrc ?? "N/A"} or INI CRC {Metadata?.FormattedIniCrc ?? "N/A"} is not recognized. Replay playback may desync or mismatch.",
+        _ => "Replay header metadata is not available or could not be parsed.",
+    };
 
     private static string FormatFileSize(long bytes) => bytes switch
     {
