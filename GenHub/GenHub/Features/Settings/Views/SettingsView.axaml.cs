@@ -136,7 +136,7 @@ public partial class SettingsView : UserControl
             return;
         }
 
-        var expander = FindControl<Expander>(expanderName);
+        var expander = this.FindControl<Expander>(expanderName);
         if (expander != null)
         {
             expander.IsExpanded = true;

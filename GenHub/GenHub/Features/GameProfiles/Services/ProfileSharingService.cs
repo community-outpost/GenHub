@@ -888,7 +888,7 @@ public class ProfileSharingService(
         return OperationResult<string>.CreateFailure($"Unsupported or malformed genhub:// sharing URI: {input}");
     }
 
-    private static async Task<OperationResult<string>> ResolveInlinePayloadAsync(string input, int dataParamIdx, CancellationToken cancellationToken)
+    private async Task<OperationResult<string>> ResolveInlinePayloadAsync(string input, int dataParamIdx, CancellationToken cancellationToken)
     {
         string encoded = input[(dataParamIdx + CommandLineConstants.DataQueryParam.Length)..];
         int nextParamIdx = encoded.IndexOf('&');
