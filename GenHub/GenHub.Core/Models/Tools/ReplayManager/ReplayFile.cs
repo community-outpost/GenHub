@@ -1,3 +1,4 @@
+using System;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Models.Enums;
 
@@ -37,6 +38,16 @@ public sealed class ReplayFile : IExportableFile
     /// Gets or sets the replay metadata.
     /// </summary>
     public ReplayMetadata? Metadata { get; set; }
+
+    /// <summary>
+    /// Gets or sets the compatibility status against known and installed game clients.
+    /// </summary>
+    public ReplayCompatibilityStatus CompatibilityStatus { get; set; } = ReplayCompatibilityStatus.Unknown;
+
+    /// <summary>
+    /// Gets or sets the matching game client mapping entry if resolved.
+    /// </summary>
+    public CrcMappingEntry? MatchedClient { get; set; }
 
     /// <summary>
     /// Gets the formatted file size string.

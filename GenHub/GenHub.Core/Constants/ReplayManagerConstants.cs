@@ -1,3 +1,5 @@
+using System;
+
 namespace GenHub.Core.Constants;
 
 /// <summary>
@@ -74,4 +76,29 @@ public static class ReplayManagerConstants
     /// Mock path separator indicator for demo environments on Unix.
     /// </summary>
     public const string UnixMockPathSegment = ToolConstants.UnixMockPathSegment;
+
+    /// <summary>
+    /// Replay file magic header bytes ("GENREP").
+    /// </summary>
+    public const string ReplayHeaderMagic = "GENREP";
+
+    /// <summary>
+    /// Default GitHub Gist URL providing the live CRC mapping catalog.
+    /// </summary>
+    public const string DefaultCrcCatalogGistUrl = "https://gist.githubusercontent.com/undead2146/99bda56e85a579204dd7cad277547779/raw/crc-mapping.json";
+
+    /// <summary>
+    /// Cache key for storing the parsed CRC catalog in the dynamic content cache.
+    /// </summary>
+    public const string CrcCatalogCacheKey = "ReplayManager:CrcCatalog";
+
+    /// <summary>
+    /// Local offline fallback file name for storing cached CRC mappings in app data directory.
+    /// </summary>
+    public const string CrcCatalogLocalFileName = "crc-mapping.json";
+
+    /// <summary>
+    /// Default update polling interval for checking new CRC catalog releases (24 hours).
+    /// </summary>
+    public static readonly TimeSpan DefaultCatalogUpdateInterval = TimeSpan.FromHours(24);
 }

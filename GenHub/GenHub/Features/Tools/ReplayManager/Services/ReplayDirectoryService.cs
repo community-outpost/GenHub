@@ -15,12 +15,12 @@ namespace GenHub.Features.Tools.ReplayManager.Services;
 
 /// <summary>
 /// Implementation of <see cref="IReplayDirectoryService"/> for managing replay files on disk.
+/// Automatically parses replay headers and resolves game client compatibility.
 /// </summary>
-/// <remarks>
-/// Initializes a new instance of the <see cref="ReplayDirectoryService"/> class.
-/// </remarks>
-/// <param name="logger">The logger instance.</param>
-public sealed class ReplayDirectoryService(ILogger<ReplayDirectoryService> logger) : IReplayDirectoryService
+public sealed class ReplayDirectoryService(
+    IReplayHeaderParser headerParser,
+    ICrcMappingRegistry crcMappingRegistry,
+    ILogger<ReplayDirectoryService> logger) : IReplayDirectoryService
 {
     /// <inheritdoc />
     public string GetReplayDirectory(GameType version)
@@ -56,26 +56,39 @@ public sealed class ReplayDirectoryService(ILogger<ReplayDirectoryService> logge
             return [];
         }
 
-        return await Task.Run(
-            () =>
+        var files = Directory.GetFiles(directory, "*.*")
+            .Where(f => f.EndsWith(".rep", StringComparison.OrdinalIgnoreCase) ||
+                       f.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var replayFiles = new List<ReplayFile>();
+        foreach (var file in files)
+        {
+            ct.ThrowIfCancellationRequested();
+            var info = new FileInfo(file);
+            var replay = new ReplayFile
             {
-                var files = Directory.GetFiles(directory, "*.*")
-                    .Where(f => f.EndsWith(".rep", StringComparison.OrdinalIgnoreCase) ||
-                               f.EndsWith(".zip", StringComparison.OrdinalIgnoreCase));
-                return files.Select(f =>
+                FullPath = file,
+                FileName = Path.GetFileName(file),
+                SizeInBytes = info.Length,
+                LastModified = info.LastWriteTime,
+                GameVersion = version,
+            };
+
+            if (file.EndsWith(".rep", StringComparison.OrdinalIgnoreCase))
+            {
+                var parseResult = await headerParser.ParseHeaderAsync(file, ct);
+                if (parseResult.Success && parseResult.Data != null)
                 {
-                    var info = new FileInfo(f);
-                    return new ReplayFile
-                    {
-                        FullPath = f,
-                        FileName = Path.GetFileName(f),
-                        SizeInBytes = info.Length,
-                        LastModified = info.LastWriteTime,
-                        GameVersion = version,
-                    };
-                }).OrderByDescending(r => r.LastModified).ToList();
-            },
-            ct);
+                    replay.Metadata = parseResult.Data;
+                    ResolveCompatibility(replay);
+                }
+            }
+
+            replayFiles.Add(replay);
+        }
+
+        return replayFiles.OrderByDescending(r => r.LastModified).ToList().AsReadOnly();
     }
 
     /// <inheritdoc />
@@ -91,9 +104,6 @@ public sealed class ReplayDirectoryService(ILogger<ReplayDirectoryService> logge
                     {
                         if (File.Exists(replay.FullPath))
                         {
-                            // In a real production app, we would use a library or platform-specific call
-                            // to move to Recycle Bin. For now, we perform a standard delete.
-                            // TODO: Implement Recycle Bin support for Windows
                             File.Delete(replay.FullPath);
                             logger.LogInformation(LogMessages.DeletedReplay, replay.FullPath);
                         }
@@ -118,7 +128,7 @@ public sealed class ReplayDirectoryService(ILogger<ReplayDirectoryService> logge
         {
             Process.Start(new ProcessStartInfo
             {
-                FileName = PlatformConstants.WindowsExplorerPath,
+                FileName = PlatformConstants.WindowsExplorerExecutable,
                 Arguments = path,
                 UseShellExecute = true,
             });
@@ -132,10 +142,40 @@ public sealed class ReplayDirectoryService(ILogger<ReplayDirectoryService> logge
         {
             Process.Start(new ProcessStartInfo
             {
-                FileName = PlatformConstants.WindowsExplorerPath,
+                FileName = PlatformConstants.WindowsExplorerExecutable,
                 Arguments = string.Format(PlatformConstants.WindowsExplorerSelectArgument, replay.FullPath),
                 UseShellExecute = true,
             });
+        }
+    }
+
+    private void ResolveCompatibility(ReplayFile replay)
+    {
+        if (replay.Metadata == null)
+        {
+            replay.CompatibilityStatus = ReplayCompatibilityStatus.Unknown;
+            return;
+        }
+
+        var exeCrcStr = replay.Metadata.FormattedExeCrc;
+        var iniCrcStr = replay.Metadata.FormattedIniCrc;
+
+        if (string.IsNullOrEmpty(exeCrcStr))
+        {
+            replay.CompatibilityStatus = ReplayCompatibilityStatus.Unknown;
+            return;
+        }
+
+        if (crcMappingRegistry.TryGetEntry(exeCrcStr, iniCrcStr ?? string.Empty, out var match) && match != null)
+        {
+            replay.MatchedClient = match;
+            replay.CompatibilityStatus = string.IsNullOrWhiteSpace(match.CdnUrl)
+                ? ReplayCompatibilityStatus.Compatible
+                : ReplayCompatibilityStatus.Downloadable;
+        }
+        else
+        {
+            replay.CompatibilityStatus = ReplayCompatibilityStatus.Orphaned;
         }
     }
 }
