@@ -17,7 +17,7 @@ namespace GenHub.Features.Tools.ReplayManager.Services;
 
 /// <summary>
 /// Background update service for periodically polling and refreshing the Replay GameClient CRC catalog.
-/// Supports in-memory caching and offline persistence.
+/// Supports in-memory caching and atomic offline persistence.
 /// </summary>
 public sealed class CrcCatalogUpdateService(
     HttpClient httpClient,
@@ -49,7 +49,8 @@ public sealed class CrcCatalogUpdateService(
             if (cached != null && cached.Mappings.Count > 0)
             {
                 crcMappingRegistry.LoadCatalog(cached);
-                logger.LogDebug("Loaded {Count} CRC mappings from memory cache", cached.Mappings.Count);
+                logger.LogDebug("Serving CRC mappings from fresh in-memory cache ({Count} entries)", cached.Mappings.Count);
+                return ContentUpdateCheckResult.CreateNoUpdateAvailable(cached.LastUpdated?.ToString("O") ?? "cached");
             }
 
             // 2. Fetch fresh catalog from remote Gist
@@ -69,7 +70,7 @@ public sealed class CrcCatalogUpdateService(
                 return await LoadLocalFallbackAsync(cancellationToken);
             }
 
-            // 3. Update in-memory registry
+            // 3. Update in-memory registry atomically
             crcMappingRegistry.LoadCatalog(catalog);
 
             // 4. Update memory cache with TTL
@@ -79,7 +80,7 @@ public sealed class CrcCatalogUpdateService(
                 UpdateCheckInterval,
                 cancellationToken);
 
-            // 5. Persist local copy for offline support
+            // 5. Persist local copy atomically for offline support
             await SaveLocalFallbackAsync(catalog, cancellationToken);
 
             logger.LogInformation("Successfully updated CRC mapping catalog with {Count} entries", catalog.Mappings.Count);
@@ -126,18 +127,36 @@ public sealed class CrcCatalogUpdateService(
 
     private async Task SaveLocalFallbackAsync(CrcCatalog catalog, CancellationToken cancellationToken)
     {
+        var appDataPath = configurationProviderService.GetApplicationDataPath();
+        var tempFilePath = Path.Combine(appDataPath, $"{ReplayManagerConstants.CrcCatalogLocalFileName}.tmp");
+        var finalFilePath = Path.Combine(appDataPath, ReplayManagerConstants.CrcCatalogLocalFileName);
+
         try
         {
-            var appDataPath = configurationProviderService.GetApplicationDataPath();
             Directory.CreateDirectory(appDataPath);
 
-            var filePath = Path.Combine(appDataPath, ReplayManagerConstants.CrcCatalogLocalFileName);
-            await using var stream = File.Create(filePath);
-            await JsonSerializer.SerializeAsync(stream, catalog, JsonOptions, cancellationToken);
+            await using (var stream = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: true))
+            {
+                await JsonSerializer.SerializeAsync(stream, catalog, JsonOptions, cancellationToken);
+                await stream.FlushAsync(cancellationToken);
+            }
+
+            File.Move(tempFilePath, finalFilePath, overwrite: true);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.LogWarning(ex, "Failed to save offline CRC catalog fallback");
+            logger.LogWarning(ex, "Failed to atomically save offline CRC catalog fallback");
+            try
+            {
+                if (File.Exists(tempFilePath))
+                {
+                    File.Delete(tempFilePath);
+                }
+            }
+            catch
+            {
+                // Discard cleanup errors
+            }
         }
     }
 }
