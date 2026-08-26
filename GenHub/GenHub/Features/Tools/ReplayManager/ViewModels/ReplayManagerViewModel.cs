@@ -273,24 +273,25 @@ public partial class ReplayManagerViewModel(
     /// <summary>
     /// Toggles the upload history flyout.
     /// </summary>
-    [RelayCommand]
-    private async Task ToggleHistoryAsync()
+    partial void OnIsHistoryOpenChanged(bool value)
     {
+        if (!value)
+        {
+            return;
+        }
+
         // Check if current tab is using demo paths
         var demoPath = directoryService.GetReplayDirectory(SelectedTab);
         if (IsDemoPath(demoPath))
         {
+            IsHistoryOpen = false;
             notificationService.ShowInfo(
                 "Upload History",
                 "Shows a list of your previously uploaded replays, allowing you to manage them and copy download links.");
             return;
         }
 
-        IsHistoryOpen = !IsHistoryOpen;
-        if (IsHistoryOpen)
-        {
-            await LoadHistoryAsync();
-        }
+        _ = LoadHistoryAsync();
     }
 
     /// <summary>
@@ -469,14 +470,14 @@ public partial class ReplayManagerViewModel(
         IsBusy = true;
         IsIndeterminate = false;
         Progress = 0;
-        StatusMessage = "Downloading from URL... 0%";
+        StatusMessage = "Downloading from URL...";
 
         try
         {
             var progressHandler = new Progress<double>(p =>
             {
                 Progress = p;
-                StatusMessage = $"Downloading from URL... {(int)Math.Round(p * 100)}%";
+                StatusMessage = "Downloading from URL...";
             });
 
             var result = await importService.ImportFromUrlAsync(ImportUrl, SelectedTab, progressHandler);
@@ -606,7 +607,7 @@ public partial class ReplayManagerViewModel(
         IsBusy = true;
         IsIndeterminate = false;
         Progress = 0;
-        StatusMessage = "Creating ZIP... 0%";
+        StatusMessage = "Creating ZIP...";
 
         try
         {
@@ -616,7 +617,7 @@ public partial class ReplayManagerViewModel(
             var progressHandler = new Progress<double>(p =>
             {
                 Progress = p;
-                StatusMessage = $"Creating ZIP... {(int)Math.Round(p * 100)}%";
+                StatusMessage = "Creating ZIP...";
             });
 
             var result = await exportService.ExportToZipAsync([.. SelectedReplays], destinationPath, progressHandler);
@@ -681,10 +682,11 @@ public partial class ReplayManagerViewModel(
             fileHash = computedHash;
         }
 
+        IsHistoryOpen = false;
         IsBusy = true;
         IsIndeterminate = false;
         Progress = 0;
-        StatusMessage = "Preparing upload... 0%";
+        StatusMessage = "Preparing upload...";
 
         try
         {

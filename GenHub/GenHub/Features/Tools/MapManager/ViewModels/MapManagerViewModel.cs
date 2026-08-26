@@ -409,14 +409,14 @@ public partial class MapManagerViewModel : ObservableObject
         IsBusy = true;
         IsIndeterminate = false;
         Progress = 0;
-        StatusMessage = "Downloading from URL... 0%";
+        StatusMessage = "Downloading from URL...";
 
         try
         {
             var progressHandler = new Progress<double>(p =>
             {
                 Progress = p;
-                StatusMessage = $"Downloading from URL... {(int)Math.Round(p * 100)}%";
+                StatusMessage = "Downloading from URL...";
             });
 
             var result = await _importService.ImportFromUrlAsync(ImportUrl, SelectedTab, progressHandler);
@@ -558,7 +558,7 @@ public partial class MapManagerViewModel : ObservableObject
         IsBusy = true;
         IsIndeterminate = false;
         Progress = 0;
-        StatusMessage = "Creating ZIP... 0%";
+        StatusMessage = "Creating ZIP...";
 
         try
         {
@@ -568,7 +568,7 @@ public partial class MapManagerViewModel : ObservableObject
             var progressHandler = new Progress<double>(p =>
             {
                 Progress = p;
-                StatusMessage = $"Creating ZIP... {(int)Math.Round(p * 100)}%";
+                StatusMessage = "Creating ZIP...";
             });
 
             var result = await _exportService.ExportToZipAsync([.. SelectedMaps], destinationPath, progressHandler);
@@ -631,10 +631,11 @@ public partial class MapManagerViewModel : ObservableObject
             fileHash = computedHash;
         }
 
+        IsHistoryOpen = false;
         IsBusy = true;
         IsIndeterminate = false;
         Progress = 0;
-        StatusMessage = "Preparing upload... 0%";
+        StatusMessage = "Preparing upload...";
 
         try
         {
@@ -1049,24 +1050,25 @@ public partial class MapManagerViewModel : ObservableObject
     }
 
     // History Commands
-    [RelayCommand]
-    private void ToggleHistory()
+    partial void OnIsHistoryOpenChanged(bool value)
     {
+        if (!value)
+        {
+            return;
+        }
+
         // Check if current tab is using demo paths
         var demoPath = _directoryService.GetMapDirectory(SelectedTab);
         if (IsDemoPath(demoPath))
         {
+            IsHistoryOpen = false;
             _notificationService.ShowInfo(
                 "Upload History",
                 "Shows a list of your previously uploaded maps, allowing you to manage them and copy download links.");
             return;
         }
 
-        IsHistoryOpen = !IsHistoryOpen;
-        if (IsHistoryOpen)
-        {
-            _ = LoadHistoryAsync();
-        }
+        _ = LoadHistoryAsync();
     }
 
     [RelayCommand]

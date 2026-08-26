@@ -7,7 +7,6 @@
              xmlns:models="using:GenHub.Core.Models.Tools.MapManager"
              xmlns:enums="using:GenHub.Core.Models.Enums"
              xmlns:converters="using:GenHub.Infrastructure.Converters"
-             xmlns:material="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
              x:Class="GenHub.Features.Tools.MapManager.Views.MapManagerView"
              x:DataType="vm:MapManagerViewModel"
@@ -15,12 +14,17 @@
              DragDrop.AllowDrop="True">
 
   <UserControl.Resources>
-    <converters:FileSizeConverter x:Key="FileSizeConverter" />
-    <converters:BoolToTypeConverter x:Key="BoolToTypeConverter" />
-    <converters:AssetCountConverter x:Key="AssetCountConverter" />
-    <converters:MapTypeDisplayConverter x:Key="MapTypeDisplayConverter" />
-    <converters:EnumToBoolConverter x:Key="EnumToBoolConverter" />
-    <converters:EqualityConverter x:Key="EqualsToConverter" />
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="avares://GenHub/Features/Tools/Views/ToolIcons.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+      <converters:FileSizeConverter x:Key="FileSizeConverter" />
+      <converters:BoolToTypeConverter x:Key="BoolToTypeConverter" />
+      <converters:AssetCountConverter x:Key="AssetCountConverter" />
+      <converters:MapTypeDisplayConverter x:Key="MapTypeDisplayConverter" />
+      <converters:EnumToBoolConverter x:Key="EnumToBoolConverter" />
+      <converters:EqualityConverter x:Key="EqualsToConverter" />
+    </ResourceDictionary>
   </UserControl.Resources>
 
   <Grid RowDefinitions="Auto,*,Auto,Auto" MinWidth="600"
@@ -50,7 +54,7 @@
                   Padding="10,6"
                   ToolTip.Tip="Import from URL">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <material:MaterialIcon Kind="TrayArrowDown" Width="16" Height="16"/>
+              <PathIcon Data="{StaticResource ToolIcon.TrayArrowDown}" Width="16" Height="16"/>
               <TextBlock Text="Import" VerticalAlignment="Center" FontSize="12"/>
             </StackPanel>
           </Button>
@@ -58,7 +62,7 @@
                   Classes="Secondary" IsEnabled="{Binding !IsBusy}"
                   Padding="10,6"
                   ToolTip.Tip="Browse for files">
-            <material:MaterialIcon Kind="Paperclip" Width="16" Height="16"/>
+            <PathIcon Data="{StaticResource ToolIcon.Paperclip}" Width="16" Height="16"/>
           </Button>
         </Grid>
 
@@ -68,7 +72,7 @@
                  Width="170"
                  VerticalAlignment="Center">
           <TextBox.InnerLeftContent>
-            <material:MaterialIcon Kind="Magnify" Width="16" Height="16"
+            <PathIcon Data="{StaticResource ToolIcon.Magnify}" Width="16" Height="16"
                                    Foreground="{DynamicResource TextMuted}"
                                    VerticalAlignment="Center" Margin="8,0,0,0"/>
           </TextBox.InnerLeftContent>
@@ -77,14 +81,14 @@
         <!-- Utilities -->
         <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0">
           <Button Command="{Binding LoadMapsCommand}" Classes="Secondary" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="Refresh list" Padding="8">
-            <material:MaterialIcon Kind="Refresh" Width="16" Height="16"/>
+            <PathIcon Data="{StaticResource ToolIcon.Refresh}" Width="16" Height="16"/>
           </Button>
           <Button Command="{Binding OpenFolderCommand}" Classes="Secondary" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="Open folder" Padding="8">
-            <material:MaterialIcon Kind="FolderOpenOutline" Width="16" Height="16"/>
+            <PathIcon Data="{StaticResource ToolIcon.FolderOpenOutline}" Width="16" Height="16"/>
           </Button>
           <Button Command="{Binding ToggleMapPackPanelCommand}" Classes="Secondary" IsEnabled="{Binding !IsBusy}" ToolTip.Tip="MapPack Manager" Padding="10,6">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <material:MaterialIcon Kind="PackageVariantClosed" Width="16" Height="16"/>
+              <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}" Width="16" Height="16"/>
               <TextBlock Text="Pack" VerticalAlignment="Center" FontSize="12"/>
             </StackPanel>
           </Button>
@@ -137,7 +141,7 @@
       <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12"
                   IsVisible="{Binding !CurrentMaps.Count}"
                   IsHitTestVisible="False">
-        <material:MaterialIcon Kind="MapOutline" Width="52" Height="52" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center"/>
+        <PathIcon Data="{StaticResource ToolIcon.MapOutline}" Width="52" Height="52" Foreground="{DynamicResource TextMuted}" HorizontalAlignment="Center"/>
         <TextBlock Text="No maps found" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center"/>
         <TextBlock Text="Drag and drop .map or .zip files here, or paste a map URL above" FontSize="12" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center"/>
       </StackPanel>
@@ -157,7 +161,7 @@
           </Transitions>
         </Border.Transitions>
         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="16">
-          <material:MaterialIcon Kind="TrayArrowDown" Width="64" Height="64" Foreground="{DynamicResource AccentLightBrush}" HorizontalAlignment="Center"/>
+          <PathIcon Data="{StaticResource ToolIcon.TrayArrowDown}" Width="64" Height="64" Foreground="{DynamicResource AccentLightBrush}" HorizontalAlignment="Center"/>
           <TextBlock Text="Drop maps or ZIPs to import" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center"/>
           <TextBlock Text="Single .map files or ZIP archives only" FontSize="12" Foreground="{DynamicResource TextSecondary}" HorizontalAlignment="Center"/>
         </StackPanel>
@@ -197,7 +201,7 @@
                   Classes="Danger" IsEnabled="{Binding SelectedMaps.Count}"
                   ToolTip.Tip="Permanently delete the selected maps from your computer.">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <material:MaterialIcon Kind="DeleteOutline" Width="16" Height="16"/>
+              <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="16" Height="16"/>
               <TextBlock Text="Delete" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
@@ -212,7 +216,7 @@
                   Classes="Secondary" IsEnabled="{Binding HasSelectedZips}"
                   ToolTip.Tip="Extract maps from the selected ZIP archives.">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <material:MaterialIcon Kind="PackageVariantClosed" Width="16" Height="16"/>
+              <PathIcon Data="{StaticResource ToolIcon.PackageVariantClosed}" Width="16" Height="16"/>
               <TextBlock Text="Uncompress" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
@@ -221,7 +225,7 @@
                   Classes="Secondary" IsEnabled="{Binding SelectedMaps.Count}"
                   ToolTip.Tip="Create a new ZIP archive containing the selected maps.">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <material:MaterialIcon Kind="ZipBoxOutline" Width="16" Height="16"/>
+              <PathIcon Data="{StaticResource ToolIcon.ZipBoxOutline}" Width="16" Height="16"/>
               <TextBlock Text="Zip" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>
@@ -231,20 +235,21 @@
                     CornerRadius="6,0,0,6"
                     ToolTip.Tip="Upload selected maps to cloud and copy share link.">
               <StackPanel Orientation="Horizontal" Spacing="6">
-                <material:MaterialIcon Kind="CloudUploadOutline" Width="16" Height="16"/>
+                <PathIcon Data="{StaticResource ToolIcon.CloudUploadOutline}" Width="16" Height="16"/>
                 <TextBlock Text="Upload" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
-            <Button Command="{Binding ToggleHistoryCommand}"
+            <ToggleButton
+                    IsChecked="{Binding IsHistoryOpen, Mode=TwoWay}"
                     Classes="Primary"
                     CornerRadius="0,6,6,0"
                     Padding="8,0"
                     ToolTip.Tip="View the history of your uploaded maps.">
-              <material:MaterialIcon Kind="ChevronDown" Width="14" Height="14" VerticalAlignment="Center"/>
-            </Button>
+              <PathIcon Data="{StaticResource ToolIcon.ChevronDown}" Width="14" Height="14" VerticalAlignment="Center"/>
+            </ToggleButton>
             <Popup IsOpen="{Binding IsHistoryOpen}"
                    Placement="Bottom" PlacementTarget="{Binding $parent[StackPanel]}"
-                   IsLightDismissEnabled="True">
+                   IsLightDismissEnabled="False">
               <Border Background="{DynamicResource DetailsBackground}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10"
                       Padding="14" MinWidth="340" MaxHeight="400" BoxShadow="0 10 28 0 #99000000">
                 <Grid RowDefinitions="Auto,*">
@@ -276,7 +281,7 @@
                                         CommandParameter="{Binding Url}"
                                         Padding="6,4" Margin="8,0,0,0" VerticalAlignment="Center"
                                         ToolTip.Tip="Copy the download link for this map.">
-                                  <material:MaterialIcon Kind="ContentCopy" Width="14" Height="14"/>
+                                  <PathIcon Data="{StaticResource ToolIcon.ContentCopy}" Width="14" Height="14"/>
                                 </Button>
 
                                 <Button Grid.Column="2" Classes="Danger"
@@ -284,7 +289,7 @@
                                         CommandParameter="{Binding}"
                                         Padding="6,4" Margin="4,0,0,0" VerticalAlignment="Center"
                                         ToolTip.Tip="Delete this file from cloud storage and remove from history.">
-                                  <material:MaterialIcon Kind="DeleteOutline" Width="14" Height="14"/>
+                                  <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="14" Height="14"/>
                                 </Button>
                               </Grid>
                             </Border>
@@ -305,7 +310,7 @@
                           IsVisible="{Binding UploadHistory.Count}"
                           ToolTip.Tip="Delete all uploaded files from cloud storage and clear history.">
                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                      <material:MaterialIcon Kind="DeleteSweepOutline" Width="16" Height="16"/>
+                      <PathIcon Data="{StaticResource ToolIcon.DeleteSweepOutline}" Width="16" Height="16"/>
                       <TextBlock Text="Clear All History" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
@@ -343,7 +348,7 @@
             </StackPanel>
             <Button Grid.Column="1" Command="{Binding ToggleMapPackPanelCommand}"
                     Classes="Secondary" Padding="6" VerticalAlignment="Top" ToolTip.Tip="Close">
-              <material:MaterialIcon Kind="Close" Width="16" Height="16"/>
+              <PathIcon Data="{StaticResource ToolIcon.Close}" Width="16" Height="16"/>
             </Button>
           </Grid>
 
@@ -405,7 +410,7 @@
                           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                             <Button Command="{Binding #Root.((vm:MapManagerViewModel)DataContext).DeleteMapPackCommand}"
                                     CommandParameter="{Binding}" Classes="Danger" Padding="6" ToolTip.Tip="Delete this MapPack.">
-                              <material:MaterialIcon Kind="DeleteOutline" Width="16" Height="16"/>
+                              <PathIcon Data="{StaticResource ToolIcon.DeleteOutline}" Width="16" Height="16"/>
                             </Button>
                           </StackPanel>
                         </Grid>
@@ -495,6 +500,10 @@
         </Transitions>
       </Setter>
     </Style>
+    <Style Selector="ToggleButton.Primary:checked">
+      <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
+    </Style>
+
     <Style Selector="Button.Danger:pointerover">
       <Setter Property="Opacity" Value="0.9" />
     </Style>

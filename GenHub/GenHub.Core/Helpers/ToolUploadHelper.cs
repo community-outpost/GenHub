@@ -10,6 +10,7 @@ public static class ToolUploadHelper
 {
     /// <summary>
     /// Formats the upload stage message based on progress percentage and archive mode.
+    /// The percentage itself is rendered separately next to the progress bar.
     /// </summary>
     /// <param name="entityName">The entity name (e.g., "maps" or "replays").</param>
     /// <param name="isZip">Whether the upload is a single zip file.</param>
@@ -19,20 +20,20 @@ public static class ToolUploadHelper
     {
         if (!isZip && percent < ToolConstants.UploadStageCompressionThresholdPercent)
         {
-            return $"Compressing {entityName}... {percent}%";
+            return $"Compressing {entityName}...";
         }
 
         if (percent < ToolConstants.UploadStageCloudThresholdPercent)
         {
-            return $"Uploading to cloud... {percent}%";
+            return "Uploading to cloud...";
         }
 
         if (percent < ToolConstants.UploadStageCompletePercent)
         {
-            return $"Finalizing cloud upload... {percent}%";
+            return "Finalizing cloud upload...";
         }
 
-        return "Upload complete! 100%";
+        return "Upload complete!";
     }
 
     /// <summary>
