@@ -70,6 +70,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         new(SettingsConstants.SectionLocalContent, "Local Content", "M19,20H4C2.89,20 2,19.1 2,18V6C2,4.89 2.89,4 4,4H10L12,6H19A2,2 0 0,1 21,8H21L4,8V18L6.14,10H23.21L20.93,18.5C20.7,19.37 19.92,20 19,20Z"),
         new(SettingsConstants.SectionGitHubDiscovery, "GitHub Discovery", "M12,2A10,10 0 0,0 2,12C2,16.42 4.87,20.17 8.84,21.5C9.34,21.58 9.5,21.27 9.5,21C9.5,20.77 9.5,20.14 9.5,19.31C6.73,19.91 6.14,17.97 6.14,17.97C5.68,16.81 5.03,16.5 5.03,16.5C4.12,15.88 5.1,15.9 5.1,15.9C6.1,15.97 6.63,16.93 6.63,16.93C7.5,18.45 8.97,18 9.54,17.76C9.63,17.11 9.89,16.67 10.17,16.42C7.95,16.17 5.62,15.31 5.62,11.5C5.62,10.39 6,9.5 6.65,8.79C6.55,8.54 6.2,7.5 6.75,6.15C6.75,6.15 7.59,5.88 9.5,7.17C10.29,6.95 11.15,6.84 12,6.84C12.85,6.84 13.71,6.95 14.5,7.17C16.41,5.88 17.25,6.15 17.25,6.15C17.8,7.5 17.45,8.54 17.35,8.79C18,9.5 18.38,10.39 18.38,11.5C18.38,15.32 16.04,16.16 13.81,16.41C14.17,16.72 14.5,17.33 14.5,18.26C14.5,19.6 14.5,20.68 14.5,21C14.5,21.27 14.66,21.59 15.17,21.5C19.14,20.16 22,16.42 22,12A10,10 0 0,0 12,2Z"),
         new(SettingsConstants.SectionUpdates, "Updates", "M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.86,17.45 19.71,14H17.58C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"),
+        new(SettingsConstants.SectionCloudUploads, "Cloud Uploads", "M19.35,10.04C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.04C2.34,8.36 0,10.91 0,14A6,6 0 0,0 6,20H19A5,5 0 0,0 24,15C24,12.36 21.95,10.22 19.35,10.04M14,13V17H10V13H7L12,8L17,13H14Z"),
         new(SettingsConstants.SectionDangerZone, "Danger Zone", "M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"),
     ];
 
@@ -90,6 +91,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly IUserDataTracker _userDataTracker;
     private readonly IDialogService _dialogService;
     private readonly IThemeService? _themeService;
+    private readonly IUploadHistoryService? _uploadHistoryService;
 
     private bool _isViewVisible;
     private bool _disposed;
@@ -247,6 +249,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     /// <param name="dialogService">Dialog service used to confirm destructive actions.</param>
     /// <param name="themeService">Theme service for dynamic accent theming.</param>
     /// <param name="gitHubTokenStorage">GitHub token storage.</param>
+    /// <param name="uploadHistoryService">Optional upload history service for cloud uploads management.</param>
     public SettingsViewModel(
         IUserSettingsService userSettingsService,
         ILogger<SettingsViewModel> logger,
@@ -262,7 +265,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         IUserDataTracker userDataTracker,
         IDialogService dialogService,
         IThemeService? themeService = null,
-        IGitHubTokenStorage? gitHubTokenStorage = null)
+        IGitHubTokenStorage? gitHubTokenStorage = null,
+        IUploadHistoryService? uploadHistoryService = null)
     {
         _userSettingsService = userSettingsService ?? throw new ArgumentNullException(nameof(userSettingsService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -279,8 +283,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         _themeService = themeService;
         _gitHubTokenStorage = gitHubTokenStorage;
+        _uploadHistoryService = uploadHistoryService;
 
         LoadSettings();
+        _ = RefreshUploadsAsync();
         _ = LoadPatStatusAsync();
 
         // Initialize with default if needed
@@ -1788,6 +1794,150 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             _logger.LogError(ex, "Failed to copy latest log file");
             _notificationService.ShowError("Error", "Failed to copy latest log.", 3000);
+        }
+    }
+
+    /// <summary>
+    /// Gets the list of active upload records across all tools and shared profiles.
+    /// </summary>
+    public ObservableCollection<UploadHistoryItem> ActiveUploads { get; } = [];
+
+    [ObservableProperty]
+    private string _uploadQuotaText = "0.0 MB / 10.0 MB Used (0%)";
+
+    [ObservableProperty]
+    private double _uploadQuotaPercent;
+
+    [ObservableProperty]
+    private bool _hasUploads;
+
+    [ObservableProperty]
+    private bool _isLoadingUploads;
+
+    /// <summary>
+    /// Refreshes the list of active uploads and quota usage from the upload history service.
+    /// </summary>
+    [RelayCommand]
+    private async Task RefreshUploadsAsync()
+    {
+        if (_uploadHistoryService == null)
+        {
+            return;
+        }
+
+        try
+        {
+            IsLoadingUploads = true;
+            var usage = await _uploadHistoryService.GetUsageInfoAsync();
+            var items = (await _uploadHistoryService.GetUploadHistoryAsync()).ToList();
+
+            ActiveUploads.Clear();
+            foreach (var item in items.OrderByDescending(i => i.Timestamp))
+            {
+                ActiveUploads.Add(item);
+            }
+
+            HasUploads = ActiveUploads.Count > 0;
+            double usedMb = usage.UsedBytes / (1024.0 * 1024.0);
+            double maxMb = usage.MaxBytes / (1024.0 * 1024.0);
+            UploadQuotaPercent = Math.Clamp(usage.UsagePercentage, 0.0, 100.0);
+            UploadQuotaText = $"{usedMb:F1} MB / {maxMb:F1} MB Used ({UploadQuotaPercent:F0}%)";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to refresh upload records in settings");
+        }
+        finally
+        {
+            IsLoadingUploads = false;
+        }
+    }
+
+    /// <summary>
+    /// Deletes an upload record and removes the hosted file from cloud storage.
+    /// </summary>
+    /// <param name="item">The upload history item to delete.</param>
+    [RelayCommand]
+    private async Task DeleteUploadAsync(UploadHistoryItem? item)
+    {
+        if (_uploadHistoryService == null || item == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var success = await _uploadHistoryService.RemoveHistoryItemAsync(item.Url, deleteFromCloud: true);
+            if (success)
+            {
+                _notificationService.ShowSuccess("Upload Deleted", $"Removed {item.FileName} from cloud storage.");
+            }
+            else
+            {
+                _notificationService.ShowWarning("Warning", $"Removed {item.FileName} locally; cloud file could not be deleted.");
+            }
+
+            await RefreshUploadsAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete upload {Url}", item.Url);
+            _notificationService.ShowError("Error", "Failed to delete uploaded file.");
+        }
+    }
+
+    /// <summary>
+    /// Clears all upload history and removes hosted files from cloud storage.
+    /// </summary>
+    [RelayCommand]
+    private async Task ClearAllUploadsAsync()
+    {
+        if (_uploadHistoryService == null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _uploadHistoryService.ClearHistoryAsync(deleteFromCloud: true);
+            _notificationService.ShowSuccess("Uploads Cleared", "Purged all active upload records.");
+            await RefreshUploadsAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to clear upload records");
+            _notificationService.ShowError("Error", "Failed to clear uploads.");
+        }
+    }
+
+    /// <summary>
+    /// Copies an upload's public URL to the clipboard.
+    /// </summary>
+    /// <param name="url">The URL to copy.</param>
+    [RelayCommand]
+    private async Task CopyUploadUrlAsync(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return;
+        }
+
+        try
+        {
+            var lifetime = Application.Current?.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+            var mainWindow = lifetime?.MainWindow;
+            var topLevel = mainWindow != null ? TopLevel.GetTopLevel(mainWindow) : null;
+
+            if (topLevel?.Clipboard != null)
+            {
+                await topLevel.Clipboard.SetTextAsync(url);
+                _notificationService.ShowSuccess("Copied", "Upload URL copied to clipboard.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to copy upload URL to clipboard");
+            _notificationService.ShowError("Error", "Failed to copy URL to clipboard.");
         }
     }
 }

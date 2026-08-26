@@ -126,6 +126,7 @@ public partial class SettingsView : UserControl
             SettingsConstants.SectionLocalContent => "Expander_LocalContent",
             SettingsConstants.SectionGitHubDiscovery => "Expander_GitHubDiscovery",
             SettingsConstants.SectionUpdates => "Expander_Updates",
+            SettingsConstants.SectionCloudUploads => "Expander_CloudUploads",
             SettingsConstants.SectionDangerZone => "Expander_DangerZone",
             _ => null,
         };
