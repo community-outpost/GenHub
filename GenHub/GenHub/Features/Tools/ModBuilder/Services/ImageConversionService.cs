@@ -287,10 +287,10 @@ public class ImageConversionService(ILogger<ImageConversionService> logger) : II
     {
         try
         {
-            byte[] rawData;
-            int width;
-            int height;
-            bool hasAlpha;
+            byte[] rawData = [];
+            int width = 0;
+            int height = 0;
+            bool hasAlpha = false;
 
             if (sourcePath.EndsWith(".dds", StringComparison.OrdinalIgnoreCase))
             {
