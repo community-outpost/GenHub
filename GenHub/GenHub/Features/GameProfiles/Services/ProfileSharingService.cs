@@ -462,12 +462,19 @@ public class ProfileSharingService(
             return null;
         }
 
-        bool isShareable = !Path.IsPathRooted(path) &&
-            !path.StartsWith(@"\\", StringComparison.Ordinal) &&
-            !path.Contains("://", StringComparison.Ordinal) &&
-            !path.Contains("..", StringComparison.Ordinal);
+        string trimmed = path.Trim();
 
-        return isShareable ? path : null;
+        bool isWindowsDrive = trimmed.Length >= 2 && char.IsLetter(trimmed[0]) && trimmed[1] == ':';
+        bool isRooted = Path.IsPathRooted(trimmed) ||
+            isWindowsDrive ||
+            trimmed.StartsWith('/') ||
+            trimmed.StartsWith('\\');
+
+        bool isShareable = !isRooted &&
+            !trimmed.Contains("://", StringComparison.Ordinal) &&
+            !trimmed.Contains("..", StringComparison.Ordinal);
+
+        return isShareable ? trimmed : null;
     }
 
     private async Task<bool> IsSafeRemoteUriAsync(Uri uri, CancellationToken cancellationToken)
