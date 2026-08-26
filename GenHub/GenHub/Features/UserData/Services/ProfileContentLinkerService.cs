@@ -383,10 +383,20 @@ public class ProfileContentLinkerService(
 
     private static bool HasProfileUserData(ContentManifest manifest)
     {
-        return manifest.Files.Any(f =>
-            f.InstallTarget != ContentInstallTarget.System &&
-            (f.InstallTarget != ContentInstallTarget.Workspace ||
-             manifest.ContentType is ContentType.Map or ContentType.MapPack));
+        return GetUserDataFiles(manifest).Count > 0;
+    }
+
+    private static IReadOnlyList<ManifestFile> GetUserDataFiles(ContentManifest manifest)
+    {
+        return manifest.Files
+            .Where(file => file.InstallTarget != ContentInstallTarget.System &&
+                           (file.InstallTarget != ContentInstallTarget.Workspace ||
+                            manifest.ContentType is ContentType.Map or ContentType.MapPack))
+            .Select(file => (manifest.ContentType is ContentType.Map or ContentType.MapPack) &&
+                            file.InstallTarget == ContentInstallTarget.Workspace
+                ? CreateUserMapsFile(file)
+                : file)
+            .ToList();
     }
 
     private static ManifestFile CreateUserMapsFile(ManifestFile file)
@@ -411,26 +421,18 @@ public class ProfileContentLinkerService(
     /// <summary>
     /// Installs user data files from a manifest for a specific profile.
     /// </summary>
-    /// <returns>A task representing the asynchronous installation operation.</returns>
+    /// <returns>An operation result containing the installed user data manifest.</returns>
     private async Task<OperationResult<UserDataManifest>> InstallManifestUserDataAsync(
         ContentManifest manifest,
         string profileId,
         GameType targetGame,
         CancellationToken cancellationToken)
     {
-        var userDataFiles = manifest.Files
-            .Where(file => file.InstallTarget != ContentInstallTarget.System &&
-                           (file.InstallTarget != ContentInstallTarget.Workspace ||
-                            manifest.ContentType is ContentType.Map or ContentType.MapPack))
-            .Select(file => (manifest.ContentType is ContentType.Map or ContentType.MapPack) &&
-                            file.InstallTarget == ContentInstallTarget.Workspace
-                ? CreateUserMapsFile(file)
-                : file)
-            .ToList();
+        var userDataFiles = GetUserDataFiles(manifest);
 
         if (userDataFiles.Count == 0)
         {
-            return OperationResult<UserDataManifest>.CreateSuccess(new UserDataManifest());
+            return OperationResult<UserDataManifest>.CreateFailure("No user data files to install");
         }
 
         logger.LogDebug(

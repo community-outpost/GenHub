@@ -610,28 +610,7 @@ public class UserDataTrackerService(
         await IndexLock.WaitAsync(cancellationToken);
         try
         {
-            var index = await LoadIndexUnlockedAsync(cancellationToken);
-            var normalizedPath = Path.GetFullPath(absolutePath);
-
-            if (index.FileToInstallationMap.TryGetValue(normalizedPath, out var installationKey))
-            {
-                var manifest = await LoadUserDataManifestByKeyAsync(installationKey, cancellationToken);
-                if (manifest != null && manifest.IsActive)
-                {
-                    return OperationResult<string?>.CreateSuccess(installationKey);
-                }
-
-                // Installation is inactive or manifest no longer exists; clean up stale index mapping and persist
-                index.FileToInstallationMap.Remove(normalizedPath);
-                await SaveIndexAsync(index, cancellationToken);
-            }
-
-            return OperationResult<string?>.CreateSuccess(null);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "[UserData] Failed to check file conflict for {Path}", absolutePath);
-            return OperationResult<string?>.CreateFailure($"Failed to check file conflict: {ex.Message}");
+            return await CheckFileConflictUnlockedAsync(absolutePath, cancellationToken);
         }
         finally
         {
@@ -1464,10 +1443,22 @@ public class UserDataTrackerService(
     {
         var userDataBasePath = GetUserDataBasePath(manifest.TargetGame);
         var allBackupsRestored = true;
+        var index = await LoadIndexUnlockedAsync(cancellationToken);
 
         foreach (var file in manifest.InstalledFiles)
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            if (index.FileToInstallationMap.TryGetValue(file.AbsolutePath, out var currentOwnerKey) &&
+                currentOwnerKey != manifest.InstallationKey)
+            {
+                logger.LogDebug(
+                    "[UserData] Skipping cleanup of {Path} for installation {Key}; currently owned by {OwnerKey}",
+                    file.AbsolutePath,
+                    manifest.InstallationKey,
+                    currentOwnerKey);
+                continue;
+            }
 
             var hasBackup = !string.IsNullOrEmpty(file.BackupPath) && File.Exists(file.BackupPath);
             var backupRestored = false;
@@ -1728,11 +1719,25 @@ public class UserDataTrackerService(
                     return OperationResult<string?>.CreateSuccess(installationKey);
                 }
 
-                // Installation is inactive or manifest no longer exists; clean up stale in-memory mapping
-                index.FileToInstallationMap.Remove(normalizedPath);
+                var manifestFilePath = GetManifestFilePath(installationKey);
+                if (!File.Exists(manifestFilePath) || (manifest != null && !manifest.IsActive))
+                {
+                    // Installation is inactive or manifest no longer exists; clean up stale index mapping and persist
+                    index.FileToInstallationMap.Remove(normalizedPath);
+                    await SaveIndexAsync(index, cancellationToken);
+                }
+                else
+                {
+                    // Manifest file exists on disk but could not be read; retain conflict conservatively
+                    return OperationResult<string?>.CreateSuccess(installationKey);
+                }
             }
 
             return OperationResult<string?>.CreateSuccess(null);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -1767,9 +1772,9 @@ public class UserDataTrackerService(
             }
 
             // Update file mappings
-            foreach (var file in manifest.InstalledFiles)
+            foreach (var path in manifest.InstalledFiles.Select(file => file.AbsolutePath))
             {
-                index.FileToInstallationMap[file.AbsolutePath] = key;
+                index.FileToInstallationMap[path] = key;
             }
 
             // Update profile mappings
@@ -1800,10 +1805,14 @@ public class UserDataTrackerService(
         {
             index.InstallationKeys.Remove(key);
 
-            // Remove file mappings
-            foreach (var file in manifest.InstalledFiles)
+            // Remove file mappings only if still mapped to this installation
+            foreach (var path in manifest.InstalledFiles.Select(file => file.AbsolutePath))
             {
-                index.FileToInstallationMap.Remove(file.AbsolutePath);
+                if (index.FileToInstallationMap.TryGetValue(path, out var mappedKey) &&
+                    mappedKey == key)
+                {
+                    index.FileToInstallationMap.Remove(path);
+                }
             }
 
             // Remove from profile mappings
