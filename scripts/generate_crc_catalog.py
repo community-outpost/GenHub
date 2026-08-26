@@ -5,6 +5,7 @@ Crawls TheSuperHackers (GitHub Releases) and GeneralsOnline (CDN) to build and u
 """
 
 import argparse
+import concurrent.futures
 import datetime
 import hashlib
 import io
@@ -12,6 +13,7 @@ import json
 import os
 import re
 import sys
+import urllib.error
 import urllib.request
 import zipfile
 import zlib
@@ -82,6 +84,17 @@ def compute_buffer_sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def check_url_exists(url: str, timeout: int = 5) -> bool:
+    """Checks whether a remote URL exists using a HEAD request."""
+    req = urllib.request.Request(url, headers={"User-Agent": "GenHub-Replay-Crawler"})
+    req.get_method = lambda: "HEAD"
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.status == 200
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError):
+        return False
+
+
 def inspect_archive_binary(download_url: str, binary_patterns: list[str]) -> tuple[str, str, str]:
     """Downloads archive into memory and extracts CRC32, SHA256, and INI CRC."""
     req = urllib.request.Request(download_url, headers={"User-Agent": "GenHub-Replay-Crawler"})
@@ -95,19 +108,19 @@ def inspect_archive_binary(download_url: str, binary_patterns: list[str]) -> tup
             ini_crc = ""
 
             for name in zf.namelist():
-                lower_name = name.lower()
+                base_name = os.path.basename(name).lower()
                 for pattern in binary_patterns:
-                    if pattern in lower_name and lower_name.endswith(".exe"):
+                    if base_name == pattern.lower():
                         binary_bytes = zf.read(name)
                         exe_crc = compute_buffer_crc(binary_bytes)
                         sha256 = compute_buffer_sha256(binary_bytes)
                         break
-                if "mapcachego.ini" in lower_name or "generals.ini" in lower_name:
+                if not ini_crc and base_name in ("mapcachego.ini", "generals.ini"):
                     ini_bytes = zf.read(name)
                     ini_crc = compute_buffer_crc(ini_bytes)
 
             return exe_crc, sha256, ini_crc
-    except Exception as e:
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, zipfile.BadZipFile, OSError) as e:
         print(f"Warning: could not inspect archive {download_url}: {e}", file=sys.stderr)
         return "", "", ""
 
@@ -123,7 +136,7 @@ def crawl_superhackers_releases(token: str | None = None, inspect_binaries: bool
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
             releases = json.loads(resp.read().decode("utf-8"))
-    except Exception as e:
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError, json.JSONDecodeError) as e:
         print(f"Warning: could not reach GitHub API ({e}). Falling back to cached catalog.", file=sys.stderr)
         return []
 
@@ -179,7 +192,7 @@ def crawl_superhackers_releases(token: str | None = None, inspect_binaries: bool
 def crawl_generalsonline_releases(inspect_binaries: bool = False) -> list[dict]:
     """Probes and maps portable releases from the GeneralsOnline CDN."""
     known_dates = ["021326", "032926", "042826", "060526", "062026", "081326"]
-    entries = []
+    candidates = []
 
     for date_code in known_dates:
         for qfe in range(1, 10):
@@ -191,33 +204,48 @@ def crawl_generalsonline_releases(inspect_binaries: bool = False) -> list[dict]:
                 manifest_type = "eac.zerohour" if is_eac else "zerohour"
                 manifest_id = f"1.{date_code}{qfe}.generalsonline.gameclient.{manifest_type}"
                 version_str = f"{date_code}{suffix}"
+                candidates.append((date_code, version_str, manifest_id, url))
 
-                exe_crc = ""
-                sha256 = ""
-                ini_crc = "0x5CB7992C"
+    # Probe URLs concurrently
+    valid_candidates = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        future_to_cand = {executor.submit(check_url_exists, cand[3]): cand for cand in candidates}
+        for future in concurrent.futures.as_completed(future_to_cand):
+            cand = future_to_cand[future]
+            try:
+                if future.result():
+                    valid_candidates.append(cand)
+            except Exception:
+                pass
 
-                if inspect_binaries:
-                    c_exe, c_sha, c_ini = inspect_archive_binary(url, ["generalsonlinezh_60.exe", "generalsonlinezh.exe"])
-                    if not c_exe:
-                        continue
-                    exe_crc = c_exe
-                    sha256 = c_sha
-                    if c_ini:
-                        ini_crc = c_ini
+    entries = []
+    for date_code, version_str, manifest_id, url in valid_candidates:
+        exe_crc = ""
+        sha256 = ""
+        ini_crc = "0x5CB7992C"
 
-                entry = {
-                    "exeCrc": exe_crc,
-                    "iniCrc": ini_crc,
-                    "sha256": sha256,
-                    "manifestId": manifest_id,
-                    "publisher": "generalsonline",
-                    "gameType": "ZeroHour",
-                    "version": version_str,
-                    "buildDate": f"2026-{date_code[:2]}-{date_code[2:4]}",
-                    "description": f"GeneralsOnline {version_str} portable release",
-                    "cdnUrl": url,
-                }
-                entries.append(entry)
+        if inspect_binaries:
+            c_exe, c_sha, c_ini = inspect_archive_binary(url, ["generalsonlinezh_60.exe", "generalsonlinezh.exe"])
+            if not c_exe:
+                continue
+            exe_crc = c_exe
+            sha256 = c_sha
+            if c_ini:
+                ini_crc = c_ini
+
+        entry = {
+            "exeCrc": exe_crc,
+            "iniCrc": ini_crc,
+            "sha256": sha256,
+            "manifestId": manifest_id,
+            "publisher": "generalsonline",
+            "gameType": "ZeroHour",
+            "version": version_str,
+            "buildDate": f"2026-{date_code[:2]}-{date_code[2:4]}",
+            "description": f"GeneralsOnline {version_str} portable release",
+            "cdnUrl": url,
+        }
+        entries.append(entry)
 
     return entries
 
