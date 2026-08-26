@@ -20,6 +20,7 @@ using GenHub.Core.Models.Content;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.GameClients;
 using GenHub.Core.Models.GameProfile;
+using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Notifications;
 using GenHub.Core.Models.Results;
@@ -214,6 +215,36 @@ public class MockReplayDirectoryService : IReplayDirectoryService
     /// <inheritdoc/>
     public void RevealInExplorer(ReplayFile replay)
     {
+    }
+
+    /// <inheritdoc/>
+    public Task<ProfileOperationResult<GameProfile>> CreateProfileForReplayAsync(ReplayFile replay, CancellationToken ct = default)
+    {
+        var mockProfile = new GameProfile
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = $"Demo Profile ({replay.FileName})",
+        };
+        return Task.FromResult(ProfileOperationResult<GameProfile>.CreateSuccess(mockProfile));
+    }
+
+    /// <inheritdoc/>
+    public Task<ProfileOperationResult<GameLaunchInfo>> LaunchReplayAsync(ReplayFile replay, CancellationToken ct = default)
+    {
+        var mockLaunchInfo = new GameLaunchInfo
+        {
+            LaunchId = Guid.NewGuid().ToString(),
+            ProfileId = replay.MatchingProfileId ?? Guid.NewGuid().ToString(),
+            WorkspaceId = Guid.NewGuid().ToString(),
+            ProcessInfo = new GameProcessInfo
+            {
+                ProcessId = 12345,
+                ExecutablePath = "C:\\Mock\\generalszh.exe",
+                CommandLine = string.Empty,
+                WorkingDirectory = "C:\\Mock",
+            },
+        };
+        return Task.FromResult(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(mockLaunchInfo));
     }
 }
 

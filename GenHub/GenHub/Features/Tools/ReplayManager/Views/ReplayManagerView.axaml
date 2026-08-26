@@ -72,21 +72,71 @@
                   BorderThickness="0"
                   RowHeight="40">
           <DataGrid.Columns>
-            <DataGridTextColumn Header="Filename" Binding="{Binding FileName}" Width="*" MinWidth="100" />
-            <DataGridTextColumn Header="Size" Binding="{Binding FormattedSize}" Width="Auto" MinWidth="80" IsReadOnly="True" />
-            <DataGridTextColumn Header="Modified" Binding="{Binding LastModified, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="Auto" MinWidth="130" IsReadOnly="True" />
-            <DataGridTemplateColumn Width="140" Header="Actions">
+            <DataGridTextColumn Header="Filename" Binding="{Binding FileName}" Width="2*" MinWidth="130" />
+            <DataGridTextColumn Header="Map" Binding="{Binding Metadata.MapName}" Width="*" MinWidth="100" IsReadOnly="True" />
+            <DataGridTextColumn Header="Client / Build" Binding="{Binding MatchedClient.Description}" Width="1.5*" MinWidth="130" IsReadOnly="True" />
+            <DataGridTextColumn Header="Exe CRC" Binding="{Binding Metadata.FormattedExeCrc}" Width="Auto" MinWidth="90" IsReadOnly="True" />
+            <DataGridTextColumn Header="INI CRC" Binding="{Binding Metadata.FormattedIniCrc}" Width="Auto" MinWidth="90" IsReadOnly="True" />
+            <DataGridTemplateColumn Header="Compatibility" Width="Auto" MinWidth="130">
               <DataGridTemplateColumn.CellTemplate>
                 <DataTemplate>
-                  <Button IsEnabled="False"
-                          Classes="Link" Padding="4" HorizontalAlignment="Center"
-                          ToolTip.Tip="Parse replay details (Coming Soon)">
-                    <!-- TODO: Attach Parse Replay Command -->
+                  <Border Padding="6,2" CornerRadius="6" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="4,0"
+                          ToolTip.Tip="{Binding CompatibilityTooltip}">
                     <StackPanel Orientation="Horizontal" Spacing="4">
-                      <TextBlock Text="⚙️" FontSize="12"/>
-                      <TextBlock Text="PARSE" FontSize="10"/>
+                      <TextBlock Text="●" FontSize="10" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding CompatibilityBadgeText}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                     </StackPanel>
-                  </Button>
+                  </Border>
+                </DataTemplate>
+              </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTextColumn Header="Size" Binding="{Binding FormattedSize}" Width="Auto" MinWidth="70" IsReadOnly="True" />
+            <DataGridTextColumn Header="Modified" Binding="{Binding LastModified, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="Auto" MinWidth="120" IsReadOnly="True" />
+            <DataGridTemplateColumn Width="150" Header="Actions">
+              <DataGridTemplateColumn.CellTemplate>
+                <DataTemplate>
+                  <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <!-- Play Replay Button (When Compatible with matching profile) -->
+                    <Button Classes="Primary" Padding="8,4"
+                            Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).LaunchReplayCommand}"
+                            CommandParameter="{Binding}"
+                            IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Compatible}}"
+                            ToolTip.Tip="Launch game with matching profile and play replay">
+                      <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="▶" FontSize="10"/>
+                        <TextBlock Text="Play" FontSize="11"/>
+                      </StackPanel>
+                    </Button>
+
+                    <!-- Create Profile Button (When RequiresProfile or Downloadable) -->
+                    <Button Classes="Secondary" Padding="8,4"
+                            Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).CreateProfileForReplayCommand}"
+                            CommandParameter="{Binding}"
+                            IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.RequiresProfile}}"
+                            ToolTip.Tip="Create a dedicated game profile matching this replay's game client and INI configuration">
+                      <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="➕" FontSize="10"/>
+                        <TextBlock Text="Profile" FontSize="11"/>
+                      </StackPanel>
+                    </Button>
+
+                    <Button Classes="Secondary" Padding="8,4"
+                            Command="{Binding $parent[UserControl].((vm:ReplayManagerViewModel)DataContext).CreateProfileForReplayCommand}"
+                            CommandParameter="{Binding}"
+                            IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Downloadable}}"
+                            ToolTip.Tip="Create profile and acquire matching game client from CDN">
+                      <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Text="📥" FontSize="10"/>
+                        <TextBlock Text="Profile" FontSize="11"/>
+                      </StackPanel>
+                    </Button>
+
+                    <!-- Mismatch Risk Indicator (When Orphaned / Unknown CRC) -->
+                    <TextBlock Text="⚠️ Mismatch" FontSize="11" Foreground="{DynamicResource WarningBrush}"
+                               IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Orphaned}}"
+                               ToolTip.Tip="Exe or INI CRC is not recognized. Replay playback may desync or mismatch."
+                               VerticalAlignment="Center"/>
+                  </StackPanel>
                 </DataTemplate>
               </DataGridTemplateColumn.CellTemplate>
             </DataGridTemplateColumn>

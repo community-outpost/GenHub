@@ -1,7 +1,7 @@
 namespace GenHub.Core.Models.Enums;
 
 /// <summary>
-/// Defines the compatibility status of a replay file against known and installed game clients.
+/// Defines the compatibility status of a replay file against known and installed game clients and profiles.
 /// </summary>
 public enum ReplayCompatibilityStatus
 {
@@ -11,17 +11,22 @@ public enum ReplayCompatibilityStatus
     Unknown = 0,
 
     /// <summary>
-    /// A matching game client is installed and ready to play the replay.
+    /// A matching game client and profile is configured and ready to play the replay.
     /// </summary>
     Compatible = 1,
 
     /// <summary>
-    /// A matching game client is known and available for download via CDN, but not currently installed.
+    /// A matching game client is installed, but a dedicated profile needs to be created.
     /// </summary>
-    Downloadable = 2,
+    RequiresProfile = 2,
 
     /// <summary>
-    /// The replay has valid CRC metadata, but no matching game client is known in the catalog.
+    /// A matching game client is known in the catalog and available for download via CDN.
     /// </summary>
-    Orphaned = 3,
+    Downloadable = 3,
+
+    /// <summary>
+    /// The replay has valid CRC metadata, but no matching game client or INI configuration is known in the catalog (CRC mismatch risk).
+    /// </summary>
+    Orphaned = 4,
 }
