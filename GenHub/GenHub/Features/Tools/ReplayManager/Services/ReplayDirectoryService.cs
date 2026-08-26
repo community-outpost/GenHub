@@ -66,7 +66,7 @@ public sealed class ReplayDirectoryService(
                        f.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        var acquiredIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var acquiredIds = new HashSet<string>(StringComparer.Ordinal);
         try
         {
             using var scope = scopeFactory.CreateScope();
