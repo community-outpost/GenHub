@@ -343,7 +343,7 @@
     <!-- Button styles -->
     <Style Selector="Button.Primary, ToggleButton.Primary">
       <Setter Property="Background" Value="{DynamicResource PrimaryButtonBackground}" />
-      <Setter Property="Foreground" Value="White" />
+      <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForeground}" />
       <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="CornerRadius" Value="6" />
       <Setter Property="Cursor" Value="Hand" />
@@ -380,7 +380,7 @@
 
     <Style Selector="Button.Danger">
       <Setter Property="Background" Value="{DynamicResource ErrorBrush}" />
-      <Setter Property="Foreground" Value="White" />
+      <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForeground}" />
       <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="CornerRadius" Value="6" />
       <Setter Property="Cursor" Value="Hand" />
@@ -397,7 +397,7 @@
 
     <Style Selector="ToggleButton.Primary:checked">
       <Setter Property="Background" Value="{DynamicResource AccentLightBrush}" />
-      <Setter Property="Foreground" Value="White" />
+      <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonForeground}" />
     </Style>
 
     <Style Selector="Button.icon-subtle">

@@ -128,6 +128,11 @@ public static class ApiConstants
     /// </summary>
     public const string MediaTypeZip = "application/zip";
 
+    /// <summary>
+    /// Default filename fallback for generic uploads when a source filename cannot be determined.
+    /// </summary>
+    public const string DefaultUploadFileName = "upload.zip";
+
     // GenTool
 
     /// <summary>

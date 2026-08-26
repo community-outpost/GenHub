@@ -39,7 +39,7 @@ public sealed class UploadThingService(
             var fileName = PathHelper.SanitizeFileName(rawFileName);
             if (string.IsNullOrWhiteSpace(fileName))
             {
-                fileName = "upload.zip";
+                fileName = ApiConstants.DefaultUploadFileName;
             }
 
             var fileLength = new FileInfo(filePath).Length;

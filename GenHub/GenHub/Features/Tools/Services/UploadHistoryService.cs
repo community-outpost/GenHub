@@ -242,7 +242,7 @@ public sealed class UploadHistoryService(
         }
 
         if (fileName.EndsWith(".rep", StringComparison.OrdinalIgnoreCase) ||
-            fileName.Equals($"{ReplayManagerConstants.DefaultZipName}.zip", StringComparison.OrdinalIgnoreCase))
+            fileName.Equals($"{ReplayManagerConstants.DefaultZipName}{Path.GetExtension(ReplayManagerConstants.ZipFilePattern)}", StringComparison.OrdinalIgnoreCase))
         {
             return ReplayManagerConstants.UploadCategory;
         }

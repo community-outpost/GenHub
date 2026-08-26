@@ -411,7 +411,9 @@ const createUploadSuccessResponse = async (
   );
 };
 
-const MULTIPART_SLACK_BYTES = 1024;
+// 4 KiB overhead allowance for multipart preamble, boundaries, part headers,
+// Content-Disposition parameters, and long multi-byte UTF-8 filenames.
+const MULTIPART_SLACK_BYTES = 4096;
 
 const isLengthExceeded = (request: Request, maxSizeBytes: number): boolean => {
   const raw = request.headers.get("content-length");

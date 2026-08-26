@@ -32,6 +32,14 @@ URI scheme constants for handling different types of URIs and paths.
 - Upload and credential constants were removed while cloud uploads are disabled.
   `UploadThingUrlFragment` remains only for importing existing public links.
 
+### Upload Gateway & Cloud Storage
+
+- `MediaTypeZip`: Media type for ZIP archives (`"application/zip"`)
+- `DefaultUploadFileName`: Default filename fallback for generic uploads when a source filename cannot be determined (`"upload.zip"`)
+- `DefaultUploadGatewayBaseUrl`: Base URL for the community upload gateway (`"https://genhub-upload-gateway.mustafa2146.workers.dev"`)
+- `UploadEndpoint`: Endpoint path for cloud uploads (`"/api/v1/uploads"`)
+- `UploadDeleteEndpoint`: Endpoint path for deleting cloud uploads (`"/api/v1/uploads/delete"`)
+
 ### Media Types
 
 
