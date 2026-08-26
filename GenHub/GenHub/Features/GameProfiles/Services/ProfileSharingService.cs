@@ -477,9 +477,8 @@ public class ProfileSharingService(
 
         string trimmed = path.Trim();
 
-        bool isWindowsDrive = OperatingSystem.IsWindows() &&
-            ((trimmed.Length >= 2 && char.IsLetter(trimmed[0]) && trimmed[1] == ':') ||
-             (trimmed.Length >= 3 && char.IsLetter(trimmed[0]) && trimmed[1] == ':' && (trimmed[2] == '/' || trimmed[2] == '\\')));
+        bool isWindowsDrive = (trimmed.Length >= 2 && char.IsLetter(trimmed[0]) && trimmed[1] == ':') ||
+            (trimmed.Length >= 3 && char.IsLetter(trimmed[0]) && trimmed[1] == ':' && (trimmed[2] == '/' || trimmed[2] == '\\'));
         bool isRooted = Path.IsPathRooted(trimmed) ||
             isWindowsDrive ||
             trimmed.StartsWith('/') ||
