@@ -10,6 +10,8 @@ namespace GenHub.Features.GameProfiles.Views;
 /// </summary>
 public partial class ShareProfileDialogWindow : Window
 {
+    private ShareProfileDialogViewModel? attachedViewModel;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="ShareProfileDialogWindow"/> class.
     /// </summary>
@@ -26,9 +28,21 @@ public partial class ShareProfileDialogWindow : Window
 
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
+        if (attachedViewModel is { } previous)
+        {
+            previous.CloseRequested -= OnCloseRequested;
+        }
+
         if (DataContext is ShareProfileDialogViewModel viewModel)
         {
-            viewModel.CloseRequested += (_, _) => Close();
+            attachedViewModel = viewModel;
+            viewModel.CloseRequested += OnCloseRequested;
+        }
+        else
+        {
+            attachedViewModel = null;
         }
     }
+
+    private void OnCloseRequested(object? sender, EventArgs e) => Close();
 }

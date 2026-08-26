@@ -281,6 +281,8 @@ public partial class ImportProfileInspectionViewModel : ObservableObject
         finally
         {
             IsImporting = false;
+            _importCts?.Dispose();
+            _importCts = null;
         }
     }
 
@@ -288,8 +290,6 @@ public partial class ImportProfileInspectionViewModel : ObservableObject
     private void Cancel()
     {
         _importCts?.Cancel();
-        _importCts?.Dispose();
-        _importCts = null;
         CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 
