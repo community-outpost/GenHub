@@ -155,17 +155,15 @@ public abstract class BasePackageDeploymentFix(
             }
 
             var extractedFilePath = Path.Combine(extractDir, fileName);
-            await using (var entryStream = entry.OpenEntryStream())
-            {
-                expandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(
-                    entryStream,
-                    extractedFilePath,
-                    fileName,
-                    ActionSetConstants.Validation.MaximumAddonPackageSizeBytes,
-                    ActionSetConstants.Validation.MaximumAddonPackageSizeBytes - expandedBytes,
-                    overwrite: true,
-                    cancellationToken: ct);
-            }
+            await using var entryStream = entry.OpenEntryStream();
+            expandedBytes += await BoundedArchiveExtractor.CopyEntryToFileAsync(
+                entryStream,
+                extractedFilePath,
+                fileName,
+                ActionSetConstants.Validation.MaximumAddonPackageSizeBytes,
+                ActionSetConstants.Validation.MaximumAddonPackageSizeBytes - expandedBytes,
+                overwrite: true,
+                cancellationToken: ct);
 
             extractedFiles[fileName] = extractedFilePath;
         }
@@ -429,10 +427,7 @@ public abstract class BasePackageDeploymentFix(
                 using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
                 response.EnsureSuccessStatusCode();
 
-                await using (var fs = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
-                {
-                    await response.Content.CopyToAsync(fs, ct);
-                }
+                await DownloadToFileAsync(response, tempFile, ct);
 
                 var fileInfo = new FileInfo(tempFile);
                 if (fileInfo.Length < ActionSetConstants.Validation.MinimumAddonPackageSizeBytes)
@@ -460,6 +455,12 @@ public abstract class BasePackageDeploymentFix(
         }
 
         return false;
+    }
+
+    private static async Task DownloadToFileAsync(HttpResponseMessage response, string tempFile, CancellationToken ct)
+    {
+        await using var fs = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true);
+        await response.Content.CopyToAsync(fs, ct);
     }
 
     private static string ComputeInstallationKey(GameInstallation installation)

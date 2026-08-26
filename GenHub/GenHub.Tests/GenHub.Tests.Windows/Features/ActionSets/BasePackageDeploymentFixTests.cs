@@ -209,39 +209,32 @@ public sealed class BasePackageDeploymentFixTests : IDisposable
     private static async Task CreateValidMultiEntryZipAsync(string archivePath)
     {
         using var zipArchive = ZipFile.Open(archivePath, ZipArchiveMode.Create);
-        var entry1 = zipArchive.CreateEntry("file1.dat");
-        await using (var stream1 = entry1.Open())
-        {
-            await stream1.WriteAsync(new byte[1024]);
-        }
-
-        var entry2 = zipArchive.CreateEntry("file2.dat");
-        await using (var stream2 = entry2.Open())
-        {
-            await stream2.WriteAsync(new byte[2048]);
-        }
+        await WriteZipEntryAsync(zipArchive, "file1.dat", new byte[1024]);
+        await WriteZipEntryAsync(zipArchive, "file2.dat", new byte[2048]);
     }
 
     private static async Task CreateOversizedMultiEntryZipAsync(string archivePath)
     {
         var chunk = new byte[1024 * 1024];
         using var zipArchive = ZipFile.Open(archivePath, ZipArchiveMode.Create);
-        var entry1 = zipArchive.CreateEntry("entry1.dat", CompressionLevel.Optimal);
-        await using (var stream1 = entry1.Open())
-        {
-            for (var i = 0; i < 110; i++)
-            {
-                await stream1.WriteAsync(chunk);
-            }
-        }
+        await WriteRepeatedChunkZipEntryAsync(zipArchive, "entry1.dat", chunk, 110);
+        await WriteRepeatedChunkZipEntryAsync(zipArchive, "entry2.dat", chunk, 110);
+    }
 
-        var entry2 = zipArchive.CreateEntry("entry2.dat", CompressionLevel.Optimal);
-        await using (var stream2 = entry2.Open())
+    private static async Task WriteZipEntryAsync(ZipArchive archive, string entryName, byte[] content)
+    {
+        var entry = archive.CreateEntry(entryName);
+        await using var stream = entry.Open();
+        await stream.WriteAsync(content);
+    }
+
+    private static async Task WriteRepeatedChunkZipEntryAsync(ZipArchive archive, string entryName, byte[] chunk, int repetitions)
+    {
+        var entry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
+        await using var stream = entry.Open();
+        for (var i = 0; i < repetitions; i++)
         {
-            for (var i = 0; i < 110; i++)
-            {
-                await stream2.WriteAsync(chunk);
-            }
+            await stream.WriteAsync(chunk);
         }
     }
 
