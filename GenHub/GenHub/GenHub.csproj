@@ -85,4 +85,7 @@
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>
     </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\crc-mapping.json" />
+  </ItemGroup>
 </Project>

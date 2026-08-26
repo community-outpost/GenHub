@@ -15,7 +15,7 @@ namespace GenHub.Features.Tools.ReplayManager.Services;
 
 /// <summary>
 /// Binary parser for C&amp;C Generals and Zero Hour .rep replay headers.
-/// Extracts game client version, exe/ini CRCs, timestamp, map name, and player information.
+/// Extracts game client version, exe/ini CRCs, timestamp, map name, title, and player information.
 /// </summary>
 public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IReplayHeaderParser
 {
@@ -29,9 +29,15 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             return OperationResult<ReplayMetadata>.CreateFailure("Replay file path cannot be null or empty.");
         }
 
-        if (!File.Exists(filePath))
+        var fileInfo = new FileInfo(filePath);
+        if (!fileInfo.Exists)
         {
             return OperationResult<ReplayMetadata>.CreateFailure($"Replay file not found: {filePath}");
+        }
+
+        if (fileInfo.Length > ReplayManagerConstants.MaxReplaySizeBytes)
+        {
+            return OperationResult<ReplayMetadata>.CreateFailure($"Replay file exceeds maximum allowed size of {ReplayManagerConstants.MaxReplaySizeBytes} bytes.");
         }
 
         try
@@ -53,9 +59,20 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
 
         try
         {
-            // Replay headers are typically within the first 16KB of the file
+            // Accumulate stream data to ensure full header buffer is read
             var buffer = new byte[16384];
-            var bytesRead = await stream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken);
+            var bytesRead = 0;
+
+            while (bytesRead < buffer.Length)
+            {
+                var read = await stream.ReadAsync(buffer.AsMemory(bytesRead, buffer.Length - bytesRead), cancellationToken);
+                if (read == 0)
+                {
+                    break;
+                }
+
+                bytesRead += read;
+            }
 
             if (bytesRead < 32)
             {
@@ -73,8 +90,7 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
 
             var offset = 6;
 
-            // 2. Read fixed header components:
-            // 4 bytes uint + 4 bytes uint + 4 bytes uint + 1 byte + 1 byte + 8 bytes = 22 bytes
+            // 2. Read fixed header components (22 bytes)
             if (offset + 22 > bytesRead)
             {
                 return OperationResult<ReplayMetadata>.CreateFailure("Truncated replay header before version strings.");
@@ -124,6 +140,7 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             {
                 VersionString = string.IsNullOrWhiteSpace(versionString) ? null : versionString,
                 BuildTimeString = string.IsNullOrWhiteSpace(buildTimeString) ? null : buildTimeString,
+                Title = string.IsNullOrWhiteSpace(titleString) ? null : titleString,
                 VersionNumber = versionNumber,
                 ExeCrc = exeCrc,
                 IniCrc = iniCrc,
@@ -148,7 +165,7 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             if (buffer[offset] == 0 && buffer[offset + 1] == 0)
             {
                 var length = offset - start;
-                offset += 2; // skip null terminator
+                offset += 2;
                 return length == 0 ? null : Encoding.Unicode.GetString(buffer, start, length);
             }
 
@@ -166,7 +183,7 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
             if (buffer[offset] == 0)
             {
                 var length = offset - start;
-                offset += 1; // skip null terminator
+                offset += 1;
                 return length == 0 ? null : Encoding.ASCII.GetString(buffer, start, length);
             }
 
@@ -201,7 +218,7 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
                 if (parts.Length > 0)
                 {
                     var playerName = parts[0].TrimStart('H', 'C', 'X', 'O');
-                    if (!string.IsNullOrWhiteSpace(playerName) && !players.Any(p => string.Equals(p, playerName, StringComparison.OrdinalIgnoreCase)))
+                    if (!string.IsNullOrWhiteSpace(playerName) && players.All(p => !string.Equals(p, playerName, StringComparison.OrdinalIgnoreCase)))
                     {
                         players.Add(playerName);
                     }
