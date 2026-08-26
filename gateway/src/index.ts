@@ -68,9 +68,11 @@ const parseDeleteBody = (body: { fileKey?: unknown; deleteToken?: unknown }): De
   return { fileKey, deleteToken };
 };
 
+const CONTROL_CHARS_REGEX = /\p{Cc}/gu;
+
 const sanitizeFileName = (fileName: string): string => {
   const baseName = fileName.replaceAll("\\", "/").split("/").pop() ?? "";
-  return baseName.replaceAll(/[\u0000-\u001F\u007F]/g, "").trim();
+  return baseName.replaceAll(CONTROL_CHARS_REGEX, "").trim();
 };
 
 const validateDeletePayload = (payload: DeletePayload): string | null => {
@@ -194,17 +196,36 @@ const isValidExtension = (name: string): boolean => {
   return lower.endsWith(".rep");
 };
 
-const validateUploadFile = (fileName: string, fileSize: number, maxSizeBytes: number): string | null => {
-  const sanitized = sanitizeFileName(fileName);
+const getNameValidationError = (sanitized: string): string | null => {
   if (sanitized.length === 0 || sanitized === "." || sanitized === "..") {
     return "Invalid file name";
   }
+  return null;
+};
+
+const getSizeValidationError = (fileSize: number, maxSizeBytes: number): string | null => {
   if (fileSize <= 0) {
     return "Invalid file size";
   }
   if (fileSize > maxSizeBytes) {
     return `File exceeds max limit of ${maxSizeBytes} bytes`;
   }
+  return null;
+};
+
+const validateUploadFile = (fileName: string, fileSize: number, maxSizeBytes: number): string | null => {
+  const sanitized = sanitizeFileName(fileName);
+
+  const nameError = getNameValidationError(sanitized);
+  if (nameError !== null) {
+    return nameError;
+  }
+
+  const sizeError = getSizeValidationError(fileSize, maxSizeBytes);
+  if (sizeError !== null) {
+    return sizeError;
+  }
+
   if (!isValidExtension(sanitized)) {
     return "Only .zip and .rep archives permitted";
   }
