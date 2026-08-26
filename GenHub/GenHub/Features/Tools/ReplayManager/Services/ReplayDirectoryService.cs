@@ -12,6 +12,7 @@ using GenHub.Core.Interfaces.Tools.ReplayManager;
 using GenHub.Core.Models.Enums;
 using GenHub.Core.Models.Manifest;
 using GenHub.Core.Models.Tools.ReplayManager;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace GenHub.Features.Tools.ReplayManager.Services;
@@ -23,7 +24,7 @@ namespace GenHub.Features.Tools.ReplayManager.Services;
 public sealed class ReplayDirectoryService(
     IReplayHeaderParser headerParser,
     ICrcMappingRegistry crcMappingRegistry,
-    IContentManifestPool manifestPool,
+    IServiceScopeFactory scopeFactory,
     ILogger<ReplayDirectoryService> logger) : IReplayDirectoryService
 {
     /// <inheritdoc />
@@ -65,6 +66,25 @@ public sealed class ReplayDirectoryService(
                        f.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
+        var acquiredIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var manifestPool = scope.ServiceProvider.GetRequiredService<IContentManifestPool>();
+            var manifestsResult = await manifestPool.GetAllManifestsAsync(ct);
+            if (manifestsResult.Success && manifestsResult.Data != null)
+            {
+                foreach (var manifest in manifestsResult.Data)
+                {
+                    acquiredIds.Add(manifest.Id.Value);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "Failed to retrieve acquired manifests for replay compatibility matching.");
+        }
+
         var replayFiles = new List<ReplayFile>();
         foreach (var file in files)
         {
@@ -85,7 +105,7 @@ public sealed class ReplayDirectoryService(
                 if (parseResult.Success && parseResult.Data != null)
                 {
                     replay.Metadata = parseResult.Data;
-                    await ResolveCompatibilityAsync(replay, ct);
+                    ResolveCompatibility(replay, acquiredIds);
                 }
             }
 
@@ -155,7 +175,7 @@ public sealed class ReplayDirectoryService(
         }
     }
 
-    private async Task ResolveCompatibilityAsync(ReplayFile replay, CancellationToken ct)
+    private void ResolveCompatibility(ReplayFile replay, HashSet<string> acquiredIds)
     {
         if (replay.Metadata == null)
         {
@@ -176,12 +196,7 @@ public sealed class ReplayDirectoryService(
         {
             replay.MatchedClient = match;
 
-            var isInstalled = false;
-            if (ManifestId.TryCreate(match.ManifestId, out var manifestId))
-            {
-                var checkResult = await manifestPool.IsManifestAcquiredAsync(manifestId, ct);
-                isInstalled = checkResult.Success && checkResult.Data;
-            }
+            var isInstalled = !string.IsNullOrEmpty(match.ManifestId) && acquiredIds.Contains(match.ManifestId);
 
             if (isInstalled)
             {

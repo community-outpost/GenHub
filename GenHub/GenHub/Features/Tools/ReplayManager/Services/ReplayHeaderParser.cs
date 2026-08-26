@@ -74,7 +74,7 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
                 bytesRead += read;
             }
 
-            if (bytesRead < 32)
+            if (bytesRead < 28)
             {
                 return OperationResult<ReplayMetadata>.CreateFailure("Replay file is too small to contain a valid header.");
             }
@@ -88,15 +88,7 @@ public sealed class ReplayHeaderParser(ILogger<ReplayHeaderParser> logger) : IRe
                 }
             }
 
-            var offset = 6;
-
-            // 2. Read fixed header components (22 bytes)
-            if (offset + 22 > bytesRead)
-            {
-                return OperationResult<ReplayMetadata>.CreateFailure("Truncated replay header before version strings.");
-            }
-
-            offset += 22;
+            var offset = 6 + 22;
 
             // 3. Read VersionString (null-terminated UTF-16LE)
             var versionString = ReadNullTerminatedUtf16String(buffer, ref offset, bytesRead);
