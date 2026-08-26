@@ -809,7 +809,7 @@ public class ProfileSharingService(
         using var buffered = new MemoryStream();
 
         byte[] buffer = new byte[8192];
-        int bytesRead;
+        int bytesRead = 0;
         long totalBytes = 0;
 
         while ((bytesRead = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
@@ -1039,12 +1039,12 @@ public class ProfileSharingService(
         if (overrides.TryGetValue(nameof(profile.EnableVideoShadows), out var shadowsObj) && shadowsObj is JsonElement shadowsElem) profile.EnableVideoShadows = shadowsElem.GetBoolean();
 
         // Texture quality round-trips as a string enum name written during export.
-        if (overrides.TryGetValue(nameof(profile.VideoTextureQuality), out var textureObj) && textureObj is JsonElement textureElem && textureElem.ValueKind == JsonValueKind.String)
+        if (overrides.TryGetValue(nameof(profile.VideoTextureQuality), out var textureObj)
+            && textureObj is JsonElement textureElem
+            && textureElem.ValueKind == JsonValueKind.String
+            && Enum.TryParse(textureElem.GetString(), ignoreCase: true, out TextureQuality textureQuality))
         {
-            if (Enum.TryParse(textureElem.GetString(), ignoreCase: true, out TextureQuality textureQuality))
-            {
-                profile.VideoTextureQuality = textureQuality;
-            }
+            profile.VideoTextureQuality = textureQuality;
         }
     }
 
