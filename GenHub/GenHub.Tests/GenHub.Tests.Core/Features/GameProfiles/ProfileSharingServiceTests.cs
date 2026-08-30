@@ -927,48 +927,47 @@ public class ProfileSharingServiceTests
     /// </summary>
     /// <returns>A task representing the test.</returns>
     [Fact]
-    public async Task InspectSharedProfileUriAsync_Should_RecognizeModernUfsCloudPackages()
+    public async Task InspectSharedProfileAsync_Should_RecognizeModernUfsCloudPackages()
     {
         // Arrange
-        var payload = new SharedProfilePayload
+        var package = new SharedGameProfilePackage
         {
-            Version = ProfileSharingConstants.CurrentSchemaVersion,
-            CreatedUtc = DateTime.UtcNow,
+            SchemaVersion = 1,
             Profile = new SharedProfileMetadata
             {
                 Name = "UFS Profile",
-                Version = "1.0",
                 GameType = GameType.ZeroHour,
                 GameVersion = "1.04",
-                WorkspaceStrategy = WorkspaceStrategy.SymlinkOnly,
-                RequiredManifests =
-                [
-                    new SharedManifestDependency
-                    {
-                        ManifestId = "1.0.local.map.custommap",
-                        DisplayName = "Custom Map",
-                        Version = "1.0",
-                        ContentType = ContentType.Map,
-                        PackageUrl = "https://50ea2z8yuk.ufs.sh/f/testkey12345",
-                        DownloadSize = 500000,
-                    },
-                ],
             },
+            RequiredManifests =
+            [
+                new SharedManifestDependency
+                {
+                    ManifestId = "1.0.local.map.custommap",
+                    DisplayName = "Custom Map",
+                    Version = "1.0",
+                    ContentType = ContentType.Map,
+                    PackageUrl = "https://50ea2z8yuk.ufs.sh/f/testkey12345",
+                    DownloadSize = 500000,
+                },
+            ],
         };
 
-        var json = JsonSerializer.Serialize(payload, TestJsonOptions);
-        var compressed = CompressionHelper.CompressString(json);
-        var base64 = Base64UrlHelper.Encode(compressed);
-        var shareUri = $"{ProfileSharingConstants.UriProtocol}://{ProfileSharingConstants.UriActionProfile}/{ProfileSharingConstants.UriActionImport}?{ProfileSharingConstants.UriParamData}={base64}";
+        var json = JsonSerializer.Serialize(package, TestJsonOptions);
+        var encoded = ProfileSharingCompressionHelper.CompressAndEncode(json);
+        var uri = $"{CommandLineConstants.ProfileImportUriPrefix}?{CommandLineConstants.DataQueryParam}{encoded}";
+
+        _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync("1.0.local.map.custommap", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
 
         // Act
-        var result = await _service.InspectSharedProfileUriAsync(shareUri);
+        var result = await _service.InspectSharedProfileAsync(uri);
 
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
-        Assert.Single(result.Data.Manifests);
-        Assert.Equal("https://50ea2z8yuk.ufs.sh/f/testkey12345", result.Data.Manifests[0].DownloadUrl);
+        Assert.Single(result.Data.RequiredManifests);
+        Assert.Equal("https://50ea2z8yuk.ufs.sh/f/testkey12345", result.Data.RequiredManifests[0].PackageUrl);
     }
 
     private static GameProfile CreateTestProfile(string id, string name)
