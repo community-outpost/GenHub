@@ -984,20 +984,6 @@ public class SteamLauncher : ISteamLauncher
             _temporaryFiles.Remove(stagingPath);
         }
 
-        private bool FilesAreEqual(string firstPath, string secondPath)
-        {
-            var firstInfo = new FileInfo(firstPath);
-            var secondInfo = new FileInfo(secondPath);
-            if (firstInfo.Length != secondInfo.Length)
-            {
-                return false;
-            }
-
-            using var firstStream = File.OpenRead(firstPath);
-            using var secondStream = File.OpenRead(secondPath);
-            return SHA256.HashData(firstStream).SequenceEqual(SHA256.HashData(secondStream));
-        }
-
         private string CreateTemporaryPath(string path)
         {
             return $"{path}.genhub-rollback-{Guid.NewGuid():N}";

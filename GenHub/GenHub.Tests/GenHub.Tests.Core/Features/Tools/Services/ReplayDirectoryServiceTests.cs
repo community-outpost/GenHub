@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.GameInstallations;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
@@ -813,8 +815,11 @@ public sealed class ReplayDirectoryServiceTests
 
         var result = await service.CreateProfileForReplayAsync(replay);
 
+        var expectedExePath = Path.Combine("/games/ZeroHour", GameClientConstants.ZeroHourExecutable);
         Assert.True(result.Success);
         Assert.NotNull(capturedRequest);
+        Assert.NotNull(capturedRequest.GameClient);
+        Assert.Equal(expectedExePath, capturedRequest.GameClient.ExecutablePath);
         Assert.Equal("created-zh-profile", replay.MatchingProfileId);
         Assert.Equal(ReplayCompatibilityStatus.Compatible, replay.CompatibilityStatus);
     }

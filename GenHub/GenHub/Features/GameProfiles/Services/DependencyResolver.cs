@@ -267,10 +267,10 @@ public class DependencyResolver(
             return true;
         }
 
-        if (declaredType.Equals(GameClientType, StringComparison.OrdinalIgnoreCase) &&
-            acquiredType.Equals(GameClientType, StringComparison.OrdinalIgnoreCase))
+        if (declaredType.Equals(GameClientType, StringComparison.OrdinalIgnoreCase) ||
+            declaredType.Equals(ContentType.GameInstallation.ToManifestIdString(), StringComparison.OrdinalIgnoreCase))
         {
-            return true;
+            return AreGameVariantsCompatible(declaredName, acquiredName);
         }
 
         if (IsPatchOrGameData(declaredType) && IsPatchOrGameDataName(declaredName) && IsPatchOrGameDataName(acquiredName))
@@ -279,6 +279,21 @@ public class DependencyResolver(
         }
 
         return false;
+    }
+
+    private static bool AreGameVariantsCompatible(string declaredName, string acquiredName)
+    {
+        var isDeclaredZeroHour = declaredName.Contains("zerohour", StringComparison.OrdinalIgnoreCase) || declaredName.Contains("zh", StringComparison.OrdinalIgnoreCase);
+        var isAcquiredZeroHour = acquiredName.Contains("zerohour", StringComparison.OrdinalIgnoreCase) || acquiredName.Contains("zh", StringComparison.OrdinalIgnoreCase);
+        var isDeclaredGenerals = declaredName.Contains("generals", StringComparison.OrdinalIgnoreCase) && !isDeclaredZeroHour;
+        var isAcquiredGenerals = acquiredName.Contains("generals", StringComparison.OrdinalIgnoreCase) && !isAcquiredZeroHour;
+
+        if ((isDeclaredZeroHour && isAcquiredGenerals) || (isDeclaredGenerals && isAcquiredZeroHour))
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private static bool IsPatchOrGameDataName(string name) =>
