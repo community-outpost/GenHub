@@ -198,9 +198,7 @@ public class GameInstallationValidator(
             gameType,
             normalizedLanguage);
 
-        int totalSteps = 4;
-        int currentStep = 0;
-        progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Resolving manifest"));
+        progress?.Report(new ValidationProgress(1, 4, "Resolving manifest"));
 
         ContentManifest? manifest = null;
         var csvIssues = new List<ValidationIssue>();
@@ -247,16 +245,16 @@ public class GameInstallationValidator(
                 });
             }
 
-            progress?.Report(new ValidationProgress(totalSteps, totalSteps, "Validation complete"));
+            progress?.Report(new ValidationProgress(4, 4, "Validation complete"));
             stopwatch.Stop();
             return new ValidationResult(installationPath, issues, stopwatch.Elapsed, 0);
         }
 
-        progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Core manifest validation"));
+        progress?.Report(new ValidationProgress(2, 4, "Core manifest validation"));
         var manifestValidationResult = await contentValidator.ValidateManifestAsync(manifest, cancellationToken);
         issues.AddRange(manifestValidationResult.Issues);
 
-        progress?.Report(new ValidationProgress(++currentStep, totalSteps, "Validating content files"));
+        progress?.Report(new ValidationProgress(3, 4, "Validating content files"));
         int totalFiles = 0;
         try
         {
@@ -292,7 +290,7 @@ public class GameInstallationValidator(
             issues.AddRange(dirIssues);
         }
 
-        progress?.Report(new ValidationProgress(totalSteps, totalSteps, "Validation complete"));
+        progress?.Report(new ValidationProgress(4, 4, "Validation complete"));
 
         stopwatch.Stop();
         return new ValidationResult(installationPath, issues, stopwatch.Elapsed, totalFiles);
@@ -305,6 +303,11 @@ public class GameInstallationValidator(
         List<ValidationIssue> issues,
         CancellationToken cancellationToken)
     {
+        if (_resolvedCsvProvider == null)
+        {
+            return null;
+        }
+
         try
         {
             var query = new ContentSearchQuery
@@ -314,7 +317,7 @@ public class GameInstallationValidator(
                 ContentType = ContentType.GameInstallation,
             };
 
-            var searchResult = await _resolvedCsvProvider!.SearchAsync(query, cancellationToken);
+            var searchResult = await _resolvedCsvProvider.SearchAsync(query, cancellationToken);
             if (!searchResult.Success || searchResult.Data == null || !searchResult.Data.Any())
             {
                 logger.LogWarning(

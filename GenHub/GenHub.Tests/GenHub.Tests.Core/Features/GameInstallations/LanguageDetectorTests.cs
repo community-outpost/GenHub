@@ -25,7 +25,7 @@ public class LanguageDetectorTests
     [InlineData("")]
     [InlineData("   ")]
     [InlineData("non_existent_directory_xyz_123")]
-    public async Task DetectAsync_WithInvalidPath_ReturnsEnglishFallback(string? path)
+    public async Task DetectAsync_WithInvalidPath_ReturnsEnglishFallbackAsync(string? path)
     {
         var result = await _detector.DetectAsync(path!);
         Assert.Equal(CsvConstants.LanguageEn, result);
@@ -36,7 +36,7 @@ public class LanguageDetectorTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DetectAsync_WithCancelledToken_ThrowsOperationCanceledException()
+    public async Task DetectAsync_WithCancelledToken_ThrowsOperationCanceledExceptionAsync()
     {
         using var cts = new CancellationTokenSource();
         cts.Cancel();
@@ -63,7 +63,7 @@ public class LanguageDetectorTests
     [InlineData(LanguageDirectoryNames.DataPortuguese, CsvConstants.LanguagePtBr)]
     [InlineData(LanguageDirectoryNames.DataChinese, CsvConstants.LanguageZhCn)]
     [InlineData(LanguageDirectoryNames.DataChineseTraditional, CsvConstants.LanguageZhTw)]
-    public async Task DetectAsync_WithLanguageDirectory_DetectsCorrectLanguage(string relativeDir, string expectedLanguage)
+    public async Task DetectAsync_WithLanguageDirectory_DetectsCorrectLanguageAsync(string relativeDir, string expectedLanguage)
     {
         var tempDir = Directory.CreateTempSubdirectory();
         try
@@ -106,7 +106,7 @@ public class LanguageDetectorTests
     [InlineData(LanguageFilePatterns.AudioChineseBig, CsvConstants.LanguageZhCn)]
     [InlineData(LanguageFilePatterns.ChineseTraditionalBig, CsvConstants.LanguageZhTw)]
     [InlineData(LanguageFilePatterns.AudioChineseTraditionalBig, CsvConstants.LanguageZhTw)]
-    public async Task DetectAsync_WithLanguageBigFile_DetectsCorrectLanguage(string fileName, string expectedLanguage)
+    public async Task DetectAsync_WithLanguageBigFile_DetectsCorrectLanguageAsync(string fileName, string expectedLanguage)
     {
         var tempDir = Directory.CreateTempSubdirectory();
         try
@@ -139,7 +139,7 @@ public class LanguageDetectorTests
     [InlineData(LanguageFilePatterns.PortugueseZHBig, CsvConstants.LanguagePtBr)]
     [InlineData(LanguageFilePatterns.ChineseZHBig, CsvConstants.LanguageZhCn)]
     [InlineData(LanguageFilePatterns.EnglishZHBig, CsvConstants.LanguageEn)]
-    public async Task DetectAsync_WithZeroHourPatterns_DetectsCorrectLanguage(string fileName, string expectedLanguage)
+    public async Task DetectAsync_WithZeroHourPatterns_DetectsCorrectLanguageAsync(string fileName, string expectedLanguage)
     {
         var tempDir = Directory.CreateTempSubdirectory();
         try
@@ -161,7 +161,7 @@ public class LanguageDetectorTests
     /// </summary>
     /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task DetectAsync_WithUnknownFiles_FallsBackToEnglish()
+    public async Task DetectAsync_WithUnknownFiles_FallsBackToEnglishAsync()
     {
         var tempDir = Directory.CreateTempSubdirectory();
         try
