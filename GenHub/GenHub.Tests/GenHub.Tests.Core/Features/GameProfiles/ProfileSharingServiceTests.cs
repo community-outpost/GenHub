@@ -1419,7 +1419,7 @@ public class ProfileSharingServiceTests
         _profileRepositoryMock.Setup(r => r.LoadProfileAsync("artwork-profile-1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
 
-        _manifestPoolMock.Setup(m => m.GetManifestAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        _manifestPoolMock.Setup(m => m.GetManifestAsync(It.IsAny<ManifestId>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(CreateTestManifest("1.0.generalsonline.gameclient.generalsonline", "ZH", ContentType.GameClient)));
 
         // Act
