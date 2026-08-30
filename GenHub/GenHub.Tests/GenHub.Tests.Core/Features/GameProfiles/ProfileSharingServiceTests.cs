@@ -1078,7 +1078,6 @@ public class ProfileSharingServiceTests
             ],
         };
 
-        var json = JsonSerializer.Serialize(package, TestJsonOptions);
         var casMock = new Mock<ICasService>();
         casMock.Setup(c => c.GetContentPathAsync(hash, ContentType.Mod, It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<string>.CreateSuccess(tempCasFile));
@@ -1089,6 +1088,17 @@ public class ProfileSharingServiceTests
 
         _manifestPoolMock.Setup(m => m.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        _installationServiceMock.Setup(i => i.GetInstallationAsync("inst-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<GameInstallation>.CreateSuccess(new GameInstallation
+            {
+                Id = "inst-1",
+                HasZeroHour = true,
+                AvailableGameClients =
+                [
+                    new GameClient { Id = "client-zh", Name = "Zero Hour", GameType = GameType.ZeroHour },
+                ],
+            }));
 
         _profileRepositoryMock.Setup(r => r.SaveProfileAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "prof-new", Name = "Shared CAS Profile" }));
