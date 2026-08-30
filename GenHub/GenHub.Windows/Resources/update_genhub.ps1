@@ -1,13 +1,14 @@
 # GenHub Windows Update PowerShell Script
-$ErrorActionPreference = 'SilentlyContinue'
+param(
+    [string]$ProcessId = "{{PROCESS_ID}}",
+    [string]$SourceDir = "{{SOURCE_DIR}}",
+    [string]$TargetDir = "{{TARGET_DIR}}",
+    [string]$CurrentExe = "{{CURRENT_EXE}}",
+    [string]$LogFile = "{{LOG_FILE}}",
+    [string]$BackupDir = "{{BACKUP_DIR}}"
+)
 
-# Parameters are placeholders to be replaced by the application
-$LogFile = "{{LOG_FILE}}"
-$ProcessId = {{PROCESS_ID}}
-$SourceDir = "{{SOURCE_DIR}}"
-$TargetDir = "{{TARGET_DIR}}"
-$CurrentExe = "{{CURRENT_EXE}}"
-$BackupDir = "{{BACKUP_DIR}}"
+$ErrorActionPreference = 'SilentlyContinue'
 
 function Write-Log {
     param([string]$Message)
@@ -40,14 +41,19 @@ try {
     
     Write-Log "Backing up existing files..."
     if (Test-Path $TargetDir) {
-        Copy-Item -Path "$TargetDir\*" -Destination $BackupDir -Recurse -Force
+        Copy-Item -Path "$TargetDir\*" -Destination $BackupDir -Recurse -Force -ErrorAction SilentlyContinue
     }
     
     Write-Log "Copying new files from $SourceDir to $TargetDir"
-    Copy-Item -Path "$SourceDir\*" -Destination $TargetDir -Recurse -Force
+    Copy-Item -Path "$SourceDir\*" -Destination $TargetDir -Recurse -Force -ErrorAction Stop
     
     Write-Log "Update completed successfully"
     
+    # Only delete source directory on verified success
+    if (Test-Path $SourceDir) {
+        Remove-Item -Path $SourceDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
     Write-Log "Starting updated application: $CurrentExe"
     if (Test-Path $CurrentExe) {
         # Set working directory to the application's directory before starting
@@ -62,21 +68,17 @@ catch {
     Write-Log "Update failed: $($_.Exception.Message)"
     Write-Log "Attempting to restore backup..."
     if (Test-Path $BackupDir) {
-        Copy-Item -Path "$BackupDir\*" -Destination $TargetDir -Recurse -Force
+        Remove-Item -Path "$TargetDir\*" -Recurse -Force -ErrorAction SilentlyContinue
+        Copy-Item -Path "$BackupDir\*" -Destination $TargetDir -Recurse -Force -ErrorAction SilentlyContinue
         Write-Log "Backup restored successfully"
     }
 }
 finally {
-    Write-Log "Cleaning up..."
-    if (Test-Path $SourceDir) {
-        Remove-Item -Path $SourceDir -Recurse -Force
-    }
-    
     # Self-destruct the updater script's parent directory
     $updaterDir = Split-Path -Path $MyInvocation.MyCommand.Path -Parent
     Start-Sleep -Seconds 2
     if (Test-Path $updaterDir) {
-        Remove-Item -Path $updaterDir -Recurse -Force
+        Remove-Item -Path $updaterDir -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
 

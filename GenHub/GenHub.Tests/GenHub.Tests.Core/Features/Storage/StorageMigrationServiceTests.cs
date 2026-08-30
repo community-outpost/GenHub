@@ -4,14 +4,13 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using GenHub.Common.Services;
-using GenHub.Core.Configuration;
 using GenHub.Core.Constants;
+using GenHub.Core.Interfaces.Cas;
 using GenHub.Core.Interfaces.Common;
-using GenHub.Core.Interfaces.GameProcesses;
+using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Common;
-using GenHub.Core.Models.GameProcess;
 using GenHub.Core.Models.Launching;
 using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -31,6 +30,7 @@ public class StorageMigrationServiceTests : IDisposable
     private readonly string _workspaceDir;
     private readonly Mock<IConfigurationProviderService> _mockConfigProvider;
     private readonly Mock<IUserSettingsService> _mockUserSettingsService;
+    private readonly Mock<ICasPoolManager> _mockCasPoolManager;
     private readonly Mock<IStorageWritabilityProbe> _mockWritabilityProbe;
     private readonly Mock<ILaunchRegistry> _mockLaunchRegistry;
     private readonly Mock<IGameProcessManager> _mockGameProcessManager;
@@ -55,9 +55,18 @@ public class StorageMigrationServiceTests : IDisposable
         _mockConfigProvider.Setup(x => x.GetRootAppDataPath()).Returns(_appDataDir);
         _mockConfigProvider.Setup(x => x.GetCasConfiguration()).Returns(new CasConfiguration { CasRootPath = _casDir });
 
-        _userSettings = new UserSettings { CasRootPath = _casDir, WorkspacePath = _workspaceDir };
+        _userSettings = new UserSettings
+        {
+            CasConfiguration = new CasConfiguration { CasRootPath = _casDir },
+            WorkspacePath = _workspaceDir,
+        };
         _mockUserSettingsService = new Mock<IUserSettingsService>();
         _mockUserSettingsService.Setup(x => x.Get()).Returns(_userSettings);
+        _mockUserSettingsService
+            .Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        _mockCasPoolManager = new Mock<ICasPoolManager>();
 
         _mockWritabilityProbe = new Mock<IStorageWritabilityProbe>();
         _mockWritabilityProbe.Setup(x => x.CanCreateStorageAt(It.IsAny<string>())).Returns(true);
@@ -94,16 +103,20 @@ public class StorageMigrationServiceTests : IDisposable
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public async Task ValidatePreflightAsync_ThrowsArgumentException_WhenTargetPathIsNullOrWhitespace(string? invalidPath)
+    public async Task ValidatePreflightAsync_ReturnsInvalid_WhenTargetPathIsNullOrWhitespaceAsync(string? invalidPath)
     {
         var service = CreateService();
 
-        await Assert.ThrowsAsync<ArgumentException>(() =>
-            service.ValidatePreflightAsync(invalidPath!));
+        var result = await service.ValidatePreflightAsync(invalidPath!);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.False(result.Data.IsValid);
+        Assert.NotNull(result.Data.ErrorMessage);
     }
 
     [Fact]
-    public async Task ValidatePreflightAsync_Fails_WhenTargetPathIsInsideApplicationDirectory()
+    public async Task ValidatePreflightAsync_Fails_WhenTargetPathIsInsideApplicationDirectoryAsync()
     {
         var service = CreateService();
         var currentAppDir = AppContext.BaseDirectory;
@@ -119,7 +132,7 @@ public class StorageMigrationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ValidatePreflightAsync_Fails_WhenTargetDirectoryIsNotWritable()
+    public async Task ValidatePreflightAsync_Fails_WhenTargetDirectoryIsNotWritableAsync()
     {
         var service = CreateService();
         var targetPath = Path.Combine(_tempRoot, "NewInstallDir");
@@ -136,7 +149,7 @@ public class StorageMigrationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ValidatePreflightAsync_Fails_WhenActiveLaunchesExist()
+    public async Task ValidatePreflightAsync_Fails_WhenActiveLaunchesExistAsync()
     {
         var service = CreateService();
         var targetPath = Path.Combine(_tempRoot, "NewInstallDir");
@@ -155,7 +168,7 @@ public class StorageMigrationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ValidatePreflightAsync_Fails_WhenGameProcessesAreActive()
+    public async Task ValidatePreflightAsync_Fails_WhenGameProcessesAreActiveAsync()
     {
         var service = CreateService();
         var targetPath = Path.Combine(_tempRoot, "NewInstallDir");
@@ -173,7 +186,7 @@ public class StorageMigrationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ValidatePreflightAsync_Succeeds_WhenTargetIsValid()
+    public async Task ValidatePreflightAsync_Succeeds_WhenTargetIsValidAsync()
     {
         var service = CreateService();
         var targetPath = Path.Combine(_tempRoot, "NewInstallDir");
@@ -189,7 +202,7 @@ public class StorageMigrationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task MigrateAsync_ThrowsArgumentNullException_WhenRequestIsNull()
+    public async Task MigrateAsync_ThrowsArgumentNullException_WhenRequestIsNullAsync()
     {
         var service = CreateService();
 
@@ -198,7 +211,7 @@ public class StorageMigrationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task MigrateAsync_Fails_WhenPreflightValidationFails()
+    public async Task MigrateAsync_Fails_WhenPreflightValidationFailsAsync()
     {
         var service = CreateService();
         var targetPath = Path.Combine(_tempRoot, "NewInstallDir");
@@ -220,7 +233,7 @@ public class StorageMigrationServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task MigrateAsync_RelocatesCasAndWorkspaces_WhenRequested()
+    public async Task MigrateAsync_RelocatesCasAndWorkspaces_WhenRequestedAsync()
     {
         var service = CreateService();
         var targetPath = Path.Combine(_tempRoot, "NewInstallDir");
@@ -238,8 +251,8 @@ public class StorageMigrationServiceTests : IDisposable
 
         Assert.True(result.Success);
 
-        var expectedNewCas = Path.Combine(targetPath, DirectoryNames.CasPool);
-        var expectedNewWs = Path.Combine(targetPath, DirectoryNames.Workspaces);
+        var expectedNewCas = Path.Combine(targetPath, DirectoryNames.Data, DirectoryNames.CasPool);
+        var expectedNewWs = Path.Combine(targetPath, DirectoryNames.Data, DirectoryNames.Workspaces);
 
         Assert.True(Directory.Exists(expectedNewCas));
         Assert.True(File.Exists(Path.Combine(expectedNewCas, "sample_cas.bin")));
@@ -247,8 +260,10 @@ public class StorageMigrationServiceTests : IDisposable
         Assert.True(Directory.Exists(expectedNewWs));
         Assert.True(File.Exists(Path.Combine(expectedNewWs, "sample_ws.bin")));
 
-        _mockUserSettingsService.Verify(x => x.Update(It.IsAny<Action<UserSettings>>()), Times.Once);
-        _mockUserSettingsService.Verify(x => x.SaveAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _mockUserSettingsService.Verify(
+            x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        _mockCasPoolManager.Verify(x => x.ReinitializeInstallationPool(), Times.Once);
     }
 
     private StorageMigrationService CreateService()
@@ -256,9 +271,10 @@ public class StorageMigrationServiceTests : IDisposable
         return new StorageMigrationService(
             _mockConfigProvider.Object,
             _mockUserSettingsService.Object,
-            _mockWritabilityProbe.Object,
+            _mockCasPoolManager.Object,
             _mockLaunchRegistry.Object,
             _mockGameProcessManager.Object,
+            _mockWritabilityProbe.Object,
             NullLogger<StorageMigrationService>.Instance);
     }
 }

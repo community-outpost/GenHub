@@ -11,10 +11,12 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
+using GenHub.Core.Interfaces.Cas;
 using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Interfaces.GameProfiles;
 using GenHub.Core.Interfaces.Launching;
 using GenHub.Core.Interfaces.Storage;
+using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.Logging;
@@ -23,7 +25,7 @@ namespace GenHub.Common.Services;
 
 /// <summary>
 /// Service that manages pre-flight validation and post-install relocation of the GenHub installation directory,
-/// CAS pools, workspaces, and application data.
+/// CAS pools, and workspaces.
 /// </summary>
 public class StorageMigrationService(
     IConfigurationProviderService configurationProvider,
@@ -37,122 +39,29 @@ public class StorageMigrationService(
     /// <inheritdoc />
     public async Task<OperationResult<StorageMigrationPreflightResult>> ValidatePreflightAsync(
         string targetPath,
-        bool relocateCasAndWorkspace,
+        bool relocateCasAndWorkspace = false,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(targetPath))
+            var sanityCheck = ValidatePathSanity(targetPath);
+            if (!sanityCheck.IsValid)
             {
-                return OperationResult<StorageMigrationPreflightResult>.CreateSuccess(new StorageMigrationPreflightResult
-                {
-                    IsValid = false,
-                    ErrorMessage = "Target installation directory path cannot be empty.",
-                });
+                return OperationResult<StorageMigrationPreflightResult>.CreateSuccess(sanityCheck);
             }
 
             var normalizedTarget = Path.TrimEndingDirectorySeparator(Path.GetFullPath(targetPath));
-            var appBaseDir = Path.TrimEndingDirectorySeparator(Path.GetFullPath(AppContext.BaseDirectory));
             var sourceRoot = GetSourceRootDirectory();
 
-            // Check if target is same as current installation root
-            if (normalizedTarget.Equals(sourceRoot, PathHelper.PathComparison) ||
-                normalizedTarget.Equals(appBaseDir, PathHelper.PathComparison))
-            {
-                return OperationResult<StorageMigrationPreflightResult>.CreateSuccess(new StorageMigrationPreflightResult
-                {
-                    IsValid = false,
-                    ErrorMessage = "The target directory is the same as the current installation directory.",
-                });
-            }
-
-            // Check if target is inside the current application directory
-            var isTargetInsideApp = IsInsideDirectory(normalizedTarget, sourceRoot) || IsInsideDirectory(normalizedTarget, appBaseDir);
-            if (isTargetInsideApp)
-            {
-                return OperationResult<StorageMigrationPreflightResult>.CreateSuccess(new StorageMigrationPreflightResult
-                {
-                    IsValid = false,
-                    IsTargetInsideApplicationDirectory = true,
-                    ErrorMessage = "The target directory cannot be located inside the current installation directory.",
-                });
-            }
-
-            // Check if current installation directory is inside target (e.g. target is root or parent folder)
-            if (IsInsideDirectory(sourceRoot, normalizedTarget) || IsInsideDirectory(appBaseDir, normalizedTarget))
-            {
-                return OperationResult<StorageMigrationPreflightResult>.CreateSuccess(new StorageMigrationPreflightResult
-                {
-                    IsValid = false,
-                    ErrorMessage = "The target directory cannot be a parent of the current installation directory.",
-                });
-            }
-
-            // Check write permission at target
             var hasWritePermission = writabilityProbe.CanCreateStorageAt(normalizedTarget);
+            var (hasActiveProcesses, processNames) = await CheckActiveProcessesAsync(cancellationToken);
 
-            // Check for active game launches and running game processes
-            var activeLaunches = (await launchRegistry.GetAllActiveLaunchesAsync()).ToList();
-            var activeProcessesResult = await gameProcessManager.GetActiveProcessesAsync(cancellationToken);
-            var activeProcesses = activeProcessesResult.Success && activeProcessesResult.Data != null
-                ? activeProcessesResult.Data
-                : [];
-
-            var hasActiveProcesses = activeLaunches.Count > 0 || activeProcesses.Count > 0;
-            var processNames = new List<string>();
-
-            foreach (var launch in activeLaunches)
-            {
-                processNames.Add($"Launch: {launch.ProfileId}");
-            }
-
-            foreach (var proc in activeProcesses)
-            {
-                processNames.Add($"Process: {proc.ProcessName} (PID: {proc.ProcessId})");
-            }
-
-            // Calculate required disk space
-            long requiredBytes = CalculateDirectorySize(sourceRoot);
-
-            if (relocateCasAndWorkspace)
-            {
-                var casRoot = configurationProvider.GetCasConfiguration().CasRootPath;
-                if (!string.IsNullOrWhiteSpace(casRoot) && Directory.Exists(casRoot) && !IsInsideDirectory(casRoot, sourceRoot))
-                {
-                    requiredBytes += CalculateDirectorySize(casRoot);
-                }
-
-                var workspaceRoot = userSettingsService.Get().WorkspacePath;
-                if (!string.IsNullOrWhiteSpace(workspaceRoot) && Directory.Exists(workspaceRoot) && !IsInsideDirectory(workspaceRoot, sourceRoot))
-                {
-                    requiredBytes += CalculateDirectorySize(workspaceRoot);
-                }
-            }
-
-            requiredBytes += StorageMigrationConstants.DiskSpaceSafetyMarginBytes;
-
-            // Get available free disk space on the target volume
-            long availableBytes = GetAvailableFreeSpace(normalizedTarget);
+            var requiredBytes = CalculateRequiredSpace(sourceRoot, relocateCasAndWorkspace);
+            var availableBytes = GetAvailableFreeSpace(normalizedTarget);
             var hasSufficientSpace = availableBytes >= requiredBytes;
 
-            // Compose error message if any check failed
-            string? errorMessage = null;
-            if (!hasWritePermission)
-            {
-                errorMessage = "The target directory is not writable or cannot be created.";
-            }
-            else if (hasActiveProcesses)
-            {
-                errorMessage = "Active game instances or launches are currently running. Please close all running games before migrating.";
-            }
-            else if (!hasSufficientSpace)
-            {
-                var reqMb = requiredBytes / ConversionConstants.BytesPerMegabyte;
-                var availMb = availableBytes / ConversionConstants.BytesPerMegabyte;
-                errorMessage = $"Insufficient free disk space on target volume. Required: {reqMb} MB, Available: {availMb} MB.";
-            }
-
-            var isValid = hasWritePermission && !hasActiveProcesses && hasSufficientSpace && !isTargetInsideApp;
+            var errorMessage = DeterminePreflightErrorMessage(hasWritePermission, hasActiveProcesses, hasSufficientSpace, requiredBytes, availableBytes);
+            var isValid = hasWritePermission && !hasActiveProcesses && hasSufficientSpace;
 
             var result = new StorageMigrationPreflightResult
             {
@@ -163,7 +72,7 @@ public class StorageMigrationService(
                 HasWritePermission = hasWritePermission,
                 HasActiveProcesses = hasActiveProcesses,
                 ActiveProcessNames = processNames,
-                IsTargetInsideApplicationDirectory = isTargetInsideApp,
+                IsTargetInsideApplicationDirectory = false,
                 ErrorMessage = errorMessage,
             };
 
@@ -184,126 +93,101 @@ public class StorageMigrationService(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        try
+        return await Task.Run(async () =>
         {
-            logger.LogInformation(
-                "Starting installation migration to {TargetPath} (RelocateStorage: {RelocateStorage})",
-                request.TargetPath,
-                request.RelocateCasAndWorkspace);
-
-            // Phase 1: Pre-flight validation
-            progress?.Report(new StorageMigrationProgress
+            try
             {
-                Stage = StorageMigrationConstants.StagePreflight,
-                Percentage = 10,
-                Message = "Validating target directory and pre-flight constraints...",
-            });
+                logger.LogInformation(
+                    "Starting installation migration to {TargetPath} (RelocateStorage: {RelocateStorage})",
+                    request.TargetPath,
+                    request.RelocateCasAndWorkspace);
 
-            var preflight = await ValidatePreflightAsync(request.TargetPath, request.RelocateCasAndWorkspace, cancellationToken);
-            if (!preflight.Success || preflight.Data?.IsValid != true)
-            {
-                var error = preflight.Data?.ErrorMessage ?? preflight.FirstError ?? "Pre-flight validation failed.";
-                logger.LogError("Migration pre-flight validation failed: {Error}", error);
-                return OperationResult<bool>.CreateFailure(error);
-            }
-
-            var targetRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(request.TargetPath));
-            var sourceRoot = GetSourceRootDirectory();
-
-            // Phase 2: Relocate CAS and Workspaces if requested
-            if (request.RelocateCasAndWorkspace)
-            {
+                // Phase 1: Pre-flight validation
                 progress?.Report(new StorageMigrationProgress
                 {
-                    Stage = StorageMigrationConstants.StageRelocatingStorage,
-                    Percentage = 25,
-                    Message = "Relocating CAS storage pool and game workspaces...",
+                    Stage = StorageMigrationConstants.StagePreflight,
+                    Percentage = 10,
+                    Message = "Validating target directory and pre-flight constraints...",
                 });
 
-                var currentCasRoot = configurationProvider.GetCasConfiguration().CasRootPath;
-                var currentWorkspaceRoot = userSettingsService.Get().WorkspacePath;
-
-                var targetDataDir = Path.Combine(targetRoot, DirectoryNames.Data);
-                var targetCasRoot = Path.Combine(targetDataDir, DirectoryNames.CasPool);
-                var targetWorkspaceRoot = Path.Combine(targetDataDir, DirectoryNames.Workspaces);
-
-                // Move CAS pool if existing and not already inside source root
-                if (!string.IsNullOrWhiteSpace(currentCasRoot) && Directory.Exists(currentCasRoot) && !IsInsideDirectory(currentCasRoot, sourceRoot))
+                var preflight = await ValidatePreflightAsync(request.TargetPath, request.RelocateCasAndWorkspace, cancellationToken);
+                if (!preflight.Success || preflight.Data?.IsValid != true)
                 {
-                    logger.LogInformation("Moving CAS storage pool from {Source} to {Target}", currentCasRoot, targetCasRoot);
-                    MigrateDirectorySafely(currentCasRoot, targetCasRoot);
+                    var error = preflight.Data?.ErrorMessage ?? preflight.FirstError ?? "Pre-flight validation failed.";
+                    logger.LogError("Migration pre-flight validation failed: {Error}", error);
+                    return OperationResult<bool>.CreateFailure(error);
                 }
 
+                var targetRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(request.TargetPath));
+                var sourceRoot = GetSourceRootDirectory();
+
+                // Phase 2: Relocate CAS and Workspaces if requested
+                if (request.RelocateCasAndWorkspace)
+                {
+                    progress?.Report(new StorageMigrationProgress
+                    {
+                        Stage = StorageMigrationConstants.StageRelocatingStorage,
+                        Percentage = 30,
+                        Message = "Relocating CAS storage pool and game workspaces...",
+                    });
+
+                    var relocated = await RelocateStorageAsync(targetRoot, sourceRoot);
+                    if (!relocated)
+                    {
+                        return OperationResult<bool>.CreateFailure("Failed to update and persist storage configuration during relocation.");
+                    }
+                }
+
+                // Phase 3: Prepare binary migration helper script
                 progress?.Report(new StorageMigrationProgress
                 {
-                    Stage = StorageMigrationConstants.StageRelocatingStorage,
-                    Percentage = 45,
-                    Message = "Relocating game workspaces...",
+                    Stage = StorageMigrationConstants.StagePreparingBinaries,
+                    Percentage = 65,
+                    Message = "Staging binary migration helper script...",
                 });
 
-                // Move workspaces if existing and not already inside source root
-                if (!string.IsNullOrWhiteSpace(currentWorkspaceRoot) && Directory.Exists(currentWorkspaceRoot) && !IsInsideDirectory(currentWorkspaceRoot, sourceRoot))
+                var tempDir = Path.Combine(Path.GetTempPath(), $"genhub_migrate_{Guid.NewGuid():N}");
+                Directory.CreateDirectory(tempDir);
+                var logFile = Path.Combine(tempDir, "migration.log");
+                var backupDir = Path.Combine(tempDir, "backup");
+                var relativeExe = GetRelativeExecutablePath(sourceRoot);
+
+                var scriptPath = PrepareMigrationScript(tempDir);
+
+                // Phase 4: Launch helper process
+                progress?.Report(new StorageMigrationProgress
                 {
-                    logger.LogInformation("Moving workspaces from {Source} to {Target}", currentWorkspaceRoot, targetWorkspaceRoot);
-                    MigrateDirectorySafely(currentWorkspaceRoot, targetWorkspaceRoot);
+                    Stage = StorageMigrationConstants.StageLaunchingAssistant,
+                    Percentage = 85,
+                    Message = "Launching migration assistant process...",
+                });
+
+                if (request.LaunchHelperProcess)
+                {
+                    LaunchHelperProcess(scriptPath, sourceRoot, targetRoot, relativeExe, logFile, backupDir);
                 }
 
-                // Update and persist settings
-                await userSettingsService.TryUpdateAndSaveAsync(settings =>
+                // Phase 5: Finalize and exit application
+                progress?.Report(new StorageMigrationProgress
                 {
-                    settings.CasConfiguration.CasRootPath = targetCasRoot;
-                    settings.WorkspacePath = targetWorkspaceRoot;
-                    settings.ApplicationDataPath = targetDataDir;
-                    return true;
+                    Stage = StorageMigrationConstants.StageFinalizing,
+                    Percentage = 100,
+                    Message = "Migration staged successfully. GenHub will now restart from the new location.",
                 });
 
-                // Reinitialize CAS pool with the new path
-                casPoolManager.ReinitializeInstallationPool();
+                if (request.ExitApplicationOnSuccess)
+                {
+                    ExitApplication();
+                }
+
+                return OperationResult<bool>.CreateSuccess(true);
             }
-
-            // Phase 3: Prepare binary migration and updater script
-            progress?.Report(new StorageMigrationProgress
+            catch (Exception ex)
             {
-                Stage = StorageMigrationConstants.StagePreparingBinaries,
-                Percentage = 65,
-                Message = "Staging binary migration helper script...",
-            });
-
-            var scriptPath = PrepareMigrationScript(sourceRoot, targetRoot);
-
-            // Phase 4: Launch helper process
-            progress?.Report(new StorageMigrationProgress
-            {
-                Stage = StorageMigrationConstants.StageLaunchingAssistant,
-                Percentage = 85,
-                Message = "Launching migration assistant process...",
-            });
-
-            if (request.LaunchHelperProcess)
-            {
-                LaunchHelperProcess(scriptPath);
+                logger.LogError(ex, "Installation migration failed unexpectedly for target {TargetPath}", request.TargetPath);
+                return OperationResult<bool>.CreateFailure($"Migration failed: {ex.Message}");
             }
-
-            // Phase 5: Finalize and exit application
-            progress?.Report(new StorageMigrationProgress
-            {
-                Stage = StorageMigrationConstants.StageFinalizing,
-                Percentage = 100,
-                Message = "Migration staged successfully. GenHub will now restart from the new location.",
-            });
-
-            if (request.ExitApplicationOnSuccess)
-            {
-                ExitApplication();
-            }
-
-            return OperationResult<bool>.CreateSuccess(true);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Installation migration failed unexpectedly for target {TargetPath}", request.TargetPath);
-            return OperationResult<bool>.CreateFailure($"Migration failed: {ex.Message}");
-        }
+        }, cancellationToken);
     }
 
     /// <summary>
@@ -313,8 +197,17 @@ public class StorageMigrationService(
     internal static string GetSourceRootDirectory()
     {
         var appBaseDir = Path.TrimEndingDirectorySeparator(Path.GetFullPath(AppContext.BaseDirectory));
-        var parentDir = Directory.GetParent(appBaseDir)?.FullName;
 
+        if (OperatingSystem.IsMacOS())
+        {
+            var appBundleIndex = appBaseDir.IndexOf(".app", StringComparison.OrdinalIgnoreCase);
+            if (appBundleIndex > 0)
+            {
+                return appBaseDir.Substring(0, appBundleIndex + 4);
+            }
+        }
+
+        var parentDir = Directory.GetParent(appBaseDir)?.FullName;
         if (parentDir != null)
         {
             // Check for Velopack markers (Update.exe, packages dir, app-* directories, or companion executable)
@@ -459,6 +352,80 @@ public class StorageMigrationService(
         TryDeleteDirectory(sourceDir);
     }
 
+    private static StorageMigrationPreflightResult ValidatePathSanity(string targetPath)
+    {
+        if (string.IsNullOrWhiteSpace(targetPath))
+        {
+            return new StorageMigrationPreflightResult
+            {
+                IsValid = false,
+                ErrorMessage = "Target installation directory path cannot be empty.",
+            };
+        }
+
+        var normalizedTarget = Path.TrimEndingDirectorySeparator(Path.GetFullPath(targetPath));
+        var appBaseDir = Path.TrimEndingDirectorySeparator(Path.GetFullPath(AppContext.BaseDirectory));
+        var sourceRoot = GetSourceRootDirectory();
+
+        if (normalizedTarget.Equals(sourceRoot, PathHelper.PathComparison) ||
+            normalizedTarget.Equals(appBaseDir, PathHelper.PathComparison))
+        {
+            return new StorageMigrationPreflightResult
+            {
+                IsValid = false,
+                ErrorMessage = "The target directory is the same as the current installation directory.",
+            };
+        }
+
+        if (IsInsideDirectory(normalizedTarget, sourceRoot) || IsInsideDirectory(normalizedTarget, appBaseDir))
+        {
+            return new StorageMigrationPreflightResult
+            {
+                IsValid = false,
+                IsTargetInsideApplicationDirectory = true,
+                ErrorMessage = "The target directory cannot be located inside the current installation directory.",
+            };
+        }
+
+        if (IsInsideDirectory(sourceRoot, normalizedTarget) || IsInsideDirectory(appBaseDir, normalizedTarget))
+        {
+            return new StorageMigrationPreflightResult
+            {
+                IsValid = false,
+                ErrorMessage = "The target directory cannot be a parent of the current installation directory.",
+            };
+        }
+
+        return new StorageMigrationPreflightResult { IsValid = true };
+    }
+
+    private static string? DeterminePreflightErrorMessage(
+        bool hasWritePermission,
+        bool hasActiveProcesses,
+        bool hasSufficientSpace,
+        long requiredBytes,
+        long availableBytes)
+    {
+        if (!hasWritePermission)
+        {
+            return "The target directory is not writable or cannot be created.";
+        }
+
+        if (hasActiveProcesses)
+        {
+            return "Active game instances or launches are currently running. Please close all running games before migrating.";
+        }
+
+        if (!hasSufficientSpace)
+        {
+            var reqMb = requiredBytes / ConversionConstants.BytesPerMegabyte;
+            var availMb = availableBytes / ConversionConstants.BytesPerMegabyte;
+            return $"Insufficient free disk space on target volume. Required: {reqMb} MB, Available: {availMb} MB.";
+        }
+
+        return null;
+    }
+
     private static void CopyDirectoryRecursive(string sourceDir, string destDir)
     {
         Directory.CreateDirectory(destDir);
@@ -491,7 +458,231 @@ public class StorageMigrationService(
         }
     }
 
-    private string PrepareMigrationScript(string sourceRoot, string targetRoot)
+    private static string GetFallbackScriptTemplate(bool isWindows)
+    {
+        if (isWindows)
+        {
+            return @"# GenHub Windows Update PowerShell Script
+param(
+    [string]$ProcessId = ""{{PROCESS_ID}}"",
+    [string]$SourceDir = ""{{SOURCE_DIR}}"",
+    [string]$TargetDir = ""{{TARGET_DIR}}"",
+    [string]$CurrentExe = ""{{CURRENT_EXE}}"",
+    [string]$LogFile = ""{{LOG_FILE}}"",
+    [string]$BackupDir = ""{{BACKUP_DIR}}""
+)
+
+$ErrorActionPreference = 'SilentlyContinue'
+
+function Write-Log {
+    param([string]$Message)
+    $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+    ""[$timestamp] $Message"" | Out-File -FilePath $LogFile -Append -Encoding UTF8
+}
+
+Write-Log ""GenHub Migration Script Started""
+Wait-Process -Id $ProcessId -Timeout 60 -ErrorAction SilentlyContinue
+$process = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+if ($process) {
+    Stop-Process -Id $ProcessId -Force
+    Start-Sleep -Seconds 2
+}
+Get-Process -Name ""GenHub*"" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
+
+try {
+    New-Item -ItemType Directory -Path $BackupDir -Force | Out-Null
+    if (Test-Path $TargetDir) {
+        Copy-Item -Path ""$TargetDir\*"" -Destination $BackupDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    Copy-Item -Path ""$SourceDir\*"" -Destination $TargetDir -Recurse -Force -ErrorAction Stop
+    Write-Log ""Migration completed successfully""
+    if (Test-Path $SourceDir) {
+        Remove-Item -Path $SourceDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    if (Test-Path $CurrentExe) {
+        $exeDir = Split-Path -Path $CurrentExe -Parent
+        Start-Process -FilePath $CurrentExe -WorkingDirectory $exeDir
+    }
+}
+catch {
+    Write-Log ""Migration failed: $($_.Exception.Message)""
+    if (Test-Path $BackupDir) {
+        Remove-Item -Path ""$TargetDir\*"" -Recurse -Force -ErrorAction SilentlyContinue
+        Copy-Item -Path ""$BackupDir\*"" -Destination $TargetDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+finally {
+    $updaterDir = Split-Path -Path $MyInvocation.MyCommand.Path -Parent
+    Start-Sleep -Seconds 2
+    if (Test-Path $updaterDir) {
+        Remove-Item -Path $updaterDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+";
+        }
+
+        return @"#!/bin/bash
+PROCESS_ID=""${1:-{{PROCESS_ID}}}""
+SOURCE_DIR=""${2:-{{SOURCE_DIR}}}""
+TARGET_DIR=""${3:-{{TARGET_DIR}}}""
+CURRENT_EXE=""${4:-{{CURRENT_EXE}}}""
+LOG_FILE=""${5:-{{LOG_FILE}}}""
+BACKUP_DIR=""${6:-{{BACKUP_DIR}}}""
+
+write_log() {
+    echo ""[$(date '+%Y-%m-%d %H:%M:%S')] $1"" >> ""$LOG_FILE""
+}
+
+write_log ""GenHub Linux Migration Script Started""
+for i in {1..60}; do
+    if ! kill -0 ""$PROCESS_ID"" 2>/dev/null; then
+        break
+    fi
+    sleep 1
+done
+
+if kill -0 ""$PROCESS_ID"" 2>/dev/null; then
+    kill -TERM ""$PROCESS_ID"" 2>/dev/null
+    sleep 2
+    kill -KILL ""$PROCESS_ID"" 2>/dev/null
+fi
+
+pkill -f ""^$CURRENT_EXE\$"" || true
+sleep 2
+
+mkdir -p ""$BACKUP_DIR""
+if [ -d ""$TARGET_DIR"" ]; then
+    cp -a ""$TARGET_DIR/."" ""$BACKUP_DIR/"" 2>/dev/null || true
+fi
+
+mkdir -p ""$TARGET_DIR""
+if ! cp -a ""$SOURCE_DIR/."" ""$TARGET_DIR/"" 2>&1; then
+    write_log ""Error: Failed to copy migration files""
+    if [ -d ""$BACKUP_DIR"" ]; then
+        rm -rf ""$TARGET_DIR""/* ""$TARGET_DIR""/.[!.]* 2>/dev/null || true
+        cp -a ""$BACKUP_DIR/."" ""$TARGET_DIR/"" 2>/dev/null || true
+    fi
+    exit 1
+fi
+
+if [ -f ""$CURRENT_EXE"" ]; then
+    EXE_DIR=$(dirname ""$CURRENT_EXE"")
+    EXE_NAME=$(basename ""$CURRENT_EXE"")
+    cd ""$EXE_DIR"" || exit 1
+    if [ ! -x ""$EXE_NAME"" ]; then
+        chmod +x ""$EXE_NAME""
+    fi
+    nohup ""./$EXE_NAME"" > /dev/null 2>&1 &
+fi
+
+rm -rf ""$SOURCE_DIR"" 2>/dev/null || true
+UPDATER_DIR=$(dirname ""$0"")
+sleep 2
+rm -rf ""$UPDATER_DIR"" 2>/dev/null || true
+";
+    }
+
+    private async Task<(bool HasActiveProcesses, List<string> ProcessNames)> CheckActiveProcessesAsync(CancellationToken cancellationToken)
+    {
+        var activeLaunches = (await launchRegistry.GetAllActiveLaunchesAsync(cancellationToken)).ToList();
+        var activeProcessesResult = await gameProcessManager.GetActiveProcessesAsync(cancellationToken);
+        var activeProcesses = activeProcessesResult.Success && activeProcessesResult.Data != null
+            ? activeProcessesResult.Data
+            : [];
+
+        var hasActiveProcesses = activeLaunches.Count > 0 || activeProcesses.Count > 0;
+        var processNames = new List<string>();
+
+        foreach (var launch in activeLaunches)
+        {
+            processNames.Add($"Launch: {launch.ProfileId}");
+        }
+
+        foreach (var proc in activeProcesses)
+        {
+            processNames.Add($"Process: {proc.ProcessName} (PID: {proc.ProcessId})");
+        }
+
+        return (hasActiveProcesses, processNames);
+    }
+
+    private long CalculateRequiredSpace(string sourceRoot, bool relocateCasAndWorkspace)
+    {
+        long requiredBytes = CalculateDirectorySize(sourceRoot);
+
+        if (relocateCasAndWorkspace)
+        {
+            var casRoot = configurationProvider.GetCasConfiguration().CasRootPath;
+            if (!string.IsNullOrWhiteSpace(casRoot) && Directory.Exists(casRoot) && !IsInsideDirectory(casRoot, sourceRoot))
+            {
+                requiredBytes += CalculateDirectorySize(casRoot);
+            }
+
+            var workspaceRoot = userSettingsService.Get().WorkspacePath;
+            if (!string.IsNullOrWhiteSpace(workspaceRoot) && Directory.Exists(workspaceRoot) && !IsInsideDirectory(workspaceRoot, sourceRoot))
+            {
+                requiredBytes += CalculateDirectorySize(workspaceRoot);
+            }
+        }
+
+        return requiredBytes + StorageMigrationConstants.DiskSpaceSafetyMarginBytes;
+    }
+
+    private async Task<bool> RelocateStorageAsync(string targetRoot, string sourceRoot)
+    {
+        var currentCasRoot = configurationProvider.GetCasConfiguration().CasRootPath;
+        var currentWorkspaceRoot = userSettingsService.Get().WorkspacePath;
+
+        var targetDataDir = Path.Combine(targetRoot, DirectoryNames.Data);
+        var targetCasRoot = Path.Combine(targetDataDir, DirectoryNames.CasPool);
+        var targetWorkspaceRoot = Path.Combine(targetDataDir, DirectoryNames.Workspaces);
+
+        // Move CAS pool if existing and not already inside source root
+        if (!string.IsNullOrWhiteSpace(currentCasRoot) && Directory.Exists(currentCasRoot) && !IsInsideDirectory(currentCasRoot, sourceRoot))
+        {
+            logger.LogInformation("Moving CAS storage pool from {Source} to {Target}", currentCasRoot, targetCasRoot);
+            MigrateDirectorySafely(currentCasRoot, targetCasRoot);
+        }
+
+        // Move workspaces if existing and not already inside source root
+        if (!string.IsNullOrWhiteSpace(currentWorkspaceRoot) && Directory.Exists(currentWorkspaceRoot) && !IsInsideDirectory(currentWorkspaceRoot, sourceRoot))
+        {
+            logger.LogInformation("Moving workspaces from {Source} to {Target}", currentWorkspaceRoot, targetWorkspaceRoot);
+            MigrateDirectorySafely(currentWorkspaceRoot, targetWorkspaceRoot);
+        }
+
+        // Update and persist settings
+        var saved = await userSettingsService.TryUpdateAndSaveAsync(settings =>
+        {
+            settings.CasConfiguration.CasRootPath = targetCasRoot;
+            settings.WorkspacePath = targetWorkspaceRoot;
+            settings.MarkAsExplicitlySet(nameof(UserSettings.WorkspacePath));
+            return true;
+        });
+
+        if (!saved)
+        {
+            logger.LogError("Failed to persist relocated storage settings. Rolling back storage relocation.");
+            if (Directory.Exists(targetCasRoot) && !string.IsNullOrWhiteSpace(currentCasRoot))
+            {
+                MigrateDirectorySafely(targetCasRoot, currentCasRoot);
+            }
+
+            if (Directory.Exists(targetWorkspaceRoot) && !string.IsNullOrWhiteSpace(currentWorkspaceRoot))
+            {
+                MigrateDirectorySafely(targetWorkspaceRoot, currentWorkspaceRoot);
+            }
+
+            return false;
+        }
+
+        // Reinitialize CAS pool with the new path
+        casPoolManager.ReinitializeInstallationPool();
+        return true;
+    }
+
+    private string PrepareMigrationScript(string targetDirectory)
     {
         var isWindows = OperatingSystem.IsWindows();
         var scriptName = isWindows
@@ -499,36 +690,17 @@ public class StorageMigrationService(
             : StorageMigrationConstants.LinuxUpdateScriptName;
 
         var scriptTemplate = GetScriptResource(scriptName) ?? GetFallbackScriptTemplate(isWindows);
-
-        var relativeExe = GetRelativeExecutablePath(sourceRoot);
-        var targetExe = Path.Combine(targetRoot, relativeExe);
-
-        var logFile = Path.Combine(Path.GetTempPath(), $"genhub_migration_{DateTime.UtcNow:yyyyMMdd_HHmmss}.log");
-        var backupDir = Path.Combine(Path.GetTempPath(), $"genhub_migration_backup_{Guid.NewGuid():N}");
-
-        var scriptContent = scriptTemplate
-            .Replace("{{LOG_FILE}}", logFile, StringComparison.Ordinal)
-            .Replace("{{PROCESS_ID}}", Environment.ProcessId.ToString(), StringComparison.Ordinal)
-            .Replace("{{SOURCE_DIR}}", sourceRoot, StringComparison.Ordinal)
-            .Replace("{{TARGET_DIR}}", targetRoot, StringComparison.Ordinal)
-            .Replace("{{CURRENT_EXE}}", targetExe, StringComparison.Ordinal)
-            .Replace("{{BACKUP_DIR}}", backupDir, StringComparison.Ordinal);
-
-        var tempDir = Path.Combine(Path.GetTempPath(), $"genhub_migrate_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempDir);
-
-        var scriptFilePath = Path.Combine(tempDir, scriptName);
-        File.WriteAllText(scriptFilePath, scriptContent);
+        var scriptFilePath = Path.Combine(targetDirectory, scriptName);
+        File.WriteAllText(scriptFilePath, scriptTemplate);
 
         if (!isWindows)
         {
             try
             {
-                File.SetUnixFileMode(
-                    scriptFilePath,
-                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
-                    UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
-                    UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+                var filePermissions = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                                      UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
+                                      UnixFileMode.OtherRead | UnixFileMode.OtherExecute;
+                File.SetUnixFileMode(scriptFilePath, filePermissions);
             }
             catch (Exception ex)
             {
@@ -567,150 +739,41 @@ public class StorageMigrationService(
         return null;
     }
 
-    private static string GetFallbackScriptTemplate(bool isWindows)
-    {
-        if (isWindows)
-        {
-            return @"# GenHub Windows Update PowerShell Script
-$ErrorActionPreference = 'SilentlyContinue'
-$LogFile = ""{{LOG_FILE}}""
-$ProcessId = {{PROCESS_ID}}
-$SourceDir = ""{{SOURCE_DIR}}""
-$TargetDir = ""{{TARGET_DIR}}""
-$CurrentExe = ""{{CURRENT_EXE}}""
-$BackupDir = ""{{BACKUP_DIR}}""
-
-function Write-Log {
-    param([string]$Message)
-    $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-    ""[$timestamp] $Message"" | Out-File -FilePath $LogFile -Append -Encoding UTF8
-}
-
-Write-Log ""GenHub Migration Script Started""
-Wait-Process -Id $ProcessId -Timeout 60 -ErrorAction SilentlyContinue
-$process = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
-if ($process) {
-    Stop-Process -Id $ProcessId -Force
-    Start-Sleep -Seconds 2
-}
-Get-Process -Name ""GenHub*"" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 2
-
-try {
-    New-Item -ItemType Directory -Path $BackupDir -Force | Out-Null
-    if (Test-Path $TargetDir) {
-        Copy-Item -Path ""$TargetDir\*"" -Destination $BackupDir -Recurse -Force
-    }
-    Copy-Item -Path ""$SourceDir\*"" -Destination $TargetDir -Recurse -Force
-    Write-Log ""Migration completed successfully""
-    if (Test-Path $CurrentExe) {
-        $exeDir = Split-Path -Path $CurrentExe -Parent
-        Start-Process -FilePath $CurrentExe -WorkingDirectory $exeDir
-    }
-}
-catch {
-    Write-Log ""Migration failed: $($_.Exception.Message)""
-    if (Test-Path $BackupDir) {
-        Copy-Item -Path ""$BackupDir\*"" -Destination $TargetDir -Recurse -Force
-    }
-}
-finally {
-    if (Test-Path $SourceDir) {
-        Remove-Item -Path $SourceDir -Recurse -Force
-    }
-    $updaterDir = Split-Path -Path $MyInvocation.MyCommand.Path -Parent
-    Start-Sleep -Seconds 2
-    if (Test-Path $updaterDir) {
-        Remove-Item -Path $updaterDir -Recurse -Force
-    }
-}
-";
-        }
-
-        return @"#!/bin/bash
-LOG_FILE=""{{LOG_FILE}}""
-PROCESS_ID={{PROCESS_ID}}
-SOURCE_DIR=""{{SOURCE_DIR}}""
-TARGET_DIR=""{{TARGET_DIR}}""
-CURRENT_EXE=""{{CURRENT_EXE}}""
-BACKUP_DIR=""{{BACKUP_DIR}}""
-
-write_log() {
-    echo ""[$(date '+%Y-%m-%d %H:%M:%S')] $1"" >> ""$LOG_FILE""
-}
-
-write_log ""GenHub Linux Migration Script Started""
-for i in {1..60}; do
-    if ! kill -0 $PROCESS_ID 2>/dev/null; then
-        break
-    fi
-    sleep 1
-done
-
-if kill -0 $PROCESS_ID 2>/dev/null; then
-    kill -TERM $PROCESS_ID 2>/dev/null
-    sleep 2
-    kill -KILL $PROCESS_ID 2>/dev/null
-fi
-
-pkill -f ""^$CURRENT_EXE\$"" || true
-sleep 2
-
-mkdir -p ""$BACKUP_DIR""
-if [ -d ""$TARGET_DIR"" ]; then
-    cp -r ""$TARGET_DIR""/* ""$BACKUP_DIR"" 2>/dev/null || true
-fi
-
-if ! cp -r ""$SOURCE_DIR""/* ""$TARGET_DIR"" 2>&1; then
-    write_log ""Error: Failed to copy migration files""
-    if [ -d ""$BACKUP_DIR"" ]; then
-        cp -r ""$BACKUP_DIR""/* ""$TARGET_DIR"" 2>/dev/null || true
-    fi
-    exit 1
-fi
-
-if [ -f ""$CURRENT_EXE"" ]; then
-    EXE_DIR=$(dirname ""$CURRENT_EXE"")
-    EXE_NAME=$(basename ""$CURRENT_EXE"")
-    cd ""$EXE_DIR""
-    if [ ! -x ""$EXE_NAME"" ]; then
-        chmod +x ""$EXE_NAME""
-    fi
-    nohup ""./$EXE_NAME"" > /dev/null 2>&1 &
-fi
-
-rm -rf ""$SOURCE_DIR"" 2>/dev/null || true
-UPDATER_DIR=$(dirname ""$0"")
-sleep 2
-rm -rf ""$UPDATER_DIR"" 2>/dev/null || true
-";
-    }
-
-    private void LaunchHelperProcess(string scriptPath)
+    private void LaunchHelperProcess(
+        string scriptPath,
+        string sourceDir,
+        string targetDir,
+        string relativeExePath,
+        string logFile,
+        string backupDir)
     {
         try
         {
-            ProcessStartInfo startInfo;
+            var targetExe = Path.Combine(targetDir, relativeExePath);
+            var pid = Environment.ProcessId.ToString();
+
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = OperatingSystem.IsWindows() ? "powershell.exe" : "/bin/bash",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+
             if (OperatingSystem.IsWindows())
             {
-                startInfo = new ProcessStartInfo
-                {
-                    FileName = "powershell.exe",
-                    Arguments = $"-ExecutionPolicy Bypass -NoProfile -File \"{scriptPath}\"",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                };
+                startInfo.ArgumentList.Add("-ExecutionPolicy");
+                startInfo.ArgumentList.Add("Bypass");
+                startInfo.ArgumentList.Add("-NoProfile");
+                startInfo.ArgumentList.Add("-File");
             }
-            else
-            {
-                startInfo = new ProcessStartInfo
-                {
-                    FileName = "/bin/bash",
-                    Arguments = $"\"{scriptPath}\"",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                };
-            }
+
+            startInfo.ArgumentList.Add(scriptPath);
+            startInfo.ArgumentList.Add(pid);
+            startInfo.ArgumentList.Add(sourceDir);
+            startInfo.ArgumentList.Add(targetDir);
+            startInfo.ArgumentList.Add(targetExe);
+            startInfo.ArgumentList.Add(logFile);
+            startInfo.ArgumentList.Add(backupDir);
 
             Process.Start(startInfo);
             logger.LogInformation("Started detached helper migration process: {ScriptPath}", scriptPath);
@@ -731,15 +794,10 @@ rm -rf ""$UPDATER_DIR"" 2>/dev/null || true
             {
                 desktop.Shutdown(0);
             }
-            else
-            {
-                Environment.Exit(0);
-            }
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Exception during application exit for migration; calling Environment.Exit");
-            Environment.Exit(0);
+            logger.LogWarning(ex, "Exception during application lifetime shutdown for migration");
         }
     }
 }

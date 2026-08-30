@@ -60,7 +60,7 @@ public class SettingsViewModelMigrationTests
     }
 
     [Fact]
-    public async Task MigrateInstallationLocationCommand_ShowsWarning_WhenTargetPathIsEmpty()
+    public async Task MigrateInstallationLocationCommand_ShowsWarning_WhenTargetPathIsEmptyAsync()
     {
         var vm = CreateViewModel();
         vm.MigrationTargetPath = string.Empty;
@@ -77,7 +77,7 @@ public class SettingsViewModelMigrationTests
     }
 
     [Fact]
-    public async Task MigrateInstallationLocationCommand_ShowsError_WhenPreflightValidationFails()
+    public async Task MigrateInstallationLocationCommand_ShowsError_WhenPreflightValidationFailsAsync()
     {
         var vm = CreateViewModel();
         vm.MigrationTargetPath = "/valid/path";
@@ -99,7 +99,7 @@ public class SettingsViewModelMigrationTests
     }
 
     [Fact]
-    public async Task MigrateInstallationLocationCommand_Aborts_WhenUserDeclinesConfirmation()
+    public async Task MigrateInstallationLocationCommand_Aborts_WhenUserDeclinesConfirmationAsync()
     {
         var vm = CreateViewModel();
         vm.MigrationTargetPath = "/target/folder";
@@ -130,7 +130,7 @@ public class SettingsViewModelMigrationTests
     }
 
     [Fact]
-    public async Task MigrateInstallationLocationCommand_ExecutesMigration_WhenConfirmed()
+    public async Task MigrateInstallationLocationCommand_ExecutesMigration_WhenConfirmedAsync()
     {
         var vm = CreateViewModel();
         vm.MigrationTargetPath = "/target/folder";
