@@ -166,6 +166,62 @@ public sealed class ReplayDirectoryServiceTests
     }
 
     /// <summary>
+    /// Verifies that profile creation fails gracefully when executable path cannot be resolved from installation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateProfileForReplayAsync_WhenExecutablePathCannotBeDetermined_ReturnsFailureAsync()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "TestReplay.rep",
+            FullPath = "/replays/TestReplay.rep",
+            SizeInBytes = 1024,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0x401D89EA,
+                IniCrc = 0x76B251A3,
+            },
+            MatchedClient = new CrcMappingEntry
+            {
+                ExeCrc = "0x401D89EA",
+                IniCrc = "0x76B251A3",
+                ManifestId = "1.104.steam.gameclient.zerohour",
+                Publisher = "steam",
+                GameType = "ZeroHour",
+                Version = "1.04",
+            },
+        };
+
+        var emptyInstallation = new GameInstallation(string.Empty, GameInstallationType.Retail)
+        {
+            HasZeroHour = true,
+            ZeroHourPath = string.Empty,
+        };
+
+        _mockInstallationService
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([emptyInstallation]));
+
+        _mockProfileManager
+            .Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var result = await service.CreateProfileForReplayAsync(replay);
+
+        Assert.False(result.Success);
+        Assert.Contains("Could not determine executable path", result.FirstError);
+    }
+
+    /// <summary>
     /// Verifies that launching a replay with an existing profile delegates to the launcher facade.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
