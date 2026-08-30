@@ -801,58 +801,28 @@ public partial class ReplayManagerViewModel(
 
     private async Task<(bool Reused, string? FileHash)> TryReuseExistingUploadAsync(string filePath)
     {
-        try
+        var fileHash = await ToolUploadHelper.ComputeFileSha256Async(filePath);
+        if (string.IsNullOrEmpty(fileHash))
         {
-            if (!File.Exists(filePath))
-            {
-                return (false, null);
-            }
-
-            await using var stream = File.OpenRead(filePath);
-            var hashBytes = await System.Security.Cryptography.SHA256.HashDataAsync(stream);
-            var fileHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
-
-            var existingUpload = await uploadHistoryService.FindExistingUploadAsync(fileHash);
-            if (existingUpload != null && !string.IsNullOrEmpty(existingUpload.Url))
-            {
-                var isAlive = await VerifyShareUrlAliveAsync(existingUpload.Url);
-                if (isAlive)
-                {
-                    var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
-                    var clipboard = lifetime?.MainWindow?.Clipboard;
-                    if (clipboard != null)
-                    {
-                        await clipboard.SetTextAsync(existingUpload.Url);
-                    }
-
-                    StatusMessage = "Reused existing upload! Link copied to clipboard.";
-                    notificationService.ShowSuccess("Upload Complete", "Existing link copied to clipboard!");
-                    return (true, fileHash);
-                }
-            }
-
-            return (false, fileHash);
-        }
-        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or HttpRequestException) && ex is not OperationCanceledException)
-        {
-            logger.LogWarning(ex, "Failed to compute file hash or verify deduplication link");
             return (false, null);
         }
-    }
 
-    private async Task<bool> VerifyShareUrlAliveAsync(string url)
-    {
-        try
+        var existingUpload = await uploadHistoryService.FindExistingUploadAsync(fileHash);
+        if (existingUpload?.Url != null && await ToolUploadHelper.VerifyShareUrlAliveAsync(existingUpload.Url))
         {
-            using var httpClient = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(5) };
-            using var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, url);
-            using var response = await httpClient.SendAsync(request);
-            return response.IsSuccessStatusCode;
+            var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+            var clipboard = lifetime?.MainWindow?.Clipboard;
+            if (clipboard != null)
+            {
+                await clipboard.SetTextAsync(existingUpload.Url);
+            }
+
+            StatusMessage = "Reused existing upload! Link copied to clipboard.";
+            notificationService.ShowSuccess("Upload Complete", "Existing link copied to clipboard!");
+            return (true, fileHash);
         }
-        catch
-        {
-            return false;
-        }
+
+        return (false, fileHash);
     }
 
     private async Task HandleSuccessfulUploadAsync(UploadResult uploadResult, long totalSizeBytes, string? fileHash)

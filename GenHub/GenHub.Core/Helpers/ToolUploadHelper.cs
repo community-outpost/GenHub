@@ -52,4 +52,55 @@ public static class ToolUploadHelper
 
         return $"Upload limit exceeded. You have {remainingMb:F1} MB remaining of your {limitMb:F0} MB limit. This file requires {fileMb:F1} MB.";
     }
+
+    /// <summary>
+    /// Computes the lowercase SHA256 hex string of a file if it exists.
+    /// </summary>
+    /// <param name="filePath">The absolute path to the file.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The lowercase hex string if successful; otherwise <see langword="null"/>.</returns>
+    public static async Task<string?> ComputeFileSha256Async(string filePath, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+        {
+            return null;
+        }
+
+        try
+        {
+            await using var stream = File.OpenRead(filePath);
+            var hashBytes = await System.Security.Cryptography.SHA256.HashDataAsync(stream, ct);
+            return Convert.ToHexString(hashBytes).ToLowerInvariant();
+        }
+        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException) && ex is not OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Verifies if a share URL is accessible and returns HTTP success.
+    /// </summary>
+    /// <param name="url">The URL to test.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns><see langword="true"/> if the URL returns a success status code; otherwise <see langword="false"/>.</returns>
+    public static async Task<bool> VerifyShareUrlAliveAsync(string url, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var httpClient = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+            using var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, url);
+            using var response = await httpClient.SendAsync(request, ct);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex) when ((ex is System.Net.Http.HttpRequestException or IOException or InvalidOperationException) && ex is not OperationCanceledException)
+        {
+            return false;
+        }
+    }
 }
