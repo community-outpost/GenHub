@@ -391,7 +391,7 @@
                             <Border Background="{DynamicResource CardBackground}" CornerRadius="12" Padding="30" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" MaxWidth="600" HorizontalAlignment="Center">
                                 <StackPanel Spacing="20" DataContext="{Binding DemoGameSettingsVM}">
                                      <StackPanel Orientation="Horizontal" Spacing="12">
-                                        <TextBlock Text="🔑" FontSize="20" VerticalAlignment="Center" />
+                                        <PathIcon Data="M7,14A2,2 0 0,1 5,12A2,2 0 0,1 7,10A2,2 0 0,1 9,12A2,2 0 0,1 7,14M12.65,10C11.83,7.67 9.61,6 7,6A6,6 0 0,0 1,12A6,6 0 0,0 7,18C9.61,18 11.83,16.33 12.65,14H17V18H21V14H23V10H12.65Z" Width="20" Height="20" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center" />
                                         <TextBlock Text="GitHub Personal Access Token"
                                                    FontSize="18" FontWeight="SemiBold" Foreground="#FFFFFF" VerticalAlignment="Center" />
                                      </StackPanel>
@@ -454,7 +454,7 @@
 
             <Border Classes="demo-container">
                <StackPanel Spacing="20">
-                  <TextBlock Text="💡 TIP: You can resize this demo window by dragging the right or bottom edge!"
+                  <TextBlock Text="TIP: You can resize this demo window by dragging the right or bottom edge!"
                              FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"/>
 
                   <Grid HorizontalAlignment="Center">
@@ -535,7 +535,7 @@
 
             <Border Classes="demo-container">
                <StackPanel Spacing="20">
-                  <TextBlock Text="💡 TIP: You can resize this demo window by dragging the right or bottom edge!"
+                  <TextBlock Text="TIP: You can resize this demo window by dragging the right or bottom edge!"
                              FontSize="12" Foreground="#888888" HorizontalAlignment="Center" FontStyle="Italic"/>
 
                   <Grid HorizontalAlignment="Center">
