@@ -24,6 +24,16 @@ public static class CsvConstants
     public const string Description = "Discovers base game manifests from verified CSV catalogs.";
 
     /// <summary>
+    /// Source name for the CSV catalog content provider.
+    /// </summary>
+    public const string ProviderSourceName = "CSV Catalog Provider";
+
+    /// <summary>
+    /// Description for the CSV catalog content provider.
+    /// </summary>
+    public const string ProviderDescription = "Provides base game manifests from verified CSV catalogs.";
+
+    /// <summary>
     /// Resolver ID for CSV catalog content.
     /// </summary>
     public const string ResolverId = "CSVResolver";

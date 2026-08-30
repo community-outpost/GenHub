@@ -350,9 +350,16 @@ public static class ContentPipelineModule
     /// </summary>
     private static void AddCsvPipeline(IServiceCollection services)
     {
+        // Register CSV content provider
+        services.AddTransient<IContentProvider, CsvContentProvider>();
+
         // Register CSV discoverer (concrete and interface)
         services.AddTransient<CsvDiscoverer>();
         services.AddTransient<IContentDiscoverer, CsvDiscoverer>();
+
+        // Register CSV resolver (concrete and interface)
+        services.AddTransient<CsvResolver>();
+        services.AddTransient<IContentResolver, CsvResolver>();
     }
 
     /// <summary>
