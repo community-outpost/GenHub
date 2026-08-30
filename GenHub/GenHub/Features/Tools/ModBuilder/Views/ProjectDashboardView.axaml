@@ -258,8 +258,8 @@
 
                         <Grid RowDefinitions="Auto,*,Auto">
 
-                          <!-- Card Top: Icon + Name + Date -->
-                          <Grid Grid.Row="0" ColumnDefinitions="Auto,*">
+                          <!-- Card Top: Icon + Name + Date + Action Buttons -->
+                          <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
                             <Border Grid.Column="0" Width="40" Height="40"
                                     Background="{DynamicResource AccentBadgeBackgroundBrush}"
                                     BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
@@ -272,7 +272,7 @@
                                     VerticalAlignment="Center"
                                     Stretch="Uniform"/>
                             </Border>
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0">
                               <TextBlock Text="{Binding Name}"
                                          FontSize="15"
                                          FontWeight="Bold"
@@ -283,6 +283,35 @@
                                          FontSize="11"
                                          Foreground="{DynamicResource TextSecondary}"
                                          Margin="0,2,0,0"/>
+                            </StackPanel>
+
+                            <!-- Delete / Remove Action Buttons -->
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                              <Button Classes="icon-button"
+                                      Padding="6"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      Command="{Binding $parent[UserControl].((vm:ModBuilderViewModel)DataContext).RemoveRecentProjectCommand}"
+                                      CommandParameter="{Binding}"
+                                      ToolTip.Tip="Remove from recent list">
+                                <Path Width="12" Height="12"
+                                      Fill="{DynamicResource TextSecondary}"
+                                      Data="{StaticResource IconClose}"
+                                      Stretch="Uniform"/>
+                              </Button>
+
+                              <Button Classes="icon-button"
+                                      Padding="6"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      Command="{Binding $parent[UserControl].((vm:ModBuilderViewModel)DataContext).DeleteRecentProjectCommand}"
+                                      CommandParameter="{Binding}"
+                                      ToolTip.Tip="Delete project folder permanently">
+                                <Path Width="13" Height="13"
+                                      Fill="{DynamicResource ErrorBrush}"
+                                      Data="{StaticResource IconTrash}"
+                                      Stretch="Uniform"/>
+                              </Button>
                             </StackPanel>
                           </Grid>
 

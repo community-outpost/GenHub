@@ -336,13 +336,26 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
 
     private static string ResolveProjectDirForWildcards(BuildConfiguration configuration)
     {
-        if (configuration.LoadedConfigFiles.Count == 0)
+        if (configuration.LoadedConfigFiles.Count > 0)
         {
-            return string.Empty;
+            var firstConfigFile = configuration.LoadedConfigFiles[0];
+            var resolved = ResolveProjectDirFromConfig(firstConfigFile);
+            if (!string.IsNullOrEmpty(resolved) && Directory.Exists(resolved))
+            {
+                return resolved;
+            }
         }
 
-        var firstConfigFile = configuration.LoadedConfigFiles[0];
-        return ResolveProjectDirFromConfig(firstConfigFile);
+        if (!string.IsNullOrEmpty(configuration.Folders.AbsBuildDir))
+        {
+            var buildParent = Path.GetDirectoryName(configuration.Folders.AbsBuildDir);
+            if (!string.IsNullOrEmpty(buildParent) && Directory.Exists(buildParent))
+            {
+                return buildParent;
+            }
+        }
+
+        return Directory.GetCurrentDirectory();
     }
 
     private async Task<int> ResolveItemFilesAsync(BundleItem item, string projectDir, CancellationToken cancellationToken)

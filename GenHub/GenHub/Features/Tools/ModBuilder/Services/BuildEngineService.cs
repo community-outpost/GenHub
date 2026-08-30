@@ -465,9 +465,7 @@ public sealed class BuildEngineService(
 
     private static void StageBundleItemFiles(BundleItem item, string rawDir, string itemStagingDir)
     {
-        var fullRawDir = Path.GetFullPath(rawDir);
         var fullStagingDir = Path.GetFullPath(itemStagingDir);
-        var rawDirPrefix = fullRawDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
         var stagingDirPrefix = fullStagingDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
 
         foreach (var file in item.Files)
@@ -480,11 +478,15 @@ public sealed class BuildEngineService(
 
             var cleanRel = targetRel.TrimStart('/', '\\');
             var srcInRaw = Path.GetFullPath(Path.Combine(rawDir, cleanRel));
+            var srcDirect = !string.IsNullOrEmpty(file.AbsSourceFile) && File.Exists(file.AbsSourceFile)
+                ? Path.GetFullPath(file.AbsSourceFile)
+                : null;
+            var actualSource = File.Exists(srcInRaw) ? srcInRaw : srcDirect;
             var destInStaging = Path.GetFullPath(Path.Combine(itemStagingDir, cleanRel));
 
-            if (srcInRaw.StartsWith(rawDirPrefix, StringComparison.OrdinalIgnoreCase) &&
-                destInStaging.StartsWith(stagingDirPrefix, StringComparison.OrdinalIgnoreCase) &&
-                File.Exists(srcInRaw))
+            if (!string.IsNullOrEmpty(actualSource) &&
+                File.Exists(actualSource) &&
+                destInStaging.StartsWith(stagingDirPrefix, StringComparison.OrdinalIgnoreCase))
             {
                 var destDir = Path.GetDirectoryName(destInStaging);
                 if (!string.IsNullOrEmpty(destDir))
@@ -492,7 +494,7 @@ public sealed class BuildEngineService(
                     Directory.CreateDirectory(destDir);
                 }
 
-                File.Copy(srcInRaw, destInStaging, overwrite: true);
+                File.Copy(actualSource, destInStaging, overwrite: true);
             }
         }
     }
@@ -1284,6 +1286,20 @@ public sealed class BuildEngineService(
         logger.LogDebug("Resolving wildcards in configuration");
         configuration = await configurationLoaderService.ResolveWildcardsAsync(configuration, cancellationToken)
             .ConfigureAwait(false);
+
+        var projectDir = project.ProjectDir;
+        if (!string.IsNullOrEmpty(projectDir))
+        {
+            if (string.IsNullOrEmpty(configuration.Folders.AbsBuildDir))
+            {
+                configuration.Folders.AbsBuildDir = Path.Combine(projectDir, project.Directories.Build ?? ModBuilderConstants.DefaultBuildDir);
+            }
+
+            if (string.IsNullOrEmpty(configuration.Folders.AbsReleaseDir))
+            {
+                configuration.Folders.AbsReleaseDir = Path.Combine(projectDir, project.Directories.Release ?? ModBuilderConstants.DefaultReleaseDir);
+            }
+        }
 
         var gameDir = !string.IsNullOrEmpty(configuration.Folders.AbsGameDir)
             ? configuration.Folders.AbsGameDir

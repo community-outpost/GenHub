@@ -180,6 +180,11 @@
     M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z
   </StreamGeometry>
 
+  <!-- Close / Remove Icon -->
+  <StreamGeometry x:Key="IconClose">
+    M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z
+  </StreamGeometry>
+
   <!-- Reset / Undo Icon -->
   <StreamGeometry x:Key="IconReset">
     M12,4V1L8,5L12,9V6A6,6 0 1,1 6,12H4A8,8 0 1,0 12,4Z

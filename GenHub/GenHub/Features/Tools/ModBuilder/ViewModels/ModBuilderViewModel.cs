@@ -5,6 +5,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using GenHub.Core.Interfaces.Common;
 using GenHub.Core.Constants;
 using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Tools.ModBuilder;
@@ -45,6 +46,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     private readonly IConfigurationLoaderService _configurationLoaderService;
     private readonly IProjectStructureGenerator _projectStructureGenerator;
     private readonly INotificationService _notificationService;
+    private readonly IDialogService? _dialogService;
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<ModBuilderViewModel> _logger;
     private readonly Stopwatch _buildStopwatch = new();
@@ -66,6 +68,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// <param name="fileManager">The file manager view model.</param>
     /// <param name="loggerFactory">The logger factory.</param>
     /// <param name="logger">The logger.</param>
+    /// <param name="dialogService">Optional dialog service for user confirmations.</param>
     public ModBuilderViewModel(
         IBuildEngineService buildEngineService,
         IProjectConfigService projectConfigService,
@@ -74,7 +77,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         INotificationService notificationService,
         FileManagerViewModel fileManager,
         ILoggerFactory loggerFactory,
-        ILogger<ModBuilderViewModel> logger)
+        ILogger<ModBuilderViewModel> logger,
+        IDialogService? dialogService = null)
     {
         _buildEngineService = buildEngineService;
         _projectConfigService = projectConfigService;
@@ -84,6 +88,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         FileManager = fileManager;
         _loggerFactory = loggerFactory;
         _logger = logger;
+        _dialogService = dialogService;
 
         // Initialize compression levels
         CompressionLevels.Add(CompressionLevel.NoCompression);
@@ -677,6 +682,91 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
+    /// Removes a project from the recent projects list without deleting files.
+    /// </summary>
+    /// <param name="parameter">The file path or recent project info to remove.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [RelayCommand]
+    private async Task RemoveRecentProjectAsync(object? parameter)
+    {
+        var (path, name) = ExtractProjectInfo(parameter);
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        await _projectConfigService.RemoveFromRecentProjectsAsync(path).ConfigureAwait(false);
+        await LoadRecentProjectsAsync().ConfigureAwait(false);
+        _notificationService.ShowInfo("Project Removed", $"Removed '{name}' from recent projects.");
+    }
+
+    /// <summary>
+    /// Deletes a project from disk after user confirmation.
+    /// </summary>
+    /// <param name="parameter">The file path or recent project info to delete.</param>
+    /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+    [RelayCommand]
+    private async Task DeleteRecentProjectAsync(object? parameter)
+    {
+        var (path, name) = ExtractProjectInfo(parameter);
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        var confirmed = _dialogService != null
+            ? await _dialogService.ShowConfirmationAsync(
+                "Delete Project",
+                $"Are you sure you want to permanently delete '{name}'?\n\nThis will delete the project file and its directory from disk:\n{path}",
+                confirmText: "Delete",
+                cancelText: "Cancel").ConfigureAwait(false)
+            : true;
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        try
+        {
+            var projectDir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(projectDir) && Directory.Exists(projectDir))
+            {
+                Directory.Delete(projectDir, recursive: true);
+            }
+            else if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+
+            await _projectConfigService.RemoveFromRecentProjectsAsync(path).ConfigureAwait(false);
+
+            if (ProjectPath.Equals(path, StringComparison.OrdinalIgnoreCase))
+            {
+                await CloseProjectAsync().ConfigureAwait(false);
+            }
+
+            await LoadRecentProjectsAsync().ConfigureAwait(false);
+            _notificationService.ShowSuccess("Project Deleted", $"Successfully deleted '{name}'.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete project at {Path}", path);
+            _notificationService.ShowError("Delete Failed", $"Failed to delete project: {ex.Message}");
+        }
+    }
+
+    private static (string Path, string Name) ExtractProjectInfo(object? parameter)
+    {
+        return parameter switch
+        {
+            RecentProjectInfo info => (info.Path, info.Name),
+            string s => (s, Path.GetFileNameWithoutExtension(s)),
+            _ => (string.Empty, string.Empty)
+        };
+    }
+
+    /// <summary>
     /// Loads the sample project for testing.
     /// </summary>
     [RelayCommand]
@@ -698,12 +788,32 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
             if (samplePath == null)
             {
-                _notificationService.ShowWarning(
-                    "Sample Not Found",
-                    "Sample project not found. It may not be included in this build.");
-                AppendBuildLog($"Sample project not found in search paths: {string.Join(", ", candidatePaths)}");
-                _logger.LogWarning("Sample project not found in candidate paths");
-                return;
+                // Fall back to generating a fresh, buildable sample project in the user's ModBuilder folder
+                var defaultFolder = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                    "ModBuilder",
+                    "BasicMod");
+                Directory.CreateDirectory(defaultFolder);
+                var generatedPath = Path.Combine(defaultFolder, "BasicMod.mbproj");
+
+                var createResult = await _projectConfigService.CreateProjectAsync(
+                    generatedPath,
+                    "BasicMod",
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false);
+
+                if (createResult.Success)
+                {
+                    await _projectStructureGenerator.GenerateProjectStructureAsync(generatedPath, CancellationToken.None).ConfigureAwait(false);
+                    samplePath = generatedPath;
+                }
+                else
+                {
+                    _notificationService.ShowWarning(
+                        "Sample Not Found",
+                        "Sample project not found and could not be created automatically.");
+                    AppendBuildLog($"Sample project not found in search paths: {string.Join(", ", candidatePaths)}");
+                    return;
+                }
             }
 
             _logger.LogInformation("Found sample project at: {SamplePath}", samplePath);
@@ -715,7 +825,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
             _notificationService.ShowSuccess(
                 "Sample Loaded",
-                "Sample project loaded. Click 'Execute Build' to test ModBuilder.");
+                "Sample project loaded. Click 'Build' to test ModBuilder.");
         }
         catch (Exception ex)
         {
