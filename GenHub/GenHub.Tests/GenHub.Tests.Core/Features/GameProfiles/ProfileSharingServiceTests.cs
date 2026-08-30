@@ -1396,12 +1396,11 @@ public class ProfileSharingServiceTests
         Assert.True(jsonResult.Success);
         Assert.NotNull(jsonResult.Data);
 
-        var inspectResult = await _service.InspectSharedProfileAsync(jsonResult.Data);
+        var package = JsonSerializer.Deserialize<SharedGameProfilePackage>(jsonResult.Data, TestJsonOptions);
 
         // Assert
-        Assert.True(inspectResult.Success);
-        Assert.NotNull(inspectResult.Data);
-        var dependency = Assert.Single(inspectResult.Data.Manifests);
+        Assert.NotNull(package);
+        var dependency = Assert.Single(package.RequiredManifests);
         Assert.Equal(GameType.ZeroHour, dependency.TargetGame);
     }
 
