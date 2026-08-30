@@ -44,6 +44,11 @@ public class ContentVariant
     public GameType? TargetGame { get; set; }
 
     /// <summary>
+    /// Gets or sets the specific output filename for this variant when repacking or delivering content.
+    /// </summary>
+    public string? OutputFilename { get; set; }
+
+    /// <summary>
     /// Gets or sets file path patterns to include for this variant.
     /// Supports wildcards (e.g., "*1920x1080*", "Resolution_1080p/*").
     /// </summary>

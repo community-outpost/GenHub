@@ -53,10 +53,10 @@ public static class GenPatcherContentRegistry
     /// </summary>
     private static readonly List<ContentVariant> HleiVariants =
     [
-        new ContentVariant { Id = "zerohour-en", Name = "Leikeze's Hotkeys (EN)", VariantType = LanguageVariantType, Value = "en", TargetGame = GameType.ZeroHour, IncludePatterns = ["*ENZH.big"], IsDefault = true },
-        new ContentVariant { Id = "zerohour-de", Name = "Leikeze's Hotkeys (DE)", VariantType = LanguageVariantType, Value = "de", TargetGame = GameType.ZeroHour, IncludePatterns = ["*DEZH.big"], IsDefault = false },
-        new ContentVariant { Id = "zerohour-ru", Name = "Leikeze's Hotkeys (RU)", VariantType = LanguageVariantType, Value = "ru", TargetGame = GameType.ZeroHour, IncludePatterns = ["*RUZH.big"], IsDefault = false },
-        new ContentVariant { Id = "generals-en", Name = "Leikeze's Hotkeys [Generals] (EN)", VariantType = LanguageVariantType, Value = "en", TargetGame = GameType.Generals, IncludePatterns = ["!HotkeysLeikezeEN.big"], IsDefault = false },
+        new ContentVariant { Id = "zerohour-en", Name = "Leikeze's Hotkeys (EN)", VariantType = LanguageVariantType, Value = "en", TargetGame = GameType.ZeroHour, IncludePatterns = ["*ENZH.big"], OutputFilename = "!HotkeysLeikezeENZH.big", IsDefault = true },
+        new ContentVariant { Id = "zerohour-de", Name = "Leikeze's Hotkeys (DE)", VariantType = LanguageVariantType, Value = "de", TargetGame = GameType.ZeroHour, IncludePatterns = ["*DEZH.big"], OutputFilename = "!HotkeysLeikezeDEZH.big", IsDefault = false },
+        new ContentVariant { Id = "zerohour-ru", Name = "Leikeze's Hotkeys (RU)", VariantType = LanguageVariantType, Value = "ru", TargetGame = GameType.ZeroHour, IncludePatterns = ["*RUZH.big"], OutputFilename = "!HotkeysLeikezeRUZH.big", IsDefault = false },
+        new ContentVariant { Id = "generals-en", Name = "Leikeze's Hotkeys [Generals] (EN)", VariantType = LanguageVariantType, Value = "en", TargetGame = GameType.Generals, IncludePatterns = ["!HotkeysLeikezeEN.big"], OutputFilename = "!HotkeysLeikezeEN.big", IsDefault = false },
     ];
 
     /// <summary>

@@ -202,43 +202,41 @@ public class CommunityOutpostDeliverer(
     }
 
     /// <summary>
-    /// Resolves the destination BIG filename for a given variant directory.
+    /// Resolves the destination BIG filename for a given variant directory based on metadata variant definitions.
     /// </summary>
-    private static string? ResolveHotkeyVariantOutputFileName(string directoryPath)
+    private static string? ResolveVariantOutputFileName(string directoryPath, GenPatcherContentMetadata metadata)
     {
+        if (metadata.Variants == null || metadata.Variants.Count == 0)
+        {
+            return null;
+        }
+
         var segments = directoryPath.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries);
         var isZH = segments.Any(segment => segment.Equals("ZH", StringComparison.OrdinalIgnoreCase));
         var isCCG = segments.Any(segment => segment.Equals("CCG", StringComparison.OrdinalIgnoreCase));
         var dirName = Path.GetFileName(directoryPath);
 
-        if (isZH)
+        GameType? targetGame = isZH ? GameType.ZeroHour : (isCCG ? GameType.Generals : null);
+
+        var matchedVariant = metadata.Variants.FirstOrDefault(variant =>
         {
-            if (dirName.EndsWith("EN", StringComparison.OrdinalIgnoreCase))
+            if (targetGame.HasValue && variant.TargetGame.HasValue && variant.TargetGame.Value != targetGame.Value)
             {
-                return "!HotkeysLeikezeENZH.big";
+                return false;
             }
 
-            if (dirName.EndsWith("DE", StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrEmpty(variant.Value) &&
+                (dirName.EndsWith(variant.Value, StringComparison.OrdinalIgnoreCase) ||
+                 dirName.Equals(variant.Value, StringComparison.OrdinalIgnoreCase) ||
+                 dirName.Contains($" {variant.Value}", StringComparison.OrdinalIgnoreCase)))
             {
-                return "!HotkeysLeikezeDEZH.big";
+                return true;
             }
 
-            if (dirName.EndsWith("RU", StringComparison.OrdinalIgnoreCase))
-            {
-                return "!HotkeysLeikezeRUZH.big";
-            }
+            return false;
+        });
 
-            return "!HotkeysLeikezeZH.big";
-        }
-
-        if (isCCG)
-        {
-            return dirName.EndsWith("EN", StringComparison.OrdinalIgnoreCase)
-                ? "!HotkeysLeikezeEN.big"
-                : "!HotkeysLeikezeCCG.big";
-        }
-
-        return null;
+        return matchedVariant?.OutputFilename;
     }
 
     /// <summary>
@@ -651,6 +649,7 @@ public class CommunityOutpostDeliverer(
     private async Task<int> RepackAllVariantDirectoriesAsync(
         string[] bigDirectories,
         string packDir,
+        GenPatcherContentMetadata metadata,
         CancellationToken cancellationToken)
     {
         var repackedCount = 0;
@@ -659,9 +658,10 @@ public class CommunityOutpostDeliverer(
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var outputFileName = ResolveHotkeyVariantOutputFileName(bigDir);
+            var outputFileName = ResolveVariantOutputFileName(bigDir, metadata);
             if (string.IsNullOrEmpty(outputFileName))
             {
+                logger.LogDebug("Skipping variant directory {Dir}: no matching output filename", bigDir);
                 continue;
             }
 
@@ -706,7 +706,7 @@ public class CommunityOutpostDeliverer(
 
         try
         {
-            var repackedCount = await RepackAllVariantDirectoriesAsync(bigDirectories, packDir, cancellationToken);
+            var repackedCount = await RepackAllVariantDirectoriesAsync(bigDirectories, packDir, metadata, cancellationToken);
             if (repackedCount > 0)
             {
                 ReplaceExtractedWithPacked(extractPath, packDir);
@@ -762,6 +762,7 @@ public class CommunityOutpostDeliverer(
 
             if (string.IsNullOrEmpty(metadata.OutputFilename))
             {
+                logger.LogWarning("Skipping repack for {ContentCode}: OutputFilename is not set", contentCode);
                 return;
             }
 
