@@ -1,16 +1,16 @@
 {
   "name": "TextureOverhaul",
-  "version": "2.0.0",
-  "author": "Community Outpost",
-  "description": "High-definition texture pack replacing vehicle skins and UI elements with compressed DDS textures",
+  "version": "1.0.0",
+  "author": "Community Artist",
+  "description": "HD vehicle skins, terrain textures, and user interface overhaul",
   "directories": {
-    "configs": "Configs",
+    "configs": "config",
     "gameFilesEdited": "GameFilesEdited",
     "build": ".Build",
     "release": ".Release"
   },
   "bundleConfigs": [
-    "ModBundleItems.json",
-    "ModBundlePacks.json"
+    "config/ModBundleItems.json",
+    "config/ModBundlePacks.json"
   ]
 }

@@ -338,7 +338,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     /// Gets or sets a value indicating whether release action is enabled.
     /// </summary>
     [ObservableProperty]
-    private bool _releaseEnabled;
+    private bool _releaseEnabled = true;
 
     /// <summary>
     /// Gets or sets a value indicating whether install action is enabled.
@@ -458,10 +458,14 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             var result = await _projectConfigService.GetRecentProjectsAsync(10, CancellationToken.None).ConfigureAwait(false);
             var projectPaths = new List<string>(result.Success && result.Data != null ? result.Data : []);
 
-            var samplePath = await ResolveSampleProjectPathAsync().ConfigureAwait(false);
-            if (!string.IsNullOrEmpty(samplePath) && File.Exists(samplePath) && !projectPaths.Contains(samplePath, StringComparer.OrdinalIgnoreCase))
+            var samplePaths = await DiscoverSampleProjectPathsAsync().ConfigureAwait(false);
+            for (var i = samplePaths.Count - 1; i >= 0; i--)
             {
-                projectPaths.Insert(0, samplePath);
+                var samplePath = samplePaths[i];
+                if (!string.IsNullOrEmpty(samplePath) && File.Exists(samplePath) && !projectPaths.Contains(samplePath, StringComparer.OrdinalIgnoreCase))
+                {
+                    projectPaths.Insert(0, samplePath);
+                }
             }
 
             var projectInfos = projectPaths.Select(CreateRecentProjectInfo).ToList();
@@ -846,21 +850,41 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task<string?> ResolveSampleProjectPathAsync()
+    private async Task<IReadOnlyList<string>> DiscoverSampleProjectPathsAsync()
     {
-        var candidatePaths = new[]
+        var sampleBaseDirs = new[]
         {
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SampleProjectsDirLiteral, ModBuilderLiteral, BasicModLiteral, BasicModProjectFileLiteral),
-            Path.Combine(AppContext.BaseDirectory, SampleProjectsDirLiteral, ModBuilderLiteral, BasicModLiteral, BasicModProjectFileLiteral),
-            Path.Combine(Directory.GetCurrentDirectory(), SampleProjectsDirLiteral, ModBuilderLiteral, BasicModLiteral, BasicModProjectFileLiteral),
-            Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", SampleProjectsDirLiteral, ModBuilderLiteral, BasicModLiteral, BasicModProjectFileLiteral)),
-            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", SampleProjectsDirLiteral, ModBuilderLiteral, BasicModLiteral, BasicModProjectFileLiteral)),
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, SampleProjectsDirLiteral, ModBuilderLiteral),
+            Path.Combine(AppContext.BaseDirectory, SampleProjectsDirLiteral, ModBuilderLiteral),
+            Path.Combine(Directory.GetCurrentDirectory(), SampleProjectsDirLiteral, ModBuilderLiteral),
+            Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", SampleProjectsDirLiteral, ModBuilderLiteral)),
+            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", SampleProjectsDirLiteral, ModBuilderLiteral)),
         };
 
-        var samplePath = candidatePaths.FirstOrDefault(File.Exists);
-        if (samplePath != null)
+        var foundProjects = new List<string>();
+        foreach (var baseDir in sampleBaseDirs.Where(Directory.Exists).Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            return samplePath;
+            try
+            {
+                var files = Directory.GetFiles(baseDir, "*.mbproj", SearchOption.AllDirectories);
+                foreach (var file in files)
+                {
+                    var fullPath = Path.GetFullPath(file);
+                    if (!foundProjects.Contains(fullPath, StringComparer.OrdinalIgnoreCase))
+                    {
+                        foundProjects.Add(fullPath);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Failed to scan sample directory {Dir}", baseDir);
+            }
+        }
+
+        if (foundProjects.Count > 0)
+        {
+            return foundProjects;
         }
 
         var defaultFolder = Path.Combine(
@@ -870,18 +894,26 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         Directory.CreateDirectory(defaultFolder);
         var generatedPath = Path.Combine(defaultFolder, BasicModProjectFileLiteral);
 
-        var createResult = await _projectConfigService.CreateProjectAsync(
-            generatedPath,
-            BasicModLiteral,
-            cancellationToken: CancellationToken.None).ConfigureAwait(false);
-
-        if (createResult.Success)
+        if (!File.Exists(generatedPath))
         {
-            await _projectStructureGenerator.GenerateProjectStructureAsync(generatedPath, CancellationToken.None).ConfigureAwait(false);
-            return generatedPath;
+            var createResult = await _projectConfigService.CreateProjectAsync(
+                generatedPath,
+                BasicModLiteral,
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
+
+            if (createResult.Success)
+            {
+                await _projectStructureGenerator.GenerateProjectStructureAsync(generatedPath, CancellationToken.None).ConfigureAwait(false);
+            }
         }
 
-        return null;
+        return File.Exists(generatedPath) ? new[] { generatedPath } : Array.Empty<string>();
+    }
+
+    private async Task<string?> ResolveSampleProjectPathAsync()
+    {
+        var samplePaths = await DiscoverSampleProjectPathsAsync().ConfigureAwait(false);
+        return samplePaths.FirstOrDefault();
     }
 
     /// <summary>
@@ -1304,13 +1336,17 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
     private async Task<BuildConfiguration> PrepareBuildConfigurationAsync(CancellationToken cancellationToken)
     {
         var buildConfig = CurrentProject?.Configuration;
-        if (buildConfig == null && CurrentProject != null && CurrentProject.ConfigFiles.Count > 0)
+        var projectDir = GetEffectiveProjectDir();
+
+        if ((buildConfig == null || buildConfig.Items.Count == 0) && !string.IsNullOrEmpty(projectDir))
         {
-            var configPath = Path.Combine(CurrentProject.ProjectDir, CurrentProject.ConfigFiles[0]);
-            buildConfig = await _configurationLoaderService.LoadConfigurationAsync(
-                configPath,
+            buildConfig = await _configurationLoaderService.LoadProjectConfigurationAsync(
+                projectDir,
                 cancellationToken).ConfigureAwait(false);
-            CurrentProject.Configuration = buildConfig;
+            if (CurrentProject != null)
+            {
+                CurrentProject.Configuration = buildConfig;
+            }
         }
 
         buildConfig ??= new BuildConfiguration();
@@ -1811,7 +1847,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         {
             var projectDir = GetEffectiveProjectDir();
 
-            if (CurrentProject.Configuration == null && !string.IsNullOrEmpty(projectDir))
+            if (!string.IsNullOrEmpty(projectDir))
             {
                 CurrentProject.Configuration = await _configurationLoaderService.LoadProjectConfigurationAsync(
                     projectDir,
@@ -1819,6 +1855,17 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             }
 
             await InvokeOnUIThreadAsync(() => PopulateProjectBundlesAndProperties(CurrentProject.Configuration)).ConfigureAwait(false);
+
+            var countedFiles = await CountFilesToBuildAsync().ConfigureAwait(false);
+            if (countedFiles > 0)
+            {
+                await InvokeOnUIThreadAsync(() =>
+                {
+                    FilesToBuildCount = countedFiles;
+                    FileCount = countedFiles;
+                    StatusMessage = $"Project loaded: {ProjectName} ({FilesToBuildCount} files to build)";
+                }).ConfigureAwait(false);
+            }
 
             if (!string.IsNullOrEmpty(projectDir))
             {
@@ -1864,6 +1911,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         }
 
         FileCount = Bundles.Sum(b => b.FileCount);
+        FilesToBuildCount = FileCount;
     }
 
     private async Task InitializeFileManagerAndGameDirectoryAsync(string projectDir)

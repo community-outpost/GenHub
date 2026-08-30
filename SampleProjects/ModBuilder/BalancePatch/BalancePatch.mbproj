@@ -1,16 +1,16 @@
 {
   "name": "BalancePatch",
-  "version": "1.1.0",
-  "author": "Community Outpost",
-  "description": "A competitive balance patch adjusting unit statistics, weapon damage, and armor values for Zero Hour",
+  "version": "1.0.0",
+  "author": "Community Modder",
+  "description": "Multiplayer balance tuning and unit attribute overhaul",
   "directories": {
-    "configs": "Configs",
+    "configs": "config",
     "gameFilesEdited": "GameFilesEdited",
     "build": ".Build",
     "release": ".Release"
   },
   "bundleConfigs": [
-    "ModBundleItems.json",
-    "ModBundlePacks.json"
+    "config/ModBundleItems.json",
+    "config/ModBundlePacks.json"
   ]
 }

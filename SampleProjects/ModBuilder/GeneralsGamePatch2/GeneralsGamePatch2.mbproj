@@ -1,0 +1,16 @@
+{
+  "name": "GeneralsGamePatch2",
+  "version": "2.0.0",
+  "author": "TheSuperHackers & Community Outpost",
+  "description": "Comprehensive community game patch for Command & Conquer: Generals including balance, scripts, textures, and audio fixes",
+  "directories": {
+    "configs": "config",
+    "gameFilesEdited": "GameFilesEdited",
+    "build": ".Build",
+    "release": ".Release"
+  },
+  "bundleConfigs": [
+    "config/ModBundleItems.json",
+    "config/ModBundlePacks.json"
+  ]
+}

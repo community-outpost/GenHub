@@ -504,4 +504,128 @@ public sealed class BuildEngineServiceTests : IDisposable
         result.Success.Should().BeTrue();
         result.FilesProcessed.Should().BeGreaterOrEqualTo(2);
     }
+
+    [Fact]
+    public async Task ExecuteBuildAsync_WithGeneralsGamePatch2Structure_BuildsAllItemsAndPacks()
+    {
+        // Arrange
+        var patchProjectDir = Path.Combine(_tempDirectory, "GeneralsGamePatch2");
+        var editedDir = Path.Combine(patchProjectDir, "GameFilesEdited");
+        var buildDir = Path.Combine(patchProjectDir, ".Build");
+        var releaseDir = Path.Combine(patchProjectDir, ".Release");
+
+        Directory.CreateDirectory(Path.Combine(editedDir, "Data", "INI"));
+        Directory.CreateDirectory(Path.Combine(editedDir, "Art", "Textures"));
+        Directory.CreateDirectory(Path.Combine(editedDir, "Data", "Audio"));
+        Directory.CreateDirectory(Path.Combine(editedDir, "Data", "Scripts"));
+
+        var iniFile = Path.Combine(editedDir, "Data", "INI", "GameData.ini");
+        var texFile = Path.Combine(editedDir, "Art", "Textures", "CrusaderTank.tga");
+        var audFile = Path.Combine(editedDir, "Data", "Audio", "TankMove.wav");
+        var scrFile = Path.Combine(editedDir, "Data", "Scripts", "CommunityFixes.txt");
+
+        await File.WriteAllTextAsync(iniFile, "GameData content");
+        await File.WriteAllTextAsync(texFile, "TGA content");
+        await File.WriteAllTextAsync(audFile, "WAV content");
+        await File.WriteAllTextAsync(scrFile, "TXT content");
+
+        var project = new ModBuilderProject
+        {
+            Name = "GeneralsGamePatch2",
+            ProjectDir = patchProjectDir,
+            Directories = new ProjectDirectories
+            {
+                GameFilesEdited = editedDir,
+                Build = buildDir,
+                Release = releaseDir,
+            },
+            BundleConfigs = new List<string>()
+        };
+
+        var configuration = new BuildConfiguration
+        {
+            Folders = new FolderConfiguration
+            {
+                AbsBuildDir = buildDir,
+                AbsReleaseDir = releaseDir,
+            },
+            Items = new List<BundleItem>
+            {
+                new()
+                {
+                    Name = "PatchINI",
+                    IsBig = true,
+                    Files = new List<BundleFile>
+                    {
+                        new() { AbsSourceParent = patchProjectDir, AbsSourceFile = iniFile, RelTargetFile = "Data/INI/GameData.ini" }
+                    }
+                },
+                new()
+                {
+                    Name = "PatchTextures",
+                    IsBig = true,
+                    Files = new List<BundleFile>
+                    {
+                        new() { AbsSourceParent = patchProjectDir, AbsSourceFile = texFile, RelTargetFile = "Art/Textures/CrusaderTank.tga" }
+                    }
+                },
+                new()
+                {
+                    Name = "PatchAudio",
+                    IsBig = true,
+                    Files = new List<BundleFile>
+                    {
+                        new() { AbsSourceParent = patchProjectDir, AbsSourceFile = audFile, RelTargetFile = "Data/Audio/TankMove.wav" }
+                    }
+                },
+                new()
+                {
+                    Name = "PatchScripts",
+                    IsBig = true,
+                    Files = new List<BundleFile>
+                    {
+                        new() { AbsSourceParent = patchProjectDir, AbsSourceFile = scrFile, RelTargetFile = "Data/Scripts/CommunityFixes.txt" }
+                    }
+                }
+            },
+            Packs = new List<BundlePack>
+            {
+                new()
+                {
+                    Name = "GeneralsGamePatch2",
+                    AllowBuild = true,
+                    AllowInstall = true,
+                    ItemNames = new List<string> { "PatchINI", "PatchTextures", "PatchAudio", "PatchScripts" },
+                },
+                new()
+                {
+                    Name = "PatchINIOnly",
+                    AllowBuild = true,
+                    AllowInstall = true,
+                    ItemNames = new List<string> { "PatchINI" },
+                }
+            }
+        };
+
+        _mockHashProvider.Setup(x => x.ComputeFileHashAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("patchhash123");
+
+        _mockCacheService.Setup(x => x.DetermineFileStatus(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Dictionary<string, object>>()))
+            .Returns(BuildFileStatus.Added);
+
+        _mockFileConversionService.Setup(x => x.ConvertFileAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ConversionOperationResult.CreateSuccess());
+
+        // Act
+        var result = await _service.ExecuteBuildAsync(
+            project,
+            configuration,
+            new List<string> { "GeneralsGamePatch2", "PatchINIOnly" },
+            BuildStep.Build | BuildStep.Release);
+
+        // Assert
+        result.Success.Should().BeTrue();
+        result.FilesProcessed.Should().Be(4);
+    }
 }

@@ -1,0 +1,4 @@
+// AI pathfinding behavior enhancements
+[Script_China_Overlord_Advance]
+Condition = UnitCount("ChinaVehicleOverlord") >= 2
+Action = AttackMoveToWaypoint("Waypoint_Alpha")
