@@ -87,7 +87,7 @@
 
     <!-- Copy sample projects to output directory -->
     <ItemGroup>
-      <Content Include="..\..\SampleProjects\**\*.json;..\..\SampleProjects\**\*.mbproj;..\..\SampleProjects\**\*.md;..\..\SampleProjects\**\*.txt">
+      <Content Include="..\..\SampleProjects\**\*.*">
         <Link>SampleProjects\%(RecursiveDir)%(Filename)%(Extension)</Link>
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>
