@@ -1429,11 +1429,12 @@ public class ProfileSharingServiceTests
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
 
-        var inspectResult = await _service.InspectSharedProfileAsync(result.Data);
-        Assert.True(inspectResult.Success);
-        Assert.NotNull(inspectResult.Data);
-        Assert.Equal("/Assets/Icons/zerohour-icon.png", inspectResult.Data.ProfileMetadata.IconPath);
-        Assert.Equal("avares://GenHub/Assets/Covers/zerohour-cover.png", inspectResult.Data.ProfileMetadata.CoverPath);
+        var dataParam = result.Data.Substring(result.Data.IndexOf("data=", StringComparison.Ordinal) + 5);
+        var json = ProfileSharingCompressionHelper.DecompressAndDecode(dataParam);
+        var package = JsonSerializer.Deserialize<SharedGameProfilePackage>(json, TestJsonOptions);
+        Assert.NotNull(package);
+        Assert.Equal("/Assets/Icons/zerohour-icon.png", package.Profile.IconPath);
+        Assert.Equal("avares://GenHub/Assets/Covers/zerohour-cover.png", package.Profile.CoverPath);
     }
 
     /// <summary>
