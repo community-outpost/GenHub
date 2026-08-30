@@ -1432,76 +1432,127 @@ public class ProfileSharingService(
         return OperationResult<bool>.CreateSuccess(true);
     }
 
-    [SuppressMessage("Major Code Smell", "S6966:Await async method instead of sync counterpart", Justification = "ZipFile.OpenRead and ZipArchiveEntry.Open have no asynchronous OpenReadAsync/OpenAsync methods in .NET 8 BCL.")]
     private static async Task<OperationResult<bool>> ExtractAndVerifyPackageFilesAsync(
         string tempZipPath,
         string stagingDir,
         SharedManifestDependency dependency,
         CancellationToken cancellationToken)
     {
+        string canonicalStagingDir = GetCanonicalStagingDirectory(stagingDir);
+
+        await ExtractArchiveEntriesAsync(tempZipPath, stagingDir, canonicalStagingDir, cancellationToken);
+
+        return await VerifyExtractedFilesAsync(dependency, stagingDir, canonicalStagingDir, cancellationToken);
+    }
+
+    private static string GetCanonicalStagingDirectory(string stagingDir)
+    {
         string canonicalStagingDir = Path.GetFullPath(stagingDir);
-        if (!canonicalStagingDir.EndsWith(Path.DirectorySeparatorChar))
-        {
-            canonicalStagingDir += Path.DirectorySeparatorChar;
-        }
+        return canonicalStagingDir.EndsWith(Path.DirectorySeparatorChar)
+            ? canonicalStagingDir
+            : canonicalStagingDir + Path.DirectorySeparatorChar;
+    }
 
-        using (var archive = ZipFile.OpenRead(tempZipPath))
+    [SuppressMessage("Major Code Smell", "S6966:Await async method instead of sync counterpart", Justification = "ZipFile.OpenRead and ZipArchiveEntry.Open have no asynchronous OpenReadAsync/OpenAsync methods in .NET 8 BCL.")]
+    private static async Task ExtractArchiveEntriesAsync(
+        string tempZipPath,
+        string stagingDir,
+        string canonicalStagingDir,
+        CancellationToken cancellationToken)
+    {
+        using var archive = ZipFile.OpenRead(tempZipPath);
+        foreach (var entry in archive.Entries)
         {
-            foreach (var entry in archive.Entries)
+            if (string.IsNullOrEmpty(entry.Name))
             {
-                if (string.IsNullOrEmpty(entry.Name))
-                {
-                    continue;
-                }
-
-                var destinationPath = Path.GetFullPath(Path.Combine(stagingDir, entry.FullName));
-                if (!destinationPath.StartsWith(canonicalStagingDir, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                var directory = Path.GetDirectoryName(destinationPath);
-                if (!string.IsNullOrEmpty(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-
-                await using var entryStream = entry.Open();
-                await using var outputStream = File.Create(destinationPath);
-                await entryStream.CopyToAsync(outputStream, cancellationToken);
+                continue;
             }
-        }
 
+            var destinationPath = Path.GetFullPath(Path.Combine(stagingDir, entry.FullName));
+            if (!destinationPath.StartsWith(canonicalStagingDir, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var directory = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            await using var entryStream = entry.Open();
+            await using var outputStream = File.Create(destinationPath);
+            await entryStream.CopyToAsync(outputStream, cancellationToken);
+        }
+    }
+
+    private static async Task<OperationResult<bool>> VerifyExtractedFilesAsync(
+        SharedManifestDependency dependency,
+        string stagingDir,
+        string canonicalStagingDir,
+        CancellationToken cancellationToken)
+    {
         foreach (var file in dependency.Files)
         {
-            if (Path.IsPathRooted(file.RelativePath) || file.RelativePath.Contains("..", StringComparison.Ordinal))
+            var validatePathResult = ValidateExtractedFilePath(file.RelativePath, stagingDir, canonicalStagingDir);
+            if (!validatePathResult.Success)
             {
-                return OperationResult<bool>.CreateFailure($"Package contains invalid relative path: {file.RelativePath}");
+                return validatePathResult;
             }
 
-            var filePath = Path.GetFullPath(Path.Combine(stagingDir, file.RelativePath));
-            if (!filePath.StartsWith(canonicalStagingDir, StringComparison.Ordinal))
-            {
-                return OperationResult<bool>.CreateFailure($"Package path escapes staging directory: {file.RelativePath}");
-            }
-
-            if (!File.Exists(filePath))
-            {
-                return OperationResult<bool>.CreateFailure($"Package is missing expected file: {file.RelativePath}");
-            }
-
+            var filePath = validatePathResult.Data!;
             if (!string.IsNullOrWhiteSpace(file.Hash))
             {
-                using var sha = SHA256.Create();
-                await using var stream = File.OpenRead(filePath);
-                var hashBytes = await sha.ComputeHashAsync(stream, cancellationToken);
-                var actualHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
-                var expectedHash = file.Hash.Replace("-", string.Empty).ToLowerInvariant();
-                if (!string.Equals(actualHash, expectedHash, StringComparison.OrdinalIgnoreCase))
+                var hashCheckResult = await ValidateFileChecksumAsync(filePath, file.RelativePath, file.Hash, cancellationToken);
+                if (!hashCheckResult.Success)
                 {
-                    return OperationResult<bool>.CreateFailure($"SHA-256 hash mismatch for {file.RelativePath}.");
+                    return hashCheckResult;
                 }
             }
+        }
+
+        return OperationResult<bool>.CreateSuccess(true);
+    }
+
+    private static OperationResult<string> ValidateExtractedFilePath(
+        string relativePath,
+        string stagingDir,
+        string canonicalStagingDir)
+    {
+        if (Path.IsPathRooted(relativePath) || relativePath.Contains("..", StringComparison.Ordinal))
+        {
+            return OperationResult<string>.CreateFailure($"Package contains invalid relative path: {relativePath}");
+        }
+
+        var filePath = Path.GetFullPath(Path.Combine(stagingDir, relativePath));
+        if (!filePath.StartsWith(canonicalStagingDir, StringComparison.Ordinal))
+        {
+            return OperationResult<string>.CreateFailure($"Package path escapes staging directory: {relativePath}");
+        }
+
+        if (!File.Exists(filePath))
+        {
+            return OperationResult<string>.CreateFailure($"Package is missing expected file: {relativePath}");
+        }
+
+        return OperationResult<string>.CreateSuccess(filePath);
+    }
+
+    private static async Task<OperationResult<bool>> ValidateFileChecksumAsync(
+        string filePath,
+        string relativePath,
+        string expectedHash,
+        CancellationToken cancellationToken)
+    {
+        using var sha = SHA256.Create();
+        await using var stream = File.OpenRead(filePath);
+        var hashBytes = await sha.ComputeHashAsync(stream, cancellationToken);
+        var actualHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
+        var normalizedExpectedHash = expectedHash.Replace("-", string.Empty).ToLowerInvariant();
+
+        if (!string.Equals(actualHash, normalizedExpectedHash, StringComparison.OrdinalIgnoreCase))
+        {
+            return OperationResult<bool>.CreateFailure($"SHA-256 hash mismatch for {relativePath}.");
         }
 
         return OperationResult<bool>.CreateSuccess(true);
