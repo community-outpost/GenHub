@@ -371,13 +371,13 @@
                             FontWeight="Bold"
                             FontSize="14"
                             HorizontalContentAlignment="Center"
-                            VerticalContentAlignment="Center">
+                            VerticalContentAlignment="Center"
+                            ToolTip.Tip="Save profile changes (Ctrl+S)">
                         <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                             <PathIcon Data="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" Width="14" Height="14" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
                             <TextBlock Text="Save" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                            ToolTip.Tip="Save profile changes (Ctrl+S)" />
 
                     <Button Command="{Binding RandomizeColorCommand}"
                             Background="#25000000"
