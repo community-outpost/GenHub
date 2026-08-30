@@ -456,19 +456,24 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         try
         {
             var result = await _projectConfigService.GetRecentProjectsAsync(10, CancellationToken.None).ConfigureAwait(false);
-            if (result.Success && result.Data != null)
+            var projectPaths = new List<string>(result.Success && result.Data != null ? result.Data : []);
+
+            var samplePath = await ResolveSampleProjectPathAsync().ConfigureAwait(false);
+            if (!string.IsNullOrEmpty(samplePath) && File.Exists(samplePath) && !projectPaths.Contains(samplePath, StringComparer.OrdinalIgnoreCase))
             {
-                var projectInfos = result.Data.Select(CreateRecentProjectInfo).ToList();
-
-                await InvokeOnUIThreadAsync(() =>
-                {
-                    _allRecentProjects.Clear();
-                    _allRecentProjects.AddRange(projectInfos);
-                    ApplyProjectFilter();
-                });
-
-                _logger.LogInformation("Loaded {Count} recent projects", projectInfos.Count);
+                projectPaths.Insert(0, samplePath);
             }
+
+            var projectInfos = projectPaths.Select(CreateRecentProjectInfo).ToList();
+
+            await InvokeOnUIThreadAsync(() =>
+            {
+                _allRecentProjects.Clear();
+                _allRecentProjects.AddRange(projectInfos);
+                ApplyProjectFilter();
+            });
+
+            _logger.LogInformation("Loaded {Count} recent projects", projectInfos.Count);
         }
         catch (Exception ex)
         {
@@ -1335,6 +1340,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         await InvokeOnUIThreadAsync(() =>
         {
+            ProcessedFiles = filesProcessed;
+            PercentComplete = 100.0;
             if (filesProcessed == 0)
             {
                 const string noFilesMessage = "Build completed but no files were processed.\n" +
@@ -1413,7 +1420,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
         {
             BuildLog.Clear();
             ProcessedFiles = 0;
-            TotalFiles = 0;
+            TotalFiles = fileCount;
             PercentComplete = 0;
             EstimatedTimeRemaining = null;
         });
@@ -1430,12 +1437,15 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             var progress = new Progress<string>(message =>
             {
                 AppendBuildLog(message);
-                if (message.Contains("Processing file:") || message.Contains("Converted"))
+                if (message.Contains("Processing file:", StringComparison.OrdinalIgnoreCase) ||
+                    message.Contains("Converted", StringComparison.OrdinalIgnoreCase))
                 {
                     Interlocked.Increment(ref filesProcessed);
                 }
 
-                if (message.Contains("Created bundle:") || message.Contains(".big"))
+                if (message.Contains("Created bundle:", StringComparison.OrdinalIgnoreCase) ||
+                    message.Contains("Created release pack:", StringComparison.OrdinalIgnoreCase) ||
+                    message.Contains(".big", StringComparison.OrdinalIgnoreCase))
                 {
                     Interlocked.Increment(ref bundlesCreated);
                 }
@@ -1457,7 +1467,9 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
             if (result.Success)
             {
-                await HandleBuildSuccessAsync(filesProcessed, bundlesCreated).ConfigureAwait(false);
+                var totalProcessed = Math.Max(filesProcessed, result.FilesProcessed);
+                var totalBundles = Math.Max(bundlesCreated, Bundles.Count(b => b.IsSelected));
+                await HandleBuildSuccessAsync(totalProcessed, totalBundles).ConfigureAwait(false);
             }
             else
             {

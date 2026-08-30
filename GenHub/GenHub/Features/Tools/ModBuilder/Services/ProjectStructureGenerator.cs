@@ -76,18 +76,37 @@ public sealed class ProjectStructureGenerator(
             {
                 new
                 {
-                    Name = "MyTextures",
-                    Type = "Texture",
-                    SourceFiles = new[] { $"{ModBuilderConstants.GameFilesEditedDir}/Art/Textures/**/*.tga" },
-                    OutputFormat = "DDS",
-                    Compression = "DXT5"
+                    Name = "CoreINIPatch",
+                    Type = "INI",
+                    SourceFiles = new[] { $"{ModBuilderConstants.GameFilesEditedDir}/Data/INI/**/*.ini" },
+                    OutputFormat = "INI",
+                    Description = "Game balance and unit attribute INI files"
                 },
                 new
                 {
-                    Name = "MyINI",
-                    Type = "INI",
-                    SourceFiles = new[] { $"{ModBuilderConstants.GameFilesEditedDir}/Data/INI/**/*.ini" },
-                    OutputFormat = "INI"
+                    Name = "CoreTextures",
+                    Type = "Texture",
+                    SourceFiles = new[] { $"{ModBuilderConstants.GameFilesEditedDir}/Art/Textures/**/*.tga" },
+                    OutputFormat = "DDS",
+                    Compression = "DXT5",
+                    GenerateMipmaps = true,
+                    Description = "Faction and vehicle textures converted to DDS"
+                },
+                new
+                {
+                    Name = "CoreAudio",
+                    Type = "Audio",
+                    SourceFiles = new[] { $"{ModBuilderConstants.GameFilesEditedDir}/Data/Audio/**/*.wav" },
+                    OutputFormat = "WAV",
+                    Description = "Unit sound effects and combat audio"
+                },
+                new
+                {
+                    Name = "GameScripts",
+                    Type = "Script",
+                    SourceFiles = new[] { $"{ModBuilderConstants.GameFilesEditedDir}/Data/Scripts/**/*.txt" },
+                    OutputFormat = "TXT",
+                    Description = "AI and gameplay script overrides"
                 }
             }
         };
@@ -102,12 +121,23 @@ public sealed class ProjectStructureGenerator(
             {
                 new
                 {
-                    Name = "MyMod",
-                    Items = new[] { "MyTextures", "MyINI" },
-                    ItemNames = new[] { "MyTextures", "MyINI" },
+                    Name = "CommunityDataPatch",
+                    Items = new[] { "CoreINIPatch", "CoreTextures", "CoreAudio", "GameScripts" },
+                    ItemNames = new[] { "CoreINIPatch", "CoreTextures", "CoreAudio", "GameScripts" },
                     AllowBuild = true,
                     AllowInstall = true,
-                    OutputFile = $"{ModBuilderConstants.DefaultReleaseDir}/MyMod.big"
+                    OutputFile = $"{ModBuilderConstants.DefaultReleaseDir}/CommunityDataPatch.zip",
+                    Description = "Full Community Patch distribution package containing all INI, texture, audio, and script fixes"
+                },
+                new
+                {
+                    Name = "CoreINIOnly",
+                    Items = new[] { "CoreINIPatch" },
+                    ItemNames = new[] { "CoreINIPatch" },
+                    AllowBuild = true,
+                    AllowInstall = true,
+                    OutputFile = $"{ModBuilderConstants.DefaultReleaseDir}/CoreINIOnly.zip",
+                    Description = "Lightweight INI-only data patch package"
                 }
             }
         };
@@ -120,11 +150,15 @@ public sealed class ProjectStructureGenerator(
     {
         var iniDir = Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir, "Data", "INI");
         var textureDir = Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir, "Art", "Textures");
+        var audioDir = Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir, "Data", "Audio");
+        var scriptsDir = Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir, "Data", "Scripts");
 
         Directory.CreateDirectory(iniDir);
         Directory.CreateDirectory(textureDir);
+        Directory.CreateDirectory(audioDir);
+        Directory.CreateDirectory(scriptsDir);
 
-        var sampleIniPath = Path.Combine(iniDir, "AmericaTank.ini");
+        var sampleIniPath = Path.Combine(iniDir, "AmericaVehicleCrusaderTank.ini");
         if (!File.Exists(sampleIniPath))
         {
             const string sampleIni = "; =========================================================================\n" +
@@ -143,11 +177,37 @@ public sealed class ProjectStructureGenerator(
             await File.WriteAllTextAsync(sampleIniPath, sampleIni, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
         }
 
+        var sampleAiDataPath = Path.Combine(iniDir, "AIData.ini");
+        if (!File.Exists(sampleAiDataPath))
+        {
+            const string aiDataIni = "; AIData.ini - Community Patch Configuration\n" +
+                                     "AIData\n" +
+                                     "  StructureSeconds = 14.0\n" +
+                                     "  TeamSeconds = 30.0\n" +
+                                     "  Side = America\n" +
+                                     "End\n";
+            await File.WriteAllTextAsync(sampleAiDataPath, aiDataIni, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
+        }
+
         var sampleTgaPath = Path.Combine(textureDir, "CrusaderTank.tga");
         if (!File.Exists(sampleTgaPath))
         {
             var tgaBytes = CreateSampleTgaBytes(32, 32);
             await File.WriteAllBytesAsync(sampleTgaPath, tgaBytes, cancellationToken).ConfigureAwait(false);
+        }
+
+        var sampleAudioPath = Path.Combine(audioDir, "TankMove.wav");
+        if (!File.Exists(sampleAudioPath))
+        {
+            var wavBytes = CreateSampleWavBytes();
+            await File.WriteAllBytesAsync(sampleAudioPath, wavBytes, cancellationToken).ConfigureAwait(false);
+        }
+
+        var sampleScriptPath = Path.Combine(scriptsDir, "CommunityFixes.txt");
+        if (!File.Exists(sampleScriptPath))
+        {
+            const string scriptContent = "// Community Patch Script Fixes\n// Fix: Correct pathfinding obstruction handling\n";
+            await File.WriteAllTextAsync(sampleScriptPath, scriptContent, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -176,6 +236,47 @@ public sealed class ProjectStructureGenerator(
         }
 
         return totalBytes;
+    }
+
+    private static byte[] CreateSampleWavBytes()
+    {
+        using var ms = new MemoryStream();
+        using var writer = new BinaryWriter(ms);
+
+        const int sampleRate = 22050;
+        const short channels = 1;
+        const short bitsPerSample = 16;
+        const int samplesCount = sampleRate / 4; // 0.25s audio
+        const int dataSize = samplesCount * channels * (bitsPerSample / 8);
+
+        // RIFF header
+        writer.Write(Encoding.ASCII.GetBytes("RIFF"));
+        writer.Write(36 + dataSize);
+        writer.Write(Encoding.ASCII.GetBytes("WAVE"));
+
+        // fmt chunk
+        writer.Write(Encoding.ASCII.GetBytes("fmt "));
+        writer.Write(16);
+        writer.Write((short)1); // PCM
+        writer.Write(channels);
+        writer.Write(sampleRate);
+        writer.Write(sampleRate * channels * (bitsPerSample / 8));
+        writer.Write((short)(channels * (bitsPerSample / 8)));
+        writer.Write(bitsPerSample);
+
+        // data chunk
+        writer.Write(Encoding.ASCII.GetBytes("data"));
+        writer.Write(dataSize);
+
+        // simple sound wave
+        for (var i = 0; i < samplesCount; i++)
+        {
+            var t = (double)i / sampleRate;
+            var sample = (short)(Math.Sin(2.0 * Math.PI * 440.0 * t) * 8000);
+            writer.Write(sample);
+        }
+
+        return ms.ToArray();
     }
 
     private static async Task CreateReadmeFilesAsync(string projectDir, CancellationToken cancellationToken)

@@ -1,14 +1,27 @@
 {
   "BundlePacks": [
     {
-      "Name": "BasicMod",
+      "Name": "CommunityDataPatch",
       "Items": [
-        "ModifiedINI",
-        "ModifiedTextures",
-        "ModifiedSounds"
+        "CoreINIPatch",
+        "CoreTextures",
+        "CoreAudio",
+        "GameScripts"
       ],
-      "OutputFile": ".Release/BasicMod.big",
-      "Description": "Complete BasicMod package with INI, texture, and audio changes"
+      "OutputFile": ".Release/CommunityDataPatch.zip",
+      "AllowBuild": true,
+      "AllowInstall": true,
+      "Description": "Full Community Patch distribution package containing all INI, texture, audio, and script fixes"
+    },
+    {
+      "Name": "CoreINIOnly",
+      "Items": [
+        "CoreINIPatch"
+      ],
+      "OutputFile": ".Release/CoreINIOnly.zip",
+      "AllowBuild": true,
+      "AllowInstall": true,
+      "Description": "Lightweight INI-only data patch package"
     }
   ]
 }
