@@ -699,7 +699,7 @@
                 </Grid>
 
                 <!-- Acquisition Progress Overlay (Full Window Frosted Acrylic Backdrop) -->
-                <Border Background="#E60D1117"
+                <Border Background="{StaticResource ScrimBlack86}"
                         CornerRadius="16"
                         IsVisible="{Binding IsImporting}"
                         ZIndex="1000">

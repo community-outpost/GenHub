@@ -970,6 +970,163 @@ public class ProfileSharingServiceTests
         Assert.Equal("https://50ea2z8yuk.ufs.sh/f/testkey12345", result.Data.Manifests[0].PackageUrl);
     }
 
+    /// <summary>
+    /// Verifies that provider manifests (like GeneralsOnline) are never uploaded to UploadThing even if they lack individual file download URLs.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ExportProfileToUriAsync_Should_NotUploadProviderContentToUploadThingAsync()
+    {
+        // Arrange
+        var profile = CreateTestProfile("provider-profile-1", "Generals Online Profile");
+        profile.EnabledContentIds = ["1.82826.generalsonline.gameclient.60hz"];
+
+        var casMock = new Mock<ICasService>();
+        var uploadThingMock = new Mock<IUploadThingService>();
+        var uploadHistoryMock = new Mock<IUploadHistoryService>();
+
+        var providerManifest = new ContentManifest
+        {
+            Id = ManifestId.Create("1.82826.generalsonline.gameclient.60hz"),
+            Name = "Generals Online 60Hz",
+            Version = "1.82826",
+            ContentType = ContentType.GameClient,
+            Publisher = new PublisherInfo
+            {
+                Name = "Generals Online",
+                PublisherType = PublisherTypeConstants.GeneralsOnline,
+            },
+            Files =
+            [
+                new ManifestFile
+                {
+                    RelativePath = "generals.exe",
+                    Hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                    Size = 5000000,
+                    DownloadUrl = null, // Provider manifests in CAS don't store per-file download URLs
+                },
+            ],
+        };
+
+        _profileRepositoryMock.Setup(r => r.LoadProfileAsync("provider-profile-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(profile));
+
+        _manifestPoolMock.Setup(m => m.GetManifestAsync("1.82826.generalsonline.gameclient.60hz", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<ContentManifest?>.CreateSuccess(providerManifest));
+
+        var service = new ProfileSharingService(
+            _profileRepositoryMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _contentOrchestratorMock.Object,
+            _factoryResolver,
+            NullLogger<ProfileSharingService>.Instance,
+            casMock.Object,
+            uploadThingMock.Object,
+            uploadHistoryMock.Object);
+
+        // Act
+        var result = await service.ExportProfileToUriAsync("provider-profile-1");
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        uploadThingMock.Verify(u => u.UploadFileAsync(It.IsAny<string>(), It.IsAny<IProgress<double>>(), It.IsAny<CancellationToken>()), Times.Never);
+        uploadHistoryMock.Verify(h => h.RecordUpload(It.IsAny<long>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that import reconstructs manifest from existing CAS objects without downloading.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task ImportSharedProfileAsync_Should_ReuseExistingCasBlobs_WithoutDownloadingAsync()
+    {
+        // Arrange
+        var tempCasFile = Path.GetTempFileName();
+        File.WriteAllText(tempCasFile, "cas content");
+
+        var manifestId = ManifestId.Create("1.0.community.mod.testmod");
+        var hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+
+        var package = new SharedGameProfilePackage
+        {
+            Profile = new SharedProfileMetadata
+            {
+                Name = "Shared CAS Profile",
+                GameType = GameType.ZeroHour,
+                GameVersion = "1.04",
+            },
+            RequiredManifests =
+            [
+                new SharedManifestDependency
+                {
+                    ManifestId = manifestId.Value,
+                    DisplayName = "Test Mod",
+                    Version = "1.0",
+                    ContentType = ContentType.Mod,
+                    Files =
+                    [
+                        new ManifestFile
+                        {
+                            RelativePath = "Data/test.ini",
+                            Hash = hash,
+                            Size = 100,
+                        },
+                    ],
+                },
+            ],
+        };
+
+        var json = JsonSerializer.Serialize(package, TestJsonOptions);
+        var casMock = new Mock<ICasService>();
+        casMock.Setup(c => c.GetContentPathAsync(hash, ContentType.Mod, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateSuccess(tempCasFile));
+
+        // IsManifestAcquired returns false initially
+        _manifestPoolMock.Setup(m => m.IsManifestAcquiredAsync(manifestId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(false));
+
+        _manifestPoolMock.Setup(m => m.AddManifestAsync(It.IsAny<ContentManifest>(), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<bool>.CreateSuccess(true));
+
+        _profileRepositoryMock.Setup(r => r.SaveProfileAsync(It.IsAny<GameProfile>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "prof-new", Name = "Shared CAS Profile" }));
+
+        var service = new ProfileSharingService(
+            _profileRepositoryMock.Object,
+            _manifestPoolMock.Object,
+            _installationServiceMock.Object,
+            _contentOrchestratorMock.Object,
+            _factoryResolver,
+            NullLogger<ProfileSharingService>.Instance,
+            casMock.Object);
+
+        try
+        {
+            // Act
+            var request = new SharedProfileImportRequest
+            {
+                ShareUriOrJsonOrPath = json,
+                ConfirmedProfileName = "Shared CAS Profile",
+                TargetInstallationId = "inst-1",
+            };
+            var result = await service.ImportSharedProfileAsync(request);
+
+            // Assert
+            Assert.True(result.Success);
+            _manifestPoolMock.Verify(m => m.AddManifestAsync(It.Is<ContentManifest>(cm => cm.Id == manifestId), It.IsAny<string>(), It.IsAny<IProgress<ContentStorageProgress>>(), It.IsAny<CancellationToken>()), Times.Once);
+            _contentOrchestratorMock.Verify(c => c.AcquireContentAsync(It.IsAny<ContentSearchResult>(), It.IsAny<IProgress<ContentAcquisitionProgress>>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+        finally
+        {
+            if (File.Exists(tempCasFile))
+            {
+                File.Delete(tempCasFile);
+            }
+        }
+    }
+
     private static GameProfile CreateTestProfile(string id, string name)
     {
         return new GameProfile

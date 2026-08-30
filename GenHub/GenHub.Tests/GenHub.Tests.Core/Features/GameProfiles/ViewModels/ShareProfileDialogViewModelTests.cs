@@ -141,4 +141,65 @@ public class ShareProfileDialogViewModelTests
         Assert.True(vm.HasUploadWarnings);
         Assert.Contains("Cloud storage limit reached", vm.UploadWarningMessage);
     }
+
+    /// <summary>
+    /// Verifies that constructor does not generate a link or initiate upload when local content is present.
+    /// </summary>
+    [Fact]
+    public void Constructor_Should_NotGenerateOrUploadLink_WhenLocalContentIsPresent()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            Id = "prof-local",
+            Name = "Local Setup",
+            EnabledContentIds = ["1.0.local.map.custommap"],
+        };
+
+        // Act
+        var vm = new ShareProfileDialogViewModel(
+            "prof-local",
+            profile,
+            _sharingServiceMock.Object,
+            NullLogger<ShareProfileDialogViewModel>.Instance);
+
+        // Assert
+        Assert.True(vm.HasCloudUploads);
+        Assert.False(vm.IsShareUriGenerated);
+        Assert.Empty(vm.ShareUri);
+        _sharingServiceMock.Verify(s => s.ExportProfileToUriAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Verifies that executing GenerateShareLinkCommand generates the share link upon user confirmation.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test.</returns>
+    [Fact]
+    public async Task GenerateShareLinkCommand_Should_CallExportProfileToUri_AndSetShareUriAsync()
+    {
+        // Arrange
+        var profile = new GameProfile
+        {
+            Id = "prof-local",
+            Name = "Local Setup",
+            EnabledContentIds = ["1.0.local.map.custommap"],
+        };
+
+        _sharingServiceMock.Setup(s => s.ExportProfileToUriAsync("prof-local", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<string>.CreateSuccess("genhub://profile/import?data=CONFIRMED_DATA"));
+
+        var vm = new ShareProfileDialogViewModel(
+            "prof-local",
+            profile,
+            _sharingServiceMock.Object,
+            NullLogger<ShareProfileDialogViewModel>.Instance);
+
+        // Act
+        await vm.GenerateShareLinkCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.True(vm.IsShareUriGenerated);
+        Assert.Equal("genhub://profile/import?data=CONFIRMED_DATA", vm.ShareUri);
+        _sharingServiceMock.Verify(s => s.ExportProfileToUriAsync("prof-local", It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

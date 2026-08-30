@@ -42,6 +42,15 @@ public partial class ShareProfileDialogViewModel : ViewModelBase
     private string _shareUri = string.Empty;
 
     [ObservableProperty]
+    private bool _isShareUriGenerated;
+
+    [ObservableProperty]
+    private bool _isGeneratingLink;
+
+    [ObservableProperty]
+    private string _generatingStatusText = string.Empty;
+
+    [ObservableProperty]
     private string _statusMessage = string.Empty;
 
     [ObservableProperty]
@@ -81,17 +90,17 @@ public partial class ShareProfileDialogViewModel : ViewModelBase
     /// </summary>
     /// <param name="profileId">The ID of the profile being shared.</param>
     /// <param name="profile">The profile instance.</param>
-    /// <param name="shareUri">The generated genhub:// share URI.</param>
     /// <param name="profileSharingService">The sharing service instance.</param>
     /// <param name="logger">The logger instance.</param>
     /// <param name="uploadHistoryService">Optional upload history service instance for quota monitoring.</param>
+    /// <param name="initialShareUri">Optional pre-generated share URI.</param>
     public ShareProfileDialogViewModel(
         string profileId,
         GameProfile profile,
-        string shareUri,
         IProfileSharingService profileSharingService,
         ILogger logger,
-        IUploadHistoryService? uploadHistoryService = null)
+        IUploadHistoryService? uploadHistoryService = null,
+        string? initialShareUri = null)
     {
         _profileId = profileId ?? throw new ArgumentNullException(nameof(profileId));
         _profileSharingService = profileSharingService ?? throw new ArgumentNullException(nameof(profileSharingService));
@@ -103,18 +112,43 @@ public partial class ShareProfileDialogViewModel : ViewModelBase
             ? $"{profile.GameClient.GameType} {profile.GameClient.Version}"
             : $"{profile.Version}".Trim();
         ThemeColor = !string.IsNullOrEmpty(profile.ThemeColor) ? profile.ThemeColor : "#9575CD";
-        ShareUri = shareUri;
+        ShareUri = initialShareUri ?? string.Empty;
+        IsShareUriGenerated = !string.IsNullOrEmpty(ShareUri);
 
-        bool containsLocal = profile.EnabledContentIds?.Any(id => id.Contains(".local.", StringComparison.OrdinalIgnoreCase)) == true;
+        bool containsLocal = profile.EnabledContentIds?.Any(id =>
+            id.Contains(".local.", StringComparison.OrdinalIgnoreCase) &&
+            !id.Contains(".gameinstallation.", StringComparison.OrdinalIgnoreCase)) == true;
+
         HasCloudUploads = containsLocal;
         CloudUploadDetails = containsLocal
-            ? "Custom local content was packaged and uploaded to cloud storage (14-day retention). You can manage or delete uploads in Settings > Uploads & Storage."
+            ? "This profile contains custom local content that must be uploaded to temporary cloud storage (14-day retention) to generate a shareable link. You can also export a standalone .ghprofile file without uploading to cloud."
             : string.Empty;
 
-        if (containsLocal && _uploadHistoryService != null)
+        if (containsLocal)
         {
-            _ = LoadUploadQuotaAsync();
+            if (_uploadHistoryService != null)
+            {
+                _ = LoadUploadQuotaAsync();
+            }
         }
+        else if (string.IsNullOrEmpty(ShareUri))
+        {
+            _ = GenerateShareLinkAsync();
+        }
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ShareProfileDialogViewModel"/> class with a precomputed share URI.
+    /// </summary>
+    public ShareProfileDialogViewModel(
+        string profileId,
+        GameProfile profile,
+        string shareUri,
+        IProfileSharingService profileSharingService,
+        ILogger logger,
+        IUploadHistoryService? uploadHistoryService = null)
+        : this(profileId, profile, profileSharingService, logger, uploadHistoryService, shareUri)
+    {
     }
 
     private static TopLevel? GetMainWindowTopLevel()
@@ -155,6 +189,49 @@ public partial class ShareProfileDialogViewModel : ViewModelBase
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to load upload quota information.");
+        }
+    }
+
+    [RelayCommand]
+    private async Task GenerateShareLinkAsync()
+    {
+        if (IsGeneratingLink)
+        {
+            return;
+        }
+
+        try
+        {
+            IsGeneratingLink = true;
+            GeneratingStatusText = HasCloudUploads
+                ? "Packaging and uploading custom content..."
+                : "Generating share link...";
+
+            var uriResult = await _profileSharingService.ExportProfileToUriAsync(_profileId);
+            if (!uriResult.Success || string.IsNullOrEmpty(uriResult.Data))
+            {
+                ShowStatus($"Failed to generate share link: {uriResult.FirstError ?? "Unknown error"}");
+                _logger.LogWarning("Failed to generate share link for profile {ProfileId}: {Error}", _profileId, uriResult.FirstError);
+                return;
+            }
+
+            ShareUri = uriResult.Data;
+            IsShareUriGenerated = true;
+            ShowStatus("Share link generated!");
+
+            if (HasCloudUploads && _uploadHistoryService != null)
+            {
+                await LoadUploadQuotaAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to generate share link for profile {ProfileId}", _profileId);
+            ShowStatus($"Error generating link: {ex.Message}");
+        }
+        finally
+        {
+            IsGeneratingLink = false;
         }
     }
 

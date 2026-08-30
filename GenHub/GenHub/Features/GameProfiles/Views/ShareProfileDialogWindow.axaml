@@ -138,13 +138,13 @@
                                 CornerRadius="8"
                                 Padding="12,10"
                                 IsVisible="{Binding HasCloudUploads}">
-                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto">
+                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto">
                                 <PathIcon Grid.Row="0" Grid.Column="0"
                                           Data="M19.35,10.04C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.04C2.34,8.36 0,10.91 0,14A6,6 0 0,0 6,20H19A5,5 0 0,0 24,15C24,12.36 21.95,10.22 19.35,10.04Z"
                                           Width="16" Height="16"
                                           Foreground="{DynamicResource AccentLightBrush}"
-                                          VerticalAlignment="Center"
-                                          Margin="0,0,10,0" />
+                                          VerticalAlignment="Top"
+                                          Margin="0,2,10,0" />
                                 <StackPanel Grid.Row="0" Grid.Column="1" Spacing="2">
                                     <Grid ColumnDefinitions="*,Auto">
                                         <TextBlock Grid.Column="0" Text="Cloud Storage Sync &amp; Quota"
@@ -188,11 +188,43 @@
                                                FontWeight="SemiBold"
                                                TextWrapping="Wrap" />
                                 </Border>
+
+                                <!-- Generate Link Button (Row 3, shown if link not yet generated) -->
+                                <Button Grid.Row="3" Grid.Column="1"
+                                        Command="{Binding GenerateShareLinkCommand}"
+                                        IsEnabled="{Binding !IsGeneratingLink}"
+                                        Height="34"
+                                        Margin="0,10,0,0"
+                                        HorizontalAlignment="Left"
+                                        Padding="14,0"
+                                        Background="{DynamicResource AccentBrush}"
+                                        Foreground="White"
+                                        CornerRadius="6"
+                                        Cursor="Hand"
+                                        IsVisible="{Binding !IsShareUriGenerated}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                        <ProgressBar Width="14" Height="14"
+                                                     IsIndeterminate="True"
+                                                     IsVisible="{Binding IsGeneratingLink}" />
+                                        <PathIcon Data="M9,16V10H5L12,3L19,10H15V16H9M5,20V18H19V20H5Z"
+                                                  Width="13" Height="13"
+                                                  Foreground="White"
+                                                  IsVisible="{Binding !IsGeneratingLink}" />
+                                        <TextBlock Text="{Binding GeneratingStatusText}"
+                                                   FontSize="11"
+                                                   FontWeight="SemiBold"
+                                                   IsVisible="{Binding IsGeneratingLink}" />
+                                        <TextBlock Text="Generate Share Link (Upload to Cloud)"
+                                                   FontSize="11"
+                                                   FontWeight="SemiBold"
+                                                   IsVisible="{Binding !IsGeneratingLink}" />
+                                    </StackPanel>
+                                </Button>
                             </Grid>
                         </Border>
 
-                        <!-- Share Link Field -->
-                        <StackPanel Spacing="6">
+                        <!-- Share Link Field (shown when link is generated) -->
+                        <StackPanel Spacing="6" IsVisible="{Binding IsShareUriGenerated}">
                             <TextBlock Text="Protocol Share Link (genhub://):"
                                        FontSize="12"
                                        Foreground="{DynamicResource TextSecondary}"

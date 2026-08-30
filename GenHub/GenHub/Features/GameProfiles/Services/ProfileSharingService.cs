@@ -838,6 +838,25 @@ public class ProfileSharingService(
         }
     }
 
+    private static bool IsCustomLocalManifest(ContentManifest manifest)
+    {
+        if (manifest.ContentType == ContentType.GameInstallation ||
+            manifest.Id.ToString().Contains(".gameinstallation.", StringComparison.OrdinalIgnoreCase) ||
+            manifest.Id.ToString().Contains(".gameclient.", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (manifest.Publisher?.PublisherType == PublisherTypeConstants.Local ||
+            string.Equals(manifest.Publisher?.PublisherType, "Local", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(manifest.Publisher?.Name, "Local", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return manifest.Id.ToString().Contains(".local.", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static async Task<OperationResult<bool>> ExtractAndVerifyPackageFilesAsync(
         string tempZipPath,
         string stagingDir,
@@ -846,7 +865,11 @@ public class ProfileSharingService(
     {
         string canonicalStagingDir = GetCanonicalStagingDirectory(stagingDir);
 
-        await ExtractArchiveEntriesAsync(tempZipPath, stagingDir, canonicalStagingDir, cancellationToken);
+        var extractResult = await ExtractArchiveEntriesAsync(tempZipPath, stagingDir, canonicalStagingDir, cancellationToken);
+        if (!extractResult.Success)
+        {
+            return extractResult;
+        }
 
         return await VerifyExtractedFilesAsync(dependency, stagingDir, canonicalStagingDir, cancellationToken);
     }
@@ -860,7 +883,7 @@ public class ProfileSharingService(
     }
 
     [SuppressMessage("Major Code Smell", "S6966:Await async method instead of sync counterpart", Justification = "ZipFile.OpenRead and ZipArchiveEntry.Open have no asynchronous OpenReadAsync/OpenAsync methods in .NET 8 BCL.")]
-    private static async Task ExtractArchiveEntriesAsync(
+    private static async Task<OperationResult<bool>> ExtractArchiveEntriesAsync(
         string tempZipPath,
         string stagingDir,
         string canonicalStagingDir,
@@ -877,7 +900,7 @@ public class ProfileSharingService(
             var destinationPath = Path.GetFullPath(Path.Combine(stagingDir, entry.FullName));
             if (!destinationPath.StartsWith(canonicalStagingDir, StringComparison.Ordinal))
             {
-                continue;
+                return OperationResult<bool>.CreateFailure($"Package contains entry attempting directory traversal: {entry.FullName}");
             }
 
             var directory = Path.GetDirectoryName(destinationPath);
@@ -890,6 +913,8 @@ public class ProfileSharingService(
             await using var outputStream = File.Create(destinationPath);
             await entryStream.CopyToAsync(outputStream, cancellationToken);
         }
+
+        return OperationResult<bool>.CreateSuccess(true);
     }
 
     private static async Task<OperationResult<bool>> VerifyExtractedFilesAsync(
@@ -898,6 +923,11 @@ public class ProfileSharingService(
         string canonicalStagingDir,
         CancellationToken cancellationToken)
     {
+        if (dependency.Files is not { Count: > 0 })
+        {
+            return OperationResult<bool>.CreateFailure($"Shared package '{dependency.DisplayName}' ({dependency.ManifestId}) does not define any files.");
+        }
+
         foreach (var file in dependency.Files)
         {
             var validatePathResult = ValidateExtractedFilePath(file.RelativePath, stagingDir, canonicalStagingDir);
@@ -906,7 +936,7 @@ public class ProfileSharingService(
                 return OperationResult<bool>.CreateFailure(validatePathResult.Errors);
             }
 
-            var filePath = validatePathResult.Data;
+            var filePath = validatePathResult.Data!;
             if (!string.IsNullOrWhiteSpace(file.Hash))
             {
                 var hashCheckResult = await ValidateFileChecksumAsync(filePath, file.RelativePath, file.Hash, cancellationToken);
@@ -921,11 +951,17 @@ public class ProfileSharingService(
     }
 
     private static OperationResult<string> ValidateExtractedFilePath(
-        string relativePath,
+        string? relativePath,
         string stagingDir,
         string canonicalStagingDir)
     {
-        if (Path.IsPathRooted(relativePath) || relativePath.Contains("..", StringComparison.Ordinal))
+        if (string.IsNullOrWhiteSpace(relativePath))
+        {
+            return OperationResult<string>.CreateFailure("Package contains a file with an empty or missing relative path.");
+        }
+
+        if (Path.IsPathRooted(relativePath) ||
+            relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Contains(".."))
         {
             return OperationResult<string>.CreateFailure($"Package contains invalid relative path: {relativePath}");
         }
@@ -1167,9 +1203,7 @@ public class ProfileSharingService(
         string? packageUrl = null;
         string? packageHash = null;
 
-        bool isLocal = manifest.Id.ToString().Contains(".local.", StringComparison.OrdinalIgnoreCase) ||
-                       manifest.Publisher?.PublisherType == PublisherTypeConstants.Local ||
-                       (manifest.Files is { Count: > 0 } && manifest.Files.All(f => string.IsNullOrWhiteSpace(f.DownloadUrl)));
+        bool isLocal = IsCustomLocalManifest(manifest);
 
         if (isLocal && uploadThingService != null && casService != null && dependencyFiles.Count > 0)
         {
@@ -1458,6 +1492,22 @@ public class ProfileSharingService(
                 return OperationResult<bool>.CreateFailure($"Invalid manifest ID '{dependency.ManifestId}'.");
             }
 
+            // 1. Check if manifest is already fully acquired in the manifest pool
+            var acquiredResult = await manifestPool.IsManifestAcquiredAsync(validatedManifestId, cancellationToken);
+            if (acquiredResult.Success && acquiredResult.Data)
+            {
+                return OperationResult<bool>.CreateSuccess(true);
+            }
+
+            // 2. Check if all required files already exist in local CAS storage (zero-download path)
+            var casCheckResult = await TryRegisterFromExistingCasBlobsAsync(validatedManifestId, dependency, cancellationToken);
+            if (casCheckResult.Success && casCheckResult.Data)
+            {
+                logger?.LogInformation("Manifest {ManifestId} was reconstructed directly from existing CAS pool objects without downloading.", dependency.ManifestId);
+                return OperationResult<bool>.CreateSuccess(true);
+            }
+
+            // 3. Check if this is a shared package (e.g. UploadThing or direct zip package)
             string? packageUrl = !string.IsNullOrWhiteSpace(dependency.PackageUrl)
                 ? dependency.PackageUrl
                 : dependency.Files.FirstOrDefault(f => !string.IsNullOrWhiteSpace(f.DownloadUrl))?.DownloadUrl;
@@ -1474,20 +1524,70 @@ public class ProfileSharingService(
                 return await DownloadAndRegisterZipPackageAsync(dependency, validatedManifestId, packageUrl, cancellationToken);
             }
 
-            // Direct per-file download is only possible when files exist, and each file has a direct download URL and hash.
-            // Extracted CAS packages (e.g. ModDB, CnCLabs, AoDMaps) don't carry individual file download URLs
-            // and must be acquired via the content orchestrator provider/resolver pipeline.
+            // 4. Direct per-file download is only possible when files exist, and each file has a direct download URL and hash.
             if (dependency.Files?.Count > 0 && dependency.Files.All(f => !string.IsNullOrWhiteSpace(f.DownloadUrl) && !string.IsNullOrWhiteSpace(f.Hash)))
             {
                 return await DownloadAndRegisterManifestFilesAsync(dependency, validatedManifestId, cancellationToken);
             }
 
+            // 5. Fallback: Search & acquire from connected content provider pipeline (GeneralsOnline, ModDB, GenPatcher, etc.)
             return await SearchAndAcquireFallbackManifestAsync(dependency, progress, cancellationToken);
         }
         catch (Exception ex)
         {
             (logger ?? NullLogger<ProfileSharingService>.Instance).LogError(ex, "Error acquiring missing manifest {ManifestId}", dependency.ManifestId);
             return OperationResult<bool>.CreateFailure($"Failed to acquire manifest: {ex.Message}");
+        }
+    }
+
+    private async Task<OperationResult<bool>> TryRegisterFromExistingCasBlobsAsync(
+        ManifestId validatedManifestId,
+        SharedManifestDependency dependency,
+        CancellationToken cancellationToken)
+    {
+        if (casService == null || dependency.Files is not { Count: > 0 } || dependency.Files.Any(f => string.IsNullOrWhiteSpace(f.Hash)))
+        {
+            return OperationResult<bool>.CreateSuccess(false);
+        }
+
+        foreach (var file in dependency.Files)
+        {
+            var blobPathResult = await casService.GetContentPathAsync(file.Hash, dependency.ContentType, cancellationToken);
+            if (!blobPathResult.Success || !File.Exists(blobPathResult.Data))
+            {
+                return OperationResult<bool>.CreateSuccess(false);
+            }
+        }
+
+        var stagingBase = Path.Combine(Path.GetTempPath(), "GenHub", "CasMaterializeStaging");
+        var stagingDir = Path.Combine(stagingBase, Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateDirectory(stagingDir);
+            foreach (var file in dependency.Files)
+            {
+                var blobPathResult = await casService.GetContentPathAsync(file.Hash, dependency.ContentType, cancellationToken);
+                var destinationPath = Path.GetFullPath(Path.Combine(stagingDir, file.RelativePath));
+                var directory = Path.GetDirectoryName(destinationPath);
+                if (!string.IsNullOrEmpty(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                File.Copy(blobPathResult.Data!, destinationPath, true);
+            }
+
+            return await RegisterExtractedManifestAsync(validatedManifestId, dependency, stagingDir, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogWarning(ex, "Failed to materialize manifest {ManifestId} from existing CAS objects.", validatedManifestId);
+            return OperationResult<bool>.CreateSuccess(false);
+        }
+        finally
+        {
+            CleanupStagingDirectories(string.Empty, stagingDir, stagingBase);
         }
     }
 
@@ -1553,7 +1653,22 @@ public class ProfileSharingService(
 
         await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken);
         await using var fileStream = File.Create(tempZipPath);
-        await responseStream.CopyToAsync(fileStream, cancellationToken);
+
+        byte[] buffer = new byte[16384];
+        int bytesRead = 0;
+        long totalDownloaded = 0;
+        long maxAllowedBytes = ProfileSharingConstants.MaxDownloadedFileBytes;
+
+        while ((bytesRead = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)) > 0)
+        {
+            await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+            totalDownloaded += bytesRead;
+
+            if (totalDownloaded > maxAllowedBytes)
+            {
+                return OperationResult<bool>.CreateFailure($"Package download for {displayName} exceeded maximum size limit ({maxAllowedBytes} bytes).");
+            }
+        }
 
         return OperationResult<bool>.CreateSuccess(true);
     }
@@ -1578,18 +1693,14 @@ public class ProfileSharingService(
             Files = [.. dependency.Files],
         };
 
-        var factory = publisherManifestFactoryResolver.ResolveFactory(contentManifest);
-        if (factory != null)
+        var addResult = await manifestPool.AddManifestAsync(contentManifest, stagingDir, cancellationToken: cancellationToken);
+        if (!addResult.Success)
         {
-            var createdManifests = await factory.CreateManifestsFromExtractedContentAsync(contentManifest, stagingDir, cancellationToken);
-            foreach (var m in createdManifests)
-            {
-                await manifestPool.AddManifestAsync(m, stagingDir, cancellationToken: cancellationToken);
-            }
-        }
-        else
-        {
-            await manifestPool.AddManifestAsync(contentManifest, stagingDir, cancellationToken: cancellationToken);
+            (logger ?? NullLogger<ProfileSharingService>.Instance).LogError(
+                "Failed to register extracted manifest {ManifestId} into pool: {Error}",
+                validatedManifestId,
+                addResult.FirstError);
+            return OperationResult<bool>.CreateFailure($"Failed to register extracted manifest '{validatedManifestId}': {addResult.FirstError}");
         }
 
         return OperationResult<bool>.CreateSuccess(true);

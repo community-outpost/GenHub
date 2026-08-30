@@ -1844,14 +1844,6 @@ public partial class GameProfileLauncherViewModel(
 
         try
         {
-            notificationService.ShowInfo("Sharing Profile", "Packaging profile and preparing cloud share link...");
-            var uriResult = await profileSharingService.ExportProfileToUriAsync(item.ProfileId);
-            if (!uriResult.Success || string.IsNullOrEmpty(uriResult.Data))
-            {
-                notificationService.ShowError("Share Failed", uriResult.FirstError ?? "Failed to generate share link.");
-                return;
-            }
-
             var profileResult = await gameProfileManager.GetProfileAsync(item.ProfileId);
             if (!profileResult.Success || profileResult.Data == null)
             {
@@ -1862,7 +1854,6 @@ public partial class GameProfileLauncherViewModel(
             var shareViewModel = new ShareProfileDialogViewModel(
                 item.ProfileId,
                 profileResult.Data,
-                uriResult.Data,
                 profileSharingService,
                 loggerFactory?.CreateLogger<ShareProfileDialogViewModel>() ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ShareProfileDialogViewModel>.Instance,
                 uploadHistoryService);

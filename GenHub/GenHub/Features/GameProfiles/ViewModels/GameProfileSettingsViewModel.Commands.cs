@@ -911,15 +911,6 @@ public partial class GameProfileSettingsViewModel
 
         try
         {
-            StatusMessage = "Generating share package...";
-            var uriResult = await _profileSharingService.ExportProfileToUriAsync(CurrentProfileId);
-
-            if (!uriResult.Success || string.IsNullOrEmpty(uriResult.Data))
-            {
-                _localNotificationService.ShowError("Share Failed", uriResult.FirstError ?? "Failed to generate share link.");
-                return;
-            }
-
             var profileResult = await _gameProfileManager.GetProfileAsync(CurrentProfileId);
             if (!profileResult.Success || profileResult.Data == null)
             {
@@ -930,7 +921,6 @@ public partial class GameProfileSettingsViewModel
             var shareViewModel = new ShareProfileDialogViewModel(
                 CurrentProfileId,
                 profileResult.Data,
-                uriResult.Data,
                 _profileSharingService,
                 _loggerFactory?.CreateLogger<ShareProfileDialogViewModel>() ?? NullLogger<ShareProfileDialogViewModel>.Instance,
                 _uploadHistoryService);
