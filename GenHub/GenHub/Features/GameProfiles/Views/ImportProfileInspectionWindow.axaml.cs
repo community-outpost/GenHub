@@ -1,5 +1,6 @@
 using System;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using GenHub.Features.GameProfiles.ViewModels;
 
@@ -41,6 +42,14 @@ public partial class ImportProfileInspectionWindow : Window
         else
         {
             attachedViewModel = null;
+        }
+    }
+
+    private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            BeginMoveDrag(e);
         }
     }
 
