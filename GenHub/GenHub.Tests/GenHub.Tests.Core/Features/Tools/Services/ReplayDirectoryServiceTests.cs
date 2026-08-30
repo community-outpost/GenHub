@@ -434,4 +434,88 @@ public sealed class ReplayDirectoryServiceTests
             }
         }
     }
+
+    /// <summary>
+    /// Verifies that a retail Zero Hour replay on Steam uses the Steam installation client and generates valid installation manifests.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task CreateProfileForReplayAsync_WhenRetailReplayOnSteam_UsesSteamClientAndCreatesProfileAsync()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "RetailMatch.rep",
+            FullPath = "/replays/RetailMatch.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            Metadata = new ReplayMetadata
+            {
+                ExeCrc = 0x401D89EA,
+                IniCrc = 0x76B251A3,
+            },
+            MatchedClient = new CrcMappingEntry
+            {
+                ExeCrc = "0x401D89EA",
+                IniCrc = "0x76B251A3",
+                ManifestId = "1.104.retail.gameclient.zerohour",
+                Publisher = "ea",
+                GameType = "ZeroHour",
+                Version = "1.04",
+                Description = "Command & Conquer Zero Hour 1.04 Retail",
+            },
+        };
+
+        var steamClient = new GameClient
+        {
+            Id = "1.104.steam.gameclient.zerohour",
+            Name = "Command and Conquer Generals Zero Hour (Steam)",
+            Version = "1.04",
+            GameType = GameType.ZeroHour,
+            PublisherType = "Steam",
+            InstallationId = "steam-inst-1",
+            ExecutablePath = "/steam/generalszh.exe",
+            WorkingDirectory = "/steam",
+        };
+
+        var installation = new GameInstallation("/steam", GameInstallationType.Steam)
+        {
+            Id = "steam-inst-1",
+            HasZeroHour = true,
+            ZeroHourPath = "/steam",
+            ZeroHourClient = steamClient,
+        };
+
+        _mockInstallationService
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
+
+        _mockProfileManager
+            .Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+
+        CreateProfileRequest? capturedRequest = null;
+        _mockProfileManager
+            .Setup(p => p.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<CreateProfileRequest, CancellationToken>((req, _) => capturedRequest = req)
+            .ReturnsAsync((CreateProfileRequest req, CancellationToken _) =>
+                ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "steam-zh-profile", Name = req.Name }));
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var result = await service.CreateProfileForReplayAsync(replay);
+
+        Assert.True(result.Success);
+        Assert.NotNull(capturedRequest);
+        Assert.Equal("1.104.steam.gameclient.zerohour", capturedRequest.GameClientId);
+        Assert.Contains("1.104.steam.gameinstallation.zerohour", capturedRequest.EnabledContentIds);
+        Assert.Contains("1.104.steam.gameclient.zerohour", capturedRequest.EnabledContentIds);
+        Assert.True(capturedRequest.UseSteamLaunch);
+        Assert.Equal("steam-zh-profile", replay.MatchingProfileId);
+        Assert.Equal(ReplayCompatibilityStatus.Compatible, replay.CompatibilityStatus);
+    }
 }

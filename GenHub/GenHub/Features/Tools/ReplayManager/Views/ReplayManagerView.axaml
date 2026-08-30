@@ -144,8 +144,8 @@
                             IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Compatible}}"
                             ToolTip.Tip="Launch game profile matching this replay">
                       <StackPanel Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="▶" FontSize="10"/>
-                        <TextBlock Text="Play" FontSize="11"/>
+                        <PathIcon Data="{StaticResource ToolIcon.Play}" Width="11" Height="11" VerticalAlignment="Center"/>
+                        <TextBlock Text="Play" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                       </StackPanel>
                     </Button>
 
@@ -156,8 +156,8 @@
                             IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.RequiresProfile}}"
                             ToolTip.Tip="Create a dedicated game profile configured with matching game client and data patch">
                       <StackPanel Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="➕" FontSize="10"/>
-                        <TextBlock Text="Profile" FontSize="11"/>
+                        <PathIcon Data="{StaticResource ToolIcon.Plus}" Width="11" Height="11" VerticalAlignment="Center"/>
+                        <TextBlock Text="Profile" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                       </StackPanel>
                     </Button>
 
@@ -168,8 +168,8 @@
                             IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Downloadable}}"
                             ToolTip.Tip="Download required game client and data patch, then create profile">
                       <StackPanel Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="📥" FontSize="10"/>
-                        <TextBlock Text="Setup" FontSize="11"/>
+                        <PathIcon Data="{StaticResource ToolIcon.Download}" Width="11" Height="11" VerticalAlignment="Center"/>
+                        <TextBlock Text="Setup" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                       </StackPanel>
                     </Button>
 
@@ -180,8 +180,8 @@
                             IsVisible="{Binding CompatibilityStatus, Converter={StaticResource EqualityConverter}, ConverterParameter={x:Static enums:ReplayCompatibilityStatus.Orphaned}}"
                             ToolTip.Tip="Create a profile using your base game installation to watch this custom replay">
                       <StackPanel Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="⚙️" FontSize="10"/>
-                        <TextBlock Text="Profile" FontSize="11"/>
+                        <PathIcon Data="{StaticResource ToolIcon.CogOutline}" Width="11" Height="11" VerticalAlignment="Center"/>
+                        <TextBlock Text="Profile" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
                       </StackPanel>
                     </Button>
                   </StackPanel>
