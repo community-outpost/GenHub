@@ -443,6 +443,7 @@
                 <TextBox Grid.Column="0"
                          Text="{Binding MigrationTargetPath}"
                          Watermark="e.g. D:\Games\GenHub"
+                         IsEnabled="{Binding !IsMigrating}"
                          LostFocus="OnTextBoxLostFocus" />
                 <Button Grid.Column="1"
                         Content="Browse"

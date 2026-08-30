@@ -907,6 +907,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 _notificationService.ShowError("Migration Failed", error, 6000);
                 IsMigrating = false;
                 MigrationStatusText = $"Migration failed: {error}";
+                MigrationProgressPercentage = 0;
             }
         }
         catch (Exception ex)
