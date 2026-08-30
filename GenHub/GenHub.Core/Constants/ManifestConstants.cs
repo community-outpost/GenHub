@@ -106,6 +106,11 @@ public static class ManifestConstants
     public const string AnyPublisherToken = "any";
 
     /// <summary>
+    /// Separator character for manifest ID segments.
+    /// </summary>
+    public const char ManifestIdSegmentSeparator = '.';
+
+    /// <summary>
     /// Separator used to append variant identifiers to content names.
     /// </summary>
     public const string VariantSeparator = "-";

@@ -131,11 +131,11 @@ public sealed class ReplayDirectoryServiceTests
     }
 
     /// <summary>
-    /// Verifies that profile creation fails gracefully when no matched client is known.
+    /// Verifies that profile creation succeeds and creates a base game profile when replay is unmapped/orphaned.
     /// </summary>
     /// <returns>A task representing the asynchronous unit test.</returns>
     [Fact]
-    public async Task CreateProfileForReplayAsync_WhenNoMatchedClient_ReturnsFailureAsync()
+    public async Task CreateProfileForReplayAsync_WhenNoMatchedClient_CreatesBaseGameProfileAsync()
     {
         var replay = new ReplayFile
         {
@@ -157,6 +157,27 @@ public sealed class ReplayDirectoryServiceTests
             .Setup(r => r.TryGetEntry("0x99999999", "0x11111111", out nullEntry))
             .Returns(false);
 
+        var installation = new GameInstallation("/games/ZeroHour", GameInstallationType.Retail)
+        {
+            HasZeroHour = true,
+            ZeroHourPath = "/games/ZeroHour",
+        };
+
+        _mockInstallationService
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
+
+        _mockProfileManager
+            .Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+
+        CreateProfileRequest? capturedRequest = null;
+        _mockProfileManager
+            .Setup(p => p.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<CreateProfileRequest, CancellationToken>((req, _) => capturedRequest = req)
+            .ReturnsAsync((CreateProfileRequest req, CancellationToken _) =>
+                ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "unmapped-profile-id", Name = req.Name }));
+
         var service = new ReplayDirectoryService(
             _mockHeaderParser.Object,
             _mockCrcRegistry.Object,
@@ -165,8 +186,12 @@ public sealed class ReplayDirectoryServiceTests
 
         var result = await service.CreateProfileForReplayAsync(replay);
 
-        Assert.False(result.Success);
-        Assert.Contains("not mapped to any known game client", result.FirstError);
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.NotNull(capturedRequest);
+        Assert.Equal("unmapped-profile-id", replay.MatchingProfileId);
+        Assert.Equal(ReplayCompatibilityStatus.Compatible, replay.CompatibilityStatus);
+        Assert.Contains("Zero Hour (Replay: Unknown)", capturedRequest.Name);
     }
 
     /// <summary>
@@ -621,5 +646,96 @@ public sealed class ReplayDirectoryServiceTests
         Assert.Contains("1.82826.generalsonline.gameclient.60hz", capturedRequest.EnabledContentIds);
         Assert.Contains("1.82826.generalsonline.mappack.quickmatchmaps", capturedRequest.EnabledContentIds);
         Assert.Contains("1.82826.generalsonline.patch.gamedata", capturedRequest.EnabledContentIds);
+    }
+
+    /// <summary>
+    /// Verifies that LaunchReplayAsync automatically creates a profile if matching profile is absent, and launches it.
+    /// </summary>
+    /// <returns>A task representing the asynchronous unit test.</returns>
+    [Fact]
+    public async Task LaunchReplayAsync_WhenNoMatchingProfile_CreatesProfileAndLaunchesSuccessfullyAsync()
+    {
+        var replay = new ReplayFile
+        {
+            FileName = "FreshMatch.rep",
+            FullPath = "/replays/FreshMatch.rep",
+            SizeInBytes = 2048,
+            LastModified = DateTime.UtcNow,
+            GameVersion = GameType.ZeroHour,
+            MatchingProfileId = null,
+            MatchedClient = new CrcMappingEntry
+            {
+                ExeCrc = "0x401D89EA",
+                IniCrc = "0x76B251A3",
+                ManifestId = "1.104.steam.gameclient.zerohour",
+                Publisher = "steam",
+                GameType = "ZeroHour",
+                Version = "1.04",
+                Description = "Command & Conquer Zero Hour 1.04 Steam",
+            },
+        };
+
+        var steamClient = new GameClient
+        {
+            Id = "1.104.steam.gameclient.zerohour",
+            Name = "Command and Conquer Generals Zero Hour (Steam)",
+            Version = "1.04",
+            GameType = GameType.ZeroHour,
+            PublisherType = "Steam",
+            InstallationId = "steam-inst-1",
+            ExecutablePath = "/steam/generalszh.exe",
+            WorkingDirectory = "/steam",
+        };
+
+        var installation = new GameInstallation("/steam", GameInstallationType.Steam)
+        {
+            Id = "steam-inst-1",
+            HasZeroHour = true,
+            ZeroHourPath = "/steam",
+            AvailableGameClients = [steamClient],
+        };
+
+        _mockInstallationService
+            .Setup(s => s.GetAllInstallationsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameInstallation>>.CreateSuccess([installation]));
+
+        _mockProfileManager
+            .Setup(p => p.GetAllProfilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<IReadOnlyList<GameProfile>>.CreateSuccess([]));
+
+        _mockProfileManager
+            .Setup(p => p.CreateProfileAsync(It.IsAny<CreateProfileRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((CreateProfileRequest req, CancellationToken _) =>
+                ProfileOperationResult<GameProfile>.CreateSuccess(new GameProfile { Id = "auto-created-profile-99", Name = req.Name }));
+
+        var launchInfo = new GameLaunchInfo
+        {
+            LaunchId = "launch-auto-99",
+            ProfileId = "auto-created-profile-99",
+            WorkspaceId = "ws-auto-99",
+            ProcessInfo = new GameProcessInfo
+            {
+                ProcessId = 12345,
+                ExecutablePath = "/steam/generalszh.exe",
+            },
+        };
+
+        _mockLauncherFacade
+            .Setup(l => l.LaunchProfileAsync("auto-created-profile-99", false, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProfileOperationResult<GameLaunchInfo>.CreateSuccess(launchInfo));
+
+        var service = new ReplayDirectoryService(
+            _mockHeaderParser.Object,
+            _mockCrcRegistry.Object,
+            _mockScopeFactory.Object,
+            NullLogger<ReplayDirectoryService>.Instance);
+
+        var result = await service.LaunchReplayAsync(replay);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal("auto-created-profile-99", replay.MatchingProfileId);
+        Assert.Equal(ReplayCompatibilityStatus.Compatible, replay.CompatibilityStatus);
+        Assert.Equal("launch-auto-99", result.Data.LaunchId);
     }
 }

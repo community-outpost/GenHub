@@ -1541,8 +1541,8 @@
       "exeCrc": "0xB9DB8815",
       "iniCrc": "0x81FB5632",
       "sha256": "7156faf170b7c1415b7886e20cc3e0b7d8045721de983415bac952f3c3f069ab",
-      "manifestId": "1.0828261.generalsonline.gameclient.zerohour",
-      "dataPatchManifestId": "1.0828261.generalsonline.gamedata.zerohour",
+      "manifestId": "1.828261.generalsonline.gameclient.zerohour",
+      "dataPatchManifestId": "1.828261.generalsonline.patch.gamedata",
       "dataPatchName": "CommunityPatch Core INI (81FB5632)",
       "publisher": "generalsonline",
       "gameType": "ZeroHour",
@@ -1556,8 +1556,8 @@
       "exeCrc": "0xB9DB8815",
       "iniCrc": "0x5CB7992C",
       "sha256": "7156faf170b7c1415b7886e20cc3e0b7d8045721de983415bac952f3c3f069ab",
-      "manifestId": "1.0828260.generalsonline.gameclient.zerohour",
-      "dataPatchManifestId": "1.0828260.generalsonline.gamedata.zerohour",
+      "manifestId": "1.828260.generalsonline.gameclient.zerohour",
+      "dataPatchManifestId": "1.828260.generalsonline.patch.gamedata",
       "dataPatchName": "GeneralsOnline Game Data",
       "publisher": "generalsonline",
       "gameType": "ZeroHour",
@@ -1570,8 +1570,8 @@
       "exeCrc": "0x64344E83",
       "iniCrc": "0xFEAAE3F3",
       "sha256": null,
-      "manifestId": "1.0605260.generalsonline.gameclient.zerohour",
-      "dataPatchManifestId": "1.0605260.generalsonline.gamedata.zerohour",
+      "manifestId": "1.605260.generalsonline.gameclient.zerohour",
+      "dataPatchManifestId": "1.605260.generalsonline.patch.gamedata",
       "dataPatchName": "GeneralsOnline Game Data",
       "publisher": "generalsonline",
       "gameType": "ZeroHour",
@@ -1581,5 +1581,5 @@
       "cdnUrl": "https://cdn.playgenerals.online/GeneralsOnline_portable_060526.zip"
     }
   ],
-  "version": "2026.08.30.2"
+  "version": "2026.08.30.3"
 }
