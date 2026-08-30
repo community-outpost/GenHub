@@ -253,6 +253,47 @@ public sealed class ReplayDirectoryService(
         }
     }
 
+    /// <inheritdoc />
+    public async Task<ProfileOperationResult<GameLaunchInfo>> LaunchReplayAsync(ReplayFile replay, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(replay);
+
+        if (string.IsNullOrEmpty(replay.MatchingProfileId))
+        {
+            var createResult = await CreateProfileForReplayAsync(replay, ct);
+            if (!createResult.Success || createResult.Data == null)
+            {
+                return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
+                    createResult.FirstError ?? "Failed to create or find a matching profile for this replay.");
+            }
+        }
+
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var launcherFacade = scope.ServiceProvider.GetRequiredService<IProfileLauncherFacade>();
+
+            var launchResult = await launcherFacade.LaunchProfileAsync(
+                replay.MatchingProfileId ?? string.Empty,
+                skipUserDataCleanup: false,
+                cancellationToken: ct);
+
+            if (launchResult.Success)
+            {
+                logger.LogInformation("Successfully launched profile '{ProfileId}' for replay '{ReplayFile}'", replay.MatchingProfileId, replay.FileName);
+                return launchResult;
+            }
+
+            return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
+                launchResult.FirstError ?? "Failed to launch game profile.");
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Exception launching profile '{ProfileId}' for replay '{ReplayFile}'", replay.MatchingProfileId, replay.FileName);
+            return ProfileOperationResult<GameLaunchInfo>.CreateFailure($"Launch failed: {ex.Message}");
+        }
+    }
+
     private async Task<(string ClientManifestId, GameClient GameClient)> ResolveReplayGameClientAsync(
         GameInstallation installation,
         ReplayFile replay,
@@ -419,47 +460,6 @@ public sealed class ReplayDirectoryService(
             {
                 await contentOrchestrator.AcquireContentAsync(patchMatch, null, ct);
             }
-        }
-    }
-
-    /// <inheritdoc />
-    public async Task<ProfileOperationResult<GameLaunchInfo>> LaunchReplayAsync(ReplayFile replay, CancellationToken ct = default)
-    {
-        ArgumentNullException.ThrowIfNull(replay);
-
-        if (string.IsNullOrEmpty(replay.MatchingProfileId))
-        {
-            var createResult = await CreateProfileForReplayAsync(replay, ct);
-            if (!createResult.Success || createResult.Data == null)
-            {
-                return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
-                    createResult.FirstError ?? "Failed to create or find a matching profile for this replay.");
-            }
-        }
-
-        try
-        {
-            using var scope = scopeFactory.CreateScope();
-            var launcherFacade = scope.ServiceProvider.GetRequiredService<IProfileLauncherFacade>();
-
-            var launchResult = await launcherFacade.LaunchProfileAsync(
-                replay.MatchingProfileId ?? string.Empty,
-                skipUserDataCleanup: false,
-                cancellationToken: ct);
-
-            if (launchResult.Success)
-            {
-                logger.LogInformation("Successfully launched profile '{ProfileId}' for replay '{ReplayFile}'", replay.MatchingProfileId, replay.FileName);
-                return launchResult;
-            }
-
-            return ProfileOperationResult<GameLaunchInfo>.CreateFailure(
-                launchResult.FirstError ?? "Failed to launch game profile.");
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            logger.LogError(ex, "Exception launching profile '{ProfileId}' for replay '{ReplayFile}'", replay.MatchingProfileId, replay.FileName);
-            return ProfileOperationResult<GameLaunchInfo>.CreateFailure($"Launch failed: {ex.Message}");
         }
     }
 

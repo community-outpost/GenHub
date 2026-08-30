@@ -483,7 +483,7 @@ public sealed class ReplayDirectoryServiceTests
             Id = "steam-inst-1",
             HasZeroHour = true,
             ZeroHourPath = "/steam",
-            ZeroHourClient = steamClient,
+            AvailableGameClients = [steamClient],
         };
 
         _mockInstallationService
@@ -512,6 +512,7 @@ public sealed class ReplayDirectoryServiceTests
         Assert.True(result.Success);
         Assert.NotNull(capturedRequest);
         Assert.Equal("1.104.steam.gameclient.zerohour", capturedRequest.GameClientId);
+        Assert.NotNull(capturedRequest.EnabledContentIds);
         Assert.Contains("1.104.steam.gameinstallation.zerohour", capturedRequest.EnabledContentIds);
         Assert.Contains("1.104.steam.gameclient.zerohour", capturedRequest.EnabledContentIds);
         Assert.True(capturedRequest.UseSteamLaunch);
