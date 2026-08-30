@@ -38,9 +38,6 @@ public class ShareProfileDialogViewModelTests
         };
         var shareUri = "genhub://profile/import?data=TEST_DATA";
 
-        _sharingServiceMock.Setup(s => s.GenerateDiscordMarkdown(profile, shareUri))
-            .Returns("**ZH Ranked**");
-
         // Act
         var vm = new ShareProfileDialogViewModel(
             "prof-1",
@@ -53,7 +50,6 @@ public class ShareProfileDialogViewModelTests
         Assert.Equal("ZH Ranked", vm.ProfileName);
         Assert.Equal("genhub://profile/import?data=TEST_DATA", vm.ShareUri);
         Assert.Equal("#4CAF50", vm.ThemeColor);
-        Assert.Equal("**ZH Ranked**", vm.DiscordMarkdown);
     }
 
     /// <summary>

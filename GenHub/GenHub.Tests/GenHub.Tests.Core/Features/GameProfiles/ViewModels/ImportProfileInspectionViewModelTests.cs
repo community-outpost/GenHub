@@ -213,4 +213,80 @@ public class ImportProfileInspectionViewModelTests
         Assert.True(vm.HasError);
         Assert.Contains("Network timeout", vm.ErrorMessage);
     }
+
+    /// <summary>
+    /// Verifies that manifests collection is mapped to SharedManifestItemViewModel with full details and toggle capability.
+    /// </summary>
+    [Fact]
+    public void Manifests_Should_BeMappedToItemViewModels_WithDetails()
+    {
+        // Arrange
+        var dependency = new SharedManifestDependency
+        {
+            ManifestId = "outpost.mod.shockwave.1.20",
+            DisplayName = "ShockWave Mod",
+            Version = "1.20",
+            ContentType = ContentType.Mod,
+            Publisher = "Community Outpost",
+            DownloadSize = 500 * 1024 * 1024,
+            IsCachedLocally = false,
+            Hash = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            Files =
+            [
+                new ManifestFile
+                {
+                    RelativePath = "ShockWave.big",
+                    Size = 500 * 1024 * 1024,
+                    DownloadUrl = "https://github.com/community-outpost/shockwave/releases/download/v1.20/ShockWave.big",
+                    Hash = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                },
+            ],
+        };
+
+        var package = new SharedGameProfilePackage
+        {
+            SchemaVersion = 1,
+            Profile = new SharedProfileMetadata { Name = "ShockWave Profile", GameType = GameType.ZeroHour },
+            RequiredManifests = [dependency],
+        };
+
+        var inspection = new SharedProfileInspectionResult
+        {
+            ProfileMetadata = package.Profile,
+            Manifests = [dependency],
+            HasValidGameInstallation = true,
+            CompatibleInstallations = [],
+            TotalDownloadBytesRequired = 500 * 1024 * 1024,
+            CachedManifestCount = 0,
+            MissingManifestCount = 1,
+            HasNameConflict = false,
+            SuggestedProfileName = "ShockWave Profile",
+            SecurityWarnings = [],
+            Package = package,
+        };
+
+        // Act
+        var vm = new ImportProfileInspectionViewModel(
+            inspection,
+            _sharingServiceMock.Object,
+            _notificationServiceMock.Object,
+            NullLogger<ImportProfileInspectionViewModel>.Instance);
+
+        // Assert
+        Assert.Single(vm.Manifests);
+        var item = vm.Manifests[0];
+        Assert.Equal("ShockWave Mod", item.DisplayName);
+        Assert.Equal("outpost.mod.shockwave.1.20", item.ManifestId);
+        Assert.Equal("1.20", item.Version);
+        Assert.Equal("Community Outpost", item.Publisher);
+        Assert.False(item.IsCachedLocally);
+        Assert.Equal("https://github.com/community-outpost/shockwave/releases/download/v1.20/ShockWave.big", item.DownloadUrl);
+        Assert.Equal("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", item.Hash);
+        Assert.True(item.HasDetails);
+        Assert.False(item.IsExpanded);
+
+        // Toggle Expand
+        item.ToggleExpandCommand.Execute(null);
+        Assert.True(item.IsExpanded);
+    }
 }

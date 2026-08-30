@@ -164,8 +164,18 @@
                                             BorderThickness="1.5"
                                             ClipToBounds="True"
                                             Margin="0,0,16,0">
-                                        <Image Source="{Binding IconPath, Converter={StaticResource StringToImageConverter}}"
-                                               Stretch="Uniform" Margin="6" />
+                                        <Panel>
+                                            <PathIcon Data="M21,6H3A2,2 0 0,0 1,8V16A2,2 0 0,0 3,18H21A2,2 0 0,0 23,16V8A2,2 0 0,0 21,6M6,15A2,2 0 1,1 8,13A2,2 0 0,1 6,15M6,11A2,2 0 1,1 8,9A2,2 0 0,1 6,11M18,15A2,2 0 1,1 20,13A2,2 0 0,1 18,15M18,11A2,2 0 1,1 20,9A2,2 0 0,1 18,11Z"
+                                                      Width="36" Height="36"
+                                                      Foreground="{Binding ThemeColor, Converter={StaticResource ColorToBrushConverter}}"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"
+                                                      Opacity="0.85"
+                                                      IsVisible="{Binding IconPath, Converter={x:Static StringConverters.IsNullOrEmpty}}" />
+                                            <Image Source="{Binding IconPath, Converter={StaticResource StringToImageConverter}}"
+                                                   Stretch="Uniform" Margin="6"
+                                                   IsVisible="{Binding IconPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                        </Panel>
                                     </Border>
 
                                     <!-- Details -->
@@ -251,85 +261,171 @@
                                                         BorderBrush="{StaticResource FillWhite09}"
                                                         BorderThickness="1"
                                                         CornerRadius="8"
-                                                        Padding="12,8"
-                                                        Margin="0,0,0,6">
-                                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                                                        <!-- Content Type Badge -->
-                                                        <Border Grid.Column="0"
-                                                                Background="{StaticResource PurpleFillMedium}"
-                                                                BorderBrush="{StaticResource PurpleDeep}"
+                                                        Padding="12,10"
+                                                        Margin="0,0,0,8">
+                                                    <StackPanel Spacing="8">
+                                                        <!-- Main Row -->
+                                                        <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+                                                            <!-- Content Type Badge -->
+                                                            <Border Grid.Column="0"
+                                                                    Background="{StaticResource PurpleFillMedium}"
+                                                                    BorderBrush="{StaticResource PurpleDeep}"
+                                                                    BorderThickness="1"
+                                                                    CornerRadius="4"
+                                                                    Padding="6,2"
+                                                                    Margin="0,0,10,0"
+                                                                    VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding ContentType, Converter={StaticResource ContentTypeDisplayConverter}}"
+                                                                           FontSize="10"
+                                                                           FontWeight="SemiBold"
+                                                                           Foreground="{StaticResource PurpleTextLight}" />
+                                                            </Border>
+
+                                                            <!-- Name and Publisher -->
+                                                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                                                <TextBlock Text="{Binding DisplayName}"
+                                                                           FontSize="12"
+                                                                           FontWeight="SemiBold"
+                                                                           Foreground="{DynamicResource TextPrimary}" />
+                                                                <TextBlock Text="{Binding Publisher, StringFormat='{}Publisher: {0}'}"
+                                                                           FontSize="10"
+                                                                           Foreground="{DynamicResource TextSecondary}" />
+                                                            </StackPanel>
+
+                                                            <!-- Version -->
+                                                            <TextBlock Grid.Column="2"
+                                                                       Text="{Binding Version}"
+                                                                       FontSize="11"
+                                                                       Foreground="{DynamicResource TextMuted}"
+                                                                       VerticalAlignment="Center"
+                                                                       Margin="12,0" />
+
+                                                            <!-- Status Badge -->
+                                                            <Panel Grid.Column="3" VerticalAlignment="Center" Margin="0,0,8,0">
+                                                                <Border Background="{StaticResource SuccessGreenFillSoft}"
+                                                                        BorderBrush="{DynamicResource SuccessBrush}"
+                                                                        BorderThickness="1"
+                                                                        CornerRadius="6"
+                                                                        Padding="8,3"
+                                                                        IsVisible="{Binding IsCachedLocally}">
+                                                                    <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                                        <PathIcon Data="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"
+                                                                                  Width="10" Height="10"
+                                                                                  Foreground="{DynamicResource SuccessBrush}"
+                                                                                  VerticalAlignment="Center" />
+                                                                        <TextBlock Text="CACHED"
+                                                                                   FontSize="10"
+                                                                                   FontWeight="Bold"
+                                                                                   Foreground="{DynamicResource SuccessBrush}"
+                                                                                   VerticalAlignment="Center"
+                                                                                   HorizontalAlignment="Center" />
+                                                                    </StackPanel>
+                                                                </Border>
+                                                                <Border Background="{StaticResource InfoBlueFillSoft}"
+                                                                        BorderBrush="{DynamicResource AccentLightBrush}"
+                                                                        BorderThickness="1"
+                                                                        CornerRadius="6"
+                                                                        Padding="8,3"
+                                                                        IsVisible="{Binding !IsCachedLocally}">
+                                                                    <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                                        <PathIcon Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"
+                                                                                  Width="10" Height="10"
+                                                                                  Foreground="{DynamicResource AccentLightBrush}"
+                                                                                  VerticalAlignment="Center" />
+                                                                        <TextBlock Text="{Binding DownloadSize, Converter={StaticResource FileSizeConverter}}"
+                                                                                   FontSize="10"
+                                                                                   FontWeight="Bold"
+                                                                                   Foreground="{DynamicResource AccentLightBrush}"
+                                                                                   VerticalAlignment="Center"
+                                                                                   HorizontalAlignment="Center" />
+                                                                    </StackPanel>
+                                                                </Border>
+                                                            </Panel>
+
+                                                            <!-- Expand / Details Button -->
+                                                            <Button Grid.Column="4"
+                                                                    Command="{Binding ToggleExpandCommand}"
+                                                                    Background="{StaticResource FillWhite08}"
+                                                                    BorderBrush="{StaticResource BorderWhite19}"
+                                                                    BorderThickness="1"
+                                                                    CornerRadius="6"
+                                                                    Padding="8,4"
+                                                                    VerticalAlignment="Center"
+                                                                    Cursor="Hand"
+                                                                    ToolTip.Tip="Toggle download and verification details">
+                                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                                    <TextBlock Text="Details"
+                                                                               FontSize="10"
+                                                                               FontWeight="SemiBold"
+                                                                               Foreground="{DynamicResource TextSecondary}"
+                                                                               VerticalAlignment="Center" />
+                                                                    <PathIcon Data="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"
+                                                                              Width="10" Height="10"
+                                                                              Foreground="{DynamicResource TextSecondary}"
+                                                                              VerticalAlignment="Center" />
+                                                                </StackPanel>
+                                                            </Button>
+                                                        </Grid>
+
+                                                        <!-- Expandable Details Panel -->
+                                                        <Border IsVisible="{Binding IsExpanded}"
+                                                                Background="{StaticResource FillWhite08}"
+                                                                BorderBrush="{StaticResource BorderWhite19}"
                                                                 BorderThickness="1"
-                                                                CornerRadius="4"
-                                                                Padding="6,2"
-                                                                Margin="0,0,10,0"
-                                                                VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding ContentType, Converter={StaticResource ContentTypeDisplayConverter}}"
-                                                                       FontSize="10"
-                                                                       FontWeight="SemiBold"
-                                                                       Foreground="{StaticResource PurpleTextLight}" />
+                                                                CornerRadius="6"
+                                                                Padding="10"
+                                                                Margin="0,4,0,0">
+                                                            <StackPanel Spacing="6">
+                                                                <!-- Manifest ID -->
+                                                                <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,2">
+                                                                    <TextBlock Grid.Column="0" Text="Manifest ID:" FontSize="10" Foreground="{DynamicResource TextSecondary}" Width="95" FontWeight="SemiBold" />
+                                                                    <TextBlock Grid.Column="1" Text="{Binding ManifestId}" FontSize="10" FontFamily="Monospace" Foreground="{DynamicResource TextPrimary}" />
+                                                                </Grid>
+
+                                                                <!-- Hash -->
+                                                                <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding Hash, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                                    <TextBlock Grid.Column="0" Text="SHA-256 Hash:" FontSize="10" Foreground="{DynamicResource TextSecondary}" Width="95" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                                    <TextBlock Grid.Column="1" Text="{Binding Hash}" FontSize="10" FontFamily="Monospace" Foreground="{DynamicResource TextPrimary}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                                                    <Button Grid.Column="2"
+                                                                            Command="{Binding CopyHashCommand}"
+                                                                            Padding="6,2"
+                                                                            Margin="6,0,0,0"
+                                                                            Background="Transparent"
+                                                                            BorderThickness="0"
+                                                                            Cursor="Hand"
+                                                                            ToolTip.Tip="Copy SHA-256 Hash">
+                                                                        <PathIcon Data="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"
+                                                                                  Width="11" Height="11"
+                                                                                  Foreground="{DynamicResource TextSecondary}" />
+                                                                    </Button>
+                                                                </Grid>
+
+                                                                <!-- Download Source URL -->
+                                                                <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding DownloadUrl, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                                    <TextBlock Grid.Column="0" Text="Download URL:" FontSize="10" Foreground="{DynamicResource TextSecondary}" Width="95" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                                    <TextBlock Grid.Column="1" Text="{Binding DownloadUrl}" FontSize="10" FontFamily="Monospace" Foreground="{DynamicResource AccentLightBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                                                    <Button Grid.Column="2"
+                                                                            Command="{Binding CopyDownloadUrlCommand}"
+                                                                            Padding="6,2"
+                                                                            Margin="6,0,0,0"
+                                                                            Background="Transparent"
+                                                                            BorderThickness="0"
+                                                                            Cursor="Hand"
+                                                                            ToolTip.Tip="Copy Download URL">
+                                                                        <PathIcon Data="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"
+                                                                                  Width="11" Height="11"
+                                                                                  Foreground="{DynamicResource TextSecondary}" />
+                                                                    </Button>
+                                                                </Grid>
+
+                                                                <!-- Files Info -->
+                                                                <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding FilesCount}">
+                                                                    <TextBlock Grid.Column="0" Text="Package Files:" FontSize="10" Foreground="{DynamicResource TextSecondary}" Width="95" FontWeight="SemiBold" />
+                                                                    <TextBlock Grid.Column="1" Text="{Binding FilesCount, StringFormat='{}{0} file(s) included in component'}" FontSize="10" Foreground="{DynamicResource TextMuted}" />
+                                                                </Grid>
+                                                            </StackPanel>
                                                         </Border>
-
-                                                        <!-- Name and Publisher -->
-                                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding DisplayName}"
-                                                                       FontSize="12"
-                                                                       FontWeight="SemiBold"
-                                                                       Foreground="{DynamicResource TextPrimary}" />
-                                                            <TextBlock Text="{Binding Publisher, StringFormat='{}Publisher: {0}'}"
-                                                                       FontSize="10"
-                                                                       Foreground="{DynamicResource TextSecondary}" />
-                                                        </StackPanel>
-
-                                                        <!-- Version -->
-                                                        <TextBlock Grid.Column="2"
-                                                                   Text="{Binding Version}"
-                                                                   FontSize="11"
-                                                                   Foreground="{DynamicResource TextMuted}"
-                                                                   VerticalAlignment="Center"
-                                                                   Margin="12,0" />
-
-                                                        <!-- Status Badge -->
-                                                        <Panel Grid.Column="3" VerticalAlignment="Center">
-                                                            <Border Background="{StaticResource SuccessGreenFillSoft}"
-                                                                    BorderBrush="{DynamicResource SuccessBrush}"
-                                                                    BorderThickness="1"
-                                                                    CornerRadius="6"
-                                                                    Padding="8,3"
-                                                                    IsVisible="{Binding IsCachedLocally}">
-                                                                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Center">
-                                                                    <PathIcon Data="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"
-                                                                              Width="10" Height="10"
-                                                                              Foreground="{DynamicResource SuccessBrush}"
-                                                                              VerticalAlignment="Center" />
-                                                                    <TextBlock Text="CACHED"
-                                                                               FontSize="10"
-                                                                               FontWeight="Bold"
-                                                                               Foreground="{DynamicResource SuccessBrush}"
-                                                                               VerticalAlignment="Center"
-                                                                               HorizontalAlignment="Center" />
-                                                                </StackPanel>
-                                                            </Border>
-                                                            <Border Background="{StaticResource InfoBlueFillSoft}"
-                                                                    BorderBrush="{DynamicResource AccentLightBrush}"
-                                                                    BorderThickness="1"
-                                                                    CornerRadius="6"
-                                                                    Padding="8,3"
-                                                                    IsVisible="{Binding !IsCachedLocally}">
-                                                                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Center">
-                                                                    <PathIcon Data="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"
-                                                                              Width="10" Height="10"
-                                                                              Foreground="{DynamicResource AccentLightBrush}"
-                                                                              VerticalAlignment="Center" />
-                                                                    <TextBlock Text="{Binding DownloadSize, Converter={StaticResource FileSizeConverter}}"
-                                                                               FontSize="10"
-                                                                               FontWeight="Bold"
-                                                                               Foreground="{DynamicResource AccentLightBrush}"
-                                                                               VerticalAlignment="Center"
-                                                                               HorizontalAlignment="Center" />
-                                                                </StackPanel>
-                                                            </Border>
-                                                        </Panel>
-                                                    </Grid>
+                                                    </StackPanel>
                                                 </Border>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
@@ -352,7 +448,13 @@
 
                                     <!-- Installation Selector -->
                                     <StackPanel Spacing="6">
-                                        <TextBlock Text="Target Game Installation:" FontSize="11" Foreground="{DynamicResource TextSecondary}" />
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="Target Game Installation:" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" />
+                                            <TextBlock Text="Select the local game installation (e.g. Steam, EA App) that provides the base game executable and assets for this profile."
+                                                       FontSize="11"
+                                                       Foreground="{DynamicResource TextSecondary}"
+                                                       TextWrapping="Wrap" />
+                                        </StackPanel>
                                         <ComboBox ItemsSource="{Binding CompatibleInstallations}"
                                                   SelectedItem="{Binding SelectedInstallation, Mode=TwoWay}"
                                                   HorizontalAlignment="Stretch"

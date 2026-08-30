@@ -37,9 +37,6 @@ public partial class ShareProfileDialogViewModel : ViewModelBase
     private string _shareUri = string.Empty;
 
     [ObservableProperty]
-    private string _discordMarkdown = string.Empty;
-
-    [ObservableProperty]
     private string _statusMessage = string.Empty;
 
     [ObservableProperty]
@@ -75,7 +72,6 @@ public partial class ShareProfileDialogViewModel : ViewModelBase
             : $"{profile.Version}".Trim();
         ThemeColor = !string.IsNullOrEmpty(profile.ThemeColor) ? profile.ThemeColor : "#9575CD";
         ShareUri = shareUri;
-        DiscordMarkdown = profileSharingService.GenerateDiscordMarkdown(profile, shareUri);
     }
 
     private static TopLevel? GetMainWindowTopLevel()
@@ -105,26 +101,6 @@ public partial class ShareProfileDialogViewModel : ViewModelBase
         {
             _logger.LogError(ex, "Failed to copy share URI to clipboard.");
             ShowStatus("Failed to copy link.");
-        }
-    }
-
-    [RelayCommand]
-    private async Task CopyDiscordMarkdownAsync()
-    {
-        try
-        {
-            var topLevel = GetMainWindowTopLevel();
-            if (topLevel?.Clipboard != null)
-            {
-                await topLevel.Clipboard.SetTextAsync(DiscordMarkdown);
-                ShowStatus("Discord markdown invite copied to clipboard!");
-                _logger.LogInformation("Copied Discord markdown to clipboard for profile {ProfileName}", ProfileName);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to copy Discord markdown to clipboard.");
-            ShowStatus("Failed to copy Discord invite.");
         }
     }
 

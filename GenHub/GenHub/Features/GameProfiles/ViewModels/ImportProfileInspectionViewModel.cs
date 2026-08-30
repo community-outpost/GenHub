@@ -76,7 +76,7 @@ public partial class ImportProfileInspectionViewModel : ObservableObject
     private string _errorMessage = string.Empty;
 
     [ObservableProperty]
-    private ObservableCollection<SharedManifestDependency> _manifests = [];
+    private ObservableCollection<SharedManifestItemViewModel> _manifests = [];
 
     [ObservableProperty]
     private ObservableCollection<SharedInstallationOption> _compatibleInstallations = [];
@@ -179,7 +179,8 @@ public partial class ImportProfileInspectionViewModel : ObservableObject
         IconPath = SanitizeArtworkPath(inspectionResult.ProfileMetadata.IconPath);
         CommandLineArguments = inspectionResult.ProfileMetadata.CommandLineArguments;
 
-        Manifests = new ObservableCollection<SharedManifestDependency>(inspectionResult.Manifests);
+        Manifests = new ObservableCollection<SharedManifestItemViewModel>(
+            inspectionResult.Manifests.Select(m => new SharedManifestItemViewModel(m)));
 
         var installOptions = inspectionResult.CompatibleInstallations
             .Select(i => new SharedInstallationOption

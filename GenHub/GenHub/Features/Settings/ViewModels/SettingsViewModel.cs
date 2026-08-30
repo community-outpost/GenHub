@@ -1842,12 +1842,28 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
 
             HasUploads = ActiveUploads.Count > 0;
-            double usedMb = usage.UsedBytes / (double)ConversionConstants.BytesPerMegabyte;
+            long totalUsedBytes = Math.Max(usage.UsedBytes, items.Sum(i => i.SizeBytes));
+            double usedMb = totalUsedBytes / (double)ConversionConstants.BytesPerMegabyte;
             double limitMb = usage.LimitBytes / (double)ConversionConstants.BytesPerMegabyte;
             UploadQuotaPercent = usage.LimitBytes > 0
-                ? Math.Clamp((double)usage.UsedBytes / usage.LimitBytes * 100.0, 0.0, 100.0)
+                ? Math.Clamp((double)totalUsedBytes / usage.LimitBytes * 100.0, 0.0, 100.0)
                 : 0.0;
-            UploadQuotaText = $"{usedMb:F1} MB / {limitMb:F1} MB Used ({UploadQuotaPercent:F0}%)";
+
+            string formattedUsed = totalUsedBytes switch
+            {
+                >= ConversionConstants.BytesPerMegabyte => $"{usedMb:F1} MB",
+                >= ConversionConstants.BytesPerKilobyte => $"{totalUsedBytes / (double)ConversionConstants.BytesPerKilobyte:F1} KB",
+                _ => $"{totalUsedBytes} B",
+            };
+
+            string percentText = UploadQuotaPercent switch
+            {
+                >= 1.0 => $"{UploadQuotaPercent:F0}%",
+                > 0.0 => $"{UploadQuotaPercent:F2}%",
+                _ => "0%",
+            };
+
+            UploadQuotaText = $"{formattedUsed} / {limitMb:F0} MB Used ({percentText})";
         }
         catch (Exception ex)
         {
