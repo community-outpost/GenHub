@@ -12,6 +12,7 @@ using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.GameProfile;
 using GenHub.Core.Models.Launching;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -36,6 +37,9 @@ public class StorageMigrationServiceTests : IDisposable
     private readonly Mock<IGameProcessManager> _mockGameProcessManager;
     private readonly UserSettings _userSettings;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="StorageMigrationServiceTests"/> class.
+    /// </summary>
     public StorageMigrationServiceTests()
     {
         _tempRoot = Path.Combine(Path.GetTempPath(), "GenHubMigrationTests_" + Guid.NewGuid().ToString("N"));
@@ -63,7 +67,7 @@ public class StorageMigrationServiceTests : IDisposable
         _mockUserSettingsService = new Mock<IUserSettingsService>();
         _mockUserSettingsService.Setup(x => x.Get()).Returns(_userSettings);
         _mockUserSettingsService
-            .Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()))
             .ReturnsAsync(true);
 
         _mockCasPoolManager = new Mock<ICasPoolManager>();
@@ -79,9 +83,12 @@ public class StorageMigrationServiceTests : IDisposable
         _mockGameProcessManager = new Mock<IGameProcessManager>();
         _mockGameProcessManager
             .Setup(x => x.GetActiveProcessesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<GameProcessInfo>());
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameProcessInfo>>.CreateSuccess([]));
     }
 
+    /// <summary>
+    /// Cleans up temporary test files and directories.
+    /// </summary>
     public void Dispose()
     {
         try
@@ -99,6 +106,11 @@ public class StorageMigrationServiceTests : IDisposable
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>
+    /// Tests that ValidatePreflightAsync returns invalid when target path is null or whitespace.
+    /// </summary>
+    /// <param name="invalidPath">The invalid path to test.</param>
+    /// <returns>A task representing the test execution.</returns>
     [Theory]
     [InlineData(null)]
     [InlineData("")]
@@ -115,6 +127,10 @@ public class StorageMigrationServiceTests : IDisposable
         Assert.NotNull(result.Data.ErrorMessage);
     }
 
+    /// <summary>
+    /// Tests that ValidatePreflightAsync fails when target directory is inside application directory.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
     [Fact]
     public async Task ValidatePreflightAsync_Fails_WhenTargetPathIsInsideApplicationDirectoryAsync()
     {
@@ -131,6 +147,10 @@ public class StorageMigrationServiceTests : IDisposable
         Assert.NotNull(result.Data.ErrorMessage);
     }
 
+    /// <summary>
+    /// Tests that ValidatePreflightAsync fails when target directory is not writable.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
     [Fact]
     public async Task ValidatePreflightAsync_Fails_WhenTargetDirectoryIsNotWritableAsync()
     {
@@ -148,6 +168,10 @@ public class StorageMigrationServiceTests : IDisposable
         Assert.Contains("permission", result.Data.ErrorMessage ?? string.Empty, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Tests that ValidatePreflightAsync fails when active launches exist.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
     [Fact]
     public async Task ValidatePreflightAsync_Fails_WhenActiveLaunchesExistAsync()
     {
@@ -156,13 +180,15 @@ public class StorageMigrationServiceTests : IDisposable
 
         _mockLaunchRegistry
             .Setup(x => x.GetAllActiveLaunchesAsync())
-            .ReturnsAsync([new GameLaunchInfo
-            {
-                LaunchId = "launch-1",
-                ProfileId = "profile-1",
-                WorkspaceId = "ws-1",
-                ProcessInfo = new GameProcessInfo { ProcessId = 1234, ExecutablePath = "game.dat" },
-            }]);
+            .ReturnsAsync([
+                new GameLaunchInfo
+                {
+                    LaunchId = "launch-1",
+                    ProfileId = "profile-1",
+                    WorkspaceId = "ws-1",
+                    ProcessInfo = new GameProcessInfo { ProcessId = 1234, ExecutablePath = "game.dat" },
+                },
+            ]);
 
         var result = await service.ValidatePreflightAsync(targetPath);
 
@@ -173,6 +199,10 @@ public class StorageMigrationServiceTests : IDisposable
         Assert.Contains("active game", result.Data.ErrorMessage ?? string.Empty, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Tests that ValidatePreflightAsync fails when game processes are active.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
     [Fact]
     public async Task ValidatePreflightAsync_Fails_WhenGameProcessesAreActiveAsync()
     {
@@ -181,7 +211,9 @@ public class StorageMigrationServiceTests : IDisposable
 
         _mockGameProcessManager
             .Setup(x => x.GetActiveProcessesAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync([new GameProcessInfo { ProcessId = 5678, ExecutablePath = "game.dat" }]);
+            .ReturnsAsync(OperationResult<IReadOnlyList<GameProcessInfo>>.CreateSuccess([
+                new GameProcessInfo { ProcessId = 5678, ExecutablePath = "game.dat" },
+            ]));
 
         var result = await service.ValidatePreflightAsync(targetPath);
 
@@ -191,6 +223,10 @@ public class StorageMigrationServiceTests : IDisposable
         Assert.True(result.Data.HasActiveProcesses);
     }
 
+    /// <summary>
+    /// Tests that ValidatePreflightAsync succeeds when target is valid.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
     [Fact]
     public async Task ValidatePreflightAsync_Succeeds_WhenTargetIsValidAsync()
     {
@@ -207,6 +243,10 @@ public class StorageMigrationServiceTests : IDisposable
         Assert.False(result.Data.IsTargetInsideApplicationDirectory);
     }
 
+    /// <summary>
+    /// Tests that MigrateAsync throws ArgumentNullException when request is null.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
     [Fact]
     public async Task MigrateAsync_ThrowsArgumentNullException_WhenRequestIsNullAsync()
     {
@@ -216,6 +256,10 @@ public class StorageMigrationServiceTests : IDisposable
             service.MigrateAsync(null!));
     }
 
+    /// <summary>
+    /// Tests that MigrateAsync fails when preflight validation fails.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
     [Fact]
     public async Task MigrateAsync_Fails_WhenPreflightValidationFailsAsync()
     {
@@ -238,6 +282,10 @@ public class StorageMigrationServiceTests : IDisposable
         Assert.NotNull(result.FirstError);
     }
 
+    /// <summary>
+    /// Tests that MigrateAsync relocates CAS and workspaces when requested.
+    /// </summary>
+    /// <returns>A task representing the test execution.</returns>
     [Fact]
     public async Task MigrateAsync_RelocatesCasAndWorkspaces_WhenRequestedAsync()
     {
@@ -267,7 +315,7 @@ public class StorageMigrationServiceTests : IDisposable
         Assert.True(File.Exists(Path.Combine(expectedNewWs, "sample_ws.bin")));
 
         _mockUserSettingsService.Verify(
-            x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>(), It.IsAny<CancellationToken>()),
+            x => x.TryUpdateAndSaveAsync(It.IsAny<Func<UserSettings, bool>>()),
             Times.Once);
         _mockCasPoolManager.Verify(x => x.ReinitializeInstallationPool(), Times.Once);
     }
