@@ -59,7 +59,11 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                         logger.LogInformation("Detected simplified config format, converting...");
                         var configDir = Path.GetDirectoryName(configPath) ?? string.Empty;
                         var projectDir = configDir;
-                        if (!string.IsNullOrEmpty(configDir) && Path.GetFileName(configDir).Equals(ModBuilderConstants.ConfigDir, StringComparison.OrdinalIgnoreCase))
+                        var folderName = Path.GetFileName(configDir);
+                        if (!string.IsNullOrEmpty(configDir) &&
+                            (folderName.Equals(ModBuilderConstants.ConfigDir, StringComparison.OrdinalIgnoreCase) ||
+                             folderName.Equals("config", StringComparison.OrdinalIgnoreCase) ||
+                             folderName.Equals("configs", StringComparison.OrdinalIgnoreCase)))
                         {
                             projectDir = Path.GetDirectoryName(configDir) ?? configDir;
                         }
@@ -87,7 +91,11 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                         logger.LogInformation("Detected Python ModBuilder config format");
                         var configDir = Path.GetDirectoryName(configPath) ?? string.Empty;
                         var projectDir = configDir;
-                        if (!string.IsNullOrEmpty(configDir) && Path.GetFileName(configDir).Equals(ModBuilderConstants.ConfigDir, StringComparison.OrdinalIgnoreCase))
+                        var folderName = Path.GetFileName(configDir);
+                        if (!string.IsNullOrEmpty(configDir) &&
+                            (folderName.Equals(ModBuilderConstants.ConfigDir, StringComparison.OrdinalIgnoreCase) ||
+                             folderName.Equals("config", StringComparison.OrdinalIgnoreCase) ||
+                             folderName.Equals("configs", StringComparison.OrdinalIgnoreCase)))
                         {
                             projectDir = Path.GetDirectoryName(configDir) ?? configDir;
                         }
@@ -176,10 +184,13 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             projectDir = Path.GetDirectoryName(firstConfigFile) ?? string.Empty;
             if (!string.IsNullOrEmpty(projectDir))
             {
-                // go up one level if config is in a subdirectory (e.g. config/)
+                var folderName = Path.GetFileName(projectDir);
+                // go up one level if config is in a subdirectory (e.g. config/ or Configs/)
                 var parentDir = Path.GetDirectoryName(projectDir);
                 if (!string.IsNullOrEmpty(parentDir) &&
-                    Path.GetFileName(projectDir).Equals(ModBuilderConstants.ConfigDir, StringComparison.OrdinalIgnoreCase))
+                    (folderName.Equals(ModBuilderConstants.ConfigDir, StringComparison.OrdinalIgnoreCase) ||
+                     folderName.Equals("config", StringComparison.OrdinalIgnoreCase) ||
+                     folderName.Equals("configs", StringComparison.OrdinalIgnoreCase)))
                 {
                     projectDir = parentDir;
                 }
@@ -545,23 +556,25 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
         // 2. Direct folder inspection
         if (configFiles.Count == 0)
         {
-            var configDir = Path.Combine(projectDir, ModBuilderConstants.ConfigDir);
-            if (!Directory.Exists(configDir))
+            var candidateDirs = new[]
             {
-                configDir = Path.Combine(projectDir, "Configs");
-            }
+                Path.Combine(projectDir, ModBuilderConstants.ConfigDir),
+                Path.Combine(projectDir, "Configs"),
+                Path.Combine(projectDir, "config"),
+                Path.Combine(projectDir, "configs"),
+            };
 
-            if (Directory.Exists(configDir))
+            foreach (var configDir in candidateDirs.Where(Directory.Exists).Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 var bundleItemsPath = Path.Combine(configDir, ModBuilderConstants.BundleItemsConfigFileName);
                 var bundlePacksPath = Path.Combine(configDir, ModBuilderConstants.BundlePacksConfigFileName);
 
-                if (File.Exists(bundleItemsPath))
+                if (File.Exists(bundleItemsPath) && !configFiles.Contains(bundleItemsPath, StringComparer.OrdinalIgnoreCase))
                 {
                     configFiles.Add(bundleItemsPath);
                 }
 
-                if (File.Exists(bundlePacksPath))
+                if (File.Exists(bundlePacksPath) && !configFiles.Contains(bundlePacksPath, StringComparer.OrdinalIgnoreCase))
                 {
                     configFiles.Add(bundlePacksPath);
                 }
@@ -569,10 +582,15 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                 if (configFiles.Count == 0)
                 {
                     var legacyBundlesPath = Path.Combine(configDir, "bundles.json");
-                    if (File.Exists(legacyBundlesPath))
+                    if (File.Exists(legacyBundlesPath) && !configFiles.Contains(legacyBundlesPath, StringComparer.OrdinalIgnoreCase))
                     {
                         configFiles.Add(legacyBundlesPath);
                     }
+                }
+
+                if (configFiles.Count > 0)
+                {
+                    break;
                 }
             }
         }
@@ -607,13 +625,16 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
 
     private async Task ApplyModFoldersOverrideAsync(BuildConfiguration config, string projectDir, CancellationToken cancellationToken)
     {
-        var modFoldersPath = Path.Combine(projectDir, "ModFolders.json");
-        if (!File.Exists(modFoldersPath))
+        var candidatePaths = new[]
         {
-            modFoldersPath = Path.Combine(projectDir, ModBuilderConstants.ConfigDir, "ModFolders.json");
-        }
+            Path.Combine(projectDir, "ModFolders.json"),
+            Path.Combine(projectDir, ModBuilderConstants.ConfigDir, "ModFolders.json"),
+            Path.Combine(projectDir, "Configs", "ModFolders.json"),
+            Path.Combine(projectDir, "config", "ModFolders.json"),
+        };
 
-        if (!File.Exists(modFoldersPath))
+        var modFoldersPath = candidatePaths.FirstOrDefault(File.Exists);
+        if (string.IsNullOrEmpty(modFoldersPath))
         {
             return;
         }
@@ -690,13 +711,25 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             normalizedPattern = normalizedPattern.TrimStart('/', '\\').Replace('\\', '/');
             matcher.AddInclude(normalizedPattern);
 
+            // If the pattern doesn't already start with GameFilesEdited and GameFilesEdited dir exists, also match inside GameFilesEdited
+            var gameFilesDir = Path.Combine(basePath, ModBuilderConstants.GameFilesEditedDir);
+            if (!normalizedPattern.StartsWith($"{ModBuilderConstants.GameFilesEditedDir}/", StringComparison.OrdinalIgnoreCase) &&
+                !normalizedPattern.Equals(ModBuilderConstants.GameFilesEditedDir, StringComparison.OrdinalIgnoreCase) &&
+                Directory.Exists(gameFilesDir))
+            {
+                matcher.AddInclude($"{ModBuilderConstants.GameFilesEditedDir}/{normalizedPattern}");
+            }
+
             var directoryInfo = new DirectoryInfo(basePath);
             var result = matcher.Execute(new DirectoryInfoWrapper(directoryInfo));
 
             foreach (var file in result.Files)
             {
                 var absolutePath = Path.Combine(basePath, file.Path);
-                matchedFiles.Add(absolutePath);
+                if (!matchedFiles.Contains(absolutePath, StringComparer.OrdinalIgnoreCase))
+                {
+                    matchedFiles.Add(absolutePath);
+                }
             }
 
             return await Task.FromResult(matchedFiles).ConfigureAwait(false);
@@ -714,15 +747,29 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
     private static string DetermineTargetPath(string sourceFile, string sourceParent, string targetTemplate)
     {
         var relativePath = Path.GetRelativePath(sourceParent, sourceFile);
+        var normalizedRel = relativePath.Replace('\\', '/');
+
+        // Strip GameFilesEdited/ prefix so the target relative path maps to the game folder structure
+        if (normalizedRel.StartsWith($"{ModBuilderConstants.GameFilesEditedDir}/", StringComparison.OrdinalIgnoreCase))
+        {
+            normalizedRel = normalizedRel.Substring(ModBuilderConstants.GameFilesEditedDir.Length + 1);
+        }
+        else if (normalizedRel.Equals(ModBuilderConstants.GameFilesEditedDir, StringComparison.OrdinalIgnoreCase))
+        {
+            normalizedRel = string.Empty;
+        }
 
         if (!string.IsNullOrEmpty(targetTemplate) && ContainsWildcard(targetTemplate))
         {
             var targetNormalized = targetTemplate.Replace('\\', '/');
-            var relativeNormalized = relativePath.Replace('\\', '/');
+            if (targetNormalized.StartsWith($"{ModBuilderConstants.GameFilesEditedDir}/", StringComparison.OrdinalIgnoreCase))
+            {
+                targetNormalized = targetNormalized.Substring(ModBuilderConstants.GameFilesEditedDir.Length + 1);
+            }
 
             if (targetNormalized.Contains("**"))
             {
-                return relativeNormalized;
+                return normalizedRel;
             }
 
             if (targetNormalized.Contains('*'))
@@ -737,7 +784,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                     if (!string.IsNullOrEmpty(targetExt) && targetExt != ".*" && targetExt != sourceExt)
                     {
                         var sourceNameWithoutExt = Path.GetFileNameWithoutExtension(sourceFile);
-                        var relativeDir = Path.GetDirectoryName(relativePath)?.Replace('\\', '/') ?? string.Empty;
+                        var relativeDir = Path.GetDirectoryName(normalizedRel)?.Replace('\\', '/') ?? string.Empty;
 
                         if (!string.IsNullOrEmpty(relativeDir))
                         {
@@ -748,16 +795,22 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                     }
                 }
 
-                return relativeNormalized;
+                return normalizedRel;
             }
         }
 
         if (!string.IsNullOrEmpty(targetTemplate))
         {
-            return targetTemplate;
+            var targetNormalized = targetTemplate.Replace('\\', '/');
+            if (targetNormalized.StartsWith($"{ModBuilderConstants.GameFilesEditedDir}/", StringComparison.OrdinalIgnoreCase))
+            {
+                targetNormalized = targetNormalized.Substring(ModBuilderConstants.GameFilesEditedDir.Length + 1);
+            }
+
+            return targetNormalized;
         }
 
-        return relativePath;
+        return normalizedRel;
     }
 
     /// <summary>

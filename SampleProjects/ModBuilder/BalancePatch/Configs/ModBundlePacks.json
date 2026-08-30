@@ -1,0 +1,12 @@
+{
+  "BundlePacks": [
+    {
+      "Name": "BalancePatch",
+      "Items": [
+        "GameplayINIs"
+      ],
+      "OutputFile": ".Release/BalancePatch.big",
+      "Description": "Complete competitive balance package for tournament play"
+    }
+  ]
+}

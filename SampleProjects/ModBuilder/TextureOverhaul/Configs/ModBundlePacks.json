@@ -1,0 +1,12 @@
+{
+  "BundlePacks": [
+    {
+      "Name": "TextureOverhaul",
+      "Items": [
+        "HDTextures"
+      ],
+      "OutputFile": ".Release/TextureOverhaul.big",
+      "Description": "Complete HD textures package"
+    }
+  ]
+}

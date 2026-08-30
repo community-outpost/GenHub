@@ -748,29 +748,73 @@ public sealed class ProjectConfigService : IProjectConfigService
     {
         try
         {
-            // Create a sample bundles.json file
             var configsDir = Path.Combine(projectDir, directories.Configs);
-            var sampleBundlePath = Path.Combine(configsDir, "bundles.json");
+            Directory.CreateDirectory(configsDir);
 
-            if (!FileExistsCached(sampleBundlePath))
+            var itemsPath = Path.Combine(configsDir, ModBuilderConstants.BundleItemsConfigFileName);
+            if (!FileExistsCached(itemsPath))
             {
-                var sampleBundle = new
+                var bundleItemsConfig = new
                 {
-                    bundles = new[]
+                    BundleItems = new object[]
                     {
                         new
                         {
-                            name = "MyMod",
-                            description = "Sample mod bundle",
-                            items = Array.Empty<object>(),
+                            Name = "ModifiedINI",
+                            SourceFiles = new[] { $"{directories.GameFilesEdited}/Data/INI/**/*.ini" },
+                            OutputFormat = "INI",
+                            Description = "Custom INI game settings and unit tweaks"
                         }
                     }
                 };
 
-                var jsonContent = JsonSerializer.Serialize(sampleBundle, _jsonOptions);
-                await File.WriteAllTextAsync(sampleBundlePath, jsonContent, cancellationToken).ConfigureAwait(false);
-                InvalidateFileExistsCache(sampleBundlePath);
-                _logger.LogDebug("Created sample bundle config at {Path}", sampleBundlePath);
+                var itemsJson = JsonSerializer.Serialize(bundleItemsConfig, _jsonOptions);
+                await File.WriteAllTextAsync(itemsPath, itemsJson, cancellationToken).ConfigureAwait(false);
+                InvalidateFileExistsCache(itemsPath);
+                _logger.LogDebug("Created ModBundleItems.json at {Path}", itemsPath);
+            }
+
+            var packsPath = Path.Combine(configsDir, ModBuilderConstants.BundlePacksConfigFileName);
+            if (!FileExistsCached(packsPath))
+            {
+                var bundlePacksConfig = new
+                {
+                    BundlePacks = new[]
+                    {
+                        new
+                        {
+                            Name = Path.GetFileNameWithoutExtension(projectDir) ?? "MyMod",
+                            Items = new[] { "ModifiedINI" },
+                            ItemNames = new[] { "ModifiedINI" },
+                            AllowBuild = true,
+                            AllowInstall = true,
+                            OutputFile = $"{directories.Release}/{Path.GetFileNameWithoutExtension(projectDir) ?? "MyMod"}.big",
+                            Description = "Default mod bundle pack"
+                        }
+                    }
+                };
+
+                var packsJson = JsonSerializer.Serialize(bundlePacksConfig, _jsonOptions);
+                await File.WriteAllTextAsync(packsPath, packsJson, cancellationToken).ConfigureAwait(false);
+                InvalidateFileExistsCache(packsPath);
+                _logger.LogDebug("Created ModBundlePacks.json at {Path}", packsPath);
+            }
+
+            // Create sample INI file
+            var iniDir = Path.Combine(projectDir, directories.GameFilesEdited, "Data", "INI");
+            Directory.CreateDirectory(iniDir);
+            var sampleIniPath = Path.Combine(iniDir, "SampleTank.ini");
+            if (!FileExistsCached(sampleIniPath))
+            {
+                var sampleIniContent = "; Sample ModBuilder INI file\n" +
+                                       "; Edit unit properties or game settings here\n\n" +
+                                       "Object AmericaTankCrusader\n" +
+                                       "  MaxHealth = 1000.0\n" +
+                                       "  InitialHealth = 1000.0\n" +
+                                       "End\n";
+                await File.WriteAllTextAsync(sampleIniPath, sampleIniContent, cancellationToken).ConfigureAwait(false);
+                InvalidateFileExistsCache(sampleIniPath);
+                _logger.LogDebug("Created sample INI at {Path}", sampleIniPath);
             }
 
             // Create a README in GameFilesEdited
@@ -780,7 +824,8 @@ public sealed class ProjectConfigService : IProjectConfigService
             if (!FileExistsCached(readmePath))
             {
                 var readmeContent = "Place your modified game files in this directory.\n" +
-                                  "Maintain the same folder structure as the game's Data folder.";
+                                  "Maintain the same folder structure as the game (e.g. Data/INI/, Art/Textures/).\n" +
+                                  "ModBuilder will automatically pack them into .BIG files when you click Execute Build.\n";
                 await File.WriteAllTextAsync(readmePath, readmeContent, cancellationToken).ConfigureAwait(false);
                 InvalidateFileExistsCache(readmePath);
                 _logger.LogDebug("Created README at {Path}", readmePath);

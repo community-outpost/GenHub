@@ -1,0 +1,14 @@
+{
+  "BundleItems": [
+    {
+      "Name": "HDTextures",
+      "SourceFiles": [
+        "GameFilesEdited/Art/Textures/**/*.tga"
+      ],
+      "OutputFormat": "DDS",
+      "Compression": "DXT5",
+      "GenerateMipmaps": true,
+      "Description": "High resolution vehicle skins and UI icons"
+    }
+  ]
+}
