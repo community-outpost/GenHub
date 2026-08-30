@@ -41,7 +41,6 @@ public static class ReplayManagerModule
         services.AddSingleton<IReplayDirectoryService, ReplayDirectoryService>();
         services.AddSingleton<IReplayImportService, ReplayImportService>();
         services.AddSingleton<IReplayExportService, ReplayExportService>();
-        services.TryAddSingleton<GenHub.Core.Interfaces.Common.IUploadHistoryService, GenHub.Features.Tools.Services.UploadHistoryService>();
         services.AddSingleton<IZipValidationService, ZipValidationService>();
 
         // ViewModel (Singleton to persist state across tool activations)

@@ -37,21 +37,24 @@ const getErrorMessage = (err: unknown): string => {
   return String(err);
 };
 
-const FILENAME_REGEX = /filename[*]?=(?:utf-8''[^'\r\n]*'|"?)([^";\r\n]+)"?/i;
-const BOUNDARY_REGEX = /boundary=(?:"([^"]+)"|([^;]+))/i;
-
 const parseMaxSizeBytes = (rawLimit: string | undefined): number => {
   if (typeof rawLimit === "string") {
-    return Number.parseInt(rawLimit, 10);
+    const parsed = Number.parseInt(rawLimit, 10);
+    if (!Number.isNaN(parsed) && parsed > 0) {
+      return parsed;
+    }
   }
   return 10485760;
 };
 
 const parseMaxAgeSeconds = (rawAge: string | undefined): number => {
   if (typeof rawAge === "string") {
-    return Number.parseInt(rawAge, 10);
+    const parsed = Number.parseInt(rawAge, 10);
+    if (!Number.isNaN(parsed) && parsed > 0) {
+      return parsed;
+    }
   }
-  return 31536000;
+  return 1209600; // 14 days default
 };
 
 const parseDeleteBody = (body: { fileKey?: unknown; deleteToken?: unknown }): DeletePayload => {
@@ -243,67 +246,6 @@ const extractFileFromForm = (formData: FormData): File | null => {
   return fileEntry;
 };
 
-const parseMultipartFilename = (headerText: string): string => {
-  const match = FILENAME_REGEX.exec(headerText);
-  if (match?.[1]) {
-    return sanitizeFileName(match[1].trim().replaceAll('"', ""));
-  }
-  return "upload.zip";
-};
-
-const parsePartBytes = (part: string, headerEnd: number): Uint8Array => {
-  const bodyStart = headerEnd + 4;
-  let bodyEnd = part.lastIndexOf("\r\n");
-  if (bodyEnd < bodyStart) {
-    bodyEnd = part.length;
-  }
-  const binaryChunk = part.substring(bodyStart, bodyEnd);
-  const bytes = new Uint8Array(binaryChunk.length);
-  for (let i = 0; i < binaryChunk.length; i++) {
-    bytes[i] = binaryChunk.codePointAt(i) ?? 0;
-  }
-  return bytes;
-};
-
-const getBoundaryString = (contentType: string): string | null => {
-  const match = BOUNDARY_REGEX.exec(contentType);
-  if (!match) {
-    return null;
-  }
-  const token = match[1] ?? match[2] ?? "";
-  return `--${token.trim()}`;
-};
-
-const extractPartFile = (part: string): File | null => {
-  if (!part.includes("Content-Disposition")) {
-    return null;
-  }
-  const headerEnd = part.indexOf("\r\n\r\n");
-  if (headerEnd === -1) {
-    return null;
-  }
-  const headerText = part.substring(0, headerEnd);
-  const fileName = parseMultipartFilename(headerText);
-  const bytes = parsePartBytes(part, headerEnd);
-  return new File([bytes], fileName, { type: "application/zip" });
-};
-
-const extractFileFromMultipartBuffer = (buffer: ArrayBuffer, contentType: string): File | null => {
-  const boundaryStr = getBoundaryString(contentType);
-  if (boundaryStr === null) {
-    return null;
-  }
-  const rawText = new TextDecoder("latin1").decode(buffer);
-  const parts = rawText.split(boundaryStr);
-  for (const part of parts) {
-    const file = extractPartFile(part);
-    if (file !== null) {
-      return file;
-    }
-  }
-  return null;
-};
-
 const extractFileFromFormData = async (request: Request): Promise<File | null> => {
   try {
     const cloned = request.clone();
@@ -339,11 +281,7 @@ const extractFileFromDirectStream = async (request: Request, contentType: string
 const extractFileFromRequest = async (request: Request): Promise<File | null> => {
   const contentType = request.headers.get("content-type") ?? "";
   if (contentType.includes("multipart/form-data")) {
-    const fromForm = await extractFileFromFormData(request);
-    if (fromForm !== null) {
-      return fromForm;
-    }
-    return extractFileFromMultipartBuffer(await request.arrayBuffer(), contentType);
+    return await extractFileFromFormData(request);
   }
   return await extractFileFromDirectStream(request, contentType);
 };
@@ -463,6 +401,10 @@ const resolveValidatedUploadFile = async (
 };
 
 const handleDirectUpload = async (request: Request, env: Env): Promise<Response> => {
+  if (!env.UPLOADTHING_TOKEN || !env.GATEWAY_HMAC_SECRET) {
+    return new Response(JSON.stringify({ error: "Gateway storage service unconfigured" }), { status: 503, headers: CORS_HEADERS });
+  }
+
   const maxSizeBytes = parseMaxSizeBytes(env.MAX_FILE_SIZE_BYTES);
   const result = await resolveValidatedUploadFile(request, maxSizeBytes);
   if (result.errorResponse !== undefined) {
@@ -507,6 +449,10 @@ const executeDelete = async (fileKey: string, token: string): Promise<boolean> =
 };
 
 const handleDeleteUpload = async (request: Request, env: Env): Promise<Response> => {
+  if (!env.UPLOADTHING_TOKEN || !env.GATEWAY_HMAC_SECRET) {
+    return new Response(JSON.stringify({ error: "Gateway storage service unconfigured" }), { status: 503, headers: CORS_HEADERS });
+  }
+
   try {
     const rawBody = (await request.json()) as Record<string, unknown>;
     const payload = parseDeleteBody(rawBody);

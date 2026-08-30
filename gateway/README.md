@@ -3,9 +3,9 @@
 Cloudflare Worker serverless proxy for GenHub's UploadThing integration.
 
 ## Features
-- **Zero Master Secrets on Client**: Client binaries only receive short-lived presigned S3 upload URLs.
+- **Zero Master Secrets on Client**: Master `UPLOADTHING_TOKEN` resides exclusively on Cloudflare Workers.
 - **Stateless HMAC Deletion Receipts**: Players can delete their own uploads using an unforgeable HMAC signature without requiring user database accounts.
-- **10MB & File Type Guardrails**: Only `.zip` and `.rep` archives under 10MB are permitted.
+- **10MB & File Type Guardrails**: Only `.zip`, `.ghprofile`, `.map`, and `.rep` archives under 10MB are permitted.
 
 ## Deployment Instructions
 

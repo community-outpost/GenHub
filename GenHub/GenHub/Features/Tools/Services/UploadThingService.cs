@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using GenHub.Core.Constants;
 using GenHub.Core.Helpers;
 using GenHub.Core.Interfaces.Services;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.UploadThing;
 using Microsoft.Extensions.Logging;
 
@@ -22,7 +23,7 @@ public sealed class UploadThingService(
     ILogger<UploadThingService> logger) : IUploadThingService
 {
     /// <inheritdoc />
-    public async Task<UploadResult?> UploadFileAsync(
+    public async Task<OperationResult<UploadResult>> UploadFileAsync(
         string filePath,
         IProgress<double>? progress = null,
         CancellationToken ct = default)
@@ -30,7 +31,7 @@ public sealed class UploadThingService(
         if (!File.Exists(filePath))
         {
             logger.LogError("File to upload does not exist: {Path}", filePath);
-            return null;
+            return OperationResult<UploadResult>.CreateFailure($"File not found: {filePath}");
         }
 
         try
@@ -47,14 +48,9 @@ public sealed class UploadThingService(
             await using var fileStream = File.OpenRead(filePath);
             using var fileContent = new ProgressableStreamContent(fileStream, fileLength, streamProgress);
             fileContent.Headers.ContentType = new MediaTypeHeaderValue(ApiConstants.MediaTypeZip);
-            fileContent.Headers.ContentDisposition = new ContentDispositionHeaderValue("form-data")
-            {
-                Name = "\"file\"",
-                FileName = $"\"{fileName}\"",
-            };
 
             using var formContent = new MultipartFormDataContent();
-            formContent.Add(fileContent);
+            formContent.Add(fileContent, "file", fileName);
 
             progress?.Report(0.88);
             using var response = await httpClient.PostAsync(ApiConstants.DefaultUploadUrl, formContent, ct);
@@ -62,35 +58,38 @@ public sealed class UploadThingService(
             {
                 var errorBody = await response.Content.ReadAsStringAsync(ct);
                 logger.LogError("Upload failed with status {Status}: {Error}", response.StatusCode, errorBody);
-                return null;
+                var message = !string.IsNullOrWhiteSpace(errorBody)
+                    ? $"Upload rejected ({response.StatusCode}): {errorBody}"
+                    : $"Upload failed with status {response.StatusCode}";
+                return OperationResult<UploadResult>.CreateFailure(message);
             }
 
             var result = await response.Content.ReadFromJsonAsync<DirectUploadResponse>(cancellationToken: ct);
             if (result?.PublicUrl == null || result.FileKey == null || result.DeleteToken == null)
             {
                 logger.LogError("Gateway returned incomplete upload response.");
-                return null;
+                return OperationResult<UploadResult>.CreateFailure("Gateway returned incomplete upload response.");
             }
 
             progress?.Report(1.0);
             logger.LogInformation("File uploaded successfully to {Url}", result.PublicUrl);
 
-            return new UploadResult(result.PublicUrl, result.FileKey, result.DeleteToken);
+            return OperationResult<UploadResult>.CreateSuccess(new UploadResult(result.PublicUrl, result.FileKey, result.DeleteToken));
         }
         catch (Exception ex) when ((ex is HttpRequestException or IOException or UnauthorizedAccessException or JsonException or FormatException or InvalidOperationException) && ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Exception occurred during file upload");
-            return null;
+            return OperationResult<UploadResult>.CreateFailure($"Upload error: {ex.Message}");
         }
     }
 
     /// <inheritdoc />
-    public async Task<bool> DeleteFileAsync(string fileKey, string deleteToken, CancellationToken ct = default)
+    public async Task<OperationResult<bool>> DeleteFileAsync(string fileKey, string deleteToken, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(fileKey) || string.IsNullOrWhiteSpace(deleteToken))
         {
             logger.LogWarning("Cannot delete file: fileKey or deleteToken is missing.");
-            return false;
+            return OperationResult<bool>.CreateFailure("Missing fileKey or deleteToken.");
         }
 
         try
@@ -102,7 +101,7 @@ public sealed class UploadThingService(
             {
                 var error = await response.Content.ReadAsStringAsync(ct);
                 logger.LogError("Delete request rejected with status {Status}: {Error}", response.StatusCode, error);
-                return false;
+                return OperationResult<bool>.CreateFailure($"Delete failed with status {response.StatusCode}: {error}");
             }
 
             var result = await response.Content.ReadFromJsonAsync<DeleteUploadResponse>(cancellationToken: ct);
@@ -111,14 +110,15 @@ public sealed class UploadThingService(
             if (isSuccess)
             {
                 logger.LogInformation("File {Key} deleted successfully from cloud storage.", fileKey);
+                return OperationResult<bool>.CreateSuccess(true);
             }
 
-            return isSuccess;
+            return OperationResult<bool>.CreateFailure("Cloud storage reported deletion failure.");
         }
         catch (Exception ex) when ((ex is HttpRequestException or JsonException or InvalidOperationException) && ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Exception occurred while deleting file {Key}", fileKey);
-            return false;
+            return OperationResult<bool>.CreateFailure($"Deletion error: {ex.Message}");
         }
     }
 }

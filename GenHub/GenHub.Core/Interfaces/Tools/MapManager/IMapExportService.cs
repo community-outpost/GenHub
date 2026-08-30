@@ -1,9 +1,10 @@
-using GenHub.Core.Models.Tools.MapManager;
-using GenHub.Core.Models.Tools.UploadThing;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Tools.MapManager;
+using GenHub.Core.Models.Tools.UploadThing;
 
 namespace GenHub.Core.Interfaces.Tools.MapManager;
 
@@ -18,8 +19,8 @@ public interface IMapExportService
     /// <param name="maps">The maps to upload.</param>
     /// <param name="progress">Progress reporter for upload updates.</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>The upload result if successful, otherwise null.</returns>
-    Task<UploadResult?> UploadToUploadThingAsync(
+    /// <returns>The operation result containing the upload result if successful.</returns>
+    Task<OperationResult<UploadResult>> UploadToUploadThingAsync(
         IEnumerable<MapFile> maps,
         IProgress<double>? progress = null,
         CancellationToken ct = default);

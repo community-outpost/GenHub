@@ -1,9 +1,10 @@
-using GenHub.Core.Models.Tools.ReplayManager;
-using GenHub.Core.Models.Tools.UploadThing;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Models.Results;
+using GenHub.Core.Models.Tools.ReplayManager;
+using GenHub.Core.Models.Tools.UploadThing;
 
 namespace GenHub.Core.Interfaces.Tools.ReplayManager;
 
@@ -18,8 +19,8 @@ public interface IReplayExportService
     /// <param name="replays">The replays to upload.</param>
     /// <param name="progress">Progress reporter for upload updates.</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>The upload result if successful, otherwise null.</returns>
-    Task<UploadResult?> UploadToUploadThingAsync(
+    /// <returns>The operation result containing the upload result if successful.</returns>
+    Task<OperationResult<UploadResult>> UploadToUploadThingAsync(
         IEnumerable<ReplayFile> replays,
         IProgress<double>? progress = null,
         CancellationToken ct = default);

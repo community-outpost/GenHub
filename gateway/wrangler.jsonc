@@ -3,10 +3,14 @@
   "name": "genhub-upload-gateway",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-01",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "observability": {
     "enabled": true
   },
   "vars": {
-    "MAX_FILE_SIZE_BYTES": "10485760"
+    "MAX_FILE_SIZE_BYTES": "10485760",
+    "TOKEN_MAX_AGE_SECONDS": "1209600"
   }
 }

@@ -5,6 +5,8 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -613,7 +615,7 @@ public partial class MapManagerViewModel : ObservableObject
             return;
         }
 
-        long totalSizeBytes = SelectedMaps.Sum(r => new FileInfo(r.FullPath).Length);
+        long totalSizeBytes = CalculateSelectedMapsSize(SelectedMaps);
         if (!await ValidateUploadLimitsAsync(totalSizeBytes))
         {
             return;
@@ -648,20 +650,21 @@ public partial class MapManagerViewModel : ObservableObject
             });
 
             var uploadResult = await _exportService.UploadToUploadThingAsync([.. SelectedMaps], progressHandler);
-            if (uploadResult != null)
+            if (uploadResult.Success)
             {
-                await HandleSuccessfulUploadAsync(uploadResult, totalSizeBytes, fileHash);
+                await HandleSuccessfulUploadAsync(uploadResult.Data, totalSizeBytes, fileHash);
             }
             else
             {
                 StatusMessage = "Upload failed.";
-                _notificationService.ShowError("Upload Failed", "Upload failed. Please check your internet connection.");
+                var error = uploadResult.FirstError ?? "Upload failed. Please check your internet connection.";
+                _notificationService.ShowError("Upload Failed", error);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or HttpRequestException or InvalidOperationException) && ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "Upload failed");
-            _notificationService.ShowError("Upload Error", ex.Message);
+            _notificationService.ShowError("Upload Error", "Failed to complete upload.");
             StatusMessage = "Upload error.";
         }
         finally
@@ -669,6 +672,38 @@ public partial class MapManagerViewModel : ObservableObject
             IsBusy = false;
             Progress = 0;
         }
+    }
+
+    private long CalculateSelectedMapsSize(IReadOnlyList<MapFile> maps)
+    {
+        long total = 0;
+        foreach (var map in maps)
+        {
+            try
+            {
+                if (File.Exists(map.FullPath))
+                {
+                    total += new FileInfo(map.FullPath).Length;
+                }
+
+                if (map.IsDirectory && map.AssetFiles != null)
+                {
+                    foreach (var asset in map.AssetFiles)
+                    {
+                        if (File.Exists(asset))
+                        {
+                            total += new FileInfo(asset).Length;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Ignore missing or inaccessible files in size estimate
+            }
+        }
+
+        return total;
     }
 
     private bool ValidateDemoMapsSelected()
@@ -696,15 +731,15 @@ public partial class MapManagerViewModel : ObservableObject
             return false;
         }
 
-        var isAllowed = await _uploadHistoryService.CanUploadAsync(totalSizeBytes);
+        var isAllowed = await _uploadHistoryService.CanUploadAsync(totalSizeBytes, MapManagerConstants.UploadCategory);
         if (!isAllowed)
         {
-            var usage = await _uploadHistoryService.GetUsageInfoAsync();
+            var usage = await _uploadHistoryService.GetUsageInfoAsync(MapManagerConstants.UploadCategory);
             var resetDateLocal = usage.ResetDate.ToLocalTime();
             _notificationService.ShowError(
                 "Rate Limit Exceeded",
                 "Upload limit exceeded for the current 3-day period. Please remove items from your Upload History to free up quota immediately.");
-            StatusMessage = $"Limited reached. Resets {resetDateLocal:g}.";
+            StatusMessage = $"Limit reached. Resets {resetDateLocal:g}.";
             return false;
         }
 
@@ -715,6 +750,11 @@ public partial class MapManagerViewModel : ObservableObject
     {
         try
         {
+            if (!File.Exists(filePath))
+            {
+                return (false, null);
+            }
+
             await using var stream = File.OpenRead(filePath);
             var hashBytes = await System.Security.Cryptography.SHA256.HashDataAsync(stream);
             var fileHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
@@ -722,24 +762,43 @@ public partial class MapManagerViewModel : ObservableObject
             var existingUpload = await _uploadHistoryService.FindExistingUploadAsync(fileHash);
             if (existingUpload != null && !string.IsNullOrEmpty(existingUpload.Url))
             {
-                var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
-                var clipboard = lifetime?.MainWindow?.Clipboard;
-                if (clipboard != null)
+                var isAlive = await VerifyShareUrlAliveAsync(existingUpload.Url);
+                if (isAlive)
                 {
-                    await clipboard.SetTextAsync(existingUpload.Url);
-                }
+                    var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+                    var clipboard = lifetime?.MainWindow?.Clipboard;
+                    if (clipboard != null)
+                    {
+                        await clipboard.SetTextAsync(existingUpload.Url);
+                    }
 
-                StatusMessage = "Reused existing upload! Link copied to clipboard.";
-                _notificationService.ShowSuccess("Upload Complete", "Existing link copied to clipboard!");
-                return (true, fileHash);
+                    StatusMessage = "Reused existing upload! Link copied to clipboard.";
+                    _notificationService.ShowSuccess("Upload Complete", "Existing link copied to clipboard!");
+                    return (true, fileHash);
+                }
             }
 
             return (false, fileHash);
         }
-        catch (Exception ex)
+        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or HttpRequestException) && ex is not OperationCanceledException)
         {
-            _logger.LogWarning(ex, "Failed to compute file hash for deduplication check");
+            _logger.LogWarning(ex, "Failed to compute file hash or verify deduplication link");
             return (false, null);
+        }
+    }
+
+    private async Task<bool> VerifyShareUrlAliveAsync(string url)
+    {
+        try
+        {
+            using var httpClient = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+            using var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, url);
+            using var response = await httpClient.SendAsync(request);
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
         }
     }
 
@@ -752,7 +811,7 @@ public partial class MapManagerViewModel : ObservableObject
             await clipboard.SetTextAsync(uploadResult.PublicUrl);
         }
 
-        var fileName = SelectedMaps.Count == 1 ? SelectedMaps[0].FileName : "maps.zip";
+        var fileName = SelectedMaps.Count == 1 ? SelectedMaps[0].FileName : $"{MapManagerConstants.DefaultZipName}{Path.GetExtension(MapManagerConstants.ZipFilePattern)}";
         _uploadHistoryService.RecordUpload(totalSizeBytes, uploadResult.PublicUrl, fileName, uploadResult.FileKey, uploadResult.DeleteToken, fileHash, MapManagerConstants.UploadCategory);
 
         if (IsHistoryOpen)
@@ -1077,14 +1136,15 @@ public partial class MapManagerViewModel : ObservableObject
         try
         {
             var history = await _uploadHistoryService.GetUploadHistoryAsync(MapManagerConstants.UploadCategory);
-            UploadHistory.Clear();
+            var viewModels = history.Select(item => new UploadHistoryItemViewModel(item)).ToList();
 
-            foreach (var item in history)
+            UploadHistory.Clear();
+            foreach (var vm in viewModels)
             {
-                UploadHistory.Add(new UploadHistoryItemViewModel(item));
+                UploadHistory.Add(vm);
             }
 
-            // Verify file existence
+            // Verify file existence asynchronously
             _ = Task.Run(async () =>
             {
                 using var httpClient = new System.Net.Http.HttpClient
@@ -1092,31 +1152,29 @@ public partial class MapManagerViewModel : ObservableObject
                     Timeout = TimeSpan.FromSeconds(5),
                 };
 
-                foreach (var viewModel in UploadHistory)
+                foreach (var vm in viewModels)
                 {
+                    bool exists = false;
                     try
                     {
-                        var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, viewModel.Url);
-                        var response = await httpClient.SendAsync(request);
-
-                        await Dispatcher.UIThread.InvokeAsync(() =>
-                        {
-                            viewModel.FileExists = response.IsSuccessStatusCode;
-                            viewModel.IsVerified = true;
-                        });
+                        using var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, vm.Url);
+                        using var response = await httpClient.SendAsync(request);
+                        exists = response.IsSuccessStatusCode;
                     }
                     catch
                     {
-                        await Dispatcher.UIThread.InvokeAsync(() =>
-                        {
-                            viewModel.FileExists = false;
-                            viewModel.IsVerified = true;
-                        });
+                        exists = false;
                     }
+
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        vm.FileExists = exists;
+                        vm.IsVerified = true;
+                    });
                 }
             });
         }
-        catch (Exception ex)
+        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or JsonException) && ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "Failed to load upload history");
         }
@@ -1140,12 +1198,12 @@ public partial class MapManagerViewModel : ObservableObject
             var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
             var clipboard = lifetime?.MainWindow?.Clipboard;
             if (clipboard != null)
-                {
-                    await clipboard.SetTextAsync(url);
-                    _notificationService.ShowSuccess("Copied", "Link copied to clipboard.");
-                }
+            {
+                await clipboard.SetTextAsync(url);
+                _notificationService.ShowSuccess("Copied", "Link copied to clipboard.");
+            }
         }
-        catch (Exception ex)
+        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException) && ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "Failed to copy URL");
         }
@@ -1179,7 +1237,7 @@ public partial class MapManagerViewModel : ObservableObject
                 _notificationService.ShowError(MapManagerConstants.DeleteFailedTitle, "Failed to delete file from cloud storage.");
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or HttpRequestException or JsonException) && ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "Failed to remove history item");
             _notificationService.ShowError(MapManagerConstants.DeleteFailedTitle, "Failed to delete history item.");
@@ -1204,13 +1262,22 @@ public partial class MapManagerViewModel : ObservableObject
 
         try
         {
-            await _uploadHistoryService.ClearHistoryAsync(deleteFromCloud: true, category: MapManagerConstants.UploadCategory);
+            var (deleted, failed) = await _uploadHistoryService.ClearHistoryAsync(deleteFromCloud: true, category: MapManagerConstants.UploadCategory);
             await LoadHistoryAsync();
-            _notificationService.ShowSuccess(
-                "Cleared",
-                "All uploaded files deleted from cloud storage and history cleared.");
+            if (failed == 0)
+            {
+                _notificationService.ShowSuccess(
+                    "Cleared",
+                    $"All {deleted} uploaded files deleted from cloud storage and history cleared.");
+            }
+            else
+            {
+                _notificationService.ShowWarning(
+                    "Partially Cleared",
+                    $"Cleared {deleted} history items. {failed} item(s) could not be deleted from cloud storage.");
+            }
         }
-        catch (Exception ex)
+        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or HttpRequestException or JsonException) && ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "Failed to clear history");
             _notificationService.ShowError("Clear Failed", "Failed to clear history.");

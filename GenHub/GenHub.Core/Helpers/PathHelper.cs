@@ -257,9 +257,9 @@ public static class PathHelper
             var info = new ProcessStartInfo
             {
                 FileName = PlatformConstants.WindowsExplorerPath,
+                Arguments = string.Format(PlatformConstants.WindowsExplorerSelectArgument, filePath),
                 UseShellExecute = false,
             };
-            info.ArgumentList.Add($"/select,{filePath}");
             return info;
         }
 

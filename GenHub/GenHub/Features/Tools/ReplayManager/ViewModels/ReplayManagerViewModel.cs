@@ -5,6 +5,8 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
@@ -303,12 +305,12 @@ public partial class ReplayManagerViewModel(
         try
         {
             var history = await uploadHistoryService.GetUploadHistoryAsync(ReplayManagerConstants.UploadCategory);
-            UploadHistory.Clear();
+            var viewModels = history.Select(item => new UploadHistoryItemViewModel(item)).ToList();
 
-            // Add items to collection
-            foreach (var item in history)
+            UploadHistory.Clear();
+            foreach (var vm in viewModels)
             {
-                UploadHistory.Add(new UploadHistoryItemViewModel(item));
+                UploadHistory.Add(vm);
             }
 
             // Verify file existence for each item asynchronously
@@ -319,33 +321,29 @@ public partial class ReplayManagerViewModel(
                     Timeout = TimeSpan.FromSeconds(5),
                 };
 
-                foreach (var viewModel in UploadHistory)
+                foreach (var vm in viewModels)
                 {
+                    bool exists = false;
                     try
                     {
-                        // Use head request to check if file exists without downloading it
-                        var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, viewModel.Url);
-                        var response = await httpClient.SendAsync(request);
-
-                        await Dispatcher.UIThread.InvokeAsync(() =>
-                        {
-                            viewModel.FileExists = response.IsSuccessStatusCode;
-                            viewModel.IsVerified = true;
-                        });
+                        using var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, vm.Url);
+                        using var response = await httpClient.SendAsync(request);
+                        exists = response.IsSuccessStatusCode;
                     }
                     catch
                     {
-                        // If request fails, assume file doesn't exist
-                        await Dispatcher.UIThread.InvokeAsync(() =>
-                        {
-                            viewModel.FileExists = false;
-                            viewModel.IsVerified = true;
-                        });
+                        exists = false;
                     }
+
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        vm.FileExists = exists;
+                        vm.IsVerified = true;
+                    });
                 }
             });
         }
-        catch (Exception ex)
+        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or JsonException) && ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to load upload history");
         }
@@ -370,12 +368,19 @@ public partial class ReplayManagerViewModel(
             return;
         }
 
-        var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
-        var clipboard = lifetime?.MainWindow?.Clipboard;
-        if (clipboard != null)
+        try
         {
-            await clipboard.SetTextAsync(url);
-            notificationService.ShowSuccess("Copied", "Link copied to clipboard!");
+            var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+            var clipboard = lifetime?.MainWindow?.Clipboard;
+            if (clipboard != null)
+            {
+                await clipboard.SetTextAsync(url);
+                notificationService.ShowSuccess("Copied", "Link copied to clipboard!");
+            }
+        }
+        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException) && ex is not OperationCanceledException)
+        {
+            logger.LogError(ex, "Failed to copy URL");
         }
     }
 
@@ -411,7 +416,7 @@ public partial class ReplayManagerViewModel(
                 notificationService.ShowError(ReplayManagerConstants.DeleteFailedTitle, "Failed to delete file from cloud storage.");
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or HttpRequestException or JsonException) && ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to remove history item");
             notificationService.ShowError(ReplayManagerConstants.DeleteFailedTitle, "Failed to delete history item.");
@@ -436,13 +441,22 @@ public partial class ReplayManagerViewModel(
 
         try
         {
-            await uploadHistoryService.ClearHistoryAsync(deleteFromCloud: true, category: ReplayManagerConstants.UploadCategory);
+            var (deleted, failed) = await uploadHistoryService.ClearHistoryAsync(deleteFromCloud: true, category: ReplayManagerConstants.UploadCategory);
             await LoadHistoryAsync();
-            notificationService.ShowSuccess(
-                "Cleared",
-                "All uploaded files deleted from cloud storage and history cleared.");
+            if (failed == 0)
+            {
+                notificationService.ShowSuccess(
+                    "Cleared",
+                    $"All {deleted} uploaded files deleted from cloud storage and history cleared.");
+            }
+            else
+            {
+                notificationService.ShowWarning(
+                    "Partially Cleared",
+                    $"Cleared {deleted} history items. {failed} item(s) could not be deleted from cloud storage.");
+            }
         }
-        catch (Exception ex)
+        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or HttpRequestException or JsonException) && ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Failed to clear history");
             notificationService.ShowError("Clear Failed", "Failed to clear history.");
@@ -665,7 +679,7 @@ public partial class ReplayManagerViewModel(
             return;
         }
 
-        long totalSizeBytes = SelectedReplays.Sum(r => new FileInfo(r.FullPath).Length);
+        long totalSizeBytes = CalculateSelectedReplaysSize(SelectedReplays);
         if (!await ValidateUploadLimitsAsync(totalSizeBytes))
         {
             return;
@@ -700,20 +714,21 @@ public partial class ReplayManagerViewModel(
             });
 
             var uploadResult = await exportService.UploadToUploadThingAsync([.. SelectedReplays], progressHandler);
-            if (uploadResult != null)
+            if (uploadResult.Success)
             {
-                await HandleSuccessfulUploadAsync(uploadResult, totalSizeBytes, fileHash);
+                await HandleSuccessfulUploadAsync(uploadResult.Data, totalSizeBytes, fileHash);
             }
             else
             {
                 StatusMessage = "Upload failed.";
-                notificationService.ShowError("Upload Failed", "Upload failed. Please check your internet connection.");
+                var error = uploadResult.FirstError ?? "Upload failed. Please check your internet connection.";
+                notificationService.ShowError("Upload Failed", error);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or HttpRequestException or InvalidOperationException) && ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Upload failed");
-            notificationService.ShowError("Upload Error", ex.Message);
+            notificationService.ShowError("Upload Error", "Failed to complete upload.");
             StatusMessage = "Upload error.";
         }
         finally
@@ -721,6 +736,27 @@ public partial class ReplayManagerViewModel(
             IsBusy = false;
             Progress = 0;
         }
+    }
+
+    private long CalculateSelectedReplaysSize(IReadOnlyList<ReplayFile> replays)
+    {
+        long total = 0;
+        foreach (var replay in replays)
+        {
+            try
+            {
+                if (File.Exists(replay.FullPath))
+                {
+                    total += new FileInfo(replay.FullPath).Length;
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Ignore missing or inaccessible files in size estimate
+            }
+        }
+
+        return total;
     }
 
     private bool ValidateDemoReplaysSelected()
@@ -748,15 +784,15 @@ public partial class ReplayManagerViewModel(
             return false;
         }
 
-        var isAllowed = await uploadHistoryService.CanUploadAsync(totalSizeBytes);
+        var isAllowed = await uploadHistoryService.CanUploadAsync(totalSizeBytes, ReplayManagerConstants.UploadCategory);
         if (!isAllowed)
         {
-            var usage = await uploadHistoryService.GetUsageInfoAsync();
+            var usage = await uploadHistoryService.GetUsageInfoAsync(ReplayManagerConstants.UploadCategory);
             var resetDateLocal = usage.ResetDate.ToLocalTime();
             notificationService.ShowError(
                 "Rate Limit Exceeded",
                 "Upload limit exceeded for the current 3-day period. Please remove items from your Upload History to free up quota immediately.");
-            StatusMessage = $"Limited reached. Resets {resetDateLocal:g}.";
+            StatusMessage = $"Limit reached. Resets {resetDateLocal:g}.";
             return false;
         }
 
@@ -767,6 +803,11 @@ public partial class ReplayManagerViewModel(
     {
         try
         {
+            if (!File.Exists(filePath))
+            {
+                return (false, null);
+            }
+
             await using var stream = File.OpenRead(filePath);
             var hashBytes = await System.Security.Cryptography.SHA256.HashDataAsync(stream);
             var fileHash = Convert.ToHexString(hashBytes).ToLowerInvariant();
@@ -774,24 +815,43 @@ public partial class ReplayManagerViewModel(
             var existingUpload = await uploadHistoryService.FindExistingUploadAsync(fileHash);
             if (existingUpload != null && !string.IsNullOrEmpty(existingUpload.Url))
             {
-                var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
-                var clipboard = lifetime?.MainWindow?.Clipboard;
-                if (clipboard != null)
+                var isAlive = await VerifyShareUrlAliveAsync(existingUpload.Url);
+                if (isAlive)
                 {
-                    await clipboard.SetTextAsync(existingUpload.Url);
-                }
+                    var lifetime = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+                    var clipboard = lifetime?.MainWindow?.Clipboard;
+                    if (clipboard != null)
+                    {
+                        await clipboard.SetTextAsync(existingUpload.Url);
+                    }
 
-                StatusMessage = "Reused existing upload! Link copied to clipboard.";
-                notificationService.ShowSuccess("Upload Complete", "Existing link copied to clipboard!");
-                return (true, fileHash);
+                    StatusMessage = "Reused existing upload! Link copied to clipboard.";
+                    notificationService.ShowSuccess("Upload Complete", "Existing link copied to clipboard!");
+                    return (true, fileHash);
+                }
             }
 
             return (false, fileHash);
         }
-        catch (Exception ex)
+        catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException or HttpRequestException) && ex is not OperationCanceledException)
         {
-            logger.LogWarning(ex, "Failed to compute file hash for deduplication check");
+            logger.LogWarning(ex, "Failed to compute file hash or verify deduplication link");
             return (false, null);
+        }
+    }
+
+    private async Task<bool> VerifyShareUrlAliveAsync(string url)
+    {
+        try
+        {
+            using var httpClient = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+            using var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, url);
+            using var response = await httpClient.SendAsync(request);
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
         }
     }
 

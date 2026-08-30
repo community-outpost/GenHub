@@ -46,11 +46,11 @@ public sealed class UploadThingServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Verifies that UploadFileAsync returns null when the file does not exist.
+    /// Verifies that UploadFileAsync returns failure when the file does not exist.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task UploadFileAsync_WhenFileDoesNotExist_ReturnsNullAsync()
+    public async Task UploadFileAsync_WhenFileDoesNotExist_ReturnsFailureAsync()
     {
         var handlerMock = new Mock<HttpMessageHandler>();
         var httpClient = new HttpClient(handlerMock.Object);
@@ -58,7 +58,8 @@ public sealed class UploadThingServiceTests : IDisposable
 
         var result = await service.UploadFileAsync(Path.Combine(_tempDirectory, "nonexistent.zip"));
 
-        Assert.Null(result);
+        Assert.False(result.Success);
+        Assert.NotNull(result.FirstError);
     }
 
     /// <summary>
@@ -96,19 +97,20 @@ public sealed class UploadThingServiceTests : IDisposable
         var progressMock = new Mock<IProgress<double>>();
         var result = await service.UploadFileAsync(testFilePath, progressMock.Object);
 
-        Assert.NotNull(result);
-        Assert.Equal("https://utfs.io/f/test_key_123", result.PublicUrl);
-        Assert.Equal("test_key_123", result.FileKey);
-        Assert.Equal("test_key_123:1755820800.hmac_sig", result.DeleteToken);
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal("https://utfs.io/f/test_key_123", result.Data.PublicUrl);
+        Assert.Equal("test_key_123", result.Data.FileKey);
+        Assert.Equal("test_key_123:1755820800.hmac_sig", result.Data.DeleteToken);
         progressMock.Verify(p => p.Report(It.IsAny<double>()), Times.AtLeastOnce);
     }
 
     /// <summary>
-    /// Verifies that UploadFileAsync returns null when the gateway rejects the request.
+    /// Verifies that UploadFileAsync returns failure when the gateway rejects the request.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task UploadFileAsync_WhenGatewayRejects_ReturnsNullAsync()
+    public async Task UploadFileAsync_WhenGatewayRejects_ReturnsFailureAsync()
     {
         var testFilePath = Path.Combine(_tempDirectory, "oversized.zip");
         await File.WriteAllBytesAsync(testFilePath, [0x50, 0x4B, 0x03, 0x04]);
@@ -129,15 +131,16 @@ public sealed class UploadThingServiceTests : IDisposable
 
         var result = await service.UploadFileAsync(testFilePath);
 
-        Assert.Null(result);
+        Assert.False(result.Success);
+        Assert.NotNull(result.FirstError);
     }
 
     /// <summary>
-    /// Verifies that UploadFileAsync returns null when the gateway returns incomplete JSON.
+    /// Verifies that UploadFileAsync returns failure when the gateway returns incomplete JSON.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task UploadFileAsync_WhenIncompleteResponse_ReturnsNullAsync()
+    public async Task UploadFileAsync_WhenIncompleteResponse_ReturnsFailureAsync()
     {
         var testFilePath = Path.Combine(_tempDirectory, "partial.zip");
         await File.WriteAllBytesAsync(testFilePath, [0x50, 0x4B, 0x03, 0x04]);
@@ -158,7 +161,8 @@ public sealed class UploadThingServiceTests : IDisposable
 
         var result = await service.UploadFileAsync(testFilePath);
 
-        Assert.Null(result);
+        Assert.False(result.Success);
+        Assert.NotNull(result.FirstError);
     }
 
     /// <summary>
@@ -194,7 +198,7 @@ public sealed class UploadThingServiceTests : IDisposable
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DeleteFileAsync_WhenValidKeyAndToken_ReturnsTrueAsync()
+    public async Task DeleteFileAsync_WhenValidKeyAndToken_ReturnsSuccessAsync()
     {
         var handlerMock = new Mock<HttpMessageHandler>();
         handlerMock.Protected()
@@ -214,15 +218,16 @@ public sealed class UploadThingServiceTests : IDisposable
 
         var result = await service.DeleteFileAsync("test_key_123", "test_key_123:1755820800.valid_sig");
 
-        Assert.True(result);
+        Assert.True(result.Success);
+        Assert.True(result.Data);
     }
 
     /// <summary>
-    /// Verifies that DeleteFileAsync returns false when the gateway rejects the deletion.
+    /// Verifies that DeleteFileAsync returns failure when the gateway rejects the deletion.
     /// </summary>
     /// <returns>A task representing the asynchronous test operation.</returns>
     [Fact]
-    public async Task DeleteFileAsync_WhenGatewayRejects_ReturnsFalseAsync()
+    public async Task DeleteFileAsync_WhenGatewayRejects_ReturnsFailureAsync()
     {
         var handlerMock = new Mock<HttpMessageHandler>();
         handlerMock.Protected()
@@ -240,11 +245,11 @@ public sealed class UploadThingServiceTests : IDisposable
 
         var result = await service.DeleteFileAsync("test_key_123", "test_key_123:1755820800.invalid_sig");
 
-        Assert.False(result);
+        Assert.False(result.Success);
     }
 
     /// <summary>
-    /// Verifies that DeleteFileAsync returns false when given empty or whitespace parameters.
+    /// Verifies that DeleteFileAsync returns failure when given empty or whitespace parameters.
     /// </summary>
     /// <param name="key">The file key.</param>
     /// <param name="token">The deletion authorization token.</param>
@@ -254,7 +259,7 @@ public sealed class UploadThingServiceTests : IDisposable
     [InlineData("valid_key", "")]
     [InlineData("   ", "valid_token")]
     [InlineData("valid_key", "   ")]
-    public async Task DeleteFileAsync_WhenMissingParameters_ReturnsFalseAsync(string key, string token)
+    public async Task DeleteFileAsync_WhenMissingParameters_ReturnsFailureAsync(string key, string token)
     {
         var handlerMock = new Mock<HttpMessageHandler>();
         var httpClient = new HttpClient(handlerMock.Object);
@@ -262,7 +267,7 @@ public sealed class UploadThingServiceTests : IDisposable
 
         var result = await service.DeleteFileAsync(key, token);
 
-        Assert.False(result);
+        Assert.False(result.Success);
     }
 
     /// <summary>

@@ -1,5 +1,6 @@
 using System;
 using CommunityToolkit.Mvvm.ComponentModel;
+using GenHub.Core.Constants;
 using GenHub.Core.Models.Common;
 
 namespace GenHub.Features.Tools.ViewModels;
@@ -53,7 +54,7 @@ public partial class UploadHistoryItemViewModel(UploadHistoryItem item) : Observ
     /// <summary>
     /// Gets the status color based on activity.
     /// </summary>
-    public string StatusColor => IsActive ? "#4CAF50" : "#888888";
+    public string StatusColor => IsActive ? UiConstants.StatusSuccessColor : UiConstants.StatusErrorColor;
 
     private static string GetTimeAgo(DateTime timestamp)
     {

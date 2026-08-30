@@ -125,20 +125,20 @@ public class MockUploadHistoryService : IUploadHistoryService
     public long MaxUploadBytesPerPeriod => 1024 * 1024 * 50; // 50MB mock
 
     /// <inheritdoc/>
-    public Task<IEnumerable<UploadHistoryItem>> GetUploadHistoryAsync(string? category = null)
+    public Task<IReadOnlyList<UploadHistoryItem>> GetUploadHistoryAsync(string? category = null)
     {
-        return Task.FromResult<IEnumerable<UploadHistoryItem>>([]);
+        return Task.FromResult<IReadOnlyList<UploadHistoryItem>>([]);
     }
 
     /// <inheritdoc/>
-    public Task<UsageInfo> GetUsageInfoAsync()
+    public Task<UsageInfo> GetUsageInfoAsync(string? category = null)
     {
         // UsageInfo is a record struct with (UsedBytes, LimitBytes, ResetDate)
         return Task.FromResult(new UsageInfo(1024 * 1024 * 5, 1024 * 1024 * 50, DateTime.UtcNow.AddDays(1)));
     }
 
     /// <inheritdoc/>
-    public Task<bool> CanUploadAsync(long fileSizeBytes)
+    public Task<bool> CanUploadAsync(long fileSizeBytes, string? category = null)
     {
         return Task.FromResult(true);
     }
@@ -161,9 +161,9 @@ public class MockUploadHistoryService : IUploadHistoryService
     }
 
     /// <inheritdoc/>
-    public Task ClearHistoryAsync(bool deleteFromCloud = true, string? category = null)
+    public Task<(int Deleted, int Failed)> ClearHistoryAsync(bool deleteFromCloud = true, string? category = null)
     {
-        return Task.CompletedTask;
+        return Task.FromResult((0, 0));
     }
 }
 
@@ -272,9 +272,9 @@ public class MockReplayExportService : IReplayExportService
     }
 
     /// <inheritdoc/>
-    public Task<GenHub.Core.Models.Tools.UploadThing.UploadResult?> UploadToUploadThingAsync(IEnumerable<ReplayFile> replays, IProgress<double>? progress = null, CancellationToken ct = default)
+    public Task<OperationResult<GenHub.Core.Models.Tools.UploadThing.UploadResult>> UploadToUploadThingAsync(IEnumerable<ReplayFile> replays, IProgress<double>? progress = null, CancellationToken ct = default)
     {
-        return Task.FromResult<GenHub.Core.Models.Tools.UploadThing.UploadResult?>(new GenHub.Core.Models.Tools.UploadThing.UploadResult(ToolConstants.MockUrls.MockReplayUploadUrl, "mock_key_1", "mock_delete_token_1"));
+        return Task.FromResult(OperationResult<GenHub.Core.Models.Tools.UploadThing.UploadResult>.CreateSuccess(new GenHub.Core.Models.Tools.UploadThing.UploadResult(ToolConstants.MockUrls.MockReplayUploadUrl, "mock_key_1", "mock_delete_token_1")));
     }
 }
 
@@ -421,9 +421,9 @@ public class MockMapExportService : IMapExportService
     }
 
     /// <inheritdoc/>
-    public Task<GenHub.Core.Models.Tools.UploadThing.UploadResult?> UploadToUploadThingAsync(IEnumerable<MapFile> maps, IProgress<double>? progress = null, CancellationToken ct = default)
+    public Task<OperationResult<GenHub.Core.Models.Tools.UploadThing.UploadResult>> UploadToUploadThingAsync(IEnumerable<MapFile> maps, IProgress<double>? progress = null, CancellationToken ct = default)
     {
-        return Task.FromResult<GenHub.Core.Models.Tools.UploadThing.UploadResult?>(new GenHub.Core.Models.Tools.UploadThing.UploadResult(ToolConstants.MockUrls.MockMapUploadUrl, "mock_key_2", "mock_delete_token_2"));
+        return Task.FromResult(OperationResult<GenHub.Core.Models.Tools.UploadThing.UploadResult>.CreateSuccess(new GenHub.Core.Models.Tools.UploadThing.UploadResult(ToolConstants.MockUrls.MockMapUploadUrl, "mock_key_2", "mock_delete_token_2")));
     }
 }
 

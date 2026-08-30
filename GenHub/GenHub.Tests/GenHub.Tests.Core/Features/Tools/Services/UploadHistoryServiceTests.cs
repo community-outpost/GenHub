@@ -68,7 +68,7 @@ public sealed class UploadHistoryServiceTests : IDisposable
     {
         _uploadThingServiceMock
             .Setup(u => u.DeleteFileAsync("key_123", "token_abc", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
 
         var service = CreateService();
         service.RecordUpload(1024, "https://utfs.io/f/key_123", "example.zip", "key_123", "token_abc");
@@ -93,7 +93,7 @@ public sealed class UploadHistoryServiceTests : IDisposable
     {
         _uploadThingServiceMock
             .Setup(u => u.DeleteFileAsync("key_123", "token_abc", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateFailure("Delete failed"));
 
         var service = CreateService();
         service.RecordUpload(1024, "https://utfs.io/f/key_123", "example.zip", "key_123", "token_abc");
@@ -150,7 +150,7 @@ public sealed class UploadHistoryServiceTests : IDisposable
     {
         _uploadThingServiceMock
             .Setup(u => u.DeleteFileAsync("key_default", "token_default", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
 
         var service = CreateService();
         service.RecordUpload(1024, "https://utfs.io/f/key_default", "default.zip", "key_default", "token_default");
@@ -175,17 +175,19 @@ public sealed class UploadHistoryServiceTests : IDisposable
     {
         _uploadThingServiceMock
             .Setup(u => u.DeleteFileAsync("key_1", "token_1", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
         _uploadThingServiceMock
             .Setup(u => u.DeleteFileAsync("key_2", "token_2", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+            .ReturnsAsync(GenHub.Core.Models.Results.OperationResult<bool>.CreateSuccess(true));
 
         var service = CreateService();
         service.RecordUpload(1024, "https://utfs.io/f/key_1", "first.zip", "key_1", "token_1");
         service.RecordUpload(2048, "https://utfs.io/f/key_2", "second.zip", "key_2", "token_2");
 
-        await service.ClearHistoryAsync();
+        var result = await service.ClearHistoryAsync();
 
+        Assert.Equal(2, result.Deleted);
+        Assert.Equal(0, result.Failed);
         _uploadThingServiceMock.Verify(
             u => u.DeleteFileAsync("key_1", "token_1", It.IsAny<CancellationToken>()),
             Times.Once);
@@ -347,6 +349,49 @@ public sealed class UploadHistoryServiceTests : IDisposable
         Assert.Empty(replayHistory);
         Assert.Single(mapHistory);
         Assert.Equal("custom_map.zip", mapHistory[0].FileName);
+    }
+
+    /// <summary>
+    /// Verifies that CanUploadAsync respects category-specific quota limits.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task CanUploadAsync_WithCategory_AppliesCategoryQuotaAsync()
+    {
+        var service = CreateService();
+
+        // 9MB replay upload (within 10MB replay limit)
+        Assert.True(await service.CanUploadAsync(9 * 1024 * 1024, ReplayManagerConstants.UploadCategory));
+
+        // 11MB replay upload (exceeds 10MB replay limit)
+        Assert.False(await service.CanUploadAsync(11 * 1024 * 1024, ReplayManagerConstants.UploadCategory));
+
+        // 50MB map upload (within 100MB map limit)
+        Assert.True(await service.CanUploadAsync(50 * 1024 * 1024, MapManagerConstants.UploadCategory));
+
+        // 101MB map upload (exceeds 100MB map limit)
+        Assert.False(await service.CanUploadAsync(101 * 1024 * 1024, MapManagerConstants.UploadCategory));
+    }
+
+    /// <summary>
+    /// Verifies that GetUsageInfoAsync computes usage and limits partitioned by category.
+    /// </summary>
+    /// <returns>A task representing the asynchronous test operation.</returns>
+    [Fact]
+    public async Task GetUsageInfoAsync_WithCategory_ReturnsCategorySpecificUsageAsync()
+    {
+        var service = CreateService();
+        service.RecordUpload(5 * 1024 * 1024, "https://utfs.io/f/replay1", "game.rep", "key_rep", "token_rep", null, ReplayManagerConstants.UploadCategory);
+        service.RecordUpload(20 * 1024 * 1024, "https://utfs.io/f/map1", "map.zip", "key_map", "token_map", null, MapManagerConstants.UploadCategory);
+
+        var replayUsage = await service.GetUsageInfoAsync(ReplayManagerConstants.UploadCategory);
+        var mapUsage = await service.GetUsageInfoAsync(MapManagerConstants.UploadCategory);
+
+        Assert.Equal(5 * 1024 * 1024, replayUsage.UsedBytes);
+        Assert.Equal(ReplayManagerConstants.MaxUploadBytesPerPeriod, replayUsage.LimitBytes);
+
+        Assert.Equal(20 * 1024 * 1024, mapUsage.UsedBytes);
+        Assert.Equal(MapManagerConstants.MaxUploadBytesPerPeriod, mapUsage.LimitBytes);
     }
 
     private UploadHistoryService CreateService()

@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using GenHub.Core.Models.Results;
 using GenHub.Core.Models.Tools.UploadThing;
 
 namespace GenHub.Core.Interfaces.Services;
@@ -16,8 +17,8 @@ public interface IUploadThingService
     /// <param name="filePath">The absolute path to the file to upload.</param>
     /// <param name="progress">Optional progress reporter (0.0 to 1.0).</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>The upload result if successful, otherwise null.</returns>
-    Task<UploadResult?> UploadFileAsync(
+    /// <returns>The operation result containing the upload result if successful.</returns>
+    Task<OperationResult<UploadResult>> UploadFileAsync(
         string filePath,
         IProgress<double>? progress = null,
         CancellationToken ct = default);
@@ -28,6 +29,6 @@ public interface IUploadThingService
     /// <param name="fileKey">The key of the file to delete.</param>
     /// <param name="deleteToken">The cryptographic deletion token.</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>True if the deletion was successful, otherwise false.</returns>
-    Task<bool> DeleteFileAsync(string fileKey, string deleteToken, CancellationToken ct = default);
+    /// <returns>The operation result indicating whether deletion was successful.</returns>
+    Task<OperationResult<bool>> DeleteFileAsync(string fileKey, string deleteToken, CancellationToken ct = default);
 }

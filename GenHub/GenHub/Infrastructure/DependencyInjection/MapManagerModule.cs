@@ -28,7 +28,6 @@ public static class MapManagerModule
         services.AddSingleton<IMapImportService, MapImportService>();
         services.AddSingleton<IMapExportService, MapExportService>();
         services.AddScoped<IMapPackService, MapPackService>();
-        services.TryAddSingleton<IUploadHistoryService, UploadHistoryService>();
         services.AddSingleton<MapNameParser>();
         services.AddSingleton<TgaImageParser>();
         services.AddSingleton<TgaParser>();

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using GenHub.Core.Models.Common;
 using GenHub.Core.Models.Tools;
 
@@ -10,22 +11,24 @@ namespace GenHub.Core.Interfaces.Common;
 public interface IUploadHistoryService
 {
     /// <summary>
-    /// Gets the maximum upload bytes per period.
+    /// Gets the default maximum upload bytes per period.
     /// </summary>
     long MaxUploadBytesPerPeriod { get; }
 
     /// <summary>
-    /// Checks if an upload of the specified size is allowed.
+    /// Checks if an upload of the specified size is allowed, optionally within a category quota.
     /// </summary>
     /// <param name="fileSizeBytes">The file size in bytes.</param>
+    /// <param name="category">Optional category to check quota against.</param>
     /// <returns>A task representing the asynchronous operation, with a boolean indicating if the upload is allowed.</returns>
-    Task<bool> CanUploadAsync(long fileSizeBytes);
+    Task<bool> CanUploadAsync(long fileSizeBytes, string? category = null);
 
     /// <summary>
-    /// Gets the usage info.
+    /// Gets the usage info, optionally filtered by category.
     /// </summary>
+    /// <param name="category">Optional category to evaluate usage for.</param>
     /// <returns>A task representing the asynchronous operation, with the usage info.</returns>
-    Task<UsageInfo> GetUsageInfoAsync();
+    Task<UsageInfo> GetUsageInfoAsync(string? category = null);
 
     /// <summary>
     /// Records an upload.
@@ -51,7 +54,7 @@ public interface IUploadHistoryService
     /// </summary>
     /// <param name="category">Optional category filter (e.g. "replays", "maps"). If null, returns all history.</param>
     /// <returns>A task representing the asynchronous operation, with the history items.</returns>
-    Task<IEnumerable<UploadHistoryItem>> GetUploadHistoryAsync(string? category = null);
+    Task<IReadOnlyList<UploadHistoryItem>> GetUploadHistoryAsync(string? category = null);
 
     /// <summary>
     /// Removes an item from upload history and deletes the hosted file from cloud storage if a delete token is present.
@@ -66,6 +69,6 @@ public interface IUploadHistoryService
     /// </summary>
     /// <param name="deleteFromCloud">Whether to delete all files from cloud storage. Defaults to true.</param>
     /// <param name="category">Optional category filter (e.g. "replays", "maps"). If null, clears all history.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    Task ClearHistoryAsync(bool deleteFromCloud = true, string? category = null);
+    /// <returns>A task representing the asynchronous operation returning the count of deleted and failed cloud deletions.</returns>
+    Task<(int Deleted, int Failed)> ClearHistoryAsync(bool deleteFromCloud = true, string? category = null);
 }

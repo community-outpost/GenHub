@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using GenHub.Core.Constants;
@@ -46,9 +45,9 @@ public sealed class UploadHistoryService(
     public long MaxUploadBytesPerPeriod => MapManagerConstants.MaxUploadBytesPerPeriod;
 
     /// <inheritdoc />
-    public async Task<bool> CanUploadAsync(long fileSizeBytes)
+    public async Task<bool> CanUploadAsync(long fileSizeBytes, string? category = null)
     {
-        var usage = await GetUsageInfoAsync();
+        var usage = await GetUsageInfoAsync(category);
         return usage.UsedBytes + fileSizeBytes <= usage.LimitBytes;
     }
 
@@ -118,13 +117,16 @@ public sealed class UploadHistoryService(
     }
 
     /// <inheritdoc />
-    public Task<UsageInfo> GetUsageInfoAsync()
+    public Task<UsageInfo> GetUsageInfoAsync(string? category = null)
     {
         var history = LoadHistoryInternal();
         var periodStart = DateTime.UtcNow.AddDays(-RateLimitDays);
 
-        var recentUploads = history.Where(r => r.Timestamp >= periodStart).ToList();
+        var recentUploads = history
+            .Where(r => r.Timestamp >= periodStart && MatchesCategory(r, category))
+            .ToList();
         var usedBytes = recentUploads.Sum(r => r.SizeBytes);
+        var limitBytes = GetLimitForCategory(category);
 
         // Reset date is when the oldest upload in the current window expires
         var oldestInWindow = recentUploads.OrderBy(r => r.Timestamp).FirstOrDefault();
@@ -132,11 +134,11 @@ public sealed class UploadHistoryService(
             ? oldestInWindow.Timestamp.AddDays(RateLimitDays)
             : DateTime.UtcNow;
 
-        return Task.FromResult(new UsageInfo(usedBytes, MaxUploadBytesPerPeriod, resetDate));
+        return Task.FromResult(new UsageInfo(usedBytes, limitBytes, resetDate));
     }
 
     /// <inheritdoc />
-    public Task<IEnumerable<UploadHistoryItem>> GetUploadHistoryAsync(string? category = null)
+    public Task<IReadOnlyList<UploadHistoryItem>> GetUploadHistoryAsync(string? category = null)
     {
         var history = LoadHistoryInternal();
 
@@ -147,9 +149,9 @@ public sealed class UploadHistoryService(
             r.SizeBytes,
             r.Url ?? string.Empty,
             r.FileName ?? "Unknown File",
-            r.Category ?? InferCategory(r)));
+            r.Category ?? InferCategory(r))).ToList();
 
-        return Task.FromResult<IEnumerable<UploadHistoryItem>>(items.ToList());
+        return Task.FromResult<IReadOnlyList<UploadHistoryItem>>(items);
     }
 
     /// <inheritdoc />
@@ -171,8 +173,8 @@ public sealed class UploadHistoryService(
         {
             try
             {
-                var cloudDeleted = await uploadThingService.DeleteFileAsync(matchingRecord.FileKey, matchingRecord.DeleteToken);
-                if (!cloudDeleted)
+                var deleteResult = await uploadThingService.DeleteFileAsync(matchingRecord.FileKey, matchingRecord.DeleteToken);
+                if (!deleteResult.Success || !deleteResult.Data)
                 {
                     logger.LogWarning(
                         "Failed to delete file {Key} from cloud storage for {Url}. Preserving local history item for retry.",
@@ -207,7 +209,7 @@ public sealed class UploadHistoryService(
     }
 
     /// <inheritdoc />
-    public async Task ClearHistoryAsync(bool deleteFromCloud = true, string? category = null)
+    public async Task<(int Deleted, int Failed)> ClearHistoryAsync(bool deleteFromCloud = true, string? category = null)
     {
         List<UploadRecord> candidateRecords = [];
         lock (FileLock)
@@ -216,23 +218,31 @@ public sealed class UploadHistoryService(
             candidateRecords = history.Where(r => MatchesCategory(r, category)).ToList();
         }
 
-        var recordsToRemove = deleteFromCloud
+        var (successfullyDeleted, failedDeletions) = deleteFromCloud
             ? await DeleteRecordsFromCloudAsync(candidateRecords)
-            : candidateRecords.ToHashSet();
+            : (candidateRecords.ToHashSet(), new HashSet<UploadRecord>());
 
+        int removed = 0;
         lock (FileLock)
         {
             var history = LoadHistoryInternal();
-            var targetUrls = recordsToRemove.Select(r => r.Url).Where(u => !string.IsNullOrEmpty(u)).OfType<string>().ToHashSet();
-            var removed = history.RemoveAll(r => (r.Url != null && targetUrls.Contains(r.Url)) || recordsToRemove.Contains(r));
+            var targetUrls = successfullyDeleted.Select(r => r.Url).Where(u => !string.IsNullOrEmpty(u)).OfType<string>().ToHashSet();
+            removed = history.RemoveAll(r => (r.Url != null && targetUrls.Contains(r.Url)) || successfullyDeleted.Contains(r));
             if (removed > 0)
             {
                 SaveHistoryInternal(history);
                 _cache = history;
-                logger.LogInformation("Cleared {Count} upload history items for category '{Category}'.", removed, category ?? "all");
+                logger.LogInformation("Cleared {Count} upload history items for category '{Category}'. Failed cloud deletions: {Failed}.", removed, category ?? "all", failedDeletions.Count);
             }
         }
+
+        return (removed, failedDeletions.Count);
     }
+
+    private static long GetLimitForCategory(string? category) =>
+        string.Equals(category, ReplayManagerConstants.UploadCategory, StringComparison.OrdinalIgnoreCase)
+            ? ReplayManagerConstants.MaxUploadBytesPerPeriod
+            : MapManagerConstants.MaxUploadBytesPerPeriod;
 
     private static string InferCategory(string? fileName)
     {
@@ -271,9 +281,10 @@ public sealed class UploadHistoryService(
         return string.Equals(inferred, category, StringComparison.OrdinalIgnoreCase);
     }
 
-    private async Task<HashSet<UploadRecord>> DeleteRecordsFromCloudAsync(IEnumerable<UploadRecord> records)
+    private async Task<(HashSet<UploadRecord> Succeeded, HashSet<UploadRecord> Failed)> DeleteRecordsFromCloudAsync(IEnumerable<UploadRecord> records)
     {
         var successfullyDeleted = new HashSet<UploadRecord>();
+        var failedDeletions = new HashSet<UploadRecord>();
 
         foreach (var record in records)
         {
@@ -285,13 +296,14 @@ public sealed class UploadHistoryService(
 
             try
             {
-                var deleted = await uploadThingService.DeleteFileAsync(fileKey, deleteToken);
-                if (deleted)
+                var deleteResult = await uploadThingService.DeleteFileAsync(fileKey, deleteToken);
+                if (deleteResult.Success && deleteResult.Data)
                 {
                     successfullyDeleted.Add(record);
                 }
                 else
                 {
+                    failedDeletions.Add(record);
                     logger.LogWarning(
                         "Failed to delete file {Key} from cloud storage during clear history.",
                         fileKey);
@@ -299,11 +311,12 @@ public sealed class UploadHistoryService(
             }
             catch (OperationCanceledException ex)
             {
+                failedDeletions.Add(record);
                 logger.LogWarning(ex, "Timeout or cancellation occurred while deleting file {Key} from cloud during clear history", fileKey);
             }
         }
 
-        return successfullyDeleted;
+        return (successfullyDeleted, failedDeletions);
     }
 
     private List<UploadRecord> LoadHistoryInternal()
@@ -319,18 +332,18 @@ public sealed class UploadHistoryService(
             {
                 if (!File.Exists(_historyFilePath))
                 {
-                    _cache = new List<UploadRecord>();
-                    return new List<UploadRecord>();
+                    _cache = [];
+                    return [];
                 }
 
                 var json = File.ReadAllText(_historyFilePath);
                 if (string.IsNullOrWhiteSpace(json))
                 {
-                    _cache = new List<UploadRecord>();
-                    return new List<UploadRecord>();
+                    _cache = [];
+                    return [];
                 }
 
-                var history = JsonSerializer.Deserialize<List<UploadRecord>>(json, JsonOptions) ?? new List<UploadRecord>();
+                var history = JsonSerializer.Deserialize<List<UploadRecord>>(json, JsonOptions) ?? [];
 
                 // Clean up old entries (expired retention)
                 var retentionCutoff = DateTime.UtcNow.AddDays(-HistoryRetentionDays);
@@ -349,21 +362,39 @@ public sealed class UploadHistoryService(
 
                 return new List<UploadRecord>(migratedHistory);
             }
-            catch (IOException ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
             {
                 logger.LogError(ex, "Failed to load upload history.");
+
+                // If loading from disk failed, don't overwrite with an empty cache if we had one
+                if (_cache != null)
+                {
+                    return new List<UploadRecord>(_cache);
+                }
+
+                // Quarantine unparseable file to avoid data loss on future writes
+                QuarantineCorruptHistoryFile();
+
+                _cache = [];
                 return [];
             }
-            catch (UnauthorizedAccessException ex)
+        }
+    }
+
+    private void QuarantineCorruptHistoryFile()
+    {
+        try
+        {
+            if (File.Exists(_historyFilePath))
             {
-                logger.LogError(ex, "Failed to load upload history.");
-                return [];
+                var backupPath = $"{_historyFilePath}.corrupt.{DateTime.UtcNow:yyyyMMddHHmmss}.bak";
+                File.Copy(_historyFilePath, backupPath, overwrite: true);
+                logger.LogWarning("Quarantined corrupt upload history file to {Path}", backupPath);
             }
-            catch (JsonException ex)
-            {
-                logger.LogError(ex, "Failed to load upload history.");
-                return [];
-            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Failed to quarantine corrupt upload history file.");
         }
     }
 
@@ -382,15 +413,7 @@ public sealed class UploadHistoryService(
                 var json = JsonSerializer.Serialize(history, JsonOptions);
                 File.WriteAllText(_historyFilePath, json);
             }
-            catch (IOException ex)
-            {
-                logger.LogError(ex, "Failed to save upload history");
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                logger.LogError(ex, "Failed to save upload history");
-            }
-            catch (JsonException ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
             {
                 logger.LogError(ex, "Failed to save upload history");
             }

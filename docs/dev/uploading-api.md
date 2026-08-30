@@ -12,13 +12,13 @@ GenHub provides cross-platform cloud sharing for maps, replays, and custom game 
 2. **Stateless HMAC Deletion Receipts**: When an upload is prepared, the gateway generates a signed deletion capability:
    $$\text{DeleteToken} = \text{FileKey} \mathbin{\Vert} \text{Timestamp} \mathbin{\Vert} \text{HMAC-SHA256}(\text{FileKey} \mathbin{\Vert} \text{Timestamp}, \text{GATEWAY\_SECRET})$$
    Only the client that originally uploaded the file receives this token. To delete a file, the client must present this token to `POST /api/v1/uploads/delete`, preventing arbitrary or unauthorized deletions.
-3. **Direct-to-Storage Streaming**: After negotiating an upload slot with the gateway, the client streams binary data directly to UploadThing's presigned S3 URL via `PUT`, reporting real-time progress.
+3. **Gateway Multipart Proxying**: Clients post multipart form-data directly to `POST /api/v1/uploads`. The gateway verifies headers, file extension, and size, then forwards the file to UploadThing storage via UTApi and signs an HMAC deletion receipt.
 4. **Allowed File Extensions**: The gateway strictly validates file extensions, permitting only `.zip`, `.rep` (replays), `.map` (map archives), and `.ghprofile` (game profile packages).
 5. **Size Limit Validation**: The gateway enforces a strict 10 MB per-file upload limit independently of extension validation.
 
 ## IUploadThingService Interface
 
-Located in `GenHub.Core.Interfaces.Services`, this interface provides upload and deletion capabilities.
+Located in `GenHub.Core.Interfaces.Services`, this interface provides upload and deletion capabilities returning strongly typed `OperationResult<T>` records:
 
 ```csharp
 public interface IUploadThingService
@@ -26,7 +26,7 @@ public interface IUploadThingService
     /// <summary>
     /// Uploads a file through the gateway and returns the upload result including public URL and deletion token.
     /// </summary>
-    Task<UploadResult?> UploadFileAsync(
+    Task<OperationResult<UploadResult>> UploadFileAsync(
         string filePath,
         IProgress<double>? progress = null,
         CancellationToken ct = default);
@@ -34,7 +34,7 @@ public interface IUploadThingService
     /// <summary>
     /// Deletes a file from cloud storage using its cryptographic deletion token.
     /// </summary>
-    Task<bool> DeleteFileAsync(
+    Task<OperationResult<bool>> DeleteFileAsync(
         string fileKey,
         string deleteToken,
         CancellationToken ct = default);
