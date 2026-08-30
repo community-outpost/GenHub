@@ -9,6 +9,7 @@ using GenHub.Core.Interfaces.Notifications;
 using GenHub.Core.Interfaces.Storage;
 using GenHub.Core.Interfaces.Workspace;
 using GenHub.Features.Content.Services.CommunityOutpost;
+using GenHub.Features.Content.Services.Publishers;
 using GenHub.Features.Content.Services.SuperHackers;
 using GenHub.Infrastructure.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
@@ -386,6 +387,7 @@ public class GameProfileModuleTests
         services.AddScoped(provider => new Mock<ILaunchRegistry>().Object);
         services.AddScoped<INotificationService>(provider => new Mock<INotificationService>().Object);
         services.AddScoped<IPublisherReconcilerRegistry>(provider => new Mock<IPublisherReconcilerRegistry>().Object);
+        services.AddSingleton(new PublisherManifestFactoryResolver([], Microsoft.Extensions.Logging.Abstractions.NullLogger<PublisherManifestFactoryResolver>.Instance));
 
         // Act
         services.AddGameProfileServices();

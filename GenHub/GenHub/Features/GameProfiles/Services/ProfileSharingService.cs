@@ -512,7 +512,7 @@ public class ProfileSharingService(
 
         if (request.Package?.Profile == null || request.Package.RequiredManifests == null)
         {
-            return OperationResult<bool>.CreateFailure("Invalid package in import request.");
+            return OperationResult<bool>.CreateFailure("Package must include profile metadata and required manifests list.");
         }
 
         if (request.Package.SchemaVersion != ProfileSharingConstants.DefaultSchemaVersion)
