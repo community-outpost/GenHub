@@ -102,10 +102,8 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
     public async Task<BuildConfiguration> ResolveWildcardsAsync(BuildConfiguration configuration, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        logger.LogInformation("Resolving wildcards in configuration");
-
         var projectDir = ResolveProjectDirForWildcards(configuration);
-        logger.LogInformation("Project directory for wildcard resolution: {ProjectDir}", projectDir);
+        logger.LogInformation("Resolving wildcards in configuration (ProjectDir: {ProjectDir})", projectDir);
 
         int totalFilesResolved = 0;
         foreach (var item in configuration.Items)
@@ -349,6 +347,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
 
     private async Task<int> ResolveItemFilesAsync(BundleItem item, string projectDir, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var resolvedFiles = new List<BundleFile>();
         int filesResolved = 0;
 
@@ -366,10 +365,10 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
                 {
                     resolvedFiles.Add(new BundleFile
                     {
-                        AbsSourceParent = basePath,
                         AbsSourceFile = matchedFile,
                         RelTargetFile = DetermineTargetPath(matchedFile, basePath, file.RelTargetFile),
-                        Params = file.Params,
+                        AbsSourceParent = basePath,
+                        Params = file.Params != null ? new Dictionary<string, object>(file.Params) : null,
                         RegistryDef = file.RegistryDef,
                     });
                     filesResolved++;
@@ -587,7 +586,7 @@ public class ConfigurationLoaderService(ILogger<ConfigurationLoaderService> logg
             if (configFiles.Count == 0)
             {
                 var legacyBundlesPath = Path.Combine(configDir, BundlesConfigFileName);
-                if (File.Exists(legacyBundlesPath) && !configFiles.Contains(legacyBundlesPath, StringComparer.OrdinalIgnoreCase))
+                if (File.Exists(legacyBundlesPath))
                 {
                     configFiles.Add(legacyBundlesPath);
                 }

@@ -52,72 +52,7 @@ public static class BigFilePacker
 
         var destinationFullPath = Path.GetFullPath(destinationPath);
         var targetArchiveFullPath = !string.IsNullOrEmpty(targetArchivePath) ? Path.GetFullPath(targetArchivePath) : null;
-        var files = Directory.GetFiles(sourceDirectory, "*", SearchOption.AllDirectories)
-            .Where(f =>
-            {
-                var full = Path.GetFullPath(f);
-                if (full.Equals(destinationFullPath, StringComparison.OrdinalIgnoreCase))
-                {
-                    return false;
-                }
-
-                if (targetArchiveFullPath != null && full.Equals(targetArchiveFullPath, StringComparison.OrdinalIgnoreCase))
-                {
-                    return false;
-                }
-
-                if (full.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase))
-                {
-                    return false;
-                }
-
-                return true;
-            })
-            .Select(f => new
-            {
-                FullPath = f,
-                RelativePath = NormalizeBigPath(Path.GetRelativePath(sourceDirectory, f).Replace('/', '\\')),
-            })
-            .OrderBy(f => f.RelativePath, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        var entries = new List<BigFileEntry>();
-
-        // Calculate header size
-        // Header: Signature (4) + TotalSize (4) + NumFiles (4) + HeaderSize (4) = 16 bytes
-        long headerSize = 16;
-
-        foreach (var file in files)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var relativePath = file.RelativePath;
-
-            // Validate components are ASCII-only
-            if (relativePath.Any(c => c > 127))
-            {
-                 throw new NotSupportedException($"File path contains non-ASCII characters, which are not supported by the .big format: {relativePath}");
-            }
-
-            var encoding = Encoding.ASCII;
-            var nameBytes = encoding.GetBytes(relativePath);
-
-            // Entry: Offset (4) + Size (4) + Name (n) + Null Terminator (1)
-            headerSize += 4 + 4 + nameBytes.Length + 1;
-
-            entries.Add(new BigFileEntry
-            {
-                FullPath = file.FullPath,
-                RelativePath = relativePath,
-                Size = new FileInfo(file.FullPath).Length,
-            });
-        }
-
-        // Calculate total size and check for BIG format overflow (4GB limit)
-        long totalSize = headerSize + entries.Sum(e => e.Size);
-        if (totalSize > uint.MaxValue)
-        {
-            throw new NotSupportedException($"Generated BIG archive size ({totalSize} bytes) exceeds the 4GB limit supported by the .big format.");
-        }
+        var (entries, headerSize, totalSize) = CollectBigEntries(sourceDirectory, destinationFullPath, targetArchiveFullPath, cancellationToken);
 
         var destinationDir = Path.GetDirectoryName(destinationPath);
         if (!string.IsNullOrEmpty(destinationDir) && !Directory.Exists(destinationDir))
@@ -131,41 +66,7 @@ public static class BigFilePacker
         {
             await using (var fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
             {
-                using var writer = new BinaryWriter(fs, Encoding.ASCII, leaveOpen: true);
-
-                // Write Header
-                writer.Write(Encoding.ASCII.GetBytes(Signature));
-                WriteUInt32BigEndian(writer, (uint)totalSize);
-                WriteUInt32BigEndian(writer, (uint)entries.Count);
-                WriteUInt32BigEndian(writer, (uint)headerSize);
-
-                // Calculate initial offset
-                long currentOffset = headerSize;
-
-                // Write Index
-                foreach (var entry in entries)
-                {
-                    WriteUInt32BigEndian(writer, (uint)currentOffset);
-                    WriteUInt32BigEndian(writer, (uint)entry.Size);
-                    writer.Write(Encoding.ASCII.GetBytes(entry.RelativePath));
-                    writer.Write((byte)0); // Null terminator
-
-                    currentOffset += entry.Size;
-                }
-
-                // Write Data
-                writer.Flush();
-                foreach (var entry in entries)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    using var fileStream = File.OpenRead(entry.FullPath);
-                    if (fileStream.Length != entry.Size)
-                    {
-                        throw new IOException($"File size changed during packing for {entry.RelativePath}. Expected {entry.Size} bytes, found {fileStream.Length} bytes.");
-                    }
-
-                    await fileStream.CopyToAsync(fs, cancellationToken).ConfigureAwait(false);
-                }
+                await WriteBigArchiveAsync(fs, entries, headerSize, totalSize, cancellationToken).ConfigureAwait(false);
             }
 
             File.Move(tempPath, destinationPath, overwrite: true);
@@ -180,9 +81,117 @@ public static class BigFilePacker
                 }
                 catch
                 {
-                    // Ignore cleanup errors
+                    // Ignore temporary file deletion failure
                 }
             }
+        }
+    }
+
+    private static (List<BigFileEntry> Entries, long HeaderSize, long TotalSize) CollectBigEntries(
+        string sourceDirectory,
+        string destinationFullPath,
+        string? targetArchiveFullPath,
+        CancellationToken cancellationToken)
+    {
+        var files = Directory.GetFiles(sourceDirectory, "*", SearchOption.AllDirectories)
+            .Where(f => IsEligibleBigSourceFile(f, destinationFullPath, targetArchiveFullPath))
+            .Select(f => new
+            {
+                FullPath = f,
+                RelativePath = NormalizeBigPath(Path.GetRelativePath(sourceDirectory, f).Replace('/', '\\')),
+            })
+            .OrderBy(f => f.RelativePath, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var entries = new List<BigFileEntry>();
+        long headerSize = 16;
+
+        foreach (var file in files)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var relativePath = file.RelativePath;
+            if (relativePath.Any(c => c > 127))
+            {
+                throw new NotSupportedException($"File path contains non-ASCII characters, which are not supported by the .big format: {relativePath}");
+            }
+
+            var nameBytes = Encoding.ASCII.GetBytes(relativePath);
+            headerSize += 4 + 4 + nameBytes.Length + 1;
+
+            entries.Add(new BigFileEntry
+            {
+                FullPath = file.FullPath,
+                RelativePath = relativePath,
+                Size = new FileInfo(file.FullPath).Length,
+            });
+        }
+
+        long totalSize = headerSize + entries.Sum(e => e.Size);
+        if (totalSize > uint.MaxValue)
+        {
+            throw new NotSupportedException($"Generated BIG archive size ({totalSize} bytes) exceeds the 4GB limit supported by the .big format.");
+        }
+
+        return (entries, headerSize, totalSize);
+    }
+
+    private static bool IsEligibleBigSourceFile(string filePath, string destinationFullPath, string? targetArchiveFullPath)
+    {
+        var full = Path.GetFullPath(filePath);
+        if (full.Equals(destinationFullPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (targetArchiveFullPath != null && full.Equals(targetArchiveFullPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return !full.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static async Task WriteBigArchiveAsync(
+        Stream outputStream,
+        List<BigFileEntry> entries,
+        long headerSize,
+        long totalSize,
+        CancellationToken cancellationToken)
+    {
+        using var writer = new BinaryWriter(outputStream, Encoding.ASCII, leaveOpen: true);
+
+        // Write Header
+        writer.Write(Encoding.ASCII.GetBytes(Signature));
+        WriteUInt32BigEndian(writer, (uint)totalSize);
+        WriteUInt32BigEndian(writer, (uint)entries.Count);
+        WriteUInt32BigEndian(writer, (uint)headerSize);
+
+        // Write Index
+        long currentOffset = headerSize;
+        foreach (var entry in entries)
+        {
+            WriteUInt32BigEndian(writer, (uint)currentOffset);
+            WriteUInt32BigEndian(writer, (uint)entry.Size);
+            writer.Write(Encoding.ASCII.GetBytes(entry.RelativePath));
+            writer.Write((byte)0);
+
+            currentOffset += entry.Size;
+        }
+
+        writer.Flush();
+
+        // Write Data
+        foreach (var entry in entries)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            using var fileStream = File.OpenRead(entry.FullPath);
+            if (fileStream.Length != entry.Size)
+            {
+                throw new IOException($"File size changed during packing for {entry.RelativePath}. Expected {entry.Size} bytes, found {fileStream.Length} bytes.");
+            }
+
+            await fileStream.CopyToAsync(outputStream, cancellationToken).ConfigureAwait(false);
         }
     }
 

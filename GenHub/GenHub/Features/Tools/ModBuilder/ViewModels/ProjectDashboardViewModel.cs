@@ -98,18 +98,15 @@ public sealed partial class ProjectDashboardViewModel(
 
         if (recentResult.Success && recentResult.Data != null)
         {
-            foreach (var path in recentResult.Data)
+            foreach (var path in recentResult.Data.Where(File.Exists))
             {
-                if (File.Exists(path))
+                projects.Add(new RecentProjectInfo
                 {
-                    projects.Add(new RecentProjectInfo
-                    {
-                        Name = Path.GetFileNameWithoutExtension(path),
-                        Path = path,
-                        Version = "1.0.0",
-                        LastBuildTime = File.GetLastWriteTime(path),
-                    });
-                }
+                    Name = Path.GetFileNameWithoutExtension(path),
+                    Path = path,
+                    Version = "1.0.0",
+                    LastBuildTime = File.GetLastWriteTime(path),
+                });
             }
         }
 
@@ -165,8 +162,9 @@ public sealed partial class ProjectDashboardViewModel(
                 {
                     Directory.CreateDirectory(defaultFolder);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    _logger.LogDebug(ex, "Could not pre-create default ModBuilder documents directory");
                 }
             }
 

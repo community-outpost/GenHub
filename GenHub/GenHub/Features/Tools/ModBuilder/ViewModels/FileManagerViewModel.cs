@@ -203,53 +203,7 @@ public partial class FileManagerViewModel(
             var installationsResult = await gameInstallationService.GetAllInstallationsAsync(cancellationToken).ConfigureAwait(false);
             if (installationsResult.Success && installationsResult.Data?.Count > 0)
             {
-                void PopulateInstallations()
-                {
-                    AvailableInstallations.Clear();
-                    foreach (var installation in installationsResult.Data)
-                    {
-                        // Add Generals option if available
-                        if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
-                        {
-                            AvailableInstallations.Add(new GameInstallationOption
-                            {
-                                DisplayName = $"Generals ({installation.InstallationType})",
-                                Path = installation.GeneralsPath,
-                                IconPath = "avares://GenHub/Assets/Icons/generals-icon.png",
-                                InstallationType = installation.InstallationType.ToString()
-                            });
-                        }
-
-                        // Add Zero Hour option if available
-                        if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
-                        {
-                            AvailableInstallations.Add(new GameInstallationOption
-                            {
-                                DisplayName = $"Zero Hour ({installation.InstallationType})",
-                                Path = installation.ZeroHourPath,
-                                IconPath = "avares://GenHub/Assets/Icons/zerohour-icon.png",
-                                InstallationType = installation.InstallationType.ToString()
-                            });
-                        }
-                    }
-
-                    // Select first installation by default
-                    if (AvailableInstallations.Count > 0 && SelectedInstallation == null)
-                    {
-                        SelectedInstallation = AvailableInstallations[0];
-                        _gameInstallationPath = SelectedInstallation.Path;
-                    }
-                }
-
-                if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
-                {
-                    PopulateInstallations();
-                }
-                else
-                {
-                    await Dispatcher.UIThread.InvokeAsync(PopulateInstallations);
-                }
-
+                PopulateInstallationOptions(installationsResult.Data);
                 await LoadGameFilesAsync(cancellationToken).ConfigureAwait(false);
             }
 
@@ -265,6 +219,52 @@ public partial class FileManagerViewModel(
         finally
         {
             IsLoading = false;
+        }
+    }
+
+    private void PopulateInstallationOptions(IReadOnlyList<GameInstallation> installations)
+    {
+        void Apply()
+        {
+            AvailableInstallations.Clear();
+            foreach (var installation in installations)
+            {
+                if (installation.HasGenerals && !string.IsNullOrEmpty(installation.GeneralsPath))
+                {
+                    AvailableInstallations.Add(new GameInstallationOption
+                    {
+                        DisplayName = $"Generals ({installation.InstallationType})",
+                        Path = installation.GeneralsPath,
+                        IconPath = "avares://GenHub/Assets/Icons/generals-icon.png",
+                        InstallationType = installation.InstallationType.ToString()
+                    });
+                }
+
+                if (installation.HasZeroHour && !string.IsNullOrEmpty(installation.ZeroHourPath))
+                {
+                    AvailableInstallations.Add(new GameInstallationOption
+                    {
+                        DisplayName = $"Zero Hour ({installation.InstallationType})",
+                        Path = installation.ZeroHourPath,
+                        IconPath = "avares://GenHub/Assets/Icons/zerohour-icon.png",
+                        InstallationType = installation.InstallationType.ToString()
+                    });
+                }
+            }
+
+            if (AvailableInstallations.Count > 0 && SelectedInstallation == null)
+            {
+                SelectedInstallation = AvailableInstallations[0];
+            }
+        }
+
+        if (Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            Apply();
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(Apply);
         }
     }
 
@@ -647,79 +647,81 @@ public partial class FileManagerViewModel(
             ProgressPercentage = 0;
             StatusMessage = "Preparing files to remove...";
 
-            var filesToRemove = new Dictionary<string, FileTreeNode>(StringComparer.OrdinalIgnoreCase);
-            var directoriesToRemove = new List<string>();
-
-            foreach (var node in targetNodes)
-            {
-                if (node.IsDirectory)
-                {
-                    directoriesToRemove.Add(node.FullPath);
-                    foreach (var file in GetAllFiles([node]))
-                    {
-                        filesToRemove[file.FullPath] = file;
-                    }
-                }
-                else
-                {
-                    filesToRemove[node.FullPath] = node;
-                }
-            }
-
+            var (filesToRemove, directoriesToRemove) = CollectItemsToRemove(targetNodes);
             var fileList = filesToRemove.Values.ToList();
-            var total = fileList.Count;
 
-            await Task.Run(() =>
-            {
-                for (var i = 0; i < total; i++)
-                {
-                    var file = fileList[i];
-                    if (File.Exists(file.FullPath))
-                    {
-                        File.Delete(file.FullPath);
-                    }
-
-                    var current = i + 1;
-                    var percent = (current / (double)total) * 100.0;
-                    Dispatcher.UIThread.Post(() =>
-                    {
-                        ProgressPercentage = percent;
-                        StatusMessage = $"Removing ({current}/{total}): {file.Name}";
-                    });
-                }
-
-                // Remove empty directories
-                foreach (var dir in directoriesToRemove)
-                {
-                    if (Directory.Exists(dir))
-                    {
-                        try
-                        {
-                            Directory.Delete(dir, recursive: true);
-                        }
-                        catch
-                        {
-                            // Ignore non-empty directory errors
-                        }
-                    }
-                }
-            }).ConfigureAwait(false);
+            await Task.Run(() => DeleteProjectFiles(fileList, directoriesToRemove)).ConfigureAwait(false);
 
             await LoadProjectFilesAsync(default).ConfigureAwait(false);
 
             notificationService.ShowSuccess("Files Removed", $"Removed {fileList.Count} file(s) from project");
-            StatusMessage = $"Removed {fileList.Count} file(s)";
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to remove files from project");
-            notificationService.ShowError("Remove Files Failed", "Failed to remove files from project");
-            StatusMessage = "Failed to remove files";
+            notificationService.ShowError("Operation Failed", "Failed to remove some files from the project");
         }
         finally
         {
             IsLoading = false;
             IsIndeterminateProgress = true;
+        }
+    }
+
+    private (Dictionary<string, FileTreeNode> Files, List<string> Directories) CollectItemsToRemove(IReadOnlyList<FileTreeNode> targetNodes)
+    {
+        var filesToRemove = new Dictionary<string, FileTreeNode>(StringComparer.OrdinalIgnoreCase);
+        var directoriesToRemove = new List<string>();
+
+        foreach (var node in targetNodes)
+        {
+            if (node.IsDirectory)
+            {
+                directoriesToRemove.Add(node.FullPath);
+                foreach (var file in GetAllFiles([node]))
+                {
+                    filesToRemove[file.FullPath] = file;
+                }
+            }
+            else
+            {
+                filesToRemove[node.FullPath] = node;
+            }
+        }
+
+        return (filesToRemove, directoriesToRemove);
+    }
+
+    private void DeleteProjectFiles(IReadOnlyList<FileTreeNode> fileList, IEnumerable<string> directoriesToRemove)
+    {
+        var total = fileList.Count;
+        for (var i = 0; i < total; i++)
+        {
+            var file = fileList[i];
+            if (File.Exists(file.FullPath))
+            {
+                File.Delete(file.FullPath);
+            }
+
+            var current = i + 1;
+            var percent = (current / (double)total) * 100.0;
+            Dispatcher.UIThread.Post(() =>
+            {
+                ProgressPercentage = percent;
+                StatusMessage = $"Removing ({current}/{total}): {file.Name}";
+            });
+        }
+
+        foreach (var dir in directoriesToRemove.Where(Directory.Exists))
+        {
+            try
+            {
+                Directory.Delete(dir, recursive: true);
+            }
+            catch
+            {
+                // Ignore non-empty directory errors
+            }
         }
     }
 

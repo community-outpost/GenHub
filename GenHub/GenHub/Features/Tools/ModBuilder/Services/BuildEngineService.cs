@@ -472,38 +472,51 @@ public sealed class BuildEngineService(
 
         foreach (var file in item.Files)
         {
-            var targetRel = !string.IsNullOrEmpty(file.RelTargetFile)
-                ? file.RelTargetFile
-                : !string.IsNullOrEmpty(file.GetRelSourceFile())
-                    ? file.GetRelSourceFile()
-                    : Path.GetFileName(file.AbsSourceFile);
-
-            if (!string.IsNullOrEmpty(targetRel))
+            var targetRel = ResolveItemFileRelativePath(file);
+            if (string.IsNullOrEmpty(targetRel))
             {
-                var cleanRel = targetRel.TrimStart('/', '\\');
-                var srcInRaw = Path.GetFullPath(Path.Combine(rawDir, cleanRel));
-                var destInStaging = Path.GetFullPath(Path.Combine(itemStagingDir, cleanRel));
+                continue;
+            }
 
-                if (srcInRaw.StartsWith(rawDirPrefix, StringComparison.OrdinalIgnoreCase) &&
-                    destInStaging.StartsWith(stagingDirPrefix, StringComparison.OrdinalIgnoreCase) &&
-                    File.Exists(srcInRaw))
+            var cleanRel = targetRel.TrimStart('/', '\\');
+            var srcInRaw = Path.GetFullPath(Path.Combine(rawDir, cleanRel));
+            var destInStaging = Path.GetFullPath(Path.Combine(itemStagingDir, cleanRel));
+
+            if (srcInRaw.StartsWith(rawDirPrefix, StringComparison.OrdinalIgnoreCase) &&
+                destInStaging.StartsWith(stagingDirPrefix, StringComparison.OrdinalIgnoreCase) &&
+                File.Exists(srcInRaw))
+            {
+                var destDir = Path.GetDirectoryName(destInStaging);
+                if (!string.IsNullOrEmpty(destDir))
                 {
-                    var destDir = Path.GetDirectoryName(destInStaging);
-                    if (!string.IsNullOrEmpty(destDir))
-                    {
-                        Directory.CreateDirectory(destDir);
-                    }
-
-                    File.Copy(srcInRaw, destInStaging, overwrite: true);
+                    Directory.CreateDirectory(destDir);
                 }
+
+                File.Copy(srcInRaw, destInStaging, overwrite: true);
             }
         }
+    }
+
+    private static string ResolveItemFileRelativePath(BundleFile file)
+    {
+        if (!string.IsNullOrEmpty(file.RelTargetFile))
+        {
+            return file.RelTargetFile;
+        }
+
+        if (!string.IsNullOrEmpty(file.GetRelSourceFile()))
+        {
+            return file.GetRelSourceFile();
+        }
+
+        return Path.GetFileName(file.AbsSourceFile);
     }
 
     private async Task ExecuteReleaseBundlePackStageAsync(BuildSetup setup, CancellationToken cancellationToken)
     {
         var bundlesDir = Path.Combine(setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.BundlesSubdir);
         var releaseDir = setup.Folders?.AbsReleaseDir ?? ModBuilderConstants.DefaultReleaseDir;
+        var buildDir = setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir;
 
         if (!Directory.Exists(bundlesDir) || setup.Bundles?.Packs == null)
         {
@@ -518,55 +531,72 @@ public sealed class BuildEngineService(
         foreach (var pack in setup.Bundles.Packs.Where(p => p.AllowBuild))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var zipFileName = $"{pack.GetFullName()}.zip";
-            var zipFilePath = Path.Combine(releaseDir, zipFileName);
+            await BuildSingleReleaseBundlePackAsync(pack, bundlesDir, releaseDir, buildDir, setup.Bundles.Items, cancellationToken)
+                .ConfigureAwait(false);
+        }
+    }
 
-            var packStagingDir = Path.Combine(setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir, ".staging_pack", pack.Name);
-            if (Directory.Exists(packStagingDir))
+    private async Task BuildSingleReleaseBundlePackAsync(
+        BundlePack pack,
+        string bundlesDir,
+        string releaseDir,
+        string buildDir,
+        IReadOnlyList<BundleItem>? items,
+        CancellationToken cancellationToken)
+    {
+        var zipFileName = $"{pack.GetFullName()}.zip";
+        var zipFilePath = Path.Combine(releaseDir, zipFileName);
+
+        var packStagingDir = Path.Combine(buildDir, ".staging_pack", pack.Name);
+        if (Directory.Exists(packStagingDir))
+        {
+            Directory.Delete(packStagingDir, true);
+        }
+
+        Directory.CreateDirectory(packStagingDir);
+
+        if (items != null)
+        {
+            StagePackBigFiles(pack, items, bundlesDir, packStagingDir);
+        }
+
+        var archiveResult = await archiveService.CreateZipArchiveAsync(packStagingDir, zipFilePath, System.IO.Compression.CompressionLevel.Optimal, null, cancellationToken).ConfigureAwait(false);
+        if (!archiveResult.Success)
+        {
+            logger.LogError("Failed to create ZIP archive {Archive}: {Error}", zipFilePath, archiveResult.FirstError);
+            Interlocked.Increment(ref _filesFailed);
+        }
+
+        if (Directory.Exists(packStagingDir))
+        {
+            try
             {
                 Directory.Delete(packStagingDir, true);
             }
-
-            Directory.CreateDirectory(packStagingDir);
-
-            if (setup.Bundles.Items != null)
+            catch
             {
-                foreach (var itemName in pack.ItemNames)
-                {
-                    var item = setup.Bundles.Items.FirstOrDefault(i => i.Name == itemName);
-                    if (item != null && item.IsBig)
-                    {
-                        var suffix = item.BigSuffix ?? string.Empty;
-                        var bigFileName = suffix.EndsWith(".big", StringComparison.OrdinalIgnoreCase)
-                            ? $"{item.GetFullName()}{suffix}"
-                            : $"{item.GetFullName()}{suffix}.big";
-                        var bigFilePath = Path.Combine(bundlesDir, bigFileName);
-
-                        if (File.Exists(bigFilePath))
-                        {
-                            var destBig = Path.Combine(packStagingDir, bigFileName);
-                            File.Copy(bigFilePath, destBig, overwrite: true);
-                        }
-                    }
-                }
+                // Ignore cleanup failure
             }
+        }
+    }
 
-            var archiveResult = await archiveService.CreateZipArchiveAsync(packStagingDir, zipFilePath, System.IO.Compression.CompressionLevel.Optimal, null, cancellationToken).ConfigureAwait(false);
-            if (!archiveResult.Success)
+    private static void StagePackBigFiles(BundlePack pack, IReadOnlyList<BundleItem> items, string bundlesDir, string packStagingDir)
+    {
+        foreach (var itemName in pack.ItemNames)
+        {
+            var item = items.FirstOrDefault(i => i.Name == itemName);
+            if (item != null && item.IsBig)
             {
-                logger.LogError("Failed to create ZIP archive {Archive}: {Error}", zipFilePath, archiveResult.FirstError);
-                Interlocked.Increment(ref _filesFailed);
-            }
+                var suffix = item.BigSuffix ?? string.Empty;
+                var bigFileName = suffix.EndsWith(".big", StringComparison.OrdinalIgnoreCase)
+                    ? $"{item.GetFullName()}{suffix}"
+                    : $"{item.GetFullName()}{suffix}.big";
+                var bigFilePath = Path.Combine(bundlesDir, bigFileName);
 
-            if (Directory.Exists(packStagingDir))
-            {
-                try
+                if (File.Exists(bigFilePath))
                 {
-                    Directory.Delete(packStagingDir, true);
-                }
-                catch
-                {
-                    // Ignore cleanup failure
+                    var destBig = Path.Combine(packStagingDir, bigFileName);
+                    File.Copy(bigFilePath, destBig, overwrite: true);
                 }
             }
         }
@@ -728,7 +758,7 @@ public sealed class BuildEngineService(
         progress?.Report(new BuildProgress { CurrentStep = "PostBuild: Finalizing" });
 
         // fire OnPostBuild events
-        FireBundleEvent(BundleEventType.OnPostBuild, null);
+        FireBundleEvent(BundleEventType.OnPostBuild, setup.Folders?.AbsBuildDir);
 
         await Task.CompletedTask.ConfigureAwait(false);
         return true;
@@ -1325,18 +1355,15 @@ public sealed class BuildEngineService(
     private List<string> CollectRawBundleItemFiles(BuildConfiguration configuration)
     {
         var files = new List<string>();
-        foreach (var item in configuration.Items)
+        foreach (var file in configuration.Items.SelectMany(item => item.Files))
         {
-            foreach (var file in item.Files)
+            if (!string.IsNullOrEmpty(file.AbsSourceFile) && File.Exists(file.AbsSourceFile))
             {
-                if (!string.IsNullOrEmpty(file.AbsSourceFile) && File.Exists(file.AbsSourceFile))
-                {
-                    files.Add(file.AbsSourceFile);
-                }
-                else
-                {
-                    logger.LogWarning("Source file not found: {FilePath}", file.AbsSourceFile);
-                }
+                files.Add(file.AbsSourceFile);
+            }
+            else
+            {
+                logger.LogWarning("Source file not found: {FilePath}", file.AbsSourceFile);
             }
         }
 

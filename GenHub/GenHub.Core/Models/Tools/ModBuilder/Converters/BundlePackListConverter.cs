@@ -15,58 +15,60 @@ public sealed class BundlePackListConverter : JsonConverter<List<BundlePack>>
     // skipcq: CS-R1138
     public override List<BundlePack>? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) // skipcq: CS-R1138
     {
-        if (reader.TokenType == JsonTokenType.Null)
+        return reader.TokenType switch
         {
-            return new List<BundlePack>();
-        }
+            JsonTokenType.Null => [],
+            JsonTokenType.StartArray => ReadArray(ref reader, options),
+            JsonTokenType.StartObject => ReadObject(ref reader, options),
+            _ => throw new JsonException($"Unexpected token type {reader.TokenType} for BundlePack list")
+        };
+    }
 
-        if (reader.TokenType == JsonTokenType.StartArray)
+    private static List<BundlePack> ReadArray(ref Utf8JsonReader reader, JsonSerializerOptions options)
+    {
+        var list = new List<BundlePack>();
+        while (reader.Read())
         {
-            var list = new List<BundlePack>();
-            while (reader.Read())
+            if (reader.TokenType == JsonTokenType.EndArray)
             {
-                if (reader.TokenType == JsonTokenType.EndArray)
-                {
-                    return list;
-                }
-
-                var item = JsonSerializer.Deserialize<BundlePack>(ref reader, options);
-                if (item != null)
-                {
-                    list.Add(item);
-                }
+                return list;
             }
 
-            return list;
+            var item = JsonSerializer.Deserialize<BundlePack>(ref reader, options);
+            if (item != null)
+            {
+                list.Add(item);
+            }
         }
 
-        if (reader.TokenType == JsonTokenType.StartObject)
+        return list;
+    }
+
+    private static List<BundlePack> ReadObject(ref Utf8JsonReader reader, JsonSerializerOptions options)
+    {
+        var list = new List<BundlePack>();
+        using var doc = JsonDocument.ParseValue(ref reader);
+
+        foreach (var prop in doc.RootElement.EnumerateObject())
         {
-            var list = new List<BundlePack>();
-            using var doc = JsonDocument.ParseValue(ref reader);
-            var root = doc.RootElement;
-
-            foreach (var prop in root.EnumerateObject())
+            if (prop.Value.ValueKind != JsonValueKind.Object)
             {
-                if (prop.Value.ValueKind == JsonValueKind.Object)
-                {
-                    var pack = JsonSerializer.Deserialize<BundlePack>(prop.Value.GetRawText(), options);
-                    if (pack != null)
-                    {
-                        if (string.IsNullOrEmpty(pack.Name))
-                        {
-                            pack.Name = prop.Name;
-                        }
-
-                        list.Add(pack);
-                    }
-                }
+                continue;
             }
 
-            return list;
+            var pack = JsonSerializer.Deserialize<BundlePack>(prop.Value.GetRawText(), options);
+            if (pack != null)
+            {
+                if (string.IsNullOrEmpty(pack.Name))
+                {
+                    pack.Name = prop.Name;
+                }
+
+                list.Add(pack);
+            }
         }
 
-        throw new JsonException($"Unexpected token type {reader.TokenType} for BundlePack list");
+        return list;
     }
 
     /// <inheritdoc/>

@@ -96,13 +96,13 @@ public partial class ConfigEditorViewModel(
             project.Configuration = Configuration;
         }
 
-        await LoadConfigurationAsync(cancellationToken).ConfigureAwait(false);
+        await LoadConfigurationAsync().ConfigureAwait(false);
     }
 
     /// <summary>
     /// Loads the configuration into the editor.
     /// </summary>
-    private async Task LoadConfigurationAsync(CancellationToken cancellationToken)
+    private async Task LoadConfigurationAsync()
     {
         if (Configuration == null)
         {
@@ -407,8 +407,8 @@ public partial class ConfigEditorViewModel(
     {
         if (HasChanges)
         {
-            // TODO: Show confirmation dialog
-            await LoadConfigurationAsync(CancellationToken.None).ConfigureAwait(false);
+            // Revert unsaved modifications by reloading current configuration state
+            await LoadConfigurationAsync().ConfigureAwait(false);
         }
 
         // Close the dialog

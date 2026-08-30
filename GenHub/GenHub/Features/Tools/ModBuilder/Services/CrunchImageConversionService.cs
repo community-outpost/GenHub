@@ -212,32 +212,7 @@ public class CrunchImageConversionService(
         };
 
         var explicitFormat = ExtractExplicitFormat(parameters);
-
-        if (parameters != null)
-        {
-            foreach (var kvp in parameters)
-            {
-                if (kvp.Key.StartsWith('-'))
-                {
-                    if (kvp.Value is bool b)
-                    {
-                        if (b)
-                        {
-                            rawArgs.Add(kvp.Key);
-                        }
-                    }
-                    else if (kvp.Value != null)
-                    {
-                        rawArgs.Add(kvp.Key);
-                        var valStr = kvp.Value.ToString();
-                        if (!string.IsNullOrEmpty(valStr))
-                        {
-                            rawArgs.Add(valStr);
-                        }
-                    }
-                }
-            }
-        }
+        AppendCustomParameters(rawArgs, parameters);
 
         if (!string.IsNullOrEmpty(explicitFormat))
         {
@@ -254,6 +229,34 @@ public class CrunchImageConversionService(
         }
 
         return string.Join(" ", rawArgs.Select(EscapeArgument));
+    }
+
+    private static void AppendCustomParameters(List<string> rawArgs, IDictionary<string, object>? parameters)
+    {
+        if (parameters == null)
+        {
+            return;
+        }
+
+        foreach (var kvp in parameters.Where(p => p.Key.StartsWith('-')))
+        {
+            if (kvp.Value is bool b)
+            {
+                if (b)
+                {
+                    rawArgs.Add(kvp.Key);
+                }
+            }
+            else if (kvp.Value != null)
+            {
+                rawArgs.Add(kvp.Key);
+                var valStr = kvp.Value.ToString();
+                if (!string.IsNullOrEmpty(valStr))
+                {
+                    rawArgs.Add(valStr);
+                }
+            }
+        }
     }
 
     private static string EscapeArgument(string arg)
