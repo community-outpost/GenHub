@@ -103,7 +103,7 @@ public sealed class ReplayDirectoryService(
                             logger.LogInformation(LogMessages.DeletedReplay, replay.FullPath);
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
                         logger.LogError(ex, LogMessages.FailedToDeleteReplay, replay.FullPath);
                         success = false;
@@ -192,6 +192,12 @@ public sealed class ReplayDirectoryService(
             }
 
             var installation = ResolveInstallation(installationsResult.Data, replay.GameVersion);
+            if (installation == null)
+            {
+                return ProfileOperationResult<GameProfile>.CreateFailure(
+                    $"No game installation found on this system supporting {replay.GameVersion}.");
+            }
+
             var request = BuildCreateProfileRequest(replay, installation);
 
             var createResult = await profileManager.CreateProfileAsync(request, ct);
@@ -260,15 +266,14 @@ public sealed class ReplayDirectoryService(
         return profiles.FirstOrDefault(p =>
             p.GameClient?.GameType == gameVersion &&
             (string.Equals(p.GameClient?.Id, manifestId, StringComparison.OrdinalIgnoreCase) ||
-             p.EnabledContentIds?.Contains(manifestId) == true));
+             p.EnabledContentIds?.Any(id => string.Equals(id, manifestId, StringComparison.OrdinalIgnoreCase)) == true));
     }
 
-    private static GameInstallation ResolveInstallation(IReadOnlyList<GameInstallation> installations, GameType gameVersion)
+    private static GameInstallation? ResolveInstallation(IReadOnlyList<GameInstallation> installations, GameType gameVersion)
     {
         return installations.FirstOrDefault(i =>
             (gameVersion == GameType.Generals && i.HasGenerals) ||
-            (gameVersion == GameType.ZeroHour && i.HasZeroHour))
-            ?? installations[0];
+            (gameVersion == GameType.ZeroHour && i.HasZeroHour));
     }
 
     private static CreateProfileRequest BuildCreateProfileRequest(ReplayFile replay, GameInstallation installation)
@@ -278,9 +283,13 @@ public sealed class ReplayDirectoryService(
 
         var targetClient = replay.GameVersion == GameType.Generals ? installation.GeneralsClient : installation.ZeroHourClient;
         var targetPath = replay.GameVersion == GameType.Generals ? installation.GeneralsPath : installation.ZeroHourPath;
-        var exeName = replay.GameVersion == GameType.Generals ? "generals.exe" : "generalszh.exe";
+        var defaultExeName = replay.GameVersion == GameType.Generals
+            ? GameClientConstants.GeneralsExecutable
+            : (string.Equals(replay.MatchedClient?.Publisher, PublisherTypeConstants.TheSuperHackers, StringComparison.OrdinalIgnoreCase)
+                ? GameClientConstants.SuperHackersZeroHourExecutable
+                : GameClientConstants.ZeroHourExecutable);
         var workingDir = !string.IsNullOrEmpty(targetPath) ? targetPath : installation.InstallationPath;
-        var exePath = targetClient?.ExecutablePath ?? (!string.IsNullOrEmpty(workingDir) ? Path.Combine(workingDir, exeName) : string.Empty);
+        var exePath = targetClient?.ExecutablePath ?? (!string.IsNullOrEmpty(workingDir) ? Path.Combine(workingDir, defaultExeName) : string.Empty);
 
         var gameClient = new GameClient
         {
@@ -302,14 +311,14 @@ public sealed class ReplayDirectoryService(
             GameClientId = replay.MatchedClient?.ManifestId ?? string.Empty,
             GameClient = gameClient,
             EnabledContentIds = !string.IsNullOrEmpty(replay.MatchedClient?.ManifestId) ? [replay.MatchedClient.ManifestId] : [],
-            WorkspaceStrategy = WorkspaceStrategy.SymlinkOnly,
+            WorkspaceStrategy = WorkspaceStrategy.HardLink,
             UseSteamLaunch = installation.InstallationType == GameInstallationType.Steam,
         };
     }
 
     private async Task<(HashSet<string> AcquiredIds, List<GameProfile> Profiles)> FetchAcquiredManifestIdsAndProfilesAsync(CancellationToken ct)
     {
-        var acquiredIds = new HashSet<string>(StringComparer.Ordinal);
+        var acquiredIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var existingProfiles = new List<GameProfile>();
 
         try
