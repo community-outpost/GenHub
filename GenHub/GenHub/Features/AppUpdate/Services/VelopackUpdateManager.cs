@@ -240,18 +240,18 @@ public partial class VelopackUpdateManager : IVelopackUpdateManager, IDisposable
                 var updateInfo = await CheckViaUpdateManagerAsync();
                 if (updateInfo != null)
                 {
-                    _logger.LogInformation("✅ UpdateManager also confirmed update is available and can be installed");
+                    _logger.LogInformation("UpdateManager confirmed update is available and can be installed");
                     return updateInfo;
                 }
 
-                _logger.LogWarning("⚠️ UpdateManager returned NULL - no update found via Velopack (but GitHub says there is one)");
+                _logger.LogWarning("UpdateManager returned NULL - no update found via Velopack (but GitHub says there is one)");
             }
             else
             {
-                _logger.LogWarning("⚠️ UpdateManager is NULL - was not initialized successfully");
+                _logger.LogWarning("UpdateManager is NULL - was not initialized successfully");
             }
 
-            _logger.LogWarning("⚠️ Update detected via GitHub API but UpdateManager unavailable (running from debug)");
+            _logger.LogWarning("Update detected via GitHub API but UpdateManager unavailable (running from debug)");
             _logger.LogWarning("   Install the app using Setup.exe to enable automatic updates");
 
             _cachedUpdateInfo = null;
