@@ -414,7 +414,7 @@ public sealed class BuildEngineService(
         var rawDir = Path.Combine(setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.RawBundleItemsSubdir);
         var bundlesDir = Path.Combine(setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir, ModBuilderConstants.BundlesSubdir);
 
-        if (!Directory.Exists(rawDir) || setup.Bundles?.Items == null)
+        if (setup.Bundles?.Items == null)
         {
             return;
         }
@@ -520,7 +520,7 @@ public sealed class BuildEngineService(
         var releaseDir = setup.Folders?.AbsReleaseDir ?? ModBuilderConstants.DefaultReleaseDir;
         var buildDir = setup.Folders?.AbsBuildDir ?? ModBuilderConstants.DefaultBuildDir;
 
-        if (!Directory.Exists(bundlesDir) || setup.Bundles?.Packs == null)
+        if (setup.Bundles?.Packs == null)
         {
             return;
         }

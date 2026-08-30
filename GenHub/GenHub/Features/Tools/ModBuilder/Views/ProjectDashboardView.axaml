@@ -285,21 +285,8 @@
                                          Margin="0,2,0,0"/>
                             </StackPanel>
 
-                            <!-- Delete / Remove Action Buttons -->
-                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                              <Button Classes="icon-button"
-                                      Padding="6"
-                                      Background="Transparent"
-                                      BorderThickness="0"
-                                      Command="{Binding $parent[UserControl].((vm:ModBuilderViewModel)DataContext).RemoveRecentProjectCommand}"
-                                      CommandParameter="{Binding}"
-                                      ToolTip.Tip="Remove from recent list">
-                                <Path Width="12" Height="12"
-                                      Fill="{DynamicResource TextSecondary}"
-                                      Data="{StaticResource IconClose}"
-                                      Stretch="Uniform"/>
-                              </Button>
-
+                            <!-- Delete Action Button -->
+                            <StackPanel Grid.Column="2" VerticalAlignment="Center">
                               <Button Classes="icon-button"
                                       Padding="6"
                                       Background="Transparent"

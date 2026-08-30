@@ -719,7 +719,8 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
                 "Delete Project",
                 $"Are you sure you want to permanently delete '{name}'?\n\nThis will delete the project file and its directory from disk:\n{path}",
                 confirmText: "Delete",
-                cancelText: "Cancel").ConfigureAwait(false)
+                cancelText: "Cancel",
+                sessionKey: "ModBuilder_DeleteProject_Confirmation").ConfigureAwait(false)
             : true;
 
         if (!confirmed)
@@ -754,6 +755,30 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
             _logger.LogError(ex, "Failed to delete project at {Path}", path);
             _notificationService.ShowError("Delete Failed", $"Failed to delete project: {ex.Message}");
         }
+    }
+
+    private string GetEffectiveProjectDir()
+    {
+        if (CurrentProject != null && !string.IsNullOrEmpty(CurrentProject.ProjectDir) && Directory.Exists(CurrentProject.ProjectDir))
+        {
+            return CurrentProject.ProjectDir;
+        }
+
+        if (!string.IsNullOrEmpty(ProjectPath))
+        {
+            if (Directory.Exists(ProjectPath))
+            {
+                return ProjectPath;
+            }
+
+            var dir = Path.GetDirectoryName(ProjectPath);
+            if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
+            {
+                return dir;
+            }
+        }
+
+        return CurrentProject?.ProjectDir ?? string.Empty;
     }
 
     private static (string Path, string Name) ExtractProjectInfo(object? parameter)
@@ -862,7 +887,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         try
         {
-            var projectDir = !string.IsNullOrEmpty(ProjectPath) ? Path.GetDirectoryName(ProjectPath) : CurrentProject.ProjectDir;
+            var projectDir = GetEffectiveProjectDir();
             if (!string.IsNullOrEmpty(projectDir))
             {
                 await FileManager.InitializeAsync(projectDir).ConfigureAwait(false);
@@ -1489,34 +1514,49 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         try
         {
-            var projectDir = Path.GetDirectoryName(ProjectPath);
+            var projectDir = GetEffectiveProjectDir();
             if (string.IsNullOrEmpty(projectDir))
             {
                 return 0;
             }
 
-            var editFolder = Path.Combine(projectDir, "GameFilesEdited");
-            if (!Directory.Exists(editFolder))
+            var editFolder = Path.Combine(projectDir, ModBuilderConstants.GameFilesEditedDir);
+            if (Directory.Exists(editFolder))
             {
-                return 0;
+                // Count all real mod asset files in GameFilesEdited folder (excluding READMEs)
+                var fileCount = await Task.Run(
+                    () =>
+                    {
+                        try
+                        {
+                            return Directory.GetFiles(editFolder, "*.*", SearchOption.AllDirectories)
+                                .Where(f => !Path.GetFileName(f).Equals("README.txt", StringComparison.OrdinalIgnoreCase))
+                                .Count();
+                        }
+                        catch
+                        {
+                            return 0;
+                        }
+                    },
+                    CancellationToken.None).ConfigureAwait(false);
+
+                if (fileCount > 0)
+                {
+                    return fileCount;
+                }
             }
 
-            // Count all files in GameFilesEdited folder recursively
-            var fileCount = await Task.Run(
-                () =>
+            // Fallback: check bundle items in configuration
+            if (CurrentProject.Configuration?.Items != null && CurrentProject.Configuration.Items.Count > 0)
+            {
+                var totalItemFiles = CurrentProject.Configuration.Items.Sum(i => i.Files?.Count ?? 0);
+                if (totalItemFiles > 0)
                 {
-                    try
-                    {
-                        return Directory.GetFiles(editFolder, "*.*", SearchOption.AllDirectories).Length;
-                    }
-                    catch
-                    {
-                        return 0;
-                    }
-                },
-                CancellationToken.None).ConfigureAwait(false);
+                    return totalItemFiles;
+                }
+            }
 
-            return fileCount;
+            return 0;
         }
         catch (Exception ex)
         {
@@ -1761,7 +1801,7 @@ public partial class ModBuilderViewModel : ObservableObject, IDisposable
 
         try
         {
-            var projectDir = Path.GetDirectoryName(ProjectPath) ?? CurrentProject.ProjectDir;
+            var projectDir = GetEffectiveProjectDir();
 
             // Load configuration if not already loaded
             if (CurrentProject.Configuration == null && !string.IsNullOrEmpty(projectDir))

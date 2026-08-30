@@ -181,13 +181,6 @@
                 <TextBlock Text="Open" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
-            <Button Command="{Binding LoadSampleProjectCommand}" Classes="header-accent-btn"
-                    ToolTip.Tip="Load the bundled BasicMod sample project">
-              <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                <Path Width="13" Height="13" Fill="{DynamicResource AccentBrush}" Data="{StaticResource IconArchiveFile}" Stretch="Uniform" VerticalAlignment="Center"/>
-                <TextBlock Text="Sample" VerticalAlignment="Center"/>
-              </StackPanel>
-            </Button>
             <Button Command="{Binding OpenFileManagerCommand}" Classes="header-action-btn"
                     IsEnabled="{Binding CurrentProject, Converter={x:Static ObjectConverters.IsNotNull}}"
                     ToolTip.Tip="Open dedicated Game Asset &amp; File Manager">
